@@ -62,17 +62,42 @@ pub fn decode_canonical<T: Serialize + DeserializeOwned>(bytes: &[u8]) -> Result
 /// A frame is a little-endian `u32` length followed by that many bytes.
 pub const FRAME_PREFIX_BYTES: usize = 4;
 
+/// A frame prefix announced more bytes than the reader admits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FrameTooLarge {
+    /// The length the prefix announced.
+    pub length: usize,
+    /// The limit it was checked against.
+    pub max: usize,
+}
+
+impl fmt::Display for FrameTooLarge {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "frame of {} bytes exceeds the admitted {} bytes",
+            self.length, self.max
+        )
+    }
+}
+
+impl std::error::Error for FrameTooLarge {}
+
+impl From<FrameTooLarge> for io::Error {
+    fn from(error: FrameTooLarge) -> Self {
+        io::Error::new(io::ErrorKind::InvalidData, error)
+    }
+}
+
 /// The payload length a frame prefix announces, refused if above `max`.
 /// Every reader, blocking or not, calls this before it allocates.
-pub fn frame_len(prefix: [u8; FRAME_PREFIX_BYTES], max: usize) -> io::Result<usize> {
+pub fn frame_len(prefix: [u8; FRAME_PREFIX_BYTES], max: usize) -> Result<usize, FrameTooLarge> {
     let length = u32::from_le_bytes(prefix) as usize;
     if length > max {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "frame exceeds the admitted size",
-        ));
+        Err(FrameTooLarge { length, max })
+    } else {
+        Ok(length)
     }
-    Ok(length)
 }
 
 /// Appends one whole frame carrying `value` to `out`: one buffer, one write.
@@ -200,8 +225,14 @@ mod tests {
         encode_frame(&("hello", 7u32), &mut out).unwrap();
         assert_eq!(out[0], 0xaa);
         assert_eq!(&out[1..], expected.as_slice());
-        assert_eq!(frame_len([5, 0, 0, 0], 16).unwrap(), 5);
-        assert!(frame_len([17, 0, 0, 0], 16).is_err());
+        assert_eq!(frame_len([5, 0, 0, 0], 16), Ok(5));
+        assert_eq!(
+            frame_len([17, 0, 0, 0], 16),
+            Err(FrameTooLarge {
+                length: 17,
+                max: 16
+            })
+        );
     }
 
     #[test]

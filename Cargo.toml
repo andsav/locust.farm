@@ -44,6 +44,9 @@ tracing = "0.1"
 [profile.dev.package.blake3]
 opt-level = 3
 
+[profile.dev.package.chacha20]
+opt-level = 3
+
 [profile.dev.package.chacha20poly1305]
 opt-level = 3
 
@@ -54,6 +57,9 @@ opt-level = 3
 opt-level = 3
 
 [profile.dev.package.libsqlite3-sys]
+opt-level = 3
+
+[profile.dev.package.poly1305]
 opt-level = 3
 
 [profile.dev.package.sha2]
