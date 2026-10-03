@@ -40,6 +40,7 @@ The first release must prove this entire flow with real coding agents and a real
 | Transport | Evaluate Iroh first; rust-libp2p is the alternative | Decide through connectivity and persistence experiments |
 | Local persistence | SQLite for events, projections and durable outbound intent; separate immutable blob files | The event log may supply reconciliation intent; other delivery obligations need durable pending records |
 | Agent integration | Structured CLI, portable skill and thin local stdio MCP bridge | Uses supported client interfaces without assuming sandboxed shell commands can reach daemon IPC |
+| Client lifecycle integration | Implement Locust-owned Rust adapters, using hcom's client-integration patterns as design references | Own the launch, hook, session and delivery contract; no hcom binary, fork or source transplant |
 | Initial execution | Active coding-agent sessions; explicit resume is the common baseline | Optional wait/wake behavior is qualified per client, not assumed from installation |
 | Initial release targets | macOS arm64 and Linux x86_64; Codex and Claude Code local clients | A proposed, bounded qualification matrix, not a current support claim |
 
@@ -47,7 +48,7 @@ Resolve these defaults in the opening implementation pass so parallel work has s
 
 ### Deferred scope
 
-Public global agent discovery, global names/reputation, a marketplace, Byzantine consensus, automatic coordinator failover, a universal multiwriter filesystem, built-in model inference and a universal sandbox are outside the first release. Unattended agent runners, optional retention peers, A2A and deeper native adapters are follow-on capabilities. The thin stdio MCP bridge is included in the first release; additional MCP transports and automatic session wake are optional qualification work. Relay configuration remains part of the initial connectivity work.
+Public global agent discovery, global names/reputation, a marketplace, Byzantine consensus, automatic coordinator failover, a universal multiwriter filesystem, built-in model inference and a universal sandbox are outside the first release. Unattended agent runners, optional retention peers, A2A and deeper Merak/Pi integrations are follow-on capabilities. The thin stdio MCP bridge is included in the first release. Locally initiated client launch and hook/session integration are a parallel implementation workstream; automatic session wake and additional MCP transports remain optional qualification work. Relay configuration remains part of the initial connectivity work.
 
 ## 2. Current repository and evidence
 
@@ -58,6 +59,8 @@ The [landscape survey](../research/landscape.md) evaluates Iroh, rust-libp2p, Op
 Useful MoltMesh ideas are the daemon/API boundary, durable queues, explicit task records and immutable artifact references. Its reproduced task/restart/release failures and source-established recovery/authorization gaps become Locust test cases. Its local multi-process demo is positive evidence for that implementation's happy path; it is not validation of Locust or of WAN/Byzantine behavior. The earlier [implementation proposal](../research/locust-implementation-proposal.md) remains research background; this document adds the execution sequence and installation contract.
 
 The [second independent review](../research/implementation-plan-independent-review.md) motivates the client, recovery and release refinements below. The [review response](implementation-plan-review-response.md) records what was incorporated, qualified or rejected. Reviewer-reported probes are not Locust release evidence; retain exact commands and raw results when qualifying the implementation.
+
+The [hcom assessment](../research/hcom-dissection.md) informs the client lifecycle workstream. **Accepted direction, October 3:** implement these ideas directly in Locust's Rust code, rather than adopt hcom as a runtime or fork. Its source and [characterization results](../research/evidence/hcom-validation.md) are references for behavior and failure cases, not implementation or verification of Locust adapters.
 
 ## 3. System shape
 
@@ -73,6 +76,9 @@ flowchart LR
     D --> B[Encrypted immutable blob store]
     D <-->|Reconcile events and fetch blobs| P[Peer daemons]
     D -. Rendezvous and relayed transport .-> R[Replaceable relay]
+    O[Local participant] -->|Authorized launch or resume| L[Locust client adapter]
+    D -. Pending IDs and status .-> L
+    L -->|Client lifecycle and qualified wake| A
     A --> W[Participant-managed sandbox and worktree]
     W -->|Explicit export or result submission| C
 ```
@@ -82,6 +88,8 @@ The peer-to-peer layer moves durable records and blobs between machines. The coo
 The agent plans, negotiates and reviews. The daemon checks authority, validates transitions, retains state and transfers data. A remote task is an offer to an enrolled participant; it is never a direct instruction to the daemon to execute arbitrary shell commands.
 
 Use one installed `locust` executable initially, with daemon, CLI and stdio MCP subcommands. Each MCP bridge connects to the existing daemon; closing a client does not discard daemon identity or history. Keep protocol, storage, transport, task and artifact modules inside the existing crate until splitting them has a demonstrated benefit. Do not add a web UI, actor framework, CRDT framework or consensus engine merely to complete the diagram. A CLI board view and structured queries are sufficient for the initial product.
+
+Implement the local client adapter in that same Rust application, outside the peer-ingress path. It composes client launch, configuration, hooks and session observation; it does not add another collaboration store or protocol. A participant-selected supervisor must cover the managed process tree and hooks if whole-worker confinement is claimed. Existing sessions can use CLI/MCP and explicit resume without being launched by Locust.
 
 Without a retention peer, new state crosses between two participants only while their daemons can communicate. Display last successful synchronization and pending/unknown remote state; an offline agent session differs from an offline daemon. Name the selected relay/discovery operators and addressing metadata they observe. Iroh may use a relay for initial rendezvous before switching to a direct connection, so a relay is not merely an exceptional fallback. Carry usable relay/contact hints in invitations and test replacement. [Iroh connection and relay behavior](https://docs.rs/iroh/1.3.0/iroh/).
 
@@ -199,7 +207,7 @@ Expose artifact states separately: available locally, verified/retained, request
 
 Keep detachable user content behind payload hashes; minimize content in signed structural headers. Define `leave` as stopping local participation/sync and requesting membership removal, without claiming peers learned it while disconnected or erased their copies. Local data purge is separate. An incident can stop sharing and withdraw detachable locally served user payloads while retaining the typed signed fields required for membership/assignment validation and deterministic projection replay. A payload hash alone cannot replace those structural records; missing user content is reported as unavailable. A coordinated redaction protocol is deferred and cannot promise erasure from other participants or backups.
 
-## 6. Local API, CLI and operating skill
+## 6. Local API, client adapters and operating skill
 
 Use an authenticated local IPC endpoint, with a Unix socket as the initial platform default. Keep it independent of the P2P transport. Do not expose an unauthenticated TCP administration endpoint for convenience. CLI, stdio MCP and future SDKs call the same authorization/state-transition implementation. The MCP bridge holds scoped agent authority and exposes typed collaboration operations, not generic host execution. Do not install a broad unsandboxed `locust` command exemption to work around a client's IPC restrictions.
 
@@ -209,6 +217,7 @@ Proposed command surface; these commands are **not implemented yet**:
 |---|---|
 | Lifecycle | `locust daemon start`, `status`, `stop`; `locust doctor` |
 | Client bridge | `locust mcp` over stdio; optional `locust hook <event>` for qualified client hooks |
+| Managed client sessions | Locally authorized launch/resume, inspect binding/readiness/capabilities, and request cancellation; never a peer-callable launch endpoint |
 | Identity and client enrollment | Inspect identity; enroll/revoke an agent; inspect granted scope |
 | Goals | Create, invite, join, inspect, leave, and inspect synchronization status |
 | Board | List/read tasks and decisions; read events; wait from a durable cursor |
@@ -224,7 +233,28 @@ The skill teaches enrollment and goal joining, context inspection, typed coordin
 
 The [Agent Skills specification](https://agentskills.io/specification) supports instructions and optional scripts. The CLI and stdio MCP bridge supply executable operations; the skill teaches their use. Qualify the bridge early on default Codex and Claude Code configurations rather than assuming their shell sandbox permits local sockets. [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), [Claude Code MCP](https://code.claude.com/docs/en/mcp).
 
-Use the [hcom source assessment](../research/hcom-dissection.md) as client-integration prior art. Track tool availability, active-session delivery, idle wake, session binding and execution confinement separately. Emitting or enqueueing a notification does not prove a durable task claim; test client exit after delivery and duplicate/late wake. Preserve the caller's permission policy and configuration when generating adapter settings. Optional Pi/hook extraction or a local hcom client-runtime backend must use the same daemon API and requires separate qualification; neither is a new first-release dependency.
+### Locust-owned client lifecycle adapters
+
+**Accepted implementation direction; not implemented:** write the integration in Rust inside Locust. Use the [hcom client-integration assessment](../research/hcom-dissection.md) to learn its useful patterns: per-run configuration, separate process/session identity, readiness, active-session hooks, idle wake, resume and cleanup. Do not depend on an hcom executable, maintain an hcom fork, or transplant its modules. Keep the planned daemon, authenticated API and task state as the only collaboration authority.
+
+Begin with Codex and Claude Code and keep common lifecycle logic separate from each client's argument, configuration and event formats. Introduce only the small modules and types those implementations actually share; do not prebuild a generic plugin framework. A future Pi extension may need a small client-native shim, while Rust retains the common lifecycle and daemon logic. Merak/Pi integration remains separately qualified.
+
+| Component | Locust responsibility and boundary |
+|---|---|
+| Per-run configuration | Build explicit argv/environment and a reviewable configuration overlay for the selected workspace, Locust skill/MCP setup and participant-selected permissions/authentication. Preserve unrelated settings and refuse an invalid required policy; never silently add trust, writable roots, network access or auto-approval. |
+| Launch and readiness | Persist a local launch intent before spawning. Distinguish process started, client initialized, tools/hooks ready, blocked on user action and exited. Do not infer readiness from a process existing or a prose startup line. |
+| Session binding | Persist worker/attempt/generation to local launch, process and client session/actor mapping in Locust's local operational state. Handle new/resume/fork explicitly. A session identifier or actor label is not a scoped credential or claim-recovery proof. |
+| Notifications | Use qualified hooks for active-session delivery and the client's supported wake path for idle sessions. Add managed PTY support only where that client path needs it. Deliver daemon-authored pending-work/cancellation IDs and status; retrieve attributed peer content through ordinary scoped tools. |
+| Recovery and cancellation | Reconcile launch/session state after interruption, recover pending work from durable task state and deduplicate notifications. Keep cancellation requested until the executor acknowledges its outcome; messaging shutdown, idle status and process-exit observation have different meanings. |
+| Diagnostics and capabilities | Report exact client/version, effective profile and support for tool access, active-session delivery, idle wake, manual resume, session recovery and confinement independently. Retain redacted task/event/session correlations without credentials or private transcripts by default. |
+
+Only local participant authorization may initiate or resume a managed client. Remote assignment remains a task offer; it cannot launch or kill a local process. Existing explicit local grants persist. A manually launched managed session does not establish unattended activation when it exits. Do not claim native wake can attach to an arbitrary existing terminal or Codex desktop chat; unmanaged sessions keep the CLI/MCP and explicit-resume path.
+
+Treat launch as a recoverable side effect. A unique launch identifier alone does not prevent duplication: if Locust crashes after spawning but before recording the returned session, reconcile the persisted intent against owned process/session evidence before retrying. If the outcome cannot be established, report it as unknown and require local resolution rather than automatically creating a second worker. Validate attempt generation and scoped authority again when a recovered session claims or submits work.
+
+Keep wake issued, notification emitted/enqueued, attempt durably claimed, result submitted and result accepted as separate states. A hook flush or plugin enqueue does not prove the model saw the work or took ownership. Client exit after delivery, lost/duplicate/late wake, expired credentials and stale bindings must leave unclaimed work recoverable through the daemon. Hook callbacks stay nonblocking; a missed wake cannot be the only record of pending work.
+
+Build Locust's own real-client qualification harness around isolated profiles and a localhost scripted provider, following hcom's testing approach with independently written fixtures. Test launch/delivery/resume/cancellation through actual client binaries, then run separate real-model task flows and packaged installation checks. hcom's passing lifecycle cases and intermittent Claude approval-resume failure identify scenarios to exercise; they do not qualify Locust. Default-permission tests must be distinct from deliberately permissive lifecycle tests. Automatic wake is supported only for the exact client/profile where it passes; manual resume remains the common baseline.
 
 ### First-session contract
 
@@ -254,9 +284,9 @@ Test client reload requirements instead of claiming they are uniform. Current re
 
 ### Installation does not establish an unattended worker
 
-The daemon can stay online to retain, synchronize and receive work while no model session runs. The first release requires an active coding agent to join a goal and query/wait for work, with explicit resume when the session ends. Some clients support pushing events into open sessions; that is an adapter-specific capability, not a protocol guarantee.
+The daemon can stay online to retain, synchronize and receive work while no model session runs. The first release requires an active coding agent to join a goal and query/wait for work, with explicit resume when the session ends. The participant may start that session directly or through Locust's locally authorized client adapter. Some clients support pushing events into open sessions; that is an adapter-specific capability, not a protocol guarantee.
 
-A later opt-in runner may launch/resume a supported headless client under operator-selected credentials, workspace, sandbox and spending policy. It must persist its mapping from attempt to process/session, avoid duplicate launches after restart, deliver cancellation and report uncertain outcomes. Closed-session activation, cross-client session resume and model execution are separate qualification gates. [Claude Code headless interface](https://code.claude.com/docs/en/headless), [Cursor headless interface](https://cursor.com/docs/cli/headless).
+A later opt-in unattended runner may activate a supported headless client when no session is running, under an explicit local standing grant and operator-selected credentials, workspace, sandbox and spending policy. Reuse the local adapter's launch/session/recovery contract rather than add another execution authority. Closed-session activation and cross-client session resume require separate qualification from delivery into an already active client. [Claude Code headless interface](https://code.claude.com/docs/en/headless), [Cursor headless interface](https://cursor.com/docs/cli/headless).
 
 ## 8. Execution through October 4
 
@@ -275,6 +305,7 @@ Use the single [release evidence ledger](release-evidence.md) for gate status, c
 | Daemon and coordination | M1/M3: local IPC, SQLite event/pending-intent transactions, authority validation, tasks/claims and scratchpad projections; publish command/event fixtures first | One state-transition implementation used by local commands and incoming peer events |
 | P2P and artifacts | M0/M2 plus blob handling in M4: stack selection, identity/invites, authorized replication, encryption and retained transfers | Consume the shared event/authority contract; exercise two-machine connectivity immediately |
 | Agent workflow and workspace | M1/M3/M4/M6: CLI/stdio MCP flow, coordinator/worker playbooks, wait/resume behavior, snapshots, patches and review | Run real Codex and Claude Code sessions under clean default profiles as soon as the executable task path exists; feed failures directly back to other streams |
+| Client lifecycle integration | M1/M3/M5/M6: Locust-owned Rust launch/configuration, session binding, hooks, qualified wake, recovery and diagnostics; publish capability and lifecycle fixtures | Use the existing daemon API and local operational store; test actual Codex/Claude binaries with independently written scripted-provider fixtures and preserve the unmanaged CLI/MCP path |
 | Installation and release | M5: build artifacts, installer, skill adapters, service lifecycle and clean-machine checks | Start from development artifacts; replace them with the exact release candidate and verify every claimed platform/client |
 
 Module/file ownership should be explicit before concurrent edits. Shared event types, command responses and storage interfaces have one integration owner; other streams propose changes through that owner. Use separate worktrees/branches for overlapping implementation streams and verify their merged result, preserving unrelated work. Select maintained transport, storage and cryptographic components against the required behavior. Evaluate whether a collaboration library also supplies useful replication/persistence pieces; reuse where its demonstrated semantics fit, without assuming either adoption or a custom implementation is inherently faster.
@@ -283,7 +314,7 @@ Module/file ownership should be explicit before concurrent edits. Shared event t
 
 | When | Required integrated result | Evidence to retain |
 |---|---|---|
-| October 3, opening pass | Agree versioned event/decision, local API and task fixtures; choose compatible dependencies; start all four streams | Minimal protocol/permission contract and runnable transport probe, with unresolved choices assigned to an owner |
+| October 3, opening pass | Agree versioned event/decision, local API, task and client-lifecycle fixtures; choose compatible dependencies; start all five streams | Minimal protocol/permission contract and runnable transport probe, with unresolved choices assigned to an owner |
 | October 3, first runnable slice | Two active real coding-agent sessions use CLI/MCP to assign, claim, execute, submit and review a small code task; test wait, interruption and explicit resume on default client profiles | Actual commands, exact client/permission/authentication configuration, task/result identities and patch; mark local-only transport, fixtures or missing persistence explicitly |
 | October 4, integration | Run the same workflow through two actual daemons on separate machines with invitation, private replication, notes, input snapshot and retained result; integrate restart/reconnect and authority checks | Event/artifact identities, route information and failure-test results; no remaining test stand-ins in the release path |
 | October 4, release candidate | Produce signed candidate artifacts and install through the prompt; run the packaged end-to-end scenario and claimed support matrix | Exact artifact hashes/versions, install and runtime checks, real-agent/network results and outstanding failures |
@@ -305,7 +336,7 @@ These are execution targets, not claims that a checkpoint has passed. Start dete
 
 **Exit evidence:** local CLI and MCP roundtrips work; unauthorized/missing credentials and wrong-goal operations are rejected; request-digest idempotency works; state and recoverable outbound intent commit together; restart rebuilds the same projection without duplicate application; cursors cannot lose work; process shutdown/concurrent startup and restored-state signing restrictions behave correctly. Crash-inject before/after durable acknowledgments. Add matching macOS CI alongside Linux and a release-build fresh-database smoke as the runtime lands; do not treat CI as packaged-install or WAN proof.
 
-Start a deterministic real-client harness using isolated client profiles and a localhost scripted provider; hcom's small HTTP fixture and provider codecs are concrete reuse candidates with retained upstream license/provenance. Adapt the scenarios to Locust task/claim/artifact assertions. Separate default-permission tests from permissive lifecycle tests and real-model collaboration; none substitutes for the others. [Reuse and evidence boundaries](../research/hcom-dissection.md).
+In parallel, implement the first Locust-owned client launch/configuration and session-binding path, then add the second client and extract demonstrated common behavior. Define lifecycle observations and capability reporting separately from task transitions. Write a deterministic real-client harness using isolated profiles and a localhost scripted provider, informed by [hcom's test design](../research/hcom-dissection.md). Verify actual CLI/MCP access and readiness, unchanged permission policy/configuration, blocked authentication/approval states, and crash recovery around launch. These are Locust implementations and tests, with no hcom runtime or copied fixtures. Separate default-permission tests from permissive lifecycle tests and real-model collaboration; none substitutes for the others.
 
 ### M2 — Private peer replication and retained artifacts
 
@@ -319,6 +350,8 @@ Start a deterministic real-client harness using isolated client profiles and a l
 
 **Exit evidence:** one coordinator and two worker identities on three local daemon instances complete a synthetic goal; the agent credential alone cannot recover another session's claim; long tool calls and restart do not lose work; authenticated recovery is idempotent and superseded tokens cannot finalize. Authored deadlines/retry policy survive transfer; cancellation remains visible until acknowledged; result delivery survives acknowledgment loss. With the coordinator disconnected, the two workers exchange contributions while authoritative changes remain pending. Conflicting shared-document revisions stay inspectable; authority conflicts halt only the affected goal. The two-machine public scenario does not replace these three-instance tests.
 
+Connect the client adapters to this same task flow: persist attempt/session mappings, deliver pending IDs through qualified hooks, and verify restart/rebind, duplicate or lost notifications, launch uncertainty and cancellation races. Test that peer assignment never invokes launch and that native session identifiers cannot replace claim proofs. Exercise idle wake separately, including approval prompts and active user input; unsupported wake keeps the explicit-resume path.
+
 ### M4 — Coding workspace contributions
 
 **Interface dependencies:** M3 task/result types and M2 blob interface; local snapshot/patch operations can develop concurrently. **Deliverables:** explicit manifest export, base-bound task input, separate participant workspace materialization, patch/artifact submission, reviewable integration and accepted workspace-head updates. Define retention/garbage collection, local payload withdrawal and leave behavior with pinned metadata and active-transfer protection.
@@ -329,9 +362,11 @@ Start a deterministic real-client harness using isolated client profiles and a l
 
 **Begins:** with the initial command/install contract and development artifacts. **Public qualification depends on:** integrated M1–M4. **Deliverables:** signed artifacts/manifest, installer, service/skill/MCP adapters, prompt, upgrade/uninstall behavior and concise troubleshooting. Assign release location/signing-key custody and the owner's license choice as release prerequisites. Specify log locations, a redacted diagnostic bundle joined by task/event IDs, and signed withdrawn-version metadata; do not install a withdrawn release by default. Website release information must refer to real artifacts.
 
-**Exit evidence:** clean installs on every claimed OS/architecture/client using isolated default profiles, preserving the owner's settings; record exact permission/authentication modes and necessary opt-ins. Repeat install preserves identity/configuration/services; the agent performs real operations through its configured CLI or MCP path and a new session discovers the skill. Exercise task flow, host timeout/interruption, cancellation, explicit resume and persisted delivery recovery. Record optional hook/wake results separately. Test denied permissions, reload, interrupted installation, failed service start, restore-safe migration and uninstall preservation. Each packaged binary must write/read/restart on a fresh database; `--version` is insufficient.
+**Exit evidence:** clean installs on every claimed OS/architecture/client using isolated default profiles, preserving the owner's settings; record exact permission/authentication modes and necessary opt-ins. Repeat install preserves identity/configuration/services; the agent performs real operations through its configured CLI or MCP path and a new session discovers the skill. Exercise task flow, host timeout/interruption, cancellation, explicit resume and persisted delivery recovery. Qualify Locust-managed launch/session behavior separately from existing-session CLI/MCP use, and record optional hook/wake results per client/profile. Test denied permissions, reload, interrupted installation, failed service start, restore-safe migration and uninstall preservation, including Locust-owned hook/configuration artifacts without deleting unrelated settings. Each packaged binary must write/read/restart on a fresh database; `--version` is insufficient.
 
 Do not advertise “any coding agent” from one successful install. Publish OS/architecture, client/version, permission/authentication mode, transport, active-session/wake behavior and reload requirements. Generic shell agents may use the CLI where permitted but are not automatically native-skill-compatible or exempt from their sandbox.
+
+Ship Locust's own adapter code in the Locust artifact. Coding clients remain participant-installed and authenticated; record the exact tested client versions and reject or clearly report unsupported capability/version combinations. No hcom companion executable, dependency or update channel is part of installation.
 
 ### M6 — End-to-end collaboration beta
 
@@ -339,13 +374,15 @@ Do not advertise “any coding agent” from one successful install. Publish OS/
 
 **Exit evidence:** two people on separate machines, using mixed clients and independent accounts without a shared forge dependency, paste the prompt, join a goal, delegate a concrete code task, share notes, submit/accept a patch and recover after disconnect/restart. Exercise direct/relayed transport and honest no-overlap availability reporting. Confirm the exact declared base, accepted artifact and separately observed local integration. Preserve event/artifact IDs, versions, route information and results without credentials/private source content.
 
+Repeat the task flow through Locust-managed client sessions for each claimed lifecycle capability, while retaining a successful unmanaged CLI/MCP and explicit-resume run. Real-model task completion, deterministic hook/wake tests and confinement checks establish different claims; record them separately.
+
 Publish the exact verified boundary: platform/client versions, real networks used, active-session requirement, coordinator outage behavior, holder availability and measured resource use. Set defensible “small daemon” targets from M0/M6 measurements, then guard regressions. Do not substitute an unmeasured size slogan or arbitrary fixed resource caps.
 
 ### Later milestones
 
 1. **Optional retention peers:** encrypted stores/mailboxes for participants with non-overlapping uptime; explicit retention policies, signed receipts, authorization and holder-loss tests. A local sender outbox alone does not provide this service.
 2. **Opt-in unattended runners:** one supported headless client at a time, with operator-controlled execution/sandbox and real closed-session startup/cancellation/restart tests.
-3. **Additional transports/clients and A2A:** deeper Merak/Pi adapters, optional hooks/wake and additional MCP transports over the same contracts; identical authorization and task tests, plus separately qualified local sandbox capabilities.
+3. **Additional transports/clients and A2A:** deeper Merak/Pi adapters, further hook/wake coverage and additional MCP transports over the same contracts; identical authorization and task tests, plus separately qualified local sandbox capabilities.
 4. **Scale and authority evolution:** improve selective sync and storage after profiling; design explicit coordinator handoff/recovery if demanded by usage. Public discovery and replicated authority require their own threat/failure models and decisions.
 
 ## 9. Failure-focused conformance suite
@@ -363,6 +400,9 @@ Build tests around invariants and boundary failures, not copies of implementatio
 | Checkpoints cannot lose unclaimed work | Crash after delivery before claim; transient claim failure | M1/M3 |
 | Ingress checkpoint cannot outrun persistence | Event insert failure, unchanged cursor, storage recovery and identical-event retry; atomic projection update | M1/M2 |
 | Notification handoff is not task ownership | Client exits after flush/enqueue before claim; duplicate/late wake; stale session binding and failed delivery acknowledgment | M1/M3/M5 |
+| Client launch preserves local policy and ownership | Invalid config; existing root/network/approval settings; argv separators; authentication denied; remote assignment cannot spawn a process | M1/M5 |
+| Launch and session recovery do not duplicate execution | Crash after spawn before binding; lost readiness response; stale/reused process identity; resume/fork/rebind with an old attempt generation | M1/M3 |
+| Wake and cancellation respect client state | Idle versus busy client; approval prompt or active user input; request/exit/result race; surviving child processes and unknown effects | M3/M5 |
 | Idempotency covers the entire request | Same key with another assignee/input/policy | M1/M3 |
 | Remote policy matches authored intent | Deadline/attempt policy through request, restart and reassignment | M3 |
 | Cancellation and completion have defined ordering | Executor offline; cancellation races result; effect outcome unknown | M3 |
@@ -380,9 +420,9 @@ Keep unit/state-machine tests deterministic and exercise delayed, reordered, par
 
 ## 10. Implementation workflow and immediate next steps
 
-1. Assign module/interface ownership across the four streams and the October 4 evidence ledger. Confirm support/consent/offline defaults and assign the license/relay/signing-key decisions to their owners.
+1. Assign module/interface ownership across the five streams and the October 4 evidence ledger. Confirm support/consent/offline defaults and assign the license/relay/signing-key decisions to their owners.
 2. Publish minimal protocol/permission/state-transition and API fixtures, select compatible dependencies through the transport/collaboration experiment, and record the decisions with evidence. Continue independent implementation while remaining experiments run.
-3. Connect the first daemon/CLI/stdio bridge task path to coordinator and worker playbooks. Run default-profile Codex and Claude Code sessions immediately, including wait/interruption/resume, and retain the actual code contribution.
+3. Connect the first daemon/CLI/stdio bridge task path to coordinator and worker playbooks. In parallel, implement Locust's Rust client launch/configuration, session and delivery modules using hcom's ideas as references. Run default-profile Codex and Claude Code sessions immediately, including wait/interruption/resume and separately managed lifecycle tests, and retain the actual code contribution.
 4. Integrate private two-machine replication, retained snapshots/results and deterministic correctness tests. Keep packaging and clean-install checks running alongside this work.
 5. Build the release candidate, complete the packaged support matrix and end-to-end checks, fix failures, and release that exact verified artifact on October 4 at night. Keep the prompt, skill and release claims aligned with the shipped commands and recorded evidence.
 

@@ -13,7 +13,7 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-- [Locust implementation plan](implementation-plan.md): proposed architecture, coordination and task contracts, one-prompt installation, milestones and acceptance tests.
+- [Locust implementation plan](implementation-plan.md): proposed architecture, coordination and task contracts, Locust-owned Rust client adapters, one-prompt installation, milestones and acceptance tests.
 - [Implementation plan review](implementation-plan-review.md): adversarial review of the proposed plan with prioritized objections, strengths and pre-implementation gates.
 - [Second review response](implementation-plan-review-response.md): adopted plan refinements, qualified simplifications and claims not adopted.
 - [Release evidence ledger](release-evidence.md): October 4 gate status and reproducible evidence requirements; no runtime checks recorded yet.

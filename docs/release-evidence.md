@@ -14,7 +14,8 @@ The repository owner decides release go/no-go and changes to required scope or s
 | R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Not run | None |
 | R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Not run | None |
 | R6 — Real client behavior | M1/M5/M6: default-profile Codex and Claude, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Not run | None |
-| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs; fresh-DB write/read/restart; repeat install, migration, service and uninstall | Not run | None |
+| R6L — Locust client lifecycle | M1/M3/M5/M6: Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and each claimed hook/wake capability | Not run | None |
+| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Not run | None |
 | R8 — Real collaboration | M6: two people/machines, mixed clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
 | R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Not run | None |
 | R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Not run | None |
@@ -26,12 +27,25 @@ Add one record per actual check; use it from the corresponding gate row. A recor
 - Gate ID and exact assertion tested.
 - Candidate commit and packaged artifact hash, where applicable.
 - Evidence level: source review; deterministic/component runtime; multiprocess local; real-client/network; packaged installation; public-artifact verification.
-- Environment: OS/architecture, client/version, permission/sandbox configuration, integration opt-ins and authentication mode without credentials.
+- Environment: OS/architecture, client/version, permission/sandbox configuration, integration opt-ins and authentication mode without credentials. Distinguish an existing session using CLI/MCP from a session launched/managed by Locust.
 - Exact command or reproducible interaction sequence, result/exit status and elapsed time when useful.
 - Relative link to retained raw evidence, observer and scoped review reference. Redact credentials/private source before tracking evidence; disposable `output/` alone is not sufficient.
 - Outstanding failures and unverified boundaries. Keep failed observations when a later rerun passes.
 
 Prior-art tests, reviewer-reported probes and documentation-check success do not satisfy Locust runtime gates. Linux/macOS CI, a packaged install and a public artifact check establish different evidence levels.
+
+## Client lifecycle qualification
+
+The accepted direction is to implement client integration in Locust's Rust application, using [hcom's patterns](../research/hcom-dissection.md) as references. There is no hcom runtime, fork or source-transplant adoption gate. R6L qualifies Locust's own implementation and must record, per supported client/profile:
+
+- Effective configuration and permission preservation, required authentication/approval actions, and Locust skill/MCP readiness after launch.
+- Persisted launch intent and attempt/session binding; crash after spawn, ambiguous launch recovery, resume/fork/rebind, and stale claim rejection.
+- Notification loss/duplication and exit before claim, with pending work recovered from Locust task state.
+- Cancellation requested, observed process/descendant outcome and any uncertain effects; no launch triggered directly by peer assignment.
+- Active-session delivery, idle wake and explicit resume as separate capabilities. An unqualified optional wake path is reported as unsupported; the common manual-resume path still requires R6 evidence.
+- Exact packaged Locust artifact and client versions for shipped claims. Independently written scripted-provider tests, default-profile checks and real-model task runs are separate evidence records.
+
+The earlier hcom Codex/Claude runs only identify useful scenarios. In particular, the retained intermittent Claude approval-resume failure motivates testing delivery around approval prompts and active user input; neither that failure nor a later passing repeat establishes Locust behavior. See the [original evidence](../research/evidence/hcom-validation.md).
 
 ## Decisions still requiring an owner
 

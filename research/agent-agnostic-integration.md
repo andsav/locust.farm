@@ -8,7 +8,7 @@ Transport need not make Locust agent-specific. Codex, Claude Code and current Pi
 
 The more consequential differences are **session lifecycle and execution control**: whether the adapter can deliver work to an idle session, observe cancellation, resume an attempt, and enforce a particular local filesystem/network policy. Test and describe these separately from successful connectivity.
 
-The [implementation plan](../docs/implementation-plan.md) provides the base: one daemon state-transition implementation behind local IPC, a structured CLI and a portable skill. Following the second review, the plan now includes the thin stdio MCP bridge in the first release. Unattended runners and deeper native integrations remain deferred. The [hcom dissection](hcom-dissection.md) adds concrete adapter and test-harness reuse recommendations without making hcom a dependency.
+The [implementation plan](../docs/implementation-plan.md) provides the base: one daemon state-transition implementation behind local IPC, a structured CLI and a portable skill. Following the second review, the plan now includes the thin stdio MCP bridge in the first release. Following the [hcom dissection](hcom-dissection.md), the owner selected Locust-owned Rust client lifecycle adapters, using its ideas rather than adopting its runtime, fork or source. Locally initiated launch, session binding and qualified delivery now have an implementation workstream; unattended runners and deeper Merak/Pi integrations remain deferred.
 
 ## Three separate interfaces
 

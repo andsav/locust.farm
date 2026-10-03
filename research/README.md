@@ -16,7 +16,7 @@ repository root. Untracked drafts are excluded from the check.
 
 ### hcom client integration and reuse — 2026-10-03
 
-- [hcom dissection](hcom-dissection.md): pinned-source architecture, Codex/Claude/Pi adapters, whole-file versus whole-binary reuse, permission boundaries and replication limits.
+- [hcom dissection](hcom-dissection.md): pinned-source client-integration patterns, permission boundaries and test evidence; runtime reuse was assessed and superseded by the decision to implement the ideas independently in Rust.
 - [hcom validation evidence](evidence/hcom-validation.md): isolated CLI/delivery results, real Codex/Claude with scripted providers (including an intermittent Claude approval failure), and a storage-error probe.
 
 ### Implementation plan review — 2026-10-03

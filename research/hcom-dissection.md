@@ -1,10 +1,14 @@
 # hcom dissection and reuse assessment
 
-Date: 2026-10-03. **Status: source-backed research and local characterization, with adoption recommendations. No hcom code, dependency or runtime integration has been added to Locust.**
+Date: 2026-10-03. **Status: source-backed research and local characterization. The original runtime-adoption recommendation below was superseded by the owner's decision to implement the ideas independently in Rust. No hcom code, dependency or runtime integration has been added to Locust.**
 
 Reviewed [aannoo/hcom](https://github.com/aannoo/hcom) at commit [`132250bca22d7f25ac6e1fe3ac04710a6bfd5283`](https://github.com/aannoo/hcom/commit/132250bca22d7f25ac6e1fe3ac04710a6bfd5283), package version **0.7.27**. All source links below pin that revision. Compare the [Locust implementation plan](../docs/implementation-plan.md), [agent-agnostic integration](agent-agnostic-integration.md) and [second independent review](implementation-plan-independent-review.md).
 
-## Recommendation
+## Accepted direction after review
+
+Implement Locust-owned Rust client adapters using hcom's launch, per-run configuration, hooks, session binding, readiness, wake and recovery patterns as design references. Do not bundle its executable, maintain a fork or transplant source/test fixtures. The [implementation plan](../docs/implementation-plan.md) records this decision, component boundaries, implementation workstream and qualification gates. Locust retains one daemon/API/task authority and the common CLI/MCP/manual-resume path. The original reuse proposal is preserved below as an assessed alternative, not the selected implementation direction.
+
+## Original recommendation (superseded)
 
 hcom is valuable prior art for the difficult last mile between a local collaboration service and a running coding client: configuration, session/actor binding, mid-turn delivery, terminal wake, resume and diagnostics. Its relay and database do not implement Locust's independent-participant authority, accepted task/artifact state or durable signed history.
 
@@ -39,7 +43,7 @@ This is a local agent-messaging application, not a library façade over a single
 
 The typed message envelope is visible in [messages.rs](https://github.com/aannoo/hcom/blob/132250bca22d7f25ac6e1fe3ac04710a6bfd5283/src/messages.rs#L41-L104). The distinction between process and session is substantial implementation work in [instance_binding.rs](https://github.com/aannoo/hcom/blob/132250bca22d7f25ac6e1fe3ac04710a6bfd5283/src/instance_binding.rs#L473-L501). Reuse the lessons without substituting those identities for daemon authentication.
 
-## What can be adopted wholesale
+## Wholesale reuse options assessed (not adopted)
 
 | Candidate | Reuse decision | Work and constraints |
 |---|---|---|
@@ -134,7 +138,7 @@ The Claude failure retained one unread message while the client remained blocked
 
 Only the named Codex/Claude ignored test targets were run after fixture inspection, using disposable client installs/profiles and dummy credentials against localhost responses. No live-model provider call, live relay or user-profile reconfiguration was performed. A blanket ignored-test invocation remains unsuitable: other suites incur model use or connect to a broker, and one relay fixture uses broad process-name cleanup.
 
-## Recommended local client-runtime experiment
+## Previously recommended runtime experiment (not adopted)
 
 The recommended integration experiment is:
 
@@ -169,7 +173,7 @@ One likely narrow patch is a Locust bootstrap profile. hcom's [built-in instruct
 
 Before adopting that backend, prove caller policy is preserved, no unrelated config is touched, pending work survives a lost wake/client exit, stale sessions cannot claim, and idle wake works on the exact client version. Pin hcom and expose manual-resume fallback. This experiment could save most of the launch/hook/PTY compatibility implementation, but adds another binary, state store and compatibility matrix. It remains optional alongside the simple MCP path; the research does not make it a required release dependency.
 
-## What to fold into Locust now
+## Original proposed follow-up (superseded)
 
 1. Evaluate the pinned hcom local client runtime behind the narrow adapter above, retaining its cohesive lifecycle machinery. Keep this optional alongside the common MCP path; decide between an unchanged binary and a small bootstrap/policy fork from that experiment.
 2. Use the mock-provider/real-client test pattern early; transplant the small HTTP fixture when it has a consumer. Keep tools, active-session delivery, idle wake, binding and execution confinement as separately tested capabilities.
@@ -177,4 +181,4 @@ Before adopting that backend, prove caller policy is preserved, no unrelated con
 4. Treat client configuration as scoped generated data and verify preservation of caller policy. Do not inherit hcom's launch allowances or peer-text hook elevation.
 5. Retain direct Pi extension adaptation and transcript normalization as smaller alternatives where they meet the need. Keep the hcom runtime separate from the Locust protocol modules.
 
-These recommendations narrow reuse to concrete needs. The [implementation plan](../docs/implementation-plan.md) incorporates the qualification and failure cases; wholesale source adoption remains unimplemented.
+The owner subsequently chose independent Rust implementation. The [implementation plan](../docs/implementation-plan.md) incorporates the client-integration ideas, qualification approach and failure cases; the runtime/fork/transplant recommendations above are not adopted.
