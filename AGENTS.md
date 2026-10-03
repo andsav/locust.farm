@@ -8,28 +8,41 @@ new dependencies, crate boundaries, and tooling.
 - `crates/`: Rust application and library crates.
 - `docs/`: Project documentation, accepted decisions, and implementation plans.
 - `research/`: Exploratory work, experiments, references, and findings.
+- `scripts/`: Small repository checks and development helpers.
+- `output/`: Ignored, disposable verification output and scratch artifacts.
 
 Keep documentation and research separate and tracked in Git. When research leads
 to an accepted decision, record the decision in `docs/` and link back to its
 research. Update each directory's README index when adding a document. Clearly
 label proposals, implemented behavior, and verified results.
 
+Document important architectural constraints with links to the code or tests that
+enforce them. Label unenforced guidance as a convention. Preserve useful findings
+in `research/`; do not leave their only copy in ignored `output/` or agent state.
+
 ## Implementation and verification
 
 - Inspect Git status and relevant code before editing; preserve unrelated work.
 - Keep changes scoped. Prefer straightforward Rust and standard tooling.
 - Add dependencies or abstractions only when the current task needs them.
+- Use the compiler and components pinned in `rust-toolchain.toml`.
 - Never commit secrets, local environment files, or build output. Track `Cargo.lock`.
 - For Rust changes, run the following before committing:
 
   ```sh
   cargo fmt --all --check
-  cargo clippy --workspace --all-targets -- -D warnings
-  cargo test --workspace
+  cargo clippy --locked --workspace --all-targets -- -D warnings
+  cargo test --locked --workspace
   ```
 
 - Add meaningful tests for new behavior and bug fixes. Documentation-only changes
   need content and link review, not a Rust rebuild.
+- Run `python3 scripts/check_docs.py` when changing documentation. It checks
+  tracked Markdown under `docs/` and `research/`, including index coverage and
+  local link paths. Stage new documents and their index entries before checking;
+  untracked drafts are excluded. Use ordinary inline Markdown links with relative
+  paths; heading anchors and external URLs are not validated.
+- When changing the checker, run `python3 -m unittest discover -s scripts/tests`.
 - Report any failing or unavailable checks accurately; do not claim verification
   that did not happen.
 

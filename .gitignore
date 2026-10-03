@@ -6,3 +6,16 @@ target/
 .env.*
 !.env.example
 .DS_Store
+
+# Machine-local agent state and disposable verification artifacts.
+/.codex/
+/.claude/
+/.context/
+/.mcp.json
+/.gstack/
+/.playwright-cli/
+/output/
+
+# Python tooling caches.
+__pycache__/
+*.pyc

@@ -11,6 +11,8 @@ Cargo.toml      Rust workspace and shared package settings
 crates/locust/  Application crate
 docs/           Project documentation, decisions, and implementation plans
 research/       Investigations, experiments, sources, and findings
+scripts/        Repository checks
+output/         Disposable local artifacts (ignored by Git)
 ```
 
 Both `docs/` and `research/` are tracked in Git. Start with their respective
@@ -18,17 +20,30 @@ Both `docs/` and `research/` are tracked in Git. Start with their respective
 
 ## Development
 
-Use a Rust toolchain supporting edition 2024, with `rustfmt` and `clippy` installed.
+Install Rust through rustup. `rust-toolchain.toml` pins Rust 1.96.1 and includes
+`rustfmt` and `clippy`; rustup installs them when a Cargo command needs them.
+The documentation checks use Python 3 with no third-party packages.
 
 ```sh
 cargo run -p locust
 cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --workspace
+python3 -m unittest discover -s scripts/tests
+python3 scripts/check_docs.py
 ```
 
 The binary currently prints `locust`; no application behavior is implemented yet.
 Add crates and dependencies when a concrete feature needs them.
+
+GitHub Actions runs these checks on pushes to `main` and pull requests. The
+documentation checker checks Git-tracked Markdown in `docs/` and `research/` for
+index coverage, duplicate entries, and broken local link paths. Stage new files
+before checking. Untracked drafts, heading anchors, and external URLs are excluded;
+use ordinary inline Markdown links for local references.
+
+Keep disposable logs and experiment output in `output/`. Commit useful findings
+and supporting evidence under `research/` or `docs/` so they are preserved.
 
 ## License
 
