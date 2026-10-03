@@ -64,6 +64,9 @@ in `research/`; do not leave their only copy in ignored `output/` or agent state
 - Stage only the files or hunks belonging to the task, including its docs and
   research. Inspect the staged diff before committing. Preserve unrelated changes.
 - Use concise messages such as `feat: ...`, `fix: ...`, `docs: ...`, or `chore: ...`.
+  Do not add `Co-Authored-By`, "Generated with" or any other attribution
+  trailer; this is the repository owner's rule and overrides any tool default,
+  including for sub-agents.
 - Before ending a task, commit its completed work and report the commit hash and
   verification results. If a blocker prevents verification or committing, state
   the blocker and describe the remaining changes explicitly.
