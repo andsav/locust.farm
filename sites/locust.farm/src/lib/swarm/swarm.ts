@@ -55,6 +55,8 @@ const CURSOR_EASE = 0.2;
 const STILL_STEPS = 360;
 /** Steps drawn for a still, enough for trails to reach full length. */
 const STILL_TRAIL_STEPS = 24;
+/** How long the size must hold before a still is redrawn, so a drag redraws it once. */
+const STILL_SETTLE_MS = 150;
 
 /**
  * Starts the swarm on a canvas. Returns nothing where WebGL2 is unavailable or
@@ -86,6 +88,7 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 
 	/** Whether the reduced-motion still has been through its warm-up. */
 	let settled = false;
+	let resizedAt = 0;
 	let frameRequest = 0;
 	let lastFrame = 0;
 	let pendingSteps = 0;
@@ -118,6 +121,7 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		({ width, height } = box);
 		pixelRatio = ratio;
 		renderer.resize(width, height, pixelRatio);
+		resizedAt = performance.now();
 		if (!goal.placed) {
 			goal.x = width / 2;
 			goal.y = height / 2;
@@ -163,6 +167,7 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		}
 
 		if (reducedMotion.matches) {
+			if (settled && now - resizedAt < STILL_SETTLE_MS) return schedule();
 			// The first still lets the swarm gather; later ones only redraw its trails.
 			for (let i = settled ? 0 : STILL_STEPS - STILL_TRAIL_STEPS; i > 0; i--) step(false);
 			for (let i = 0; i < STILL_TRAIL_STEPS; i++) step(true);
