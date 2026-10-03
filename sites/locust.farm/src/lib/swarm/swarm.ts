@@ -59,8 +59,9 @@ const STILL_TRAIL_STEPS = 24;
 const STILL_SETTLE_MS = 150;
 
 /**
- * Starts the swarm on a canvas. Returns nothing where WebGL2 is unavailable or
- * would run in software; the canvas then stays empty and shows the page background.
+ * Starts the swarm on a canvas. Returns nothing where WebGL2 is unavailable, would
+ * run in software, or fails to set up; the canvas then stays empty and shows the
+ * page background.
  */
 export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): Swarm | undefined {
 	const gl = canvas.getContext('webgl2', {
@@ -100,13 +101,21 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 	const pointer = { x: 0, y: 0, present: false };
 	const pinned = { x: 0, y: 0, present: false };
 
+	/** Creates the renderer. Reports a failure and returns false, leaving the canvas empty. */
 	const build = () => {
-		renderer = new SwarmRenderer(gl, locust, palette);
+		try {
+			renderer = new SwarmRenderer(gl, locust, palette);
+		} catch (error) {
+			console.error(error);
+			renderer = undefined;
+			return false;
+		}
 		renderer.setAlive(alive);
 		pixelRatio = 0;
 		agents = -1;
 		settled = false;
 		resize();
+		return true;
 	};
 
 	const resize = () => {
@@ -129,15 +138,18 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		}
 		// Resize observers run after animation frames, so without a redraw here the
 		// browser would paint the cleared canvas.
-		for (let i = 0; i < REDRAW_PASSES; i++) renderer.draw(goal.x, goal.y, options.trail);
+		for (let i = 0; i < REDRAW_PASSES; i++) {
+			renderer.fade(options.trail);
+			renderer.draw(goal.x, goal.y);
+		}
 		renderer.present();
 		schedule();
 	};
 
 	/** One simulation step: moves the goal, then the swarm. */
-	const step = (draw: boolean) => {
+	const simulate = () => {
 		if (!renderer) return;
-		const { goalMode, trail, catchUp } = options;
+		const { goalMode, catchUp } = options;
 		wander += 0.004;
 		let targetX = width * 0.5 + Math.cos(wander * 1.3) * width * 0.28;
 		let targetY = height * 0.38 + Math.sin(wander * 2.1) * height * 0.18;
@@ -155,7 +167,28 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 
 		// The wandering goal keeps the design's motion; only the cursor is chased harder.
 		renderer.simulate(goal.x, goal.y, following ? catchUp / 100 : 0);
-		if (draw) renderer.draw(goal.x, goal.y, trail);
+	};
+
+	/**
+	 * Simulates `steps` steps and draws each into the scene. Fading the scene is the
+	 * costly part of a step, so steps are drawn in pairs that share one fade: the
+	 * earlier step of a pair is drawn as it would look after the later step's fade.
+	 */
+	const advance = (steps: number) => {
+		if (!renderer) return;
+		const keep = 1 - options.trail;
+		for (let left = steps; left > 0; left -= 2) {
+			simulate();
+			if (left === 1) {
+				renderer.fade(options.trail);
+			} else {
+				const { x, y } = goal;
+				simulate();
+				renderer.fade(1 - keep * keep);
+				renderer.draw(x, y, keep, true);
+			}
+			renderer.draw(goal.x, goal.y);
+		}
 	};
 
 	const frame = (now: number) => {
@@ -169,8 +202,8 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		if (reducedMotion.matches) {
 			if (settled && now - resizedAt < STILL_SETTLE_MS) return schedule();
 			// The first still lets the swarm gather; later ones only redraw its trails.
-			for (let i = settled ? 0 : STILL_STEPS - STILL_TRAIL_STEPS; i > 0; i--) step(false);
-			for (let i = 0; i < STILL_TRAIL_STEPS; i++) step(true);
+			for (let i = settled ? 0 : STILL_STEPS - STILL_TRAIL_STEPS; i > 0; i--) simulate();
+			advance(STILL_TRAIL_STEPS);
 			renderer.present();
 			settled = true;
 			return;
@@ -192,7 +225,7 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		if (pendingSteps > 0.5) pendingSteps = 0;
 		if (!steps) return;
 
-		for (let i = 0; i < steps; i++) step(true);
+		advance(steps);
 		renderer.present();
 	};
 
@@ -264,7 +297,11 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		watchPixelRatio();
 	}
 
-	build();
+	if (!build()) {
+		observer.disconnect();
+		listeners.abort();
+		return;
+	}
 
 	return {
 		update(next) {

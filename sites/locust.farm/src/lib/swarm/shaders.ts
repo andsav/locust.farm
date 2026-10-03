@@ -3,6 +3,10 @@
  *
  * Positions are in CSS pixels with the origin at the top left. `u_view` maps them
  * to clip space and `u_pixelRatio` converts them to device pixels for antialiasing.
+ *
+ * The draw shaders take `u_keep`, which blends their color toward the background.
+ * Drawing with `u_keep` below 1 gives the color a full-strength draw would have
+ * after the scene is faded by `1 - u_keep`, which lets one fade serve several steps.
  */
 
 const glsl = String.raw;
@@ -183,9 +187,12 @@ uniform vec2 u_view;
 uniform float u_pixelRatio;
 uniform float u_size;
 uniform vec3 u_colors[3];
+uniform vec3 u_background;
+uniform float u_keep;
 
 out vec2 v_pixel;
-flat out vec4 v_color;
+// Constant across a cell. Not declared flat, which is slow on some drivers for triangles.
+out vec4 v_color;
 
 void main() {
 	vec2 corner = vec2(gl_VertexID & 1, gl_VertexID >> 1);
@@ -194,7 +201,8 @@ void main() {
 
 	int kind = int(a_kind);
 	// The eye is always opaque. Other cells brighten while alive.
-	v_color = vec4(u_colors[kind - 1], kind == 3 ? 1.0 : 0.55 + 0.45 * a_brightness);
+	vec3 color = mix(u_background, u_colors[kind - 1], u_keep);
+	v_color = vec4(color, kind == 3 ? 1.0 : 0.55 + 0.45 * a_brightness);
 	v_pixel = offset * u_pixelRatio;
 	gl_Position = vec4((a_position + offset) * u_view + vec2(-1.0, 1.0), 0.0, 1.0);
 }
@@ -207,7 +215,7 @@ uniform float u_pixelRatio;
 uniform float u_size;
 
 in vec2 v_pixel;
-flat in vec4 v_color;
+in vec4 v_color;
 out vec4 outColor;
 ${COVERAGE}
 void main() {
@@ -231,7 +239,7 @@ uniform vec2 u_view;
 uniform float u_pixelRatio;
 
 out vec2 v_pixel;
-flat out float v_length;
+out float v_length;
 
 // Both passes must cover exactly the same pixels.
 invariant gl_Position;
@@ -266,7 +274,7 @@ uniform float u_pixelRatio;
 uniform float u_opacity;
 
 in vec2 v_pixel;
-flat in float v_length;
+in float v_length;
 out vec4 outColor;
 ${COVERAGE}
 void main() {
@@ -284,10 +292,12 @@ export const STREAK_INK_FRAGMENT = glsl`#version 300 es
 precision mediump float;
 
 uniform vec3 u_color;
+uniform vec3 u_background;
+uniform float u_keep;
 out vec4 outColor;
 
 void main() {
-	outColor = vec4(u_color, 1.0);
+	outColor = vec4(mix(u_background, u_color, u_keep), 1.0);
 }
 `;
 
@@ -317,11 +327,14 @@ precision highp float;
 uniform float u_pixelRatio;
 uniform float u_radius;
 uniform vec3 u_color;
+uniform vec3 u_background;
+uniform float u_keep;
 
 in vec2 v_pixel;
 out vec4 outColor;
 
 void main() {
-	outColor = vec4(u_color, clamp(u_radius * u_pixelRatio + 0.5 - length(v_pixel), 0.0, 1.0));
+	float covered = clamp(u_radius * u_pixelRatio + 0.5 - length(v_pixel), 0.0, 1.0);
+	outColor = vec4(mix(u_background, u_color, u_keep), covered);
 }
 `;

@@ -10,7 +10,7 @@
  *   1. Cells move, pushed by the agent density of the previous step.
  *   2. Agents are counted into the density grid.
  *   3. Agents move.
- *   4. The scene is drawn over a faded copy of itself, which leaves trails.
+ *   4. The scene is faded, which leaves trails, and the new state is drawn over it.
  * The scene is kept in a texture and copied to the canvas by `present`.
  */
 
@@ -207,6 +207,10 @@ export class SwarmRenderer {
 		gl.useProgram(dot.handle);
 		gl.uniform3f(dot.uniforms.u_color, ...palette.goal);
 		gl.uniform1f(dot.uniforms.u_radius, GOAL_RADIUS);
+		for (const program of [cellDraw, streakInk, dot]) {
+			gl.useProgram(program.handle);
+			gl.uniform3f(program.uniforms.u_background, ...palette.background);
+		}
 	}
 
 	/**
@@ -330,37 +334,52 @@ export class SwarmRenderer {
 		this.#transform(agents, this.#agentCount);
 	}
 
-	/**
-	 * Draws the current state over the scene, first fading what is there by `trail`
-	 * (0 keeps it all, 1 clears it).
-	 */
-	draw(goalX: number, goalY: number, trail: number): void {
+	/** Fades the scene toward the background by `amount`: 0 keeps it all, 1 clears it. */
+	fade(amount: number): void {
 		const gl = this.#gl;
-		const { fill, cellDraw, streakCoverage, streakInk, dot } = this.#programs;
 		const scene = this.#scene;
 		if (!scene) return;
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.framebuffer);
 		gl.viewport(0, 0, scene.width, scene.height);
-
-		// Fade toward the background. The fade amount is the blend constant, which leaves
-		// the fill's own alpha free to reset the scene's alpha to 1.
-		gl.blendColor(0, 0, 0, trail);
+		// The amount is the blend constant, which leaves the fill's own alpha free to
+		// reset the scene's alpha to 1.
+		gl.blendColor(0, 0, 0, amount);
 		gl.blendFuncSeparate(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA, gl.ONE, gl.ZERO);
-		gl.useProgram(fill.handle);
+		gl.useProgram(this.#programs.fill.handle);
 		gl.bindVertexArray(this.#noAttributes);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
+	}
+
+	/**
+	 * Draws the state over the scene, with the goal at the given position.
+	 *
+	 * To draw two steps under one fade, draw the earlier one with `previous` set and
+	 * `keep` at the share of it that the later step's fade would have left. It then
+	 * looks exactly as if it had been drawn at full strength and faded.
+	 */
+	draw(goalX: number, goalY: number, keep = 1, previous = false): void {
+		const gl = this.#gl;
+		const { cellDraw, streakCoverage, streakInk, dot } = this.#programs;
+		const scene = this.#scene;
+		const agents = this.#agents;
+		const cells = this.#cells;
+		if (!scene) return;
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.framebuffer);
+		gl.viewport(0, 0, scene.width, scene.height);
 
 		// Cells and the goal blend by their own alpha and leave the scene's alpha alone.
 		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
 		if (!this.#layout.hidden) {
 			gl.useProgram(cellDraw.handle);
-			gl.bindVertexArray(this.#cells.draw[this.#cells.current]);
+			gl.uniform1f(cellDraw.uniforms.u_keep, keep);
+			gl.bindVertexArray(cells.draw[previous ? 1 - cells.current : cells.current]);
 			gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.#locust.count);
 		}
 
 		// Streaks, first as coverage in the alpha channel, keeping the strongest per pixel…
-		gl.bindVertexArray(this.#agents.draw[this.#agents.current]);
+		gl.bindVertexArray(agents.draw[previous ? 1 - agents.current : agents.current]);
 		gl.colorMask(false, false, false, true);
 		gl.blendEquationSeparate(gl.FUNC_ADD, gl.MIN);
 		gl.useProgram(streakCoverage.handle);
@@ -371,10 +390,12 @@ export class SwarmRenderer {
 		gl.blendEquation(gl.FUNC_ADD);
 		gl.blendFuncSeparate(gl.ONE_MINUS_DST_ALPHA, gl.DST_ALPHA, gl.ONE, gl.ZERO);
 		gl.useProgram(streakInk.handle);
+		gl.uniform1f(streakInk.uniforms.u_keep, keep);
 		gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.#agentCount);
 
 		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
 		gl.useProgram(dot.handle);
+		gl.uniform1f(dot.uniforms.u_keep, keep);
 		gl.uniform2f(dot.uniforms.u_center, goalX, goalY);
 		gl.bindVertexArray(this.#noAttributes);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

@@ -21,24 +21,29 @@ export function createPrograms<Name extends string>(
 	sources: Record<Name, ProgramSource>
 ): Record<Name, Program> {
 	const names = Object.keys(sources) as Name[];
+	// Programs that share a source share the compiled shader.
+	const shaders = new Map<string, WebGLShader>();
+	const compile = (type: GLenum, source: string) => {
+		let shader = shaders.get(source);
+		if (!shader) {
+			shader = gl.createShader(type)!;
+			gl.shaderSource(shader, source);
+			gl.compileShader(shader);
+			shaders.set(source, shader);
+		}
+		return shader;
+	};
 	const handles = names.map((name) => {
 		const { vertex, fragment, feedback } = sources[name];
 		const handle = gl.createProgram();
-		for (const [type, source] of [
-			[gl.VERTEX_SHADER, vertex],
-			[gl.FRAGMENT_SHADER, fragment]
-		] as const) {
-			const shader = gl.createShader(type)!;
-			gl.shaderSource(shader, source);
-			gl.compileShader(shader);
-			gl.attachShader(handle, shader);
-			// Flagged for deletion now, freed when the program is.
-			gl.deleteShader(shader);
-		}
+		gl.attachShader(handle, compile(gl.VERTEX_SHADER, vertex));
+		gl.attachShader(handle, compile(gl.FRAGMENT_SHADER, fragment));
 		if (feedback) gl.transformFeedbackVaryings(handle, feedback, gl.INTERLEAVED_ATTRIBS);
 		gl.linkProgram(handle);
 		return handle;
 	});
+	// Flagged for deletion now, freed when the programs that use them are.
+	for (const shader of shaders.values()) gl.deleteShader(shader);
 
 	const programs = {} as Record<Name, Program>;
 	names.forEach((name, i) => {
