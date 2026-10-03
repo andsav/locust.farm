@@ -14,6 +14,11 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+### Agent integration and local execution — 2026-10-03
+
+- [Agent-agnostic integration](agent-agnostic-integration.md): daemon transport, Codex/Claude/Pi bridges, native adapters and separate sandbox qualification.
+- [Local sandbox integration](merak-native-local-sandbox.md): source-backed assessment of Merak's existing controls, sandbox gaps and a proposed macOS worker experiment.
+
 ### Distributed agent collaboration and MoltMesh — 2026-10-03
 
 Start with the Locust implementation proposal for the recommendation, or MoltMesh architecture and consensus for the implementation review.
