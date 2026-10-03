@@ -12,3 +12,5 @@
 //! `docs/workstreams.md`.
 
 #![forbid(unsafe_code)]
+
+pub mod config;
