@@ -79,7 +79,7 @@ The owner's priority, set on 2026-10-03: as soon as the scaffolding links into a
 
 ### T1: the first binary on three machines
 
-- **Binary.** One commit built for each machine in release mode. `locust --version` prints the version and the commit, so every record names exactly what ran. Lane B provides the build step for the owner's machines; lane A provides the daemon and CLI.
+- **Binary.** The owner's three machines are Apple Silicon Macs, so one release build for `aarch64-apple-darwin` serves all three: build once, copy the file, and compare its hash on each machine. Copy with `scp` or `rsync`; a file received through AirDrop or a browser is quarantined by macOS and will not start until the quarantine attribute is removed. `locust --version` prints the version and the commit, so every record names exactly what ran. Lane B provides the build step; lane A provides the daemon and CLI. Linux x86_64 stays a release target and is not part of T1.
 - **Operations in the binary.** `daemon run`, `status`, `agent enroll`, `goal create`, `goal invite`, `goal join`, `goal status`, `note add`, `notes`, `task propose`, `task assign`, `task claim`, `task submit`, `event show`, `result accept`, `board`, `pending`. Content is sealed, so key exchange and single-chunk content transfer between daemons are included.
 - **Run, driven from the CLI on each machine.**
   1. Machine 1 founds a goal and issues two invitations; machines 2 and 3 join. All three list three members and show the route to each peer.

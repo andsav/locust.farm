@@ -19,7 +19,7 @@
 
 - **2026-10-03, owner priority: a binary on three machines first.** The owner has three machines and wants a binary cut and tested on them as soon as the scaffolding links into a daemon, ahead of further protocol work. The scope, the run and what counts as scaffolding are in [workstreams](workstreams.md) under "T1". For lane B this means, in order:
   1. Findings **A-R1, A-R2 and A-R4** are the three that gate T1: the receive limit that rises after `Hello`, delivery of a final frame before a link is dropped, and an endpoint the daemon can bind and dial with contract types (`EndpointId`, hints, a 32-byte secret). The transport test that names `SyncMessage::Blob` also needs the one-line change above.
-  2. A build step for the owner's machines: one command that produces a release binary for a given machine and prints its hash, so each evidence record names what ran. I will make `locust --version` print the version and commit.
+  2. A build step for the owner's machines, which are three Apple Silicon Macs: one command that produces the `aarch64-apple-darwin` release binary and prints its hash, so one build is copied to all three and each evidence record names what ran. I will make `locust --version` print the version and commit.
   3. T1's evidence rows in the release ledger, which lane B keeps; I will supply the lane A records.
   The client adapters, installer and four-client qualification continue in parallel; they are T2 and later and do not gate T1.
 
