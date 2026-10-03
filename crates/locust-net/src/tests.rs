@@ -252,6 +252,22 @@ fn local_builder(key: SecretKey) -> Builder {
 }
 
 #[tokio::test]
+async fn online_without_relays_remains_pending_and_can_be_canceled() {
+    let endpoint = Endpoint::bind(local_builder(SecretKey::from_bytes(&[13; 32])))
+        .await
+        .unwrap();
+    let mut online = Box::pin(endpoint.online());
+    assert!(
+        poll_fn(|cx| Poll::Ready(online.as_mut().poll(cx)))
+            .await
+            .is_pending(),
+        "a bound direct-only endpoint must not count as relay-online"
+    );
+    drop(online);
+    endpoint.close().await;
+}
+
+#[tokio::test]
 async fn loopback_iroh_authenticates_both_peers_and_carries_frames() {
     let left_key = SecretKey::from_bytes(&[11; 32]);
     let right_key = SecretKey::from_bytes(&[12; 32]);
@@ -277,6 +293,12 @@ async fn loopback_iroh_authenticates_both_peers_and_carries_frames() {
         let mut right_link = incoming.accept_link(LIMITS).await.unwrap();
         assert_eq!(left_link.remote_id(), right_id);
         assert_eq!(right_link.remote_id(), left_id);
+        for connection in [&outgoing, &incoming] {
+            let paths = connection.path_snapshot();
+            assert!(!paths.is_empty());
+            assert!(paths.iter().all(|path| path.kind == PathKind::Direct));
+            assert_eq!(paths.iter().filter(|path| path.selected).count(), 1);
+        }
         // Link halves retain the connection after these handles are dropped.
         drop(outgoing);
         drop(incoming);
@@ -285,16 +307,66 @@ async fn loopback_iroh_authenticates_both_peers_and_carries_frames() {
             .send(&SyncMessage::Refused(Refusal::NotAMember))
             .await
             .unwrap();
-        right_link.finish().await.unwrap();
-        assert_eq!(
-            left_link.recv().await.unwrap(),
-            Some(SyncMessage::Refused(Refusal::NotAMember))
-        );
-        assert_eq!(left_link.recv().await.unwrap(), None);
+        let (mut right_send, mut right_recv) = right_link.into_split();
+        let (acknowledged, received_left) = tokio::join!(right_send.finish_acknowledged(), async {
+            assert_eq!(
+                left_link.recv().await.unwrap(),
+                Some(SyncMessage::Refused(Refusal::NotAMember))
+            );
+            left_link.recv().await.unwrap()
+        });
+        acknowledged.unwrap();
+        assert_eq!(received_left, None);
+        assert!(matches!(
+            right_send.send(&SyncMessage::Done).await,
+            Err(FrameError::Unusable)
+        ));
+        let (acknowledged, received_right) =
+            tokio::join!(left_link.finish_acknowledged(), right_recv.recv());
+        acknowledged.unwrap();
+        assert_eq!(received_right.unwrap(), None);
     })
     .await;
     tokio::join!(left.close(), right.close());
     exchange.expect("loopback exchange exceeded the test watchdog");
     assert!(left.accept().await.is_none());
     assert!(right.accept().await.is_none());
+}
+
+#[tokio::test]
+async fn acknowledged_finish_reports_peer_stop_and_preserves_its_code() {
+    let left = Endpoint::bind(local_builder(SecretKey::from_bytes(&[14; 32])))
+        .await
+        .unwrap();
+    let right = Endpoint::bind(local_builder(SecretKey::from_bytes(&[15; 32])))
+        .await
+        .unwrap();
+    let exchange = tokio::time::timeout(Duration::from_secs(15), async {
+        let (outgoing, incoming) = tokio::join!(left.connect(right.addr()), async {
+            right.accept().await.unwrap().accept().await
+        });
+        let outgoing = outgoing.unwrap();
+        let incoming = incoming.unwrap();
+        let mut link = outgoing.open_link(LIMITS).await.unwrap();
+        link.send(&SyncMessage::Done).await.unwrap();
+        let (_send, mut recv) = incoming.0.accept_bi().await.unwrap();
+        let stop_code = 37u32.into();
+        recv.stop(stop_code).unwrap();
+        let error = link.finish_acknowledged().await.unwrap_err();
+        let FrameError::Io(error) = error else {
+            panic!("peer stop must be reported as an I/O error");
+        };
+        assert_eq!(error.kind(), io::ErrorKind::ConnectionReset);
+        assert!(matches!(
+            error.get_ref().unwrap().downcast_ref::<iroh::endpoint::WriteError>(),
+            Some(iroh::endpoint::WriteError::Stopped(code)) if *code == stop_code
+        ));
+        assert!(matches!(
+            link.finish_acknowledged().await,
+            Err(FrameError::Unusable)
+        ));
+    })
+    .await;
+    tokio::join!(left.close(), right.close());
+    exchange.expect("peer-stop exchange exceeded the test watchdog");
 }

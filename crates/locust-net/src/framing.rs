@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io;
 
-use iroh::endpoint::Connection;
+use iroh::endpoint::{Connection, RecvStream, SendStream, WriteError};
 use locust_proto::codec::{self, CodecError};
 use locust_proto::id::EndpointId;
 use locust_proto::sync::SyncMessage;
@@ -117,6 +117,16 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> FramedLink<R, W> {
     }
 }
 
+impl FramedLink<RecvStream, SendStream> {
+    /// Finishes sending and waits for the peer's QUIC acknowledgement.
+    ///
+    /// See [`FrameSender::finish_acknowledged`] for acknowledgement and
+    /// cancellation semantics. The receiving direction remains available.
+    pub async fn finish_acknowledged(&mut self) -> Result<(), FrameError> {
+        self.sender.finish_acknowledged().await
+    }
+}
+
 #[derive(Debug)]
 pub struct FrameSender<W> {
     peer: EndpointId,
@@ -168,6 +178,23 @@ impl<W: AsyncWrite + Unpin> FrameSender<W> {
         }
         self.usable = false;
         self.writer.shutdown().await.map_err(FrameError::Io)
+    }
+}
+
+impl FrameSender<SendStream> {
+    /// Finishes sending and waits until the peer acknowledges all stream data
+    /// and its end at the QUIC transport layer. A peer stop is an I/O error.
+    ///
+    /// Success does not establish application consumption or persistence.
+    /// The caller owns the deadline and cancellation. Once finishing starts,
+    /// this sender cannot be reused, including if this future is canceled.
+    pub async fn finish_acknowledged(&mut self) -> Result<(), FrameError> {
+        self.finish().await?;
+        match self.writer.stopped().await {
+            Ok(None) => Ok(()),
+            Ok(Some(code)) => Err(FrameError::Io(WriteError::Stopped(code).into())),
+            Err(error) => Err(FrameError::Io(error.into())),
+        }
     }
 }
 

@@ -22,9 +22,31 @@ use iroh::endpoint::{
     RecvStream, SendStream,
 };
 use locust_proto::id::EndpointId;
+use std::time::Duration;
 
 /// Protocol identifier negotiated by the authenticated Iroh handshake.
 pub const SYNC_ALPN: &[u8] = b"locust/sync/0";
+
+/// Transport category of an observed open network path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathKind {
+    /// A direct IP path.
+    Direct,
+    /// A path through an Iroh relay.
+    Relay,
+    /// Another transport, such as a caller-configured custom transport.
+    Other,
+}
+
+/// An owned path observation that contains no IP addresses or relay URLs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PathSnapshot {
+    pub kind: PathKind,
+    /// Whether Iroh selected this path for application data at snapshot time.
+    pub selected: bool,
+    /// QUIC's round-trip time estimate, sampled while creating the snapshot.
+    pub rtt: Duration,
+}
 
 /// An endpoint with Locust's ALPN and otherwise caller-selected configuration.
 #[derive(Debug, Clone)]
@@ -52,6 +74,17 @@ impl Endpoint {
     /// Current contact hints, including any configured relay address.
     pub fn addr(&self) -> EndpointAddr {
         self.0.addr()
+    }
+
+    /// Waits until at least one configured relay completes its connection
+    /// handshake and registers this endpoint.
+    ///
+    /// This is relay readiness, not direct-path or address-lookup readiness.
+    /// With relays disabled or unreachable, this waits indefinitely, even if
+    /// direct connections work. The caller owns cancellation and any timeout.
+    /// Returning does not guarantee that the relay remains connected afterward.
+    pub async fn online(&self) {
+        self.0.online().await;
     }
 
     pub async fn connect(
@@ -98,6 +131,31 @@ impl PeerConnection {
     /// Identity established by Iroh's handshake, never by peer message content.
     pub fn remote_id(&self) -> EndpointId {
         EndpointId(*self.0.remote_id().as_bytes())
+    }
+
+    /// Observes the connection's currently open paths without exposing their
+    /// IP addresses or relay URLs.
+    ///
+    /// Path membership and selection are captured by Iroh at call time; RTT
+    /// estimates are sampled while copying the paths. Paths can change as soon
+    /// as this returns. Selection describes Iroh's application-data choice,
+    /// not proof of the route taken by an individual frame.
+    pub fn path_snapshot(&self) -> Vec<PathSnapshot> {
+        self.0
+            .paths()
+            .iter()
+            .map(|path| PathSnapshot {
+                kind: if path.is_ip() {
+                    PathKind::Direct
+                } else if path.is_relay() {
+                    PathKind::Relay
+                } else {
+                    PathKind::Other
+                },
+                selected: path.is_selected(),
+                rtt: path.rtt(),
+            })
+            .collect()
     }
 
     /// Opens a framed exchange. The remote can accept it only after the first
