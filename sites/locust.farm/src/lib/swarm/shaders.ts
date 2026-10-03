@@ -216,7 +216,11 @@ void main() {
 }
 `;
 
-/** One streak per agent, from its position back along its velocity. */
+/**
+ * One streak per agent, from its position back along its velocity. Streaks are drawn
+ * in two passes that share this vertex shader, so that a pixel under several streaks
+ * is inked once, as when a single path is stroked.
+ */
 export const STREAK_VERTEX = glsl`#version 300 es
 precision highp float;
 
@@ -228,6 +232,9 @@ uniform float u_pixelRatio;
 
 out vec2 v_pixel;
 flat out float v_length;
+
+// Both passes must cover exactly the same pixels.
+invariant gl_Position;
 
 const float TAIL = 2.2;
 const float WIDTH = 1.0;
@@ -248,11 +255,15 @@ void main() {
 }
 `;
 
-export const STREAK_FRAGMENT = glsl`#version 300 es
+/**
+ * First pass: records in the alpha channel how much of each pixel shows through the
+ * streaks. Blended with MIN, so overlapping streaks keep the strongest coverage.
+ */
+export const STREAK_COVERAGE_FRAGMENT = glsl`#version 300 es
 precision highp float;
 
 uniform float u_pixelRatio;
-uniform vec4 u_color;
+uniform float u_opacity;
 
 in vec2 v_pixel;
 flat in float v_length;
@@ -260,7 +271,23 @@ out vec4 outColor;
 ${COVERAGE}
 void main() {
 	float halfWidth = 0.5 * u_pixelRatio;
-	outColor = vec4(u_color.rgb, u_color.a * coverage(v_pixel.x, 0.0, v_length) * coverage(v_pixel.y, -halfWidth, halfWidth));
+	float covered = coverage(v_pixel.x, 0.0, v_length) * coverage(v_pixel.y, -halfWidth, halfWidth);
+	outColor = vec4(0.0, 0.0, 0.0, 1.0 - u_opacity * covered);
+}
+`;
+
+/**
+ * Second pass: inks each pixel by the coverage recorded for it and resets that
+ * record, so further streaks over the same pixel add nothing.
+ */
+export const STREAK_INK_FRAGMENT = glsl`#version 300 es
+precision mediump float;
+
+uniform vec3 u_color;
+out vec4 outColor;
+
+void main() {
+	outColor = vec4(u_color, 1.0);
 }
 `;
 

@@ -76,7 +76,14 @@ export class SwarmRenderer {
 	readonly #palette: Palette;
 	readonly #locust: Locust;
 	readonly #programs: Record<
-		'agentUpdate' | 'density' | 'cellUpdate' | 'fill' | 'cellDraw' | 'streak' | 'dot',
+		| 'agentUpdate'
+		| 'density'
+		| 'cellUpdate'
+		| 'fill'
+		| 'cellDraw'
+		| 'streakCoverage'
+		| 'streakInk'
+		| 'dot',
 		Program
 	>;
 
@@ -117,7 +124,11 @@ export class SwarmRenderer {
 			},
 			fill: { vertex: shaders.FILL_VERTEX, fragment: shaders.FILL_FRAGMENT },
 			cellDraw: { vertex: shaders.CELL_DRAW_VERTEX, fragment: shaders.CELL_DRAW_FRAGMENT },
-			streak: { vertex: shaders.STREAK_VERTEX, fragment: shaders.STREAK_FRAGMENT },
+			streakCoverage: {
+				vertex: shaders.STREAK_VERTEX,
+				fragment: shaders.STREAK_COVERAGE_FRAGMENT
+			},
+			streakInk: { vertex: shaders.STREAK_VERTEX, fragment: shaders.STREAK_INK_FRAGMENT },
 			dot: { vertex: shaders.DOT_VERTEX, fragment: shaders.DOT_FRAGMENT }
 		});
 
@@ -175,7 +186,7 @@ export class SwarmRenderer {
 		gl.disable(gl.DITHER);
 		gl.enable(gl.BLEND);
 
-		const { density, cellUpdate, cellDraw, streak, dot } = this.#programs;
+		const { density, cellUpdate, fill, cellDraw, streakCoverage, streakInk, dot } = this.#programs;
 		gl.useProgram(density.handle);
 		gl.uniform1f(density.uniforms.u_cellSize, DENSITY_CELL);
 		gl.useProgram(cellUpdate.handle);
@@ -187,8 +198,12 @@ export class SwarmRenderer {
 			...palette.cellLeg,
 			...palette.cellEye
 		]);
-		gl.useProgram(streak.handle);
-		gl.uniform4f(streak.uniforms.u_color, ...palette.agent, AGENT_OPACITY);
+		gl.useProgram(fill.handle);
+		gl.uniform4f(fill.uniforms.u_color, ...palette.background, 1);
+		gl.useProgram(streakCoverage.handle);
+		gl.uniform1f(streakCoverage.uniforms.u_opacity, AGENT_OPACITY);
+		gl.useProgram(streakInk.handle);
+		gl.uniform3f(streakInk.uniforms.u_color, ...palette.agent);
 		gl.useProgram(dot.handle);
 		gl.uniform3f(dot.uniforms.u_color, ...palette.goal);
 		gl.uniform1f(dot.uniforms.u_radius, GOAL_RADIUS);
@@ -223,7 +238,7 @@ export class SwarmRenderer {
 		gl.clearColor(...this.#palette.background, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
-		const { density, cellUpdate, cellDraw, streak, dot } = this.#programs;
+		const { density, cellUpdate, cellDraw, streakCoverage, streakInk, dot } = this.#programs;
 		const { pitch, originX, originY } = this.#layout;
 		gl.useProgram(density.handle);
 		gl.uniform2f(density.uniforms.u_gridSize, this.#density.width, this.#density.height);
@@ -232,7 +247,7 @@ export class SwarmRenderer {
 		gl.uniform1f(cellUpdate.uniforms.u_pitch, pitch);
 		gl.useProgram(cellDraw.handle);
 		gl.uniform1f(cellDraw.uniforms.u_size, Math.max(1, pitch - 1));
-		for (const program of [cellDraw, streak, dot]) {
+		for (const program of [cellDraw, streakCoverage, streakInk, dot]) {
 			gl.useProgram(program.handle);
 			gl.uniform2f(program.uniforms.u_view, 2 / width, -2 / height);
 			gl.uniform1f(program.uniforms.u_pixelRatio, pixelRatio);
@@ -241,6 +256,11 @@ export class SwarmRenderer {
 		// Cells are frozen while hidden, so on reappearing they start from their new places.
 		if (wasHidden && !this.#layout.hidden) this.#placeCells();
 		this.present();
+	}
+
+	/** Whether the locust is shown at the current size. While hidden it is not simulated. */
+	get locustVisible(): boolean {
+		return !this.#layout.hidden;
 	}
 
 	/** Replaces the swarm with `count` agents scattered across the canvas, at rest. */
@@ -315,29 +335,44 @@ export class SwarmRenderer {
 	 */
 	draw(goalX: number, goalY: number, trail: number): void {
 		const gl = this.#gl;
-		const { fill, cellDraw, streak, dot } = this.#programs;
+		const { fill, cellDraw, streakCoverage, streakInk, dot } = this.#programs;
 		const scene = this.#scene;
 		if (!scene) return;
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.framebuffer);
 		gl.viewport(0, 0, scene.width, scene.height);
-		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
+		// Fade toward the background. The fade amount is the blend constant, which leaves
+		// the fill's own alpha free to reset the scene's alpha to 1.
+		gl.blendColor(0, 0, 0, trail);
+		gl.blendFuncSeparate(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA, gl.ONE, gl.ZERO);
 		gl.useProgram(fill.handle);
-		gl.uniform4f(fill.uniforms.u_color, ...this.#palette.background, trail);
 		gl.bindVertexArray(this.#noAttributes);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 
+		// Cells and the goal blend by their own alpha and leave the scene's alpha alone.
+		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
 		if (!this.#layout.hidden) {
 			gl.useProgram(cellDraw.handle);
 			gl.bindVertexArray(this.#cells.draw[this.#cells.current]);
 			gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.#locust.count);
 		}
 
-		gl.useProgram(streak.handle);
+		// Streaks, first as coverage in the alpha channel, keeping the strongest per pixel…
 		gl.bindVertexArray(this.#agents.draw[this.#agents.current]);
+		gl.colorMask(false, false, false, true);
+		gl.blendEquationSeparate(gl.FUNC_ADD, gl.MIN);
+		gl.useProgram(streakCoverage.handle);
+		gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.#agentCount);
+		// …then as ink weighted by that coverage. Inking a pixel restores its alpha to 1,
+		// so any other streak over the same pixel leaves it unchanged.
+		gl.colorMask(true, true, true, true);
+		gl.blendEquation(gl.FUNC_ADD);
+		gl.blendFuncSeparate(gl.ONE_MINUS_DST_ALPHA, gl.DST_ALPHA, gl.ONE, gl.ZERO);
+		gl.useProgram(streakInk.handle);
 		gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.#agentCount);
 
+		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
 		gl.useProgram(dot.handle);
 		gl.uniform2f(dot.uniforms.u_center, goalX, goalY);
 		gl.bindVertexArray(this.#noAttributes);

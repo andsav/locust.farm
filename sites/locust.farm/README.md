@@ -54,7 +54,7 @@ needs it.
 
 ## Swarm animation
 
-`SwarmCanvas.svelte` attaches [`swarm`](src/lib/swarm/swarm.ts) to a canvas. The
+`SwarmCanvas.svelte` runs [`createSwarm`](src/lib/swarm/swarm.ts) on a canvas. The
 agents and the locust's cells are simulated on the GPU with transform feedback
 ([`renderer.ts`](src/lib/swarm/renderer.ts), [`shaders.ts`](src/lib/swarm/shaders.ts)),
 so a step costs the main thread a fixed handful of draw calls, whatever the number of
@@ -68,4 +68,5 @@ agents. The locust's shape and its Game of Life are plain data on the CPU
   from the cursor are pulled toward it; 0 gives the design's original, slower chase.
 - Colors come from the `--swarm-*` tokens, read once when the canvas mounts.
 - With `prefers-reduced-motion`, a single still frame is drawn instead.
-- Without WebGL2 the canvas stays empty and the page is otherwise unaffected.
+- Without WebGL2, or where it would run in software, the canvas stays empty and the
+  page is otherwise unaffected.

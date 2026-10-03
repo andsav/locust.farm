@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { swarm, type GoalMode } from '#lib/swarm/swarm.ts';
+	import { untrack } from 'svelte';
+	import type { Attachment } from 'svelte/attachments';
+	import { createSwarm, type GoalMode } from '#lib/swarm/swarm.ts';
 
 	interface Props {
 		/** Number of agents in the swarm. */
@@ -13,10 +15,18 @@
 	}
 
 	let { agents = 1400, goalMode = 'wander', trail = 0.28, catchUp = 0.3 }: Props = $props();
+
+	const swarm: Attachment<HTMLCanvasElement> = (canvas) => {
+		// Created once per canvas: later prop changes go through `update`, not a rebuild.
+		const instance = untrack(() => createSwarm(canvas, { agents, goalMode, trail, catchUp }));
+		if (!instance) return;
+		$effect(() => instance.update({ agents, goalMode, trail, catchUp }));
+		return instance.destroy;
+	};
 </script>
 
 <!-- Decorative backdrop: fills its nearest positioned ancestor, behind that ancestor's content. -->
-<canvas aria-hidden="true" {@attach swarm(() => ({ agents, goalMode, trail, catchUp }))}></canvas>
+<canvas aria-hidden="true" {@attach swarm}></canvas>
 
 <style>
 	canvas {
