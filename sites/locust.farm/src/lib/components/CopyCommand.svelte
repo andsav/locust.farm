@@ -9,21 +9,21 @@
 	const FEEDBACK_MS = 1500;
 
 	let copied = $state(false);
+	let timer: ReturnType<typeof setTimeout> | undefined;
 
 	async function copy() {
 		try {
 			await navigator.clipboard.writeText(command);
-			copied = true;
 		} catch {
 			// Clipboard access is unavailable or was denied, so there is nothing to confirm.
+			return;
 		}
+		copied = true;
+		clearTimeout(timer);
+		timer = setTimeout(() => (copied = false), FEEDBACK_MS);
 	}
 
-	$effect(() => {
-		if (!copied) return;
-		const timer = setTimeout(() => (copied = false), FEEDBACK_MS);
-		return () => clearTimeout(timer);
-	});
+	$effect(() => () => clearTimeout(timer));
 </script>
 
 <button type="button" onclick={copy}>

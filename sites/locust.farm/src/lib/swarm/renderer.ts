@@ -211,7 +211,8 @@ export class SwarmRenderer {
 
 	/**
 	 * Sizes the canvas to `width` × `height` CSS pixels at the given pixel ratio.
-	 * Trails are cleared; agents and cells keep their positions.
+	 * Trails are cleared; agents and cells keep their positions. The canvas is left
+	 * blank, so the caller should `draw` and `present` before the browser paints.
 	 */
 	resize(width: number, height: number, pixelRatio: number): void {
 		const gl = this.#gl;
@@ -255,7 +256,6 @@ export class SwarmRenderer {
 
 		// Cells are frozen while hidden, so on reappearing they start from their new places.
 		if (wasHidden && !this.#layout.hidden) this.#placeCells();
-		this.present();
 	}
 
 	/** Whether the locust is shown at the current size. While hidden it is not simulated. */
@@ -311,16 +311,17 @@ export class SwarmRenderer {
 			gl.bindTexture(gl.TEXTURE_2D, grid.texture);
 			this.#transform(cells, this.#locust.count);
 			gl.bindTexture(gl.TEXTURE_2D, null);
-		}
 
-		gl.bindFramebuffer(gl.FRAMEBUFFER, grid.framebuffer);
-		gl.viewport(0, 0, grid.width, grid.height);
-		gl.clearColor(0, 0, 0, 0);
-		gl.clear(gl.COLOR_BUFFER_BIT);
-		gl.blendFunc(gl.ONE, gl.ONE);
-		gl.useProgram(density.handle);
-		gl.bindVertexArray(agents.update[agents.current]);
-		gl.drawArrays(gl.POINTS, 0, this.#agentCount);
+			// Only the cells read the density grid, so it is not built while they are hidden.
+			gl.bindFramebuffer(gl.FRAMEBUFFER, grid.framebuffer);
+			gl.viewport(0, 0, grid.width, grid.height);
+			gl.clearColor(0, 0, 0, 0);
+			gl.clear(gl.COLOR_BUFFER_BIT);
+			gl.blendFunc(gl.ONE, gl.ONE);
+			gl.useProgram(density.handle);
+			gl.bindVertexArray(agents.update[agents.current]);
+			gl.drawArrays(gl.POINTS, 0, this.#agentCount);
+		}
 
 		gl.useProgram(agentUpdate.handle);
 		gl.uniform2f(agentUpdate.uniforms.u_goal, goalX, goalY);

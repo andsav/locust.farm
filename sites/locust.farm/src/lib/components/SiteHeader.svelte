@@ -18,8 +18,10 @@
 <style>
 	header {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: center;
+		row-gap: var(--space-12);
 		padding: var(--space-24) var(--gutter-inline);
 		color: var(--color-text-subtle);
 		font: var(--text-label);

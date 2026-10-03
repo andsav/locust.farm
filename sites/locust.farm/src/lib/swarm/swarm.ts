@@ -39,6 +39,13 @@ const STEPS_PER_SECOND = 120;
 /** Steps to catch up on after a slow frame before the simulation falls behind instead. */
 const MAX_STEPS_PER_FRAME = 4;
 const MAX_PIXEL_RATIO = 2;
+/**
+ * Largest drawing buffer, in device pixels: that of a 4K screen. Every step fills
+ * the buffer twice, so a larger canvas is drawn at a lower pixel ratio instead.
+ */
+const MAX_PIXELS = 3840 * 2160;
+/** Draws after a resize, enough to rebuild the opacity that accumulates over steps. */
+const REDRAW_PASSES = 5;
 const LIFE_INTERVAL_MS = 280;
 /** Fraction of the remaining distance the goal covers per step. */
 const WANDER_EASE = 0.06;
@@ -77,6 +84,8 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 	let pixelRatio = 0;
 	let agents = -1;
 
+	/** Whether the reduced-motion still has been through its warm-up. */
+	let settled = false;
 	let frameRequest = 0;
 	let lastFrame = 0;
 	let pendingSteps = 0;
@@ -93,13 +102,18 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		renderer.setAlive(alive);
 		pixelRatio = 0;
 		agents = -1;
+		settled = false;
 		resize();
 	};
 
 	const resize = () => {
 		const box = canvas.getBoundingClientRect();
-		const ratio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
 		if (!renderer || !box.width || !box.height) return;
+		const ratio = Math.min(
+			window.devicePixelRatio || 1,
+			MAX_PIXEL_RATIO,
+			Math.sqrt(MAX_PIXELS / (box.width * box.height))
+		);
 		if (box.width === width && box.height === height && ratio === pixelRatio) return;
 		({ width, height } = box);
 		pixelRatio = ratio;
@@ -109,6 +123,10 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 			goal.y = height / 2;
 			goal.placed = true;
 		}
+		// Resize observers run after animation frames, so without a redraw here the
+		// browser would paint the cleared canvas.
+		for (let i = 0; i < REDRAW_PASSES; i++) renderer.draw(goal.x, goal.y, options.trail);
+		renderer.present();
 		schedule();
 	};
 
@@ -139,11 +157,17 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 	const frame = (now: number) => {
 		frameRequest = 0;
 		if (!renderer || !width) return;
-		if (options.agents !== agents) renderer.setAgents((agents = options.agents));
+		if (options.agents !== agents) {
+			renderer.setAgents((agents = options.agents));
+			settled = false;
+		}
 
 		if (reducedMotion.matches) {
-			for (let i = STILL_STEPS; i > 0; i--) step(i <= STILL_TRAIL_STEPS);
+			// The first still lets the swarm gather; later ones only redraw its trails.
+			for (let i = settled ? 0 : STILL_STEPS - STILL_TRAIL_STEPS; i > 0; i--) step(false);
+			for (let i = 0; i < STILL_TRAIL_STEPS; i++) step(true);
 			renderer.present();
+			settled = true;
 			return;
 		}
 		schedule();
@@ -158,7 +182,9 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		lastFrame = now;
 		pendingSteps += (elapsed * STEPS_PER_SECOND) / 1000;
 		const steps = Math.min(Math.round(pendingSteps), MAX_STEPS_PER_FRAME);
-		pendingSteps = steps < MAX_STEPS_PER_FRAME ? pendingSteps - steps : 0;
+		pendingSteps -= steps;
+		// A backlog is dropped, so the simulation falls behind rather than racing to catch up.
+		if (pendingSteps > 0.5) pendingSteps = 0;
 		if (!steps) return;
 
 		for (let i = 0; i < steps; i++) step(true);
@@ -222,6 +248,15 @@ export function createSwarm(canvas: HTMLCanvasElement, initial: SwarmOptions): S
 		observer.observe(canvas, { box: 'device-pixel-content-box' });
 	} catch {
 		observer.observe(canvas);
+		const watchPixelRatio = () => {
+			const query = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+			const changed = () => {
+				resize();
+				watchPixelRatio();
+			};
+			query.addEventListener('change', changed, { once: true, signal });
+		};
+		watchPixelRatio();
 	}
 
 	build();

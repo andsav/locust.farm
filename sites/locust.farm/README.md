@@ -45,6 +45,7 @@ the palette. Components use roles only.
 - **Layout**: `--gutter-inline`, `--gutter-block-end`, `--measure-display`,
   `--measure-body`, `--border-hairline`.
 
+[`fonts.css`](src/lib/styles/fonts.css) declares the one self-hosted font face, and
 [`base.css`](src/lib/styles/base.css) holds element defaults (links, focus ring,
 selection). Everything else is scoped to the component that uses it. Sizes are in
 `rem`, so the page follows the reader's text size.
@@ -67,6 +68,8 @@ agents. The locust's shape and its Game of Life are plain data on the CPU
   wanders on its own when there is none. `catchUp` sets how much harder agents far
   from the cursor are pulled toward it; 0 gives the design's original, slower chase.
 - Colors come from the `--swarm-*` tokens, read once when the canvas mounts.
+- The drawing buffer uses a pixel ratio of at most 2 and is no larger than a 4K
+  screen; bigger canvases are drawn at a lower ratio.
 - With `prefers-reduced-motion`, a single still frame is drawn instead.
 - Without WebGL2, or where it would run in software, the canvas stays empty and the
   page is otherwise unaffected.

@@ -30,6 +30,8 @@
 		position: relative;
 		isolation: isolate;
 		display: grid;
+		/* The column may be narrower than its widest child, which then wraps instead. */
+		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: auto 1fr;
 		min-height: 100vh;
 		/* The small viewport height keeps the call to action above mobile browser toolbars. */
