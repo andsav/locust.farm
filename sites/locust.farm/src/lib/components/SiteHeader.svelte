@@ -26,6 +26,7 @@
 		color: var(--color-text-subtle);
 		font: var(--text-label);
 		letter-spacing: var(--tracking-label);
+		text-shadow: var(--text-halo);
 		text-transform: uppercase;
 	}
 

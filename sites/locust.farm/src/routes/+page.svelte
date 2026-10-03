@@ -51,6 +51,7 @@
 		max-width: var(--measure-display);
 		font: var(--text-display);
 		letter-spacing: var(--tracking-display);
+		text-shadow: var(--text-halo);
 		text-wrap: balance;
 	}
 
@@ -61,6 +62,7 @@
 	p {
 		max-width: var(--measure-body);
 		color: var(--color-text-muted);
+		text-shadow: var(--text-halo);
 		text-wrap: pretty;
 	}
 

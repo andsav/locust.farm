@@ -44,6 +44,7 @@
 		background: transparent;
 		color: var(--color-text);
 		font: var(--text-code);
+		text-shadow: var(--text-halo);
 		cursor: pointer;
 	}
 

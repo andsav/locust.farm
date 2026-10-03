@@ -64,4 +64,19 @@
 
 	/* Borders. */
 	--border-hairline: 1px solid var(--color-border);
+
+	/*
+	 * Text takes precedence over the swarm. A halo in the background color dims
+	 * whatever passes behind the letters: most right beside them, less further out,
+	 * so the swarm is never boxed in. Thin letters cast faint shadows, so each
+	 * radius is layered to build up strength. The radii are in em, so the halo
+	 * scales with the text it is applied to.
+	 */
+	--halo-near: 0 0 0.08em var(--color-bg);
+	--halo-mid: 0 0 0.2em var(--color-bg);
+	--halo-far: 0 0 0.45em var(--color-bg);
+	--text-halo:
+		var(--halo-near), var(--halo-near), var(--halo-near), var(--halo-near), var(--halo-near),
+		var(--halo-near), var(--halo-mid), var(--halo-mid), var(--halo-mid), var(--halo-mid),
+		var(--halo-far), var(--halo-far), var(--halo-far);
 }
