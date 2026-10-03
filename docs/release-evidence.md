@@ -1,6 +1,6 @@
 # October 4 release evidence ledger
 
-**Status: planning register. No Locust runtime or release gate is recorded as passed.** Target: October 4, 2026, at night, America/Los_Angeles. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace the detailed M0–M6 exit evidence or conformance matrix.
+**Status: component evidence is accumulating; no complete release gate is recorded as passed.** Target: October 4, 2026, at night, America/Los_Angeles. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace the detailed M0–M6 exit evidence or conformance matrix.
 
 The repository owner decides release go/no-go and changes to required scope or support claims. Agents record failures and remediate them; they cannot waive requirements. The [review response](implementation-plan-review-response.md) explains the changes that introduced this register.
 
@@ -13,12 +13,20 @@ The repository owner decides release go/no-go and changes to required scope or s
 | R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Not run | None |
 | R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Not run | None |
 | R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Not run | None |
-| R6 — Real client behavior | M1/M5/M6: default-profile Codex and Claude, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Not run | None |
-| R6L — Locust client lifecycle | M1/M3/M5/M6: Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and each claimed hook/wake capability | Not run | None |
+| R6 — Real client behavior | M1/M5/M6: default-profile Codex and Claude, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2 (configuration only) |
+| R6L — Locust client lifecycle | M1/M3/M5/M6: Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and each claimed hook/wake capability | Partial; gate open | B-C2 (configuration only) |
 | R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Not run | None |
 | R8 — Real collaboration | M6: two people/machines, mixed clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
-| R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Not run | None |
+| R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1 (loopback component) |
 | R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Not run | None |
+
+## Partial component evidence — October 3
+
+**B-C1, relevant to R9:** commit `48cf79b` implements authenticated framed Iroh links. On macOS arm64 / Rust 1.96.1, 11 transport tests passed, including two loopback endpoints, authenticated identities, framing admission and interrupted I/O. This is local component evidence; separate machines/networks, public/alternate relays, route diagnostics, membership and reconnect/reconciliation are not qualified. Lane A cross-review is requested as B-4 in the [lane B log](lane-b-log.md).
+
+**B-C2, relevant to R6/R6L:** commit `7d1a207` implements configuration generation and a test-only stdio MCP socket probe. Six configuration tests, nine MCP-fixture tests and one explicit installed-Codex configuration test passed. The real executable was Codex 0.153.4 with a disposable profile; no provider calls, credentials or user-profile changes were involved. This does not prove real-model tool use, daemon authentication, default approvals, launch/session recovery or wake. Claude configuration has component coverage only. Lane A cross-review is pending under B-4.
+
+Exact reproduction commands, observations and remaining boundaries are in the [implementation log](lane-b-implementation-log.md). Workspace formatting, Clippy and tests also passed on the combined tree. These source/component checks are not packaged-candidate checks; no release artifact hash or public-download assertion exists yet, and the gate table remains open.
 
 ## Evidence record format
 
