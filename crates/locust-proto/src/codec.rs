@@ -16,6 +16,8 @@ pub enum CodecError {
     Decode,
     /// The value decoded but bytes were left over.
     TrailingBytes,
+    /// The bytes decode, but are not the one encoding of the value.
+    NotCanonical,
 }
 
 impl fmt::Display for CodecError {
@@ -24,6 +26,7 @@ impl fmt::Display for CodecError {
             Self::Encode => "value could not be encoded",
             Self::Decode => "bytes are not a valid encoding",
             Self::TrailingBytes => "bytes continue past the encoded value",
+            Self::NotCanonical => "bytes are not the canonical encoding of the value",
         })
     }
 }
@@ -44,21 +47,64 @@ pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, CodecError> {
     }
 }
 
-/// Writes one frame: a little-endian `u32` length, then the payload.
+/// Decodes a value whose identity is the hash of its bytes. Accepts only the
+/// one encoding of the value, so what was hashed and what was decoded can
+/// never name two different things.
+pub fn decode_canonical<T: Serialize + DeserializeOwned>(bytes: &[u8]) -> Result<T, CodecError> {
+    let value: T = decode(bytes)?;
+    if encode(&value)? == bytes {
+        Ok(value)
+    } else {
+        Err(CodecError::NotCanonical)
+    }
+}
+
+/// A frame is a little-endian `u32` length followed by that many bytes.
+pub const FRAME_PREFIX_BYTES: usize = 4;
+
+/// The payload length a frame prefix announces, refused if above `max`.
+/// Every reader, blocking or not, calls this before it allocates.
+pub fn frame_len(prefix: [u8; FRAME_PREFIX_BYTES], max: usize) -> io::Result<usize> {
+    let length = u32::from_le_bytes(prefix) as usize;
+    if length > max {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "frame exceeds the admitted size",
+        ));
+    }
+    Ok(length)
+}
+
+/// Appends one whole frame carrying `value` to `out`: one buffer, one write.
+pub fn encode_frame<T: Serialize + ?Sized>(value: &T, out: &mut Vec<u8>) -> Result<(), CodecError> {
+    let start = out.len();
+    out.extend_from_slice(&[0; FRAME_PREFIX_BYTES]);
+    let mut framed =
+        postcard::to_extend(value, std::mem::take(out)).map_err(|_| CodecError::Encode)?;
+    let length =
+        u32::try_from(framed.len() - start - FRAME_PREFIX_BYTES).map_err(|_| CodecError::Encode)?;
+    framed[start..start + FRAME_PREFIX_BYTES].copy_from_slice(&length.to_le_bytes());
+    *out = framed;
+    Ok(())
+}
+
+/// Writes one frame around an already encoded payload.
 pub fn write_frame<W: Write>(writer: &mut W, payload: &[u8]) -> io::Result<()> {
     let length = u32::try_from(payload.len())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "frame exceeds u32 length"))?;
-    writer.write_all(&length.to_le_bytes())?;
-    writer.write_all(payload)
+    let mut frame = Vec::with_capacity(FRAME_PREFIX_BYTES + payload.len());
+    frame.extend_from_slice(&length.to_le_bytes());
+    frame.extend_from_slice(payload);
+    writer.write_all(&frame)
 }
 
 /// Reads one frame. Returns `None` when the stream ends cleanly before a
 /// frame starts. The length is checked against `max` before any allocation.
 pub fn read_frame<R: Read>(reader: &mut R, max: usize) -> io::Result<Option<Vec<u8>>> {
-    let mut length = [0u8; 4];
+    let mut prefix = [0u8; FRAME_PREFIX_BYTES];
     let mut filled = 0;
-    while filled < length.len() {
-        match reader.read(&mut length[filled..]) {
+    while filled < prefix.len() {
+        match reader.read(&mut prefix[filled..]) {
             Ok(0) if filled == 0 => return Ok(None),
             Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()),
             Ok(read) => filled += read,
@@ -66,14 +112,7 @@ pub fn read_frame<R: Read>(reader: &mut R, max: usize) -> io::Result<Option<Vec<
             Err(error) => return Err(error),
         }
     }
-    let length = u32::from_le_bytes(length) as usize;
-    if length > max {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "frame exceeds the admitted size",
-        ));
-    }
-    let mut payload = vec![0u8; length];
+    let mut payload = vec![0u8; frame_len(prefix, max)?];
     reader.read_exact(&mut payload)?;
     Ok(Some(payload))
 }
@@ -150,6 +189,29 @@ mod tests {
         let mut reader = wire.as_slice();
         let error = read_frame(&mut reader, 4).unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn encode_frame_matches_write_frame_and_appends() {
+        let mut expected = Vec::new();
+        write_frame(&mut expected, &encode(&("hello", 7u32)).unwrap()).unwrap();
+
+        let mut out = vec![0xaa];
+        encode_frame(&("hello", 7u32), &mut out).unwrap();
+        assert_eq!(out[0], 0xaa);
+        assert_eq!(&out[1..], expected.as_slice());
+        assert_eq!(frame_len([5, 0, 0, 0], 16).unwrap(), 5);
+        assert!(frame_len([17, 0, 0, 0], 16).is_err());
+    }
+
+    #[test]
+    fn canonical_decoding_refuses_an_overlong_integer() {
+        assert_eq!(decode_canonical::<u32>(&[0x01]), Ok(1));
+        assert_eq!(decode::<u32>(&[0x81, 0x00]), Ok(1));
+        assert_eq!(
+            decode_canonical::<u32>(&[0x81, 0x00]),
+            Err(CodecError::NotCanonical)
+        );
     }
 
     #[test]

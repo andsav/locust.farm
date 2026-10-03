@@ -17,6 +17,11 @@ pub mod domain {
     pub const GOAL_ID: &str = "locust v0 goal id";
     pub const INVITE_SECRET: &str = "locust v0 invitation secret";
     pub const JOIN_SIGNATURE: &str = "locust v0 join signature";
+    pub const LOCAL_CREDENTIAL: &str = "locust v0 local credential";
+    pub const SESSION_INSTANCE: &str = "locust v0 session instance";
+    pub const LOG_DIGEST: &str = "locust v0 author log digest";
+    pub const SEAL_KEY: &str = "locust v0 seal key";
+    pub const SEAL_NONCE: &str = "locust v0 seal nonce";
 }
 
 /// Starts a domain-separated digest; feed it with `update` and `finalize`.
@@ -30,6 +35,37 @@ pub fn domain_hash(context: &str, bytes: &[u8]) -> [u8; 32] {
 
 pub fn content_hash(bytes: &[u8]) -> BlobHash {
     BlobHash(*blake3::hash(bytes).as_bytes())
+}
+
+/// The symmetric key that seals a goal's content for one key epoch. It
+/// travels only in binary frames between members and is never rendered.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct ContentKey(pub [u8; 32]);
+
+impl fmt::Debug for ContentKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ContentKey(..)")
+    }
+}
+
+impl serde::Serialize for ContentKey {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        if serializer.is_human_readable() {
+            serializer.serialize_str("<redacted>")
+        } else {
+            serde::Serialize::serialize(&self.0, serializer)
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ContentKey {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        if deserializer.is_human_readable() {
+            Err(serde::de::Error::custom("keys are never read from text"))
+        } else {
+            <[u8; 32] as serde::Deserialize>::deserialize(deserializer).map(Self)
+        }
+    }
 }
 
 /// An Ed25519 signing key held by the daemon for one enrolled principal.
@@ -65,6 +101,10 @@ impl fmt::Debug for Keypair {
 
 /// Checks a signature made by [`Keypair::sign`] with the same context and
 /// digest. Malformed keys and non-canonical signatures fail.
+///
+/// This strict, per-signature check is the validity rule. Every peer must
+/// reach the same verdict on every event, so any batched fast path has to
+/// fall back to this function for the final answer.
 pub fn verify(key: &PublicKey, context: &str, digest: &[u8; 32], signature: &Signature) -> bool {
     let Ok(key) = ed25519_dalek::VerifyingKey::from_bytes(&key.0) else {
         return false;

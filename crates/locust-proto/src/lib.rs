@@ -10,13 +10,16 @@
 #![forbid(unsafe_code)]
 
 pub mod api;
+pub mod client;
 pub mod codec;
 pub mod crypto;
 pub mod event;
 pub mod id;
 pub mod invite;
 pub mod limits;
+pub mod local;
 pub mod manifest;
+pub mod seal;
 pub mod store;
 pub mod sync;
 #[cfg(any(test, feature = "testkit"))]

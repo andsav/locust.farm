@@ -20,7 +20,9 @@ use crate::PROTOCOL_VERSION;
 use crate::codec;
 use crate::crypto::{self, Keypair, domain};
 use crate::id::{BlobHash, EndpointId, EventId, GoalId, PublicKey, Signature};
-use crate::limits::{MAX_DEPENDENCIES, MAX_HEADER_BYTES, MAX_PARENTS, MAX_PAYLOAD_BYTES};
+use crate::limits::{
+    MAX_ARTIFACTS, MAX_DEPENDENCIES, MAX_HEADER_BYTES, MAX_PARENTS, MAX_PAYLOAD_BYTES,
+};
 
 /// The signed part of an event.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -312,7 +314,7 @@ impl Header {
             Body::TaskProposed { depends_on, .. } if depends_on.len() > MAX_DEPENDENCIES => {
                 return Err(EventError::BadReferences);
             }
-            Body::ResultSubmitted { artifacts, .. } if artifacts.len() > MAX_DEPENDENCIES => {
+            Body::ResultSubmitted { artifacts, .. } if artifacts.len() > MAX_ARTIFACTS => {
                 return Err(EventError::BadReferences);
             }
             _ => {}

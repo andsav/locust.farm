@@ -9,6 +9,7 @@ publish.workspace = true
 iroh.workspace = true
 locust-proto.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 locust-proto = { workspace = true, features = ["testkit"] }

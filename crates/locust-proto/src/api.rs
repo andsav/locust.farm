@@ -31,7 +31,7 @@ pub struct Credential(pub [u8; 32]);
 impl Credential {
     /// What the daemon stores and looks up in place of the secret.
     pub fn digest(&self) -> [u8; 32] {
-        crypto::domain_hash("locust v0 local credential", &self.0)
+        crypto::domain_hash(crypto::domain::LOCAL_CREDENTIAL, &self.0)
     }
 }
 
