@@ -224,6 +224,8 @@ The skill teaches enrollment and goal joining, context inspection, typed coordin
 
 The [Agent Skills specification](https://agentskills.io/specification) supports instructions and optional scripts. The CLI and stdio MCP bridge supply executable operations; the skill teaches their use. Qualify the bridge early on default Codex and Claude Code configurations rather than assuming their shell sandbox permits local sockets. [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), [Claude Code MCP](https://code.claude.com/docs/en/mcp).
 
+Use the [hcom source assessment](../research/hcom-dissection.md) as client-integration prior art. Track tool availability, active-session delivery, idle wake, session binding and execution confinement separately. Emitting or enqueueing a notification does not prove a durable task claim; test client exit after delivery and duplicate/late wake. Preserve the caller's permission policy and configuration when generating adapter settings. Optional Pi/hook extraction or a local hcom client-runtime backend must use the same daemon API and requires separate qualification; neither is a new first-release dependency.
+
 ### First-session contract
 
 Installation reports what is usable now and whether a new session/reload is needed. Goal creation records export root, selected manifest, source commit and sharing authority. The inviter passes a one-use invitation through a channel they choose. Joining shows the inviter's key, destination directory, incoming content, local client/account use and the execution policy; it does not reuse an arbitrary install-session directory or authorize broader sharing. An existing standing grant covers matching tasks; otherwise work remains pending authorization. The worker reports the exact base, patch and test evidence; the coordinator reviews it. The final status names the accepted snapshot and, separately, the local branch/worktree actually updated. Exercise this full transcript with both client roles before treating onboarding as complete.
@@ -303,6 +305,8 @@ These are execution targets, not claims that a checkpoint has passed. Start dete
 
 **Exit evidence:** local CLI and MCP roundtrips work; unauthorized/missing credentials and wrong-goal operations are rejected; request-digest idempotency works; state and recoverable outbound intent commit together; restart rebuilds the same projection without duplicate application; cursors cannot lose work; process shutdown/concurrent startup and restored-state signing restrictions behave correctly. Crash-inject before/after durable acknowledgments. Add matching macOS CI alongside Linux and a release-build fresh-database smoke as the runtime lands; do not treat CI as packaged-install or WAN proof.
 
+Start a deterministic real-client harness using isolated client profiles and a localhost scripted provider; hcom's small HTTP fixture and provider codecs are concrete reuse candidates with retained upstream license/provenance. Adapt the scenarios to Locust task/claim/artifact assertions. Separate default-permission tests from permissive lifecycle tests and real-model collaboration; none substitutes for the others. [Reuse and evidence boundaries](../research/hcom-dissection.md).
+
 ### M2 — Private peer replication and retained artifacts
 
 **Interface dependencies:** M0 transport/event selection and M1 append/projection interface; develop concurrently with M1. **Deliverables:** signed genesis/invites, the generic coordinator decision chain with membership/revocation validation, accepted membership, encrypted content/key distribution, peer session authorization, missing-event reconciliation, blob verification/retention and route/sync diagnostics. Persist enough peer/contact and immutable-root information to recover without an ephemeral DHT history index. Open public DHT discovery is unnecessary for this package.
@@ -357,6 +361,8 @@ Build tests around invariants and boundary failures, not copies of implementatio
 | Replay has one semantic effect | Duplicate event/result; crash after application but before checkpoint | M1/M3 |
 | Claims separate identity from execution instance | Same agent with two instances; lost claim response; long tool call, restart and explicit takeover | M3 |
 | Checkpoints cannot lose unclaimed work | Crash after delivery before claim; transient claim failure | M1/M3 |
+| Ingress checkpoint cannot outrun persistence | Event insert failure, unchanged cursor, storage recovery and identical-event retry; atomic projection update | M1/M2 |
+| Notification handoff is not task ownership | Client exits after flush/enqueue before claim; duplicate/late wake; stale session binding and failed delivery acknowledgment | M1/M3/M5 |
 | Idempotency covers the entire request | Same key with another assignee/input/policy | M1/M3 |
 | Remote policy matches authored intent | Deadline/attempt policy through request, restart and reassignment | M3 |
 | Cancellation and completion have defined ordering | Executor offline; cancellation races result; effect outcome unknown | M3 |

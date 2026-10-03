@@ -14,6 +14,11 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+### hcom client integration and reuse — 2026-10-03
+
+- [hcom dissection](hcom-dissection.md): pinned-source architecture, Codex/Claude/Pi adapters, whole-file versus whole-binary reuse, permission boundaries and replication limits.
+- [hcom validation evidence](evidence/hcom-validation.md): isolated CLI/delivery results, real Codex/Claude with scripted providers (including an intermittent Claude approval failure), and a storage-error probe.
+
 ### Implementation plan review — 2026-10-03
 
 - [Independent review of the implementation plan](implementation-plan-independent-review.md): re-baselined objections, cut candidates, default-configuration client probes for Codex and Claude Code, opening-pass decisions, and prior-art projects worth a teardown.
