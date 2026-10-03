@@ -14,6 +14,10 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+### Transport qualification — 2026-10-03
+
+- [Iroh transport probe findings](iroh-transport-probe.md): pinned-source routing behavior, relay/discovery operators, metadata boundaries and measured probe evidence.
+
 ### hcom client integration and reuse — 2026-10-03
 
 - [hcom dissection](hcom-dissection.md): pinned-source client-integration patterns, permission boundaries and test evidence; runtime reuse was assessed and superseded by the decision to implement the ideas independently in Rust.

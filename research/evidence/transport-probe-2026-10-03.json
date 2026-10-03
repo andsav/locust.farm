@@ -1,0 +1,195 @@
+{
+  "recorded_at_utc": "2026-10-03 23:34:50 UTC",
+  "source_commit": "905f31a314d5625b91d65cf13017a155d069c0e5",
+  "binary_kind": "local debug example; not a release artifact",
+  "binary_sha256": "df3cf7ae4b771c0e055a0acc286c654faa1e95f9526ed65319f249534b4df3b0",
+  "platform": "macOS arm64",
+  "rust": "1.96.1",
+  "iroh": "1.3.0",
+  "attempt_timeout_ms": 30000,
+  "output_grace_ms": 30000,
+  "topology": "two processes on one machine and one network",
+  "endpoint_identity_policy": "fresh ephemeral keys for each process; compared in harness; identifiers omitted from this summary",
+  "contact_redaction": "IP contact hints omitted; public relay URLs retained",
+  "discovery": "disabled",
+  "port_mapping": "disabled",
+  "https_relay_probes": "enabled",
+  "captive_portal_checks": "disabled",
+  "checks": [
+    {
+      "check": "n0_forced_relay_same_host",
+      "mode": "relay",
+      "separate_machines": false,
+      "separate_networks": false,
+      "listener_exit": 0,
+      "connector_exit": 0,
+      "listener_result": {
+        "record": "result",
+        "status": "success",
+        "mode": "relay",
+        "phase": "complete",
+        "error": "none"
+      },
+      "connector_result": {
+        "record": "result",
+        "status": "success",
+        "mode": "relay",
+        "phase": "complete",
+        "error": "none"
+      },
+      "listener_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "66283"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "66855"
+        }
+      ],
+      "connector_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "65570"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "65508"
+        }
+      ],
+      "relay_host": "https://usw1-1.relay.n0.iroh.link./",
+      "identities_match": true
+    },
+    {
+      "check": "custom_n0_east_same_host",
+      "mode": "relay",
+      "separate_machines": false,
+      "separate_networks": false,
+      "listener_exit": 0,
+      "connector_exit": 0,
+      "listener_result": {
+        "record": "result",
+        "status": "success",
+        "mode": "relay",
+        "phase": "complete",
+        "error": "none"
+      },
+      "connector_result": {
+        "record": "result",
+        "status": "success",
+        "mode": "relay",
+        "phase": "complete",
+        "error": "none"
+      },
+      "listener_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "162059"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "173830"
+        }
+      ],
+      "connector_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "160963"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "160622"
+        }
+      ],
+      "relay_host": "https://use1-1.relay.n0.iroh.link./",
+      "identities_match": true
+    },
+    {
+      "check": "auto_direct_wait_same_host",
+      "mode": "auto",
+      "separate_machines": false,
+      "separate_networks": false,
+      "listener_exit": 0,
+      "connector_exit": 0,
+      "listener_result": {
+        "record": "result",
+        "status": "success",
+        "mode": "auto",
+        "phase": "complete",
+        "error": "none"
+      },
+      "connector_result": {
+        "record": "result",
+        "status": "success",
+        "mode": "auto",
+        "phase": "complete",
+        "error": "none"
+      },
+      "listener_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "direct",
+          "selected": "true",
+          "rtt_us": "881"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "direct",
+          "selected": "true",
+          "rtt_us": "881"
+        }
+      ],
+      "connector_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "direct",
+          "selected": "true",
+          "rtt_us": "1485"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "direct",
+          "selected": "true",
+          "rtt_us": "920"
+        }
+      ],
+      "relay_host": "https://usw1-1.relay.n0.iroh.link./",
+      "identities_match": true
+    }
+  ],
+  "limitations": [
+    "No separate-machine or separate-network verification",
+    "Both public relay endpoints are operated by n0; no independent operator verified",
+    "Automatic-mode direct path used explicitly supplied loopback contact hints",
+    "Snapshots do not identify the path of every frame",
+    "No membership, persistence, artifact-transfer, or packaged-release qualification"
+  ]
+}

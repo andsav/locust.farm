@@ -17,7 +17,7 @@ The repository owner decides release go/no-go and changes to required scope or s
 | R6L — Locust client lifecycle | M1/M3/M5/M6: Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and each claimed hook/wake capability | Partial; gate open | B-C2 (configuration only) |
 | R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Not run | None |
 | R8 — Real collaboration | M6: two people/machines, mixed clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
-| R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1 (loopback component) |
+| R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3 (same-host direct/public relay) |
 | R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Not run | None |
 
 ## Partial component evidence — October 3
@@ -26,7 +26,9 @@ The repository owner decides release go/no-go and changes to required scope or s
 
 **B-C2, relevant to R6/R6L:** commit `7d1a207` implements configuration generation and a test-only stdio MCP socket probe. Six configuration tests, nine MCP-fixture tests and one explicit installed-Codex configuration test passed. The real executable was Codex 0.153.4 with a disposable profile; no provider calls, credentials or user-profile changes were involved. This does not prove real-model tool use, daemon authentication, default approvals, launch/session recovery or wake. Claude configuration has component coverage only. Lane A cross-review is pending under B-4.
 
-Exact reproduction commands, observations and remaining boundaries are in the [implementation log](lane-b-implementation-log.md). Workspace formatting, Clippy and tests also passed on the combined tree. These source/component checks are not packaged-candidate checks; no release artifact hash or public-download assertion exists yet, and the gate table remains open.
+Exact reproduction commands, observations and remaining boundaries are in the [implementation log](lane-b-implementation-log.md). For B-C1/B-C2, workspace formatting, Clippy and tests also passed on the combined tree. These source/component checks are not packaged-candidate checks; no release artifact hash or public-download assertion exists yet, and the gate table remains open.
+
+**B-C3, relevant to R9:** commits `b4daf3f` and `905f31a` add address-free route snapshots, acknowledged stream shutdown and a runnable transport probe with direct/relay/automatic modes. On macOS arm64, all 25 Rust component/example tests, 21 Python tests and five process smoke checks passed. Two same-host processes also completed authenticated exchanges through n0's default relay selection and a custom-only n0 east-region relay; automatic mode with an explicit loopback hint selected direct paths. Both sides' route snapshots, success records, exit codes and identity comparisons were checked. [Retained measurements](../research/evidence/transport-probe-2026-10-03.json) include the local debug binary hash; [findings](../research/iroh-transport-probe.md) explain the initial relay-probe and blocked-output bugs that were fixed. This is not two-machine/separate-network evidence, independent-operator evidence, or a packaged release check. Final workspace-wide checks were blocked by concurrent lane-A workspace code; focused checks passed. Lane A cross-review is requested in B-5.
 
 ## Evidence record format
 
