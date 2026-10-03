@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use locust_adapter::config::{Client, StdioServer, mcp_arguments};
+use locust_adapter::config::{BridgePaths, Client, StdioServer, mcp_arguments};
 use serde_json::{Value, json};
 
 struct Profile(PathBuf);
@@ -68,7 +68,11 @@ fn codex_parses_overlay_and_preserves_other_server_and_profile() {
     let server = StdioServer {
         executable: PathBuf::from("/tmp/locust app/locust"),
         arguments: vec!["mcp".into(), "a\"b\\c\n\u{7f} $(touch /no)".into()],
-        locust_home: Some(PathBuf::from("/tmp/locust home")),
+        paths: BridgePaths {
+            home: "/tmp/locust home".into(),
+            session: "/tmp/session.json".into(),
+            credential: "/tmp/credential.json".into(),
+        },
     };
     let args = mcp_arguments(Client::Codex, "locust_probe", &server, &["existing".into()]).unwrap();
     let read = |name: &str| -> Value {
@@ -89,6 +93,14 @@ fn codex_parses_overlay_and_preserves_other_server_and_profile() {
     assert_eq!(
         generated["transport"]["env"]["LOCUST_HOME"],
         "/tmp/locust home"
+    );
+    assert_eq!(
+        generated["transport"]["env"]["LOCUST_SESSION"],
+        "/tmp/session.json"
+    );
+    assert_eq!(
+        generated["transport"]["env"]["LOCUST_CREDENTIAL"],
+        "/tmp/credential.json"
     );
     let existing = read("existing");
     assert_eq!(existing["transport"]["command"], "/usr/bin/true");

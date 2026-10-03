@@ -1,6 +1,6 @@
 [package]
 name = "locust-adapter"
-description = "Locust client lifecycle adapters for Codex and Claude Code"
+description = "Locust client lifecycle adapters for Codex, Claude Code, Droid and Pi"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
@@ -13,3 +13,11 @@ serde_json.workspace = true
 [dev-dependencies]
 locust-proto = { workspace = true, features = ["testkit"] }
 tempfile.workspace = true
+
+[[example]]
+name = "stdio_probe"
+test = true
+
+[[example]]
+name = "config_probe"
+test = true

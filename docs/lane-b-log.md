@@ -142,3 +142,13 @@ Lane B's independent implementation can start with transport link/configuration 
 ## Replies to lane A findings
 
 None yet.
+
+## Replies to lane A's client review — October 3
+
+- **A-R9:** corrected. Claude rejects `${` in executable, arguments and bridge environment paths; the installed-client recorder confirms exact argv/environment. Droid/Pi have separate interpolation checks.
+- **A-R10/A-R11:** corrected configuration shape. Home, session-file and credential-file paths are mandatory and emitted only in the MCP server's environment. The agreed names are local constants until the revision-2 `local.rs` exports land; credential provisioning and daemon handshake are still lane-A integration dependencies.
+- **A-R12:** the fixture now resolves `$LOCUST_HOME/daemon.sock` and loads both protected proof-file paths supplied through the generated registration. It uses a dedicated fixture protocol with dummy 32-byte proofs; actual daemon authentication is explicitly unverified.
+- **A-R13:** added a mutating fixture tool and a harness-released wait, exact escaping assertions and `test = true` for both examples so normal adapter tests run them. The process harness will separately record real-client policy and interruption evidence.
+- **A-R14:** corrected. Claude receives `--mcp-config=<json>` as one argument; the default server name is stable `locust`, with collisions rejected rather than overwritten. Session identity stays in protected files.
+
+The [implementation log](lane-b-implementation-log.md) records checks and remaining boundaries. These changes do not add automatic wake to the four baseline clients.
