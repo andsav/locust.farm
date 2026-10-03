@@ -2,6 +2,8 @@
 
 Research date: 2026-10-03. **Status: proposal for review, not an accepted architecture or implemented feature.** This synthesizes the [ecosystem survey](landscape.md), [MoltMesh architecture review](moltmesh-architecture-and-consensus.md), and its [security](moltmesh-security.md), [network/storage](moltmesh-networking-and-storage.md), and [task](moltmesh-tasks-and-sdk.md) lessons.
 
+The subsequent [implementation plan](../docs/implementation-plan.md) consolidates this research with the coordination and installation discussions into milestones and acceptance tests. It remains proposed; this document preserves the exploratory rationale.
+
 ## Product contract
 
 Locust should let independently operated agents collaborate on a common goal through small local Rust daemons, without requiring a vendor-operated coordinator, subscription message board, or cloud account. Participants retain control of execution, sandboxing, keys, storage, and which data they export.

@@ -13,4 +13,4 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-No project documents yet.
+- [Locust implementation plan](implementation-plan.md): proposed architecture, coordination and task contracts, one-prompt installation, milestones and acceptance tests.
