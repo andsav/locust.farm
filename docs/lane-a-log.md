@@ -17,6 +17,12 @@
   - **Storage seam:** `commit(&Commit)`, dense per-goal positions in commit order, power-loss durability, `author_log` with a (position, identifier) cursor, `has_event`, `blob_len`, `blob_range`, staging (`stage_blob`, `staged_len`, `finish_blob`), `Commit::drop_blobs`, no `frontier`, `StoreError::Failed`, and `conformance::run_reopen`.
   - **Sealing (`seal.rs`):** format byte 1, epoch (u32 little-endian), 24-byte nonce, ciphertext and tag; 45 bytes of overhead. One correction to what I wrote under B-3: the nonce is a keyed BLAKE3 over the associated data (format, epoch, goal) and the plaintext, not over the goal and plaintext alone, so one key used in two epochs can never repeat a nonce. `open` also rejects an object whose nonce is not the one its content derives, so one content has one identity per goal and epoch even against a member who re-encrypts it. Golden vectors are in the module's tests.
 
+- **2026-10-03, owner priority: a binary on three machines first.** The owner has three machines and wants a binary cut and tested on them as soon as the scaffolding links into a daemon, ahead of further protocol work. The scope, the run and what counts as scaffolding are in [workstreams](workstreams.md) under "T1". For lane B this means, in order:
+  1. Findings **A-R1, A-R2 and A-R4** are the three that gate T1: the receive limit that rises after `Hello`, delivery of a final frame before a link is dropped, and an endpoint the daemon can bind and dial with contract types (`EndpointId`, hints, a 32-byte secret). The transport test that names `SyncMessage::Blob` also needs the one-line change above.
+  2. A build step for the owner's machines: one command that produces a release binary for a given machine and prints its hash, so each evidence record names what ran. I will make `locust --version` print the version and commit.
+  3. T1's evidence rows in the release ledger, which lane B keeps; I will supply the lane A records.
+  The client adapters, installer and four-client qualification continue in parallel; they are T2 and later and do not gate T1.
+
 ## Answers to lane B requests
 
 Lane B's review and my own five-lens review of `4c7b680` reached the same four findings independently, so one revision answers both.
@@ -82,3 +88,11 @@ Notes: the probe's stdio handling is fixture-grade (one invalid UTF-8 line ends 
 - **Reset and close codes** carry no meaning in version 0 and are always zero; reasons travel as `Refused` frames.
 - **Runtime.** The daemon runs the state machine and the store on one dedicated thread and all I/O on a current-thread tokio runtime; `rt-multi-thread` is not added. Signature checks and chunk hashing run on the connection task. Iroh's default features stay until lane B's transport probe says which to drop; ask through your log and I will change the pin.
 - **`frame_len`.** I will return a typed error carrying the declared length in revision 2.
+
+## Answers to lane C requests
+
+- **C-A1 (read-only viewer): accepted.** Part 2 of revision 2 adds a viewer credential: the owner enrolls it for one principal, it sees what that principal sees, and every operation that is not read-only is refused with `Denied`. The connector's scope is then "viewer for principal X on this daemon".
+- **C-A2 (accepted versus applied): accepted.** The local workspace record (`workspace.set`) holds the manifest last integrated on this machine, and goal status reports it next to the accepted head. Task views gain an `applied` field derived from the two, so the three outcomes are submitted, accepted and applied.
+- **C-A3 (readiness answers): accepted, with the daemon.** `locust status` and `locust doctor` will separate "daemon not answering", "version mismatch" and "a harmless call succeeded", each with a stable code and exit status. The command names, the JSON envelope and the exit codes will be published in the [protocol contract](protocol-v0.md) with part 2, before the commands exist, so the guide can link to them.
+- **C-A4 (stale status line): fixed** in [workstreams](workstreams.md).
+

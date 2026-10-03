@@ -1,6 +1,6 @@
 # Crates and workstreams
 
-Date: 2026-10-03. **Status: accepted layout and working rules for the October 4 push; the crates other than `locust-proto` are stubs with no behavior yet.** The repository owner approved the crate split on 2026-10-03, chose to keep all streams in one checkout without worktrees, and divided the work between two orchestrating sessions that review each other. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
+Date: 2026-10-03. **Status: accepted layout and working rules for the October 4 push. `locust-proto` holds the contract; `locust-net`, `locust-adapter` and `locust-workspace` have behavior and tests; `locust-core` and `locust-store` are being built; the `locust` binary still only prints its name.** The repository owner approved the crate split on 2026-10-03, chose to keep all streams in one checkout without worktrees, and divided the work between two orchestrating sessions that review each other. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
 
 ## Why the workspace is split
 
@@ -73,10 +73,28 @@ These are conventions; nothing enforces them except the checks named below.
 
 ## Integration order
 
-1. Core, local API and bridge on `MemStore`: a scripted MCP client drives propose, assign, claim, submit and accept.
-2. The same flow in default-profile Codex, Claude Code, Factory Droid and Pi sessions; first [release evidence](release-evidence.md) records. Start with a runnable pair, then cover all four before baseline qualification is complete.
-3. `MemStore` replaced by the SQLite store.
-4. Two daemons over the transport, with invitation and reconciliation.
-5. Workspace snapshots and patches in the task flow.
+The owner's priority, set on 2026-10-03: as soon as the scaffolding links into a daemon that can found, join and synchronize a goal, cut a binary and test it on the owner's three machines. Work that the first three-machine test does not need waits until that test has run.
 
-Encryption and key distribution, revocation, cancellation delivery and blob retention start after step 1, because they need membership decisions from the core and a working link.
+**Scaffolding** is done when these exist together: contract revision 2 complete (lane A); the core state machine and the SQLite store (lane A); the daemon shell with its socket and a CLI for the operations below (lane A); a transport that the daemon can bind and dial with contract types, with the hello-then-peer frame limit and delivery of a final frame (lane B; findings A-R1, A-R2 and A-R4 in the [lane A log](lane-a-log.md)).
+
+### T1: the first binary on three machines
+
+- **Binary.** One commit built for each machine in release mode. `locust --version` prints the version and the commit, so every record names exactly what ran. Lane B provides the build step for the owner's machines; lane A provides the daemon and CLI.
+- **Operations in the binary.** `daemon run`, `status`, `agent enroll`, `goal create`, `goal invite`, `goal join`, `goal status`, `note add`, `notes`, `task propose`, `task assign`, `task claim`, `task submit`, `event show`, `result accept`, `board`, `pending`. Content is sealed, so key exchange and single-chunk content transfer between daemons are included.
+- **Run, driven from the CLI on each machine.**
+  1. Machine 1 founds a goal and issues two invitations; machines 2 and 3 join. All three list three members and show the route to each peer.
+  2. Machine 1 proposes and assigns a task to machine 2, which claims and submits; machine 1 reads the result and accepts it; machine 3 holds the whole history without having taken part.
+  3. Machine 1's daemon is stopped. Machines 2 and 3 exchange notes with each other. Machine 1 starts again and catches up.
+  4. Each daemon is restarted in turn and keeps its state; a sleeping laptop wakes and reconnects.
+- **Evidence.** Commit and binary hash per machine, operating system and architecture, the commands, event identifiers, routes and every failure, recorded in the [release evidence ledger](release-evidence.md). A failure is recorded and fixed before anything else is added.
+- **Not in T1.** The MCP bridge with real coding clients, workspace snapshots in the task flow, member removal and key rotation, document revisions, managed client sessions, content larger than one chunk, the installer and signed artifacts.
+
+### T2: coding agents on the same machines
+
+`locust mcp` and the operating skill in default-profile client sessions on the three machines, a real task with a workspace snapshot and a patch, and wait, interruption and explicit resume. Baseline clients are Codex, Claude Code, Factory Droid and Pi; start with a runnable pair.
+
+### After T2
+
+Member removal and key rotation, cancellation delivery, document revisions, content larger than one chunk, managed client sessions, then packaging and the one-prompt install against the release candidate.
+
+Deterministic tests do not wait for the machines: the core's shuffled-delivery and multi-node tests and the store's conformance and crash tests run as their crates land.
