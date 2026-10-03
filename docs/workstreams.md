@@ -40,7 +40,7 @@ These are conventions; nothing enforces them except the checks named below.
 2. **Commit by path.** Use `git commit -- <your paths>` so another session's staged files are never swept in. Do not amend, rebase or otherwise rewrite history.
 3. **Build in your own directory.** Set `CARGO_TARGET_DIR` to a per-stream directory under `target/` so concurrent builds do not queue on Cargo's lock.
 4. **Contract changes are versioned.** A change that alters a golden vector in [`vectors.rs`](../crates/locust-proto/src/vectors.rs) changes the wire format and needs a new protocol version once a release exists.
-5. **Checks.** [AGENTS.md](../AGENTS.md) requires the workspace-wide `cargo fmt`, `cargo clippy` and `cargo test` before every Rust commit, and that remains the rule. Proposed and not yet approved by the owner: stream commits run those checks for their own package (`-p <crate>`), and the integration owner runs them workspace-wide at each integration commit, because a neighbour's unfinished crate would otherwise block unrelated commits.
+5. **Checks.** Approved by the owner on 2026-10-03: a stream commit runs `cargo fmt`, `cargo clippy` and `cargo test` for its own package (`-p <crate>`), so a neighbour's unfinished crate does not block it. The integration owner runs the same three checks across the whole workspace at each integration commit, as does any change to `locust-proto`, the root `Cargo.toml` or `Cargo.lock`. [AGENTS.md](../AGENTS.md) carries the commands.
 
 ## Integration order
 
