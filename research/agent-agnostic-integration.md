@@ -2,13 +2,15 @@
 
 Date: 2026-10-03. **Status: researched recommendation, not an accepted design or implemented adapter.** The goal is to connect different coding agents to Locust while enforcing a locally chosen sandbox. Merak native integration and a Pi extension are candidate adapters, not requirements for participation.
 
+**Scope update, October 3:** the owner subsequently made Codex, Claude Code, Factory Droid and Pi the first-release baseline. The [accepted plan](../docs/implementation-plan.md) and [client qualification matrix](../docs/release-evidence.md) supersede any implication here that Pi participation is deferred. The owner also restricted automatic wake to Merak for now; the four baseline clients use active sessions and explicit resume. Optional execution/sandbox extensions remain separate work; the source observations below are not runtime qualification.
+
 ## Finding
 
-Transport need not make Locust agent-specific. Codex, Claude Code and current Pi documentation all describe local MCP servers over stdio. A proposed `locust mcp` process can translate those calls into the same authenticated daemon API used by the CLI. Clients do not need to implement Locust's peer transport or understand its Unix socket protocol.
+Transport need not make Locust agent-specific. Codex, Claude Code, Factory Droid and current Pi documentation all describe local MCP servers over stdio. A proposed `locust mcp` process can translate those calls into the same authenticated daemon API used by the CLI. Clients do not need to implement Locust's peer transport or understand its Unix socket protocol.
 
 The more consequential differences are **session lifecycle and execution control**: whether the adapter can deliver work to an idle session, observe cancellation, resume an attempt, and enforce a particular local filesystem/network policy. Test and describe these separately from successful connectivity.
 
-The [implementation plan](../docs/implementation-plan.md) provides the base: one daemon state-transition implementation behind local IPC, a structured CLI and a portable skill. Following the second review, the plan now includes the thin stdio MCP bridge in the first release. Following the [hcom dissection](hcom-dissection.md), the owner selected Locust-owned Rust client lifecycle adapters, using its ideas rather than adopting its runtime, fork or source. Locally initiated launch, session binding and qualified delivery now have an implementation workstream; unattended runners and deeper Merak/Pi integrations remain deferred.
+The [implementation plan](../docs/implementation-plan.md) provides the base: one daemon state-transition implementation behind local IPC, a structured CLI and a portable skill. Following the second review, the plan now includes the thin stdio MCP bridge in the first release. Following the [hcom dissection](hcom-dissection.md), the owner selected Locust-owned Rust client lifecycle adapters, using its ideas rather than adopting its runtime, fork or source. Locally initiated launch, session binding and qualified delivery now have an implementation workstream; unattended runners and deeper execution/sandbox extensions remain deferred. Automatic wake is a separate Merak-only target for now.
 
 ## Three separate interfaces
 
@@ -20,7 +22,7 @@ The [implementation plan](../docs/implementation-plan.md) provides the base: one
 
 ```mermaid
 flowchart LR
-    C[Codex or Claude Code] <-->|MCP stdio| M[Locust MCP bridge]
+    C[Codex, Claude Code or Droid] <-->|MCP stdio| M[Locust MCP bridge]
     P[Pi] <-->|MCP stdio| M
     PN[Pi native extension] <-->|Authenticated local API| D[Locust daemon]
     H[Merak native adapter] <-->|Authenticated local API| D
@@ -41,10 +43,11 @@ These are capabilities documented by the upstream projects on the research date,
 |---|---|---|
 | Codex local clients | [MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) lists stdio and Streamable HTTP. [App Server](https://learn.chatgpt.com/docs/app-server) provides session integration and experimental client-handled dynamic tools. | Use the common stdio bridge first. Evaluate App Server only if Locust needs a separately supervised runner or deeper lifecycle control. |
 | Claude Code | [MCP documentation](https://code.claude.com/docs/en/mcp) describes local stdio and HTTP servers. | Use the same bridge. Treat hooks or a supervised runner as additional capabilities, not requirements for daemon access. |
-| Pi | [MCP documentation](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/mcp.md) describes stdio and Streamable HTTP; [extensions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md) support custom tools, lifecycle handlers and tool interception/overrides. | Use MCP for basic participation; prototype an extension for session-aware work delivery and routing execution through the local sandbox. |
+| Factory Droid | [Official MCP documentation](https://docs.factory.com/harness/mcp) describes native stdio servers configured with command, arguments and environment. `droid mcp add` writes user configuration; approvals and organization policy affect availability. | Qualify isolated configuration, protected bridge environment, tool permissions and wait/recovery behavior. Do not treat the CLI add command as a per-run overlay. |
+| Pi | [Stable MCP documentation](https://github.com/earendil-works/pi/blob/stable/packages/coding-agent/docs/mcp.md) describes built-in stdio and Streamable HTTP; [extensions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md) support custom tools, lifecycle handlers and tool interception/overrides. | Use MCP for basic participation; prototype an extension for session-aware work delivery and routing execution through the local sandbox. |
 | Merak | [Local source assessment](merak-native-local-sandbox.md) identifies native permission, subprocess and child-authority seams. | Build a native adapter for run admission and sandbox enforcement, retaining the same daemon API and task contract. |
 
-Pi's former `badlogic/pi-mono` repository redirects to `earendil-works/pi`. The linked Pi documentation tracks its current main branch; qualify a specific released build before publishing support. An extension can own a local connection and react to session events, but the Unix-socket framing, credentials and reconnection logic would still be ours to implement.
+Pi's former `badlogic/pi-mono` repository redirects to `earendil-works/pi`. The MCP reference now follows its stable branch; qualify a specific released build before publishing support. Current stable documentation describes project trust, default `codemode` tool exposure and reload behavior; an extension registering `/mcp` replaces the built-in session MCP integration. These details need real-client tests. An extension can own a local connection and react to session events, but the Unix-socket framing, credentials and reconnection logic would still be ours to implement.
 
 ## Keep collaboration and execution authority separate
 
@@ -72,11 +75,11 @@ Keep the first adapter contract small and versioned:
 - A persisted mapping from Locust assignment/attempt to the client's run/session when the adapter manages execution.
 - Explicit capability declarations for active-session delivery, manual resume, cancellation reporting, restart recovery and the locally enforceable sandbox policy, including unsupported or manual-only modes. Do not infer these capabilities from the client name or successful MCP initialization.
 
-A local MCP connection does not automatically start a new model turn or wake a closed session. Use the supported client notification/lifecycle path or the plan's wait/resume workflow, and record what actually works. Start with explicit resume if automatic delivery is unqualified; do not make polling or a long-lived tool call an undocumented readiness guarantee.
+A local MCP connection does not automatically start a new model turn or wake a closed session. Use active-session notifications/tools and the plan's wait/resume workflow for the four baseline clients, and record what actually works. Automatic wake is restricted to Merak for now; do not make polling or a long-lived tool call an undocumented readiness guarantee.
 
 The proposed first experiment has two independent checks:
 
-1. **Portability:** one real Locust task flow through the stdio bridge in a supported Codex or Claude Code version, plus the same flow in Pi. Verify task/context reads, exact attempt binding, result submission, bridge restart and durable cursor recovery. The CLI remains the fallback/reference client.
+1. **Portability:** the same real Locust task flow through the stdio bridge in qualified Codex, Claude Code, Factory Droid and Pi versions. Verify task/context reads, exact attempt binding, result submission, bridge restart and durable cursor recovery. The CLI remains the fallback/reference client.
 2. **Enforcement:** one strict local worker profile through Pi's extension or Merak's native adapter. Demonstrate a useful edit/test/patch task and actual denied outside-root reads/writes, credential access, unapproved network and privilege widening. Reuse the canary-based [sandbox acceptance cases](merak-native-local-sandbox.md). Merak and Pi can later qualify against the same cases without identical internals.
 
 This tests the two claims separately: Locust is portable across agents, and a particular adapter/runner enforces a particular sandbox. Prefer this to building a Merak-specific daemon and attempting to generalize it later.

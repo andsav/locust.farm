@@ -30,7 +30,7 @@ Two orchestrating sessions run the streams. **Lane A** owns the contract, the da
 | [`crates/locust-workspace`](../crates/locust-workspace/src/lib.rs) | A | Manifest export, materialization, patches; runs in the CLI, never in the daemon | Plain directories and Git object reads |
 | [`crates/locust-net`](../crates/locust-net/src/lib.rs) | B | Endpoint, relay and address configuration, framed links, in-memory link; the two-machine transport probe | An in-memory link; then two machines |
 | [`crates/locust-adapter`](../crates/locust-adapter/src/lib.rs) | B | Per-client configuration, launch, session binding, hooks, diagnostics | Scripted provider fixtures |
-| Real-client qualification harness | B | Default-profile Codex and Claude Code runs: tool reach, approvals, wait, interruption, resume, hook delivery | A stand-in stdio MCP server until `locust mcp` exists |
+| Real-client qualification harness | B | Default-profile Codex, Claude Code, Factory Droid and Pi runs: tool reach, approvals, wait, interruption, resume, hook delivery | A stand-in stdio MCP server until `locust mcp` exists |
 | `scripts/`, skill and installer files | B | Installer, operating skill, client configuration, user-service units, install prompt | The development binary |
 | `.github/`, release manifest and signing | B | macOS and Linux CI, release-build smoke test on a fresh database, artifacts | — |
 | [`release-evidence.md`](release-evidence.md) | B | Keeps the gate ledger; lane A supplies records for its own gates | — |
@@ -42,8 +42,8 @@ Lane A makes each integration commit that wires crates together, including the o
 Read, in order: this document, the [version 0 contract](protocol-v0.md), plan sections 6 to 8 of the [implementation plan](implementation-plan.md), the [hcom assessment](../research/hcom-dissection.md) and the client findings in the [independent review](../research/implementation-plan-independent-review.md). Then:
 
 1. **Transport probe.** Two machines on separate networks connect with Iroh 1.3 at the pinned version; the direct and the forced-relay path are both observed; an alternate relay works; the default relay and address-lookup operator and what each observes are written down. Deliver in `locust-net` a framed link that carries `locust_proto::sync::SyncMessage` frames using `locust_proto::codec`, exposes the authenticated remote `EndpointId` of each link, and has an in-memory twin for tests. Evaluate the blob layer separately at pinned versions, including unauthorized fetch and push and crash durability. The transport decides nothing about membership: the daemon feeds received frames to the state machine and writes back what it returns.
-2. **Default-profile client qualification.** In isolated, default-configured profiles (never the owner's own, which are permissive), establish for Codex and Claude Code: whether a registered stdio MCP server reaches a Unix socket under `$LOCUST_HOME`, which tool calls prompt, how a blocking wait behaves at each client's limits, what interruption and explicit resume look like, and which hooks deliver between tool calls. This needs the owner to sign in to those profiles.
-3. **Client lifecycle adapters**, following the adapter table in plan section 6.
+2. **Default-profile client qualification.** In isolated, default-configured profiles (never the owner's own, which are permissive), establish for Codex, Claude Code, Factory Droid and Pi: whether a registered stdio MCP server reaches a Unix socket under `$LOCUST_HOME`, which tool calls prompt, how a blocking wait behaves at each client's limits, what interruption and explicit resume look like, and which hooks deliver between tool calls. Run scripted-provider checks without real credentials where the selected client supports that path; real-account checks need the owner to sign in to those isolated profiles. Record client/version, effective permissions, provider/authentication mode and any missing capability separately in the [client matrix](release-evidence.md).
+3. **Client lifecycle adapters**, following the adapter table in plan section 6. Codex, Claude Code, Factory Droid and Pi use active sessions and explicit resume. Automatic wake is scoped only to Merak for now, with its own qualification; unattended closed-session startup remains deferred.
 4. **Installer, skill and client configuration**, against the operation names in the contract.
 5. **CI and release packaging.**
 
@@ -70,7 +70,7 @@ These are conventions; nothing enforces them except the checks named below.
 ## Integration order
 
 1. Core, local API and bridge on `MemStore`: a scripted MCP client drives propose, assign, claim, submit and accept.
-2. The same flow in default-profile Codex and Claude Code sessions; first [release evidence](release-evidence.md) record.
+2. The same flow in default-profile Codex, Claude Code, Factory Droid and Pi sessions; first [release evidence](release-evidence.md) records. Start with a runnable pair, then cover all four before baseline qualification is complete.
 3. `MemStore` replaced by the SQLite store.
 4. Two daemons over the transport, with invitation and reconciliation.
 5. Workspace snapshots and patches in the task flow.

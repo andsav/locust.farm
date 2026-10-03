@@ -13,10 +13,10 @@ The repository owner decides release go/no-go and changes to required scope or s
 | R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Not run | None |
 | R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Not run | None |
 | R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Not run | None |
-| R6 — Real client behavior | M1/M5/M6: default-profile Codex and Claude, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2 (configuration only) |
-| R6L — Locust client lifecycle | M1/M3/M5/M6: Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and each claimed hook/wake capability | Partial; gate open | B-C2 (configuration only) |
-| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Not run | None |
-| R8 — Real collaboration | M6: two people/machines, mixed clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
+| R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2 (configuration only) |
+| R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2 (configuration only) |
+| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Not run | None |
+| R8 — Real collaboration | M6: two people/machines, mixed-client flows covering all four baseline clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
 | R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3 (same-host direct/public relay) |
 | R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Not run | None |
 
@@ -44,6 +44,28 @@ Add one record per actual check; use it from the corresponding gate row. A recor
 
 Prior-art tests, reviewer-reported probes and documentation-check success do not satisfy Locust runtime gates. Linux/macOS CI, a packaged install and a public artifact check establish different evidence levels.
 
+## Required client baseline
+
+**Owner decision, October 3:** Codex, Claude Code, Factory Droid and Pi are required first-release clients. Pi is no longer deferred as a participation/lifecycle target. Automatic wake is restricted to Merak for now; the four baseline clients use active sessions and explicit resume. This changes the required scope; it does not turn documentation or prior-art results into verified support.
+
+| Client | Current Locust configuration evidence | Daemon task flow and recovery | Locust-managed lifecycle |
+|---|---|---|---|
+| Codex | B-C2: generated overlay parsed by 0.153.4; review fixes pending | Not run | Not run |
+| Claude Code | B-C2: configuration component tests; lane A's installed-client review found fixes needed | Not run | Not run |
+| Factory Droid | Not implemented or qualified | Not run | Not run |
+| Pi | Not implemented or qualified | Not run | Not run |
+
+The [lane A review](lane-a-log.md) records configuration findings against B-C2; that historical pass is not a clean bill for the complete adapter. Record new results against exact commits and client builds.
+
+Apply the same required scenarios to each client:
+
+1. Install/discover the operating skill and bridge in an isolated default profile; preserve unrelated configuration and local permission policy; authenticate to the daemon with protected credentials.
+2. Inspect a goal and its context, assign or claim an exact task attempt, perform a concrete code change, submit evidence/patch, inspect a contribution and complete the review/fix/accept loop. Cover each client as coordinator and worker with another baseline client so a successful same-client run cannot stand in for interoperability.
+3. Observe read/write permission behavior, including whether prompts exist, wait behavior, interruption, explicit resume, bridge/daemon restart and durable pending-work recovery without duplicate execution or lost work. Keep blocked authentication/approval and cancellation outcomes explicit.
+4. Exercise locally authorized launch, readiness and session binding/recovery independently of unmanaged CLI/MCP access. Record hooks and active-session delivery separately from explicit resume. Automatic wake is outside the current scope for Codex, Claude Code, Factory Droid and Pi; qualify it only for Merak. Closed-session unattended activation remains deferred.
+
+The harness uses actual client binaries and records exact version, OS/architecture, profile, permission and authentication/provider mode. Scripted-provider checks, real-model collaboration and packaged-install checks remain separate evidence levels. If a client cannot use a scripted provider, record that limitation and qualify the corresponding behavior through an available real-client path; do not silently skip it. The early runnable pair does not close R6, R6L or R8 for the four-client baseline.
+
 ## Client lifecycle qualification
 
 The accepted direction is to implement client integration in Locust's Rust application, using [hcom's patterns](../research/hcom-dissection.md) as references. There is no hcom runtime, fork or source-transplant adoption gate. R6L qualifies Locust's own implementation and must record, per supported client/profile:
@@ -52,7 +74,7 @@ The accepted direction is to implement client integration in Locust's Rust appli
 - Persisted launch intent and attempt/session binding; crash after spawn, ambiguous launch recovery, resume/fork/rebind, and stale claim rejection.
 - Notification loss/duplication and exit before claim, with pending work recovered from Locust task state.
 - Cancellation requested, observed process/descendant outcome and any uncertain effects; no launch triggered directly by peer assignment.
-- Active-session delivery, idle wake and explicit resume as separate capabilities. An unqualified optional wake path is reported as unsupported; the common manual-resume path still requires R6 evidence.
+- Active-session delivery and explicit resume for each baseline client. Automatic wake has a separate Merak-only qualification record; no Merak wake result exists yet. An unqualified wake path is unsupported, and this optional Merak capability is not a fifth baseline-client gate.
 - Exact packaged Locust artifact and client versions for shipped claims. Independently written scripted-provider tests, default-profile checks and real-model task runs are separate evidence records.
 
 The earlier hcom Codex/Claude runs only identify useful scenarios. In particular, the retained intermittent Claude approval-resume failure motivates testing delivery around approval prompts and active user input; neither that failure nor a later passing repeat establishes Locust behavior. See the [original evidence](../research/evidence/hcom-validation.md).

@@ -4,6 +4,10 @@
 
 The owner has assigned lane B the agent-coordination product area. Implementation progress, product observations and verification boundaries are maintained in the [implementation log](lane-b-implementation-log.md); this file remains the cross-lane request/review channel.
 
+## Scope notice — October 3
+
+The owner made **Codex, Claude Code, Factory Droid and Pi** the required first-release client baseline. Lane B updated the [plan](implementation-plan.md), [workstreams](workstreams.md) and [qualification matrix](release-evidence.md). All four must complete the common task/review/recovery flow; automatic wake is restricted to Merak for now, while all four baseline clients use active sessions and explicit resume. This needs four client adapters and evidence rows, not a client-specific daemon authority or protocol. No contract change is requested by this scope update.
+
 ## Requests to lane A
 
 - **B-1 — Complete the local session/claim and inspection seam before client integration depends on it.** The review below identifies missing claim proof/generation and result/revision reads (B-R1/B-R2). In addition, the [adapter contract](../crates/locust-adapter/src/lib.rs) requires API-only daemon access and persistence in `Space::Session`, but [the API](../crates/locust-proto/src/api.rs) has no session or launch-intent operations. Please define narrowly scoped register/recover/update operations, including ownership and protected proof handling, or explicitly host adapter lifecycle work inside the daemon behind an injected interface. A raw arbitrary-key store API or a second adapter database would violate the intended boundary. Lane B can build pure configuration and notification parsing while this is settled.
