@@ -1,6 +1,6 @@
 # Locust implementation plan
 
-Date: 2026-10-03. **Status: proposed implementation plan for review; implementation has not started.** This consolidates the project intent, ecosystem and MoltMesh research, coordination discussion, and installation-through-a-coding-agent proposal. User requirements and proposed engineering defaults are distinguished below. Nothing here implies that the proposed protocol has already been implemented or verified.
+Date: 2026-10-03. **Release target: tomorrow night, October 4, 2026 (America/Los_Angeles). Status: proposed implementation plan; implementation has not started.** The release date is the owner's stated constraint, not an estimate derived from the number of components. This consolidates the project intent, ecosystem and MoltMesh research, coordination discussion, and installation-through-a-coding-agent proposal. User requirements and proposed engineering defaults are distinguished below. Nothing here implies that the proposed protocol has already been implemented or verified.
 
 ## 1. Outcome and scope
 
@@ -15,7 +15,7 @@ The first complete experience:
 5. A worker accepts, executes in its participant-managed environment, and publishes a result and patch or artifact.
 6. The coordinator reviews and accepts the contribution. A disconnected participant can reconnect and recover authorized missed state from reachable retained copies.
 
-The first release must prove this entire flow with real coding agents and a real network connection between separate machines. A local deterministic worker remains useful as an earlier test fixture, but is a different evidence boundary.
+The first release must prove this entire flow with real coding agents and a real network connection between separate machines. Exercise real agents as soon as the first runnable task flow exists, while protocol and persistence work continues in parallel. A local deterministic worker is a companion test fixture with a different evidence boundary; it is not a prerequisite for trying the product with real agents.
 
 ### User requirements
 
@@ -41,7 +41,7 @@ The first release must prove this entire flow with real coding agents and a real
 | Initial execution | Active coding-agent sessions explicitly join and wait for work | Avoids claiming universal idle/closed-session activation |
 | Initial release targets | macOS arm64 and Linux x86_64; Codex and Claude Code local clients | A proposed, bounded qualification matrix, not a current support claim |
 
-These defaults can change at the initial design gates. Windows, more architectures and Cursor are later qualification targets unless a concrete early deployment requires them. The current scaffold has no existing users or wire format to migrate.
+Resolve these defaults in the opening implementation pass so parallel work has stable interfaces. Windows, more architectures and Cursor are later qualification targets unless a concrete early deployment requires them. The current scaffold has no existing users or wire format to migrate.
 
 ### Deferred scope
 
@@ -129,7 +129,7 @@ offered → assigned → worker_accepted → running → result_submitted → re
                          ↘ rejected / failed / cancel_requested → cancel_acknowledged
 ```
 
-This is an explanatory flow, not the final state machine. Milestone M0 must define the complete transition table, including retries, superseded attempts, result rejection and late messages. Each transition lists its allowed signer, prior-state precondition and side effects. In particular, a completed worker attempt does not automatically mean that the goal accepted its result.
+This is an explanatory flow, not the final state machine. Work package M0 must define the complete transition table, including retries, superseded attempts, result rejection and late messages. Each transition lists its allowed signer, prior-state precondition and side effects. In particular, a completed worker attempt does not automatically mean that the goal accepted its result.
 
 An immutable task specification binds the requested outcome, named assignee or eligible role, input snapshot, expected outputs, dependencies and authored execution/retry/deadline policy. Worker acceptance binds the exact assignment hash, input snapshot and required capabilities and is persisted before execution. Omitted policy means a documented explicit default or no deadline; remote receivers must not silently replace supplied policy. Any retry limit or resource policy is operator/task-authored and visible, not an arbitrary hidden model/tool cap.
 
@@ -177,7 +177,7 @@ Proposed command surface; these commands are **not implemented yet**:
 
 Provide human-readable output plus versioned `--json` responses, stable error codes, request IDs and semantic result states. Never print credentials, invitation secrets or private keys in routine logs. A wait operation should return relevant durable events and a resumable cursor; the client must acknowledge/recover work safely before checkpointing past it. Distinguish waiting, disconnected, denied, unsupported-version and corrupted-state outcomes.
 
-The skill teaches enrollment and goal joining, context inspection, typed coordination operations, attempt recovery, progress reporting, patch/result submission and the distinction between completion and acceptance. It can include small invocation helpers and protocol examples. It must treat peer content as untrusted task data and use the host's existing permission/sandbox controls. Skill prose does not enforce security; the daemon does.
+The skill teaches enrollment and goal joining, context inspection, typed coordination operations, attempt recovery, progress reporting, patch/result submission and the distinction between completion and acceptance. Ship coordinator and worker playbooks with goal/task templates: the coordinator decomposes work and names review criteria; the worker claims the exact assignment, executes against its input and submits evidence; the coordinator reviews that evidence before acceptance. Exercise these playbooks in the first real-agent run. The skill can include small invocation helpers and protocol examples. It must treat peer content as untrusted task data and use the host's existing permission/sandbox controls. Skill prose does not enforce security; the daemon does.
 
 The [Agent Skills specification](https://agentskills.io/specification) supports instructions and optional scripts. The CLI supplies executable operations; the skill teaches their use. An optional local MCP adapter can expose the same operations as named tools later, without creating a second task protocol or bypassing permissions.
 
@@ -207,13 +207,38 @@ The daemon can stay online to retain, synchronize and receive work while no mode
 
 A later opt-in runner may launch/resume a supported headless client under operator-selected credentials, workspace, sandbox and spending policy. It must persist its mapping from attempt to process/session, avoid duplicate launches after restart, deliver cancellation and report uncertain outcomes. Closed-session activation, cross-client session resume and model execution are separate qualification gates. [Claude Code headless interface](https://code.claude.com/docs/en/headless), [Cursor headless interface](https://cursor.com/docs/cli/headless).
 
-## 8. Implementation milestones
+## 8. Execution through October 4
 
-All completion criteria below are **future gates**, not existing test results. Each milestone should land as small reviewed commits with its evidence and any resulting design decision linked from `docs/`.
+The [independent review](implementation-plan-review.md) correctly identifies the risk of leaving the first real-agent workflow until the end. Its multi-quarter estimate is unsupported and is not a planning input. The release target is October 4 at night; no exact hour has been specified. Keep the core daemon, P2P board and context, workspace contributions, CLI and one-prompt skill installation in scope. The deferred capabilities in section 1 remain deferred.
+
+M0–M6 below identify work packages and their acceptance evidence, not seven sequential phases. Begin independent work once the relevant interface fixtures exist; integrate running slices throughout. Tests, skill writing and packaging proceed alongside implementation. All completion criteria are **future gates**, not existing test results. Land small reviewed commits and link retained evidence and resulting decisions from `docs/`.
+
+### Parallel workstreams
+
+| Stream | Work and initial handoff | Integration responsibility |
+|---|---|---|
+| Daemon and coordination | M1/M3: local IPC, SQLite event/outbox transactions, authority validation, tasks/claims and scratchpad projections; publish command/event fixtures first | One state-transition implementation used by local commands and incoming peer events |
+| P2P and artifacts | M0/M2 plus blob handling in M4: stack selection, identity/invites, authorized replication, encryption and retained transfers | Consume the shared event/authority contract; exercise two-machine connectivity immediately |
+| Agent workflow and workspace | M3/M4/M6: CLI task flow, coordinator/worker playbooks, wait/resume behavior, snapshots, patches and review | Run real Codex and Claude Code sessions as soon as the executable task path exists; feed failures directly back to the other streams |
+| Installation and release | M5: build artifacts, installer, skill adapters, service lifecycle and clean-machine checks | Start from development artifacts; replace them with the exact release candidate and verify every claimed platform/client |
+
+Module/file ownership should be explicit before concurrent edits. Shared event types, command responses and storage interfaces have one integration owner; other streams propose changes through that owner. Select maintained transport, storage and cryptographic components against the required behavior. Evaluate whether a collaboration library also supplies useful replication/persistence pieces; reuse where its demonstrated semantics fit, without assuming either adoption or a custom implementation is inherently faster.
+
+### Calendar checkpoints
+
+| When | Required integrated result | Evidence to retain |
+|---|---|---|
+| October 3, opening pass | Agree versioned event/decision, local API and task fixtures; choose compatible dependencies; start all four streams | Minimal protocol/permission contract and runnable transport probe, with unresolved choices assigned to an owner |
+| October 3, first runnable slice | Two active real coding-agent sessions use the CLI to assign, claim, execute, submit and review a small code task; test wait, interruption and explicit resume on both clients | Actual commands, task/result identities and patch; mark any local-only transport, fixtures or missing persistence explicitly |
+| October 4, integration | Run the same workflow through two actual daemons on separate machines with invitation, private replication, notes, input snapshot and retained result; integrate restart/reconnect and authority checks | Event/artifact identities, route information and failure-test results; no remaining test stand-ins in the release path |
+| October 4, release candidate | Produce signed candidate artifacts and install through the prompt; run the packaged end-to-end scenario and claimed support matrix | Exact artifact hashes/versions, install and runtime checks, real-agent/network results and outstanding failures |
+| October 4, night | Release the verified candidate and matching prompt/skill/docs | Published-artifact verification against the tested candidate and an accurate support/limitation record |
+
+These are execution targets, not claims that a checkpoint has passed. Start deterministic fault tests alongside the first implementation; start real-agent tests alongside the first executable workflow. The final run repeats the early scenario against the packaged candidate. A failed required check is a concrete issue to fix and report against the deadline. Record any proposed scope change explicitly rather than silently removing a requirement or presenting an unverified behavior as supported.
 
 ### M0 — Protocol contract and transport proof
 
-**Deliverables:** a short versioned protocol specification, transition/permission matrix, canonical event and invitation fixtures, and a disposable two-peer Rust connectivity experiment. Decide the exact initial identity/delegation, encoding/crypto composition, membership cutoff, task policy and CLI error contract. Evaluate a compatible Iroh transport/blob stack first; use the same requirements to compare rust-libp2p if it fails a gate or adds unacceptable constraints. Do not select unrelated latest crate versions independently.
+**Deliverables:** a short versioned protocol specification, transition/permission matrix, canonical event and invitation fixtures, and a disposable two-peer Rust connectivity experiment. Decide the exact initial identity/delegation, encoding/crypto composition, membership cutoff, task policy and CLI error contract. Publish each settled interface immediately so dependent work can begin; completing every experiment is not a prerequisite for starting the daemon, skill or packaging. Evaluate a compatible Iroh transport/blob stack first; use the same requirements to compare rust-libp2p if it fails a gate or adds unacceptable constraints. Include collaboration-layer reuse in that decision against offline reconciliation, authorization and restart requirements. Do not select unrelated latest crate versions independently.
 
 **Exit evidence:** two machines on separate home/mobile networks connect using invitations; direct and forced relay paths are visible; an alternate independently operated relay works; known peers reconnect when a discovery/bootstrap service is unavailable where the configured routes permit it. Document any remaining relay dependency rather than promising every pair connects directly. Record binary size, idle memory/CPU/network use, startup latency and transfer memory as initial measurements. Select dependency versions and record the rationale.
 
@@ -221,31 +246,31 @@ All completion criteria below are **future gates**, not existing test results. E
 
 ### M1 — Durable local daemon and CLI
 
-**Depends on:** M0 contracts. **Deliverables:** daemon lifecycle, local authenticated IPC, identity/client enrollment, SQLite migrations, durable event append, deterministic projections, transactional outbox and CLI query/doctor operations. Start an installer/skill skeleton against local development artifacts without representing it as a public release.
+**Interface dependency:** M0 event/API contracts. **Deliverables:** daemon lifecycle, local authenticated IPC, identity/client enrollment, SQLite migrations, durable event append, deterministic projections, transactional outbox and CLI query/doctor operations. Expose a runnable command path early for the agent-workflow stream. Start an installer/skill skeleton against local development artifacts without representing it as a public release.
 
 **Exit evidence:** local roundtrip works; unauthorized/missing credentials are rejected; event identity and request-digest idempotency work; state and outbound intent commit together; restart rebuilds the same projection without duplicate application; cursors cannot skip unacknowledged work; process shutdown and concurrent startup behave correctly. Crash-inject immediately before/after durable acknowledgments. Keep event and outbox changes within one local transaction boundary.
 
 ### M2 — Private peer replication and retained artifacts
 
-**Depends on:** M1 and the transport selection. **Deliverables:** signed genesis/invites, the generic coordinator decision chain with membership/revocation validation, accepted membership, encrypted content/key distribution, peer session authorization, missing-event reconciliation, blob verification/retention and route/sync diagnostics. Persist enough peer/contact and immutable-root information to recover without an ephemeral DHT history index. Open public DHT discovery is unnecessary for this milestone.
+**Interface dependencies:** M0 transport/event selection and M1 append/projection interface; develop concurrently with M1. **Deliverables:** signed genesis/invites, the generic coordinator decision chain with membership/revocation validation, accepted membership, encrypted content/key distribution, peer session authorization, missing-event reconciliation, blob verification/retention and route/sync diagnostics. Persist enough peer/contact and immutable-root information to recover without an ephemeral DHT history index. Open public DHT discovery is unnecessary for this package.
 
 **Exit evidence:** disconnect/reconnect recovers missed events; all-peer restart preserves state and restores reachability from configured contacts; duplicate/reordered events and missing ancestors converge; bogus author, genesis, descriptor replacement and invalid signature are rejected; revoked future access and stale-epoch cases follow the declared policy. Fetch a blob, disconnect its original source, then fetch it from the retained replica. Resume an interrupted transfer; detect corruption and failed disk writes before acknowledging durability.
 
 ### M3 — Board, coordinator and active workers
 
-**Depends on:** M2. **Deliverables:** task and accepted-head decisions on the existing coordinator chain, typed task lifecycle, worker leases/attempts, result acceptance, durable cancellation, board/event queries and scratchpad revisions. Build a deterministic worker harness before using model agents so failures can be isolated from model behavior.
+**Interface dependencies:** M0 transition contract and M1 local API/projection interface; private remote operation integrates with M2. **Deliverables:** task and accepted-head decisions on the shared coordinator chain, typed task lifecycle, worker leases/attempts, result acceptance, durable cancellation, board/event queries and scratchpad revisions. Build a deterministic worker harness alongside the first real-agent workflow so protocol failures can be isolated from model behavior without postponing product testing.
 
 **Exit evidence:** one coordinator and two worker identities complete a synthetic goal; another process sharing an identity cannot acquire the active claim; retried acquisitions are recoverable and expired tokens cannot finish after a new claim generation; conflicting idempotency payloads fail; authored deadlines/retry policy survive transfer; cancellation reaches the executor; stale attempts cannot finalize; result delivery survives an acknowledgment loss. A disconnected coordinator permits contribution exchange while authoritative changes remain pending. Concurrent scratchpad edits remain inspectable; a conflicting decision chain halts acceptance rather than selecting a winner.
 
 ### M4 — Coding workspace contributions
 
-**Depends on:** M3 and retained blobs. **Deliverables:** explicit snapshot export, base-bound task input, per-participant worktree materialization, patch/artifact result submission, reviewable integration and accepted workspace-head updates. Define data retention/garbage collection with pinned roots and active-transfer protection.
+**Interface dependencies:** M3 task/result types and M2 blob interface; local snapshot/patch operations can develop concurrently. **Deliverables:** explicit snapshot export, base-bound task input, per-participant worktree materialization, patch/artifact result submission, reviewable integration and accepted workspace-head updates. Define data retention/garbage collection with pinned roots and active-transfer protection.
 
 **Exit evidence:** two workers modify the same base without overwriting each other; a stale patch cannot silently advance the accepted head; conflicts preserve both outputs; dirty local work remains intact. Test unsafe paths/symlinks, executable content, case collisions, interrupted materialization and missing input objects. Neither peer messages nor received repository instructions cause automatic execution by the daemon.
 
 ### M5 — Release packaging and one-prompt onboarding
 
-**Can begin after:** M1. **Public qualification depends on:** M2–M4. **Deliverables:** signed release artifacts, versioned installer, user-session service adapters, operating skill, compatibility manifest, installation prompt, upgrade/uninstall behavior and concise troubleshooting. Website work should expose the reviewed install prompt and release information only when the artifacts actually exist.
+**Begins:** with the initial command/install contract and development artifacts. **Public qualification depends on:** integrated M1–M4. **Deliverables:** signed release artifacts, versioned installer, user-session service adapters, operating skill, compatibility manifest, installation prompt, upgrade/uninstall behavior and concise troubleshooting. Verify the release location, signing-key custody and repository license as release prerequisites. Website work should expose the reviewed install prompt and release information only when the artifacts actually exist.
 
 **Exit evidence:** clean installs on every claimed OS/architecture using every claimed client; repeat install preserves identity/configuration and does not duplicate services; the invoking agent performs a real CLI/API operation; a new session discovers the skill. Exercise an active wait/work loop across event arrival, host timeout/interruption, task execution, cancellation checks and durable-cursor resume. If the client ends its turn or cannot remain waiting, accurately report that it requires an explicit resume; file placement alone cannot establish continuous worker readiness. Test explicit reload cases, unsupported/ephemeral environments, denied installation permissions, interrupted download, failed service start, upgrade migration and uninstall preservation. Start each packaged binary with a fresh database and exercise write/read/restart; `--version` is insufficient, as the MoltMesh release test demonstrated.
 
@@ -253,7 +278,7 @@ Do not advertise “any coding agent” from one successful install. Publish a t
 
 ### M6 — End-to-end collaboration beta
 
-**Depends on:** M2–M5. **Deliverables:** a repeatable end-to-end scenario, operator-facing evidence, failure diagnostics and a measured resource baseline for the supported release artifacts.
+**Begins:** at the first runnable M1/M3/M4 slice. **Final release evidence depends on:** integrated M2–M5. **Deliverables:** a repeatable end-to-end scenario, operator-facing evidence, failure diagnostics and a measured resource baseline for the supported release artifacts. Use the same concrete task from the early real-agent trial through the packaged release run so integration failures remain comparable.
 
 **Exit evidence:** two people on separate machines paste the installation prompt into supported real coding agents, join one goal, delegate a concrete code task, share notes, submit a patch, accept it, and recover after a disconnect and daemon restart. Repeat with mixed clients and relay fallback. Confirm the task used the declared base and accepted contribution, not merely a reassuring model response. Preserve event IDs, artifact hashes, versions, route information and test results without credentials or private source content.
 
@@ -288,15 +313,15 @@ Build tests around invariants and boundary failures, not copies of implementatio
 | Packaged runtime actually works | Fresh install/database, repeat install, migration and service restart | M5 |
 | Agent integration actually works | Current-client CLI roundtrip, new-session skill discovery, interrupted wait/work loop and cursor resume | M5/M6 |
 
-Keep unit/state-machine tests deterministic, then add real database crash tests, multiprocess local tests, separate-network tests and finally actual coding-agent tests. Label these evidence levels explicitly. Intermittent failures remain failures to investigate; a successful rerun does not erase the original result.
+Keep unit/state-machine tests deterministic and exercise delayed, reordered, partitioned and clock-skewed inputs through a small controllable harness. Add real database crash tests as storage lands. Run multiprocess local tests, separate-network tests and actual coding-agent tests as soon as their respective paths exist, in parallel with further implementation. A new simulation framework is not a prerequisite for the first useful failure tests. Label each evidence level explicitly. Intermittent failures remain failures to investigate; a successful rerun does not erase the original result.
 
 ## 10. Implementation workflow and immediate next steps
 
-1. Review the proposed initial support matrix and single-coordinator/offline contract. Record any changed assumptions in this plan.
-2. Execute M0: write the protocol/permission/state-transition fixtures and run the transport/storage experiment before committing to a stack.
-3. Record the selected transport, persistence, crypto/encoding and trust boundaries as focused design decisions linked to their evidence.
-4. Build M1 as the first production slice; deliver CLI inspectability and crash-safe local state before expanding the surface area.
-5. Advance through the gates above, keeping the installation skeleton and skill aligned with the actual implemented commands.
+1. Assign module ownership across the four streams and record the October 4 release checklist. Resolve the initial support matrix and single-coordinator/offline contract in the opening pass.
+2. Publish minimal protocol/permission/state-transition and API fixtures, select compatible dependencies through the transport/collaboration experiment, and record the decisions with evidence. Continue independent implementation while remaining experiments run.
+3. Connect the first executable daemon/CLI task path to coordinator and worker playbooks. Run real Codex and Claude Code sessions immediately, including wait/interruption/resume, and retain the actual code contribution.
+4. Integrate private two-machine replication, retained snapshots/results and deterministic correctness tests. Keep packaging and clean-install checks running alongside this work.
+5. Build the release candidate, complete the packaged support matrix and end-to-end checks, fix failures, and release that exact verified artifact on October 4 at night. Keep the prompt, skill and release claims aligned with the shipped commands and recorded evidence.
 
 For Rust changes, follow the pinned toolchain and repository checks: `cargo fmt --all --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, and `cargo test --locked --workspace`. Documentation changes require content/link review and `python3 scripts/check_docs.py`; website changes have their own checks. These current workflow rules are documented in [AGENTS.md](../AGENTS.md) and enforced where applicable by the [CI workflow](../.github/workflows/ci.yml). Protocol requirements above remain planned until corresponding implementation and tests exist.
 
