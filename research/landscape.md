@@ -71,7 +71,7 @@ Availability requires an online holder; dedicated seed peers improve it. Private
 
 A2A defines Agent Cards, message/task/artifact semantics, streaming and error behavior. Current standard bindings include JSON-RPC, gRPC and HTTP+JSON. The specification also permits custom bindings, provided their data model, operations, security and semantics conform. It therefore does not categorically prohibit a P2P binding, but an A2A-shaped protobuf alone does not establish conformance. [Specification](https://a2a-protocol.org/latest/specification/).
 
-Our recommendation is to use A2A at the interoperability edge after Locust's durable task semantics are clear. Define exactly which task state is authoritative and how retries/cancellation map to the external API. A2A interoperability should be tested against the selected version; it does not provide replicated workspace storage by itself.
+The [focused A2A assessment](a2a-assessment.md) reviews the released specification and official Rust SDK. Keep A2A as an optional interoperability adapter when a concrete external agent or client needs it; no such integration is required for the October 4 release. Define exactly which task state is authoritative and how retries/cancellation map to the external API. A2A interoperability should be tested against the selected version; it does not provide replicated workspace storage by itself.
 
 ## MCP
 

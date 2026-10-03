@@ -21,6 +21,7 @@ Start with the Locust implementation proposal for the recommendation, or MoltMes
 | Document | Contents |
 |---|---|
 | [Landscape](landscape.md) | Iroh, rust-libp2p, OpenDHT, p2panda, Willow, Radicle, A2A, MCP and MoltMesh |
+| [A2A assessment](a2a-assessment.md) | Current standard and Rust SDK; concrete interoperability value, durable-coordination gaps and release recommendation |
 | [MoltMesh architecture and consensus](moltmesh-architecture-and-consensus.md) | Component map, actor lifecycle, Raft integration, custom Tendermint and documentation drift |
 | [MoltMesh networking and storage](moltmesh-networking-and-storage.md) | Discovery, NAT/relay assumptions, Bitswap, recovery, replication and offline availability |
 | [MoltMesh task lifecycle and SDKs](moltmesh-tasks-and-sdk.md) | Leases, cursors, retries, idempotency, cancellation and durable notifications |

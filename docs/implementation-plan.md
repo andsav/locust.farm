@@ -181,6 +181,8 @@ The skill teaches enrollment and goal joining, context inspection, typed coordin
 
 The [Agent Skills specification](https://agentskills.io/specification) supports instructions and optional scripts. The CLI supplies executable operations; the skill teaches their use. An optional local MCP adapter can expose the same operations as named tools later, without creating a second task protocol or bypassing permissions.
 
+**A2A assessment (2026-10-03):** keep A2A as an optional integration for a concrete external agent or client, with no dependency or compatibility claim in the October 4 release. It supplies a useful standard service interface and Rust SDK, but Locust still needs its durable peer history, coordinator authority and artifact-retention contract. A future adapter must use the existing task engine and distinguish external completion from coordinator acceptance. [Research and primary sources](../research/a2a-assessment.md).
+
 ## 7. One-prompt installation
 
 Make the pasteable prompt the primary onboarding entry point. It should direct a shell-capable coding agent to a versioned installation manifest and deterministic installer, with a clear supported-environment check. Pin the resulting installation transaction to one release; do not let the model invent build/download/configuration steps from scratch.
