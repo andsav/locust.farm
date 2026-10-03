@@ -35,11 +35,13 @@
 	--swarm-cell-leg: var(--neutral-850);
 	--swarm-cell-eye: var(--ember-900);
 
-	/* Typography. One family; text styles are `font` shorthands plus tracking. */
+	/* Typography. Mono for text, Major Mono Display for the display headline; text
+	   styles are `font` shorthands plus tracking. */
 	--font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	--font-display: 'Major Mono Display', var(--font-mono);
 	/* 46px, shrinking on narrow screens so the longest word of the headline still fits. */
-	--text-display: 300 clamp(1.25rem, (100vw - 2 * var(--gutter-inline)) / 7.5, 2.875rem) / 1.15
-		var(--font-mono);
+	--text-display: 400 clamp(1.25rem, (100vw - 2 * var(--gutter-inline)) / 9, 2.875rem) / 1.15
+		var(--font-display);
 	--text-body: 400 0.8125rem / 1.7 var(--font-mono);
 	--text-code: 400 0.75rem / 1.25 var(--font-mono);
 	--text-label: 400 0.6875rem / 1.25 var(--font-mono);

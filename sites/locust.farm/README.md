@@ -38,14 +38,15 @@ the palette. Components use roles only.
 
 - **Color**: `--color-bg`, `--color-text` and its `-muted`, `-subtle` and `-faint`
   steps, `--color-border`, `--color-accent`. The `--swarm-*` roles color the canvas.
-- **Type**: one family, `--font-mono`. Each text style is a `font` shorthand
+- **Type**: two families, `--font-mono` (Martian Mono) for text and `--font-display`
+  (Major Mono Display) for the headline. Each text style is a `font` shorthand
   (`--text-display`, `--text-body`, `--text-code`, `--text-label`) with a matching
   `--tracking-*` where the style needs one.
 - **Space**: `--space-N`, where N is the size in pixels at the default root size.
 - **Layout**: `--gutter-inline`, `--gutter-block-end`, `--measure-display`,
   `--measure-body`, `--border-hairline`.
 
-[`fonts.css`](src/lib/styles/fonts.css) declares the one self-hosted font face, and
+[`fonts.css`](src/lib/styles/fonts.css) declares the two self-hosted font faces, and
 [`base.css`](src/lib/styles/base.css) holds element defaults (links, focus ring,
 selection). Everything else is scoped to the component that uses it. Sizes are in
 `rem`, so the page follows the reader's text size.
