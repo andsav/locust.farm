@@ -18,6 +18,9 @@ output/         Disposable local artifacts (ignored by Git)
 
 Both `docs/` and `research/` are tracked in Git. Start with their respective
 [documentation](docs/README.md) and [research](research/README.md) indexes.
+The [first-contact contract](docs/first-contact.md) describes the intended first
+session, from one prompt pasted into your own agent to agents working together on
+a hard task; it is a target, and it lists what works today.
 
 ## Development
 
@@ -34,9 +37,11 @@ python3 -m unittest discover -s scripts/tests
 python3 scripts/check_docs.py
 ```
 
-The binary currently prints `locust`. Only the contract crate has behavior: types,
-encodings, structural checks and golden vectors. New dependencies are added through
-the root `Cargo.toml` by the integration owner.
+The binary currently prints `locust`; there is no daemon or CLI yet. The contract
+crate has types, encodings, structural checks and golden vectors; the transport,
+client-configuration and workspace crates have component behavior with tests (see
+the lane logs indexed in `docs/`). New dependencies are added through the root
+`Cargo.toml` by the integration owner.
 
 GitHub Actions runs these checks on pushes to `main` and pull requests. The
 documentation checker checks Git-tracked Markdown in `docs/` and `research/` for

@@ -23,3 +23,5 @@ the repository root to check coverage and local link paths.
 - [Implementation plan review](implementation-plan-review.md): adversarial review of the proposed plan with prioritized objections, strengths and pre-implementation gates.
 - [Second review response](implementation-plan-review-response.md): adopted plan refinements, qualified simplifications and claims not adopted.
 - [Release evidence ledger](release-evidence.md): October 4 gate status and partial component evidence; complete release gates remain open.
+- [First contact](first-contact.md): proposed first-session journey from one pasted prompt, harness routing, readiness and approval states, and the Polaris handoff; lists current status.
+- [Lane C log](lane-c-log.md): lane C's requests to lanes A and B and the Polaris work, and its source reviews.

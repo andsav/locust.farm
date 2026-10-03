@@ -34,8 +34,12 @@ Two orchestrating sessions run the streams. **Lane A** owns the contract, the da
 | `scripts/`, skill and installer files | B | Installer, operating skill, client configuration, user-service units, install prompt | The development binary |
 | `.github/`, release manifest and signing | B | macOS and Linux CI, release-build smoke test on a fresh database, artifacts | — |
 | [`release-evidence.md`](release-evidence.md) | B | Keeps the gate ledger; lane A supplies records for its own gates | — |
+| [`sites/locust.farm/`](../sites/locust.farm/README.md) | C | The website and its short `/start` guide with the entry prompt | The site's `npm` lint, check, test and build |
+| [`first-contact.md`](first-contact.md), [`lane-c-log.md`](lane-c-log.md), [first-contact research](../research/first-contact-integrations.md) | C | First-contact experience contract, harness routing, Polaris handoff and requests to other owners | `python3 scripts/check_docs.py` |
 
 Lane A makes each integration commit that wires crates together, including the one that connects `locust-net` to the daemon.
+
+**Lane C** owns the first-contact experience: the website and the documents above. It implements no runtime, setup or client integration. It asks lanes A and B, and the separate Polaris work, for what it needs in its own [log](lane-c-log.md), and updates its copy when their records show new behavior.
 
 ### Starting lane B
 

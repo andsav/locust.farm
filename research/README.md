@@ -14,6 +14,10 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+### First-contact integrations — 2026-10-03
+
+- [Harness and Polaris sources](first-contact-integrations.md): documented MCP, skill, refresh and policy behavior of Claude Code, Codex, pi and Droid; Locust's current state; Polaris's native facade. Source notes, not qualification.
+
 ### Transport qualification — 2026-10-03
 
 - [Iroh transport probe findings](iroh-transport-probe.md): pinned-source routing behavior, relay/discovery operators, metadata boundaries and measured probe evidence.
