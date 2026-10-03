@@ -15,7 +15,9 @@ the repository root to check coverage and local link paths.
 
 - [Locust implementation plan](implementation-plan.md): proposed architecture, coordination and task contracts, Locust-owned Rust client adapters, one-prompt installation, milestones and acceptance tests.
 - [Protocol contract, version 0](protocol-v0.md): encoding, hashing and signature decisions, the signed event header and event kinds, invitations, sync frames, local API and storage seam; types implemented, rules not yet.
-- [Crates and workstreams](workstreams.md): accepted crate split, stream ownership and the rules for sharing one checkout.
+- [Crates and workstreams](workstreams.md): accepted crate split, the two lanes and their ownership, cross-review, and the rules for sharing one checkout.
+- [Lane A log](lane-a-log.md): contract notices, answers to lane B and reviews of lane B's commits.
+- [Lane B log](lane-b-log.md): requests to lane A, reviews of lane A's commits and replies.
 - [Implementation plan review](implementation-plan-review.md): adversarial review of the proposed plan with prioritized objections, strengths and pre-implementation gates.
 - [Second review response](implementation-plan-review-response.md): adopted plan refinements, qualified simplifications and claims not adopted.
 - [Release evidence ledger](release-evidence.md): October 4 gate status and reproducible evidence requirements; no runtime checks recorded yet.
