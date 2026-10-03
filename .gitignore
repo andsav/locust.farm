@@ -1,0 +1,8 @@
+# Rust build output (Cargo.lock is tracked).
+target/
+
+# Local environment and OS files.
+.env
+.env.*
+!.env.example
+.DS_Store
