@@ -14,4 +14,36 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
-No research notes yet.
+### Distributed agent collaboration and MoltMesh — 2026-10-03
+
+Start with the Locust implementation proposal for the recommendation, or MoltMesh architecture and consensus for the implementation review.
+
+| Document | Contents |
+|---|---|
+| [Landscape](landscape.md) | Iroh, rust-libp2p, OpenDHT, p2panda, Willow, Radicle, A2A, MCP and MoltMesh |
+| [MoltMesh architecture and consensus](moltmesh-architecture-and-consensus.md) | Component map, actor lifecycle, Raft integration, custom Tendermint and documentation drift |
+| [MoltMesh networking and storage](moltmesh-networking-and-storage.md) | Discovery, NAT/relay assumptions, Bitswap, recovery, replication and offline availability |
+| [MoltMesh task lifecycle and SDKs](moltmesh-tasks-and-sdk.md) | Leases, cursors, retries, idempotency, cancellation and durable notifications |
+| [MoltMesh security](moltmesh-security.md) | Identity, authorization, trust boundaries, encryption and local API exposure |
+| [Validation and reproducibility](moltmesh-validation.md) | Tests actually executed, observed results, release smoke and unverified boundaries |
+| [Locust implementation proposal](locust-implementation-proposal.md) | Suggested Rust architecture, task/workspace contracts and staged acceptance experiments |
+| [Evidence appendices](evidence/README.md) | Original local characterization probe source and captured results, preserved as Markdown |
+| [Task probe appendix](evidence/task-probes.md) | Five local task lifecycle characterizations and reproduction instructions |
+| [Raft restart probe appendix](evidence/raft-restart-probe.md) | Unsnapshotted component restart, duplicate application and reproduction instructions |
+
+### Main conclusions
+
+MoltMesh is close to the intended product shape and contains real working components. Its decomposition is useful prior art; its correctness and availability claims need substantial qualification. The most consequential findings are:
+
+- **Reproduced locally:** five task lifecycle gaps; duplicate application of a committed entry after an unsnapshotted Raft component restart; database startup failure under the current CGO-disabled release configuration.
+- **Source-established:** recovery checks hashes without proving authorized authorship/finality; several admission/authorization paths are incomplete; artifact transfer lacks a full workspace-sync and retained-replica contract; the custom Tendermint path has unresolved safety requirements.
+- **Positive runtime evidence:** the existing multi-process discovery/task/result/replication/recovery demo passed on one machine. It uses one voter and online storage holders.
+- **Mixed baseline:** the full Go race suite recorded 273 passing tests/subtests, one intermittent failure and one skipped soak test. Three focused repeats of the failure passed. The full suite was not green.
+
+For Locust, the proposed direction is a small Rust daemon with explicit invitations, signed durable collaboration events, encrypted immutable artifacts, separate participant workspaces and an explicit authority for task/result acceptance. Investigate Iroh first and rust-libp2p as an alternative. Keep execution and sandbox selection with participants; keep protocol authorization and persistence inside the daemon. These are research recommendations, not accepted decisions.
+
+### Provenance and interpretation
+
+MoltMesh findings target default branch `actor-model`, exact commit [`707c870e3188df243e5aea3c4662daa3253270bc`](https://github.com/sahilpohare/MoltMesh/commit/707c870e3188df243e5aea3c4662daa3253270bc), dated 2026-09-17 and inspected on 2026-10-03. Links into that repository are pinned to the reviewed commit. Landscape documentation and GitHub status observations are dated snapshots and should be refreshed before dependency selection.
+
+Documents distinguish implemented behavior, source-based findings, locally reproduced observations, inferred risks and proposed work. This research does not certify the protocol or claim a production penetration test, WAN validation, BFT proof, scale benchmark or language-model collaboration trial. Accepted decisions should be recorded separately in [`docs/`](../docs/README.md), with links back to this evidence.
