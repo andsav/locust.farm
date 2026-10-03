@@ -14,6 +14,10 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+### Implementation plan review — 2026-10-03
+
+- [Independent review of the implementation plan](implementation-plan-independent-review.md): re-baselined objections, cut candidates, default-configuration client probes for Codex and Claude Code, opening-pass decisions, and prior-art projects worth a teardown.
+
 ### Agent integration and local execution — 2026-10-03
 
 - [Agent-agnostic integration](agent-agnostic-integration.md): daemon transport, Codex/Claude/Pi bridges, native adapters and separate sandbox qualification.
