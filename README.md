@@ -1,14 +1,14 @@
 # Locust
 
-A Rust project. The initial workspace contains a single binary crate with no
-external dependencies.
+A Rust project. The workspace holds the `locust` binary and one library crate
+per workstream behind a shared contract crate, `locust-proto`.
 
 ## Layout
 
 ```text
 AGENTS.md       Agent workflow and eager-commit rules
 Cargo.toml      Rust workspace and shared package settings
-crates/locust/  Application crate
+crates/         The locust binary and its library crates; see docs/workstreams.md
 docs/           Project documentation, decisions, and implementation plans
 research/       Investigations, experiments, sources, and findings
 scripts/        Repository checks
@@ -34,8 +34,9 @@ python3 -m unittest discover -s scripts/tests
 python3 scripts/check_docs.py
 ```
 
-The binary currently prints `locust`; no application behavior is implemented yet.
-Add crates and dependencies when a concrete feature needs them.
+The binary currently prints `locust`. Only the contract crate has behavior: types,
+encodings, structural checks and golden vectors. New dependencies are added through
+the root `Cargo.toml` by the integration owner.
 
 GitHub Actions runs these checks on pushes to `main` and pull requests. The
 documentation checker checks Git-tracked Markdown in `docs/` and `research/` for

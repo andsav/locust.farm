@@ -1,0 +1,19 @@
+[package]
+name = "locust-proto"
+description = "Locust contract: identifiers, signed events, local API, sync frames and the storage seam"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+# Deterministic keys, event builders and the store conformance suite for other crates' tests.
+testkit = []
+
+[dependencies]
+blake3.workspace = true
+ed25519-dalek.workspace = true
+postcard.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

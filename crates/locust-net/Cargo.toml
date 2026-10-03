@@ -1,0 +1,14 @@
+[package]
+name = "locust-net"
+description = "Locust peer transport: endpoints, invitations in transit and framed links"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+iroh.workspace = true
+locust-proto.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+locust-proto = { workspace = true, features = ["testkit"] }

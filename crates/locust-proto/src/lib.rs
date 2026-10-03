@@ -1,0 +1,32 @@
+//! The Locust contract: identifiers, signed events, the local API, peer sync
+//! frames and the storage seam.
+//!
+//! Every library crate in the workspace depends on this crate and on no other
+//! workspace crate; only the `locust` binary wires them together. Everything
+//! here is plain data and pure functions: no I/O beyond `std::io` traits, no
+//! async runtime, no global state. Changes go through the integration owner
+//! named in `docs/workstreams.md`.
+
+#![forbid(unsafe_code)]
+
+pub mod api;
+pub mod codec;
+pub mod crypto;
+pub mod event;
+pub mod id;
+pub mod invite;
+pub mod limits;
+pub mod manifest;
+pub mod store;
+pub mod sync;
+#[cfg(any(test, feature = "testkit"))]
+pub mod testkit;
+#[cfg(test)]
+mod vectors;
+
+/// Version byte carried by every signed header and invitation. A peer that
+/// sees another value reports an unsupported version instead of guessing.
+pub const PROTOCOL_VERSION: u8 = 0;
+
+/// Version of the local daemon API spoken over the Unix socket.
+pub const API_VERSION: u16 = 0;

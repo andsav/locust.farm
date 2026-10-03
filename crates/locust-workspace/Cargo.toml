@@ -1,0 +1,12 @@
+[package]
+name = "locust-workspace"
+description = "Locust workspace snapshots: manifest export, materialization and patches"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+locust-proto.workspace = true
+
+[dev-dependencies]
+locust-proto = { workspace = true, features = ["testkit"] }

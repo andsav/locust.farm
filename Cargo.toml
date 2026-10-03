@@ -1,5 +1,13 @@
 [workspace]
-members = ["crates/locust"]
+members = [
+    "crates/locust",
+    "crates/locust-adapter",
+    "crates/locust-core",
+    "crates/locust-net",
+    "crates/locust-proto",
+    "crates/locust-store",
+    "crates/locust-workspace",
+]
 resolver = "3"
 
 [workspace.package]
@@ -7,3 +15,29 @@ license = "AGPL-3.0-only"
 version = "0.1.0"
 edition = "2024"
 publish = false
+
+# One owner edits this table and Cargo.lock; see docs/workstreams.md.
+[workspace.dependencies]
+locust-adapter = { path = "crates/locust-adapter" }
+locust-core = { path = "crates/locust-core" }
+locust-net = { path = "crates/locust-net" }
+locust-proto = { path = "crates/locust-proto" }
+locust-store = { path = "crates/locust-store" }
+locust-workspace = { path = "crates/locust-workspace" }
+
+blake3 = "1.8"
+clap = { version = "4.6", features = ["derive"] }
+ed25519-dalek = "3.0"
+getrandom = "0.4"
+iroh = "1.3"
+postcard = { version = "1.1", default-features = false, features = ["alloc"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.53", features = ["io-util", "macros", "net", "rt", "signal", "sync", "time"] }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+panic = "abort"
+strip = true
