@@ -9,6 +9,8 @@ new dependencies, crate boundaries, and tooling.
 - `docs/`: Project documentation, accepted decisions, and implementation plans.
 - `research/`: Exploratory work, experiments, references, and findings.
 - `scripts/`: Small repository checks and development helpers.
+- `sites/`: Websites. `sites/locust.farm/` is the SvelteKit marketing site, a
+  self-contained npm project with its own `package.json` and `node_modules`.
 - `output/`: Ignored, disposable verification output and scratch artifacts.
 
 Keep documentation and research separate and tracked in Git. When research leads
@@ -35,6 +37,8 @@ in `research/`; do not leave their only copy in ignored `output/` or agent state
   cargo test --locked --workspace
   ```
 
+- For changes under `sites/locust.farm/`, run `npm run lint`, `npm run check`, and
+  `npm run build` in that directory. They do not need a Rust rebuild.
 - Add meaningful tests for new behavior and bug fixes. Documentation-only changes
   need content and link review, not a Rust rebuild.
 - Run `python3 scripts/check_docs.py` when changing documentation. It checks

@@ -12,6 +12,7 @@ crates/locust/  Application crate
 docs/           Project documentation, decisions, and implementation plans
 research/       Investigations, experiments, sources, and findings
 scripts/        Repository checks
+sites/          Websites; each is a self-contained npm project
 output/         Disposable local artifacts (ignored by Git)
 ```
 
@@ -41,6 +42,10 @@ documentation checker checks Git-tracked Markdown in `docs/` and `research/` for
 index coverage, duplicate entries, and broken local link paths. Stage new files
 before checking. Untracked drafts, heading anchors, and external URLs are excluded;
 use ordinary inline Markdown links for local references.
+
+The [locust.farm](sites/locust.farm/README.md) marketing site is a SvelteKit
+project with its own `package.json`. Run `npm install` and `npm run dev` inside
+`sites/locust.farm/`. CI does not check it yet.
 
 Keep disposable logs and experiment output in `output/`. Commit useful findings
 and supporting evidence under `research/` or `docs/` so they are preserved.
