@@ -271,8 +271,12 @@ export class SwarmRenderer {
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	}
 
-	/** Advances agents and cells by one step, with the goal at the given CSS pixel position. */
-	simulate(goalX: number, goalY: number): void {
+	/**
+	 * Advances agents and cells by one step, with the goal at the given CSS pixel
+	 * position. `catchUp` is the extra pull on an agent per CSS pixel of distance from
+	 * the goal, as a fraction of its normal pull.
+	 */
+	simulate(goalX: number, goalY: number, catchUp: number): void {
 		const gl = this.#gl;
 		const { agentUpdate, density, cellUpdate } = this.#programs;
 		const agents = this.#agents;
@@ -300,6 +304,7 @@ export class SwarmRenderer {
 
 		gl.useProgram(agentUpdate.handle);
 		gl.uniform2f(agentUpdate.uniforms.u_goal, goalX, goalY);
+		gl.uniform1f(agentUpdate.uniforms.u_catchUp, catchUp);
 		gl.uniform1ui(agentUpdate.uniforms.u_step, this.#step++);
 		this.#transform(agents, this.#agentCount);
 	}

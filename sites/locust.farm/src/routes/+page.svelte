@@ -14,7 +14,7 @@
 </svelte:head>
 
 <div class="page">
-	<SwarmCanvas />
+	<SwarmCanvas goalMode="cursor" />
 	<SiteHeader />
 	<main>
 		<h1>Distributed Agent Swarm<span class="accent">.</span></h1>

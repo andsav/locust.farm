@@ -16,6 +16,12 @@ export interface SwarmOptions {
 	goalMode: GoalMode;
 	/** How much of each trail fades per step, from 0 (never fades) to 1 (no trail). */
 	trail: number;
+	/**
+	 * How much harder agents are pulled toward the cursor for every 100 pixels they
+	 * are from it, so the swarm keeps up when the cursor moves away. 0 is the same
+	 * pull at any distance; above about 0.4 the swarm overshoots.
+	 */
+	catchUp: number;
 }
 
 /**
@@ -27,6 +33,10 @@ const STEPS_PER_SECOND = 120;
 const MAX_STEPS_PER_FRAME = 4;
 const MAX_PIXEL_RATIO = 2;
 const LIFE_INTERVAL_MS = 280;
+/** Fraction of the remaining distance the goal covers per step. */
+const WANDER_EASE = 0.06;
+/** The goal stays close to the cursor, so the swarm responds to it at once. */
+const CURSOR_EASE = 0.2;
 /** With reduced motion, the swarm is shown as a still taken this far into the simulation. */
 const STILL_STEPS = 360;
 /** Steps drawn for a still, enough for trails to reach full length. */
@@ -96,30 +106,34 @@ export function swarm(options: () => SwarmOptions): Attachment<HTMLCanvasElement
 		};
 
 		/** One simulation step: moves the goal, then the swarm. */
-		const step = (goalMode: GoalMode, trail: number, draw: boolean) => {
+		const step = ({ goalMode, trail, catchUp }: SwarmOptions, draw: boolean) => {
 			if (!renderer || !goal) return;
 			wander += 0.004;
-			let target: Point = {
-				x: width * 0.5 + Math.cos(wander * 1.3) * width * 0.28,
-				y: height * 0.38 + Math.sin(wander * 2.1) * height * 0.18
-			};
-			if (goalMode === 'cursor' && pointer) target = pointer;
-			if (goalMode === 'click') target = pinned ?? { x: width * 0.62, y: height * 0.36 };
-			goal.x += (target.x - goal.x) * 0.06;
-			goal.y += (target.y - goal.y) * 0.06;
+			let targetX = width * 0.5 + Math.cos(wander * 1.3) * width * 0.28;
+			let targetY = height * 0.38 + Math.sin(wander * 2.1) * height * 0.18;
+			const following = goalMode === 'cursor' && pointer !== undefined;
+			if (following) ({ x: targetX, y: targetY } = pointer!);
+			if (goalMode === 'click') {
+				targetX = pinned?.x ?? width * 0.62;
+				targetY = pinned?.y ?? height * 0.36;
+			}
+			const ease = following ? CURSOR_EASE : WANDER_EASE;
+			goal.x += (targetX - goal.x) * ease;
+			goal.y += (targetY - goal.y) * ease;
 
-			renderer.simulate(goal.x, goal.y);
+			// The wandering goal keeps the design's motion; only the cursor is chased harder.
+			renderer.simulate(goal.x, goal.y, following ? catchUp / 100 : 0);
 			if (draw) renderer.draw(goal.x, goal.y, trail);
 		};
 
 		const frame = (now: number) => {
 			frameRequest = 0;
 			if (!renderer || !width) return;
-			const { agents: wanted, goalMode, trail } = options();
-			if (wanted !== agents) renderer.setAgents((agents = wanted));
+			const current = options();
+			if (current.agents !== agents) renderer.setAgents((agents = current.agents));
 
 			if (reducedMotion.matches) {
-				for (let i = STILL_STEPS; i > 0; i--) step(goalMode, trail, i <= STILL_TRAIL_STEPS);
+				for (let i = STILL_STEPS; i > 0; i--) step(current, i <= STILL_TRAIL_STEPS);
 				renderer.present();
 				return;
 			}
@@ -139,7 +153,7 @@ export function swarm(options: () => SwarmOptions): Attachment<HTMLCanvasElement
 			pendingSteps = steps < MAX_STEPS_PER_FRAME ? pendingSteps - steps : 0;
 			if (!steps) return;
 
-			for (let i = 0; i < steps; i++) step(goalMode, trail, true);
+			for (let i = 0; i < steps; i++) step(current, true);
 			renderer.present();
 		};
 

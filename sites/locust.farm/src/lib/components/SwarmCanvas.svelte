@@ -8,13 +8,15 @@
 		goalMode?: GoalMode;
 		/** How much of each trail fades per step, from 0 (never fades) to 1 (no trail). */
 		trail?: number;
+		/** Extra pull toward the cursor per 100 pixels of distance. 0 turns it off. */
+		catchUp?: number;
 	}
 
-	let { agents = 1400, goalMode = 'wander', trail = 0.28 }: Props = $props();
+	let { agents = 1400, goalMode = 'wander', trail = 0.28, catchUp = 0.3 }: Props = $props();
 </script>
 
 <!-- Decorative backdrop: fills its nearest positioned ancestor, behind that ancestor's content. -->
-<canvas aria-hidden="true" {@attach swarm(() => ({ agents, goalMode, trail }))}></canvas>
+<canvas aria-hidden="true" {@attach swarm(() => ({ agents, goalMode, trail, catchUp }))}></canvas>
 
 <style>
 	canvas {

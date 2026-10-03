@@ -63,6 +63,9 @@ agents. The locust's shape and its Game of Life are plain data on the CPU
 
 - The simulation advances at a fixed 120 steps per second, independent of the
   display's refresh rate.
+- The landing page uses `goalMode="cursor"`: the swarm follows the pointer, and
+  wanders on its own when there is none. `catchUp` sets how much harder agents far
+  from the cursor are pulled toward it; 0 gives the design's original, slower chase.
 - Colors come from the `--swarm-*` tokens, read once when the canvas mounts.
 - With `prefers-reduced-motion`, a single still frame is drawn instead.
 - Without WebGL2 the canvas stays empty and the page is otherwise unaffected.

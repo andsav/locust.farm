@@ -22,7 +22,8 @@ float coverage(float x, float lo, float hi) {
 
 /**
  * Agent motion: attraction to the goal scaled by the agent's own speed, a constant
- * swirl around it, and jitter, followed by drag.
+ * swirl around it, and jitter, followed by drag. `u_catchUp` adds pull in proportion
+ * to distance, so agents left far behind hurry while those near the goal are unaffected.
  */
 export const AGENT_UPDATE_VERTEX = glsl`#version 300 es
 precision highp float;
@@ -32,6 +33,7 @@ layout(location = 1) in vec2 a_velocity;
 layout(location = 2) in float a_speed;
 
 uniform vec2 u_goal;
+uniform float u_catchUp;
 uniform uint u_step;
 
 out vec2 v_position;
@@ -51,10 +53,12 @@ uvec2 pcg2d(uvec2 v) {
 
 void main() {
 	vec2 toGoal = u_goal - a_position;
-	vec2 pull = toGoal / (length(toGoal) + 1.0);
+	float range = length(toGoal) + 1.0;
+	vec2 pull = toGoal / range;
+	float strength = 0.06 * a_speed * (1.0 + u_catchUp * range);
 	vec2 jitter = vec2(pcg2d(uvec2(uint(gl_VertexID), u_step))) / 4294967296.0 - 0.5;
 
-	vec2 velocity = a_velocity + pull * (0.06 * a_speed) + vec2(-pull.y, pull.x) * 0.05 + jitter * 0.25;
+	vec2 velocity = a_velocity + pull * strength + vec2(-pull.y, pull.x) * 0.05 + jitter * 0.25;
 	velocity *= 0.97;
 
 	v_position = a_position + velocity;
