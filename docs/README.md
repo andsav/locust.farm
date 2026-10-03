@@ -14,3 +14,4 @@ the repository root to check coverage and local link paths.
 ## Index
 
 - [Locust implementation plan](implementation-plan.md): proposed architecture, coordination and task contracts, one-prompt installation, milestones and acceptance tests.
+- [Implementation plan review](implementation-plan-review.md): adversarial review of the proposed plan with prioritized objections, strengths and pre-implementation gates.
