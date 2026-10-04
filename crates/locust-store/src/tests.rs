@@ -1,7 +1,17 @@
 use std::cell::Cell;
+use std::fmt::Debug;
+use std::fs;
+use std::path::Path;
 
-use locust_proto::store::conformance;
-use rusqlite::Connection;
+use locust_proto::PROTOCOL_VERSION;
+use locust_proto::event::{AuthorPoint, Body, Event, Header, PayloadRef};
+use locust_proto::id::{BlobHash, EventId, GoalId};
+use locust_proto::limits::{
+    BLOB_CHUNK_BYTES, MAX_ARTIFACTS, MAX_EVENTS_PER_BATCH, MAX_PARENTS, MAX_PAYLOAD_BYTES,
+};
+use locust_proto::store::{Blob, Commit, LocalWrite, Space, Store, StoreError, conformance};
+use locust_proto::testkit::{Author, keypair};
+use rusqlite::{Connection, params};
 use tempfile::TempDir;
 
 use crate::{INLINE_MAX_BYTES, OpenError, SqliteStore};
@@ -10,6 +20,59 @@ fn scratch() -> (TempDir, SqliteStore) {
     let dir = tempfile::tempdir().unwrap();
     let store = SqliteStore::open(dir.path()).unwrap();
     (dir, store)
+}
+
+fn reopen(dir: &TempDir) -> SqliteStore {
+    SqliteStore::open(dir.path()).unwrap()
+}
+
+/// A connection that bypasses the store, for damaging its files on purpose.
+/// The store must be closed.
+fn raw(dir: &TempDir) -> Connection {
+    Connection::open(dir.path().join("locust.db")).unwrap()
+}
+
+fn note() -> Body {
+    Body::Note {
+        about: None,
+        supersedes: None,
+    }
+}
+
+fn put(space: Space, key: &[u8], value: &[u8]) -> LocalWrite {
+    LocalWrite::Put {
+        space,
+        key: key.to_vec(),
+        value: value.to_vec(),
+    }
+}
+
+/// An object of `len` bytes whose content differs from other lengths'.
+fn object(len: usize) -> Blob {
+    Blob::new((0..len).map(|n| (n % 251) as u8 ^ len as u8).collect())
+}
+
+/// The names in the object directory, sorted.
+fn object_files(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = fs::read_dir(dir.join("blobs"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .collect();
+    names.sort();
+    names
+}
+
+fn sorted(mut names: Vec<String>) -> Vec<String> {
+    names.sort();
+    names
+}
+
+fn is_corrupted<T: Debug>(result: Result<T, StoreError>) -> bool {
+    matches!(result, Err(StoreError::Corrupted(_)))
+}
+
+fn positions(log: &[(u64, Event)]) -> Vec<u64> {
+    log.iter().map(|(position, _)| *position).collect()
 }
 
 #[test]
@@ -62,4 +125,428 @@ fn a_database_from_a_newer_schema_is_refused() {
 #[test]
 fn the_schema_states_the_inline_limit_the_code_uses() {
     assert!(crate::schema::V1.contains(&format!("len > {INLINE_MAX_BYTES} ")));
+}
+
+#[test]
+fn a_commit_that_fails_part_way_leaves_nothing() {
+    let (dir, mut store) = scratch();
+    let mut owner = Author::new(1);
+    let genesis = owner.genesis();
+    let goal = genesis.header().goal;
+    let first = owner.event(goal, Some(genesis.id()), note());
+    let small = object(100);
+    let large = object(INLINE_MAX_BYTES + 1);
+    // Refuses one local write, after the commit's events and objects are in.
+    store
+        .connection()
+        .execute_batch(
+            "CREATE TEMP TRIGGER refuse BEFORE INSERT ON local \
+             WHEN NEW.key = CAST('refuse' AS BLOB) \
+             BEGIN SELECT RAISE(ABORT, 'refused by the test'); END;",
+        )
+        .unwrap();
+    let failing = Commit {
+        events: vec![genesis.clone(), first.clone()],
+        blobs: vec![small.clone(), large.clone()],
+        local: vec![
+            put(Space::Goal, b"first", b"1"),
+            put(Space::Goal, b"refuse", b""),
+        ],
+        drop_blobs: Vec::new(),
+    };
+
+    assert!(matches!(store.commit(&failing), Err(StoreError::Failed(_))));
+    assert_eq!(store.goals(), Ok(Vec::new()));
+    assert_eq!(store.has_event(&genesis.id()), Ok(false));
+    assert_eq!(store.event(&first.id()), Ok(None));
+    assert_eq!(store.log(&goal, 0, 10), Ok(Vec::new()));
+    assert_eq!(store.blob_len(&small.hash()), Ok(None));
+    assert_eq!(store.blob_len(&large.hash()), Ok(None));
+    assert_eq!(store.get(Space::Goal, b"first"), Ok(None));
+    // The large object's file went in before the transaction failed.
+    assert_eq!(object_files(dir.path()), [large.hash().to_string()]);
+
+    // The store carries on, and the failed commit took no position.
+    let second = owner.event(goal, Some(genesis.id()), note());
+    store
+        .commit(&Commit {
+            events: vec![genesis.clone(), second.clone()],
+            ..Commit::default()
+        })
+        .unwrap();
+    assert_eq!(store.log(&goal, 0, 10), Ok(vec![(1, genesis), (2, second)]));
+    // The file no row names is removed on the next open.
+    drop(store);
+    let store = reopen(&dir);
+    assert_eq!(object_files(dir.path()), Vec::<String>::new());
+    assert_eq!(store.blob_len(&large.hash()), Ok(None));
+}
+
+#[test]
+fn a_failure_while_committing_stops_the_store_until_it_is_reopened() {
+    let (dir, mut store) = scratch();
+    // A deferred foreign key is checked by COMMIT itself, so this commit
+    // fails at the step whose outcome a real I/O error would leave unknown.
+    store
+        .connection()
+        .execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TEMP TABLE parent (id INTEGER PRIMARY KEY);
+             CREATE TEMP TABLE child (
+                 parent INTEGER REFERENCES parent (id) DEFERRABLE INITIALLY DEFERRED
+             );
+             CREATE TEMP TRIGGER fail_at_commit AFTER INSERT ON local
+             WHEN NEW.key = CAST('fail at commit' AS BLOB)
+             BEGIN INSERT INTO child VALUES (1); END;",
+        )
+        .unwrap();
+    let kept = put(Space::Goal, b"kept", b"1");
+    store
+        .commit(&Commit {
+            local: vec![kept],
+            ..Commit::default()
+        })
+        .unwrap();
+
+    let failing = Commit {
+        local: vec![put(Space::Goal, b"fail at commit", b"")],
+        ..Commit::default()
+    };
+    assert!(matches!(store.commit(&failing), Err(StoreError::Failed(_))));
+    assert!(matches!(
+        store.get(Space::Goal, b"kept"),
+        Err(StoreError::Failed(_))
+    ));
+    assert!(matches!(
+        store.commit(&Commit::default()),
+        Err(StoreError::Failed(_))
+    ));
+
+    drop(store);
+    let store = reopen(&dir);
+    assert_eq!(store.get(Space::Goal, b"kept"), Ok(Some(b"1".to_vec())));
+    assert_eq!(store.get(Space::Goal, b"fail at commit"), Ok(None));
+}
+
+#[test]
+fn a_damaged_event_row_is_reported_as_corrupted_never_as_another_event() {
+    let (dir, mut store) = scratch();
+    let mut owner = Author::new(1);
+    let genesis = owner.genesis();
+    let goal = genesis.header().goal;
+    let author = owner.key.public();
+    let first = owner.event(goal, Some(genesis.id()), note());
+    let second = owner.event(goal, Some(genesis.id()), note());
+    store
+        .commit(&Commit {
+            events: vec![genesis.clone(), first.clone(), second.clone()],
+            ..Commit::default()
+        })
+        .unwrap();
+    drop(store);
+
+    // `first` now carries the header of `second`.
+    raw(&dir)
+        .execute(
+            "UPDATE events SET header = (SELECT header FROM events WHERE id = ?2) WHERE id = ?1",
+            params![first.id().as_bytes(), second.id().as_bytes()],
+        )
+        .unwrap();
+    let store = reopen(&dir);
+    assert!(is_corrupted(store.event(&first.id())));
+    assert!(is_corrupted(store.log(&goal, 0, 10)));
+    assert!(is_corrupted(store.author_log(&goal, &author, None, 10)));
+    // Rows around it still read, and presence is answered from the index.
+    assert_eq!(store.event(&second.id()), Ok(Some(second.clone())));
+    assert_eq!(store.log(&goal, 0, 1), Ok(vec![(1, genesis.clone())]));
+    assert_eq!(store.has_event(&first.id()), Ok(true));
+    drop(store);
+
+    // `second` is now indexed under another goal and another position.
+    let other = GoalId([9; 32]);
+    raw(&dir)
+        .execute(
+            "UPDATE events SET goal = ?2, seq = 7 WHERE id = ?1",
+            params![second.id().as_bytes(), other.as_bytes()],
+        )
+        .unwrap();
+    let store = reopen(&dir);
+    assert!(is_corrupted(store.log(&other, 0, 10)));
+    assert!(is_corrupted(store.author_log(&other, &author, None, 10)));
+}
+
+#[test]
+fn a_missing_or_truncated_object_file_is_reported_as_corrupted() {
+    let (dir, mut store) = scratch();
+    let missing = object(INLINE_MAX_BYTES + 1);
+    let truncated = object(INLINE_MAX_BYTES + 2);
+    store
+        .commit(&Commit {
+            blobs: vec![missing.clone(), truncated.clone()],
+            ..Commit::default()
+        })
+        .unwrap();
+    let blobs = dir.path().join("blobs");
+    fs::remove_file(blobs.join(missing.hash().to_string())).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(blobs.join(truncated.hash().to_string()))
+        .unwrap()
+        .set_len(10)
+        .unwrap();
+
+    assert!(is_corrupted(store.blob(&missing.hash())));
+    assert!(is_corrupted(store.blob_range(&missing.hash(), 0, 4)));
+    assert!(is_corrupted(store.blob(&truncated.hash())));
+    assert!(is_corrupted(store.blob_range(&truncated.hash(), 0, 4)));
+}
+
+#[test]
+fn objects_above_the_inline_limit_are_files_served_by_range() {
+    let (dir, mut store) = scratch();
+    let at_limit = object(INLINE_MAX_BYTES);
+    let above = object(INLINE_MAX_BYTES + 1);
+    let large = object(3 * BLOB_CHUNK_BYTES + 5);
+    let transient = object(INLINE_MAX_BYTES + 3);
+    store
+        .commit(&Commit {
+            blobs: vec![
+                at_limit.clone(),
+                above.clone(),
+                large.clone(),
+                above.clone(),
+                transient.clone(),
+            ],
+            drop_blobs: vec![transient.hash()],
+            ..Commit::default()
+        })
+        .unwrap();
+
+    // Only the objects above the limit are files; the dropped one is gone.
+    assert_eq!(
+        object_files(dir.path()),
+        sorted(vec![above.hash().to_string(), large.hash().to_string()])
+    );
+    for blob in [&at_limit, &above, &large] {
+        assert_eq!(store.blob(&blob.hash()), Ok(Some(blob.bytes().to_vec())));
+        assert_eq!(
+            store.blob_len(&blob.hash()),
+            Ok(Some(blob.bytes().len() as u64))
+        );
+    }
+    assert_eq!(store.blob_len(&transient.hash()), Ok(None));
+
+    let bytes = large.bytes();
+    let len = bytes.len();
+    let chunk = BLOB_CHUNK_BYTES;
+    let range = |offset: usize, max: usize| {
+        store
+            .blob_range(&large.hash(), offset as u64, max)
+            .unwrap()
+            .unwrap()
+    };
+    assert_eq!(range(0, 1), bytes[..1]);
+    assert_eq!(range(0, chunk), bytes[..chunk]);
+    assert_eq!(range(chunk - 3, chunk), bytes[chunk - 3..2 * chunk - 3]);
+    assert_eq!(range(3 * chunk, chunk), bytes[3 * chunk..]);
+    assert_eq!(range(len - 1, 10), bytes[len - 1..]);
+    assert_eq!(range(len, 10), Vec::<u8>::new());
+    assert_eq!(range(len + 1, 10), Vec::<u8>::new());
+    assert_eq!(range(0, usize::MAX), bytes);
+    assert_eq!(
+        store.blob_range(&large.hash(), u64::MAX, usize::MAX),
+        Ok(Some(Vec::new()))
+    );
+    assert_eq!(
+        store.blob_range(&at_limit.hash(), INLINE_MAX_BYTES as u64 - 1, 10),
+        Ok(Some(at_limit.bytes()[INLINE_MAX_BYTES - 1..].to_vec()))
+    );
+
+    // Dropping a file object removes its file, and the rest survives reopen.
+    store
+        .commit(&Commit {
+            drop_blobs: vec![large.hash()],
+            ..Commit::default()
+        })
+        .unwrap();
+    assert_eq!(store.blob(&large.hash()), Ok(None));
+    assert_eq!(object_files(dir.path()), [above.hash().to_string()]);
+    drop(store);
+    let store = reopen(&dir);
+    assert_eq!(store.blob(&above.hash()), Ok(Some(above.bytes().to_vec())));
+    assert_eq!(
+        store.blob(&at_limit.hash()),
+        Ok(Some(at_limit.bytes().to_vec()))
+    );
+}
+
+#[test]
+fn staging_a_large_object_resumes_after_reopen_and_promotes_it_in_place() {
+    let (dir, mut store) = scratch();
+    let large = object(2 * BLOB_CHUNK_BYTES + 3);
+    let (hash, bytes, chunk) = (large.hash(), large.bytes(), BLOB_CHUNK_BYTES);
+    assert_eq!(
+        store.stage_blob(&hash, 0, &bytes[..chunk]),
+        Ok(chunk as u64)
+    );
+    assert_eq!(
+        store.stage_blob(&hash, 5, &bytes[5..chunk]),
+        Ok(chunk as u64)
+    );
+    drop(store);
+
+    let mut store = reopen(&dir);
+    assert_eq!(store.staged_len(&hash), Ok(chunk as u64));
+    assert_eq!(store.blob_len(&hash), Ok(None));
+    for start in (chunk..bytes.len()).step_by(chunk) {
+        let end = (start + chunk).min(bytes.len());
+        assert_eq!(
+            store.stage_blob(&hash, start as u64, &bytes[start..end]),
+            Ok(end as u64)
+        );
+    }
+    assert_eq!(object_files(dir.path()), [format!("{hash}.staged")]);
+    assert_eq!(store.finish_blob(&hash), Ok(true));
+    assert_eq!(object_files(dir.path()), [hash.to_string()]);
+    assert_eq!(store.staged_len(&hash), Ok(0));
+    assert_eq!(store.blob(&hash), Ok(Some(bytes.to_vec())));
+
+    // Receiving it again leaves the held object as it was.
+    assert_eq!(store.stage_blob(&hash, 0, bytes), Ok(bytes.len() as u64));
+    assert_eq!(store.finish_blob(&hash), Ok(true));
+    assert_eq!(object_files(dir.path()), [hash.to_string()]);
+    drop(store);
+    assert_eq!(reopen(&dir).blob(&hash), Ok(Some(bytes.to_vec())));
+}
+
+#[test]
+fn a_large_staged_copy_that_does_not_match_its_hash_is_discarded() {
+    let (dir, mut store) = scratch();
+    let promised = object(INLINE_MAX_BYTES + 10).hash();
+    let sent = object(INLINE_MAX_BYTES + 11);
+    assert_eq!(
+        store.stage_blob(&promised, 0, sent.bytes()),
+        Ok(sent.bytes().len() as u64)
+    );
+    assert_eq!(store.finish_blob(&promised), Ok(false));
+    assert_eq!(store.staged_len(&promised), Ok(0));
+    assert_eq!(store.blob_len(&promised), Ok(None));
+    assert_eq!(object_files(dir.path()), Vec::<String>::new());
+}
+
+#[test]
+fn leftovers_in_the_object_directory_are_collected_on_open() {
+    let (dir, mut store) = scratch();
+    let held = object(INLINE_MAX_BYTES + 1).hash();
+    let inline = object(10);
+    store
+        .commit(&Commit {
+            blobs: vec![object(INLINE_MAX_BYTES + 1), inline.clone()],
+            ..Commit::default()
+        })
+        .unwrap();
+    drop(store);
+    let orphan = object(INLINE_MAX_BYTES + 2).hash();
+    let resumable = object(INLINE_MAX_BYTES + 3).hash();
+    let blobs = dir.path().join("blobs");
+    for name in [
+        orphan.to_string(),
+        format!("{orphan}.tmp"),
+        format!("{held}.staged"),
+        format!("{resumable}.staged"),
+        inline.hash().to_string(),
+        format!("{orphan}.other"),
+        "notes.txt".to_owned(),
+    ] {
+        fs::write(blobs.join(name), b"leftover").unwrap();
+    }
+
+    let store = reopen(&dir);
+    assert_eq!(
+        object_files(dir.path()),
+        sorted(vec![
+            held.to_string(),
+            format!("{resumable}.staged"),
+            format!("{orphan}.other"),
+            "notes.txt".to_owned(),
+        ])
+    );
+    assert_eq!(store.staged_len(&resumable), Ok(8));
+    assert_eq!(
+        store.blob(&inline.hash()),
+        Ok(Some(inline.bytes().to_vec()))
+    );
+}
+
+/// The largest header the contract admits: every list at its limit and
+/// every integer at its widest encoding.
+fn largest_header(n: usize, prev: EventId) -> Header {
+    Header {
+        version: PROTOCOL_VERSION,
+        goal: GoalId([7; 32]),
+        author: keypair(1).public(),
+        seq: i64::MAX as u64 - (MAX_EVENTS_PER_BATCH - 1 - n) as u64,
+        prev: Some(prev),
+        anchor: Some(EventId([0xaa; 32])),
+        parents: (0..MAX_PARENTS).map(|p| EventId([p as u8; 32])).collect(),
+        at_ms: u64::MAX,
+        payload: Some(PayloadRef {
+            hash: BlobHash([0xbb; 32]),
+            len: MAX_PAYLOAD_BYTES as u32,
+            key_epoch: u32::MAX,
+        }),
+        body: Body::ResultSubmitted {
+            assignment: EventId([0xcc; 32]),
+            base: Some(BlobHash([0xdd; 32])),
+            patch: Some(BlobHash([0xee; 32])),
+            artifacts: (0..MAX_ARTIFACTS)
+                .map(|a| BlobHash([a as u8; 32]))
+                .collect(),
+        },
+    }
+}
+
+#[test]
+fn a_batch_of_256_largest_headers_commits_in_one_step() {
+    let (dir, mut store) = scratch();
+    let key = keypair(1);
+    let mut batch: Vec<Event> = Vec::with_capacity(MAX_EVENTS_PER_BATCH);
+    let mut prev = EventId([0x11; 32]);
+    for n in 0..MAX_EVENTS_PER_BATCH {
+        let event = Event::sign(largest_header(n, prev), &key).unwrap();
+        prev = event.id();
+        batch.push(event);
+    }
+    assert!(batch.iter().all(|event| event.header_bytes().len() > 4096));
+    let goal = GoalId([7; 32]);
+    store
+        .commit(&Commit {
+            events: batch.clone(),
+            ..Commit::default()
+        })
+        .unwrap();
+    drop(store);
+
+    let store = reopen(&dir);
+    let log = store.log(&goal, 0, usize::MAX).unwrap();
+    assert_eq!(
+        positions(&log),
+        (1..=MAX_EVENTS_PER_BATCH as u64).collect::<Vec<_>>()
+    );
+    assert!(log.iter().map(|(_, event)| event).eq(batch.iter()));
+    // Paged by author cursor up to the largest sequence number.
+    let author = key.public();
+    let mut paged = Vec::new();
+    let mut after = None;
+    loop {
+        let page = store.author_log(&goal, &author, after, 100).unwrap();
+        let Some(last) = page.last() else { break };
+        after = Some(AuthorPoint {
+            seq: last.header().seq,
+            id: last.id(),
+        });
+        paged.extend(page);
+    }
+    assert_eq!(paged, batch);
+    assert_eq!(after.map(|point| point.seq), Some(i64::MAX as u64));
 }

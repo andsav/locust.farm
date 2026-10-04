@@ -57,6 +57,12 @@ impl SqliteStore {
         })
     }
 
+    /// The connection, for tests that inject failures.
+    #[cfg(test)]
+    pub(crate) fn connection(&self) -> &Connection {
+        &self.conn
+    }
+
     fn usable(&self) -> Result<(), StoreError> {
         if self.broken {
             Err(StoreError::Failed(BROKEN.to_owned()))
