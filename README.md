@@ -18,6 +18,8 @@ distribution is deferred.
 See the [implementation plan](docs/implementation-plan.md),
 [current workstreams](docs/workstreams.md) and
 [release evidence](docs/release-evidence.md) for scope and verification boundaries.
+The [packaging guide](docs/packaging.md) describes unsigned native candidates
+and the release trust boundary.
 
 ## Layout
 

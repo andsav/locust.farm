@@ -23,6 +23,7 @@ the repository root to check coverage and local link paths.
 - [Lane B implementation log](lane-b-implementation-log.md): product objective, implemented slices, verification boundaries and useful client/transport observations.
 - [T1 CLI run](t1-run.md): two-Mac command sequence, optional third-peer extension, network operators, restart/sleep evidence and the local three-process harness.
 - [T1 build](t1-build.md): identified Apple Silicon artifact for local transfer to the two Macs; publication and public-download qualification are deferred.
+- [Native release candidate packaging](packaging.md): unsigned macOS arm64 and Linux x86_64 candidate format, source identity, signature boundary and manual CI declarations.
 - [Client qualification harness](client-qualification.md): isolated four-client scripted-provider checks, policy distinctions and recovery evidence boundaries.
 - [Explicit managed client sessions](managed-clients.md): local launch, readiness, exact binding, native resume, pending work and conservative crash recovery.
 - [Transport probe](transport-probe.md): runnable direct, relay-only and automatic transport qualification, local process checks and two-machine instructions.
