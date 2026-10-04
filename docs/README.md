@@ -14,6 +14,7 @@ the repository root to check coverage and local link paths.
 ## Index
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
+- [Last-mile implementation plan](last-mile-implementation-plan.md): proposed work packages for distribution, recoverable setup, reliable task context, human permissions, a reviewed and applied change, two-person qualification and consented visualization; dependencies, decisions, tests and complete research coverage.
 - [Protocol contract, version 1](protocol-v1.md): current authority, deterministic fork selection, reconciliation, local API and recovery rules, with enforcing code/tests and explicit version-0 incompatibility.
 - [Archived protocol contract, version 0](protocol-v0.md): historical encoding, event, invitation, synchronization and local API rules for interpreting version-0 artifacts.
 - [TLA+ formal verification implementation plan](tla-verification-plan.md): Stages 0 and 1 implemented for the version-0 baseline; version-1 model rebaselining, replication, durability, full model CI and optional safety proofs remain proposed.
