@@ -20,6 +20,10 @@ repository root. Untracked drafts are excluded from the check.
 
 - [T1 remediation](t1-remediation.md): disposition of all 36 independent-review findings, protocol-1 decisions, additional build/client-evidence repairs and verification boundaries.
 
+### Last-mile experience — 2026-10-04
+
+- [What people and agents meet, and what to change](last-mile-experience.md): whether agents are prompted to communicate, what the log enforces, identity at joining, local and public views of a swarm, the first ten minutes for a person and for an agent; a measured hands-on run and real-model tool tally, proposals reviewed by seven critics, slice order and decisions for the maintainer. Proposals only; nothing implemented.
+
 ### TLA+ verification
 
 - [Model and runner guide](tla/README.md): pinned tools, reproducible bounded checks, input snapshots, result classification and evidence limits.

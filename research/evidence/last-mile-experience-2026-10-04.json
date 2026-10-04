@@ -1,0 +1,427 @@
+{
+ "real_model_tool_calls": {
+  "source": "output/t2-real-model-*/**/*.mcp.jsonl (ignored, disposable); client_request lines with method tools/call, counted by the tool field",
+  "counted": "2026-10-04",
+  "logs": 31,
+  "logs_with_calls": 26,
+  "run_directories": 11,
+  "total_calls": 132,
+  "by_tool": {
+   "locust_goal_status": 42,
+   "locust_task_show": 26,
+   "locust_status": 21,
+   "locust_task_claim": 12,
+   "locust_pending": 11,
+   "locust_task_progress": 10,
+   "locust_event_show": 9,
+   "locust_board": 1
+  },
+  "never_called": [
+   "locust_note_add",
+   "locust_notes",
+   "locust_doc_read",
+   "locust_doc_revise",
+   "locust_doc_accept",
+   "locust_events",
+   "locust_wait"
+  ],
+  "by_run_directory": {
+   "t2-real-model-claude-droid": {},
+   "t2-real-model-claude-droid-anthropic": {
+    "locust_goal_status": 5,
+    "locust_task_show": 3,
+    "locust_status": 2,
+    "locust_event_show": 1,
+    "locust_pending": 1,
+    "locust_task_claim": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-claude-droid-schema-fixed": {
+    "locust_goal_status": 5,
+    "locust_task_show": 3,
+    "locust_status": 2,
+    "locust_event_show": 1,
+    "locust_pending": 1,
+    "locust_task_claim": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-droid-pi": {
+    "locust_status": 1,
+    "locust_goal_status": 1,
+    "locust_task_show": 1,
+    "locust_pending": 1,
+    "locust_task_claim": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-droid-pi-anthropic": {
+    "locust_goal_status": 3,
+    "locust_status": 2,
+    "locust_task_show": 2,
+    "locust_event_show": 1,
+    "locust_pending": 1,
+    "locust_task_claim": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-droid-pi-fresh-scoped": {
+    "locust_goal_status": 5,
+    "locust_status": 3,
+    "locust_task_show": 3,
+    "locust_task_claim": 2,
+    "locust_event_show": 1,
+    "locust_pending": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-droid-pi-schema-fixed": {
+    "locust_goal_status": 3,
+    "locust_status": 2,
+    "locust_task_show": 2,
+    "locust_task_claim": 2,
+    "locust_event_show": 1,
+    "locust_pending": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-first": {
+    "locust_goal_status": 5,
+    "locust_task_show": 3,
+    "locust_status": 2,
+    "locust_event_show": 1,
+    "locust_pending": 1,
+    "locust_task_claim": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-pi-codex": {
+    "locust_goal_status": 5,
+    "locust_task_show": 3,
+    "locust_status": 3,
+    "locust_pending": 2,
+    "locust_board": 1,
+    "locust_event_show": 1,
+    "locust_task_claim": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-pi-codex-native-path-fixed": {
+    "locust_goal_status": 5,
+    "locust_task_show": 3,
+    "locust_status": 2,
+    "locust_event_show": 1,
+    "locust_pending": 1,
+    "locust_task_claim": 1,
+    "locust_task_progress": 1
+   },
+   "t2-real-model-pi-codex-resume-fixed": {
+    "locust_goal_status": 5,
+    "locust_task_show": 3,
+    "locust_status": 2,
+    "locust_event_show": 1,
+    "locust_pending": 1,
+    "locust_task_claim": 1,
+    "locust_task_progress": 1
+   }
+  },
+  "boundary": "Prompts in scripts/check_t2_models.py listed the exact tool sequence; runs include superseded failed attempts and used permissive client flags."
+ },
+ "tools_list": {
+  "binary": "locust 0.1.0 (6757d755b6f3) api 1 protocol 1",
+  "tools": 33,
+  "bytes": 25530,
+  "description_bytes": 2251,
+  "idempotency_key_bytes_approx": 9504,
+  "parameters": 115,
+  "parameters_with_description": 33,
+  "read_only_tools": 11,
+  "destructive_hint_true": 22,
+  "descriptions": {
+   "locust_status": "Show the daemon, its principals and the goals the caller is in",
+   "locust_goal_create": "Found a goal that the caller owns and coordinates",
+   "locust_goal_join": "Redeem an invitation ticket to join a goal",
+   "locust_goal_invite": "Issue a single-use invitation ticket for a goal expires_ms is an absolute Unix-millisecond timestamp. The returned invitation is a secret to share only with the intended participant.",
+   "locust_goal_leave": "Ask to leave a goal and stop taking part in it",
+   "locust_goal_status": "Show a goal's members, accepted head, peers and the caller's grants",
+   "locust_member_remove": "Remove a member from a goal",
+   "locust_workspace_set": "Record where the caller's files for a goal live Records metadata only; does not read, write, export or apply files.",
+   "locust_board": "List a goal's tasks and their states",
+   "locust_task_show": "Read one task with its text and authored policy",
+   "locust_event_show": "Read one event in full, such as a submitted result or a proposed revision",
+   "locust_task_propose": "Propose a task",
+   "locust_task_assign": "Assign a task to a member",
+   "locust_task_cancel": "Request cancellation of an assignment",
+   "locust_task_claim": "Take an assignment for this session, or recover this session's claim Requires local execution authorization. Returns this session's claim generation; retain it for progress and submission.",
+   "locust_task_takeover": "Take over an assignment claimed by another session Requires explicit local takeover authority and fences the earlier session.",
+   "locust_task_decline": "Decline an assignment",
+   "locust_task_progress": "Report progress on a claimed assignment",
+   "locust_task_submit": "Submit the result of a claimed assignment Submission records evidence; it does not accept or integrate the result. Use immutable object identifiers supplied by trusted workspace commands.",
+   "locust_task_fail": "Report that a claimed attempt failed",
+   "locust_cancel_acknowledge": "Answer a cancellation request with what happened",
+   "locust_result_accept": "Accept a submitted result, optionally advancing the workspace head Acceptance advances goal authority; it does not apply files to a checkout.",
+   "locust_result_reject": "Reject a submitted result",
+   "locust_pending": "List what needs the caller now",
+   "locust_wait": "Wait until a goal changes or a timeout passes Pass the last observed revision as seen; zero returns current state. Cancellation closes only this wait, without cancelling a task or undoing a committed operation.",
+   "locust_events": "Read a goal's event feed from a position or the stored cursor The daemon returns at most 256 events per page; follow the returned cursor to continue.",
+   "locust_note_add": "Add a note or finding",
+   "locust_notes": "Read notes",
+   "locust_doc_read": "Read the plan or summary and its open proposals",
+   "locust_doc_revise": "Propose a revision of the plan or summary",
+   "locust_doc_accept": "Accept a proposed revision",
+   "locust_blob_stat": "Check whether content is held, requested or unavailable",
+   "locust_blob_withdraw": "Stop serving content held here"
+  }
+ },
+ "catch_up_calls": {
+  "goal": "3 members, 4 tasks, 3 notes, 23 feed rows",
+  "note": "compact JSON-RPC response bytes; each result carries the payload twice (text and structuredContent)",
+  "calls": [
+   {
+    "call": "locust_status",
+    "response_bytes_compact": 1256
+   },
+   {
+    "call": "locust_goal_status",
+    "response_bytes_compact": 2352
+   },
+   {
+    "call": "locust_board",
+    "response_bytes_compact": 4448
+   },
+   {
+    "call": "locust_pending",
+    "response_bytes_compact": 1062
+   },
+   {
+    "call": "locust_notes",
+    "response_bytes_compact": 2168
+   },
+   {
+    "call": "locust_events",
+    "response_bytes_compact": 11404
+   },
+   {
+    "call": "locust_wait",
+    "response_bytes_compact": 1080
+   },
+   {
+    "call": "locust_task_show",
+    "response_bytes_compact": 1614
+   },
+   {
+    "call": "locust_doc_read",
+    "response_bytes_compact": 299
+   },
+   {
+    "call": "locust_doc_read",
+    "response_bytes_compact": 305
+   }
+  ]
+ },
+ "worker_one_task_calls": {
+  "note": "compact JSON-RPC response bytes",
+  "calls": [
+   {
+    "call": "locust_status",
+    "response_bytes_compact": 1256
+   },
+   {
+    "call": "locust_pending",
+    "response_bytes_compact": 1342
+   },
+   {
+    "call": "locust_task_show",
+    "response_bytes_compact": 1608
+   },
+   {
+    "call": "locust_notes",
+    "response_bytes_compact": 948
+   },
+   {
+    "call": "locust_task_claim",
+    "response_bytes_compact": 780
+   },
+   {
+    "call": "locust_task_progress",
+    "response_bytes_compact": 340
+   },
+   {
+    "call": "locust_note_add",
+    "response_bytes_compact": 340
+   },
+   {
+    "call": "locust_task_submit",
+    "response_bytes_compact": 340
+   },
+   {
+    "call": "locust_pending",
+    "response_bytes_compact": 745
+   },
+   {
+    "call": "locust_wait",
+    "response_bytes_compact": 763
+   },
+   {
+    "call": "locust_events",
+    "response_bytes_compact": 1607
+   },
+   {
+    "call": "locust_events",
+    "response_bytes_compact": 1135
+   }
+  ]
+ },
+ "mistakes": [
+  {
+   "call": "locust_task_submit",
+   "error": {
+    "code": "superseded",
+    "message": "the session does not hold the claim at that generation"
+   }
+  },
+  {
+   "call": "locust_task_submit",
+   "error": {
+    "code": "invalid",
+    "message": "Invalid arguments for task.submit: missing field `artifacts`"
+   }
+  },
+  {
+   "call": "locust_task_progress",
+   "error": {
+    "code": "superseded",
+    "message": "the session does not hold the claim at that generation"
+   }
+  },
+  {
+   "call": "locust_task_claim",
+   "error": {
+    "code": "authorization_required",
+    "message": "no grant lets the principal take this assignment; the owner authorizes it"
+   }
+  },
+  {
+   "call": "locust_board",
+   "error": {
+    "code": "invalid",
+    "message": "Invalid arguments for board: expected a hex identifier of the right length"
+   }
+  },
+  {
+   "call": "locust_task_claim",
+   "error": {
+    "code": "not_found",
+    "message": "no such assignment"
+   }
+  },
+  {
+   "call": "locust_task_assign",
+   "error": {
+    "code": "denied",
+    "message": "only the goal's coordinator makes this request"
+   }
+  },
+  {
+   "call": "locust_result_accept",
+   "error": {
+    "code": "denied",
+    "message": "only the goal's coordinator makes this request"
+   }
+  },
+  {
+   "call": "locust_member_remove",
+   "error": {
+    "code": "denied",
+    "message": "only the goal's coordinator makes this request"
+   }
+  },
+  {
+   "call": "locust_task_claim",
+   "error": null
+  },
+  {
+   "call": "locust_task_progress",
+   "error": {
+    "code": "superseded",
+    "message": "the session does not hold the claim at that generation"
+   }
+  },
+  {
+   "call": "locust_task_submit",
+   "error": {
+    "code": "superseded",
+    "message": "the session does not hold the claim at that generation"
+   }
+  },
+  {
+   "call": "locust_note_add",
+   "error": null
+  },
+  {
+   "call": "locust_note_add",
+   "error": {
+    "code": "limit_exceeded",
+    "message": "the text is too long"
+   }
+  },
+  {
+   "call": "locust_note_add",
+   "error": {
+    "code": "limit_exceeded",
+    "message": "the text is too long"
+   }
+  },
+  {
+   "call": "locust_note_add",
+   "error": null
+  },
+  {
+   "call": "locust_wait",
+   "error": null
+  },
+  {
+   "call": "locust_wait",
+   "error": {
+    "code": "invalid",
+    "message": "Invalid arguments for wait: missing field `timeout_ms`"
+   }
+  },
+  {
+   "call": "locust_board",
+   "error": {
+    "code": "not_found",
+    "message": "no such goal"
+   }
+  },
+  {
+   "call": "locust_task_authorize",
+   "error": {
+    "code": -32602,
+    "message": "Unknown tool"
+   }
+  },
+  {
+   "call": "locust_note_add",
+   "error": {
+    "code": "invalid",
+    "message": "Invalid arguments for note.add: expected a hex identifier of the right length"
+   }
+  },
+  {
+   "call": "locust_goal_join",
+   "error": {
+    "code": "invalid",
+    "message": "invitation is damaged or incomplete"
+   }
+  },
+  {
+   "call": "locust_task_propose",
+   "error": {
+    "code": "invalid",
+    "message": "Invalid arguments for task.propose: missing field `depends_on`"
+   }
+  },
+  {
+   "call": "locust_pending",
+   "error": null
+  }
+ ],
+ "_about": {
+  "what": "Evidence for research/last-mile-experience.md",
+  "hands_on": "One run on 2026-10-03 at 6757d75: debug build in a fresh worktree, two scratch daemons on one machine, calls made by a script over locust mcp, not by a model. The scratch homes were deleted after the run; these figures were measured once."
+ }
+}
