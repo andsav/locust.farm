@@ -17,7 +17,7 @@ Revision 2 is the second reviewed design of version 0. The version numbers on th
 | Founding | Genesis admits nobody; the coordinator's first decision admits itself and binds its endpoint. In version 0 the goal owner is the coordinator | One rule for every member's endpoint binding, the coordinator's included |
 | State | A goal's state is a function of the set of held events, never of their arrival order | Two daemons holding the same events show the same board |
 | Content | Every content object a goal names is sealed; its identity is the hash of the sealed bytes | Storage, relays and transfer verify objects without keys; plaintext is not expressible |
-| Key epochs | The epoch of an event is the number of member removals in the decision chain up to and including its anchor | A removal rotates the key with no further decision, and a stale epoch is visible in the header |
+| Key epochs | Count member removals through an event's anchor, plus the event itself when it is a removal | A removal carries proof of its new key with no further decision, and a stale epoch is visible in the header |
 | Reconciliation | Per author, a count of consecutive positions and a running digest of exactly which events are held | Equal-length divergent histories are found; a simply-behind peer is answered with a suffix |
 | Discovery | Works like BitTorrent: peers are found by endpoint key, and any member synchronizes with any member | Which network a peer is on is not something a participant should care about |
 | Local API framing | Little-endian `u32` length, then a postcard value; JSON is only a rendering of the same types | One set of types; the client needs no async runtime |
@@ -171,11 +171,11 @@ It does not hide equality: two objects with the same content in one goal and epo
 
 ### Key epochs and how keys travel
 
-The epoch of an event is the number of `member_removed` decisions in the chain up to and including its anchor, so genesis is epoch 0. A removal therefore rotates the key with no further decision. A removal decision's own anchor is the decision before it, so the removal itself belongs to the earlier epoch; events anchored at or after it use the next. The core checks every payload's epoch against the chain and refuses a stale one.
+The epoch of an event is the number of `member_removed` decisions in the chain up to and including its anchor, plus one when the event itself is a removal, so genesis is epoch 0. A removal therefore rotates the key with no further decision: its own payload and events anchored at or after it use the next epoch. The core checks every payload's epoch against the chain and refuses a stale one. This resolves the earlier contradiction between removal's epoch and the requirement to verify a newly served key against its founding decision.
 
 The coordinator's daemon generates a random content key for each epoch. Keys are local records (`Space::Key`), never rendered in text and never read from it. Between daemons a key travels only in a `Key` frame over a link whose remote endpoint speaks for a current member of the goal: any member holding a key may serve it, a member admitted later is given every earlier epoch so it can read history, a removed member is refused with `not_a_member`, and a responder without that epoch's key answers `key_unavailable` so the asker tries another member. A member that missed a rotation obtains the new key on its next exchange with any current member.
 
-Nothing signed commits to an epoch key, so a receiver checks a served key before keeping it: a key for an epoch is accepted only if it opens the payload of the decision that starts that epoch, an object the coordinator sealed under it (core). Because opening also checks the nonce, a wrong key can never make an object open to different content; it can only fail to open, and the receiver then asks another member. Which decision serves this check for epochs after the first is listed under [Not decided here](#not-decided-here).
+Nothing signed commits to an epoch key, so a receiver checks a served key before keeping it: a key for an epoch is accepted only if it opens the payload of the decision that starts that epoch, an object the coordinator sealed under it (core). Genesis proves epoch 0; each removal proves the epoch it starts. The coordinator's daemon always gives those decisions a sealed payload, using empty text when there is no explanatory text. If the proof payload is absent or has not arrived, a receiver does not retain an unverified key. Because opening also checks the nonce, a wrong key can never make an object open to different content; it can only fail to open, and the receiver then asks another member.
 
 ## Invitations and joining
 
@@ -586,7 +586,6 @@ A golden vector fixes exact bytes from published test keys (`testkit::keypair(n)
 ## Not decided here
 
 - Coordinator handoff, and any exit from a halted goal other than inspection, export and a new goal.
-- Which decision verifies a served content key for an epoch after the first. Under the epoch rule the removal decision that opens an epoch is itself sealed under the earlier one, so the check needs a decision of the new epoch that carries a payload; nothing yet requires one.
 - Verified streaming of content objects. Identity is plain BLAKE3, so it can be added without changing identifiers.
 - The default relay and address-lookup operators, and what each observes; lane B's transport work records them.
 - Signing and notarization of release builds. Until builds are signed and notarized, a binary is fetched with a command-line tool: one saved through a browser is quarantined by macOS, and an unsigned binary is then blocked.

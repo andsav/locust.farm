@@ -2,6 +2,23 @@
 
 Date: 2026-10-03. **Status: accepted layout and working rules for the October 4 push. `locust-proto` holds the contract; `locust-net`, `locust-adapter` and `locust-workspace` have behavior and tests; `locust-core` and `locust-store` are being built; the `locust` binary still only prints its name.** The repository owner approved the crate split on 2026-10-03, chose to keep all streams in one checkout without worktrees, and divided the work between two orchestrating sessions that review each other. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
 
+**Ownership update, October 3:** the owner has now assigned Lane A to Lane B's
+orchestrating session, including responsibility for completing and integrating
+the unfinished runtime. The crate boundaries below remain; one orchestrator now
+coordinates both A and B. Lane C keeps its existing scope. Independent subagents
+review completed slices before integration. The [takeover review](../research/lane-a-review-2026-10-03.md)
+records the captured starting state: the committed foundation passes checks,
+while the working Goal, sync and daemon are incomplete. The reviewed working
+files were preserved in a scratch snapshot before editing.
+
+Current implementation scopes are disjoint: an Astra agent owns Goal and local
+Node behavior, an Astra agent owns sync and Node peer integration, a Sol agent
+owns the bounded storage/export fixes, and the orchestrator owns contract
+changes, daemon networking, CLI/release integration and full-workspace checks.
+Each reassignment is explicit; agents do not commit another scope's work. T1
+remains the first milestone, with three local processes preceding the published
+build on the owner's three Macs. The owner has not yet instructed publication.
+
 ## Why the workspace is split
 
 Several agent sessions edit this checkout at once. In a single crate, one stream's half-written file breaks every other stream's build and tests. With one crate per stream, unfinished code breaks only its own crate and the binary that links it. The split also fixes the dependency direction, which the single crate could not enforce: every library crate depends on the contract crate and on no other workspace crate.

@@ -1,5 +1,20 @@
 # Lane A log
 
+## Ownership transfer — October 3
+
+The owner has assigned Lane A to the Lane B orchestrator to complete the runtime
+and integration. The accepted sequence remains T1 first. The [takeover review](../research/lane-a-review-2026-10-03.md)
+and its retained probes are the starting findings; B-R5 through B-R14 are being
+addressed in scoped implementation work. Existing unfinished source was preserved
+before edits. The [workstream update](workstreams.md) names the active ownership.
+
+Two integration decisions are now explicit: a successful peer finish has its own
+engine notification, distinct from an aborted/failed close, and output proceeds
+as transport capacity is returned; a removal's payload uses the new key epoch so
+the removal itself proves that key. The latter resolves contradictory prose in
+the previous [epoch contract](protocol-v0.md); wire structures are unchanged.
+These are accepted implementation directions, not yet verified completion claims.
+
 **Status: working log, written only by lane A (contract, core, storage, daemon, workspace, integration).** It carries contract change notices, answers to lane B's requests and reviews of lane B's commits. Lane B replies in its own [log](lane-b-log.md). The roles and review rules are in [workstreams](workstreams.md).
 
 ## Contract notices
@@ -125,4 +140,3 @@ Reviews of `31ca555` (build helper, B-6) and of `87f8a42`, `d4dbe7c`, `d45a3f5` 
 - **C-A2 (accepted versus applied): accepted.** The local workspace record (`workspace.set`) holds the manifest last integrated on this machine, and goal status reports it next to the accepted head. Task views gain an `applied` field derived from the two, so the three outcomes are submitted, accepted and applied.
 - **C-A3 (readiness answers): accepted, with the daemon.** `locust status` and `locust doctor` will separate "daemon not answering", "version mismatch" and "a harmless call succeeded", each with a stable code and exit status. The command names, the JSON envelope and the exit codes will be published in the [protocol contract](protocol-v0.md) with part 2, before the commands exist, so the guide can link to them.
 - **C-A4 (stale status line): fixed** in [workstreams](workstreams.md).
-
