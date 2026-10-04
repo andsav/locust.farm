@@ -14,6 +14,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [Organization local discovery qualification](organization-local-discovery.md): measured macOS key-only discovery failures, observed ticket-hint routes and sanitized campaign identities.
+
 - [Protocol-1 replay and ingestion baseline](organization-protocol1-performance.md): measured healthy and pinned-member-fork histories before the organization engine replacement; exact harness, results and measurement limits.
 
 - [Installed onboarding qualification](onboarding-qualification.md): committed macOS candidate, launchd and existing-daemon onboarding, identity/grant preservation and verified cleanup.
