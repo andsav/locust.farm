@@ -13,7 +13,7 @@ use crate::codec;
 use crate::crypto::content_hash;
 use crate::event::{Body, CancelOutcome, Doc, Event, PayloadRef};
 use crate::id::{EndpointId, Hex};
-use crate::invite::Invitation;
+use crate::invite::{Invitation, InviteSecret};
 use crate::store::Blob;
 use crate::testkit::{self, Author};
 
@@ -247,9 +247,9 @@ fn invitation_ticket() {
         coordinator: owner.key.public(),
         endpoint: EndpointId([7; 32]),
         hints: vec!["https://relay.example".to_string()],
-        secret: [9; 32],
+        secret: InviteSecret([9; 32]),
         expires_ms: Some(1_790_086_400_000),
     };
-    assert_eq!(invitation.to_ticket().unwrap(), TICKET);
+    assert_eq!(invitation.to_ticket().unwrap().as_str(), TICKET);
     assert_eq!(Invitation::from_ticket(TICKET), Ok(invitation));
 }

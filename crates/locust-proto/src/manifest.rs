@@ -11,7 +11,7 @@
 //! its file by the hash of the stored, sealed object and gives the plaintext
 //! size; events name a manifest by the hash of its sealed object as well.
 //! [`Manifest::decode`] accepts only the one canonical encoding, so a decoded
-//! manifest's [`Manifest::id`] is always the hash of the bytes it came from.
+//! manifest's [`Manifest::plain_digest`] is always the hash of the bytes it came from.
 //!
 //! [`is_safe_path`] refuses paths that are unsafe or ambiguous on a supported
 //! platform. Case folding and Unicode normalization depend on the destination
@@ -208,7 +208,7 @@ impl Manifest {
     }
 
     /// The canonical encoding: the plaintext that is sealed and stored, and
-    /// that [`Manifest::id`] hashes. Refuses a manifest that fails
+    /// that [`Manifest::plain_digest`] hashes. Refuses a manifest that fails
     /// [`Manifest::check`].
     pub fn encode(&self) -> Result<Vec<u8>, ManifestError> {
         self.check()?;
