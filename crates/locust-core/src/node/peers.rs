@@ -264,6 +264,11 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
         let mut tx = Tx::none();
         if report.ended == Ended::Completed {
             tx.local(records::put(
+                Space::Goal,
+                records::key(b'Y', &[&report.goal.0, &report.endpoint.0]),
+                &report.at_ms,
+            ));
+            tx.local(records::put(
                 Space::Peer,
                 records::key(b's', &[&report.endpoint.0]),
                 &report.at_ms,

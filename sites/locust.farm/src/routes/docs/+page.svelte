@@ -32,12 +32,12 @@
 	/>
 	<link rel="canonical" href="https://locust.farm/docs" />
 </svelte:head>
-<a class="skip" href="#main">Skip to documentation</a>
+<a class="skip-link button" href="#main">Skip to documentation</a>
 <SiteHeader />
 <main id="main">
-	<p class="label">{data.manifest.label}</p>
+	<p class="eyebrow">{data.manifest.label}</p>
 	<h1>Documentation.</h1>
-	<p class="intro">
+	<p>
 		Read the current development direction and authoring contract. Public installation is
 		unavailable; this manual describes source capabilities and proposals.
 	</p>
@@ -50,6 +50,7 @@
 	<label class="search"
 		>Search development documentation
 		<input
+			class="input"
 			type="search"
 			bind:value={query}
 			onfocus={search}
@@ -71,8 +72,8 @@
 	{/if}
 	<nav aria-label="Documentation articles">
 		{#each data.manifest.pages as page (page.slug)}
-			<a class="article" href={`/docs/next/${page.slug}`}
-				><span class="label">{page.group} · {page.status}</span>
+			<a class="article card" href={`/docs/next/${page.slug}`}
+				><span class="eyebrow">{page.group} · {page.status}</span>
 				<h2>{page.title}</h2>
 				<p>{page.description}</p></a
 			>
@@ -86,69 +87,33 @@
 
 <style>
 	main {
+		display: grid;
+		gap: var(--space-18);
 		max-width: 64rem;
-		padding: 3rem var(--gutter-inline) 5rem;
 		margin: auto;
-		font:
-			1rem/1.8 system-ui,
-			sans-serif;
+		padding: 3rem var(--gutter-inline) 5rem;
 	}
-	h1 {
-		font-size: clamp(2rem, 5vw, 3.5rem);
-		line-height: 1.2;
-		margin: 1rem 0 2rem;
-	}
-	p {
-		margin: 1rem 0;
-	}
-	.intro {
-		font-size: 1.2rem;
+	main > p {
 		max-width: 48rem;
-	}
-	.label {
 		color: var(--color-text-muted);
-		font: var(--text-label);
-	}
-	main a {
-		text-decoration: underline;
-		text-underline-offset: 0.2em;
 	}
 	.search {
 		display: grid;
 		gap: 0.5rem;
-		margin: 2rem 0;
+		margin-top: var(--space-12);
+		color: var(--color-text-muted);
+		font: var(--text-ui);
 	}
-	input {
-		padding: 0.8rem;
-		font: inherit;
-		color: inherit;
-		background: var(--color-bg);
-		border: var(--border-hairline);
-		border-radius: 0.3rem;
+	nav {
+		display: grid;
+		gap: var(--space-12);
 	}
 	.article {
-		display: block;
-		padding: 1.5rem 0;
-		border-top: var(--border-hairline);
-		text-decoration: none;
-	}
-	h2 {
-		margin: 0.4rem 0;
-		font-size: 1.4rem;
+		display: grid;
+		gap: 0.375rem;
+		padding: var(--space-18) var(--space-22);
 	}
 	.article p {
-		margin: 0;
 		color: var(--color-text-muted);
-	}
-	.skip {
-		position: absolute;
-		left: 1rem;
-		top: -5rem;
-		z-index: 20;
-		background: var(--color-bg);
-		padding: 1rem;
-	}
-	.skip:focus {
-		top: 1rem;
 	}
 </style>

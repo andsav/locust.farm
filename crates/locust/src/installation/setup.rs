@@ -13,6 +13,8 @@ pub enum Client {
     Codex,
     Claude,
     Pi,
+    Droid,
+    Shell,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SetupSpec {
@@ -118,6 +120,12 @@ pub fn profile_paths(client: Client, profile_home: &Path) -> (PathBuf, PathBuf, 
         Client::Codex => (".codex/config.toml", ".agents/skills/locust/SKILL.md"),
         Client::Claude => (".claude.json", ".claude/skills/locust/SKILL.md"),
         Client::Pi => (".pi/agent/mcp.json", ".pi/agent/skills/locust/SKILL.md"),
+        Client::Droid => (".factory/mcp.json", ".factory/skills/locust/SKILL.md"),
+        // Portable instructions, launcher and connection descriptor; no native client config.
+        Client::Shell => (
+            ".local/share/locust-agent/mcp.json",
+            ".local/share/locust-agent/skills/locust/SKILL.md",
+        ),
     };
     let skill = profile_home.join(skill);
     let launcher = skill.with_file_name("locust-cli");
@@ -237,6 +245,24 @@ fn desired(s: &SetupSpec) -> Result<String, Failure> {
             credential: s.credential.clone(),
         },
     };
+    if s.client == Client::Shell {
+        for path in [&s.executable, &s.daemon_home, &s.credential, &s.session] {
+            if path.to_str().is_none() {
+                return Err(Failure::invalid(
+                    "connection descriptor paths must be UTF-8",
+                ));
+            }
+        }
+        return Ok(json!({
+            "type": "stdio", "command": s.executable, "args": ["mcp"],
+            "env": {
+                "LOCUST_HOME": s.daemon_home,
+                "LOCUST_CREDENTIAL": s.credential,
+                "LOCUST_SESSION": s.session,
+            }
+        })
+        .to_string());
+    }
     let result = match s.client {
         Client::Codex => config::mcp_arguments(config::Client::Codex, "locust", &server, &[])
             .map(|args| args[1].to_string_lossy().into_owned()),
@@ -248,8 +274,14 @@ fn desired(s: &SetupSpec) -> Result<String, Failure> {
                     .expect("adapter contract")
                     .to_owned()
             }),
-        Client::Pi => {
-            config::mcp_file_overlay(config::Client::Pi, "locust", &server, &[], &json!({}))
+        Client::Shell => unreachable!("portable descriptor rendered above"),
+        Client::Pi | Client::Droid => {
+            let client = if s.client == Client::Droid {
+                config::Client::FactoryDroid
+            } else {
+                config::Client::Pi
+            };
+            config::mcp_file_overlay(client, "locust", &server, &[], &json!({}))
                 .map(|p| p.document.to_string())
         }
     }
@@ -384,6 +416,8 @@ fn collisions(s: &SetupSpec, p: &Paths, config: &Image) -> Result<Value, Failure
             ),
             Client::Claude => (&[".mcp.json"], &[".claude/skills/locust"]),
             Client::Pi => (&[".pi/mcp.json"], &[".pi/skills/locust"]),
+            Client::Droid => (&[".factory/mcp.json"], &[".factory/skills/locust"]),
+            Client::Shell => (&[], &[]),
         };
         for relative in configs {
             let path = ancestor.join(relative);

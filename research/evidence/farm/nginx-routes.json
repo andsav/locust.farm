@@ -1,0 +1,61 @@
+{
+  "/": {
+    "status": 401,
+    "headers": {
+      "Content-Type": "text/html",
+      "Cache-Control": "private, no-store"
+    }
+  },
+  "/start": {
+    "status": 401,
+    "headers": {
+      "Content-Type": "text/html",
+      "Cache-Control": "private, no-store"
+    }
+  },
+  "/docs": {
+    "status": 401,
+    "headers": {
+      "Content-Type": "text/html",
+      "Cache-Control": "private, no-store"
+    }
+  },
+  "/farms": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html",
+      "Cache-Control": "private, no-store",
+      "Referrer-Policy": "no-referrer",
+      "Content-Security-Policy": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+    }
+  },
+  "/farm/1221f25d13f0cdc2e24993be3ff00446": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html",
+      "Cache-Control": "private, no-store",
+      "Referrer-Policy": "no-referrer",
+      "Content-Security-Policy": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+    }
+  },
+  "/api/farms": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "cache-control": "no-store",
+      "Cache-Control": "private, no-store",
+      "Referrer-Policy": "no-referrer"
+    },
+    "json_valid": true
+  },
+  "/api/farms/1221f25d13f0cdc2e24993be3ff00446": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "cache-control": "no-store",
+      "Cache-Control": "private, no-store",
+      "Referrer-Policy": "no-referrer"
+    },
+    "json_valid": true
+  }
+}

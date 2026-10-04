@@ -23,6 +23,7 @@ mod context_views;
 mod definitions;
 mod delivery;
 mod entry;
+mod farm;
 mod feed;
 mod flow;
 mod identity;
@@ -275,6 +276,17 @@ impl<S: Store, E: Entropy> Node<S, E> {
 }
 
 impl<S: Store, E: Entropy> Engine for Node<S, E> {
+    fn farm_poll(&mut self, now_ms: u64) -> Vec<locust_proto::farm::FarmUpload> {
+        self.farm_poll_local(now_ms)
+    }
+    fn farm_complete(
+        &mut self,
+        result: locust_proto::farm::FarmUploadResult,
+        now_ms: u64,
+    ) -> Result<(), ApiError> {
+        self.farm_complete_local(result, now_ms)
+    }
+
     fn connect(&mut self, conn: ConnId, hello: &ClientHello, _now_ms: u64) -> ServerHello {
         if hello.api_version != API_VERSION {
             return self.refuse(

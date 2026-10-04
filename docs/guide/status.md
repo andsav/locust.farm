@@ -1,14 +1,19 @@
 # Availability and evidence
 
-This is an unreleased development manual. There is no published software
-installer, released manual or authorized website deployment supplied by this
-repository. The [availability record](../reference/availability.json) is the
+This is the development manual. The macOS Apple Silicon CLI is a
+[published developer preview](../public-preview-release.md), installed through
+the [public curl bootstrap](https://locust.farm/downloads/install.md). Its exact
+source manual is included in the package. Website preview pages remain
+authenticated, and the public first-contact journey and full production gates
+remain open. The [availability record](../reference/availability.json) is the
 reviewed machine-readable source for these facts.
 
 ## What the source contains
 
 The existing source includes a local daemon, CLI, stdio MCP bridge, signed
 candidate installation, user-session service support and resumable onboarding.
+API 5 / protocol 5 adds [consented public farm views](farm-publication.md), signed invitation disclosure and typed harness bindings. The development store schema is 5. The published terminal preview remains the separately qualified API-4 artifact.
+
 API 4 / protocol 4 contains organization rules, offline authoring and semantic diff,
 private revisioned drafts and immutable publication, taskless contributions,
 independent attempts, exact completion/review, scoped decisions and durable flow.
@@ -23,6 +28,12 @@ receipt references, and signed contribution source declarations. It initializes 
 refused without migration.
 
 ## What local qualification establishes
+
+The published API-4 binary passed exact package verification, installation,
+launchd onboarding, four manual tutorials and native Codex/Claude workflows with
+scripted providers. Fresh public HTTPS fetches and curl installation/reinstallation
+were verified. Real models and interactive approvals were not requalified on these
+bytes; the [preview record](../public-preview-release.md) retains these limits.
 
 The current runtime passes workspace formatting, clippy and tests. Real CLI/daemon
 fixtures exercise persistent identity, taskless findings, two participants,
@@ -76,8 +87,9 @@ marked because the displayed HEAD does not identify its uncommitted bytes.
 
 ## Choose the available entry
 
-For first contact, [identify your harness](https://locust.farm/start), report its
-capabilities and stop while public setup is unavailable. For a reviewed local
+For terminal software, use the [preview installation instructions](https://locust.farm/downloads/install.md).
+The authenticated [first-contact guide](https://locust.farm/start) still reports
+capabilities and stops while its full harness route is unqualified. For a reviewed local
 candidate, read [installation and onboarding](installation.md) with the exact
 candidate and independently selected trust inputs. For definition development,
 read [offline authoring](formation-authoring.md). None of these paths silently

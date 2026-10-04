@@ -381,6 +381,8 @@ impl Effect {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Body {
+    PublicationSet(crate::farm::PublicationSet),
+    PublicationConsent(crate::farm::PublicationConsent),
     Genesis(Genesis),
     MemberAdmitted {
         member: PublicKey,
@@ -479,6 +481,7 @@ impl Body {
         matches!(
             self,
             Self::Genesis(_)
+                | Self::PublicationSet(_)
                 | Self::MemberAdmitted { .. }
                 | Self::MemberRemoved { .. }
                 | Self::RulesBound { .. }
@@ -488,6 +491,8 @@ impl Body {
 
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::PublicationSet(_) => "publication_set",
+            Self::PublicationConsent(_) => "publication_consent",
             Self::Genesis(_) => "genesis",
             Self::MemberAdmitted { .. } => "member_admitted",
             Self::MemberRemoved { .. } => "member_removed",
@@ -534,6 +539,9 @@ impl Body {
             ids.insert(context.round);
         }
         match self {
+            Self::PublicationConsent(consent) => {
+                ids.insert(consent.publication);
+            }
             Self::MemberRemoved {
                 admission,
                 last_accepted,

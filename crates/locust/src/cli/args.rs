@@ -203,6 +203,7 @@ pub(super) fn command() -> Command {
         .subcommand(super::setup::commands())
         .subcommand(super::onboarding::up_command())
         .subcommand(super::formation::commands())
+        .subcommand(super::farm::commands())
         .subcommand(Command::new("contract").about("Export API, event and MCP contracts offline"))
         .subcommand(super::doctor::command())
         .subcommand(
@@ -234,6 +235,7 @@ pub(super) fn command() -> Command {
         // Offline authoring owns these names; authenticated inspection is available through call/MCP.
         if api.name.starts_with("invitation.")
             || api.name.starts_with("permission.")
+            || api.name.starts_with("farm.")
             || api.name == "inbox"
             || matches!(
                 api.name,

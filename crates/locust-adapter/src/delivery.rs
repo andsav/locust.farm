@@ -260,6 +260,7 @@ mod tests {
             instance: binding.instance,
             principal: binding.principal,
             record: SessionRecord {
+                harness: locust_proto::farm::Harness::Unknown,
                 client: "isolated test client".into(),
                 state: SessionState::Ready,
                 client_session: None,

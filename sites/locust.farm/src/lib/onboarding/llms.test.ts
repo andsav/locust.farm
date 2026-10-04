@@ -8,7 +8,7 @@ import {
 	GUIDE_URL,
 	HARNESS_ROUTES,
 	ROUTING_QUESTIONS,
-	SETUP_ARTIFACT
+	PORTABLE_STEPS
 } from './guide.ts';
 import { articleFor, artifactFor } from '../docs/content.ts';
 import { LLMS_PATH, llmsText, SUMMARY } from './llms.ts';
@@ -54,10 +54,14 @@ test('llms.txt carries the entry prompt and the guide’s instructions for agent
 	}
 });
 
-test('llms.txt tells agents to stop while no setup is published', () => {
-	if (SETUP_ARTIFACT) return;
-	assert.ok(text.includes(`4. ${AGENT_STEPS.report}`));
-	assert.ok(text.includes('nothing to install'));
+test('llms.txt proceeds through install, update and portable setup without a qualification gate', () => {
+	for (const step of Object.values(AGENT_STEPS)) assert.ok(text.includes(step));
+	for (const step of PORTABLE_STEPS) assert.ok(text.includes(step));
+	assert.ok(text.includes('verified macOS Apple Silicon installer is published'));
+	assert.doesNotMatch(
+		text,
+		/No setup is published|report.*then stop|wait for the person to approve/i
+	);
 	const links = text.match(/https?:\/\/[^\s)]+/g) ?? [];
 	for (const link of links) assert.equal(new URL(link).hostname, 'locust.farm', link);
 });

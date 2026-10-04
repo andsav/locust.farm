@@ -4,8 +4,8 @@
   "repository": "https://github.com/andsav/locust.farm",
   "versions": {
     "software": "unreleased",
-    "api": 4,
-    "protocol": 4,
+    "api": 5,
+    "protocol": 5,
     "formationSchema": 1
   },
   "pages": [
@@ -242,6 +242,19 @@
         "agents"
       ],
       "status": "implemented"
+    },
+    {
+      "source": "docs/guide/farm-publication.md",
+      "slug": "farm-publication",
+      "title": "Public farm views",
+      "description": "Consent, publication controls, freshness and service operation.",
+      "group": "Use Locust",
+      "order": 19,
+      "audience": [
+        "people",
+        "agents"
+      ],
+      "status": "implemented"
     }
   ],
   "artifacts": [
@@ -341,7 +354,15 @@
     "docs/packaging.md",
     "research/organization-native-qualification.md",
     "research/linux-installation-qualification.md",
-    "research/organization-local-discovery.md"
+    "research/organization-local-discovery.md",
+    "docs/public-preview-release.md",
+    "research/evidence/public-preview-release-2026-10-04.json",
+    "docs/swarm-visualization-plan.md",
+    "crates/locust-proto/src/farm.rs",
+    "sites/locust.farm/ops/README.md",
+    "scripts/check_farm.py",
+    "examples/demos/team-chat.json",
+    "research/farm-qualification.md"
   ],
   "routes": [
     {

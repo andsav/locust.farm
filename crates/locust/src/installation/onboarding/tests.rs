@@ -234,7 +234,13 @@ fn planning_does_not_create_daemon_state_identity_or_profile_files() {
 
 #[test]
 fn each_client_enrolls_without_grants_and_reuses_identity_session_and_config() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         let fixture = Fixture::new(client, true);
         let (config, _, _) = setup::profile_paths(client, &fixture.spec.profile_home);
         let baseline = if client == Client::Codex {
@@ -846,7 +852,13 @@ fn symlinked_and_hardlinked_private_secrets_and_journals_are_refused() {
 
 #[test]
 fn diagnostics_inspect_saved_profiles_without_rewriting_files_or_identities() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         let fixture = Fixture::new(client, true);
         let result = fixture.complete();
         let before = fs::read(record_path(&fixture.spec).unwrap()).unwrap();

@@ -1,0 +1,440 @@
+{
+  "$defs": {
+    "FarmAgent": {
+      "additionalProperties": false,
+      "properties": {
+        "group": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "harness": {
+          "$ref": "#/$defs/Harness"
+        },
+        "id": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "group",
+        "name",
+        "harness",
+        "roles"
+      ],
+      "type": "object"
+    },
+    "FarmAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observed_at_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "round": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/FarmAttemptState"
+        },
+        "task": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "agent",
+        "task",
+        "round",
+        "state"
+      ],
+      "type": "object"
+    },
+    "FarmAttemptState": {
+      "enum": [
+        "started",
+        "progress",
+        "completed",
+        "failed",
+        "abandoned",
+        "uncertain"
+      ],
+      "type": "string"
+    },
+    "FarmCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "evidence_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "requirement": {
+          "type": "string"
+        },
+        "round": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "selected": {
+          "type": "boolean"
+        },
+        "task": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "agent",
+        "round",
+        "completed",
+        "selected",
+        "evidence_count",
+        "requirement"
+      ],
+      "type": "object"
+    },
+    "FarmChange": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "id": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/FarmChangeKind"
+        },
+        "observed_at_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "task": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "text"
+      ],
+      "type": "object"
+    },
+    "FarmChangeKind": {
+      "enum": [
+        "membership",
+        "task",
+        "attempt",
+        "contribution",
+        "evidence",
+        "closure",
+        "retraction",
+        "publication"
+      ],
+      "type": "string"
+    },
+    "FarmGoalState": {
+      "enum": [
+        "open",
+        "ended",
+        "unavailable",
+        "disputed"
+      ],
+      "type": "string"
+    },
+    "FarmGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_sync_at_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "FarmStage": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "label": {
+          "type": "string"
+        },
+        "prerequisites": {
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "prerequisites"
+      ],
+      "type": "object"
+    },
+    "FarmTask": {
+      "additionalProperties": false,
+      "properties": {
+        "closed": {
+          "type": "boolean"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "id": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reference": {
+          "type": "string"
+        },
+        "round": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "selected_candidate": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "stage": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/FarmTaskState"
+        }
+      },
+      "required": [
+        "id",
+        "reference",
+        "round",
+        "state",
+        "completed",
+        "closed"
+      ],
+      "type": "object"
+    },
+    "FarmTaskState": {
+      "enum": [
+        "open",
+        "reported",
+        "awaiting_evidence",
+        "completed",
+        "closed",
+        "unavailable",
+        "disputed"
+      ],
+      "type": "string"
+    },
+    "Harness": {
+      "enum": [
+        "codex",
+        "claude_code",
+        "factory_droid",
+        "pi",
+        "unknown",
+        "multiple"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agents": {
+      "items": {
+        "$ref": "#/$defs/FarmAgent"
+      },
+      "type": "array"
+    },
+    "attempts": {
+      "items": {
+        "$ref": "#/$defs/FarmAttempt"
+      },
+      "type": "array"
+    },
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/FarmCandidate"
+      },
+      "type": "array"
+    },
+    "changes": {
+      "items": {
+        "$ref": "#/$defs/FarmChange"
+      },
+      "type": "array"
+    },
+    "farm_id": {
+      "type": "string"
+    },
+    "formation": {
+      "type": "string"
+    },
+    "goal_state": {
+      "$ref": "#/$defs/FarmGoalState"
+    },
+    "groups": {
+      "items": {
+        "$ref": "#/$defs/FarmGroup"
+      },
+      "type": "array"
+    },
+    "observed_at_ms": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "omitted_changes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "stages": {
+      "items": {
+        "$ref": "#/$defs/FarmStage"
+      },
+      "type": "array"
+    },
+    "tasks": {
+      "items": {
+        "$ref": "#/$defs/FarmTask"
+      },
+      "type": "array"
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "version": {
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "farm_id",
+    "formation",
+    "goal_state",
+    "agents",
+    "groups",
+    "stages",
+    "tasks",
+    "attempts",
+    "candidates",
+    "changes",
+    "omitted_changes"
+  ],
+  "title": "FarmSnapshot",
+  "type": "object"
+}

@@ -75,7 +75,13 @@ fn put(path: &Path, bytes: &[u8]) {
 }
 #[test]
 fn all_clients_roundtrip_preserves_original_and_readiness_boundary() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         let (_dir, s) = fixture(client);
         let p = paths(&s).unwrap();
         let baseline = if client == Client::Codex {
@@ -110,7 +116,13 @@ fn all_clients_roundtrip_preserves_original_and_readiness_boundary() {
 }
 #[test]
 fn remove_preserves_unrelated_edits_and_rejects_owned_edits() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         let (_d, s) = fixture(client);
         let p = paths(&s).unwrap();
         let a = plan(&s, false).unwrap();
@@ -210,7 +222,13 @@ fn remove_after_software_uninstall_does_not_require_secret_files() {
 
 #[test]
 fn reapply_retains_intervening_unrelated_edits_on_removal() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         let (_d, s) = fixture(client);
         let p = paths(&s).unwrap();
         let a = plan(&s, false).unwrap();
@@ -428,7 +446,13 @@ fn interrupted_reapply_cleanup_preserves_intervening_edits_and_refuses_unknown_b
 
 #[test]
 fn generated_mcp_command_matches_actual_cli_definition() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         let (_d, s) = fixture(client);
         let definition = desired(&s).unwrap();
         let (command, arguments) = if client == Client::Codex {
@@ -464,7 +488,13 @@ fn generated_mcp_command_matches_actual_cli_definition() {
 
 #[test]
 fn launcher_is_owned_executable_and_skill_preserves_signed_frontmatter() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         let (_d, s) = fixture(client);
         let p = paths(&s).unwrap();
         let source = fs::read(&s.skill_source).unwrap();
@@ -651,7 +681,13 @@ fn setup_images(s: &SetupSpec) -> Vec<Image> {
 
 #[test]
 fn unsupported_ownership_formats_refuse_every_operation_without_mutation() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         for format in ["locust-setup-owner-v1", "unknown-setup-format"] {
             let (_d, s) = fixture(client);
             let initial = plan(&s, false).unwrap();
@@ -681,7 +717,13 @@ fn unsupported_ownership_formats_refuse_every_operation_without_mutation() {
 
 #[test]
 fn unsupported_pending_journal_formats_refuse_before_resuming_or_cleanup() {
-    for client in [Client::Codex, Client::Claude, Client::Pi] {
+    for client in [
+        Client::Codex,
+        Client::Claude,
+        Client::Pi,
+        Client::Droid,
+        Client::Shell,
+    ] {
         for applied_paths in 0..=4 {
             let (_d, s) = fixture(client);
             let p = paths(&s).unwrap();
@@ -758,4 +800,64 @@ fn launcher_binding_changes_require_a_new_plan_and_update_only_owned_content() {
     assert!(old_session.exists());
     assert_eq!(status(&s).unwrap()["binding_matches"], true);
     assert_eq!(status(&s).unwrap()["launcher_ready"], true);
+}
+
+#[test]
+fn portable_setup_provides_scoped_cli_without_writing_a_native_client_profile() {
+    let (_directory, spec) = fixture(Client::Shell);
+    let reviewed = plan(&spec, false).unwrap();
+    apply(&spec, &reviewed.digest().unwrap()).unwrap();
+    let portable = spec.profile_home.join(".local/share/locust-agent");
+    let document: Value =
+        serde_json::from_slice(&fs::read(portable.join("mcp.json")).unwrap()).unwrap();
+    let server = &document["mcpServers"]["locust"];
+    assert_eq!(server["type"], "stdio");
+    assert_eq!(server["command"], spec.executable.to_str().unwrap());
+    assert_eq!(
+        server["env"]["LOCUST_HOME"],
+        spec.daemon_home.to_str().unwrap()
+    );
+    assert_eq!(
+        server["env"]["LOCUST_CREDENTIAL"],
+        spec.credential.to_str().unwrap()
+    );
+    assert_eq!(
+        server["env"]["LOCUST_SESSION"],
+        spec.session.to_str().unwrap()
+    );
+    assert!(portable.join("skills/locust/locust-cli").is_file());
+    assert!(
+        fs::read_to_string(portable.join("skills/locust/SKILL.md"))
+            .unwrap()
+            .contains("locust-cli")
+    );
+    for path in [
+        ".codex",
+        ".agents",
+        ".claude",
+        ".claude.json",
+        ".factory",
+        ".pi",
+    ] {
+        assert!(!spec.profile_home.join(path).exists(), "{path}");
+    }
+}
+
+#[test]
+fn droid_setup_refuses_ancestor_overrides_before_writing_its_profile() {
+    let (_directory, spec) = fixture(Client::Droid);
+    let project = spec.workspace.join(".factory/mcp.json");
+    put(
+        &project,
+        br#"{"mcpServers":{"locust":{"command":"other"}}}"#,
+    );
+    assert_eq!(
+        plan(&spec, false).err().unwrap().code,
+        locust_proto::api::ErrorCode::Conflict
+    );
+    assert!(!spec.profile_home.join(".factory").exists());
+    assert_eq!(
+        fs::read(&project).unwrap(),
+        br#"{"mcpServers":{"locust":{"command":"other"}}}"#
+    );
 }

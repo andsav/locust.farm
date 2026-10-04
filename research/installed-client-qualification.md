@@ -234,3 +234,56 @@ above, and `--locust` pointing to
 `output/managed-installed-candidate/software/current/locust` as an absolute
 path. The final report records each harness source hash, while the managed
 reports record exact installed executable identity.
+
+## Start prompt and published Codex/Claude recheck (2026-10-04)
+
+The [entry prompt](../docs/first-contact.md) previously sent agents to an
+HTTP-401 preview page and told them to report capabilities and stop even though
+software had been published. The replacement names public download instructions,
+authorizes reviewed setup in one request, updates an existing owned software
+prefix, preserves identity/data and separately verifies the running daemon.
+Native qualification is a reported boundary rather than an installation gate.
+The installed command help selects released adapters; existing service/enrollment
+commands provide a portable CLI route when newer adapters have not been released.
+
+A new disposable-prefix run of the public HTTPS bootstrap passed read-only plan,
+first installation and repeat installation. Both returned the published CLI
+`0.1.0 (cd65921d8a0f) api 4 protocol 4`, with binary SHA-256
+`e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884`.
+The published manifest was
+`f8306c552c362c8d47918159370eeb11ec31c451e5281536d2daef1baf09d0cc`.
+This public bootstrap check exercised publisher/package verification; it did not
+start a daemon or configure a normal user profile.
+
+The installed-client campaign was rerun against the same published executable
+bytes in separate disposable profiles, using its explicit test-signing route:
+
+| Native client | Observed version | Passed assertions | Explicitly unrun |
+|---|---|---|---|
+| Codex | `0.153.4` | 25 | Default write approval, interactive approval, real model, production release trust |
+| Claude Code | `2.1.280` | 24 | Default-policy read/write, interactive approval, real model, production release trust |
+
+Both passed persistent setup, idempotent retry, no initial work grants,
+authenticated selected-profile diagnostics, bound CLI use, native skill metadata
+and body discovery, a registered MCP roundtrip, daemon restart, fresh native
+client recovery, owned removal and preservation of unrelated settings. The
+campaign also exercised its synthetic contribution workflow under separately
+provisioned fixture grants. Private runtime profiles were removed after the run.
+Pi and Droid native execution were not run in this focused recheck.
+
+These checks use scripted loopback providers; they do not establish that a real
+model follows the exact copied install prompt. The new Droid and portable-shell
+onboarding adapters are source/component tested, not published binary additions.
+The local production page's copy button was checked in Chromium: clipboard text
+matched the displayed prompt, and mobile wrapping was checked at 390px. Live
+website publication and real-account onboarding remain separate acceptance steps.
+
+Formatting, strict workspace Clippy and all workspace tests first passed in a
+clean source snapshot excluding concurrent farm work. After the separate farm
+and typography changes were committed, the combined checkout based on `b916864`
+passed these checks again: 743 Rust tests passed, with 14 explicitly ignored;
+site lint, Svelte checking, all 186 site tests, production build and Markdown
+checks passed. The combined production page also passed the clipboard equality,
+390px wrapping and zero browser console error checks. No real user's agent
+profile or existing daemon state was modified by these disposable qualification
+runs.

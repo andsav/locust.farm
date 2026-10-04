@@ -1,5 +1,5 @@
 {
-  "api_version": 4,
+  "api_version": 5,
   "cli": {
     "arguments": [
       {
@@ -1884,6 +1884,191 @@
         "commands": [],
         "name": "up",
         "summary": "Start the daemon and review resumable client onboarding"
+      },
+      {
+        "arguments": [],
+        "commands": [
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique hex prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "show",
+            "summary": "Preview the exact public snapshot and consent eligibility"
+          },
+          {
+            "arguments": [],
+            "commands": [],
+            "name": "status",
+            "summary": "Show local publication receipts and pending controls"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique hex prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "off",
+            "summary": "Stop publication and durably request deletion; receipt may be pending"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique hex prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "HTTPS service origin, or HTTP loopback origin for local testing",
+                "long": "service",
+                "name": "service",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Also list this farm in the public gallery",
+                "long": "listed",
+                "name": "listed",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Optional public title, entered explicitly",
+                "long": "title",
+                "name": "title",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Public formation label, not a private formation selector",
+                "long": "formation",
+                "name": "formation",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Append",
+                "help": "Explicit public label as private-stage-id=public label; repeat for each label",
+                "long": "stage-label",
+                "name": "stage-label",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Append",
+                "help": "Explicit public label as private-role-id=public label; repeat for each label",
+                "long": "role-label",
+                "name": "role-label",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Number of recent changes included in the public snapshot",
+                "long": "recent-changes",
+                "name": "recent-changes",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "on",
+            "summary": "Request publication with explicit public labels; members must consent separately"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique hex prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Enrolled local agent name or principal key",
+                "long": "agent",
+                "name": "agent",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": null,
+                "long": "accept",
+                "name": "accept",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": null,
+                "long": "decline",
+                "name": "decline",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Approved public display name; never copied from enrollment",
+                "long": "name",
+                "name": "name",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Optional owner-reported public daemon group label",
+                "long": "group-label",
+                "name": "group-label",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "consent",
+            "summary": "Approve or revoke one local principal's publication under the current exact policy"
+          }
+        ],
+        "name": "farm",
+        "summary": "Owner-approved public goal views; local preview, consent and publication"
       },
       {
         "arguments": [],
@@ -4597,6 +4782,51 @@
         ],
         "type": "object"
       },
+      "DisclosurePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "formation": {
+            "type": "string"
+          },
+          "recent_changes": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "role_labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "stage_labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "formation",
+          "stage_labels",
+          "role_labels",
+          "recent_changes"
+        ],
+        "type": "object"
+      },
       "Doc": {
         "enum": [
           "plan",
@@ -4734,6 +4964,13 @@
         "pattern": "^[0-9a-fA-F]{64}$",
         "type": "string"
       },
+      "FarmVisibility": {
+        "enum": [
+          "link",
+          "listed"
+        ],
+        "type": "string"
+      },
       "Genesis": {
         "properties": {
           "administrator": {
@@ -4761,6 +4998,17 @@
         ],
         "type": "object"
       },
+      "Harness": {
+        "enum": [
+          "codex",
+          "claude_code",
+          "factory_droid",
+          "pi",
+          "unknown",
+          "multiple"
+        ],
+        "type": "string"
+      },
       "PayloadRef": {
         "properties": {
           "hash": {
@@ -4787,6 +5035,88 @@
       "PublicKey": {
         "pattern": "^[0-9a-fA-F]{64}$",
         "type": "string"
+      },
+      "PublicProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "group_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "harness": {
+            "$ref": "#/$defs/Harness"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "harness"
+        ],
+        "type": "object"
+      },
+      "PublicationConsent": {
+        "additionalProperties": false,
+        "properties": {
+          "accept": {
+            "type": "boolean"
+          },
+          "policy_digest": {
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publication": {
+            "$ref": "#/$defs/EventId"
+          }
+        },
+        "required": [
+          "publication",
+          "policy_digest",
+          "accept"
+        ],
+        "type": "object"
+      },
+      "PublicationSet": {
+        "additionalProperties": false,
+        "properties": {
+          "farm_id": {
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/$defs/DisclosurePolicy"
+          },
+          "upload_key": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FarmVisibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "farm_id",
+          "upload_key",
+          "policy"
+        ],
+        "type": "object"
       },
       "ReviewVerdict": {
         "enum": [
@@ -4957,6 +5287,30 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "publication_set": {
+            "$ref": "#/$defs/PublicationSet"
+          }
+        },
+        "required": [
+          "publication_set"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "publication_consent": {
+            "$ref": "#/$defs/PublicationConsent"
+          }
+        },
+        "required": [
+          "publication_consent"
+        ],
+        "type": "object"
+      },
       {
         "additionalProperties": false,
         "properties": {
@@ -5545,8 +5899,488 @@
     ],
     "title": "Body"
   },
+  "farm_snapshot": {
+    "$defs": {
+      "FarmAgent": {
+        "additionalProperties": false,
+        "properties": {
+          "group": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "harness": {
+            "$ref": "#/$defs/Harness"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "group",
+          "name",
+          "harness",
+          "roles"
+        ],
+        "type": "object"
+      },
+      "FarmAttempt": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "observed_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "round": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/$defs/FarmAttemptState"
+          },
+          "task": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "agent",
+          "task",
+          "round",
+          "state"
+        ],
+        "type": "object"
+      },
+      "FarmAttemptState": {
+        "enum": [
+          "started",
+          "progress",
+          "completed",
+          "failed",
+          "abandoned",
+          "uncertain"
+        ],
+        "type": "string"
+      },
+      "FarmCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "evidence_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requirement": {
+            "type": "string"
+          },
+          "round": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "task": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "agent",
+          "round",
+          "completed",
+          "selected",
+          "evidence_count",
+          "requirement"
+        ],
+        "type": "object"
+      },
+      "FarmChange": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/$defs/FarmChangeKind"
+          },
+          "observed_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "task": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text"
+        ],
+        "type": "object"
+      },
+      "FarmChangeKind": {
+        "enum": [
+          "membership",
+          "task",
+          "attempt",
+          "contribution",
+          "evidence",
+          "closure",
+          "retraction",
+          "publication"
+        ],
+        "type": "string"
+      },
+      "FarmGoalState": {
+        "enum": [
+          "open",
+          "ended",
+          "unavailable",
+          "disputed"
+        ],
+        "type": "string"
+      },
+      "FarmGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_sync_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "FarmStage": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "prerequisites": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "prerequisites"
+        ],
+        "type": "object"
+      },
+      "FarmTask": {
+        "additionalProperties": false,
+        "properties": {
+          "closed": {
+            "type": "boolean"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "round": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "selected_candidate": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stage": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/FarmTaskState"
+          }
+        },
+        "required": [
+          "id",
+          "reference",
+          "round",
+          "state",
+          "completed",
+          "closed"
+        ],
+        "type": "object"
+      },
+      "FarmTaskState": {
+        "enum": [
+          "open",
+          "reported",
+          "awaiting_evidence",
+          "completed",
+          "closed",
+          "unavailable",
+          "disputed"
+        ],
+        "type": "string"
+      },
+      "Harness": {
+        "enum": [
+          "codex",
+          "claude_code",
+          "factory_droid",
+          "pi",
+          "unknown",
+          "multiple"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "agents": {
+        "items": {
+          "$ref": "#/$defs/FarmAgent"
+        },
+        "type": "array"
+      },
+      "attempts": {
+        "items": {
+          "$ref": "#/$defs/FarmAttempt"
+        },
+        "type": "array"
+      },
+      "candidates": {
+        "items": {
+          "$ref": "#/$defs/FarmCandidate"
+        },
+        "type": "array"
+      },
+      "changes": {
+        "items": {
+          "$ref": "#/$defs/FarmChange"
+        },
+        "type": "array"
+      },
+      "farm_id": {
+        "type": "string"
+      },
+      "formation": {
+        "type": "string"
+      },
+      "goal_state": {
+        "$ref": "#/$defs/FarmGoalState"
+      },
+      "groups": {
+        "items": {
+          "$ref": "#/$defs/FarmGroup"
+        },
+        "type": "array"
+      },
+      "observed_at_ms": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "omitted_changes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "stages": {
+        "items": {
+          "$ref": "#/$defs/FarmStage"
+        },
+        "type": "array"
+      },
+      "tasks": {
+        "items": {
+          "$ref": "#/$defs/FarmTask"
+        },
+        "type": "array"
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "version": {
+        "format": "uint16",
+        "maximum": 65535,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "version",
+      "farm_id",
+      "formation",
+      "goal_state",
+      "agents",
+      "groups",
+      "stages",
+      "tasks",
+      "attempts",
+      "candidates",
+      "changes",
+      "omitted_changes"
+    ],
+    "title": "FarmSnapshot",
+    "type": "object"
+  },
   "formation_schema_version": 1,
   "operations": [
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "farm.on",
+      "read_only": false,
+      "summary": "Enable owner-approved farm publication"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "farm.off",
+      "read_only": false,
+      "summary": "Disable and delete farm publication"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "farm.show",
+      "read_only": true,
+      "summary": "Preview public farm data and consent"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": false,
+      "mcp_tool": null,
+      "name": "farm.status",
+      "read_only": true,
+      "summary": "Show farm publication status"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "farm.consent",
+      "read_only": false,
+      "summary": "Approve a local public profile"
+    },
     {
       "audience": "agent",
       "goal_scoped": false,
@@ -6156,7 +6990,7 @@
       "summary": "Show local participants and work needing permission, action or review across goals without acknowledging it"
     }
   ],
-  "protocol_version": 4,
+  "protocol_version": 5,
   "request_schema": {
     "$defs": {
       "AttemptStatus": {
@@ -6400,6 +7234,17 @@
         ],
         "type": "object"
       },
+      "Harness": {
+        "enum": [
+          "codex",
+          "claude_code",
+          "factory_droid",
+          "pi",
+          "unknown",
+          "multiple"
+        ],
+        "type": "string"
+      },
       "InstanceId": {
         "pattern": "^[0-9a-fA-F]{32}$",
         "type": "string"
@@ -6587,12 +7432,17 @@
             },
             "type": "array"
           },
+          "harness": {
+            "$ref": "#/$defs/Harness",
+            "description": "Canonical adapter report, approved for public display only by local consent."
+          },
           "state": {
             "$ref": "#/$defs/SessionState",
             "description": "How far the session has come."
           }
         },
         "required": [
+          "harness",
           "client",
           "state",
           "capabilities",
@@ -6703,6 +7553,7 @@
     "oneOf": [
       {
         "enum": [
+          "farm.status",
           "status",
           "daemon.stop",
           "sessions",
@@ -6711,6 +7562,148 @@
           "inbox"
         ],
         "type": "string"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "farm.on": {
+            "additionalProperties": false,
+            "properties": {
+              "base_url": {
+                "type": "string"
+              },
+              "formation": {
+                "type": "string"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "listed": {
+                "type": "boolean"
+              },
+              "recent_changes": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "role_labels": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "stage_labels": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "goal",
+              "base_url",
+              "listed",
+              "formation",
+              "stage_labels",
+              "role_labels",
+              "recent_changes"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "farm.on"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "farm.off": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "farm.off"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "farm.show": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "farm.show"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "farm.consent": {
+            "additionalProperties": false,
+            "properties": {
+              "accept": {
+                "type": "boolean"
+              },
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "group_label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "goal",
+              "agent",
+              "accept"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "farm.consent"
+        ],
+        "type": "object"
       },
       {
         "additionalProperties": false,
@@ -9000,6 +9993,30 @@
           {
             "additionalProperties": false,
             "properties": {
+              "publication_set": {
+                "$ref": "#/$defs/PublicationSet"
+              }
+            },
+            "required": [
+              "publication_set"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "publication_consent": {
+                "$ref": "#/$defs/PublicationConsent"
+              }
+            },
+            "required": [
+              "publication_consent"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
               "genesis": {
                 "$ref": "#/$defs/Genesis"
               }
@@ -10406,6 +11423,51 @@
         ],
         "type": "object"
       },
+      "DisclosurePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "formation": {
+            "type": "string"
+          },
+          "recent_changes": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "role_labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "stage_labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "formation",
+          "stage_labels",
+          "role_labels",
+          "recent_changes"
+        ],
+        "type": "object"
+      },
       "Doc": {
         "enum": [
           "plan",
@@ -10723,6 +11785,579 @@
         ],
         "type": "object"
       },
+      "FarmAgent": {
+        "additionalProperties": false,
+        "properties": {
+          "group": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "harness": {
+            "$ref": "#/$defs/Harness"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "group",
+          "name",
+          "harness",
+          "roles"
+        ],
+        "type": "object"
+      },
+      "FarmAttempt": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "observed_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "round": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/$defs/FarmAttemptState"
+          },
+          "task": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "agent",
+          "task",
+          "round",
+          "state"
+        ],
+        "type": "object"
+      },
+      "FarmAttemptState": {
+        "enum": [
+          "started",
+          "progress",
+          "completed",
+          "failed",
+          "abandoned",
+          "uncertain"
+        ],
+        "type": "string"
+      },
+      "FarmCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "evidence_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requirement": {
+            "type": "string"
+          },
+          "round": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "task": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "agent",
+          "round",
+          "completed",
+          "selected",
+          "evidence_count",
+          "requirement"
+        ],
+        "type": "object"
+      },
+      "FarmChange": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/$defs/FarmChangeKind"
+          },
+          "observed_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "task": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text"
+        ],
+        "type": "object"
+      },
+      "FarmChangeKind": {
+        "enum": [
+          "membership",
+          "task",
+          "attempt",
+          "contribution",
+          "evidence",
+          "closure",
+          "retraction",
+          "publication"
+        ],
+        "type": "string"
+      },
+      "FarmGoalState": {
+        "enum": [
+          "open",
+          "ended",
+          "unavailable",
+          "disputed"
+        ],
+        "type": "string"
+      },
+      "FarmGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_sync_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "FarmOperation": {
+        "enum": [
+          "upload",
+          "check_in",
+          "suspend",
+          "delete"
+        ],
+        "type": "string"
+      },
+      "FarmPreview": {
+        "additionalProperties": false,
+        "properties": {
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DisclosurePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FarmSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FarmStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "FarmReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "farm_id": {
+            "type": "string"
+          },
+          "received_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "request_digest": {
+            "type": "string"
+          },
+          "sequence": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "stream_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "farm_id",
+          "sequence",
+          "request_digest",
+          "stream_version",
+          "received_at_ms"
+        ],
+        "type": "object"
+      },
+      "FarmSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/$defs/FarmAgent"
+            },
+            "type": "array"
+          },
+          "attempts": {
+            "items": {
+              "$ref": "#/$defs/FarmAttempt"
+            },
+            "type": "array"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/$defs/FarmCandidate"
+            },
+            "type": "array"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/$defs/FarmChange"
+            },
+            "type": "array"
+          },
+          "farm_id": {
+            "type": "string"
+          },
+          "formation": {
+            "type": "string"
+          },
+          "goal_state": {
+            "$ref": "#/$defs/FarmGoalState"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/$defs/FarmGroup"
+            },
+            "type": "array"
+          },
+          "observed_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "omitted_changes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/$defs/FarmStage"
+            },
+            "type": "array"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/FarmTask"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "farm_id",
+          "formation",
+          "goal_state",
+          "agents",
+          "groups",
+          "stages",
+          "tasks",
+          "attempts",
+          "candidates",
+          "changes",
+          "omitted_changes"
+        ],
+        "type": "object"
+      },
+      "FarmStage": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "prerequisites": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "prerequisites"
+        ],
+        "type": "object"
+      },
+      "FarmStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "desired": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FarmVisibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "farm_id": {
+            "type": "string"
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FarmOperation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FarmReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "goal",
+          "farm_id",
+          "eligible"
+        ],
+        "type": "object"
+      },
+      "FarmTask": {
+        "additionalProperties": false,
+        "properties": {
+          "closed": {
+            "type": "boolean"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "round": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "selected_candidate": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stage": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/FarmTaskState"
+          }
+        },
+        "required": [
+          "id",
+          "reference",
+          "round",
+          "state",
+          "completed",
+          "closed"
+        ],
+        "type": "object"
+      },
+      "FarmTaskState": {
+        "enum": [
+          "open",
+          "reported",
+          "awaiting_evidence",
+          "completed",
+          "closed",
+          "unavailable",
+          "disputed"
+        ],
+        "type": "string"
+      },
+      "FarmVisibility": {
+        "enum": [
+          "link",
+          "listed"
+        ],
+        "type": "string"
+      },
       "Genesis": {
         "properties": {
           "administrator": {
@@ -10990,6 +12625,17 @@
           }
         ]
       },
+      "Harness": {
+        "enum": [
+          "codex",
+          "claude_code",
+          "factory_droid",
+          "pi",
+          "unknown",
+          "multiple"
+        ],
+        "type": "string"
+      },
       "InstanceId": {
         "pattern": "^[0-9a-fA-F]{32}$",
         "type": "string"
@@ -11036,6 +12682,16 @@
           "identity_provenance": {
             "type": "string"
           },
+          "publication": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InvitationPublication"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "review": {
             "description": "Digest of this complete signed invitation; confirmation must echo it.",
             "type": "string"
@@ -11069,6 +12725,22 @@
           "identity_provenance",
           "admission_status",
           "sharing_facts"
+        ],
+        "type": "object"
+      },
+      "InvitationPublication": {
+        "description": "Administrator-signed publication facts; joining never grants publication consent.",
+        "properties": {
+          "event": {
+            "$ref": "#/$defs/EventId"
+          },
+          "publication": {
+            "$ref": "#/$defs/PublicationSet"
+          }
+        },
+        "required": [
+          "event",
+          "publication"
         ],
         "type": "object"
       },
@@ -11629,6 +13301,28 @@
         "pattern": "^[0-9a-fA-F]{64}$",
         "type": "string"
       },
+      "PublicProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "group_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "harness": {
+            "$ref": "#/$defs/Harness"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "harness"
+        ],
+        "type": "object"
+      },
       "Publication": {
         "additionalProperties": false,
         "properties": {
@@ -11668,6 +13362,66 @@
           "source_hash",
           "normalized_json",
           "semantic_hash"
+        ],
+        "type": "object"
+      },
+      "PublicationConsent": {
+        "additionalProperties": false,
+        "properties": {
+          "accept": {
+            "type": "boolean"
+          },
+          "policy_digest": {
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publication": {
+            "$ref": "#/$defs/EventId"
+          }
+        },
+        "required": [
+          "publication",
+          "policy_digest",
+          "accept"
+        ],
+        "type": "object"
+      },
+      "PublicationSet": {
+        "additionalProperties": false,
+        "properties": {
+          "farm_id": {
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/$defs/DisclosurePolicy"
+          },
+          "upload_key": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FarmVisibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "farm_id",
+          "upload_key",
+          "policy"
         ],
         "type": "object"
       },
@@ -11836,12 +13590,17 @@
             },
             "type": "array"
           },
+          "harness": {
+            "$ref": "#/$defs/Harness",
+            "description": "Canonical adapter report, approved for public display only by local consent."
+          },
           "state": {
             "$ref": "#/$defs/SessionState",
             "description": "How far the session has come."
           }
         },
         "required": [
+          "harness",
           "client",
           "state",
           "capabilities",
@@ -12289,6 +14048,33 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "What a request answers with when it succeeds; which variant answers which\nrequest is [`Request::is_answered_by`]. No response ever carries a secret.",
     "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "farm_preview": {
+            "$ref": "#/$defs/FarmPreview"
+          }
+        },
+        "required": [
+          "farm_preview"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "farms": {
+            "items": {
+              "$ref": "#/$defs/FarmStatus"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "farms"
+        ],
+        "type": "object"
+      },
       {
         "const": "done",
         "description": "The request succeeded and has nothing to return.",

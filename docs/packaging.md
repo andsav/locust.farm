@@ -1,6 +1,6 @@
 # Native release candidate packaging
 
-Date: 2026-10-04. Status: the native builder emits the current strict release-v2 package with a matching manual snapshot. Current-model native installation and client qualification are separate gates in the [release evidence ledger](release-evidence.md). Production signing and publication remain open.
+Date: 2026-10-04. Status: the native builder emits the current strict release-v2 package with a matching manual snapshot. The [macOS terminal developer preview](public-preview-release.md) is signed and published with a verified curl installer. Broader platform, client and production qualification remain separate gates in the [release evidence ledger](release-evidence.md).
 
 ## Historical protocol-1 local macOS candidate
 

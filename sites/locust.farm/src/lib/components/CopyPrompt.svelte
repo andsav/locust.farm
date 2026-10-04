@@ -55,11 +55,11 @@
 </script>
 
 <div class="prompt">
-	<p class="text" {id} bind:this={textEl}>{text}</p>
+	<p class="text well" {id} bind:this={textEl}>{text}</p>
 	<div class="controls">
 		{#if hydrated}
-			<button type="button" onclick={copy} aria-describedby={id}>
-				{copied ? 'copied' : 'copy prompt'}
+			<button type="button" class="button primary" onclick={copy} aria-describedby={id}>
+				{copied ? 'Copied' : 'Copy prompt'}
 			</button>
 		{/if}
 		<p class="status" role="status" aria-live="polite">{message}</p>
@@ -75,13 +75,6 @@
 	}
 
 	.text {
-		margin: 0;
-		padding: var(--space-16);
-		border: var(--border-hairline);
-		background: var(--color-bg);
-		color: var(--color-text);
-		font: var(--text-code);
-		line-height: 1.7;
 		user-select: text;
 		overflow-wrap: anywhere;
 		white-space: normal;
@@ -94,48 +87,13 @@
 		gap: var(--space-16);
 	}
 
-	button {
-		min-height: 40px;
-		padding: var(--space-12) var(--space-16);
-		border: 1px solid var(--color-accent);
-		background: transparent;
-		color: var(--color-text);
-		font: var(--text-label);
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		cursor: pointer;
-		transition-property: scale, background-color, color;
-		transition-duration: 150ms;
-		transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-	}
-
-	button:hover {
-		background: var(--color-accent);
-		color: var(--color-bg);
-	}
-
-	button:active {
-		scale: 0.96;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		button {
-			transition: none;
-		}
-		button:active {
-			scale: none;
-		}
-	}
-
 	.status {
-		margin: 0;
 		color: var(--color-text-muted);
-		font: var(--text-label);
+		font: var(--text-ui-small);
 	}
 
 	.hint {
-		margin: 0;
-		color: var(--color-text-faint);
-		font: var(--text-label);
+		color: var(--color-text-subtle);
+		font: var(--text-ui-small);
 	}
 </style>

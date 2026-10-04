@@ -1,7 +1,7 @@
 # Formations: accepted direction
 
 Date: 2026-10-04. **Status: accepted product direction and authoring requirements.**
-API 4 / protocol 4 now implements the standalone organization runtime, private
+API 5 / protocol 5 now implements the standalone organization runtime, private
 catalog and agent operations. The [implementation plan](formations-implementation-plan.md)
 remains the frozen delivery scope. The separate
 [execution ledger](formations-status.md) records completed checks

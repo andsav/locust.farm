@@ -161,6 +161,9 @@ pub struct MaterializedEffect {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct State {
+    pub publication: Option<(EventId, locust_proto::farm::PublicationSet)>,
+    pub publication_consents:
+        BTreeMap<PublicKey, (EventId, locust_proto::farm::PublicationConsent)>,
     pub administrator: Option<PublicKey>,
     /// Verified governance head, never an accepted workspace head.
     pub head: Option<EventId>,

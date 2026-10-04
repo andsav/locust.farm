@@ -3,6 +3,7 @@ members = [
     "crates/locust",
     "crates/locust-adapter",
     "crates/locust-core",
+    "crates/locust-farm",
     "crates/locust-net",
     "crates/locust-proto",
     "crates/locust-store",
@@ -26,15 +27,19 @@ locust-store = { path = "crates/locust-store" }
 locust-workspace = { path = "crates/locust-workspace" }
 
 blake3 = "1.8"
+async-stream = "0.3"
+axum = { version = "0.8", default-features = false, features = ["json", "http1", "tokio", "query"] }
 chacha20poly1305 = "0.11"
 clap = { version = "4.6", features = ["derive"] }
 ed25519-dalek = "3.0"
 getrandom = "0.4"
+http-body-util = "0.1"
 iroh = "1.3"
 iroh-mainline-address-lookup = "0.6"
 iroh-mdns-address-lookup = "0.6"
 postcard = { version = "1.1", default-features = false, features = ["alloc"] }
 rusqlite = { version = "0.40", features = ["bundled"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 rustix = { version = "1.1", features = ["fs", "process"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -44,8 +49,10 @@ sha2 = "0.11"
 semver = "1.0"
 tempfile = "3"
 tokio = { version = "1.53", features = ["io-util", "macros", "net", "process", "rt", "signal", "sync", "time"] }
+tower = { version = "0.5", features = ["util"] }
 toml_edit = "0.25.15"
 tracing = "0.1"
+url = "2.5"
 
 # Signing, verification, hashing and SQLite dominate test time; build them
 # optimized even in development so every stream's tests stay fast.

@@ -1,0 +1,13 @@
+{
+  "envelope_digest": "826470fec09b58355e48a128c3ca0b58ffc8410a37f3c621fe000e4d33bbd20b",
+  "request": {
+    "body": "{}",
+    "farm_id": "7b24dbce5fdbe44aca1d5716c930a6f0",
+    "operation": "check_in",
+    "public_key": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c",
+    "sequence": 1,
+    "signature": "f5b2b4ed885c6806201816fa6aaebcdfdd971b93364cbddd4dc5e1442f634e48a99a008d90d789337006bbb7d6ad2275aff883a4cd35d6e1b5dece6f55be0102",
+    "version": 1
+  },
+  "test_seed_hex": "0707070707070707070707070707070707070707070707070707070707070707"
+}

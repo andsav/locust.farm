@@ -436,6 +436,7 @@ fn viewer_reads_are_observational_and_revocation_is_immediate() {
 fn sessions_survive_restart_drop_requires_finished_claim_and_binding_is_permanent() {
     let (mut d, p, owner, a, goal) = setup();
     let record = SessionRecord {
+        harness: locust_proto::farm::Harness::Unknown,
         client: "test".into(),
         state: SessionState::Ready,
         client_session: Some("session".into()),

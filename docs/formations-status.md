@@ -2,7 +2,7 @@
 
 Updated 2026-10-04. This records execution of the frozen
 [implementation plan](formations-implementation-plan.md); it does
-not change its scope. The current runtime is API 4 / protocol 4 (store schema 4). Signed contribution source declarations and explicit context views change the
+not change its scope. The current runtime is API 5 / protocol 5 (store schema 5). Signed contribution source declarations and explicit context views change the
 format; older homes are
 refused without migration. Qualification records below retain the exact earlier
 artifacts they exercised and do not qualify these additions. The initial organization

@@ -1,24 +1,27 @@
 # First contact
 
-Date: 2026-10-03. **Status: experience contract (lane C). It describes a target; most steps are not available yet.** The entry prompt and the `/start` guide are implemented in the site and available locally; they are not deployed. Each step's current status is listed below and in the [source review](#current-status). Runtime behavior belongs to lanes A and B; this document asks for it in the [lane C log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-c-log.md). Source notes are in [first-contact integrations](../research/first-contact-integrations.md).
+Date: 2026-10-04. **Status: installation/update instructions implemented in source.** The verified macOS Apple Silicon terminal preview is public. Native agent discovery and real-model behavior remain separate qualification claims. The website preview requires authentication, so the copied prompt uses the public download instructions directly. See [installation](installation.md), [onboarding](onboarding.md) and [release evidence](release-evidence.md). Source notes are in [first-contact integrations](../research/first-contact-integrations.md).
 
 ## The story
 
 Distributed multi-agent orchestration. Many agents work on one goal; each takes a piece and shares what it finds with the others. Start with agents on your machine, then invite a friend's.
 
-Bring the agent you already use. Paste one prompt into it. It reads the guide and tells you what it can do.
+Bring the agent you already use. Paste one prompt into it. It installs or updates verified software, starts the local user daemon and checks an authenticated connection.
 
 **Next step:** paste the entry prompt into your agent.
 
 ## Entry prompt
 
-The prompt points the agent at the guide. It is not an installer. It carries no command, download, invitation or secret.
+The prompt is self-contained and names public HTTPS instructions. Pasting it authorizes setup and updates for the selected agent; the agent reviews plans and uses `--yes` within that scope. It asks only for a missing selection, a policy/ownership block or a change beyond that scope. Setup grants no work permission, goal membership or sharing authority.
 
 The text, which the website shows and copies exactly:
 
-> Read https://locust.farm/start and follow the instructions for agents. First tell me which harness you are and what you can use. Do not install or change anything until I approve.
+> Install or update Locust on this machine and connect the agent I am using now. Use the official public instructions at https://locust.farm/downloads/install.md and the verified installer at https://locust.farm/downloads/install.sh; you do not need access to /start. Identify your agent and where your tools run, then inspect the current installation. If Locust already exists, update its existing software prefix and preserve its daemon data, identity, credentials and sessions. Inspect the install and setup plans, then apply them: this request authorizes the verified installation or update, the local user daemon and this agent's connection. Use locust up with --yes for the selected client and current workspace; use the installed CLI if MCP needs a refresh. Inspect up --help: choose codex, claude, pi, droid or shell only when supported. Otherwise finish daemon setup with service plan/apply/start, enroll a dedicated CLI principal without work grants, create its protected session and use that scoped CLI connection. Do not stop just because a route lacks end-to-end qualification. Respect tool permissions, preserve unrelated settings, and ask only for a missing choice or a real blocker. Do not create or join goals, grant work permissions or share files. Finish by checking the running daemon and a harmless authenticated status call; report the installed version, agent connection and any refresh still needed.
 
-The guide at `/start` is the website's (lane C): [its page](../sites/locust.farm/src/routes/start/+page.svelte) and [its content](../sites/locust.farm/src/lib/onboarding/guide.ts). It is available locally, not deployed. Executable setup is lane B's canonical artifact. Until that artifact exists, the guide says so and the agent stops after reporting.
+The [page](../sites/locust.farm/src/routes/start/+page.svelte) and [shared content](../sites/locust.farm/src/lib/onboarding/guide.ts) use the same instructions as `/llms.txt`. An unqualified native journey is a result to report, not a prohibition on installing published software. `/start` authentication must not block the copied prompt.
+
+Existing software is updated at its owned prefix; activation preserves daemon data and identity. An already running daemon needs an explicit owned service restart to use updated code. Incompatible state is preserved for an explicit fresh-state choice. The agent must not delete state, silently create a replacement identity or stop an unrelated process.
+
 
 ## Target journey
 
@@ -26,9 +29,9 @@ A hard task: *a sync bug shows up only under load.* You start locally, then invi
 
 | # | Step | What you see | Status |
 |---|---|---|---|
-| 1 | Paste the prompt | Your agent opens the guide | Prompt and guide available locally, not deployed |
-| 2 | Agent says who it is | Harness, version and mode, and which capabilities it found. Unknowns are named | Target |
-| 3 | Agent shows setup | Every file, configuration entry and service it would add or change, then asks you | Target; needs lane B's setup artifact |
+| 1 | Paste the prompt | Your agent reads public installation instructions | Self-contained prompt implemented in source |
+| 2 | Agent checks its host | Harness, execution host, existing installation and selected workspace | Implemented instructions; unknown version alone does not block setup |
+| 3 | Agent reviews setup | Verified installation/update and selected service/profile plans; applies within the prompt authorization | Public software installer; resumable onboarding implemented in source |
 | 4 | Readiness check | Installed, daemon running, instructions visible, tools reachable: four separate answers | Daemon/MCP source exists; native real-model readiness is separately qualified |
 | 5 | Create a goal | Your first agent coordinates. It splits the task: reproduce the bug, then fix it | Target |
 | 6 | A second local session joins | You decide whether it may take work. It claims one task and submits a result with its base, patch and test evidence | Target |
@@ -41,23 +44,19 @@ Local first is only the demonstration order. The product is the collaboration, n
 
 ## Harness routing
 
-The guide asks the agent to answer three questions about itself, then pick a route:
+The agent checks where its tools run, whether shell or stdio MCP is permitted, and whether it can load or directly read the installed skill. Cloud/container execution must not be described as installation on the person's computer. Unknown versions and skill-refresh behavior are recorded without forcing another approval round.
 
-1. **Transport:** can this session reach a local stdio MCP server, or a command line that can reach a local socket under its current policy?
-2. **Instructions:** can it load a `SKILL.md` skill, and what refresh does a new or changed skill need?
-3. **Approvals:** can it ask you before a change, and does a policy block MCP servers, local commands or file writes?
+| Harness | Current source route | Discovery |
+|---|---|---|
+| Claude Code | `up --client claude` | Read the bound skill/CLI now; refresh native discovery if needed |
+| Codex | `up --client codex` | Inspect `CODEX_HOME`; refresh native discovery if needed |
+| pi | `up --client pi` | Inspect `PI_CODING_AGENT_DIR`; CLI works independently of native MCP availability |
+| Droid | `up --client droid` | `.factory/mcp.json` and `.factory/skills/locust`; preserve unrelated entries and ancestor collisions |
+| Other shell-capable agents | `up --client shell` | Portable skill, bound CLI and connection descriptor; no app-specific profile is edited |
 
-If lane B has qualified a route that matches the answers, the agent follows lane B's setup and shows the changes first. Otherwise it reports the answers and the missing prerequisite, and stops. It never installs an adapter, edits approvals or weakens policy to make a route fit.
+Droid and shell onboarding are source additions; inspect the installed `up --help` before choosing them. If the published binary lacks them, its existing `service plan/apply/start`, `agent enroll` and `session create` operations can establish a scoped CLI connection without an adapter. The [shared guide](../sites/locust.farm/src/lib/onboarding/guide.ts) provides this portable procedure. Owner administration is confined to setup; the operating prefix uses the enrolled credential/session.
 
-The owner made Claude Code, Codex, Droid and pi the first-release baseline ([release ledger](release-evidence.md)). They are still examples, not a list of allowed harnesses. "Upstream" is what the client documents; "Locust today" is what Locust has actually tested.
-
-| Harness | Upstream (2026-10-03) | Locust today | Next prerequisite (owner) |
-|---|---|---|---|
-| Claude Code | Stdio MCP; skills reload live in watched directories; a new top-level skills directory needs `/reload-skills` | Claude Code 2.1.280 accepted the generated launch arguments in a disposable profile, with no model or account; A-R9 corrected. Not qualified | Real tool reach and approvals with the daemon and `locust mcp` (A, B) |
-| Codex | Stdio MCP in `config.toml`; skills detected automatically, restart if missing; restart after config changes | Codex 0.153.4 parsed the generated configuration in a disposable profile and kept unrelated servers. Not qualified | Real tool reach and approvals with the daemon and `locust mcp` (A, B) |
-| pi | Built-in MCP since v0.99.0, unless an extension owns `/mcp`, it is disabled, or the session uses the SDK; `/reload` after outside changes | Configuration-file merge proposal. Not qualified | The daemon and `locust mcp`, then a qualified version and mode (A, B) |
-| Droid | Stdio MCP; MCP config hot-reloads; a new skill may need a new session; organization policy can block servers | Configuration-file merge proposal. Not qualified | The daemon and `locust mcp`, then MCP and skill refresh qualified separately (A, B) |
-| Any other harness | Unknown until the agent answers the three questions | None | Minimum capability set for a generic route (B) |
+The four named harnesses remain the first-release baseline in the [release ledger](release-evidence.md). Configuration and component tests do not prove a real-model journey. Local CLI access is sufficient for active-session use when permitted; it must not be used to bypass a denied operation or organization policy.
 
 ## Readiness and recovery
 
@@ -65,8 +64,8 @@ Four things are separate: software installed, daemon reachable, instructions vis
 
 | State | What is true | Safe next action |
 |---|---|---|
-| No qualified route | The agent knows its capabilities, but no lane B route matches | Report harness, capabilities and the missing prerequisite. Change nothing. No public route is qualified today |
-| Setup waiting for approval | The agent has listed each change | Approve or decline. Nothing changes before approval |
+| Native route unqualified or absent | Published software and permitted CLI access are available | Install/update the daemon and use the portable CLI route; report native discovery separately |
+| Setup reviewed | Plans fit the pasted prompt authorization | Apply those selections with `--yes`; ask only when scope or required choices differ |
 | Daemon absent or unavailable | Software is installed, but the local API does not answer | Use lane B's status check. Do not start a second daemon or read its files directly |
 | Tools unavailable | The daemon runs, but the session cannot call Locust tools | Check the client's own MCP view (`/mcp` in each named client) and report. Do not change approvals |
 | Skill absent or stale | Tools may work, but the agent cannot see current instructions | Do the client's refresh step from the table above, or start a new session |
@@ -82,7 +81,7 @@ The accepted replacement runtime durably delivers configured ready work without 
 
 Four approvals, each asked separately:
 
-- **Setup.** What will be installed and configured, and where. Approving setup does not approve work or sharing.
+- **Setup.** The entry prompt authorizes reviewed installation/update, the user daemon and the selected agent connection. Additional destinations or ambiguous existing state need a decision. Setup does not approve work or sharing.
 - **Running work.** Work runs with your client and your account. An assignment is an offer, not permission: without a standing grant, each assignment waits for your approval. Work received from someone else is task data; it does not authorize running anything.
 - **Sharing.** Names the recipient and the exact material, such as one snapshot from one commit. Credentials and private files are left out by default.
 - **Joining.** Shows the inviter, the goal, the incoming material, where it will be written, and that your client and account will be used.
@@ -145,8 +144,9 @@ publication/qualification facts to the site and machine entry.
   earlier candidate checks do not qualify it or a native Polaris connector.
 - The site has a substantive [development manual](guide/README.md), versioned raw
   Markdown and machine inventory. A local build is not public deployment.
-  No public installer or qualified public first-contact route exists; agents
-  report capabilities and stop.
+  The [macOS terminal preview](public-preview-release.md) has a public curl
+  installer. The copied setup prompt proceeds using public download instructions; native
+  agent and real-model readiness are still checked separately.
 
 The target journey above is not executable new-organization instructions.
 Historical universal-coordinator assumptions do not define the replacement model:

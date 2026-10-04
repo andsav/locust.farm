@@ -12,6 +12,7 @@ export function codeCopy(element: HTMLElement, html: string) {
 			controls.className = 'code-controls';
 			const button = document.createElement('button');
 			button.type = 'button';
+			button.className = 'button';
 			button.textContent = 'Copy code';
 			button.setAttribute('aria-label', `Copy code block ${index + 1}`);
 			const status = document.createElement('span');

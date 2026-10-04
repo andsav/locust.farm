@@ -13,7 +13,8 @@ import {
 	HARNESS_ROUTES,
 	ROUTE_LABELS,
 	ROUTING_QUESTIONS,
-	SETUP_ARTIFACT
+	INSTALL_GUIDE_URL,
+	PORTABLE_STEPS
 } from './guide.ts';
 
 export const LLMS_PATH = '/llms.txt';
@@ -24,13 +25,7 @@ const ORIGIN = new URL(GUIDE_URL).origin;
 export const SUMMARY = 'Unleash collective intelligence on your hardest problems';
 
 export function llmsText(): string {
-	const lastStep = SETUP_ARTIFACT
-		? `Follow Locust’s setup for your route: ${SETUP_ARTIFACT}. ${AGENT_STEPS.approve}`
-		: AGENT_STEPS.report;
-
-	const status = SETUP_ARTIFACT
-		? 'Locust is in early development.'
-		: 'Locust is in early development. Setup is not published yet: there is nothing to install, and no harness route is qualified.';
+	const status = `Locust is in early development. A verified macOS Apple Silicon installer is published: ${INSTALL_GUIDE_URL}. Native agent and real-model qualification are reported separately from installation.`;
 
 	const questions = ROUTING_QUESTIONS.map(({ name, question }) => `   - ${name}: ${question}`).join(
 		'\n'
@@ -68,7 +63,7 @@ Availability reviewed ${AVAILABILITY.reviewed}; organization runtime: ${AVAILABI
 
 ## Entry prompt
 
-A person starts by pasting this into the agent they already use. It carries no command, download, invitation or secret.
+A person pastes this into the agent they already use. It authorizes installation or update and connection of that agent; work and sharing require separate choices.
 
 > ${ENTRY_PROMPT}
 
@@ -79,13 +74,21 @@ ${AGENT_INTRO}
 1. ${AGENT_STEPS.identify}
 2. ${AGENT_STEPS.answer}
 ${questions}
-3. ${AGENT_STEPS.route}
-4. ${lastStep}
+3. ${AGENT_STEPS.inspect}
+4. ${AGENT_STEPS.install}
+5. ${AGENT_STEPS.route}
+6. ${AGENT_STEPS.setup}
+7. ${AGENT_STEPS.update}
+8. ${AGENT_STEPS.verify}
 
 ${AGENT_RULE}
 
 ## Harness routes
 
 ${routes}
+
+## Portable CLI setup
+
+${PORTABLE_STEPS.map((step, index) => `${index + 1}. ${step}`).join('\n')}
 `;
 }

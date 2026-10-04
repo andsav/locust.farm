@@ -2,10 +2,17 @@
   "format": "locust-availability-v1",
   "reviewed": "2026-10-04",
   "publication": {
-    "software": "unpublished",
+    "software": "published-developer-preview",
     "installerUrl": null,
-    "website": "local-build-only",
-    "releasedManual": null
+    "website": "authenticated-preview",
+    "releasedManual": null,
+    "terminalInstallerUrl": "https://locust.farm/downloads/install.sh",
+    "installationGuideUrl": "https://locust.farm/downloads/install.md",
+    "releaseMetadataUrl": "https://locust.farm/downloads/latest.json",
+    "downloadUrl": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/",
+    "sourceCommit": "cd65921d8a0f9c7de3a64a2c63b28a38d557e496",
+    "target": "aarch64-apple-darwin",
+    "firstContactSetup": "unqualified; installerUrl names the full harness route, terminalInstallerUrl installs only the CLI"
   },
   "sourceCapabilities": [
     "daemon",
@@ -30,10 +37,21 @@
     "compact-context-and-paginated-pending-work",
     "private-short-context-receipt-references",
     "signed-contribution-source-inspection",
-    "own-permission-inspection"
+    "own-permission-inspection",
+    "consented-public-farm-projection"
   ],
-  "organizationRuntime": "implemented-development-api-4-protocol-4",
+  "organizationRuntime": "implemented-development-api-5-protocol-5",
   "qualification": [
+    {
+      "platform": "macOS arm64",
+      "scope": "Published API-4/protocol-4 cd65921 developer preview: Apple publisher signature, signed manifest/current withdrawal policy, exact public artifact downloads, public curl planning/install/reinstall, ten native installation cases, launchd onboarding, four tutorials and native Codex/Claude workflows with scripted providers.",
+      "limits": "One macOS host; no Linux publication, real-model refresh or interactive approvals on these bytes. Legacy Gatekeeper assessment returned a local tool error; DMG notarization and stapled ticket validate. Full first-contact route and production gates remain open. Native harnesses used disposable test trust; production package trust was verified separately.",
+      "evidence": [
+        "docs/public-preview-release.md",
+        "research/evidence/public-preview-release-2026-10-04.json"
+      ],
+      "track": "published-terminal-preview-cd65921"
+    },
     {
       "platform": "macOS arm64",
       "scope": "API 4/protocol 4 development: compact/full native context and pending pages, session-scoped CLI/MCP receipt references, signed contribution source inspection, own permission reads, and invitation refusal/stream lifecycle regression fixes",

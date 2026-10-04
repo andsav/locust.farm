@@ -1,10 +1,14 @@
 # Local installation and onboarding
 
-**Status: implemented source with scoped macOS qualification; public installation
-is unavailable. Earlier candidate checks do not qualify the API 4/protocol 4
-replacement.** Start only with an independently trusted Locust executable and
-an explicitly selected signed candidate. A verifier shipped inside an untrusted
-download cannot establish that download's authenticity.
+**Status: verified macOS Apple Silicon terminal preview published; native agent
+and real-model qualification are separate.** The [first-contact prompt](../first-contact.md)
+uses the public [installation guide](https://locust.farm/downloads/install.md)
+and [verified installer](https://locust.farm/downloads/install.sh) to install or
+update existing software. It reviews plans, starts the user daemon and checks a
+scoped CLI connection without requiring access to the authenticated website.
+The candidate procedure below is also available for explicitly selected local
+bundles; it requires an independently trusted executable. A verifier shipped
+inside an untrusted download cannot establish that download's authenticity.
 
 ## Review the candidate
 
@@ -64,7 +68,7 @@ Review onboarding with explicit existing profile/workspace directories:
 
 Repeat the same selections without `--plan` in an interactive terminal to review
 and apply each change. Deliberate unattended application uses `--yes`; it must
-still name the client. Select `claude` or `pi` for their supported installed routes.
+still name the client. Select `claude`, `pi`, `droid` or `shell` for their supported installed routes.
 For an already running daemon, add `--service none`. Readiness waits indefinitely
 for a selected service unless you supply `--wait-ms N`; interrupting the command
 does not erase its recovery journal. On Linux, service source exists but native

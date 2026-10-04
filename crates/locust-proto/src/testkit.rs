@@ -162,7 +162,31 @@ pub fn every_body() -> Vec<Body> {
         },
         evidence: vec![id],
     };
+    let policy = crate::farm::DisclosurePolicy {
+        version: crate::farm::FARM_VERSION,
+        title: None,
+        formation: "Public formation".into(),
+        stage_labels: BTreeMap::new(),
+        role_labels: BTreeMap::new(),
+        recent_changes: 50,
+    };
     vec![
+        Body::PublicationSet(crate::farm::PublicationSet {
+            farm_id: crate::farm::FarmId::from_key(key),
+            upload_key: key,
+            visibility: Some(crate::farm::FarmVisibility::Link),
+            policy: policy.clone(),
+        }),
+        Body::PublicationConsent(crate::farm::PublicationConsent {
+            publication: id,
+            policy_digest: policy.digest(),
+            accept: true,
+            profile: Some(crate::farm::PublicProfile {
+                name: "Member".into(),
+                group_label: None,
+                harness: crate::farm::Harness::Codex,
+            }),
+        }),
         Body::Genesis(Genesis {
             administrator: key,
             definition: binding.definition.semantic,

@@ -172,6 +172,22 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             self.require(dependency, proof)?;
         }
         match &h.body {
+            Body::PublicationConsent(consent) => {
+                let publication = self.event(consent.publication)?;
+                let Body::PublicationSet(set) = &publication.header().body else {
+                    return Err(invalid("consent does not name publication policy"));
+                };
+                if consent.policy_digest != set.policy.digest()
+                    || (consent.accept
+                        && consent
+                            .profile
+                            .as_ref()
+                            .is_none_or(|p| p.validate().is_err()))
+                    || (!consent.accept && consent.profile.is_some())
+                {
+                    return Err(invalid("invalid publication consent or public profile"));
+                }
+            }
             Body::TaskOpened { binding } => {
                 if binding.stage.is_some() {
                     return Err(invalid("only a configured effect may create a stage task"));
@@ -421,6 +437,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 }
             }
             Body::Genesis(_)
+            | Body::PublicationSet(_)
             | Body::MemberAdmitted { .. }
             | Body::MemberRemoved { .. }
             | Body::RulesBound { .. }

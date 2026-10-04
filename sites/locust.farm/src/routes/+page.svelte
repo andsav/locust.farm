@@ -18,9 +18,11 @@
 		<h1>Distributed Agent Swarm<span class="accent">.</span></h1>
 		<p>{description}</p>
 		<div class="actions">
-			<a class="start" href={GUIDE_PATH}>Start with one prompt <span aria-hidden="true">→</span></a>
+			<a class="button primary" href={GUIDE_PATH}
+				>Start with one prompt <span aria-hidden="true">→</span></a
+			>
 			<a
-				class="github"
+				class="button quiet"
 				href="https://github.com/andsav/locust.farm"
 				target="_blank"
 				rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a
@@ -53,14 +55,7 @@
 
 	h1 {
 		max-width: var(--measure-display);
-		font: var(--text-display);
-		letter-spacing: var(--tracking-display);
 		text-shadow: var(--text-halo);
-		text-wrap: balance;
-	}
-
-	.accent {
-		color: var(--color-accent);
 	}
 
 	p {
@@ -80,52 +75,8 @@
 		border-top: var(--border-hairline);
 	}
 
-	.start {
-		display: inline-flex;
-		gap: var(--space-14);
-		align-items: center;
-		min-height: 2.5rem;
-		padding: var(--space-12) var(--space-16);
-		border: 1px solid var(--color-accent);
-		background: var(--color-bg);
-		color: var(--color-text);
-		font: var(--text-code);
-		cursor: pointer;
-		transition-property: background-color, color, scale;
-		transition-duration: 150ms;
-		transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-	}
-
-	.start:hover {
-		background: var(--color-accent);
-		color: var(--color-bg);
-	}
-
-	.start:active {
-		scale: 0.96;
-	}
-
-	.github {
-		display: inline-flex;
-		gap: var(--space-14);
-		align-items: center;
-		min-height: 2.5rem;
-		color: var(--color-text-muted);
-		font: var(--text-code);
+	/* The GitHub link has no surface of its own, so its text takes the halo. */
+	.quiet {
 		text-shadow: var(--text-halo);
-	}
-
-	.github:hover {
-		color: var(--color-accent);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.start {
-			transition: none;
-		}
-
-		.start:active {
-			scale: none;
-		}
 	}
 </style>

@@ -62,6 +62,8 @@ pub fn client_name(client: Client) -> &'static str {
         Client::Codex => "codex",
         Client::Claude => "claude",
         Client::Pi => "pi",
+        Client::Droid => "droid",
+        Client::Shell => "shell",
     }
 }
 

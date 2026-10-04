@@ -135,6 +135,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// Plans one request without changing anything.
     fn plan(&self, actor: &Actor, request: Request, now: u64) -> Plan {
         match request {
+            request @ (Request::FarmOn { .. }
+            | Request::FarmOff { .. }
+            | Request::FarmShow { .. }
+            | Request::FarmStatus
+            | Request::FarmConsent { .. }) => self.farm_request(actor, request, now),
             Request::Context {
                 goal,
                 view,

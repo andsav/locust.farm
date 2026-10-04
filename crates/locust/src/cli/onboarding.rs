@@ -53,7 +53,7 @@ fn common(command: Command) -> Command {
 }
 pub(super) fn up_command() -> Command {
     common(Command::new("up").about("Start the daemon and review resumable client onboarding"))
-        .arg(Arg::new("client").long("client").action(ArgAction::Append).value_delimiter(',').value_parser(["codex","claude","pi"]).help("Select a client; repeat to select more than one in this profile home"))
+        .arg(Arg::new("client").long("client").action(ArgAction::Append).value_delimiter(',').value_parser(["codex","claude","pi","droid","shell"]).help("Select a client; repeat to select more than one in this profile home"))
         .arg(Arg::new("service").long("service").value_parser(["launchd","systemd","none"]).help("Per-user service (defaults to this platform's manager); none uses an existing daemon"))
         .arg(Arg::new("service-profile-home").long("service-profile-home").help("Service-manager profile home (defaults to HOME, independently of client profile)"))
         .arg(Arg::new("log-dir").long("log-dir").help("Private daemon logs directory (defaults to the daemon home's logs directory)"))
@@ -64,14 +64,17 @@ pub(super) fn add_command() -> Command {
         .arg(
             Arg::new("client")
                 .required(true)
-                .value_parser(["codex", "claude", "pi"]),
+                .value_parser(["codex", "claude", "pi", "droid", "shell"]),
         )
 }
 fn client(value: &str) -> Client {
     match value {
         "codex" => Client::Codex,
         "claude" => Client::Claude,
-        _ => Client::Pi,
+        "pi" => Client::Pi,
+        "droid" => Client::Droid,
+        "shell" => Client::Shell,
+        _ => unreachable!("validated client"),
     }
 }
 fn home() -> Result<PathBuf, Failure> {
@@ -131,6 +134,7 @@ fn validate_profile_environment(
             Client::Codex => ("CODEX_HOME", ".codex"),
             Client::Claude => ("CLAUDE_CONFIG_DIR", ".claude"),
             Client::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent"),
+            Client::Droid | Client::Shell => continue,
         };
         if let Some(path) = std::env::var_os(variable).filter(|path| !path.is_empty())
             && (*kind == Client::Claude
@@ -163,8 +167,10 @@ fn parse_selection(value: &str) -> Result<Vec<Client>, Failure> {
         .split(|c: char| c == ',' || c.is_whitespace())
         .filter(|s| !s.is_empty())
     {
-        if !["codex", "claude", "pi"].contains(&word) {
-            return Err(Failure::usage("select client names: codex, claude or pi"));
+        if !["codex", "claude", "pi", "droid", "shell"].contains(&word) {
+            return Err(Failure::usage(
+                "select client names: codex, claude, pi, droid or shell",
+            ));
         }
         let next = client(word);
         if !selected.contains(&next) {
@@ -588,9 +594,24 @@ mod tests {
         );
         assert!(parse_selection("all").is_err());
         assert!(parse_selection("").unwrap().is_empty());
+        assert_eq!(
+            parse_selection("droid shell droid").unwrap(),
+            vec![Client::Droid, Client::Shell]
+        );
     }
     #[test]
     fn commands_parse_without_an_owner_or_credential_flag() {
+        for client in ["codex", "claude", "pi", "droid", "shell"] {
+            for arguments in [
+                vec!["locust", "up", "--client", client, "--plan"],
+                vec!["locust", "agent", "add", client, "--yes"],
+                vec!["locust", "doctor", "--client", client],
+            ] {
+                super::super::args::command()
+                    .try_get_matches_from(arguments)
+                    .unwrap();
+            }
+        }
         let up = super::super::args::command()
             .try_get_matches_from(["locust", "up", "--client", "codex,claude", "--plan"])
             .unwrap();

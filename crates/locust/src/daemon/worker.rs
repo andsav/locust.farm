@@ -20,6 +20,7 @@ use locust_proto::api::{
 use locust_proto::engine::{
     ConnId, Engine, ExchangeId, Parked, PeerEngine, PeerInput, PeerOutput, PeerTime, Step,
 };
+use locust_proto::farm::{FarmUpload, FarmUploadResult};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch;
 
@@ -51,6 +52,12 @@ pub(crate) enum Job {
         input: PeerInput,
         processed: tokio::sync::oneshot::Sender<()>,
     },
+    /// Read/create durable publication intent on the same thread as goal changes.
+    FarmPoll {
+        reply: tokio::sync::oneshot::Sender<Vec<FarmUpload>>,
+    },
+    /// Reconcile an HTTP result with that exact durable publication request.
+    FarmComplete { result: FarmUploadResult },
     /// Every connection has ended; the thread drops the engine and exits.
     Stop,
 }
@@ -297,6 +304,14 @@ impl<E: Engine> Worker<E> {
                     };
                     self.network(input);
                     self.blocked.insert(exchange, processed);
+                }
+                Job::FarmPoll { reply } => {
+                    let _ = reply.send(self.engine.farm_poll((self.clock)()));
+                }
+                Job::FarmComplete { result } => {
+                    if self.engine.farm_complete(result, (self.clock)()).is_err() {
+                        super::log(format_args!("locust: farm receipt could not be reconciled"));
+                    }
                 }
                 Job::Expire { conn, request_id } => self.expire(conn, request_id),
                 Job::Disconnect { conn } => self.disconnect(conn),

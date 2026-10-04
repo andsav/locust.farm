@@ -1,0 +1,519 @@
+{
+  "qualification": "farm pipeline: two local production daemons, scripted clients, real HTTP service",
+  "boundary": "One physical host; no model/harness activity, production deployment or cross-host qualification.",
+  "status": "passed",
+  "started_at": "2026-10-04T22:58:54.191064+00:00",
+  "finished_at": "2026-10-04T22:59:42.085466+00:00",
+  "binary": {
+    "path": "/Users/andrei/Projects26/locust/output/farm-qualified-bin/locust",
+    "sha256": "aa3dbf1018c453803067349220056790035210d248b28102576b623bbc1cd3ee",
+    "version": "0.1.0",
+    "embedded_commit": "98d03af6ce6a-dirty",
+    "api_version": 5,
+    "protocol_version": 5,
+    "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 5 protocol 5"
+  },
+  "service_sha256": "99ba5918ddde6de7f98dd0788023ca9cb3e21a6847e114e37336037d86f4271b",
+  "source_commit": "bddb8974f628d598987bb1a230b487dc4b9b7740",
+  "source_dirty": true,
+  "transport": {
+    "mode": "local",
+    "LOCUST_RELAY": "none",
+    "LOCUST_LOOKUP": "local",
+    "configuration": "explicit local reproduction"
+  },
+  "port_changes": "not exercised; explicit stable loopback UDP binds across restarts",
+  "checks": [
+    "farm service is reachable",
+    "M1 daemon endpoint ready",
+    "M2 daemon endpoint ready",
+    "both daemons know both members",
+    "remote daemon receives the policy",
+    "creator receives matching remote consent",
+    "eligible snapshot reaches the HTTP service",
+    "listed farm appears in gallery",
+    "worker receives the task",
+    "creator receives worker contribution",
+    "public task shows evaluated completion and selection",
+    "M1 daemon endpoint ready",
+    "farm service is reachable",
+    "peer receives new work after publisher restart",
+    "new work reaches the service after daemon and service restart",
+    "explicit goal closure reaches the public page",
+    "goal reopen resumes the same public farm",
+    "remote revocation suspends public snapshot",
+    "suspended farm disappears from gallery",
+    "restored consent resumes same farm",
+    "M1 daemon endpoint ready",
+    "farm service is reachable",
+    "offline deletion survives publisher restart",
+    "publisher records deletion acknowledgment",
+    "farm service is reachable"
+  ],
+  "failures": [],
+  "final_preview": {
+    "policy": {
+      "formation": "Reviewed collaboration",
+      "recent_changes": 50,
+      "role_labels": {},
+      "stage_labels": {},
+      "title": "Farm integration check",
+      "version": 1
+    },
+    "snapshot": {
+      "agents": [
+        {
+          "group": 1,
+          "harness": "unknown",
+          "id": 1,
+          "name": "Coordinator",
+          "roles": []
+        },
+        {
+          "group": 2,
+          "harness": "unknown",
+          "id": 2,
+          "name": "Worker",
+          "roles": []
+        }
+      ],
+      "attempts": [
+        {
+          "agent": 2,
+          "id": 1,
+          "observed_at_ms": 1791154738288,
+          "round": 1,
+          "state": "started",
+          "task": 1
+        }
+      ],
+      "candidates": [
+        {
+          "agent": 2,
+          "completed": true,
+          "evidence_count": 1,
+          "id": 1,
+          "requirement": "1 eligible distinct reviews",
+          "round": 1,
+          "selected": true,
+          "task": 1
+        },
+        {
+          "agent": 1,
+          "completed": false,
+          "evidence_count": 0,
+          "id": 2,
+          "requirement": "1 eligible distinct reviews",
+          "round": 1,
+          "selected": false,
+          "task": null
+        }
+      ],
+      "changes": [
+        {
+          "agent": 1,
+          "id": 1,
+          "kind": "task",
+          "observed_at_ms": null,
+          "task": null,
+          "text": "Collaboration record changed"
+        },
+        {
+          "agent": 1,
+          "id": 2,
+          "kind": "task",
+          "observed_at_ms": null,
+          "task": null,
+          "text": "Collaboration record changed"
+        },
+        {
+          "agent": 1,
+          "id": 3,
+          "kind": "membership",
+          "observed_at_ms": null,
+          "task": null,
+          "text": "Membership changed"
+        },
+        {
+          "agent": 1,
+          "id": 4,
+          "kind": "membership",
+          "observed_at_ms": null,
+          "task": null,
+          "text": "Membership changed"
+        },
+        {
+          "agent": 1,
+          "id": 5,
+          "kind": "publication",
+          "observed_at_ms": 1791154737288,
+          "task": null,
+          "text": "Publication approval changed"
+        },
+        {
+          "agent": 1,
+          "id": 6,
+          "kind": "publication",
+          "observed_at_ms": 1791154737288,
+          "task": null,
+          "text": "Publication approval changed"
+        },
+        {
+          "agent": 2,
+          "id": 7,
+          "kind": "publication",
+          "observed_at_ms": 1791154737288,
+          "task": null,
+          "text": "Publication approval changed"
+        },
+        {
+          "agent": 1,
+          "id": 8,
+          "kind": "task",
+          "observed_at_ms": 1791154738288,
+          "task": null,
+          "text": "Work configuration changed"
+        },
+        {
+          "agent": 1,
+          "id": 9,
+          "kind": "task",
+          "observed_at_ms": 1791154738288,
+          "task": 1,
+          "text": "Collaboration record changed"
+        },
+        {
+          "agent": 2,
+          "id": 10,
+          "kind": "attempt",
+          "observed_at_ms": 1791154738288,
+          "task": 1,
+          "text": "Attempt reported"
+        },
+        {
+          "agent": 2,
+          "id": 11,
+          "kind": "contribution",
+          "observed_at_ms": 1791154738288,
+          "task": 1,
+          "text": "Contribution published"
+        },
+        {
+          "agent": 2,
+          "id": 12,
+          "kind": "task",
+          "observed_at_ms": 1791154738288,
+          "task": 1,
+          "text": "Work configuration changed"
+        },
+        {
+          "agent": 1,
+          "id": 13,
+          "kind": "evidence",
+          "observed_at_ms": 1791154738288,
+          "task": 1,
+          "text": "Completion evidence reported"
+        },
+        {
+          "agent": 1,
+          "id": 14,
+          "kind": "closure",
+          "observed_at_ms": 1791154738288,
+          "task": 1,
+          "text": "Scope decision reported"
+        },
+        {
+          "agent": 1,
+          "id": 15,
+          "kind": "contribution",
+          "observed_at_ms": 1791154741442,
+          "task": null,
+          "text": "Contribution published"
+        },
+        {
+          "agent": 1,
+          "id": 16,
+          "kind": "task",
+          "observed_at_ms": 1791154741442,
+          "task": null,
+          "text": "Work configuration changed"
+        },
+        {
+          "agent": 1,
+          "id": 17,
+          "kind": "closure",
+          "observed_at_ms": 1791154769427,
+          "task": null,
+          "text": "Scope decision reported"
+        },
+        {
+          "agent": 1,
+          "id": 18,
+          "kind": "closure",
+          "observed_at_ms": 1791154772427,
+          "task": null,
+          "text": "Scope decision reported"
+        },
+        {
+          "agent": 2,
+          "id": 19,
+          "kind": "publication",
+          "observed_at_ms": 1791154775427,
+          "task": null,
+          "text": "Publication approval changed"
+        },
+        {
+          "agent": 2,
+          "id": 20,
+          "kind": "publication",
+          "observed_at_ms": 1791154776426,
+          "task": null,
+          "text": "Publication approval changed"
+        },
+        {
+          "agent": 1,
+          "id": 21,
+          "kind": "publication",
+          "observed_at_ms": 1791154778707,
+          "task": null,
+          "text": "Publication approval changed"
+        }
+      ],
+      "farm_id": "61d98eee489d2720c50c96e4b2405a6b",
+      "formation": "Reviewed collaboration",
+      "goal_state": "open",
+      "groups": [
+        {
+          "id": 1,
+          "label": "Daemon 1",
+          "last_sync_at_ms": null
+        },
+        {
+          "id": 2,
+          "label": "Daemon 2",
+          "last_sync_at_ms": 1791154779534
+        }
+      ],
+      "observed_at_ms": 1791154778707,
+      "omitted_changes": 0,
+      "stages": [],
+      "tasks": [
+        {
+          "closed": false,
+          "completed": true,
+          "id": 1,
+          "reference": "18c6",
+          "round": 1,
+          "selected_candidate": 1,
+          "stage": null,
+          "state": "completed"
+        }
+      ],
+      "title": "Farm integration check",
+      "version": 1
+    },
+    "status": {
+      "desired": null,
+      "eligible": false,
+      "farm_id": "61d98eee489d2720c50c96e4b2405a6b",
+      "goal": "e41ac6fd9918399d94ea81f8df7faa502f7f19e9583bcc5105025f561f2cc4eb",
+      "last_error": null,
+      "pending": null,
+      "reason": null,
+      "receipt": {
+        "farm_id": "61d98eee489d2720c50c96e4b2405a6b",
+        "received_at_ms": 1791154781715,
+        "request_digest": "5f5ed357646edfc09f11254da1fbb359052f7f7173d91e7b5eaa7edb033e7697",
+        "sequence": 9,
+        "stream_version": 9
+      }
+    }
+  },
+  "public_snapshot": {
+    "version": 1,
+    "farm_id": "61d98eee489d2720c50c96e4b2405a6b",
+    "title": "Farm integration check",
+    "formation": "Reviewed collaboration",
+    "goal_state": "open",
+    "observed_at_ms": 1791154738288,
+    "agents": [
+      {
+        "id": 1,
+        "group": 1,
+        "name": "Coordinator",
+        "harness": "unknown",
+        "roles": []
+      },
+      {
+        "id": 2,
+        "group": 2,
+        "name": "Worker",
+        "harness": "unknown",
+        "roles": []
+      }
+    ],
+    "groups": [
+      {
+        "id": 1,
+        "label": "Daemon 1",
+        "last_sync_at_ms": null
+      },
+      {
+        "id": 2,
+        "label": "Daemon 2",
+        "last_sync_at_ms": 1791154738355
+      }
+    ],
+    "stages": [],
+    "tasks": [
+      {
+        "id": 1,
+        "reference": "18c6",
+        "stage": null,
+        "round": 1,
+        "state": "completed",
+        "completed": true,
+        "closed": false,
+        "selected_candidate": 1
+      }
+    ],
+    "attempts": [
+      {
+        "id": 1,
+        "agent": 2,
+        "task": 1,
+        "round": 1,
+        "state": "started",
+        "observed_at_ms": 1791154738288
+      }
+    ],
+    "candidates": [
+      {
+        "id": 1,
+        "agent": 2,
+        "task": 1,
+        "round": 1,
+        "completed": true,
+        "selected": true,
+        "evidence_count": 1,
+        "requirement": "1 eligible distinct reviews"
+      }
+    ],
+    "changes": [
+      {
+        "id": 1,
+        "kind": "task",
+        "agent": 1,
+        "task": null,
+        "observed_at_ms": null,
+        "text": "Collaboration record changed"
+      },
+      {
+        "id": 2,
+        "kind": "task",
+        "agent": 1,
+        "task": null,
+        "observed_at_ms": null,
+        "text": "Collaboration record changed"
+      },
+      {
+        "id": 3,
+        "kind": "membership",
+        "agent": 1,
+        "task": null,
+        "observed_at_ms": null,
+        "text": "Membership changed"
+      },
+      {
+        "id": 4,
+        "kind": "membership",
+        "agent": 1,
+        "task": null,
+        "observed_at_ms": null,
+        "text": "Membership changed"
+      },
+      {
+        "id": 5,
+        "kind": "publication",
+        "agent": 1,
+        "task": null,
+        "observed_at_ms": 1791154737288,
+        "text": "Publication approval changed"
+      },
+      {
+        "id": 6,
+        "kind": "publication",
+        "agent": 1,
+        "task": null,
+        "observed_at_ms": 1791154737288,
+        "text": "Publication approval changed"
+      },
+      {
+        "id": 7,
+        "kind": "publication",
+        "agent": 2,
+        "task": null,
+        "observed_at_ms": 1791154737288,
+        "text": "Publication approval changed"
+      },
+      {
+        "id": 8,
+        "kind": "task",
+        "agent": 1,
+        "task": null,
+        "observed_at_ms": 1791154738288,
+        "text": "Work configuration changed"
+      },
+      {
+        "id": 9,
+        "kind": "task",
+        "agent": 1,
+        "task": 1,
+        "observed_at_ms": 1791154738288,
+        "text": "Collaboration record changed"
+      },
+      {
+        "id": 10,
+        "kind": "attempt",
+        "agent": 2,
+        "task": 1,
+        "observed_at_ms": 1791154738288,
+        "text": "Attempt reported"
+      },
+      {
+        "id": 11,
+        "kind": "contribution",
+        "agent": 2,
+        "task": 1,
+        "observed_at_ms": 1791154738288,
+        "text": "Contribution published"
+      },
+      {
+        "id": 12,
+        "kind": "task",
+        "agent": 2,
+        "task": 1,
+        "observed_at_ms": 1791154738288,
+        "text": "Work configuration changed"
+      },
+      {
+        "id": 13,
+        "kind": "evidence",
+        "agent": 1,
+        "task": 1,
+        "observed_at_ms": 1791154738288,
+        "text": "Completion evidence reported"
+      },
+      {
+        "id": 14,
+        "kind": "closure",
+        "agent": 1,
+        "task": 1,
+        "observed_at_ms": 1791154738288,
+        "text": "Scope decision reported"
+      }
+    ],
+    "omitted_changes": 0
+  },
+  "peer_recovery_seconds": 27.674
+}

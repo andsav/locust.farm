@@ -1,6 +1,6 @@
 # Goals and organizations
 
-**Status: implemented development model, API 4 / protocol 4.** Local engine,
+**Status: implemented development model, API 5 / protocol 5.** Local engine,
 replay and daemon tests exercise this model. Public release and native-client
 qualification remain separate; see [availability](status.md).
 

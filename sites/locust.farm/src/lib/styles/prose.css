@@ -1,0 +1,66 @@
+/*
+ * Long-form text rendered from Markdown, under `.prose`. The rendered elements carry
+ * no classes of their own, so these rules reach them by element.
+ */
+
+.prose :where(h1) {
+	margin: 2rem 0;
+	font: var(--text-title);
+	letter-spacing: 0;
+}
+
+.prose :where(h2) {
+	margin: 2.5rem 0 1rem;
+	scroll-margin-top: 1rem;
+}
+
+.prose :where(h3) {
+	margin: 2rem 0 0.75rem;
+	font: var(--text-ui-heading);
+	font-size: 1rem;
+}
+
+.prose :where(p, ul, ol) {
+	margin: 1.2rem 0;
+}
+
+.prose :where(li) {
+	margin: 0.4rem 0;
+}
+
+.prose :where(pre) {
+	margin: 0;
+	padding: var(--space-16);
+	overflow-x: auto;
+	border: var(--border-hairline);
+	border-radius: var(--radius-control);
+	background: var(--color-panel);
+}
+
+.prose :where(table) {
+	display: block;
+	overflow-x: auto;
+	border-collapse: collapse;
+}
+
+.prose :where(th, td) {
+	min-width: 10rem;
+	padding: 0.75rem;
+	border: var(--border-hairline);
+	text-align: left;
+}
+
+.prose :where(th) {
+	font: var(--text-ui-heading);
+}
+
+/* The copy button that code-copy.ts adds under each block. */
+.prose .code-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-16);
+	align-items: center;
+	margin: 0.5rem 0 1.5rem;
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
+}

@@ -13,7 +13,7 @@
 	<meta name="description" content={data.article.description} />
 	<link rel="canonical" href={`https://locust.farm${data.article.url}`} />
 </svelte:head>
-<a class="skip" href="#article">Skip to article</a>
+<a class="skip-link button" href="#article">Skip to article</a>
 <SiteHeader />
 <div class="shell">
 	<aside>
@@ -37,7 +37,7 @@
 					>{data.article.headings.find((heading) => heading.id === data.article.section)?.title}</a
 				>.
 			</p>{/if}
-		<p class="status">{data.manifest.label} · {data.article.status}</p>
+		<p class="status eyebrow">{data.manifest.label} · {data.article.status}</p>
 		<p class="identity">
 			Source <a href={data.article.sourceUrl}>{data.sourceCommit.slice(0, 12)}</a>{data.sourceDirty
 				? ' · uncommitted working tree'
@@ -69,101 +69,63 @@
 	.shell {
 		display: grid;
 		grid-template-columns: 15rem minmax(0, 52rem);
+		gap: 3rem;
 		max-width: 76rem;
 		margin: auto;
-		gap: 3rem;
 		padding: 2.5rem var(--gutter-inline) 5rem;
-		font:
-			1rem/1.8 system-ui,
-			sans-serif;
 	}
 	aside nav,
 	.toc {
 		display: grid;
-		gap: 0.65rem;
+		gap: 0.5rem;
+		color: var(--color-text-muted);
+		font: var(--text-ui);
+	}
+	aside a:hover,
+	.toc a:hover {
+		color: var(--color-text);
 	}
 	aside h2 {
-		font-size: 0.85rem;
-		color: var(--color-text-muted);
-		margin: 1.8rem 0 0.2rem;
+		margin: 1.5rem 0 0.125rem;
+		color: var(--color-text-subtle);
+		font: var(--text-ui-small);
+		font-weight: 500;
 	}
-	[aria-current='page'] {
-		color: var(--color-accent);
+	aside [aria-current='page'] {
+		color: var(--color-text);
+		font-weight: 500;
 	}
 	main {
 		min-width: 0;
 	}
-	main a {
-		text-decoration: underline;
-		text-underline-offset: 0.2em;
+	main > nav:first-child {
+		color: var(--color-text-subtle);
+		font: var(--text-ui-small);
 	}
 	.status {
-		margin: 1rem 0;
+		margin: 1.5rem 0 0.75rem;
 		color: var(--color-accent);
 	}
 	.identity {
-		color: var(--color-text-muted);
-		font-size: 0.85rem;
+		color: var(--color-text-subtle);
+		font: var(--text-ui-small);
 		overflow-wrap: anywhere;
 	}
 	.toc {
-		padding: 1.5rem 0;
 		margin: 1.5rem 0;
+		padding: 1.5rem 0;
 		border-block: var(--border-hairline);
 	}
-	.prose :global(h1) {
-		font-size: clamp(2rem, 5vw, 3rem);
-		line-height: 1.2;
-		margin: 2rem 0;
-	}
-	.prose :global(h2) {
-		font-size: 1.6rem;
-		margin: 2.5rem 0 1rem;
-		scroll-margin-top: 1rem;
-	}
-	.prose :global(p),
-	.prose :global(ul) {
-		margin: 1.2rem 0;
-	}
-	.prose :global(code) {
-		font: 0.9em/1.7 monospace;
-	}
-	.prose :global(pre) {
-		padding: 1rem;
-		overflow-x: auto;
-		border: var(--border-hairline);
-	}
-	.prose :global(table) {
-		display: block;
-		overflow-x: auto;
-		border-collapse: collapse;
-	}
-	.prose :global(th),
-	.prose :global(td) {
-		padding: 0.75rem;
-		text-align: left;
-		border: var(--border-hairline);
-		min-width: 10rem;
-	}
-	.prose :global(.code-controls) {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 1rem;
-		margin: 0.5rem 0 1.5rem;
-	}
-	.prose :global(.code-controls button) {
-		color: inherit;
-		background: var(--color-bg);
-		border: 1px solid var(--color-accent);
-		padding: 0.6rem 1rem;
-		font: inherit;
-		cursor: pointer;
+	.toc strong {
+		color: var(--color-text);
+		font: var(--text-ui-heading);
 	}
 	footer {
-		border-top: var(--border-hairline);
 		margin-top: 3rem;
 		padding-top: 1.5rem;
+		border-top: var(--border-hairline);
+		color: var(--color-text-muted);
+		font: var(--text-ui);
 	}
 	.adjacent {
 		display: flex;
@@ -171,17 +133,6 @@
 		justify-content: space-between;
 		gap: 1rem;
 		margin-top: 1.5rem;
-	}
-	.skip {
-		position: absolute;
-		top: -5rem;
-		left: 1rem;
-		padding: 1rem;
-		background: var(--color-bg);
-		z-index: 20;
-	}
-	.skip:focus {
-		top: 1rem;
 	}
 	@media (max-width: 800px) {
 		.shell {

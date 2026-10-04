@@ -4,7 +4,7 @@
 
 | Symptom | Interpretation | Next action |
 | --- | --- | --- |
-| No public installer | Software publication is unavailable | Report harness capabilities and stop; do not invent a download |
+| Installer refuses this platform | The published preview supports macOS Apple Silicon | Check the [installation instructions](https://locust.farm/downloads/install.md); other platforms remain unqualified |
 | Service request succeeded but API does not answer | Manager request and authenticated readiness differ | Inspect settled service status, then authenticated daemon diagnosis |
 | MCP configuration exists but no tools appear | Native discovery/readiness is unverified | Inspect the client's MCP view and supported refresh; preserve policy |
 | Formation JSON parses but validation fails | Shape or semantics are unsupported | Follow diagnostic code/phase/path and correction; inspect exact schema |
@@ -55,7 +55,7 @@ launch still requires client-specific evidence.
 
 ## Development release notes
 
-The development runtime now uses API 4 / protocol 4 with organization rules,
+The development runtime now uses API 5 / protocol 5 with organization rules,
 private drafts/publication, taskless contributions, independent attempts, scoped
 completion and durable flow. The site includes raw Markdown, versioned inventories,
 search and generated CLI/API/MCP/event references. Public software publication and

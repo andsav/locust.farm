@@ -13,7 +13,8 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-- [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 4/protocol 4 runtime and authoring are implemented; current qualification is tracked separately.
+- [Published macOS terminal preview](public-preview-release.md): public curl installer, exact API-4 binary/signatures, native and public-download verification, and remaining readiness boundaries.
+- [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 5/protocol 5 runtime and authoring are implemented; current qualification is tracked separately.
 - [Formation implementation status](formations-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
 - [Formation implementation plan](formations-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
 - [Formation semantics and removal inventory](formations-semantics.md): accepted administration and scoped-authority model, concrete scenario expectations, outstanding signed-proof obligations and source-based replacement inventory.
@@ -21,7 +22,8 @@ the repository root to check coverage and local link paths.
 - [Formation editor on locust.farm plan](formation-authoring-plan.md): the `/formations` editor that opens with six ways of working, shows a compact four-column rules matrix with steps as rows under it, checks formations in TypeScript against Locust-generated test cases, and copies a prompt that has the agent check, draft and publish with Locust; implemented, not yet tried with real first-time users.
 - [Formation prompt contract](formation-prompt.md): the exact fixed text of the prompt the formation editor copies, its data blocks and integrity values, its limits, and why it does not start a goal.
 
-- [Live farm pages and the farms gallery](swarm-visualization-plan.md): revised proposal for consented live publishing, precise work-state projection and recovery, plus a real multi-harness demo across two owner-controlled machines building a small chat app; farm publishing is not implemented.
+- [Public farm views](guide/farm-publication.md): owner controls, explicit participant consent, delivery status and local service operation.
+- [Live farm pages and the farms gallery](swarm-visualization-plan.md): accepted first-slice design and planned real multi-harness rehearsal across two owner-controlled machines building a small chat app.
 - [TLA+ formal verification implementation plan](tla-verification-plan.md): current organization, attempt/session and durable-effect models; bounded checks, witnesses, mutation evidence and explicit proof limits.
 - [Crates and workstreams](workstreams.md): accepted crate split, lane responsibilities and current shared A/B ownership, cross-review, and the rules for sharing one checkout.
 - [Native release candidate packaging](packaging.md): unsigned macOS arm64 and Linux x86_64 candidate format, source identity, signature boundary and manual CI declarations.

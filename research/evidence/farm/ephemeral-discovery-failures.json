@@ -1,0 +1,93 @@
+[
+  {
+    "qualification": "farm pipeline: two local production daemons, scripted clients, real HTTP service",
+    "boundary": "One physical host; no model/harness activity, production deployment or cross-host qualification.",
+    "status": "failed",
+    "started_at": "2026-10-04T22:50:49.275734+00:00",
+    "finished_at": "2026-10-04T22:51:54.898006+00:00",
+    "binary": {
+      "path": "/Users/andrei/Projects26/locust/target/debug/locust",
+      "sha256": "866ea5d850af49f64638f9ff732bfc7d0f8e4de1bf0054542a4017ac3c8042db",
+      "version": "0.1.0",
+      "embedded_commit": "98d03af6ce6a-dirty",
+      "api_version": 5,
+      "protocol_version": 5,
+      "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 5 protocol 5"
+    },
+    "service_sha256": "e3d13f002b5129bbf222057d9b2a3bd9cf35578e689cdbea70fba49852a40a9b",
+    "source_commit": "98d03af6ce6a31bfa9123abdad5b9af373ec4ebb",
+    "source_dirty": true,
+    "transport": {
+      "mode": "local",
+      "LOCUST_RELAY": "none",
+      "LOCUST_LOOKUP": "local",
+      "configuration": "explicit local reproduction"
+    },
+    "port_changes": "permitted; socket addresses are not exposed by status/route snapshots",
+    "checks": [
+      "farm service is reachable",
+      "M1 daemon endpoint ready",
+      "M2 daemon endpoint ready",
+      "both daemons know both members",
+      "remote daemon receives the policy",
+      "creator receives matching remote consent",
+      "eligible snapshot reaches the HTTP service",
+      "listed farm appears in gallery",
+      "worker receives the task",
+      "creator receives worker contribution",
+      "public task shows evaluated completion and selection",
+      "M1 daemon endpoint ready",
+      "farm service is reachable",
+      "new work reaches the service after daemon and service restart",
+      "explicit goal closure reaches the public page",
+      "goal reopen resumes the same public farm"
+    ],
+    "failures": [
+      "remote revocation suspends public snapshot: qualification wait timed out in startup"
+    ]
+  },
+  {
+    "qualification": "farm pipeline: two local production daemons, scripted clients, real HTTP service",
+    "boundary": "One physical host; no model/harness activity, production deployment or cross-host qualification.",
+    "status": "failed",
+    "started_at": "2026-10-04T22:52:13.920388+00:00",
+    "finished_at": "2026-10-04T22:53:11.288394+00:00",
+    "binary": {
+      "path": "/Users/andrei/Projects26/locust/target/debug/locust",
+      "sha256": "866ea5d850af49f64638f9ff732bfc7d0f8e4de1bf0054542a4017ac3c8042db",
+      "version": "0.1.0",
+      "embedded_commit": "98d03af6ce6a-dirty",
+      "api_version": 5,
+      "protocol_version": 5,
+      "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 5 protocol 5"
+    },
+    "service_sha256": "e3d13f002b5129bbf222057d9b2a3bd9cf35578e689cdbea70fba49852a40a9b",
+    "source_commit": "98d03af6ce6a31bfa9123abdad5b9af373ec4ebb",
+    "source_dirty": true,
+    "transport": {
+      "mode": "local",
+      "LOCUST_RELAY": "none",
+      "LOCUST_LOOKUP": "local",
+      "configuration": "explicit local reproduction"
+    },
+    "port_changes": "permitted; socket addresses are not exposed by status/route snapshots",
+    "checks": [
+      "farm service is reachable",
+      "M1 daemon endpoint ready",
+      "M2 daemon endpoint ready",
+      "both daemons know both members",
+      "remote daemon receives the policy",
+      "creator receives matching remote consent",
+      "eligible snapshot reaches the HTTP service",
+      "listed farm appears in gallery",
+      "worker receives the task",
+      "creator receives worker contribution",
+      "public task shows evaluated completion and selection",
+      "M1 daemon endpoint ready",
+      "farm service is reachable"
+    ],
+    "failures": [
+      "peer receives new work after publisher restart: qualification wait timed out in startup"
+    ]
+  }
+]

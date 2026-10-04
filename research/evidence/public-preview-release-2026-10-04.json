@@ -1,0 +1,866 @@
+{
+  "format": "locust-public-preview-evidence-v1",
+  "date": "2026-10-04",
+  "status": "published-developer-preview",
+  "production_ready": false,
+  "authorization": "Owner requested publication of the current binary and preferred curl | sh for this terminal application.",
+  "release": {
+    "format": "locust-public-preview-v1",
+    "release_id": "0.1.0-cd65921d8a0f",
+    "channel": "developer-preview",
+    "published_at": "2026-10-04T22:30:34.498260+00:00",
+    "source_commit": "cd65921d8a0f9c7de3a64a2c63b28a38d557e496",
+    "version": "0.1.0",
+    "target": "aarch64-apple-darwin",
+    "api_version": 4,
+    "protocol_version": 4,
+    "manifest_sha256": "f8306c552c362c8d47918159370eeb11ec31c451e5281536d2daef1baf09d0cc",
+    "trust_key_sha256": "ce02bb70439f130406ea1d7febc6ced4c273427fde0a1bbbfe6126abb1b45cd3",
+    "withdrawals_sequence": 1,
+    "apple_team_id": "P2Q3P9R6AT",
+    "notarization_id": "daf3cbe5-5f98-4db4-9411-99a7e962c083",
+    "dmg_notarization": "Accepted",
+    "dmg_ticket": "stapled-and-validated",
+    "gatekeeper_assessment": "local-spctl-tool-error-invalid-parameters; no successful Gatekeeper assessment claimed",
+    "instructions_url": "https://locust.farm/downloads/install.md",
+    "artifacts": [
+      {
+        "file": "INSTALL.md",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/INSTALL.md",
+        "bytes": 4530,
+        "sha256": "180727674d27d95ca612ed5ee56757f4dabb80d83ddb77d1b2c39eb596d0e399"
+      },
+      {
+        "file": "locust",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust",
+        "bytes": 15869936,
+        "sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884"
+      },
+      {
+        "file": "locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.dmg",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.dmg",
+        "bytes": 8261012,
+        "sha256": "63033cc54b7b7cd29fd95ac1500a8dd39eaf57247d5c0330f7f7f2edb8f41505"
+      },
+      {
+        "file": "locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.tar.gz",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.tar.gz",
+        "bytes": 7541898,
+        "sha256": "f50384186f7d4ddc83718c568829b906de7c841045b15e107c5efaa69e9d990f"
+      },
+      {
+        "file": "manifest.json",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/manifest.json",
+        "bytes": 618,
+        "sha256": "f8306c552c362c8d47918159370eeb11ec31c451e5281536d2daef1baf09d0cc"
+      },
+      {
+        "file": "manifest.sig",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/manifest.sig",
+        "bytes": 64,
+        "sha256": "743c657a9bc25b3e12525b668916fb4ac376dd905a894bd809a8472aeb662bb0"
+      },
+      {
+        "file": "trust.pub",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/trust.pub",
+        "bytes": 32,
+        "sha256": "ce02bb70439f130406ea1d7febc6ced4c273427fde0a1bbbfe6126abb1b45cd3"
+      },
+      {
+        "file": "withdrawals.json",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/withdrawals.json",
+        "bytes": 79,
+        "sha256": "2135733ab4b2baff61934537c3ea9157f56db75501857f2f688a3e5e25398cc8"
+      },
+      {
+        "file": "withdrawals.json.sig",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/withdrawals.json.sig",
+        "bytes": 64,
+        "sha256": "2a833c6fe05016204dfa224e28f633d5bca61fe608c191b5c26ba00feabb4319"
+      }
+    ],
+    "qualification": {
+      "source_checks": "formatting-strict-clippy-workspace-tests-python-tests-docs-pass",
+      "package_checks": "manifest-signature-withdrawals-payloads-six-formation-exports-four-tutorials-installation-launchd-pass",
+      "native_clients": "Codex-0.153.4-and-Claude-2.1.280-scripted-provider-workflows-pass",
+      "real_models": "not-requalified-on-this-artifact",
+      "interactive_approvals": "not-requalified",
+      "platforms": "macOS-arm64-only",
+      "production_ready": false
+    },
+    "installer": {
+      "url": "https://locust.farm/downloads/install.sh",
+      "sha256": "29cf0b0e2cb7612df477d2e89053fc3f0f6346ce07615a2511a43c4a89a38117",
+      "source_commit": "6f5b7d47effd8adfcab78ae2dea814d38dcccc26",
+      "plan_option": "--plan",
+      "configures_clients": false,
+      "starts_daemon": false
+    }
+  },
+  "source_build": {
+    "status": "unsigned_candidate",
+    "source_commit": "cd65921d8a0f9c7de3a64a2c63b28a38d557e496",
+    "source_snapshot": {
+      "method": "verified_git_archive",
+      "tree": "6d3b62d5bdf0fece905d78168c55d447303055b6",
+      "verified_files": 745,
+      "checkout_bytes_used": false
+    },
+    "target": "aarch64-apple-darwin",
+    "version": "0.1.0",
+    "protocol_version": 4,
+    "api_version": 4,
+    "sha256": "5de9d15a2bbfd1b094d6299b7cdcbe6074db1d12fad569d321f92fddaccd899b",
+    "manifest_sha256": "b7fc272928f4d56ce8d3d2d8f000c50a23d33ea0b9959db003eda4bfccb558bc"
+  },
+  "signing": {
+    "apple_identifier": "farm.locust.cli",
+    "apple_team_id": "P2Q3P9R6AT",
+    "developer_id_authority": "Developer ID Application: Andrei Savin (P2Q3P9R6AT)",
+    "hardened_runtime": true,
+    "trusted_timestamp": "2026-10-04T15:27:28-07:00",
+    "strict_signature_verification": "passed",
+    "notarization": {
+      "id": "daf3cbe5-5f98-4db4-9411-99a7e962c083",
+      "status": "Accepted",
+      "message": "Processing complete"
+    },
+    "dmg_stapler_staple": "passed",
+    "dmg_stapler_validate": "passed",
+    "publisher_private_key_custody": {
+      "directory": "~/.config/locust-release",
+      "directory_mode": "0700",
+      "key_file": "signing.key",
+      "key_mode": "0600",
+      "private_key_distributed": false
+    },
+    "gatekeeper": {
+      "spctl_binary": {
+        "exit_code": 1,
+        "error": "One or more parameters passed to a function were not valid."
+      },
+      "spctl_dmg": {
+        "exit_code": 1,
+        "error": "One or more parameters passed to a function were not valid."
+      },
+      "syspolicy_check_binary": {
+        "exit_code": 70,
+        "error": "Notary Ticket Missing: A Notarization ticket is not stapled to this application."
+      },
+      "successful_independent_assessment": false,
+      "assessment_bypass": false,
+      "boundary": "DMG ticket is stapled and validates; no standalone application ticket or successful independent Gatekeeper assessment is claimed."
+    }
+  },
+  "production_package_verification": {
+    "executed": false,
+    "manifest": {
+      "api_version": 4,
+      "files": [
+        {
+          "mode": 493,
+          "path": "locust",
+          "sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+          "size": 15869936
+        },
+        {
+          "mode": 420,
+          "path": "skills/locust/SKILL.md",
+          "sha256": "6610c921b2326706fd741f9e1b51c401235aa478a135a5c07ffd934e547266ef",
+          "size": 11678
+        },
+        {
+          "mode": 420,
+          "path": "manual.tar",
+          "sha256": "c97372784abbe6e8f647a71f9824d869ba7ead0b25857f925fb87c00bb47b6ab",
+          "size": 829440
+        }
+      ],
+      "format": "locust-release-v2",
+      "machine_format": "mach-o-arm64",
+      "protocol_version": 4,
+      "source_commit": "cd65921d8a0f9c7de3a64a2c63b28a38d557e496",
+      "target": "aarch64-apple-darwin",
+      "toolchain": "1.96.1",
+      "version": "0.1.0"
+    },
+    "manifest_sha256": "f8306c552c362c8d47918159370eeb11ec31c451e5281536d2daef1baf09d0cc",
+    "trust_key_sha256": "ce02bb70439f130406ea1d7febc6ced4c273427fde0a1bbbfe6126abb1b45cd3",
+    "verified": true,
+    "withdrawals_sequence": 1,
+    "withdrawals_sha256": "2135733ab4b2baff61934537c3ea9157f56db75501857f2f688a3e5e25398cc8"
+  },
+  "source_checks": {
+    "source_commit": "cd65921d8a0f9c7de3a64a2c63b28a38d557e496",
+    "cargo_fmt_all_check": "passed",
+    "cargo_clippy_locked_workspace_all_targets_deny_warnings": "passed",
+    "cargo_test_locked_workspace": "passed with explicit ignores; not real-provider qualification",
+    "pinned_source_python_tests": {
+      "tests": 235,
+      "skipped": 3,
+      "status": "passed"
+    },
+    "pinned_source_documentation_check": "passed",
+    "installer_source_commit": "6f5b7d47effd8adfcab78ae2dea814d38dcccc26",
+    "installer_preflight_tests": {
+      "tests": 5,
+      "status": "passed"
+    },
+    "current_python_suite_at_installer_commit": {
+      "tests": 243,
+      "skipped": 0,
+      "status": "passed"
+    }
+  },
+  "packaged_formations": {
+    "binary_sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+    "examples": 6,
+    "export_and_conformance_check": "passed",
+    "stdout": "Formation exports verified; 6 examples validate; conformance vectors cover every diagnostic code."
+  },
+  "packaged_tutorials": {
+    "format": "locust-documentation-recipes-v1",
+    "binary_sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+    "reported_version": "locust 0.1.0 (cd65921d8a0f) api 4 protocol 4",
+    "timeout_seconds": null,
+    "cases": [
+      {
+        "page": "docs/guide/apply.md",
+        "name": "open-patch-application",
+        "source_sha256": "6bb78fca741f8089494ec935febc8ca2b2a60e8391c99772c7a4c1fa11be08ff",
+        "passed": true,
+        "timed_out": false,
+        "exit_code": 0,
+        "stdout": "Verified: explicit local choice applies exact bytes without distributed selection.\nRepositories and observations: <temporary>\n",
+        "stderr": ""
+      },
+      {
+        "page": "docs/guide/collaboration.md",
+        "name": "local-collaboration",
+        "source_sha256": "c80e8d7c7f352290d2fe687159c5c8e7055dbded072b35d7b3bdb3c907ef8866",
+        "passed": true,
+        "timed_out": false,
+        "exit_code": 0,
+        "stdout": "Verified: taskless completion, independent attempts, pinned task rules, exact peer review.\nLocal state and observations: <temporary>\n",
+        "stderr": ""
+      },
+      {
+        "page": "docs/guide/formation-authoring.md",
+        "name": "private-authoring",
+        "source_sha256": "fb37acaedb0361906fa3f80c5f6851601c2ba575945b672ecd00a0a45a8c0d67",
+        "passed": true,
+        "timed_out": false,
+        "exit_code": 0,
+        "stdout": "Verified: exact private publication, recoverable edit conflict, author-only authority.\nPrivate catalog and observations: <temporary>\n",
+        "stderr": ""
+      },
+      {
+        "page": "docs/guide/sharing.md",
+        "name": "separate-goal-export",
+        "source_sha256": "0ce27f5eb5f2680cedd4d4e48e5153eeda8249d4309735cc1ce91382aa7b966d",
+        "passed": true,
+        "timed_out": false,
+        "exit_code": 0,
+        "stdout": "Verified: separate membership, chosen-byte export, destination resealing, fresh parent review obligation.\n",
+        "stderr": ""
+      }
+    ],
+    "binary_unchanged": true
+  },
+  "native_installation": {
+    "status": "passed",
+    "harness_sha256": "f0337ba94abff30cbb389605fa77f66c60cc4397f89d78b3f88efe2e7b6eb1e5",
+    "platform": "macOS-26.4-arm64-arm-64bit",
+    "bootstrap": {
+      "sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+      "version_line": "locust 0.1.0 (cd65921d8a0f) api 4 protocol 4"
+    },
+    "cases": {
+      "installed_daemon_fresh_database_restart_doctor": {
+        "status": "passed"
+      },
+      "installed_manual_read_without_checkout": {
+        "status": "passed"
+      },
+      "native_launchd_lifecycle": {
+        "status": "passed"
+      },
+      "native_launchd_process_failure_and_retry": {
+        "status": "passed"
+      },
+      "partial_staging_fixture_recovery": {
+        "status": "passed"
+      },
+      "real_candidate_probe_failure_preserves_active_release": {
+        "status": "passed"
+      },
+      "signature_payload_and_plan_refusal": {
+        "status": "passed"
+      },
+      "uninstall_preserves_data_modified_files_and_trust": {
+        "status": "passed"
+      },
+      "verified_native_install_repeat": {
+        "status": "passed"
+      },
+      "withdrawal_and_trust_rollback_refusal": {
+        "status": "passed"
+      }
+    },
+    "upgrade": {
+      "reason": "no distinct baseline bundle supplied",
+      "status": "not_run"
+    },
+    "production_trust_selected": false,
+    "test_private_keys_removed": true,
+    "boundary": "local test-signed native installation"
+  },
+  "launchd_onboarding": {
+    "status": "passed",
+    "platform": "Darwin",
+    "architecture": "arm64",
+    "service_kind": "launchd",
+    "artifact": {
+      "bootstrap_sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+      "installed_binary_sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+      "manifest_sha256": "f8306c552c362c8d47918159370eeb11ec31c451e5281536d2daef1baf09d0cc",
+      "prefix_inference": "up and agent add omit --prefix",
+      "test_trust_public_key_sha256": "6d97571d1683013aa688869fc50465c26fa28e9f86cf85474f1d80b6cc69a149"
+    },
+    "checks": {
+      "agent_add_preserves_owner_grant": true,
+      "bound_launchers": true,
+      "cleanup_verified": true,
+      "disposable_signer_removed": true,
+      "distinct_principals_and_sessions": true,
+      "installed_prefix_inference": true,
+      "no_initial_grants": true,
+      "owned_service_stopped_and_removed": true,
+      "repeat_preserves_daemon_pid": true,
+      "repeat_preserves_identity": true,
+      "selected_plan_read_only_before_daemon": true,
+      "test_signed_install": true,
+      "unrelated_settings_preserved": true,
+      "unselected_profiles_preserved": true
+    },
+    "harness_sha256": "71f4a6d8399986cddd1fef2840922e774e2d6b4971d0377ee2a3d7c89df6b6ec",
+    "limits": {
+      "native_client_execution": false,
+      "native_tool_discovery": false,
+      "production_release_trust": false,
+      "real_model": false,
+      "service_scope": "selected manager on this host",
+      "trust": "disposable test signer"
+    }
+  },
+  "native_clients": {
+    "evidence_level": "actual-native-client/scripted-loopback/test-signed-installed-daemon/synthetic-workspace",
+    "limitations": [
+      "No real model",
+      "No interactive human approval",
+      "No production publisher trust",
+      "One principal in worker/coordinator roles",
+      "Dedicated profile and fixed explicit Locust session"
+    ],
+    "harness_sources": [
+      {
+        "path": "scripts/check_installed_clients.py",
+        "sha256": "e9f9efbb63f9382b4d308c8ed1a64770dec1226409954c5b1f0d4b57e21ff7a1"
+      },
+      {
+        "path": "scripts/check_t2_clients.py",
+        "sha256": "6fc8547ad6ff042a878ab7f3833ca8fc2f34f5d97c2ece3875dabfae88531655"
+      },
+      {
+        "path": "scripts/check_clients.py",
+        "sha256": "19b39862eea85153d0ee2ce54d0a2f9c33724146650bc042c3995bced4703fa4"
+      },
+      {
+        "path": "scripts/client_qualification/__init__.py",
+        "sha256": "955015b6706262e7044355144f24f2d1ec711becdd576c29161263b369891d99"
+      },
+      {
+        "path": "scripts/client_qualification/acceptance_case.py",
+        "sha256": "da59fe8048d12546040a1c275876818c3634db186532b414bf3130c626e72b07"
+      },
+      {
+        "path": "scripts/client_qualification/acceptance_evidence.py",
+        "sha256": "296bfd41e807fd4955da2af6a4214716c32a28498a22f7353c562e15e86a0383"
+      },
+      {
+        "path": "scripts/client_qualification/collaboration_case.py",
+        "sha256": "6eb84e9d7e90960a967424880f9ba26f78c09d01235d9555320bcae718f5332a"
+      },
+      {
+        "path": "scripts/client_qualification/collaboration_evidence.py",
+        "sha256": "0cff5b2b7c1111b7f4e38859d588b0b1d54a3bf7267e84480b56b23a68fd3b15"
+      },
+      {
+        "path": "scripts/client_qualification/observe_mcp.py",
+        "sha256": "5621a5cadcda8b81119d100c53207b085d2345e8436fd38ffb80fa93fcb4a75d"
+      },
+      {
+        "path": "scripts/client_qualification/onboarding.py",
+        "sha256": "ac8d65f59a252f4b63218eb77b0b2f7d85529f57e0e2ee8ce82015843c620265"
+      },
+      {
+        "path": "scripts/client_qualification/production.py",
+        "sha256": "0c64651b89e37d6be8be8462c747e52be8df78909c21a1e3d3f5b9de96fd4708"
+      },
+      {
+        "path": "scripts/client_qualification/provider.py",
+        "sha256": "b9a28c925a5febb4a4b9b3a38f88775a81a3c74c99131d103476409ee8c8c849"
+      },
+      {
+        "path": "scripts/client_qualification/real_models.py",
+        "sha256": "2a5a604fb92d6c54171e8ab40868c91fa9bc7b60825f50e67023a333481553a9"
+      },
+      {
+        "path": "scripts/client_qualification/runtime.py",
+        "sha256": "efb836983ee2d2372e686dbdbff485643ef96d2e660936379ad5dabf532fc71a"
+      }
+    ],
+    "clients": [
+      {
+        "client": "codex",
+        "version": "codex-cli 0.153.4",
+        "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "counts": {
+          "pass": 25,
+          "not_run": 4
+        },
+        "assertions": {
+          "test_signed_install": {
+            "status": "pass",
+            "reason": "Trusted bootstrap verified disposable test signature and exact payload before activation"
+          },
+          "persistent_setup": {
+            "status": "pass",
+            "reason": "Installed up owns enrolled identity, skill, bound launcher and MCP entry; native discovery tested separately"
+          },
+          "setup_idempotent": {
+            "status": "pass",
+            "reason": "Repeated up and agent add preserve identity, session, credentials and launcher"
+          },
+          "onboarding_no_initial_grants": {
+            "status": "pass",
+            "reason": "Independent owner status sees exactly one enrolled principal without manage-goals permission before explicit fixture authorization"
+          },
+          "onboarding_retry_after_restart": {
+            "status": "pass",
+            "reason": "After daemon restart, up and agent add retain exact identity, secret hashes, launcher and owner grant"
+          },
+          "selected_profile_doctor": {
+            "status": "pass",
+            "reason": "Selected installation/profile checks pass before native startup and after restart; exact enrolled identity matches and model/discovery remain unverified"
+          },
+          "network_isolation": {
+            "status": "pass",
+            "reason": "OS guard permits loopback and denies external raw-IP connection; daemon has separate loopback/Unix guard"
+          },
+          "bound_cli_launcher": {
+            "status": "pass",
+            "reason": "Native client workspace driver used only up's launcher and --json; no executable/home/credential/session prefix supplied by the harness"
+          },
+          "automatic_skill_metadata": {
+            "status": "pass",
+            "reason": "Exact installed skill description observed in first provider request before any authored tool call; only hashes/booleans/paths retained"
+          },
+          "native_skill_read": {
+            "status": "pass",
+            "reason": "Completed native tool response contains the exact installed skill body; retained receipt has hash and match boolean only"
+          },
+          "registered_mcp_roundtrip": {
+            "status": "pass",
+            "reason": "Actual native MCP result plus durable daemon state through up-installed command, without registration overlays"
+          },
+          "default_read": {
+            "status": "pass",
+            "reason": "Native successful response independently verified"
+          },
+          "default_write": {
+            "status": "not_run",
+            "reason": "Exact observed default policy denial"
+          },
+          "permissive_read": {
+            "status": "pass",
+            "reason": "Native MCP response matches independently created goal and principal"
+          },
+          "permissive_write": {
+            "status": "pass",
+            "reason": "Native returned event ID independently resolves to expected committed note and author"
+          },
+          "claim": {
+            "status": "pass",
+            "reason": "Native claim matches fixed fixture instance and independently observed claim generation"
+          },
+          "progress": {
+            "status": "pass",
+            "reason": "Native progress event independently resolves to exact event ID, progress kind, attempt, text and author"
+          },
+          "workspace_native_tool": {
+            "status": "pass",
+            "reason": "Client native command must execute the authored driver; the harness does not materialize/edit/submit/apply on its behalf"
+          },
+          "contribution_flow": {
+            "status": "pass",
+            "reason": "Independent task/event/head/binding and file observations agree with actual client-produced contribution"
+          },
+          "selected_before_integrated": {
+            "status": "pass",
+            "reason": "Client-executed driver observed selected contribution while source remained unchanged and source integration still identified the base"
+          },
+          "dirty_work_preserved": {
+            "status": "pass",
+            "reason": "Independent file/HEAD checks preserve untracked local work and original commit"
+          },
+          "fresh_client_after_restart": {
+            "status": "pass",
+            "reason": "Fresh native process reads persisted state and commits new note through existing up binding after daemon restart and onboarding retry"
+          },
+          "daemon_restart": {
+            "status": "pass",
+            "reason": "Installed daemon retains exact goal state and endpoint across restart"
+          },
+          "setup_removal": {
+            "status": "pass",
+            "reason": "Independent config parse finds no Locust entry; skill, launcher, owner and pending journal are absent"
+          },
+          "unrelated_settings_preserved": {
+            "status": "pass",
+            "reason": "Original provider settings or unrelated sentinel survives client execution and removal"
+          },
+          "client_execution": {
+            "status": "pass",
+            "reason": "All native scenarios exited naturally with verified owned-process cleanup and no provider scripting errors"
+          },
+          "default_interactive_approval": {
+            "status": "not_run",
+            "reason": "Headless default policy only; no human approval interaction"
+          },
+          "real_model": {
+            "status": "not_run",
+            "reason": "Scripted local provider; no real model invoked"
+          },
+          "production_release_trust": {
+            "status": "not_run",
+            "reason": "Disposable test signer; no production publisher trust selected"
+          }
+        },
+        "installed_binary_sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+        "test_trust_public_key_sha256": "3f47a89f089d7e5f731b64bd616911b9ace8fc117b3cc6834e0e2221538577e1",
+        "production_release_trust": false
+      },
+      {
+        "client": "claude-code",
+        "version": "2.1.280 (Claude Code)",
+        "binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+        "counts": {
+          "pass": 24,
+          "not_run": 5
+        },
+        "assertions": {
+          "test_signed_install": {
+            "status": "pass",
+            "reason": "Trusted bootstrap verified disposable test signature and exact payload before activation"
+          },
+          "persistent_setup": {
+            "status": "pass",
+            "reason": "Installed up owns enrolled identity, skill, bound launcher and MCP entry; native discovery tested separately"
+          },
+          "setup_idempotent": {
+            "status": "pass",
+            "reason": "Repeated up and agent add preserve identity, session, credentials and launcher"
+          },
+          "onboarding_no_initial_grants": {
+            "status": "pass",
+            "reason": "Independent owner status sees exactly one enrolled principal without manage-goals permission before explicit fixture authorization"
+          },
+          "onboarding_retry_after_restart": {
+            "status": "pass",
+            "reason": "After daemon restart, up and agent add retain exact identity, secret hashes, launcher and owner grant"
+          },
+          "selected_profile_doctor": {
+            "status": "pass",
+            "reason": "Selected installation/profile checks pass before native startup and after restart; exact enrolled identity matches and model/discovery remain unverified"
+          },
+          "network_isolation": {
+            "status": "pass",
+            "reason": "OS guard permits loopback and denies external raw-IP connection; daemon has separate loopback/Unix guard"
+          },
+          "bound_cli_launcher": {
+            "status": "pass",
+            "reason": "Native client workspace driver used only up's launcher and --json; no executable/home/credential/session prefix supplied by the harness"
+          },
+          "automatic_skill_metadata": {
+            "status": "pass",
+            "reason": "Exact installed skill description observed in first provider request before any authored tool call; only hashes/booleans/paths retained"
+          },
+          "native_skill_read": {
+            "status": "pass",
+            "reason": "Completed native tool response contains the exact installed skill body; retained receipt has hash and match boolean only"
+          },
+          "registered_mcp_roundtrip": {
+            "status": "pass",
+            "reason": "Actual native MCP result plus durable daemon state through up-installed command, without registration overlays"
+          },
+          "default_read": {
+            "status": "not_run",
+            "reason": "Exact observed default policy denial"
+          },
+          "default_write": {
+            "status": "not_run",
+            "reason": "Exact observed default policy denial"
+          },
+          "permissive_read": {
+            "status": "pass",
+            "reason": "Native MCP response matches independently created goal and principal"
+          },
+          "permissive_write": {
+            "status": "pass",
+            "reason": "Native returned event ID independently resolves to expected committed note and author"
+          },
+          "claim": {
+            "status": "pass",
+            "reason": "Native claim matches fixed fixture instance and independently observed claim generation"
+          },
+          "progress": {
+            "status": "pass",
+            "reason": "Native progress event independently resolves to exact event ID, progress kind, attempt, text and author"
+          },
+          "workspace_native_tool": {
+            "status": "pass",
+            "reason": "Client native command must execute the authored driver; the harness does not materialize/edit/submit/apply on its behalf"
+          },
+          "contribution_flow": {
+            "status": "pass",
+            "reason": "Independent task/event/head/binding and file observations agree with actual client-produced contribution"
+          },
+          "selected_before_integrated": {
+            "status": "pass",
+            "reason": "Client-executed driver observed selected contribution while source remained unchanged and source integration still identified the base"
+          },
+          "dirty_work_preserved": {
+            "status": "pass",
+            "reason": "Independent file/HEAD checks preserve untracked local work and original commit"
+          },
+          "fresh_client_after_restart": {
+            "status": "pass",
+            "reason": "Fresh native process reads persisted state and commits new note through existing up binding after daemon restart and onboarding retry"
+          },
+          "daemon_restart": {
+            "status": "pass",
+            "reason": "Installed daemon retains exact goal state and endpoint across restart"
+          },
+          "setup_removal": {
+            "status": "pass",
+            "reason": "Independent config parse finds no Locust entry; skill, launcher, owner and pending journal are absent"
+          },
+          "unrelated_settings_preserved": {
+            "status": "pass",
+            "reason": "Original provider settings or unrelated sentinel survives client execution and removal"
+          },
+          "client_execution": {
+            "status": "pass",
+            "reason": "All native scenarios exited naturally with verified owned-process cleanup and no provider scripting errors"
+          },
+          "default_interactive_approval": {
+            "status": "not_run",
+            "reason": "Headless default policy only; no human approval interaction"
+          },
+          "real_model": {
+            "status": "not_run",
+            "reason": "Scripted local provider; no real model invoked"
+          },
+          "production_release_trust": {
+            "status": "not_run",
+            "reason": "Disposable test signer; no production publisher trust selected"
+          }
+        },
+        "installed_binary_sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+        "test_trust_public_key_sha256": "f27d191bfc6be5b343701cb30070c1a064eeee957abf1d3c1b7ee8dacc2e0423",
+        "production_release_trust": false
+      }
+    ]
+  },
+  "initial_public_artifact_verification": {
+    "checked_at": "2026-10-04T22:31:52.141764+00:00",
+    "authentication": "none",
+    "https_verification": "system-trust-default",
+    "latest_exact_match": true,
+    "artifacts": [
+      {
+        "file": "INSTALL.md",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/INSTALL.md",
+        "http_status": 200,
+        "bytes": 4530,
+        "sha256": "180727674d27d95ca612ed5ee56757f4dabb80d83ddb77d1b2c39eb596d0e399",
+        "matched": true
+      },
+      {
+        "file": "locust",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust",
+        "http_status": 200,
+        "bytes": 15869936,
+        "sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+        "matched": true
+      },
+      {
+        "file": "locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.dmg",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.dmg",
+        "http_status": 200,
+        "bytes": 8261012,
+        "sha256": "63033cc54b7b7cd29fd95ac1500a8dd39eaf57247d5c0330f7f7f2edb8f41505",
+        "matched": true
+      },
+      {
+        "file": "locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.tar.gz",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.tar.gz",
+        "http_status": 200,
+        "bytes": 7541898,
+        "sha256": "f50384186f7d4ddc83718c568829b906de7c841045b15e107c5efaa69e9d990f",
+        "matched": true
+      },
+      {
+        "file": "manifest.json",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/manifest.json",
+        "http_status": 200,
+        "bytes": 618,
+        "sha256": "f8306c552c362c8d47918159370eeb11ec31c451e5281536d2daef1baf09d0cc",
+        "matched": true
+      },
+      {
+        "file": "manifest.sig",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/manifest.sig",
+        "http_status": 200,
+        "bytes": 64,
+        "sha256": "743c657a9bc25b3e12525b668916fb4ac376dd905a894bd809a8472aeb662bb0",
+        "matched": true
+      },
+      {
+        "file": "trust.pub",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/trust.pub",
+        "http_status": 200,
+        "bytes": 32,
+        "sha256": "ce02bb70439f130406ea1d7febc6ced4c273427fde0a1bbbfe6126abb1b45cd3",
+        "matched": true
+      },
+      {
+        "file": "withdrawals.json",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/withdrawals.json",
+        "http_status": 200,
+        "bytes": 79,
+        "sha256": "2135733ab4b2baff61934537c3ea9157f56db75501857f2f688a3e5e25398cc8",
+        "matched": true
+      },
+      {
+        "file": "withdrawals.json.sig",
+        "url": "https://locust.farm/downloads/0.1.0-cd65921d8a0f/withdrawals.json.sig",
+        "http_status": 200,
+        "bytes": 64,
+        "sha256": "2a833c6fe05016204dfa224e28f633d5bca61fe608c191b5c26ba00feabb4319",
+        "matched": true
+      }
+    ],
+    "release_and_checksums_exact_match": true
+  },
+  "public_installer_verification": {
+    "checked_at_utc": "2026-10-04T22:42:59Z",
+    "unauthenticated_https": [
+      {
+        "url": "https://locust.farm/downloads/install.md",
+        "bytes": 3310,
+        "sha256": "1df8c2ec40ab233310be37fe7f8c57b52549bcd9df44650fd21b5757337ff3a0"
+      },
+      {
+        "url": "https://locust.farm/downloads/install.sh",
+        "bytes": 7409,
+        "sha256": "29cf0b0e2cb7612df477d2e89053fc3f0f6346ce07615a2511a43c4a89a38117"
+      },
+      {
+        "url": "https://locust.farm/downloads/latest.json",
+        "bytes": 3920,
+        "sha256": "1cd03ed29f9ff96d1efe7ce9ac1635e229f1c7313ebbd97dd3604f8f8dc96302"
+      },
+      {
+        "url": "https://locust.farm/downloads/withdrawals.json",
+        "bytes": 79,
+        "sha256": "2135733ab4b2baff61934537c3ea9157f56db75501857f2f688a3e5e25398cc8"
+      },
+      {
+        "url": "https://locust.farm/downloads/withdrawals.json.sig",
+        "bytes": 64,
+        "sha256": "2a833c6fe05016204dfa224e28f633d5bca61fe608c191b5c26ba00feabb4319"
+      }
+    ],
+    "curl_pipeline": {
+      "plan_wrote_no_selected_destinations": true,
+      "installation_passed": true,
+      "repeat_installation_changed": false,
+      "cli_link_matches": true,
+      "binary_sha256": "e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884",
+      "version": "locust 0.1.0 (cd65921d8a0f) api 4 protocol 4",
+      "explicit_disposable_prefix": true,
+      "personal_client_configuration_changed": false,
+      "service_started": false
+    }
+  },
+  "promotion": {
+    "immutable_release_path": "/var/www/locust.farm/downloads/0.1.0-cd65921d8a0f",
+    "staging_outside_public_downloads": true,
+    "remote_artifact_inventory_and_sha256": "passed before promotion",
+    "latest_metadata_promoted_last": true,
+    "lock": "flock /var/www/locust.farm/.release-publication.lock",
+    "nginx_config_change_commit": "49e25ae",
+    "nginx_syntax_and_reload": "passed",
+    "public_downloads_authentication": "none",
+    "website_pages_authentication": "unchanged HTTP Basic authentication",
+    "private_git_source_visibility": "unchanged",
+    "source_git_push": "not performed"
+  },
+  "remaining_boundaries": [
+    "macOS Apple Silicon only; Linux build evidence is separate and no Linux download was published.",
+    "No new real-model or interactive human approval qualification on these exact release bytes.",
+    "Native client installation campaigns use disposable test trust; production trust is established by the independent signed package/public curl checks.",
+    "The formation editor copied prompt and full public first-contact harness journey remain unqualified; website preview pages remain authenticated.",
+    "One-host qualification does not establish independent accounts, physical-network recovery, sleep/wake or full production release gates.",
+    "The exact packaged manual preserves source-time publication status; the current published-preview record supersedes its availability snapshot."
+  ],
+  "release_status_site_verification": {
+    "staged_tree": "e27028be354fad7288d525d8b6552a98d9c4b7e3",
+    "results": [
+      {
+        "command": "npm run lint",
+        "exit_code": 0
+      },
+      {
+        "command": "npm run check",
+        "exit_code": 0
+      },
+      {
+        "command": "npm run test",
+        "exit_code": 0
+      },
+      {
+        "command": "npm run build",
+        "exit_code": 0
+      }
+    ],
+    "dependencies": "APFS copy of installed dependencies, not a shared symlink",
+    "tests": {
+      "total": 179,
+      "passed": 178,
+      "skipped": 1,
+      "failed": 0
+    },
+    "built_routes": 89,
+    "raw_articles": 18,
+    "exact_assets": 10,
+    "shared_checkout": {
+      "lint": "failed in concurrent Farm dashboard files, after owned formatting was fixed",
+      "type_check": "27 errors in 3 concurrent Farm dashboard files",
+      "other_work_included": false
+    },
+    "later_changes": "Documentation-only clarification and this verification record; tested site code and availability facts unchanged."
+  }
+}

@@ -16,6 +16,7 @@ pub mod contribution;
 pub mod crypto;
 pub mod engine;
 pub mod event;
+pub mod farm;
 pub mod id;
 pub mod invite;
 pub mod limits;
@@ -32,7 +33,7 @@ mod vectors;
 
 /// Version byte carried by every signed header and invitation. A peer that
 /// sees another value reports an unsupported version instead of guessing.
-pub const PROTOCOL_VERSION: u8 = 4;
+pub const PROTOCOL_VERSION: u8 = 5;
 
 /// Version of the local daemon API spoken over the Unix socket.
-pub const API_VERSION: u16 = 4;
+pub const API_VERSION: u16 = 5;

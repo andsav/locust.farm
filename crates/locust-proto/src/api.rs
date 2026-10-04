@@ -391,6 +391,32 @@ pub struct ResponseFrame {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub enum Request {
+    #[serde(rename = "farm.on")]
+    FarmOn {
+        goal: GoalId,
+        base_url: String,
+        listed: bool,
+        title: Option<String>,
+        formation: String,
+        stage_labels: BTreeMap<String, String>,
+        role_labels: BTreeMap<String, String>,
+        recent_changes: u32,
+    },
+    #[serde(rename = "farm.off")]
+    FarmOff { goal: GoalId },
+    #[serde(rename = "farm.show")]
+    FarmShow { goal: GoalId },
+    #[serde(rename = "farm.status")]
+    FarmStatus,
+    #[serde(rename = "farm.consent")]
+    FarmConsent {
+        goal: GoalId,
+        agent: PublicKey,
+        accept: bool,
+        name: Option<String>,
+        group_label: Option<String>,
+    },
+
     #[serde(rename = "status")]
     Status,
     #[serde(rename = "daemon.stop")]
@@ -801,6 +827,11 @@ macro_rules! operations {
 }
 
 operations! {
+    FarmOn { .. } => ("farm.on", false, true, Owner, false, "Enable owner-approved farm publication"),
+    FarmOff { .. } => ("farm.off", false, true, Owner, false, "Disable and delete farm publication"),
+    FarmShow { .. } => ("farm.show", true, true, Owner, false, "Preview public farm data and consent"),
+    FarmStatus => ("farm.status", true, false, Owner, false, "Show farm publication status"),
+    FarmConsent { .. } => ("farm.consent", false, true, Owner, false, "Approve a local public profile"),
     Status => ("status", true, false, Agent, true, "status"),
     Shutdown => ("daemon.stop", false, false, Owner, false, "daemon stop"),
     AgentEnroll { .. } => ("agent.enroll", false, false, Owner, false, "agent enroll"),
@@ -887,6 +918,11 @@ impl Request {
     }
     pub fn goal(&self) -> Option<GoalId> {
         match self {
+            Self::FarmOn { goal, .. }
+            | Self::FarmOff { goal }
+            | Self::FarmShow { goal }
+            | Self::FarmConsent { goal, .. } => Some(*goal),
+            Self::FarmStatus => None,
             Self::Status => None,
             Self::Shutdown => None,
             Self::AgentEnroll { .. } => None,
@@ -995,6 +1031,11 @@ impl Request {
     }
     pub fn is_answered_by(&self, response: &Response) -> bool {
         match self {
+            Self::FarmStatus => matches!(response, Response::Farms(_)),
+            Self::FarmOn { .. }
+            | Self::FarmOff { .. }
+            | Self::FarmShow { .. }
+            | Self::FarmConsent { .. } => matches!(response, Response::FarmPreview(_)),
             Self::Status => matches!(response, Response::Status(_)),
             Self::Context { .. } => matches!(response, Response::Context(_)),
             Self::ContextAcknowledge { .. } => matches!(response, Response::ContextAcknowledged(_)),
@@ -1119,6 +1160,7 @@ pub fn contract() -> serde_json::Value {
         "request_schema": request_schema(),
         "response_schema": schema_for!(Response),
         "event_schema": schema_for!(crate::event::Body),
+        "farm_snapshot": crate::farm::snapshot_schema(),
         "error_schema": schema_for!(ApiError),
     })
 }
@@ -1127,6 +1169,8 @@ pub fn contract() -> serde_json::Value {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Response {
+    FarmPreview(crate::farm::FarmPreview),
+    Farms(Vec<crate::farm::FarmStatus>),
     /// The request succeeded and has nothing to return.
     Done,
     /// Answers `status`.
@@ -1651,6 +1695,8 @@ pub struct SessionCapabilities {
 /// or the owner reads it; `detail` is the adapter's own.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SessionRecord {
+    /// Canonical adapter report, approved for public display only by local consent.
+    pub harness: crate::farm::Harness,
     /// The client and its version as the adapter reports them, for example
     /// `claude-code 2.1.0`. At most [`MAX_LOCAL_TEXT_BYTES`].
     pub client: String,

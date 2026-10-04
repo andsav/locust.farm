@@ -1,6 +1,6 @@
 # Local API, MCP and event reference
 
-**Status: implemented development API 4 / protocol 4; no public release.**
+**Status: implemented development API 5 / protocol 5.** The published terminal preview is a separate API-4 artifact; see [availability](status.md).
 The tables below are generated from the Rust request, response and event types,
 operation registry and actual CLI command builder. Download the
 [full runtime contract](../reference/generated/runtime.contract.json), or run

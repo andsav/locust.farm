@@ -86,6 +86,21 @@ pub trait Engine {
     fn failure(&self) -> Option<ApiError> {
         None
     }
+
+    /// Materialize due publication requests after recording their exact signed
+    /// bytes durably. The shell performs HTTP outside the single-writer thread.
+    fn farm_poll(&mut self, _now_ms: u64) -> Vec<crate::farm::FarmUpload> {
+        Vec::new()
+    }
+
+    /// Reconcile a transport result with the same durable publication intent.
+    fn farm_complete(
+        &mut self,
+        _result: crate::farm::FarmUploadResult,
+        _now_ms: u64,
+    ) -> Result<(), ApiError> {
+        Ok(())
+    }
 }
 
 /// One exchange with a peer daemon: one bidirectional stream of

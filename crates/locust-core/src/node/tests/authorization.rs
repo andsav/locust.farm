@@ -101,6 +101,7 @@ fn fabricated_join_intent_never_grants_read_access_on_a_shared_daemon() {
     assert!(daemon.node.goals[&goal].membership(&intruder).is_none());
     // Remote join intent and refused intent both preserve no plaintext authority.
     let mut join = crate::node::local::JoinRecord {
+        publication: None,
         administrator: forged.administrator,
         endpoint: forged.endpoint,
         hints: vec![],

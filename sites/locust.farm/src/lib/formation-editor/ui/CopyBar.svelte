@@ -40,7 +40,12 @@
 </script>
 
 <div class="copy">
-	<button type="button" class="primary" onclick={copy} disabled={!prompt || blocked !== null}>
+	<button
+		type="button"
+		class="button primary"
+		onclick={copy}
+		disabled={!prompt || blocked !== null}
+	>
 		<Icon name={copied ? 'check' : 'copy'} size={16} />
 		{copied ? 'Copied' : 'Copy prompt'}
 	</button>
@@ -55,31 +60,8 @@
 		align-items: center;
 	}
 
-	.primary {
-		display: flex;
+	.button {
 		flex: 1 0 auto;
-		justify-content: center;
-		gap: 0.5rem;
-		align-items: center;
-		min-height: 2.5rem;
-		padding: 0 1rem;
-		border: 1px solid var(--color-accent);
-		background: var(--color-accent);
-		color: var(--color-bg);
-		font: var(--text-ui-heading);
-		white-space: nowrap;
-		cursor: pointer;
-	}
-
-	.primary:hover:not(:disabled) {
-		border-color: var(--color-text);
-	}
-
-	.primary:disabled {
-		border-color: var(--color-border);
-		background: transparent;
-		color: var(--color-text-faint);
-		cursor: not-allowed;
 	}
 
 	.status {

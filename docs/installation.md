@@ -16,6 +16,15 @@ and `agent add` to compose service readiness, protected enrollment/session files
 and reviewed client setup. The lower-level commands below remain available for
 existing explicit bindings.
 
+## Published preview
+
+The [public macOS Apple Silicon installer](https://locust.farm/downloads/install.sh)
+verifies the publisher and package before activation. The [public installation
+guide](https://locust.farm/downloads/install.md) and [first-contact prompt](first-contact.md)
+cover install/update without access to the authenticated website. The candidate
+procedure below remains useful for explicitly supplied bundles. Public software,
+source-only adapter additions and real-model readiness are separate claims.
+
 ## Trust and software activation
 
 The [package verifier](../crates/locust/src/package.rs) verifies the exact manifest
@@ -158,7 +167,11 @@ bound CLI launcher, a local copy of the signed skill with its launcher prefix,
 and one `locust` stdio server into an explicitly selected
 client profile. Supported targets are Codex (`.codex/config.toml` and
 `.agents/skills/locust`), Claude Code (`.claude.json` and `.claude/skills/locust`),
-and Pi (`.pi/agent/mcp.json` and `.pi/agent/skills/locust`). Those are the clients'
+Pi (`.pi/agent/mcp.json` and `.pi/agent/skills/locust`), and Droid
+(`.factory/mcp.json` and `.factory/skills/locust`). The portable `shell` target
+uses `.local/share/locust-agent/` for its skill, bound CLI and MCP connection
+descriptor; it does not register a server with an unknown client. Droid and shell
+are source additions: inspect the installed `up --help` before selecting them. Those are the clients'
 user-profile locations; project/ancestor collisions are checked for the selected
 workspace. Managed organization policy remains authoritative. See the official
 [Codex MCP](https://developers.openai.com/codex/mcp),

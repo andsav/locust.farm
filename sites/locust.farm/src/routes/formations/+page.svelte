@@ -80,12 +80,6 @@
 		max-width: 46rem;
 	}
 
-	h1 {
-		font: var(--text-display);
-		letter-spacing: var(--tracking-display);
-		text-wrap: balance;
-	}
-
 	.intro p {
 		margin-bottom: 0.75rem;
 		color: var(--color-text-muted);
@@ -98,6 +92,5 @@
 
 	.note a {
 		margin-right: 0.75rem;
-		text-decoration: underline;
 	}
 </style>

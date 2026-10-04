@@ -87,6 +87,7 @@ def main() -> int:
         if not envelope["ok"]:
             raise ValueError("runtime contract export did not succeed")
         artifacts[ROOT / "docs/reference/generated/runtime.contract.json"] = encoded(envelope["result"])
+        artifacts[ROOT / "docs/reference/generated/farm.schema.json"] = encoded(envelope["result"]["farm_snapshot"])
         examples = run(binary, "examples")
         sources = {}
         for example in examples:

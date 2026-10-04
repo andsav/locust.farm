@@ -1,6 +1,6 @@
 # locust.farm
 
-The Locust marketing site: prerendered SvelteKit marketing pages and development documentation. `/` says what Locust is for, `/start` is the first-contact guide with
+The Locust site: prerendered SvelteKit marketing pages, development documentation and live farm views. `/` says what Locust is for, `/start` is the first-contact guide with
 the entry prompt, `/formations` is the formation editor, and `/docs` indexes the unreleased manual. It is a
 self-contained npm project with its own `package.json` and `node_modules`.
 
@@ -28,6 +28,7 @@ src/lib/components/  Svelte components
 src/lib/onboarding/  The guide's content and the clipboard helper, in plain TypeScript
 src/lib/site.ts      Header links
 src/lib/swarm/       The swarm animation, in plain TypeScript
+src/lib/farm/        Public farm views, shared stage map, live client and generated public types
 static/              Files served as they are
 ```
 
@@ -36,33 +37,68 @@ example `#lib/swarm/swarm.ts`.
 
 ## Design system
 
-[`tokens.css`](src/lib/styles/tokens.css) is the single source of design values, as
-CSS custom properties in two tiers: a palette of raw values, and roles that refer to
-the palette. Components use roles only.
+The design system has three layers, all in [`src/lib/styles/`](src/lib/styles/) and
+loaded once by the root layout. Use them before writing new styles; a page or
+component adds only what is its own.
+
+1. [`tokens.css`](src/lib/styles/tokens.css) is the single source of design values, as
+   CSS custom properties in two tiers: a palette of raw values, and roles that refer
+   to the palette. Styles use roles only.
+2. [`base.css`](src/lib/styles/base.css) holds element defaults: the body text, the
+   three heading levels, code, links, the focus ring and the selection.
+3. [`components.css`](src/lib/styles/components.css) holds shared components as
+   classes, and [`prose.css`](src/lib/styles/prose.css) styles text rendered from
+   Markdown under `.prose`.
+
+[`fonts.css`](src/lib/styles/fonts.css) declares the three self-hosted font faces.
+
+Tokens:
 
 - **Color**: `--color-bg`, `--color-text` and its `-muted`, `-subtle` and `-faint`
-  steps, `--color-border`, `--color-accent`. The formation editor adds
-  `--color-panel`, `--color-surface` and `--color-surface-hover` for its layers. The
-  `--swarm-*` roles color the canvas.
-- **Type**: three families, `--font-mono` (Martian Mono) for text, `--font-display`
-  (Major Mono Display) for the headline and `--font-sans` (Geist) for interface text
-  in the site header and the formation editor. Each text style is a `font` shorthand (`--text-display`,
-  `--text-body`, `--text-code`, `--text-label`, and `--text-ui`, `--text-ui-heading`
-  and `--text-ui-small` in the editor) with a matching `--tracking-*` where the style
-  needs one. In the editor, mono is kept for identifiers and code: role names and the
-  prompt.
+  steps, `--color-border`, `--color-accent`. Layers above the page are
+  `--color-panel`, `--color-surface` and `--color-surface-hover`. The `--swarm-*`
+  roles color the canvas.
+- **Type**: three families. `--font-sans` (Geist) is for all text, `--font-display`
+  (Major Mono Display) for each page's headline, and `--font-mono` (Martian Mono) for
+  code, identifiers such as role names, the wordmark and labels. Each text style is a
+  `font` shorthand: `--text-display`, `--text-title`, `--text-subtitle` and
+  `--text-body` for pages; `--text-ui`, `--text-ui-heading` and `--text-ui-small` for
+  controls, navigation and forms; `--text-code`; and `--text-label` with
+  `--tracking-label` for short uppercase labels.
 - **Space**: `--space-N`, where N is the size in pixels at the default root size.
 - **Layout**: `--gutter-inline`, `--gutter-block-end`, `--measure-display`,
-  `--measure-body`, `--border-hairline`. The formation editor rounds its corners with
-  `--radius-panel` and `--radius-control`, and lifts menus with `--shadow-popover`.
+  `--measure-body`, `--border-hairline`.
+- **Shape and motion**: `--radius-panel` for cards and panels, `--radius-control` for
+  controls, `--shadow-popover` for menus and tooltips, `--duration-fast` and
+  `--duration-slow`.
 - **Text over the swarm**: `--text-halo`, a `text-shadow` in the background color
   that dims the swarm right around the letterforms so text stays readable as it
   passes behind. Apply it to any text placed over the canvas.
 
-[`fonts.css`](src/lib/styles/fonts.css) declares the three self-hosted font faces, and
-[`base.css`](src/lib/styles/base.css) holds element defaults (links, focus ring,
-selection). Everything else is scoped to the component that uses it. Sizes are in
-`rem`, so the page follows the reader's text size.
+Element defaults: `h1` is the display headline, `h2` a section title, `h3` a small
+heading. A link inside running text is underlined; a link that stands alone is not.
+
+Components:
+
+| Class                        | Use                                                                  |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `.button`                    | A button, or a link that acts as one.                                |
+| `.button.primary`            | The one main action of a page or panel.                              |
+| `.button.quiet`              | An action beside a stronger one, or in text.                         |
+| `.icon-button`               | A square button that holds one icon.                                 |
+| `.input`, `.field`, `.label` | A form field, and a label above it.                                  |
+| `.card`                      | A raised block that groups content; as a link, it has hover.         |
+| `.well`                      | Text to read exactly or copy: a prompt or a block of code.           |
+| `.eyebrow`                   | A short uppercase label above a title.                               |
+| `.accent`                    | The accent color on a word or mark.                                  |
+| `.skip-link`                 | The link that jumps past navigation on a long page.                  |
+| `.prose`                     | Long-form text rendered from Markdown.                               |
+| `.ui`                        | On a container: bare buttons and fields inside take the shared look. |
+
+The formation editor is a `.ui` container, so its buttons and fields need no class.
+A component's scoped styles always override a shared class.
+
+Sizes are in `rem`, so the page follows the reader's text size.
 
 Add a token only when something uses it, and add a palette value before a role that
 needs it.
@@ -131,15 +167,21 @@ The script builds committed `HEAD` in a temporary clean checkout, runs all four
 site gates, uploads a release to `/var/www/locust.farm/releases/<commit>`, verifies
 its SHA-256 inventory on the server, and atomically switches `current`. Uncommitted
 work is excluded. It requires the initial server provisioning below and checks
-that public requests receive HTTP 401. Authenticated content and browser behavior
+that unauthenticated requests to the preview pages receive HTTP 401. Authenticated content and browser behavior
 must also be verified after each deployment. Earlier releases remain available
 for rollback by changing the `current` symlink.
 
 [`ops/nginx.conf`](ops/nginx.conf) serves both `locust.farm` and `www.locust.farm`,
 redirects HTTP to HTTPS, maps extensionless routes to prerendered HTML and returns
-404 for unknown routes. Basic Auth applies to website pages and assets, with
+404 for unknown routes, apart from the client-rendered `/farm/<id>` shell. Basic Auth applies to preview pages, with
 `private, no-store` and `noindex, nofollow` response headers. HTTP ACME challenges
 are public, from `/var/www/letsencrypt`.
+
+Farm pages, the gallery, their shared client assets and `/api/farms` are public.
+The API proxies to the separate `locust-farm` process. See the
+[farm operator guide](ops/README.md) for its installation and verification.
+The deployment script's preview authentication checks do not establish that the
+farm service, event stream or hydrated public routes work; verify those separately.
 
 The HTTPS `/downloads/` path is separately public and serves release files from
 `/var/www/locust.farm/downloads/`, outside the website's `current` symlink. It has
@@ -160,6 +202,25 @@ The password file is `/etc/nginx/locust.farm.htpasswd`, owned by `root:www-data`
 with mode `0640`. Provision it using `htpasswd -cB` with an interactive password
 prompt or stdin; keep credentials and password hashes off Git. DNS needs an apex
 A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
+
+## Live farms
+
+`/farm/<id>` loads a full public snapshot and subscribes to ordered full-state SSE
+updates. `/farms` displays only listed, available farms. Both use the same stage
+map, with the task table supplying the complete keyboard-readable detail. Data
+comes from the API; the production routes contain no mock farms.
+
+For local development, run `locust-farm serve` on `127.0.0.1:4319` and start the
+site with `npm run dev`. `LOCUST_FARM_API` overrides that proxy target. The static
+adapter generates `farm.html` for dynamic farm URLs. Nginx routes only `/farm/`
+through that fallback; unrelated unknown paths retain their normal 404 behavior.
+
+The Rust `FarmSnapshot` schema is exported to
+`docs/reference/generated/farm.schema.json`. After changing it, run
+`node scripts/generate-farm-types.mjs --write` here. Unit tests reject generated
+type drift. Runtime schema validation is enforced by the Rust service before it
+persists any snapshot. The local publication commands and consent workflow are
+documented in [Public farm views](../../docs/guide/farm-publication.md).
 
 ## Formation editor
 

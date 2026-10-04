@@ -21,6 +21,7 @@ pub(super) fn discover(profile_home: &Path, search_path: Option<&OsStr>) -> Vec<
         (Client::Codex, "codex"),
         (Client::Claude, "claude"),
         (Client::Pi, "pi"),
+        (Client::Droid, "droid"),
     ]
     .into_iter()
     .map(|(client, command)| {
@@ -124,6 +125,11 @@ mod tests {
                 ".pi/agent/mcp.json",
                 ".pi/agent/skills/locust/SKILL.md",
             ),
+            (
+                Client::Droid,
+                ".factory/mcp.json",
+                ".factory/skills/locust/SKILL.md",
+            ),
         ];
         assert_eq!(candidates.len(), expected.len());
         for (candidate, (client, config, skill)) in candidates.iter().zip(expected) {
@@ -146,11 +152,14 @@ mod tests {
         let (codex_config, _, _) = profile_paths(Client::Codex, &profile);
         let (claude_config, _, _) = profile_paths(Client::Claude, &profile);
         let (_, pi_skill, _) = profile_paths(Client::Pi, &profile);
+        let (droid_config, _, _) = profile_paths(Client::Droid, &profile);
         fs::create_dir_all(codex_config.parent().unwrap()).unwrap();
         fs::write(&codex_config, b"unreadable configuration\xff").unwrap();
         fs::set_permissions(&codex_config, fs::Permissions::from_mode(0o000)).unwrap();
         symlink("absent-config", &claude_config).unwrap();
         fs::create_dir_all(&pi_skill).unwrap();
+        fs::create_dir_all(droid_config.parent().unwrap()).unwrap();
+        fs::write(&droid_config, b"{}").unwrap();
         let binary = directory.path().join("bin/codex");
         executable(&binary);
         let marker = directory.path().join("executed");
