@@ -299,10 +299,15 @@ def install(profile, args):
     require(status["installed"] and not status["withdrawn"] and
             status["manifest_sha256"] == digest(bundle / "manifest.json") and
             digest(installed) == digest(bundle / "locust"), "Installed artifact provenance mismatch")
+    import build_release
+    manual = prefix / "current/manual.tar"
+    build_release.verify_manual(manual.read_bytes(), status["manifest"]["source_commit"],
+                                status["manifest"]["protocol_version"], status["manifest"]["api_version"])
     return prefix, installed, {"bootstrap_path": str(args.bootstrap), "bootstrap_sha256": digest(args.bootstrap),
         "manifest_sha256": status["manifest_sha256"], "manifest": status["manifest"],
         "installed_path": str(installed), "installed_binary_sha256": digest(installed),
         "skill_sha256": digest(prefix / "current/skills/locust/SKILL.md"),
+        "manual_sha256": digest(manual), "manual_read_without_checkout": True,
         "test_trust_public_key_sha256": digest(public), "production_release_trust": False}
 
 
@@ -421,7 +426,7 @@ def qualify(client, binary, args):
                     pending = daemon.call(["pending", "--goal", daemon.goal])["pending"]
                     claim = next(c for c in pending["claimed"] if c["task"] == work["task"])
                     independent_claims.append(claim.copy())
-                    return {"goal": daemon.goal, "attempt": claim["attempt"], "generation": claim["generation"], "status": "progress", "summary": "installed-progress-" + client}
+                    return {"goal": daemon.goal, "attempt": claim["attempt"], "generation": claim["generation"], "status": "progress", "text": "installed-progress-" + client}
 
                 active, ae = execute("permissive", [skill_read_step(client, skill_path), workflow.step(workflow.READ, {"goal": daemon.goal}),
                     workflow.step(workflow.WRITE, {"goal": daemon.goal, "artifacts": [], "summary": "installed-permissive-" + client}),

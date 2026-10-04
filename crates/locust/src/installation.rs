@@ -553,6 +553,7 @@ pub fn uninstall(prefix: &Path, expected: &str) -> Result<Value, Failure> {
                 for file in [
                     package::BINARY,
                     package::SKILL,
+                    package::MANUAL,
                     package::MANIFEST,
                     package::SIGNATURE,
                 ] {

@@ -26,7 +26,7 @@ import time
 
 from check_t1 import CheckFailure, redact, variant
 
-PAYLOADS = ("locust", "skills/locust/SKILL.md", "manifest.json")
+PAYLOADS = ("locust", "skills/locust/SKILL.md", "manual.tar", "manifest.json")
 
 
 def require(condition, message):
@@ -542,7 +542,8 @@ class InstallationCheck:
         manifest = verified["manifest_sha256"]
         require(manifest == self.summary["candidate"]["manifest_sha256"], "verified manifest identity differs from copied bytes")
         for name, relative, expected in (("signature", "manifest.sig", "denied"),
-                                        ("payload", "skills/locust/SKILL.md", "corrupted")):
+                                        ("payload", "skills/locust/SKILL.md", "corrupted"),
+                                        ("manual", "manual.tar", "corrupted")):
             bad = self.root / ("bad-" + name)
             copy_bundle(self.bundle, bad, signed=True)
             (bad / relative).write_bytes(b"x" * 64 if name == "signature" else b"tampered skill")
@@ -555,6 +556,13 @@ class InstallationCheck:
         self.apply(plan)
         self.unchanged(manifest)
         require(digest(self.installed) == self.summary["candidate"]["binary_sha256"], "installed bytes differ from candidate")
+        import build_release
+        installed_manual = self.prefix / "current/manual.tar"
+        identity = build_release.verify_manual(installed_manual.read_bytes(),
+            verified["manifest"]["source_commit"], verified["manifest"]["protocol_version"],
+            verified["manifest"]["api_version"])
+        self.passed("installed_manual_read_without_checkout", source_commit=identity["source_commit"],
+                    files=len(identity["files"]), sha256=digest(installed_manual))
         require(self.apply()["changed"] is False, "repeat install was not idempotent")
         self.passed("verified_native_install_repeat", manifest_sha256=manifest,
                     real_version_probe=True, installed_binary_bytes=self.installed.stat().st_size)

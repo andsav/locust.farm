@@ -18,10 +18,11 @@ fn fixture(base: &Path, version: &str, seq: u64) -> Verified {
     };
     package::create_file(&root.join(package::BINARY), &binary, 0o755).unwrap();
     package::create_file(&root.join(package::SKILL), b"skill", 0o644).unwrap();
-    let bytes = serde_json::to_vec(&json!({"format":"locust-release-v1","source_commit":"c".repeat(40),"version":version,
+    package::create_file(&root.join(package::MANUAL), b"manual", 0o644).unwrap();
+    let bytes = serde_json::to_vec(&json!({"format":"locust-release-v2","source_commit":"c".repeat(40),"version":version,
         "target":target,"machine_format":format,"api_version":locust_proto::API_VERSION,"protocol_version":locust_proto::PROTOCOL_VERSION,
         "toolchain":"1.96.1","files":[{"path":package::BINARY,"sha256":package::sha256(&binary),"size":binary.len(),"mode":493},
-        {"path":package::SKILL,"sha256":package::sha256(b"skill"),"size":5,"mode":420}]})).unwrap();
+        {"path":package::SKILL,"sha256":package::sha256(b"skill"),"size":5,"mode":420},{"path":package::MANUAL,"sha256":package::sha256(b"manual"),"size":6,"mode":420}]})).unwrap();
     let registry = serde_json::to_vec(
         &json!({"format":"locust-withdrawals-v1","sequence":seq,"withdrawn_manifest_sha256":[]}),
     )
@@ -58,6 +59,10 @@ fn reviewed_install_repeat_upgrade_and_uninstall_preserve_data_and_policy() {
     assert_eq!(install(&prefix, &one)["changed"], true);
     assert_eq!(install(&prefix, &one)["changed"], false);
     assert_eq!(status(&prefix).unwrap()["installed"], true);
+    assert_eq!(
+        fs::read(prefix.join("current/manual.tar")).unwrap(),
+        b"manual"
+    );
     let data = dir.path().join("daemon-identity");
     fs::write(&data, b"keep").unwrap();
     let two = fixture(dir.path(), "0.2.0", 2);
@@ -78,6 +83,13 @@ fn reviewed_install_repeat_upgrade_and_uninstall_preserve_data_and_policy() {
         true
     );
     assert_eq!(fs::read(data).unwrap(), b"keep");
+    assert!(
+        !prefix
+            .join("releases")
+            .read_dir()
+            .unwrap()
+            .any(|entry| entry.unwrap().path().join("manual.tar").exists())
+    );
     assert!(prefix.join(POLICY).exists());
     assert!(
         plan(&prefix, &one, true).is_err(),

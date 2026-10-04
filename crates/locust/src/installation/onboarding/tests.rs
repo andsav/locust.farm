@@ -153,15 +153,17 @@ fn install_stub(prefix: &Path, root: &Path) {
     let skill = b"signed skill";
     package::create_file(&root.join(package::BINARY), &binary, 0o755).unwrap();
     package::create_file(&root.join(package::SKILL), skill, 0o644).unwrap();
+    package::create_file(&root.join(package::MANUAL), b"manual", 0o644).unwrap();
     let manifest = encode(&json!({
-        "format":"locust-release-v1", "source_commit":"c".repeat(40),
+        "format":"locust-release-v2", "source_commit":"c".repeat(40),
         "version":"0.1.0", "target":target, "machine_format":format,
         "api_version":locust_proto::API_VERSION,
         "protocol_version":locust_proto::PROTOCOL_VERSION,
         "toolchain":"1.96.1",
         "files":[
             {"path":package::BINARY,"sha256":package::sha256(&binary),"size":binary.len(),"mode":493},
-            {"path":package::SKILL,"sha256":package::sha256(skill),"size":skill.len(),"mode":420}
+            {"path":package::SKILL,"sha256":package::sha256(skill),"size":skill.len(),"mode":420},
+            {"path":package::MANUAL,"sha256":package::sha256(b"manual"),"size":6,"mode":420}
         ]
     })).unwrap();
     let withdrawals = encode(&json!({

@@ -15,6 +15,7 @@ use std::path::{Component, Path, PathBuf};
 pub const MANIFEST: &str = "manifest.json";
 pub const SIGNATURE: &str = "manifest.sig";
 pub const BINARY: &str = "locust";
+pub const MANUAL: &str = "manual.tar";
 pub const SKILL: &str = "skills/locust/SKILL.md";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -169,7 +170,7 @@ fn exact_bytes<const N: usize>(mut reader: impl Read) -> Result<[u8; N], Failure
 pub fn validate_manifest(bytes: &[u8]) -> Result<Manifest, Failure> {
     let manifest: Manifest =
         serde_json::from_slice(bytes).map_err(|_| invalid("invalid release manifest"))?;
-    if manifest.format != "locust-release-v1"
+    if manifest.format != "locust-release-v2"
         || !is_hex(&manifest.source_commit, &[40, 64])
         || semver::Version::parse(&manifest.version).is_err()
         || manifest.toolchain.is_empty()
@@ -188,14 +189,14 @@ pub fn validate_manifest(bytes: &[u8]) -> Result<Manifest, Failure> {
             ));
         }
     };
-    if manifest.machine_format != format || manifest.files.len() != 2 {
+    if manifest.machine_format != format || manifest.files.len() != 3 {
         return Err(invalid("unexpected package format or payload set"));
     }
     let mut paths = BTreeSet::new();
     for file in &manifest.files {
         let mode = match file.path.as_str() {
             BINARY => 0o755,
-            SKILL => 0o644,
+            SKILL | MANUAL => 0o644,
             _ => return Err(invalid("manifest contains an unsupported payload path")),
         };
         if file.mode != mode
