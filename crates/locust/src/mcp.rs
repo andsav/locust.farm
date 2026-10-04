@@ -23,9 +23,7 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use locust_proto::api::{
-    Caller, Credential, ErrorCode, OPERATIONS, Request, Response, SessionSecret,
-};
+use locust_proto::api::{Caller, Credential, ErrorCode, OPERATIONS, Request, SessionSecret};
 use locust_proto::client::Client;
 use locust_proto::id::IdempotencyKey;
 use locust_proto::local;
@@ -46,6 +44,7 @@ pub(crate) struct Config {
 }
 
 struct Authentication {
+    home: PathBuf,
     socket: PathBuf,
     credential: Credential,
     session: Option<SessionSecret>,
@@ -70,6 +69,7 @@ impl Config {
             ));
         }
         let authentication = Authentication {
+            home: self.home.clone(),
             socket: local::socket_path(&self.home)?,
             credential: Credential(connection::read_secret(&self.credential)?),
             session: self
@@ -171,8 +171,15 @@ impl Cancellation {
     }
 }
 
+enum ClientRequest {
+    Native(Request),
+    Acknowledge {
+        goal: locust_proto::id::GoalId,
+        reference: String,
+    },
+}
 struct Call {
-    request: Request,
+    request: ClientRequest,
     idempotency: Option<IdempotencyKey>,
 }
 #[derive(Clone, Copy)]
@@ -214,7 +221,7 @@ async fn invoke(
     auth: Arc<Authentication>,
     call: Call,
     cancellation: Arc<Cancellation>,
-) -> Result<Response, Failure> {
+) -> Result<Value, Failure> {
     let mut cancelled = cancellation.cancelled.subscribe();
     if *cancelled.borrow() {
         return Err(Failure::unavailable("MCP request was cancelled"));
@@ -240,8 +247,14 @@ async fn invoke(
                 return Err(Failure::new(ErrorCode::Denied, "MCP requires an enrolled agent or author credential; owner authority is not exposed to models"));
             }
             if cancellation.is_cancelled() { return Err(Failure::unavailable("MCP request was cancelled")); }
-            client.call_with(call.request, call.idempotency, None)
-                .map_err(|error| connection::client_error(error, &auth.socket))
+            let cache = crate::context_receipts::Cache::new(&auth.home, auth.credential, auth.session);
+            let request = match call.request {
+                ClientRequest::Native(request) => request,
+                ClientRequest::Acknowledge { goal, reference } => Request::ContextAcknowledge { goal, receipt: cache.load(&reference)? },
+            };
+            let response = client.call_with(request, call.idempotency, None)
+                .map_err(|error| connection::client_error(error, &auth.socket))?;
+            cache.present(&response)
         })();
         cancellation.socket.lock().expect("cancellation mutex").take();
         result
@@ -339,7 +352,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                     enqueue(&mut outgoing, response(id, json!({
                         "protocolVersion": version, "capabilities": {"tools": {"listChanged": false}},
                         "serverInfo": {"name": "locust", "version": env!("CARGO_PKG_VERSION")},
-                        "instructions": "Use these registered Locust tools. Read full context.read when starting, changing tasks or recovering context. Retain that context during local work. At collaboration checkpoints and before publishing or deciding, inspect pending and context_news; read unread_only updates when news is present. Refresh the full brief if tasks, rules or inputs changed. Follow context pagination and explicitly acknowledge only complete content actually read, using the exact returned session receipt. Cite useful event IDs and publish new findings with contribution.publish. Inspect rules and allowed actions; shared eligibility is separate from local execution authorization. Independent work begins with an attempt; contributions do not select or apply files. Durable deliveries remain pending until acknowledged. Cancellation does not undo committed work. Retry uncertain writes with the same idempotency_key."
+                        "instructions": "Use these registered Locust tools. Read context.read with view=full when starting, changing tasks or recovering context. Use view=compact for checkpoints and pending.page for explicitly paginated obligations. Retain that context during local work. At collaboration checkpoints and before publishing or deciding, inspect pending and context_news; read unread_only updates when news is present. Refresh the full brief if tasks, rules or inputs changed. Follow context pagination and explicitly acknowledge only complete content actually read, using the short receipt reference returned for that page. Cite useful event IDs and publish new findings with contribution.publish. Inspect rules and allowed actions; shared eligibility is separate from local execution authorization. Independent work begins with an attempt; contributions do not select or apply files. Durable deliveries remain pending until acknowledged. Cancellation does not undo committed work. Retry uncertain writes with the same idempotency_key."
                     })), false);
                     continue;
                 }
@@ -347,7 +360,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                     enqueue(&mut outgoing, error(id, -32002, "Initialize and send notifications/initialized before using tools"), false); continue;
                 }
                 let (kind, call) = match method {
-                    "tools/list" if params.get("cursor").is_none() => (Kind::List, Call { request: Request::Status, idempotency: None }),
+                    "tools/list" if params.get("cursor").is_none() => (Kind::List, Call { request: ClientRequest::Native(Request::Status), idempotency: None }),
                     "tools/list" => { enqueue(&mut outgoing, error(id, -32602, "Tool list is not paginated; omit cursor"), false); continue; }
                     "tools/call" => match parse_call(&params) {
                         Ok(call) => (Kind::Tool, call),
@@ -486,6 +499,27 @@ fn parse_call(params: &Value) -> Result<Call, CallError> {
             ))
         })?
         .flatten();
+    if operation.name == "context.acknowledge" {
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Acknowledge {
+            goal: locust_proto::id::GoalId,
+            receipt: String,
+        }
+        let args: Acknowledge =
+            serde_json::from_value(Value::Object(arguments)).map_err(|error| {
+                CallError::Arguments(Failure::invalid(format!(
+                    "Invalid context acknowledgment: {error}"
+                )))
+            })?;
+        return Ok(Call {
+            request: ClientRequest::Acknowledge {
+                goal: args.goal,
+                reference: args.receipt,
+            },
+            idempotency,
+        });
+    }
     let value = if arguments.is_empty()
         && serde_json::from_value::<Request>(json!(operation.name)).is_ok()
     {
@@ -503,14 +537,14 @@ fn parse_call(params: &Value) -> Result<Call, CallError> {
         .check()
         .map_err(|error| CallError::Arguments(error.into()))?;
     Ok(Call {
-        request,
+        request: ClientRequest::Native(request),
         idempotency,
     })
 }
 fn failure_value(failure: Failure) -> Value {
     json!({"code": failure.code.as_str(), "message": failure.message,"details":failure.details_json.as_deref().and_then(|text|serde_json::from_str::<Value>(text).ok())})
 }
-fn tool_result(result: Result<Response, Failure>, version: &str) -> Value {
+fn tool_result(result: Result<Value, Failure>, version: &str) -> Value {
     let (value, failed) = match result {
         Ok(response) => (json!({"ok": true, "result": response}), false),
         Err(failure) => (json!({"ok": false, "error": failure_value(failure)}), true),

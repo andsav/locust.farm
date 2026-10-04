@@ -484,6 +484,27 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
 
     let authority = ["--credential", credential, "--session", first_session];
     let pending_before = participant.cli(&authority, &["pending", "--goal", goal]);
+    let page = participant.cli(
+        &authority,
+        &["pending", "page", "--goal", goal, "--limit", "1"],
+    );
+    for category in [
+        "to_authorize",
+        "to_start",
+        "claimed",
+        "held_elsewhere",
+        "to_review",
+        "to_acknowledge",
+        "deliveries",
+    ] {
+        assert_eq!(
+            page["pending_page"]["counts"][category].as_u64().unwrap(),
+            pending_before["pending"][category]
+                .as_array()
+                .unwrap()
+                .len() as u64
+        );
+    }
     let watched = participant.cli(&authority, &["watch", "--goal", goal, "--timeout-ms", "0"]);
     assert_eq!(watched["initial"], pending_before["pending"]);
     assert!(matches!(
@@ -510,9 +531,38 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     assert!(!watched_human.contains("--owner --as"));
 
     let mut mcp = Mcp::new(&participant, credential, first_session);
-    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"task":null,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","base":null,"patch":null,"artifacts":[]}));
+    let own_permissions = mcp.tool(
+        "locust_permission_inspect",
+        json!({"goal":goal,"agent":principal}),
+    );
+    assert_eq!(own_permissions["permissions"]["grants"]["contribute"], true);
+    assert_eq!(own_permissions["permissions"]["grants"]["review"], false);
+    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"task":null,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","base":null,"patch":null,"artifacts":[],"sources":[]}));
     let event = finding["recorded"]["event"].as_str().unwrap();
-    let query = json!({"goal":goal,"task":null,"after":null,"limit":2,"preview_chars":null,"unread_only":true});
+    let query = json!({"goal":goal,"view":"compact","task":null,"after":null,"limit":2,"preview_chars":null,"unread_only":true});
+    let cli_page = participant.cli(
+        &authority,
+        &[
+            "context",
+            "read",
+            "--goal",
+            goal,
+            "--view",
+            "compact",
+            "--limit",
+            "2",
+            "--unread-only",
+            "true",
+        ],
+    );
+    let cli_receipt = cli_page["context"]["receipt"].as_str().unwrap();
+    assert!(cli_receipt.starts_with("ctx:"));
+    assert_eq!(cli_receipt.len(), 68);
+    // CLI and MCP use the same private reference namespace for this session.
+    mcp.tool(
+        "locust_context_acknowledge",
+        json!({"goal":goal,"receipt":cli_receipt}),
+    );
     let mut after = Value::Null;
     let mut read_finding = false;
     let mut last_receipt = Value::Null;
@@ -533,6 +583,7 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
             }
         }
         if !brief["receipt"].is_null() {
+            assert!(brief["receipt"].as_str().unwrap().starts_with("ctx:"));
             last_receipt = brief["receipt"].clone();
             mcp.tool(
                 "locust_context_acknowledge",
@@ -548,6 +599,24 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     let pending = mcp.tool("locust_pending", json!({"goal":goal}));
     assert_eq!(pending["pending"]["context_news"]["unacknowledged"], 0);
     drop(mcp);
+    // A fresh CLI process resolves an MCP-created reference after bridge exit.
+    participant.cli(
+        &authority,
+        &[
+            "context",
+            "acknowledge",
+            "--goal",
+            goal,
+            "--receipt",
+            last_receipt.as_str().unwrap(),
+        ],
+    );
+    let mut reopened = Mcp::new(&participant, credential, first_session);
+    reopened.tool(
+        "locust_context_acknowledge",
+        json!({"goal":goal,"receipt":last_receipt}),
+    );
+    drop(reopened);
     let second_session_path = participant.home.path().join("second.session");
     let second_session = second_session_path.to_str().unwrap();
     participant.cli(&[], &["session", "create", second_session]);
@@ -561,5 +630,5 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     );
     let denied = other.request("tools/call", json!({"name":"locust_context_acknowledge","arguments":{"goal":goal,"receipt":last_receipt}}));
     assert_eq!(denied["isError"], true);
-    assert_eq!(denied["structuredContent"]["error"]["code"], "denied");
+    assert_eq!(denied["structuredContent"]["error"]["code"], "invalid");
 }

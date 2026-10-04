@@ -26,10 +26,28 @@
     "polaris-native-organization-authoring",
     "readable-status-and-permission-controls",
     "session-bound-shared-context",
-    "signed-reviewed-invitations-and-revocation"
+    "signed-reviewed-invitations-and-revocation",
+    "compact-context-and-paginated-pending-work",
+    "private-short-context-receipt-references",
+    "signed-contribution-source-inspection",
+    "own-permission-inspection"
   ],
-  "organizationRuntime": "implemented-development-api-3-protocol-3",
+  "organizationRuntime": "implemented-development-api-4-protocol-4",
   "qualification": [
+    {
+      "platform": "macOS arm64",
+      "scope": "API 4/protocol 4 development: compact/full native context and pending pages, session-scoped CLI/MCP receipt references, signed contribution source inspection, own permission reads, and invitation refusal/stream lifecycle regression fixes",
+      "limits": "Development source and identified local processes. Earlier installed candidates retain their exact versions. Physical-machine testing is reported by the owner and is outside this follow-up. Live-client observations, including failures, are recorded separately.",
+      "evidence": [
+        "research/collaboration-followups.md",
+        "docs/guide/runtime-reference.md",
+        "crates/locust/tests/t2_flow.rs",
+        "crates/locust-core/src/node/tests/context_views.rs",
+        "crates/locust-core/src/node/tests/provenance.rs",
+        "crates/locust-core/src/sync/tests/driver.rs"
+      ],
+      "track": "current-api-4-collaboration-followups"
+    },
     {
       "platform": "macOS arm64",
       "scope": "API 3/protocol 3 collaboration UX source: workspace formatting, strict Clippy, 663 Rust tests (12 explicit ignores), generated contracts, four executable manual recipes, integrated CLI/MCP shared findings and permission controls, and two real local SQLite/Unix/Iroh daemons for reviewed invitation admission/revocation/restart",
@@ -40,7 +58,7 @@
         "crates/locust/tests/t2_flow.rs",
         "crates/locust/src/daemon/durable_tests.rs"
       ],
-      "track": "current-api-3-collaboration-ux-source"
+      "track": "earlier-api-3-collaboration-ux-source"
     },
     {
       "platform": "macOS arm64",
@@ -118,5 +136,5 @@
       "publicRoute": false
     }
   },
-  "runtimeQualification": "api-3-local-source-cli-mcp-and-two-local-daemon-checks-passed; earlier-api-2-native-evidence-retained; real-provider-physical-machine-and-release-gates-open"
+  "runtimeQualification": "api-4-development-with-local-cli-mcp-and-invitation-regressions; earlier-native-candidates-remain-historical; live-client-results-recorded-separately"
 }

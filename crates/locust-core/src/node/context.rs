@@ -8,18 +8,17 @@
 use std::collections::BTreeSet;
 
 use locust_proto::api::{
-    ApiError, BlobState, ContextAcknowledgment, ContextCursor, ContextDocument, ContextItem,
-    ContextNews, ContextReceipt, ContextSeen, ContextView, ErrorCode, Response,
+    ApiError, BlobState, ContextAcknowledgment, ContextCursor, ContextItem, ContextNews,
+    ContextReceipt, ContextSeen, ContextView, ContextViewMode, ErrorCode, Response,
 };
 use locust_proto::codec;
 use locust_proto::crypto::{self, Keypair};
 use locust_proto::engine::Entropy;
-use locust_proto::event::{Event, Scope, TaskId};
+use locust_proto::event::{Event, TaskId};
 use locust_proto::id::{BlobHash, EventId, GoalId, InstanceId, PublicKey, Signature};
 use locust_proto::store::{LocalWrite, Space, Store, StoreError};
 
 use super::Node;
-use super::access::not_found;
 use super::callers::Actor;
 use super::commit::Tx;
 use super::entry::Entry;
@@ -171,6 +170,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         limit: u32,
         preview_chars: Option<u32>,
         unread_only: bool,
+        view: ContextViewMode,
     ) -> Plan {
         let entry = self.readable(actor, &goal)?;
         if limit == 0 {
@@ -194,6 +194,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 || cursor.revision != revision
                 || cursor.task != task
                 || cursor.unread_only != unread_only
+                || cursor.view != view
+                || cursor.preview_chars != preview_chars
+                || cursor.limit != limit
                 || cursor.reader != actor.principal
                 || cursor.session != session
         }) {
@@ -281,6 +284,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
             session,
             task,
             unread_only,
+            view,
+            preview_chars,
+            limit,
             offset: end,
         });
         let receipt = actor
@@ -300,57 +306,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     .sign(RECEIPT_DOMAIN, &receipt_digest(&receipt));
                 receipt
             });
-        let Response::GoalStatus(status) = self.goal_status(actor, goal)?.response else {
-            unreachable!("goal status has one response type")
-        };
-        let task = task
-            .map(|task| {
-                let selected = entry.goal.selected_task(task);
-                let found = entry
-                    .state()
-                    .tasks
-                    .get(&task)
-                    .or(selected.as_ref())
-                    .ok_or_else(|| not_found("no such task"))?;
-                Ok::<_, ApiError>(self.task_detail(entry, found, actor.principal.as_ref()))
-            })
+        let summary = after
+            .is_none()
+            .then(|| self.context_summary(entry, actor, task, view, news))
             .transpose()?;
-        let (effective_rules_json, inputs) = match &task {
-            Some(task) => (task.effective_rules_json.clone(), task.inputs.clone()),
-            None => {
-                let rules = entry
-                    .goal
-                    .current_context(Scope::Goal)
-                    .and_then(|context| entry.goal.effective_rules(context, &entry.definitions));
-                let inputs = entry
-                    .state()
-                    .current_rules
-                    .and_then(|id| entry.state().rules.get(&id))
-                    .map(|rules| rules.binding.inputs.clone())
-                    .unwrap_or_default();
-                (
-                    serde_json::to_string(&rules).expect("effective rules encode"),
-                    inputs,
-                )
-            }
-        };
         answer(Response::Context(Box::new(ContextView {
             revision,
-            status,
-            task,
-            effective_rules_json,
-            inputs,
-            documents: entry
-                .state()
-                .documents
-                .iter()
-                .map(|(doc, state)| ContextDocument {
-                    doc: *doc,
-                    selected: state.selected,
-                    revisions: state.revisions.iter().copied().collect(),
-                })
-                .collect(),
-            pending: self.pending_work_with_news(entry, actor, news),
+            summary,
             items,
             next,
             receipt,

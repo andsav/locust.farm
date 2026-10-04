@@ -118,6 +118,7 @@ impl State {
                 base,
                 patch,
                 artifacts,
+                sources,
                 ..
             } => {
                 assert_eq!(goal, GOAL);
@@ -135,6 +136,7 @@ impl State {
                     attempt,
                     base,
                     patch,
+                    sources,
                     artifacts,
                 });
                 Ok(Response::Recorded { event: RESULT })
@@ -183,6 +185,7 @@ impl State {
                                 base,
                                 patch,
                                 artifacts,
+                                sources,
                                 ..
                             } = body
                             else {
@@ -198,6 +201,7 @@ impl State {
                                 evidence: vec![],
                                 base: *base,
                                 patch: *patch,
+                                sources: sources.clone(),
                                 artifacts: artifacts.clone(),
                                 text: Some("result".into()),
                             }
@@ -452,11 +456,19 @@ fn snapshot_patch_selection_and_integration_are_explicit_and_bound() {
             &ATTEMPT.to_string(),
             "--generation",
             "7",
+            "--source",
+            &EventId([0x61; 32]).to_string(),
+            "--source",
+            &EventId([0x62; 32]).to_string(),
             "finished",
         ]);
     output(cmd, 0);
     assert!(fixture.state.lock().unwrap().selected_patch.is_none());
     let submitted = fixture.state.lock().unwrap().submitted.clone().unwrap();
+    let Body::ContributionPublished { sources, .. } = &submitted else {
+        panic!()
+    };
+    assert_eq!(sources, &[EventId([0x61; 32]), EventId([0x62; 32])]);
     if let Some(Body::ContributionPublished { base, .. }) =
         &mut fixture.state.lock().unwrap().submitted
     {
@@ -673,6 +685,7 @@ fn applied_files_survive_binding_failure_and_exact_retry_recovers_integration() 
             attempt: Some(ATTEMPT),
             base: Some(base),
             patch: Some(patch),
+            sources: Vec::new(),
             artifacts: vec![head],
         });
         state.binding.destination = Some(root.path().to_str().unwrap().into());

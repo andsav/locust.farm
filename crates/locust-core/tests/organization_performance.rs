@@ -81,6 +81,7 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
                 attempt: Some(start.id()),
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![],
             },
         );

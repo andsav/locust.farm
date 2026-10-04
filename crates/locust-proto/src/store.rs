@@ -508,6 +508,7 @@ pub mod conformance {
             attempt: None,
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: Vec::new(),
         }
     }
@@ -785,6 +786,7 @@ pub mod conformance {
                 attempt: None,
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: Vec::new(),
             },
         );
@@ -916,6 +918,7 @@ pub mod conformance {
                         attempt: None,
                         base: None,
                         patch: None,
+                        sources: Vec::new(),
                         artifacts: Vec::new(),
                     },
                 )
@@ -1070,6 +1073,7 @@ pub mod conformance {
                 attempt: None,
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![dropped.hash()],
             },
         );

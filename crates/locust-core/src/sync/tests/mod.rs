@@ -30,6 +30,7 @@ pub fn contribution() -> Body {
         attempt: None,
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
     }
 }

@@ -1,7 +1,7 @@
 # Local installation and onboarding
 
 **Status: implemented source with scoped macOS qualification; public installation
-is unavailable. Earlier candidate checks do not qualify the API 3/protocol 3
+is unavailable. Earlier candidate checks do not qualify the API 4/protocol 4
 replacement.** Start only with an independently trusted Locust executable and
 an explicitly selected signed candidate. A verifier shipped inside an untrusted
 download cannot establish that download's authenticity.

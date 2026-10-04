@@ -1,4 +1,4 @@
-//! Frozen protocol-3 encodings. Unsupported protocol versions have no reader.
+//! Frozen protocol-4 encodings. Unsupported protocol versions have no reader.
 use crate::event::*;
 use crate::id::*;
 use crate::organization::{Authority, Blueprint, CompletionRule, Selector};
@@ -77,6 +77,7 @@ fn transcript() -> (Vec<Event>, Effect, crate::store::Blob) {
             attempt: None,
             base: None,
             patch: None,
+            sources: vec![events[4].id()],
             artifacts: Vec::new(),
         },
     );
@@ -123,28 +124,28 @@ fn transcript() -> (Vec<Event>, Effect, crate::store::Blob) {
 const GOAL: &str = "639f881b9103be44e44480ac83c28d8febd106db2bcbe63c432d782af0f01e7f";
 const DEFINITION: &str = "71cbf6d00b266da95e6e80c3c90674da7460c0729f4119ee2f8450f98398ca73";
 const BLOB: &str = "cf6a83d7cf3fcb4678fd78de20b5434bc68a5302e16df0a61283cbf4967da9c7";
-const EFFECT: &str = "53a19e6617658f0d3badeab4b232de1b20eccf6af2fd228d98104afbdad3eaa8";
-const ID0: &str = "7cdab266af29cc3d6df5a2076022651afa140624e3fc014130a2dd8a87d01397";
-const SIGNATURE0: &str = "01f8394498eaeab26a111f2f181d14fc860cf844c5a79b8e8463b5ad34047074a5beafbfde597aaffbb864cb6291c14a01987f1a1e95553d9e5b6d3ae458900a";
-const HEADER0: &str = "03639f881b9103be44e44480ac83c28d8febd106db2bcbe63c432d782af0f01e7f8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c0000000080d8c1a28c3400008a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c71cbf6d00b266da95e6e80c3c90674da7460c0729f4119ee2f8450f98398ca7300000000000000000000000000000000";
-const ID1: &str = "3456dd607c7168227a763f3d410bf7a2b5f925fb43039510d5e9db9afd53bea7";
-const SIGNATURE1: &str = "3c3fc56b70b80033c88d6aabffce9a46cd4f9aba42931e18c389386cabcd61fd1f47c7a847217418be7dc7954a6cb1ef6c1566e87ff2bd5827ff5106e5dda30c";
-const ID2: &str = "3e2724d199b3bed78ad9239769732ad929b30bddce542cc93b92fb22afb1fbd4";
-const SIGNATURE2: &str = "4265884e586a4a18ab96389e1ea38b95757e4af7c84d0f21efd389612ce9912d602db37c4b72a14ba3e43880ca65cc0e6fea019219f2fc0a41c691fc3dacbd0d";
-const ID3: &str = "7e1f9e38f5de0403b16abc5e6997231b15fb518f46f4982d90ff28084a31e4a1";
-const SIGNATURE3: &str = "ca53a6cdf75c1bc4859570823d2b7a0aebc8e28749b1bc25f660f796b4920f6040c960cb5a9aa0182653691c47fa461e7af37e9575bbc4e477632c5366c96c00";
-const ID4: &str = "0ce9013bae9de85b15c6d3efb9b2e641ba96a2454b42e53f3af4351e52c79b87";
-const SIGNATURE4: &str = "968780ef8c67f0c591f6d897bd34b73db6a5849976aa6e253466b9ec21982ac9610b17e5a0464c22ea62aa791573529f2666403258a2e335bfa8e8538d469a08";
-const ID5: &str = "a5bb58fe2a730bb88f18eaead8ad392d675934caabe164cabd1f468e6b5f0ece";
-const SIGNATURE5: &str = "1f1ce1d71366a66581acb472f5c183ebc962e1b3a0e61540f6ac05d75cc2b785da9b0f4169e9ed423478ead0a37092b35ac2cfdca259588b4bfd31887aeb4e06";
-const HEADER5: &str = "03639f881b9103be44e44480ac83c28d8febd106db2bcbe63c432d782af0f01e7f8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b3940000010ce9013bae9de85b15c6d3efb9b2e641ba96a2454b42e53f3af4351e52c79b870080d8c1a28c3400050ce9013bae9de85b15c6d3efb9b2e641ba96a2454b42e53f3af4351e52c79b8700000000";
-const ID6: &str = "0a193f27dc6f4cc64c6063b919b29727f68996db3babf707505b04f0c9d25815";
-const SIGNATURE6: &str = "4a43cbbabbbe37416e5a9345ef130330a41a96ba2bbf5242c395d2ea9ecbd8b95783db09c977a7d601df3109a4b563dc43c7f7c7a7ecd9b5177311ef5a7e6b02";
-const ID7: &str = "a3bf8d9608f01f09e8c952c9ac48953d08d77021e02e23937cb882cc4f5723ad";
-const SIGNATURE7: &str = "d270180e350c6645223bdb159546026559042cb1e21b45cd2946d6daa3d6793486551dd6c8043f99cbd3ab34f1df5196fa590f29596d0c1bab897a505cb4ca08";
-const ID8: &str = "c138e2fc55c28be4b592658ff60b2daaee08aef69d30ac5fc9343b312ef0b0d0";
-const SIGNATURE8: &str = "6e735972ed79bcc64d265c531a9d20c161efe0ef51156c38f24fe7e8a3519f5da9c37d2de9b26160498ed6f90aafc0ba305856b123281723f6a2f60aa601910c";
-const BODY_DIGEST: &str = "109c24784a98c14ebb7b8c0def9cde95a22a425b1ff480ef4ae3805c5cb24c5c";
+const EFFECT: &str = "78a0016b2d7ce9a414d4a5e8c2f9ab117d4785ff24756af506c2da798025daee";
+const ID0: &str = "9f07c694ca0fe466108a28d2daa2002cc26c3ef44e92e6f8097033cedcb98bb6";
+const SIGNATURE0: &str = "f1e4fdf8315ba6afa11ce34e3ee975c2dcf9244fc5338438203bf1554e67ab9e451423c8f538a98eb7dba2d10f8ceb564c58a765effd528b4244b7adc263ea03";
+const HEADER0: &str = "04639f881b9103be44e44480ac83c28d8febd106db2bcbe63c432d782af0f01e7f8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c0000000080d8c1a28c3400008a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c71cbf6d00b266da95e6e80c3c90674da7460c0729f4119ee2f8450f98398ca7300000000000000000000000000000000";
+const ID1: &str = "d16b9cf4cd3400f86b9dd120e096df6b49434000140bc94db891ee42df128f55";
+const SIGNATURE1: &str = "186a1e34526cbcefdf0608fefa6912d7bc133adef04445ecd7613c23195032bfe9faa7d9525405176d42c1ceb0adb44ebeab5abf8d506b71eec288cb9ffba608";
+const ID2: &str = "ab1ee7e46280ed95bd371bf7f1a0af41fb931a424cb9aac940febc3a03d9a6a9";
+const SIGNATURE2: &str = "5f27608bcc61141441f0f006ee3aaa2ed295475574d410998982ca6d499b233391ab15dbd34acdcd57b7aa2b821d3ec06d5aa8f3c913d04f1a414d54a0ef4605";
+const ID3: &str = "792b2268ccb494d1613455a8ad19e15d801323426c2a5a04cb43d6ac58c0424e";
+const SIGNATURE3: &str = "8c17e60cb04e21a793e1e3b5071a32847cd82135bb8536c706c27bad67d0e8013eac4d7fbc30a0629738db36fd91e8220012e6e95293c2f393a1e41f0c429f08";
+const ID4: &str = "f9c5170a155d3e10fc016d59c1c3e743be2a9e568e4e46eaaaf09c7e41569cf5";
+const SIGNATURE4: &str = "184abf7dccf874a2d0a4d3476116ed939536f3aeb7432c56d425f4de5017a20761d75d8b4a41d8238c5fb04c166345b883a49c6a72f98b3c135b687ba1f6e708";
+const ID5: &str = "50f59fd2f0c32ed5a2f3d31e6db11ff61fb8ab9aa22f8331cf03ab71cd0d0297";
+const SIGNATURE5: &str = "9b82bcece26fcd31bb0483fbb39ae6eb02e70eaee2bfdce5b888018dc20b3b9768a480b0ba46ace1529755a2c53b3fb9513cd3f3d9dc3112089025ff59480c0a";
+const HEADER5: &str = "04639f881b9103be44e44480ac83c28d8febd106db2bcbe63c432d782af0f01e7f8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394000001f9c5170a155d3e10fc016d59c1c3e743be2a9e568e4e46eaaaf09c7e41569cf50080d8c1a28c340005f9c5170a155d3e10fc016d59c1c3e743be2a9e568e4e46eaaaf09c7e41569cf500000000";
+const ID6: &str = "4908cac603d0b94604088e67b3c1f5b37ab70641e1ad5452511fd324d46c6234";
+const SIGNATURE6: &str = "9db280d33a2f0b4b71b5d00b4a63530b2ace4417c195d9cf32f6da3cb7519393a10edd07002fc0ef6dc8b817666b3259db639585bad913904672d5ef66623404";
+const ID7: &str = "be731ea7ec3b3576c483539dfae0629cf444ff61009df8db647b7c2f80e87feb";
+const SIGNATURE7: &str = "e87fa51a4398e217d457ec897ca2e9043734617a71d9662e4fafba35559161974d6aae72c8bed959a6e1ac9367e95c49eb01e7c2960023e9d0e40b0f78baf501";
+const ID8: &str = "c2a7f63b6c582ec3350d6fa7e61be5b2ccd7325d65b639fb5e410cf565c772ab";
+const SIGNATURE8: &str = "95ac68e6897bd4060b32c304a66ebed991654d3a6c0a3ae99b03d5691ba646319d1681ca6d9c53b378cf9bb991623d42e0e5504f6e2f8f08cb28bee6ef8aac0d";
+const BODY_DIGEST: &str = "d98a222c1baef81ede5b4ee6685b9b9a3b83b4a3262b87d0fc075ec50e33d972";
 
 #[test]
 fn signed_current_protocol_vectors_are_frozen() {
@@ -260,4 +261,21 @@ fn effect_identity_ignores_witness_choice_but_not_target_or_round() {
     effect.target_slot.pop();
     effect.context.round = EventId([8; 32]);
     assert_ne!(effect.id(goal), id);
+}
+
+#[test]
+fn source_declarations_are_signed_but_not_causal_dependencies() {
+    let (events, _, _) = transcript();
+    let contribution = &events[6];
+    let mut header = contribution.header().clone();
+    let before = header.body.dependencies();
+    let Body::ContributionPublished { sources, .. } = &mut header.body else {
+        unreachable!()
+    };
+    sources.push(EventId([79; 32]));
+    assert_eq!(header.body.dependencies(), before);
+    let changed = Event::sign(header, &testkit::keypair(2)).unwrap();
+    assert_ne!(changed.id(), contribution.id());
+    assert_ne!(changed.signature(), contribution.signature());
+    assert_eq!(Event::from_wire(&changed.to_wire()).unwrap(), changed);
 }

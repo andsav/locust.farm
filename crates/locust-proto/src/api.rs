@@ -520,12 +520,18 @@ pub enum Request {
         attempt: Option<EventId>,
         generation: Option<u32>,
         summary: String,
+        /// Known events in this goal that the author declares as sources.
+        /// This does not attest that a model read, understood or used them.
+        #[serde(default)]
+        sources: Vec<EventId>,
         base: Option<BlobHash>,
         patch: Option<BlobHash>,
         artifacts: Vec<BlobHash>,
     },
     #[serde(rename = "contributions")]
     Contributions { goal: GoalId, task: Option<TaskId> },
+    #[serde(rename = "contribution.inspect")]
+    ContributionInspect { goal: GoalId, contribution: EventId },
     #[serde(rename = "completion.declare")]
     CompletionDeclare { goal: GoalId, subject: EventId },
     #[serde(rename = "review.record")]
@@ -572,6 +578,13 @@ pub enum Request {
     },
     #[serde(rename = "pending")]
     Pending { goal: GoalId },
+    #[serde(rename = "pending.page")]
+    PendingPage {
+        goal: GoalId,
+        kind: Option<PendingKind>,
+        after: Option<PendingCursor>,
+        limit: u32,
+    },
     #[serde(rename = "wait")]
     Wait {
         goal: GoalId,
@@ -649,6 +662,7 @@ pub enum Request {
     #[serde(rename = "context.read")]
     Context {
         goal: GoalId,
+        view: ContextViewMode,
         task: Option<TaskId>,
         after: Option<ContextCursor>,
         limit: u32,
@@ -821,6 +835,7 @@ operations! {
     AttemptReport { .. } => ("attempt.report", false, true, Agent, true, "attempt report"),
     ContributionPublish { .. } => ("contribution.publish", false, true, Agent, true, "contribution publish"),
     Contributions { .. } => ("contributions", true, true, Agent, true, "contributions"),
+    ContributionInspect { .. } => ("contribution.inspect", true, true, Agent, true, "Inspect a contribution, its author-declared sources and exact attempt/task chain; declarations are not proof of model use"),
     CompletionDeclare { .. } => ("completion.declare", false, true, Agent, true, "completion declare"),
     ReviewRecord { .. } => ("review.record", false, true, Agent, true, "review record"),
     CheckAttest { .. } => ("check.attest", false, true, Agent, true, "check attest"),
@@ -829,6 +844,7 @@ operations! {
     ScopeReopen { .. } => ("scope.reopen", false, true, Agent, true, "scope reopen"),
     DeliveryAcknowledge { .. } => ("delivery.acknowledge", false, true, Agent, true, "delivery acknowledge"),
     CancelAcknowledge { .. } => ("cancel.acknowledge", false, true, Agent, true, "cancel acknowledge"),
+    PendingPage { .. } => ("pending.page", true, true, Agent, true, "Read a page of pending work, with complete category counts and revision-bound continuation"),
     Pending { .. } => ("pending", true, true, Agent, true, "pending"),
     Wait { .. } => ("wait", true, true, Agent, true, "wait"),
     Events { .. } => ("events", true, true, Agent, true, "events"),
@@ -855,7 +871,7 @@ operations! {
     GoalInvitations { .. } => ("invitation.list", true, true, Administrator, false, "List issued invitations and their current redemption, expiry or revocation state without revealing ticket secrets"),
     InvitationRevoke { .. } => ("invitation.revoke", false, true, Owner, false, "Revoke an issued invitation; existing membership remains a separate decision"),
     InvitationJoin { .. } => ("invitation.join", false, false, Owner, false, "Join as the selected enrolled principal after reviewing this exact signed invitation; grants remain unchanged"),
-    Permissions { .. } => ("permission.inspect", true, true, Owner, false, "Inspect an enrolled principal's explicit local permissions and membership"),
+    Permissions { .. } => ("permission.inspect", true, true, Agent, true, "Inspect your own local permissions and task authorizations; only the owner can inspect another principal"),
     PermissionAllow { .. } => ("permission.allow", false, true, Owner, false, "Allow only the selected local goal permissions for an enrolled principal"),
     PermissionTaskAllow { .. } => ("permission.task.allow", false, true, Owner, false, "Allow local execution for this task, preserving existing takeover permission"),
     PermissionTaskRevoke { .. } => ("permission.task.revoke", false, true, Owner, false, "Remove every local execution authorization for this agent and task; running processes are not terminated"),
@@ -904,7 +920,9 @@ impl Request {
             Self::AttemptCancel { goal, .. } => Some(*goal),
             Self::AttemptReport { goal, .. } => Some(*goal),
             Self::ContributionPublish { goal, .. } => Some(*goal),
-            Self::Contributions { goal, .. } => Some(*goal),
+            Self::Contributions { goal, .. } | Self::ContributionInspect { goal, .. } => {
+                Some(*goal)
+            }
             Self::CompletionDeclare { goal, .. } => Some(*goal),
             Self::ReviewRecord { goal, .. } => Some(*goal),
             Self::CheckAttest { goal, .. } => Some(*goal),
@@ -913,7 +931,7 @@ impl Request {
             Self::ScopeReopen { goal, .. } => Some(*goal),
             Self::DeliveryAcknowledge { goal, .. } => Some(*goal),
             Self::CancelAcknowledge { goal, .. } => Some(*goal),
-            Self::Pending { goal, .. } => Some(*goal),
+            Self::Pending { goal, .. } | Self::PendingPage { goal, .. } => Some(*goal),
             Self::Wait { goal, .. } => Some(*goal),
             Self::Events { goal, .. } => Some(*goal),
             Self::DocRead { goal, .. } => Some(*goal),
@@ -1026,6 +1044,9 @@ impl Request {
             Self::AttemptReport { .. } => matches!(response, Response::Recorded { .. }),
             Self::ContributionPublish { .. } => matches!(response, Response::Recorded { .. }),
             Self::Contributions { .. } => matches!(response, Response::Contributions(_)),
+            Self::ContributionInspect { .. } => {
+                matches!(response, Response::ContributionInspected(_))
+            }
             Self::CompletionDeclare { .. } => matches!(response, Response::Recorded { .. }),
             Self::ReviewRecord { .. } => matches!(response, Response::Recorded { .. }),
             Self::CheckAttest { .. } => matches!(response, Response::Recorded { .. }),
@@ -1035,6 +1056,7 @@ impl Request {
             Self::DeliveryAcknowledge { .. } => matches!(response, Response::Recorded { .. }),
             Self::CancelAcknowledge { .. } => matches!(response, Response::Recorded { .. }),
             Self::Pending { .. } => matches!(response, Response::Pending(_)),
+            Self::PendingPage { .. } => matches!(response, Response::PendingPage(_)),
             Self::Wait { .. } => matches!(response, Response::Waited(_)),
             Self::Events { .. } => matches!(response, Response::Events(_)),
             Self::DocRead { .. } => matches!(response, Response::Doc(_)),
@@ -1154,12 +1176,14 @@ pub enum Response {
     Claimed(Claim),
     /// Answers `pending`.
     Pending(PendingWork),
+    PendingPage(PendingPage),
     /// Answers `wait`.
     Waited(WaitOutcome),
     /// Answers `events`: feed entries in ascending position.
     Events(Vec<EventView>),
     /// Read attributed contributions, including findings without tasks.
     Contributions(Vec<ContributionView>),
+    ContributionInspected(Box<ContributionInspection>),
     /// Answers `doc.read`.
     Doc(DocView),
     /// Answers `blob.put`.
@@ -1438,6 +1462,8 @@ pub struct PendingWork {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ContributionView {
     pub contribution: EventId,
+    /// Signed author declarations. They do not prove content was used.
+    pub sources: Vec<EventId>,
     pub author: PublicKey,
     pub context: Context,
     pub attempt: Option<EventId>,
@@ -1449,6 +1475,26 @@ pub struct ContributionView {
     pub artifacts: Vec<BlobHash>,
     pub text: Option<String>,
 }
+/// Attributed provenance of one signed contribution. Inspecting never
+/// acknowledges context or changes approval/selection eligibility.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ContributionInspection {
+    pub contribution: EventDetail,
+    pub declared_sources: Vec<ContributionSource>,
+    pub attempt: Option<ContributionSource>,
+    /// Exact signed round event, not a newer current task round.
+    pub task_round: Option<ContributionSource>,
+}
+
+/// One referenced event and its locally available header, standing and content.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ContributionSource {
+    pub event: EventId,
+    /// None when this replica does not yet hold the event. Content availability
+    /// and attributed text, when held, are reported inside the detail.
+    pub detail: Option<EventDetail>,
+}
+
 /// How an event stands in the goal's replicated state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -1929,6 +1975,7 @@ mod tests {
             summary: "finding".into(),
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         };
         assert_eq!(request.check().unwrap_err().code, ErrorCode::Invalid);

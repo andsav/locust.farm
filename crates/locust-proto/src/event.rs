@@ -431,6 +431,8 @@ pub enum Body {
     ContributionPublished {
         context: Context,
         attempt: Option<EventId>,
+        /// Author-declared citations, not causal dependencies or proof of use.
+        sources: Vec<EventId>,
         base: Option<BlobHash>,
         patch: Option<BlobHash>,
         artifacts: Vec<BlobHash>,

@@ -2,8 +2,8 @@
 
 Date: 2026-10-04. **Status: accepted signed semantics and replacement inventory.**
 This document develops [the accepted direction](organization-blueprints.md) and
-[implementation plan](organization-blueprints-implementation-plan.md). API 3 /
-protocol 3 is implemented. The [execution ledger](organization-blueprints-status.md)
+[implementation plan](organization-blueprints-implementation-plan.md). API 4 /
+protocol 4 is implemented. The [execution ledger](organization-blueprints-status.md)
 records exact source checks and remaining qualification; this specification is
 not itself proof that every acceptance campaign has passed. The removal inventory
 records the completed replacements and their enforcing sources. Historical

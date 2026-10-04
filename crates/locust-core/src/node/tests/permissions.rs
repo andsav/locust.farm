@@ -151,7 +151,7 @@ fn allowing_task_execution_preserves_an_existing_task_takeover_grant() {
 }
 
 #[test]
-fn local_permission_inventory_and_inbox_are_owner_only_including_viewers() {
+fn own_permissions_are_visible_but_changes_and_other_principals_remain_owner_only() {
     let (mut daemon, principal, owner, agent, goal) = setup();
     daemon.ok(
         owner,
@@ -162,11 +162,19 @@ fn local_permission_inventory_and_inbox_are_owner_only_including_viewers() {
     );
     let viewer = daemon.connect(credential(9), None);
     for conn in [agent, viewer] {
+        let own = inspect(&mut daemon, conn, goal, principal);
+        assert_eq!(own, inspect(&mut daemon, owner, goal, principal));
+        assert_eq!(
+            code(daemon.call(
+                conn,
+                Request::Permissions {
+                    goal,
+                    agent: PublicKey([99; 32])
+                }
+            )),
+            ErrorCode::Denied
+        );
         for request in [
-            Request::Permissions {
-                goal,
-                agent: principal,
-            },
             Request::PermissionAllow {
                 goal,
                 agent: principal,

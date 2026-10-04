@@ -199,6 +199,7 @@ impl Harness {
                 summary: summary.into(),
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![artifact],
             },
         ) else {

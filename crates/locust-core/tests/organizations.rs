@@ -173,6 +173,7 @@ impl Harness {
                 summary: "Evidence".into(),
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![],
             },
         ))

@@ -31,6 +31,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ### Last-mile experience — 2026-10-04
 
+- [Collaboration follow-ups and simulation findings](collaboration-followups.md): short receipt references, explicit context pages, signed sources, invitation races, permission self-inspection and retained live-client observations.
+
 - [Performance and agent cost pass](performance-cost-pass.md): paired API-3 schema, CLI/MCP, context and history measurements with exact behavior checks and explicit provider-cost boundaries.
 
 - [Real-model shared-context pilot](shared-context-real-model-pilot.md): Merak/GPT Luna finding to Codex/GPT Luna implementation, independent patch/oracle evidence, session acknowledgment and retained citation/receipt friction.

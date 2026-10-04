@@ -6,7 +6,7 @@ controls while sharing goals, immutable contributions and explicit organization
 rules. Each goal has a membership/rule administrator; ordinary work and scoped
 decisions follow the goal's pinned blueprint.
 
-The development runtime implements API 3 / protocol 3: offline blueprint
+The development runtime implements API 4 / protocol 4: offline blueprint
 inspection, private drafts and publication, taskless findings, independent
 attempts, exact review/completion, scoped selection and daemon-driven flow. CLI,
 MCP, workspace patches and managed-session adapters use the same typed contract.

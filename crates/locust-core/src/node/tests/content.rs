@@ -288,6 +288,7 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
             summary: text.clone(),
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     );
@@ -613,6 +614,7 @@ fn held_content_requires_matching_references_and_each_text_view_checks_its_own_r
             attempt: None,
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     );
@@ -705,6 +707,7 @@ fn held_content_epoch_must_match_the_signed_reference_even_with_a_decryption_key
             attempt: None,
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     );
@@ -765,6 +768,7 @@ fn selected_contribution_stays_readable_in_its_scope_after_author_fork() {
             summary: "retained exact result".into(),
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     ));

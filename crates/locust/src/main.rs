@@ -2,6 +2,7 @@
 use std::process::ExitCode;
 mod cli;
 mod connection;
+mod context_receipts;
 mod daemon;
 mod failure;
 mod installation;

@@ -213,6 +213,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         attempt: Option<EventId>,
         generation: Option<u32>,
         summary: String,
+        sources: Vec<EventId>,
         base: Option<BlobHash>,
         patch: Option<BlobHash>,
         artifacts: Vec<BlobHash>,
@@ -243,6 +244,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 ));
             }
         }
+        // Sources are signed attribution, not authority or causal parents.
+        // Local authors can cite any held event here, including historical or
+        // excluded evidence; another replica need not hold it for this result
+        // to remain eligible under its ordinary completion rule.
+        for source in &sources {
+            if entry.goal.event(source).is_none() {
+                return Err(not_found("a declared source is not held in this goal"));
+            }
+        }
         let mut tx = Tx::none();
         let event = self.author(
             entry,
@@ -250,6 +260,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Body::ContributionPublished {
                 context,
                 attempt,
+                sources,
                 base,
                 patch,
                 artifacts,

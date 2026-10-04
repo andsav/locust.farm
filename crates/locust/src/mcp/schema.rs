@@ -1,5 +1,6 @@
 //! MCP schemas are extracted from the typed request contract.
-use locust_proto::api::{OPERATIONS, Operation, operation_schema};
+use crate::context_receipts::operation_schema;
+use locust_proto::api::{OPERATIONS, Operation};
 use serde_json::{Value, json};
 use std::sync::OnceLock;
 pub(super) fn tools() -> &'static [Value] {
@@ -83,7 +84,7 @@ mod tests {
     }
 
     #[test]
-    fn every_tool_retains_its_generated_request_fields() {
+    fn every_tool_retains_its_client_request_fields() {
         let tools = tools();
         for operation in OPERATIONS.iter().filter(|operation| operation.tool) {
             let tool = tools

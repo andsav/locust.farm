@@ -238,6 +238,7 @@ fn actual_nodes_join_converge_read_sealed_content_and_reopen() {
         generation: None,
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
         summary: "offline from administrator".into(),
     });
@@ -429,6 +430,7 @@ fn removal_distributes_a_verified_new_epoch_only_to_remaining_members() {
         generation: None,
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
         summary: "new epoch".into(),
     });
@@ -928,6 +930,7 @@ fn wanted_cursor_is_sorted_and_updates_after_commits_completion_and_reopen() {
             generation: None,
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
             summary: format!("missing {n}"),
         });
@@ -1069,6 +1072,7 @@ fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
             generation: None,
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
             summary: format!("history {index}"),
         });
@@ -1129,6 +1133,7 @@ fn an_offline_removed_endpoint_is_refused_after_restart_without_learning_new_his
         generation: None,
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
         summary: "only current members may read this".into(),
     });
@@ -1176,6 +1181,7 @@ fn standalone(context: Context) -> Body {
         attempt: None,
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
     }
 }

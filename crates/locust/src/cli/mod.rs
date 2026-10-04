@@ -276,6 +276,35 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             Value::String(stdin_text()?.trim_end_matches(['\r', '\n']).to_owned()),
         );
     }
+    let receipts =
+        if !generic_call && matches!(operation.as_str(), "context.read" | "context.acknowledge") {
+            let credential = Credential(connection::read_secret(&connection::credential_path(
+                matches, &home,
+            )?)?);
+            let session = connection::session_path(matches)?
+                .as_deref()
+                .map(connection::read_secret)
+                .transpose()?
+                .map(locust_proto::api::SessionSecret);
+            Some(crate::context_receipts::Cache::new(
+                &home, credential, session,
+            ))
+        } else {
+            None
+        };
+    if !generic_call && operation == "context.acknowledge" {
+        let reference = fields
+            .get("receipt")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                Failure::usage("--receipt requires the reference returned by context read")
+            })?;
+        fields.insert(
+            "receipt".into(),
+            serde_json::to_value(receipts.as_ref().unwrap().load(reference)?)
+                .map_err(|error| Failure::internal(error.to_string()))?,
+        );
+    }
     if !named_enrollment {
         validate_fields(&operation, &fields)?;
     }
@@ -361,14 +390,20 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             .map(|status| status.agents)
             .unwrap_or_default()
     };
+    let mut result = match receipts {
+        Some(cache) => cache.present(&response)?,
+        None => {
+            serde_json::to_value(&response).map_err(|error| Failure::internal(error.to_string()))?
+        }
+    };
     let human = if matches.get_flag("json") {
         String::new()
+    } else if matches!(response, Response::Context(_)) && !generic_call {
+        serde_json::to_string_pretty(&result).expect("response encodes")
     } else {
         presentation::render(&response, &names, response_goal, response_principal)
             .unwrap_or_else(|| human(&response, credential_path.as_deref()))
     };
-    let mut result =
-        serde_json::to_value(&response).map_err(|error| Failure::internal(error.to_string()))?;
     if let Some(path) = credential_path {
         let tag = if author_enrollment {
             "author_enrolled"

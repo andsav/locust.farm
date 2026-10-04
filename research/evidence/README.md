@@ -29,3 +29,5 @@ These files preserve local characterization probes and captured results from 202
 - [ecdsa.fail leaderboard analysis](ecdsa-fail-leaderboard-analysis.md): output and reading notes for the [script](ecdsa_fail_leaderboard_analysis.py) over a [reduced capture](ecdsa-fail-submissions-2026-10-03.tsv) of the public submissions data; interpreted in the [benchmark note](../ecdsa-fail-benchmark.md).
 
 Read the [MoltMesh validation report](../moltmesh-validation.md) or [hcom dissection](../hcom-dissection.md) for interpretation and test limits, and the [research index](../README.md) for findings.
+
+- [Collaboration runtime follow-ups](collaboration-runtime-2026-10-04.json): source fingerprints and checks, interpreted in [simulation findings](../collaboration-followups.md).

@@ -1,0 +1,158 @@
+{
+  "format": "locust-collaboration-runtime-v1",
+  "date": "2026-10-04",
+  "base_commit": "cf67b2e2bdae74b4e096397ec9b90047b35b9608",
+  "api": 4,
+  "protocol": 4,
+  "store_schema": 4,
+  "rust_tests": {
+    "passed": 689,
+    "ignored": 14
+  },
+  "clippy": "passed",
+  "context_size": {
+    "findings": 256,
+    "review_obligations": 192,
+    "compact_bytes": 745,
+    "full_bytes": 103113,
+    "kind": "serialized native JSON; not latency or billed cost"
+  },
+  "source_files_sha256": {
+    "crates/locust-core/src/goal/projection.rs": "93452380c8abd2c65f31d35b9a6ec738e98dff1343a744908135d4b7e0c85534",
+    "crates/locust-core/src/goal/state.rs": "cda07c0daf736f31ad9707460d02585402caa2821bc04e6fe8c603022136ee6c",
+    "crates/locust-core/src/goal/tests.rs": "5e47607276dc4bf73998fc669ecbedfd21f07527bbcf71a75893220f76182bcb",
+    "crates/locust-core/src/node/content_graph_tests.rs": "9be23327962ba2a6f3f4cc23745a59bae7b21377bead607cfe9baf065b10ca33",
+    "crates/locust-core/src/node/context.rs": "13b1b0936a5e519e91a1dc6267d18dadfffee451269b53eb2d75b501b9b661cd",
+    "crates/locust-core/src/node/context_views.rs": "5e1701c3a4d99eec2ff24ae48c1dd2493ff1b4b0d0c25f0016bfde95aa61b4eb",
+    "crates/locust-core/src/node/mod.rs": "5b4e518a76d28db4773555439803c6c89af21cc1ec1e1e7467c218ff548f8bdd",
+    "crates/locust-core/src/node/replica_tests.rs": "39d3dc9e4640b1645c6c566d1d064fd98ce6f5ccf9d2e96f948b806375f6adb3",
+    "crates/locust-core/src/node/requests/claims.rs": "228b22f822cbf53405a6046eeb6c734ea4c2b612ad2713096afa6dcfb1f72571",
+    "crates/locust-core/src/node/requests/mod.rs": "38a18e90a7fcedad0a594ecd7d41785bf36cf48174285558939a398cbae536e4",
+    "crates/locust-core/src/node/requests/permissions.rs": "17009de80c06d7f6b88ba0182a2888b102c0acf413887f7eec43a3f83cfaf208",
+    "crates/locust-core/src/node/requests/reading.rs": "29972ea649c49d0cd134936e06c7160ace9e3cc4d4328facd2ea20f1557ed384",
+    "crates/locust-core/src/node/sim/scenario.rs": "f1168bca59bb9d8883cc1d8ff0c41cd8230f381bb199801fea84c4cf1cbcf81c",
+    "crates/locust-core/src/node/sim/storm.rs": "1367d1d502962d351017052c7171807ca67b2bed0628a7f3a07878617a1262a6",
+    "crates/locust-core/src/node/tests/authorization.rs": "cb47456f73b97c88d12cfde581ed179fba6d3f2f08709a8fdf6cd7c8a0a23e65",
+    "crates/locust-core/src/node/tests/content.rs": "e46a4cb8b886f3ba0bde8a9f30df54375b210a36eb1337ad7d55f231f1fe18e3",
+    "crates/locust-core/src/node/tests/context.rs": "580589bed63ab59770500708abdbdacd4a8586931c44db1c53996c3ab8cd7426",
+    "crates/locust-core/src/node/tests/context_views.rs": "dd1d264881a556be9fee337b14822450eea7269f93ec81df1e7532f0e53c1136",
+    "crates/locust-core/src/node/tests/lifecycle.rs": "f726cd0e3d52babc36f0ca787d00ca26860c5287e9786b20ee179f48f7e1dfcc",
+    "crates/locust-core/src/node/tests/mod.rs": "d1498c0fd32a70d02ec1ae983f41df74e265133e6e8b271bae54b5db3074338a",
+    "crates/locust-core/src/node/tests/permissions.rs": "a2e3e0df517390d3149be99a9d3ee4e5cb048e04abfb4e66b191e8c4356750f9",
+    "crates/locust-core/src/node/tests/provenance.rs": "b67296d9d2bd31daf8a13380baaa90f554d3b46abb1682b76586b97469719dd8",
+    "crates/locust-core/src/sync/driver.rs": "e13815797f05b2515fd06fc1885f25a17334f4ae5585a766efef172397f947bf",
+    "crates/locust-core/src/sync/tests/convergence.rs": "180fb33e405dcc44d96198ed4202657b9822f9af8d2ae3777765d8c55fed5e77",
+    "crates/locust-core/src/sync/tests/driver.rs": "285bef5901fd9933e8a72e28871526cd198eec5316076f0eb79225b9b9bdfcc0",
+    "crates/locust-core/src/sync/tests/mod.rs": "7479a1658dd81cdf72ca0a52e9366e67b716b8ba99ed49211371db9d6138fa5a",
+    "crates/locust-core/tests/organization_performance.rs": "05be72ed15e542b587144d6057d78caa5e57ae34a3c9751fb864d1f70285e23f",
+    "crates/locust-core/tests/organizations.rs": "0f244bf5f4ac54dd236d610164b3c80fef6fa60e8b092ddecc0a7e6c3d5d940e",
+    "crates/locust-core/tests/subgroups.rs": "083359e7288bd7d71ab7802c6b29f66366d9b3ded9980ddc2bf5d16945f8598a",
+    "crates/locust-proto/src/api.rs": "6ae84f5481b9c4e9d9c3f5f48d46e9afe608352f160fc6eb5d8460ce09efe9cd",
+    "crates/locust-proto/src/api/context.rs": "982b4e0df89eb27d7de74e398f147569b33a0e2277459e09c0c7f92cc127919a",
+    "crates/locust-proto/src/event.rs": "96a0391c9b1f493ff0520c5cd1de312e2c1157b609c28821e487d227a49a8bac",
+    "crates/locust-proto/src/lib.rs": "d8678bc3320353fd8765950f59caf71546e1a7e1dc2cc81a77ecbebc14534a51",
+    "crates/locust-proto/src/store.rs": "a86cbaccb28049bd8b6af0decef28332eef937bd02ca3da355c97b2638a34e3f",
+    "crates/locust-proto/src/sync.rs": "545033e9031352646b566cc9f94b0c7e69685f28436438bfd128f7ffe0564b61",
+    "crates/locust-proto/src/testkit.rs": "4e49ee21d8e720d45a236b8859ed311023d53fed4b7302bc2b15e64f2aab3de8",
+    "crates/locust-proto/src/vectors.rs": "87ff73172e52cb5c45bf89ca1799674232ece98a0e52de9375990e006a8a309e",
+    "crates/locust-store/examples/commit_latency.rs": "d55ecdacdad80edf69d187d0cfcda51d385b645810170450804ebf9cb9ee2024",
+    "crates/locust-store/src/schema.rs": "e1f7230c87a0ee26dd0184b15d2de72694e0f818ef868b645ca2372d2d4ebf01",
+    "crates/locust-store/src/tests.rs": "99e3c3dc7fb6b7d46ee9dea244bbffabd93a161e5b046de7ca1793ee5897f899",
+    "crates/locust-store/tests/crash.rs": "d838f37fdcd467d8b6e54672bf5af7c07958c881613be5ebc511c86b33d87685",
+    "crates/locust-store/tests/recovery_flush.rs": "4786b0fe50e5d3dc51616da27eefcd01644e600b251d88f45b0b394403cbd935",
+    "crates/locust/src/cli/args.rs": "8980f480d82e466ab1e9698d3eeee3154c9163ce446d7e26bea0bcb0b644ccf0",
+    "crates/locust/src/cli/mod.rs": "6be34b8823fa669f8b95e5af2f88fc97e811569cd3d5af8380062ed9d550557b",
+    "crates/locust/src/cli/presentation.rs": "c3b2c9bda201468a3dca518dfe870aae6da36b252eda7563a0793e9f825bce49",
+    "crates/locust/src/cli/workspace.rs": "2ec9f3e2ec7152d684721ccf8e25e7a7d0b2a8394f5a9fb4a2e1cbfce3cd5e47",
+    "crates/locust/src/context_receipts.rs": "f2ade33dec7a8530a219e48ac4d16598c264025547b786aa183c850d8a357188",
+    "crates/locust/src/daemon/durable_tests.rs": "d69a84c1e6ef5bbee8446a1db3449f23cbb05c2e9f887010d1c76988517ecfdd",
+    "crates/locust/src/daemon/network.rs": "e916d49d11c781899f7c12e654a8185de298088c7d87927d0cb1a667f5ae40d0",
+    "crates/locust/src/daemon/tests.rs": "bae15b61ab45034fba8e33fd9ebee8c69431a93071cb19208bbaadc48b8405d7",
+    "crates/locust/src/main.rs": "f7b89475bcf968e77b1469cf253f7fb3a90deb73a6bb964e9f12ec26ac95b163",
+    "crates/locust/src/mcp.rs": "bbab7a258cfb2a9ed5866f518d76038169f7f922b6129b269ceaed65e2f77244",
+    "crates/locust/src/mcp/schema.rs": "93f67310f52c3d1bf5ef9b39407fc95bc23104b6c7066190d032081e4d983bec",
+    "crates/locust/src/mcp/tests.rs": "8c2c9104d95f02d67cd7cf3d98f87b4dbd1d48d80f88a6793e76fe13b9e863c5",
+    "crates/locust/tests/cli.rs": "da3a35d61bccf65f54929937a3cb3ef87c6163b9b5e0bc48cba5722a3f8778bc",
+    "crates/locust/tests/t2_flow.rs": "9135f000ac65cb1a15c23551a24e1bbed5152495adfe3628673ee9937dfffbcb",
+    "crates/locust/tests/workspace.rs": "86aaaf880fcf45908838b0ac014cbb9e1e77ba87fb476d3ad39907b4b4c45553"
+  },
+  "logs": {
+    "locust-collaboration-rust-tests-complete.log": {
+      "bytes": 70812,
+      "sha256": "526d6c7ed1043fed3199c744e6dacee2376bec5870340c78ad7ffeec0a9a2dd1"
+    },
+    "locust-collaboration-clippy-final.log": {
+      "bytes": 675,
+      "sha256": "37b02f544e59514a4d401a20efe95e411ae97bb82381ebb53a83802d705751b6"
+    },
+    "locust-invitation-refusal-red.log": {
+      "bytes": 950,
+      "sha256": "14ac5b3f94a52aaa9081236db58d6617b446819960964983acefacafc389742d"
+    },
+    "locust-invitation-refusal-green.log": {
+      "bytes": 1335,
+      "sha256": "e5c4b2ba2fa397f5e63671ab8f92b1da4b6138197631813ad1e164577a039a8c"
+    },
+    "locust-invitation-refusal-real-rechecks.log": {
+      "bytes": 2973,
+      "sha256": "8ba79f938bab76b8bfe4f34aac29216e74d48c3cceff7e56bedd53a40168fe59"
+    },
+    "locust-network-pending-open-red.log": {
+      "bytes": 893,
+      "sha256": "4701528de3468a48eed8c97f9fb52c93342ae4a6bc0ca200bb45feea9f0f5067"
+    },
+    "locust-network-followups-green.log": {
+      "bytes": 2712,
+      "sha256": "59d65a3255bb2be36daadee04d69d4a22c61b366069d2081ccba95a4a8404a82"
+    }
+  },
+  "doc_recipes": {
+    "format": "locust-documentation-recipes-v1",
+    "binary_sha256": "13969b848aa9dc279461f22bbb358a699fba10153e37fa04892328b706e13072",
+    "reported_version": "locust 0.1.0 (cf67b2e2bdae-dirty) api 4 protocol 4",
+    "timeout_seconds": null,
+    "cases": [
+      {
+        "page": "docs/guide/apply.md",
+        "name": "open-patch-application",
+        "source_sha256": "995e1620f12776e4a85ed403cea84cb42bfbfa2be9b04ac6c34bd7da72f76d61",
+        "passed": true,
+        "timed_out": false,
+        "exit_code": 0,
+        "stdout": "Verified: explicit local choice applies exact bytes without distributed selection.\nRepositories and observations: <temporary>\n",
+        "stderr": ""
+      },
+      {
+        "page": "docs/guide/blueprint-authoring.md",
+        "name": "private-authoring",
+        "source_sha256": "9de44676b60f1bf018595530d68dc313585c2cf15503227329149cdf61078590",
+        "passed": true,
+        "timed_out": false,
+        "exit_code": 0,
+        "stdout": "Verified: exact private publication, recoverable edit conflict, author-only authority.\nPrivate catalog and observations: <temporary>\n",
+        "stderr": ""
+      },
+      {
+        "page": "docs/guide/collaboration.md",
+        "name": "local-collaboration",
+        "source_sha256": "57cfe29e77daea655ea054fe704c47e09276a7b9b71ef6f6b30ba8ae4f2e8941",
+        "passed": true,
+        "timed_out": false,
+        "exit_code": 0,
+        "stdout": "Verified: taskless completion, independent attempts, pinned task rules, exact peer review.\nLocal state and observations: <temporary>\n",
+        "stderr": ""
+      },
+      {
+        "page": "docs/guide/sharing.md",
+        "name": "separate-goal-export",
+        "source_sha256": "678b49dda6f7443ea2950c197c0db670221bf87a049e3bbc09643b386c455cd4",
+        "passed": true,
+        "timed_out": false,
+        "exit_code": 0,
+        "stdout": "Verified: separate membership, chosen-byte export, destination resealing, fresh parent review obligation.\n",
+        "stderr": ""
+      }
+    ],
+    "binary_unchanged": true
+  }
+}

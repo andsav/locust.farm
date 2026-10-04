@@ -19,6 +19,7 @@ mod callers;
 mod commit;
 mod content_graph;
 mod context;
+mod context_views;
 mod definitions;
 mod delivery;
 mod entry;

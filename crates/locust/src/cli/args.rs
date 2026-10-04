@@ -1,7 +1,8 @@
 //! Named commands and fields generated from the authoritative request schema.
+use crate::context_receipts::operation_schema;
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
-use locust_proto::api::{OPERATIONS, operation_schema};
+use locust_proto::api::OPERATIONS;
 use serde_json::{Map, Value};
 use std::{collections::BTreeMap, sync::OnceLock};
 struct Field {
@@ -105,6 +106,20 @@ fn operation(name: &'static str, api: &'static str) -> Command {
                 } else {
                     "JSON value matching blueprint contract or the API schema"
                 });
+        if api == "context.acknowledge" && field.name == "receipt" {
+            argument = argument
+                .help("ctx: reference returned by context read with this credential and session");
+        }
+        if let Some(values) = field.schema["enum"].as_array() {
+            let values: Vec<&'static str> = values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|value| &*Box::leak(value.to_owned().into_boxed_str()))
+                .collect();
+            if !values.is_empty() {
+                argument = argument.value_parser(clap::builder::PossibleValuesParser::new(values));
+            }
+        }
         if positional {
             argument = argument.allow_hyphen_values(true);
         } else {
@@ -273,7 +288,9 @@ pub(super) fn command() -> Command {
             .get_subcommands()
             .any(|existing| existing.get_name() == name)
         {
-            command = command.mut_subcommand(name, |command| command.subcommands(children));
+            command = command.mut_subcommand(name, |command| {
+                command.subcommand_negates_reqs(true).subcommands(children)
+            });
         } else {
             command = command.subcommand(
                 Command::new(name)
@@ -325,6 +342,7 @@ pub(super) fn values(operation: &str, matches: &ArgMatches) -> Result<Map<String
             Some(text) if field.schema["type"] == "string" => Value::String(text.clone()),
             Some(text) => serde_json::from_str(text)
                 .map_err(|error| Failure::usage(format!("--{}: {error}", field.flag)))?,
+            None if field.schema.get("default").is_some() => field.schema["default"].clone(),
             None => match field.schema["type"].as_str() {
                 Some("array") if field.required => serde_json::json!([]),
                 Some("object") if field.required => serde_json::json!({}),
@@ -350,6 +368,31 @@ pub(super) fn text_field(operation: &str) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn optional_sources_use_the_schema_default_in_named_commands() {
+        let matches = command()
+            .try_get_matches_from([
+                "locust",
+                "contribution",
+                "publish",
+                "--goal",
+                &"01".repeat(32),
+                "A finding",
+            ])
+            .unwrap();
+        let (name, fields) = selected(&matches);
+        assert_eq!(
+            values(&name, fields).unwrap()["sources"],
+            serde_json::json!([])
+        );
+        assert!(
+            serde_json::from_value::<locust_proto::api::Request>(
+                serde_json::json!({name.as_str(): values(&name, fields).unwrap()})
+            )
+            .is_ok()
+        );
+    }
+
     #[test]
     fn new_goal_uses_empty_bindings_and_optional_blueprint() {
         let matches = command()

@@ -57,6 +57,7 @@ fn recovery_child() {
                 attempt: None,
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![],
             },
         );

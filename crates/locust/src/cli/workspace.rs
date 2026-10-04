@@ -53,6 +53,7 @@ pub(super) fn commands() -> [Command; 2] {
         .subcommand(Command::new("submit").about("Submit a validated contribution using the current claimed generation")
             .arg(goal()).arg(patch()).arg(option("attempt", "Full attempt event identifier", true))
             .arg(option("generation", "Current claim generation", true))
+            .arg(option("source", "Full event identifier declared as a source; repeat for each source (not proof of model use)", false).action(ArgAction::Append))
             .arg(Arg::new("summary").required(true).allow_hyphen_values(true).help("Summary text, or - to read standard input")))
         .subcommand(Command::new("select").about("Select an exact reviewed contribution within its scope")
             .arg(goal()).arg(option("subject", "Full contribution event identifier", true)).arg(option("expected", "Current scope selection decision identifier", false)).arg(patch()))
@@ -189,6 +190,16 @@ pub(super) fn run(
                     )
                 })?
                 .task;
+            let sources = args
+                .get_many::<String>("source")
+                .into_iter()
+                .flatten()
+                .map(|source| {
+                    source
+                        .parse()
+                        .map_err(|_| Failure::usage("--source requires a full event identifier"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
             let response = api.call(Request::ContributionPublish {
                 goal,
                 task: Some(task),
@@ -197,6 +208,7 @@ pub(super) fn run(
                 summary,
                 base: Some(review.base),
                 patch: Some(patch),
+                sources,
                 artifacts: vec![review.head],
             })?;
             response_output(response)

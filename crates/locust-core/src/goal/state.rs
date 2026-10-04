@@ -84,6 +84,7 @@ pub struct Cancellation {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Contribution {
     pub id: EventId,
+    pub sources: Vec<EventId>,
     pub author: PublicKey,
     pub context: Context,
     pub attempt: Option<EventId>,

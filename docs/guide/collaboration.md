@@ -1,6 +1,6 @@
 # First collaboration journeys
 
-**Status: implemented development CLI, API 3 / protocol 3.** The local tutorial
+**Status: implemented development CLI, API 4 / protocol 4.** The local tutorial
 below uses two enrolled participants and separate execution sessions on one
 isolated daemon. It exercises real CLI requests and persistent state. It does not
 establish discovery between machines or native model behavior.

@@ -77,6 +77,7 @@ impl History {
                 attempt: None,
                 base: Some(Self::input(next).hash()),
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![],
             };
             let event = self.author.event_with(goal, anchor, body, Some(payload));

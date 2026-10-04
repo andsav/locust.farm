@@ -1,4 +1,4 @@
-//! Owner controls change only the selected local permissions.
+//! Principals inspect their own permissions; only the owner can change them.
 
 use locust_proto::api::{
     AttentionEntry, Caller, GoalPermission, GoalPermissions, Membership, Response,
@@ -23,8 +23,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
         goal: GoalId,
         agent: PublicKey,
     ) -> Result<GoalPermissions, locust_proto::api::ApiError> {
-        if actor.caller != Caller::Owner || actor.principal.is_some() {
-            return Err(denied("only the owner inspects local goal permissions"));
+        if !(actor.caller == Caller::Owner && actor.principal.is_none())
+            && actor.principal != Some(agent)
+        {
+            return Err(denied(
+                "only the owner can inspect another principal's local permissions",
+            ));
         }
         let entry = self.readable(actor, &goal)?;
         let principal = self
@@ -77,6 +81,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         permissions: Vec<GoalPermission>,
         allowed: bool,
     ) -> Plan {
+        require_owner(actor)?;
         let mut view = self.permission_view(actor, goal, agent)?;
         for permission in permissions {
             permission.set(&mut view.grants, allowed);
@@ -151,6 +156,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         agent: PublicKey,
         task: TaskId,
     ) -> Plan {
+        require_owner(actor)?;
         let mut view = self.permission_view(actor, goal, agent)?;
         let entry = self.readable(actor, &goal)?;
         let task = entry
@@ -179,6 +185,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         task: TaskId,
         takeover: bool,
     ) -> Plan {
+        require_owner(actor)?;
         let mut view = self.permission_view(actor, goal, agent)?;
         let entry = self.readable(actor, &goal)?;
         if !entry.is_member(&agent) || self.principals.active(&agent).is_none() {
@@ -220,4 +227,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
             tx,
         })
     }
+}
+
+fn require_owner(actor: &Actor) -> Result<(), locust_proto::api::ApiError> {
+    if actor.caller != Caller::Owner || actor.principal.is_some() {
+        return Err(denied("only the owner changes local goal permissions"));
+    }
+    Ok(())
 }

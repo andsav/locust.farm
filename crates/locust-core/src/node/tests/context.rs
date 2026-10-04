@@ -2,7 +2,16 @@
 
 use super::lifecycle::{authorize, event, finding, offered, progress, setup};
 use super::*;
-use locust_proto::api::{ContextCursor, ContextReceipt, ContextView};
+use locust_proto::api::{
+    ContextCursor, ContextReceipt, ContextSnapshot, ContextSummary, ContextView,
+};
+
+fn full(view: &ContextView) -> &ContextSnapshot {
+    let Some(ContextSummary::Full(snapshot)) = view.summary.as_ref() else {
+        panic!("expected full initial context summary")
+    };
+    snapshot
+}
 use locust_proto::event::{Doc, ReviewVerdict, TaskId};
 use locust_proto::id::{EventId, GoalId};
 use locust_proto::store::{Blob, Space, Store};
@@ -16,6 +25,7 @@ fn read(
     unread_only: bool,
 ) -> Request {
     Request::Context {
+        view: locust_proto::api::ContextViewMode::Full,
         goal,
         task,
         after,
@@ -171,7 +181,7 @@ fn preview_and_unavailable_payload_cannot_acknowledge_text_and_late_payload_is_n
             .as_ref()
             .is_none_or(|receipt| receipt.entries.iter().all(|entry| entry.event != finding))
     );
-    assert!(unavailable.pending.context_news.unwrap().unavailable > 0);
+    assert!(full(&unavailable).pending.context_news.unwrap().unavailable > 0);
     if let Some(receipt) = unavailable.receipt {
         acknowledge(&mut d, agent, receipt);
     }
@@ -296,8 +306,8 @@ fn task_context_joins_scoped_progress_findings_reviews_and_documents_at_one_revi
         },
     ));
     let view = context(&mut d, agent, goal, Some(task), false);
-    assert_eq!(view.revision, view.pending.revision);
-    assert_eq!(view.task.as_ref().unwrap().view.task, task);
+    assert_eq!(view.revision, full(&view).pending.revision);
+    assert_eq!(full(&view).task.as_ref().unwrap().view.task, task);
     for id in [report, global, scoped, review, document] {
         assert!(contains(&view, id));
     }
@@ -313,7 +323,7 @@ fn task_context_joins_scoped_progress_findings_reviews_and_documents_at_one_revi
         .unwrap();
     assert_eq!(review.event.text.as_deref(), Some("Missing retry evidence"));
     assert_eq!(review.event.view.author, principal);
-    assert!(!view.effective_rules_json.is_empty());
+    assert!(!full(&view).effective_rules_json.is_empty());
 }
 
 #[test]
@@ -450,7 +460,7 @@ fn task_brief_uses_pinned_variation_and_task_inputs_instead_of_goal_defaults() {
             }),
         },
     );
-    let expected = context(&mut d, agent, goal, None, false)
+    let expected = full(&context(&mut d, agent, goal, None, false))
         .status
         .current_rules
         .unwrap();
@@ -485,18 +495,21 @@ fn task_brief_uses_pinned_variation_and_task_inputs_instead_of_goal_defaults() {
     )));
     let goal_view = context(&mut d, agent, goal, None, false);
     let task_view = context(&mut d, agent, goal, Some(task), false);
-    let detail = task_view.task.as_ref().unwrap();
+    let detail = full(&task_view).task.as_ref().unwrap();
     assert_eq!(detail.variation.as_deref(), Some("reviewed"));
-    assert_eq!(task_view.effective_rules_json, detail.effective_rules_json);
+    assert_eq!(
+        full(&task_view).effective_rules_json,
+        detail.effective_rules_json
+    );
     assert_ne!(
-        task_view.effective_rules_json,
-        goal_view.effective_rules_json
+        full(&task_view).effective_rules_json,
+        full(&goal_view).effective_rules_json
     );
     assert_eq!(
-        task_view.inputs,
+        full(&task_view).inputs,
         BTreeMap::from([("workspace".into(), hash)])
     );
-    assert!(goal_view.inputs.is_empty());
+    assert!(full(&goal_view).inputs.is_empty());
 }
 
 #[test]
@@ -514,15 +527,23 @@ fn scoped_pages_keep_goal_wide_news_and_viewers_remain_observational() {
     assert!(!contains(&page, excluded));
     assert_eq!(
         d.ok(agent, Request::Pending { goal }),
-        Response::Pending(page.pending.clone())
+        Response::Pending(full(&page).pending.clone())
     );
     acknowledge(&mut d, agent, page.receipt.unwrap());
     let empty = context(&mut d, agent, goal, Some(task), true);
     assert!(empty.items.is_empty());
-    assert!(empty.pending.context_news.as_ref().unwrap().unacknowledged > 0);
+    assert!(
+        full(&empty)
+            .pending
+            .context_news
+            .as_ref()
+            .unwrap()
+            .unacknowledged
+            > 0
+    );
     assert_eq!(
         d.ok(agent, Request::Pending { goal }),
-        Response::Pending(empty.pending)
+        Response::Pending(full(&empty).pending.clone())
     );
     d.ok(
         owner,
@@ -536,7 +557,7 @@ fn scoped_pages_keep_goal_wide_news_and_viewers_remain_observational() {
     let viewer = d.connect(credential(9), None);
     let observed = context(&mut d, viewer, goal, Some(task), true);
     assert!(observed.receipt.is_none());
-    assert!(observed.pending.context_news.is_none());
+    assert!(full(&observed).pending.context_news.is_none());
     assert!(
         observed
             .items
@@ -632,7 +653,7 @@ fn pending_reviews_only_count_the_callers_effective_reviews() {
 
     let (mut d, _, owner, agent, goal) = setup();
     let (reviewer, reviewer_conn) = super::authorization::join_local(&mut d, agent, goal, 2);
-    let expected = context(&mut d, agent, goal, None, false)
+    let expected = full(&context(&mut d, agent, goal, None, false))
         .status
         .current_rules
         .unwrap();

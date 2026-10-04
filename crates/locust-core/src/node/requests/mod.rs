@@ -137,12 +137,22 @@ impl<S: Store, E: Entropy> Node<S, E> {
         match request {
             Request::Context {
                 goal,
+                view,
                 task,
                 after,
                 limit,
                 preview_chars,
                 unread_only,
-            } => self.context_read(actor, goal, task, after, limit, preview_chars, unread_only),
+            } => self.context_read(
+                actor,
+                goal,
+                task,
+                after,
+                limit,
+                preview_chars,
+                unread_only,
+                view,
+            ),
             Request::ContextAcknowledge { goal, receipt } => {
                 self.context_acknowledge(actor, goal, receipt)
             }
@@ -272,13 +282,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 attempt,
                 generation,
                 summary,
+                sources,
                 base,
                 patch,
                 artifacts,
             } => self.contribution_publish(
-                actor, goal, task, attempt, generation, summary, base, patch, artifacts, now,
+                actor, goal, task, attempt, generation, summary, sources, base, patch, artifacts,
+                now,
             ),
             Request::Contributions { goal, task } => self.contributions(actor, goal, task),
+            Request::ContributionInspect { goal, contribution } => {
+                self.contribution_inspect(actor, goal, contribution)
+            }
             Request::CompletionDeclare { goal, subject } => {
                 self.completion_declare(actor, goal, subject, now)
             }
@@ -320,6 +335,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 outcome,
             } => self.cancel_acknowledge(actor, goal, cancel, generation, outcome, now),
             Request::Pending { goal } => self.pending(actor, goal),
+            Request::PendingPage {
+                goal,
+                kind,
+                after,
+                limit,
+            } => self.pending_page(actor, goal, kind, after, limit),
             Request::Events { goal, after, limit } => self.events(actor, goal, after, limit),
             Request::DocRead { goal, doc } => self.doc_read(actor, goal, doc),
             Request::DocRevise {

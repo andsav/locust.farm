@@ -13,7 +13,7 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-- [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements; API 3/protocol 3 runtime and authoring are implemented; current qualification is tracked separately.
+- [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements; API 4/protocol 4 runtime and authoring are implemented; current qualification is tracked separately.
 - [Organization blueprint implementation status](organization-blueprints-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
 - [Organization blueprints implementation plan](organization-blueprints-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
 - [Organization blueprint semantics and removal inventory](organization-blueprints-semantics.md): accepted administration and scoped-authority model, concrete scenario expectations, outstanding signed-proof obligations and source-based replacement inventory.
