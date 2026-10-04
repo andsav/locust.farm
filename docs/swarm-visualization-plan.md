@@ -107,103 +107,170 @@ tokens, cost, keys, endpoint ids, addresses, hostnames, paths, raw goal, task or
 event ids, tickets, invitations, client versions, why an agent waits, and any
 label that is the same across goals.
 
-## Work packages
+## How big the change is
 
-Each package is small enough to ship on its own. P1 can be shown before any
-Rust work.
+The mockups settle the page, the gallery and the states, so the site work is
+mostly a port. Most of the remaining work is outside the browser:
 
-### P1. Farm page and gallery on the site, from a recorded file
+| Part | Size | Why |
+|---|---|---|
+| Site: `/farm/<id>` and `/farms` | Medium | Port the mockups to Svelte; `farmLayout` in the [farm mockup](../research/evidence/swarm-visualization/farm.html) already draws both the page and the cards |
+| Public farm schema and projection | Medium | New wire type and a fold from goal state into it, with leak tests |
+| Relay in the creator's daemon | Medium | A background task, local settings, signed uploads |
+| Farm service on locust.farm | Medium | New small binary, SQLite, Server-Sent Events, nginx |
+| Consent from other people | Large | New signed protocol events, fold, vectors, invitations |
 
-- Add `/farm` and `/farms` routes to `sites/locust.farm`. The site uses
-  `adapter-static` and is deployed by `scripts/deploy-production.sh` behind
-  nginx. Keep it static: `/farm` is one prerendered page that reads the farm id
-  from the path (an nginx rewrite to the page) and loads data with `fetch`.
-- Define the public farm schema as TypeScript types plus a JSON fixture (the
-  mockup's synthetic swarm). The page draws a snapshot and applies changes.
-- Reuse `SiteHeader.svelte` (add "farms" to `NAV_LINKS` in `src/lib/site.ts`),
-  the tokens, `onboarding/clipboard.ts` for Copy link, and the formation
-  editor's decoding and step order. The old xyflow stage canvas is gone; draw
-  the steps with plain SVG and HTML.
-- Render all user text as text nodes. No HTML, no links built from user text.
-- Tests: unit tests for the layout and the state rules (receiving, quiet,
-  ended), Playwright tests at 1440 px and 390 px, keyboard walk of the map.
+To ship quickly, the work is split into two stages. Stage 1 needs no protocol
+change. Stage 2 adds consent from other people.
 
-### P2. The public farm schema and projection in Rust
+## Stage 1: farms that show only the creator's own agents by name
 
-- A `locust-proto` type for the public farm, versioned, with only the allowed
-  fields. Ids are export-local: a random `farm_id`, task refs as short salted
-  hashes, people as salted handles, so a member cannot be matched across farms.
-- A projection in `locust-core` from the goal state to that type. It is a
-  separate type from private views so a private view cannot be serialized by
-  mistake.
-- `locust goal farm show --goal <goal>` prints the JSON the page would receive.
-  This lets the creator see exactly what would be published.
-- Tests: a forbidden-field test over every field, canary strings in private
-  fields that must not appear, people without consent counted but not named.
+**Rule.** Turning the farm on is a local setting on the creator's daemon. The
+page names only members hosted on the creator's own daemon, because the person
+turning it on is their owner. Members hosted elsewhere appear only in counts
+("2 agents not shown"). A farm can be listed in the gallery only when every
+member is hosted on the creator's daemon. Otherwise it is link-only. No task
+titles in stage 1; the goal title is shown only if the creator chooses.
 
-### P3. Turning it on, and consent (protocol change)
+This covers the [local Codex and Claude demo](demo.md) and any swarm one person
+runs on their own machine, and is safe for mixed swarms because other people's
+agents are never named.
+
+Work can run in three parallel lanes once step 1.1 is agreed.
+
+### 1.1 The public farm schema (contract, lane A)
+
+- Add `crates/locust-proto/src/farm.rs`: a versioned `FarmSnapshot` with only
+  the allowed fields, `#[serde(deny_unknown_fields)]`, and string length limits.
+  Contents: schema version, farm id, `seq`, optional goal title, formation name,
+  steps with their requirements, tasks (salted 4-character ref, step, state,
+  approvals, rejected count), shown agents (name, client name without version,
+  step, held ref), counts of people, agents and agents not shown, the last 50
+  changes as daemon-written sentences with the time the creator's daemon heard
+  them, and an `ended` flag.
+- Uploads send the **whole snapshot** each time, not deltas. A 10-agent farm is
+  a few kilobytes and a 160-task farm about 20 KB, so this removes a delta
+  protocol and lets the page animate by comparing two snapshots.
+- Generate a JSON Schema for it with `schemars`, as the repository already does
+  for [other contracts](reference/generated/), and add a site test that checks
+  the TypeScript types and fixture against that schema.
+- New direct dependencies (`reqwest` with rustls for the daemon, `axum` for the
+  service) are requested from lane A, which owns `Cargo.toml` and `Cargo.lock`
+  ([workstreams](workstreams.md)).
+
+### 1.2 Projection and settings (daemon)
+
+- `locust-core`: a function from goal state plus the set of members hosted on
+  this daemon to `FarmSnapshot`. It is the only way to build a snapshot; private
+  views are separate types and cannot be serialized into it.
+- Local settings per goal, stored with the goal's local record: farm id, upload
+  signing key, `link` or `listed`, and whether the goal title is shown. The farm
+  id is a short hash of the upload public key, so nobody else can claim it.
+- CLI, owner credential only, never an MCP tool:
+  - `locust farm show --goal <goal>` prints the exact JSON that would be sent.
+  - `locust farm on --goal <goal> [--listed] [--title]` turns it on and prints
+    the link. It refuses `--listed` while any member is hosted elsewhere.
+  - `locust farm off --goal <goal>` stops it and asks the service to delete the
+    farm.
+  - `locust farm status` lists farms that are on.
+- Tests: every field against the allow-list; canary strings placed in private
+  fields (paths, keys, endpoint ids, task text, notes) never appear; remote
+  members only counted; salted refs differ between farms.
+
+### 1.3 Relay (daemon)
+
+- A background task per farm that is on, in `crates/locust/src/daemon`. It
+  waits for the goal's revision to change, rebuilds the snapshot, and uploads it
+  if it differs, at most once every 2 seconds. It sends a signed check-in every
+  30 seconds when nothing changed.
+- Requests are signed with the upload key and carry an increasing `seq`.
+  Failures back off up to 60 seconds and never block the daemon.
+- When the goal is completed or closed, it sends a last snapshot with `ended`
+  and stops. `farm off` sends a signed delete.
+- Tests: debounce, back-off, ended, off, and an end-to-end run against the
+  service started in-process.
+
+### 1.4 Farm service (new crate `crates/locust-farm`)
+
+- A small axum binary with SQLite. One table: farm id, public key, listed,
+  latest snapshot, `seq`, last upload time, last check-in time, ended time,
+  taken down.
+- Endpoints:
+  - `PUT /api/farms/<id>`: signed snapshot. Checks the key matches the id, the
+    signature, `seq` greater than the last one, size under 256 KB, at most one
+    upload per second, and that the snapshot parses with the shared type.
+  - `POST /api/farms/<id>/check-in` and `DELETE /api/farms/<id>`: signed.
+  - `GET /api/farms/<id>`: latest snapshot plus last check-in time.
+  - `GET /api/farms/<id>/events`: Server-Sent Events. Each event is a full
+    snapshot or a check-in, with `Last-Event-ID` for reconnects.
+  - `GET /api/farms`: listed farms for the gallery, latest change first.
+- Operator command `locust-farm take-down <id>` for abuse. Ended farms are
+  deleted after a fixed time (decision F3).
+- Tests: wrong key, bad signature, replayed `seq`, oversize, rate limit,
+  unknown fields, delete, take-down, quiet after missed check-ins.
+
+### 1.5 Site (`sites/locust.farm`)
+
+- `src/lib/farm/`: `schema.ts` (generated types), `layout.ts` (port of
+  `farmLayout`), `state.ts` (receiving within 2 minutes of a check-in, quiet
+  after that, ended), `live.ts` (`EventSource` with reconnect), and Svelte
+  components for the header, status box, counts, step map, tasks table, changes
+  list, agents, people and the gallery card.
+- Routes: `src/routes/farm/+page.svelte` is one prerendered page that reads the
+  id from the address and loads `/api/farms/<id>`; `src/routes/farms/+page.svelte`
+  is the gallery. Add "farms" to `NAV_LINKS` in `src/lib/site.ts` and both
+  routes to `scripts/check-prerender.mjs`.
+- All farm text is rendered as text. No links or HTML from farm data.
+- A JSON fixture taken from the mockup data drives unit tests and Playwright
+  tests at 1440 and 390 pixels, including the quiet and ended states and a
+  keyboard walk of the map.
+
+### 1.6 Deploy on locust.farm
+
+- [`ops/nginx.conf`](../sites/locust.farm/ops/nginx.conf):
+  - rewrite `/farm/<id>` to the prerendered `farm.html`;
+  - proxy `/api/farms` to the service on `127.0.0.1`, with buffering off for
+    Server-Sent Events;
+  - add a strict Content-Security-Policy and `Referrer-Policy: no-referrer` on
+    farm pages, and `noindex` on link-only farms.
+- **The whole site is behind basic auth today** ("Locust preview"). Daemons
+  cannot upload, and people with a link cannot view, until `/api/farms`,
+  `/farm/` and `/farms` are exempt or the preview gate is removed (decision F4).
+- A systemd unit for `locust-farm`, a Linux build of the binary, and a step in
+  [`scripts/deploy-production.sh`](../sites/locust.farm/scripts/deploy-production.sh)
+  or a sibling script to install it.
+
+### 1.7 Done when
+
+The local Codex and Claude demo runs with `locust farm on`, the page on
+locust.farm updates while the agents work, goes quiet when the daemon stops, and
+shows ended when the goal closes. Its uploaded JSON has been read against the
+allow-list. All Rust and site gates pass.
+
+## Stage 2: other people's agents, with their consent
 
 - New governance event signed by the creator:
-  `PublicationSet { farm: Off | Link | Listed, text: None | Titles, presence: bool, farm_id, salt, relay_key }`.
-  It must be signed and replicated, because it moves the read boundary for
-  content every member wrote.
+  `PublicationSet { farm: Off | Link | Listed, text: None | Titles, presence: bool, farm_id, salt, upload_key }`.
+  It replaces the stage 1 local setting, so every member can see the policy.
 - New event signed by each member: `PublicationConsent { policy, accept }`. A
-  member's agents, name and presence are shown only while their latest consent
-  names the current policy. Otherwise they appear only in counts as "not shown".
-  Narrowing the policy needs no new consent; widening it does.
-- Invitations show the policy at join, checked against the signed event when it
-  arrives.
-- CLI: `locust goal farm set --goal <goal> --show link|listed|off --text none|titles`
-  and `locust goal farm consent --goal <goal> --accept|--decline`. Not exposed as
-  model tools; the person answers. The agent can show the prompt and the
-  command, as in the controls mockup.
-- Update the protocol docs, test vectors and fold tests. Check whether the TLA+
-  models need the new governance event.
+  member's agents and name are shown only while their latest consent names the
+  current policy. Narrowing needs no new consent; widening does.
+- A public name chosen and signed by each member, since the protocol has no
+  display name today.
+- Invitations show the policy at join, checked against the signed event.
+- CLI: `locust farm consent --goal <goal> --accept|--decline`.
+- Protocol documentation, test vectors, fold and replay tests; check whether the
+  TLA+ models need the new governance events.
+- The gallery then accepts farms with members from several people, but only
+  after a "report this farm" link and an abuse contact are on the site.
 
-### P4. The relay and the farm service
+## Stage 3: optional
 
-- The creator's daemon reads its own goal feed (`Events`, `Wait`), folds it with
-  the P2 projection and uploads the snapshot and changes to locust.farm every 1
-  to 5 seconds when something changed, plus a check-in every 30 seconds when
-  nothing did.
-- Uploads are HTTPS POSTs signed with the `relay_key` from the policy. The
-  service checks the signature, a sequence number (no replays), size and rate
-  limits.
-- The farm service is a small Rust binary in this workspace (axum), running on
-  the same server behind nginx, storing the latest snapshot and recent changes
-  in SQLite. Viewers get the snapshot, then changes over Server-Sent Events with
-  `Last-Event-ID` for reconnects.
-- Headers on farm pages and the API: a strict Content-Security-Policy,
-  `X-Robots-Tag: noindex` for link-only farms, `Referrer-Policy: no-referrer`.
-- Turning the page off deletes the farm on the server and stops the relay. The
-  page and the docs say copies already seen cannot be taken back.
-- Tests: signature and replay rejection, limits, quiet after missed check-ins,
-  delete on off, end-to-end from a local daemon to a local service to the page.
-
-### P5. Presence from participants (optional, last)
-
-- A new sync message, signed by the member and sent only to the creator: number
-  of sessions ready, blocked or exited, number attached, active claims, client
-  name without version, and when it was observed. Not written to the event log.
-- Sent when it changes, at most every 30 seconds, only with consent and only if
-  the policy has `presence: true`.
-- The page shows it as "program open, as last reported at 14:05", never as
-  "working" or "idle".
-
-### P6. Gallery rules and operations
-
-- Listing only for `Listed` farms with at least one consenting member.
-- A "report this farm" link, an operator takedown command on the server, and an
-  abuse contact on the site. Titles are user text, so takedown must exist
-  before the gallery is public.
-- Keep ended farms for a fixed time (for example 30 days), then delete.
-
-## Order
-
-P1 first (it can be shown with recorded data). P2 next, so the exact public data
-can be reviewed before anything is sent. Then P3 and P4 together, because
-nothing may be uploaded without the signed policy and consent. P5 and P6 last;
-P6 must be done before the gallery lists anyone else's farm.
+- Presence: a signed sync message from each member to the creator with counts of
+  sessions ready, blocked or exited, attached, and claims held, at most every 30
+  seconds, only with consent. Shown as "program open, as last reported at
+  14:05", never as working or idle. Decision F2.
+- Task titles for consenting authors.
 
 ## Decisions
 
@@ -216,8 +283,12 @@ Still open:
 
 - **F1. Default text level.** Recommended: no titles unless the creator picks
   titles.
-- **F2. Presence.** Whether P5 is wanted at all.
-- **F3. Retention.** How long ended farms stay.
+- **F2. Presence.** Whether stage 3 presence is wanted at all.
+- **F3. Retention.** How long ended farms stay. Suggested: 30 days.
+- **F4. Preview gate.** Exempt the farm paths from basic auth, or open the site.
+- **F5. Stage 1 rule.** Accept "only the creator's own agents are named" as the
+  first release, with consent from others in stage 2.
+
 
 ## Verification
 
