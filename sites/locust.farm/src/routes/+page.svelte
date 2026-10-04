@@ -19,6 +19,12 @@
 		<p>{description}</p>
 		<div class="actions">
 			<a class="start" href={GUIDE_PATH}>Start with one prompt <span aria-hidden="true">→</span></a>
+			<a
+				class="github"
+				href="https://github.com/andsav/locust.farm"
+				target="_blank"
+				rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a
+			>
 		</div>
 	</main>
 </div>
@@ -97,6 +103,20 @@
 
 	.start:active {
 		scale: 0.96;
+	}
+
+	.github {
+		display: inline-flex;
+		gap: var(--space-14);
+		align-items: center;
+		min-height: 2.5rem;
+		color: var(--color-text-muted);
+		font: var(--text-code);
+		text-shadow: var(--text-halo);
+	}
+
+	.github:hover {
+		color: var(--color-accent);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
