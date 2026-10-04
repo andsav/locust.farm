@@ -90,7 +90,7 @@ test('each way of working is a different answer at one or two points', async ({ 
 
 test('the compact matrix keeps role-specific answers and editable rules', async ({ page }) => {
 	await open(page);
-	await expect(page.locator('.line.main svg')).toHaveCount(0);
+	await expect(page.locator('.line.main svg.diagram')).toHaveCount(0);
 	await way(page, 'Review panel').click();
 	await expect(point(page, 'counts')).toContainText('reviewer');
 	await point(page, 'counts').click();
