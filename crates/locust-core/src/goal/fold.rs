@@ -156,7 +156,30 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     return Err(invalid("only a configured effect may create a stage task"));
                 }
                 let resolved = self.task_binding(binding, h.author, proof)?;
-                if self
+                if let Some(
+                    parent_context @ Context {
+                        scope: Scope::Task(_),
+                        ..
+                    },
+                ) = binding.parent
+                {
+                    let parent = self.resolve(parent_context)?;
+                    if !rules::matches(
+                        &parent.effective.work.propose,
+                        h.author,
+                        &parent.effective,
+                        None,
+                    ) {
+                        return Err(invalid("principal may not propose under the parent task"));
+                    }
+                }
+                if !matches!(
+                    binding.parent,
+                    Some(Context {
+                        scope: Scope::Task(_),
+                        ..
+                    })
+                ) && self
                     .chain
                     .snapshot(&h.anchor.unwrap())
                     .and_then(|snapshot| snapshot.rules)
@@ -399,9 +422,17 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         )?;
         if let Some(parent) = binding.parent {
             self.require(parent.round, proof)?;
-            let parent = self.resolve(parent)?;
+            let parent_context = parent;
+            let parent = self.resolve(parent_context)?;
             if parent.effective.rules != binding.rules {
                 return Err(invalid("child task cannot replace the parent definition"));
+            }
+            if matches!(parent_context.scope, Scope::Task(_))
+                && !super::delegation::narrows(&resolved.effective, &parent.effective)
+            {
+                return Err(invalid(
+                    "child variation does not prove narrower parent authority and completion",
+                ));
             }
         }
         let definition = self

@@ -57,11 +57,20 @@ impl<S: Store, E: Entropy> Node<S, E> {
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
-        let rules = entry
-            .state()
-            .current_rules
-            .ok_or_else(|| conflict("no current rules binding"))?;
         let parent = parent.map(|task| task_context(entry, task)).transpose()?;
+        let rules = if let Some(context) = parent {
+            entry
+                .state()
+                .task_round(context)
+                .ok_or_else(|| not_found("no such parent round"))?
+                .binding
+                .rules
+        } else {
+            entry
+                .state()
+                .current_rules
+                .ok_or_else(|| conflict("no current rules binding"))?
+        };
         let binding = TaskBinding {
             rules,
             variation,

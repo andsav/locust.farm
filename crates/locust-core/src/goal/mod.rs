@@ -2,6 +2,7 @@
 //! produce equal projections regardless of transport or insertion order.
 mod chain;
 mod commitments;
+mod delegation;
 mod flow;
 mod fold;
 mod history;

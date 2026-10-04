@@ -901,3 +901,139 @@ fn accepted_fork_branch_is_readable_only_in_its_selected_scope() {
         assert_eq!(replica.evaluation(), goal.evaluation());
     }
 }
+
+#[test]
+fn nested_tasks_inherit_parent_authority_and_reject_widening() {
+    use locust_proto::organization::{DecisionRules, TaskVariation, WorkRules};
+    let owner = Author::new(2).key.public();
+    let restricted = WorkRules {
+        propose: Selector::Participant {
+            key: owner.to_string(),
+        },
+        publish: Selector::Participant {
+            key: owner.to_string(),
+        },
+        starts: vec![locust_proto::organization::StartRule::Independent {
+            by: Selector::TaskCreator,
+        }],
+    };
+    let mut blueprint = Blueprint::default();
+    blueprint.variations.insert(
+        "restricted".into(),
+        TaskVariation {
+            work: Some(restricted),
+            decisions: Some(DecisionRules {
+                completion: CompletionRule::Reviews {
+                    by: Selector::Members,
+                    count: 2,
+                    exclude_author: true,
+                },
+                ..Default::default()
+            }),
+        },
+    );
+    blueprint.variations.insert(
+        "wide".into(),
+        TaskVariation {
+            work: Some(WorkRules::default()),
+            decisions: Some(DecisionRules::default()),
+        },
+    );
+    blueprint.variations.insert(
+        "weak".into(),
+        TaskVariation {
+            work: None,
+            decisions: Some(DecisionRules::default()),
+        },
+    );
+    let mut f = Fixture::new(blueprint);
+    let binding = |variation: Option<&str>, parent| TaskBinding {
+        rules: f.rules,
+        variation: variation.map(str::to_owned),
+        inputs: BTreeMap::new(),
+        parent,
+        stage: None,
+    };
+    let parent_binding = binding(Some("restricted"), None);
+    let parent_id = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: parent_binding,
+        },
+    );
+    let parent = Context {
+        scope: Scope::Task(TaskId::Authored(parent_id)),
+        round: parent_id,
+    };
+    let binding = |variation: Option<&str>| TaskBinding {
+        rules: f.rules,
+        variation: variation.map(str::to_owned),
+        inputs: BTreeMap::new(),
+        parent: Some(parent),
+        stage: None,
+    };
+    let inherited = binding(None);
+    let wide = binding(Some("wide"));
+    let weak = binding(Some("weak"));
+    let child = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: inherited.clone(),
+        },
+    );
+    let outsider = f.worker(1, Body::TaskOpened { binding: inherited });
+    let wide = f.worker(0, Body::TaskOpened { binding: wide });
+    let weak = f.worker(0, Body::TaskOpened { binding: weak });
+    let goal = f.goal();
+    assert_eq!(goal.standing(&child), Some(Standing::Effective));
+    for rejected in [outsider, wide, weak] {
+        assert!(matches!(
+            goal.standing(&rejected),
+            Some(Standing::Excluded(_))
+        ));
+    }
+    let effective = goal
+        .effective_rules(
+            Context {
+                scope: Scope::Task(TaskId::Authored(child)),
+                round: child,
+            },
+            &f.definitions,
+        )
+        .unwrap();
+    assert_eq!(
+        effective.work.propose,
+        Selector::Participant {
+            key: owner.to_string()
+        }
+    );
+    assert!(matches!(
+        effective.decisions.completion,
+        CompletionRule::Reviews { count: 2, .. }
+    ));
+}
+
+#[test]
+fn nested_task_keeps_parent_rules_after_future_defaults_change() {
+    let mut f = Fixture::new(Blueprint::default());
+    let parent = f.task();
+    let old_rules = f.rules;
+    let (binding, _) = testkit::rules_binding(&f.id, 0, &Blueprint::default(), BTreeMap::new());
+    f.admin(Body::RulesBound {
+        expected: Some(old_rules),
+        binding,
+    });
+    let child = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: TaskBinding {
+                rules: old_rules,
+                variation: None,
+                inputs: BTreeMap::new(),
+                parent: Some(parent),
+                stage: None,
+            },
+        },
+    );
+    assert_eq!(f.goal().standing(&child), Some(Standing::Effective));
+}

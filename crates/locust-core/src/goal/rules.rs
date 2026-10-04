@@ -93,8 +93,17 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
     if !super::valid_definition(&binding.definition.semantic, definition) {
         return Err(Standing::Excluded(Exclusion::InvalidDefinition));
     }
-    let mut work = definition.work.clone();
-    let mut decisions = definition.decisions.clone();
+    let inherited = task
+        .as_ref()
+        .and_then(|task| task.parent)
+        .filter(|context| matches!(context.scope, Scope::Task(_)))
+        .map(|context| resolve(history, definitions, context))
+        .transpose()?;
+    let (mut work, mut decisions) = if let Some(parent) = &inherited {
+        super::delegation::inherit(&parent.effective)
+    } else {
+        (definition.work.clone(), definition.decisions.clone())
+    };
     if let Some(name) = task.as_ref().and_then(|task| task.variation.as_ref()) {
         let variation = definition
             .variations
