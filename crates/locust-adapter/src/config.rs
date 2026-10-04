@@ -17,13 +17,8 @@ use std::ffi::OsString;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use locust_proto::local::{CREDENTIAL_ENV, HOME_ENV, SESSION_ENV};
 use serde_json::{Value, json};
-
-// Contract revision 2 names; replace these with locust_proto::local exports
-// when that module lands in the shared checkout.
-const HOME_ENV: &str = "LOCUST_HOME";
-const SESSION_ENV: &str = "LOCUST_SESSION";
-const CREDENTIAL_ENV: &str = "LOCUST_CREDENTIAL";
 
 /// Stable across sessions: binding and authentication use the session file,
 /// not a server label. Never overwrite an occupied label, even another Locust.

@@ -32,6 +32,7 @@ mod unix {
     use std::sync::Mutex;
     use std::time::Duration;
 
+    use locust_proto::local::{CREDENTIAL_ENV, HOME_ENV, SESSION_ENV};
     use serde_json::{Value, json};
 
     const TOOL_NAME: &str = "locust_probe_socket";
@@ -96,13 +97,13 @@ mod unix {
                 }
                 Ok(path)
             };
-            let home = path("LOCUST_HOME")?;
+            let home = path(HOME_ENV)?;
             let metadata = std::fs::metadata(&home).map_err(|_| "cannot inspect fixture home")?;
             if !metadata.is_dir() || metadata.permissions().mode() & 0o077 != 0 {
                 return Err("fixture home must be a private directory");
             }
-            let session = read_proof(&path("LOCUST_SESSION")?)?;
-            let credential = read_proof(&path("LOCUST_CREDENTIAL")?)?;
+            let session = read_proof(&path(SESSION_ENV)?)?;
+            let credential = read_proof(&path(CREDENTIAL_ENV)?)?;
             let events = OpenOptions::new()
                 .create(true)
                 .append(true)
