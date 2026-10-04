@@ -194,6 +194,20 @@ emulated campaign was stopped and its container removed. Linux runtime,
 installation and systemd tests were explicitly omitted under the revised scope;
 compilation does not count as a runtime pass or close the other release gates.
 
+**Onboarding follow-up, 2026-10-04, relevant to R6L/R7:** `d15e51f`
+implements resumable `up` and `agent add`. Its exact committed macOS candidate
+passed [launchd and existing-daemon onboarding](../research/onboarding-qualification.md)
+with disposable Codex/Claude profiles: read-only review, distinct protected
+identities/sessions, bound launcher authentication, unchanged PID on repeats,
+preservation of later owner grants and unrelated profiles, and verified cleanup.
+Each route passed 14 grouped checks. Launchd stop initially reported unavailable;
+subsequent observed stopped state and reviewed removal established cleanup.
+The implementation passed formatting, strict Clippy, 608 Rust tests (11 existing
+ignores), 177 existing Python tests and 10 new harness tests. This adds local
+installed daemon/configuration evidence, without native client/model execution,
+Linux/systemd, interactive approval or production trust claims. Those gates and
+W3 metadata/renaming/doctor work remain open.
+
 **Bound launcher follow-up, 2026-10-04:** `4030795` adds a setup-owned CLI
 launcher and points the installed skill to it. The exact committed macOS
 candidate passed the [fresh-profile Codex and Claude Code campaign](../research/bound-cli-launcher-qualification.md):

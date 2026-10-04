@@ -1,7 +1,8 @@
 # Resumable client onboarding
 
-Status: implemented and component-tested. Native qualification of the installed
-`up` route is pending. This page describes the
+Status: implemented and component-tested. The installed `up` route passed
+[macOS launchd and existing-daemon qualification](../research/onboarding-qualification.md)
+with disposable Codex and Claude profiles. This page describes the
 [CLI](../crates/locust/src/cli/onboarding.rs),
 [enrollment journal](../crates/locust/src/installation/onboarding.rs) and its
 [recovery tests](../crates/locust/src/installation/onboarding/tests.rs).
@@ -116,4 +117,4 @@ service before removing software they reference; see [removal](installation.md).
 W3 remains partial: separate display metadata and renaming, atomic managed-session
 client metadata, and onboarding integration with `doctor` are deferred. No
 end-to-end real-model workflow, physical-machine pass or public-distribution
-qualification is implied by these component tests.
+qualification is implied by these component and local installation tests.

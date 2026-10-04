@@ -14,6 +14,7 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [Installed onboarding qualification](onboarding-qualification.md): committed macOS candidate, launchd and existing-daemon onboarding, identity/grant preservation and verified cleanup.
 - [Organization blueprints](organization-blueprints.md): proposed composable organization at goal/task creation, Merak comparison, primary-source research, open collaboration and review/pool examples, distributed authority constraints, and protocol migration scope. Not an accepted design.
 
 - [T2 integration findings](t2-integration-review.md): nested-content replication, materialization races, CLI error/session boundaries and local verification scope.
