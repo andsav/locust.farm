@@ -124,7 +124,7 @@
 					>{/if}
 			{/each}
 		</div>
-		{#if !compact && !tasks.length}<p class="caption">No tasks reported</p>{/if}
+		{#if !compact && !tasks.length}<p class="caption">No tasks</p>{/if}
 	</div>
 {/snippet}
 
@@ -163,7 +163,7 @@
 			</div>{/if}
 	</div>
 	<div class="tray">
-		{#if !compact}<span class="label">No current-round attempts</span>{/if}
+		{#if !compact}<span class="label">Agents without attempts</span>{/if}
 		{#each unassociated as agent (agent.id)}<span
 				class="agent free"
 				title={`${agent.name} · ${harnessName(agent.harness)}`}
@@ -171,9 +171,7 @@
 						agent.harness
 					)}{/if}</span
 			>{/each}
-		{#if !compact && !unassociated.length}<span class="caption"
-				>Every agent has a current-round attempt</span
-			>{/if}
+		{#if !compact && !unassociated.length}<span class="caption">None</span>{/if}
 	</div>
 	{#if compact}<div class="preview-progress">
 			<i

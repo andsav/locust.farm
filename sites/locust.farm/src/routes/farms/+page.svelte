@@ -101,7 +101,7 @@
 <svelte:head
 	><title>Farms · locust.farm</title><meta
 		name="description"
-		content="Public farm pages whose creators chose to list them."
+		content="Swarms whose creators chose to list them publicly."
 	/><meta name="referrer" content="no-referrer" /></svelte:head
 >
 <div class="farm-site ui">
@@ -110,12 +110,8 @@
 		<div class="gallery-intro">
 			<h1>Farms</h1>
 			<p>
-				Swarms whose creators chose to list their farm page here. Each picture shows the last view
-				the creator’s Locust sent, and changes only when an update arrives.
-			</p>
-			<p>
-				A farm shared only by its link is never listed here. Everyone covered by a published view
-				agreed to its disclosure policy.
+				Swarms whose creators chose to list them publicly. Farms shared only by link are not shown
+				here.
 			</p>
 		</div>
 		<div class="gallery-controls">
@@ -128,10 +124,9 @@
 						}}>{label}</button
 					>{/each}
 			</div>
-			<p class="rule">Latest change first. Farms keep their places while you read.</p>
 		</div>
 		{#if error}<p class="connection-note" role="status">
-				Unable to reach the farms service. <button onclick={() => load()}>Try again</button>
+				Can’t reach the farms service. <button onclick={() => load()}>Try again</button>
 			</p>{/if}
 		<div class="gallery-grid">
 			{#each visible as farm (farm.farm_id)}
@@ -146,24 +141,24 @@
 					<FarmMap {snapshot} compact />
 					<div>
 						<h2>{snapshot.title ?? 'Title not shared'}</h2>
-						<p>{snapshot.agents.length} agents · {snapshot.groups.length} Locust groups</p>
+						<p>{snapshot.agents.length} agents · {snapshot.groups.length} groups</p>
 						<p>
 							{snapshot.formation} · {snapshot.stages.length
 								? `${snapshot.stages.length} stages`
-								: 'unstaged work'}
+								: 'no stages'}
 						</p>
 						<p>
 							<strong>{snapshot.tasks.filter((task) => task.completed).length}</strong>
-							of {snapshot.tasks.length} completed · {snapshot.tasks.filter(
+							of {snapshot.tasks.length} tasks completed · {snapshot.tasks.filter(
 								(task) => task.state === 'reported'
-							).length} with reported attempts
+							).length} attempted
 						</p>
 					</div>
 					<div>
 						<p class="state"><span class="status-mark"></span>{modeName(mode)}</p>
-						<p>Last service receipt {age(farm.received_at_ms, serviceNow(farm, now))}</p>
+						<p>Updated {age(farm.received_at_ms, serviceNow(farm, now))}</p>
 						{#if connections.get(farm.farm_id) === 'disconnected'}<p>
-								Connection interrupted · checking publication again on reconnect
+								Connection lost · reconnecting
 							</p>{/if}
 					</div>
 				</a>
@@ -172,35 +167,31 @@
 		{#if loading}<p role="status">Loading farms…</p>{:else if !visible.length && !error}<p
 				class="connection-note"
 			>
-				{farms.length
-					? 'No farms match this filter.'
-					: 'No farms are listed yet. A creator can publish a farm privately by link or choose to list it here.'}
+				{farms.length ? 'No farms match this filter.' : 'No farms are listed yet.'}
 			</p>{/if}
 		{#if cursor}<div>
 				<button disabled={loading} onclick={() => load(true)}>Load more farms</button>
 			</div>{/if}
 		<div class="about">
 			<section>
-				<h2>What the pictures show</h2>
+				<h2>Reading the map</h2>
 				<p>
-					Each stage has one mark per task and numbered agent associations. Parallel branches stay
-					parallel. A ring is open, grey has reported attempts, white awaits evidence and ember is
-					completed.
+					One dot per task, grouped by stage. A ring is open, grey is attempted, white is awaiting
+					evidence and ember is completed.
 				</p>
 			</section>
 			<section>
-				<h2>What the states mean</h2>
+				<h2>Status</h2>
 				<p>
-					Receiving updates means a service receipt within two minutes. Quiet means no recent
-					receipt; work may still be happening. Ended requires an explicit goal closure.
+					Receiving updates: the farm checked in within the last two minutes. Quiet: no recent
+					check-in, though work may be continuing. Ended: the goal was closed.
 				</p>
 			</section>
 			<section>
-				<h2>What stays private</h2>
+				<h2>Privacy</h2>
 				<p>
-					Task text, results, code, prompts, tool activity, costs, keys, addresses and file paths.
-					Lost publication eligibility makes the farm unavailable when suspension reaches the
-					service.
+					Task text, results, code, prompts, tool activity, costs, keys, addresses and file paths
+					are never published. Every member of a farm agreed to publish it.
 				</p>
 			</section>
 		</div>
