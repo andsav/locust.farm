@@ -243,6 +243,16 @@ installed daemon/configuration evidence, without native client/model execution,
 Linux/systemd, interactive approval or production trust claims. Those gates and
 W3 metadata/renaming/doctor work remain open.
 
+**Demo follow-up, 2026-10-04:** the exact `527ada5` macOS API-4 candidate
+passed [fresh native Codex/Claude through up](../research/demo-qualification.md),
+selected-profile doctor, bound-launcher workspace execution, restart/retry and
+owned cleanup (25/24 assertions passed; 4/5 explicitly not run). Launchd and
+foreground onboarding plus named two-member administration passed 16 grouped
+checks each. This closes the native `up` route and selected-doctor gap for these
+clients under scripted providers. Real-model selection, interactive approval,
+Linux and production trust remain separate gates; W3 display metadata/renaming
+remain deferred. See the [demo guide](demo.md).
+
 **Bound launcher follow-up, 2026-10-04:** `4030795` adds a setup-owned CLI
 launcher and points the installed skill to it. The exact committed macOS
 candidate passed the [fresh-profile Codex and Claude Code campaign](../research/bound-cli-launcher-qualification.md):

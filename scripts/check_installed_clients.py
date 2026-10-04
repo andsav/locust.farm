@@ -457,7 +457,7 @@ def qualify(client, binary, args):
                 daemon.restart()
                 after = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
                 checks["daemon_restart"] = fixture.assertion("pass" if before == after and endpoint == daemon.endpoint else "fail", "Installed daemon retains exact goal state and endpoint across restart")
-                daemon.retry()
+                daemon.retry(after_native=True)
                 result["onboarding"]["doctor_after_restart"] = daemon.doctor()
                 checks["selected_profile_doctor"] = fixture.assertion("pass",
                     "Selected installation/profile checks pass before native startup and after restart; exact enrolled identity matches and model/discovery remain unverified")

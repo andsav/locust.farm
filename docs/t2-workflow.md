@@ -60,14 +60,16 @@ binding strings and content but never opens the supplied paths.
 | `patch create --goal GOAL --base INPUT --root ROOT --commit COMMIT` | Captures a named committed tree against the exact base |
 | `patch create ... --path FILE --path OTHER` | Captures only explicitly named regular files, including deletion of selected missing base files |
 | `patch review --goal GOAL --patch PATCH` | Validates the exact delta and renders text diffs or binary/mode summaries |
-| `patch submit --goal GOAL --patch PATCH --assignment ASSIGNMENT --generation N SUMMARY` | Validates and submits the contribution with its base and head under the claimed session |
-| `patch accept --goal GOAL --result RESULT --patch PATCH` | Checks the result/patch/base relationship and accepts the exact head |
-| `patch apply --goal GOAL --subject CONTRIBUTION --root ROOT` | Applies a currently accepted contribution, preserves originals and records local integration after success |
+| `patch submit --goal GOAL --patch PATCH --attempt ATTEMPT --generation N SUMMARY` | Validates and submits the contribution with its base and head under the claimed session |
+| `patch select --goal GOAL --subject CONTRIBUTION` | Validates the signed contribution and selects it under the organization's declared authority |
+| `patch apply --goal GOAL --subject CONTRIBUTION --root ROOT` | Applies a selected contribution, preserves originals and records local integration after success |
 
 Paths are absolute local selections. An exported Git root also requires
 `--expected-git-head FULL_COMMIT` for application. Capture and application must
-use a root already recorded by export or materialization. CLI `--json` produces
-one response envelope. Composite workspace commands do not accept a single
+use a root already recorded by export or materialization. An organization that
+does not require shared selection permits explicit owner application with
+`--owner --as AGENT` and `--local-choice`; this records no shared approval.
+CLI `--json` produces one response envelope. Composite workspace commands do not accept a single
 `--idempotency-key`; retry them using the same immutable identifiers.
 
 The [versioned contribution format](../crates/locust-proto/src/contribution.rs)

@@ -91,6 +91,31 @@ class NativeOnboardingTests(unittest.TestCase):
                 self.daemon._enroll_identity()
             self.assertEqual(call.call_count, 1)
 
+    def test_native_metadata_refresh_preserves_binding_then_requires_noop(self):
+        self.daemon.onboarding["binding"] = self.daemon.binding(self.row)
+        self.daemon.principal = self.row["principal"]
+        agents = {"status": {"agents": [{"agent": self.daemon.principal}]}}
+        with patch.object(self.daemon, "onboard", side_effect=[dict(self.row, changed=True), self.row]), patch.object(self.daemon, "call", return_value=agents):
+            self.daemon.retry(after_native=True)
+        self.assertTrue(self.daemon.onboarding["native_profile_reconciled"])
+        with patch.object(self.daemon, "onboard", return_value=dict(self.row, changed=True)):
+            with self.assertRaisesRegex(ProductionError, "reconciled profile"):
+                self.daemon.retry(after_native=True)
+        private_write(self.launcher, "#!/bin/sh\nchanged\n")
+        self.launcher.chmod(0o700)
+        with patch.object(self.daemon, "onboard", return_value=self.row):
+            with self.assertRaisesRegex(ProductionError, "changed enrolled identity"):
+                self.daemon.retry(after_native=True)
+
+    def test_fixture_authority_uses_current_agent_grants_contract(self):
+        agents = {"status": {"agents": [{"agent": self.row["principal"], "grants": {"manage_goals": False}}]}}
+        with patch.object(self.daemon, "onboard", return_value=self.row), patch.object(self.daemon, "call", return_value=agents) as call:
+            self.daemon._enroll_identity()
+        arguments = call.call_args.args[0]
+        self.assertEqual(arguments[:4], ["agent", "grant", "--agent", self.row["principal"]])
+        self.assertEqual(arguments[4], "--grants")
+        self.assertEqual(json.loads(arguments[5]), {"manage_goals": True})
+
     def test_doctor_requires_all_checks_exact_identity_and_unverified_discovery(self):
         self.daemon.principal, self.daemon.instance = self.row["principal"], self.row["instance"]
         names = ("installation", "service", "onboarding_journal", "onboarding_complete",

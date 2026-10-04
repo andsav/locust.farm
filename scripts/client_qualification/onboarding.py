@@ -62,11 +62,18 @@ class OnboardedDaemon(ProductionDaemon):
             result[key + "_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
         return result
 
-    def retry(self):
+    def retry(self, *, after_native=False):
         for operation in ("up", "agent add"):
             row = self.onboard(operation)
-            if row.get("changed") is not False or self.binding(row) != self.onboarding["binding"]:
+            if self.binding(row) != self.onboarding["binding"]:
                 raise ProductionError("onboarding retry changed enrolled identity or binding")
+            # Native clients write unrelated profile metadata. A reviewed up can
+            # refresh setup's saved original/config images while preserving the
+            # exact binding. The immediately following agent add must be a no-op.
+            if after_native and operation == "up":
+                self.onboarding["native_profile_reconciled"] = row.get("changed") is True
+            elif row.get("changed") is not False:
+                raise ProductionError("onboarding retry changed an unused or reconciled profile")
         agents = self.call(["status"], owner=True)["status"]["agents"]
         if len(agents) != 1 or agents[0]["agent"] != self.principal:
             raise ProductionError("onboarding retry created an extra principal")
@@ -103,4 +110,5 @@ class OnboardedDaemon(ProductionDaemon):
         self.onboarding["no_initial_grants"] = True
         self.retry()
         # Fixture owner explicitly authorizes the synthetic work after onboarding.
-        self.call(["agent", "grant", "--agent", self.principal, "--manage-goals", "true"], owner=True)
+        self.call(["agent", "grant", "--agent", self.principal,
+                   "--grants", json.dumps({"manage_goals": True})], owner=True)

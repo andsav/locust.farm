@@ -14,6 +14,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [Local demo qualification](demo-qualification.md): exact API-4 candidate, fresh Codex/Claude through up, selected doctor, named administration, native workspace/restart and owned cleanup.
+
 - [Separate-goal subgroup acceptance](subgroup-qualification.md): authenticated Engine tests for explicit selected-context export, membership isolation and fresh parent review of returned findings.
 
 - [Organization local and default-network qualification](organization-local-discovery.md): exact-candidate T1 and six operations cases pass with production defaults; relay-free mDNS failure remains separate.

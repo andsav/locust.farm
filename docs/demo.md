@@ -1,8 +1,8 @@
 # Local Codex and Claude demo
 
-Status: implemented command path; qualification results must identify the exact
-candidate and native-client/provider mode. This guide starts after reviewed
-[installation](installation.md). It does not publish software or change an
+Status: implemented and [qualified locally](../research/demo-qualification.md)
+with fresh native Codex/Claude clients and scripted loopback providers. This guide
+starts after reviewed [installation](installation.md). It does not publish software or change an
 existing goal's organization. Use fresh current-format state and a disposable
 Git repository for the demo.
 
@@ -46,7 +46,9 @@ locust --owner goal add-local --goal 'Demo change' --agent demo-claude --plan
 locust --owner goal add-local --goal 'Demo change' --agent demo-claude --yes
 locust --owner permission allow --goal 'Demo change' --agent demo-codex contribute
 locust --owner permission allow --goal 'Demo change' --agent demo-claude contribute review
-locust --owner --as demo-codex task open --goal 'Demo change' --title 'Implement the change' 'Make the requested change using the shared finding, publish its patch, and await peer review.'
+locust --owner --as demo-codex task open --goal 'Demo change' 'Implement the change
+
+Make the requested change using the shared finding, publish its patch, and await peer review.'
 locust --owner permission allow --goal 'Demo change' --agent demo-codex --task 'Implement the change' execute
 ```
 
@@ -136,5 +138,6 @@ with unrelated work preserved. The installed-client campaign now starts from
 `up`, checks selected-profile doctor, and exercises native discovery and workspace
 commands through the generated launcher. Its scripted-provider execution is
 separate from natural-language real-model selection and interactive human approval.
-Native qualification of this combined route is pending; earlier results retain
-their own candidate identity in the [release evidence](release-evidence.md).
+The combined route passed on candidate `527ada5`; see the
+[exact results and limitations](../research/demo-qualification.md). Earlier results
+retain their own candidate identity in the [release evidence](release-evidence.md).

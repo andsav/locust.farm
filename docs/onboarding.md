@@ -7,8 +7,9 @@ with disposable Codex and Claude profiles. This page describes the
 [enrollment journal](../crates/locust/src/installation/onboarding.rs) and its
 [recovery tests](../crates/locust/src/installation/onboarding/tests.rs).
 Configuration, authenticated daemon readiness and native model discovery are
-separate observations. Earlier [bound-launcher qualification](../research/bound-cli-launcher-qualification.md)
-does not qualify this new orchestration route.
+separate observations. The [combined demo qualification](../research/demo-qualification.md)
+now covers fresh native Codex/Claude execution through `up`, selected-profile
+diagnostics and retries on API 4, using scripted loopback providers.
 
 ## Start with verified software
 
