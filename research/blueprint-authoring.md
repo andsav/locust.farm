@@ -17,7 +17,9 @@ The owner asked for a plan, 2026-10-04: someone who has Locust authors a
 blueprint on a 2D canvas on the marketing site, using the xyflow surface from
 Polaris, which will ultimately be shared and may be imported wholesale; they
 copy a prompt containing the blueprint that instructs their agent to create it
-through the daemon; and it is extremely easy to use.
+through the daemon; and it is extremely easy to use. The sharing part was
+superseded the same day: the owner chose a fork with no shared repository or
+package (short answer 3; plan WD1).
 
 The blueprint contract and agent operations are being built in a separate
 worktree; the plan assumes they exist as the
@@ -30,14 +32,18 @@ specifies, with names provisional until O1 freezes them.
    static; the daemon speaks length-prefixed postcard over a local socket and
    MCP over stdio. A bridge would put authoring credentials in an untrusted
    browser channel, which D8 and O10.7 exclude. [V]
-2. **"Wholesale" applies to the generic pieces, not the canvas.** About 940
-   lines move as they are and about 3,500 need adaptation; the 3,457-line
-   `BlueprintCanvas.svelte` is Merak orchestration and stays in Polaris. [V]
-3. **"Shared" needs its own repository.** npm cannot install a package from a
-   Git subdirectory, so a package inside dreamcolor10 or Locust would force
-   registry publication. A standalone repository pinned by full SHA follows the
-   Galaxy precedent Polaris already uses; because every repository involved is
-   private, its visibility is a decision. [V]
+2. **"Wholesale" applies to the generic pieces, not the canvas.** The generic
+   modules split cleanly from the 3,457-line `BlueprintCanvas.svelte`, which is
+   Merak orchestration and stays in Polaris. [V]
+3. **The site forks the canvas; nothing is shared.** A shared package would
+   have needed its own repository, since npm cannot install a package from a
+   Git subdirectory. The owner chose instead, on 2026-10-04, to fork the generic
+   modules from Polaris into the site: the two will look similar, not the same,
+   and Polaris is unchanged. About 315 forked lines need only site conventions
+   and about 2,200 need adaptation; several shared Polaris pieces (slide-over
+   camera, dock, frame bar, haptics, inline rename) have no use on the web and
+   are not forked. [V for whole-file counts; the 2,200 includes estimated used
+   parts of three files, I; owner decision]
 4. **The browser can only match Locust by running Locust.** A JSON Schema check
    is structural. Semantic diagnostics, effective defaults, the explanation and
    the definition hash need the Rust code, which a WebAssembly build could
@@ -99,7 +105,8 @@ specifies, with names provisional until O1 freezes them.
     importing a module with `export enum`.
   - Python's `str.splitlines` on the same separators.
   - Contrast ratios computed from the site's token values.
-  - The GitHub API for the three repositories, without credentials.
+  - The GitHub API for the three repositories, without credentials: all return
+    404, so all are private (this served the lapsed shared-package question).
 - **Measurements by the ecosystem reader** in a scratch Vite 8 project, not in
   the site: xyflow bundle and CSS sizes, validator bundle sizes, synthetic
   blueprint sizes and their compressed form. Labelled [V measured] below.
@@ -208,8 +215,8 @@ specifies, with names provisional until O1 freezes them.
   viewport controls, dock, frame bar, camera helpers, align snap, haptics,
   capsule node and edge visual. [V]
 - Classification: generic (about 940 lines), generic needing adaptation (about
-  3,500), shared helpers (about 600 plus icons), tests that move (about 1,000 to
-  1,300), Merak-specific code that stays (about 24,000 including the editor
+  3,500), shared helpers (about 600 plus icons), tests of generic modules (about
+  1,000 to 1,300), Merak-specific code that stays (about 24,000 including the editor
   page, depth and loop editor). [V counts; split estimated]
 - Merak assumptions hidden in generic-looking code: the 216×46 box in at least
   four places; loop and back-edge bounds in the camera; Merak keys in the
@@ -223,31 +230,36 @@ specifies, with names provisional until O1 freezes them.
   own buttons use `CANVAS_MIN_ZOOM` 0.1 to 4; the loop editor passes both. [V]
 - `BlueprintCanvas.svelte` passes `deleteKey={null}` so xyflow's delete pipeline
   never runs; the guard lives in the file that stays in Polaris. [V]
-- Hard-coded control sizes in moving chrome: `CapsuleGear` 30px; viewport
+- Hard-coded control sizes in shared chrome: `CapsuleGear` 30px; viewport
   controls `--dc-control-h-sm` (2rem). Inline rename is explained only by a
   "Click to rename" tooltip. [V]
-- xyflow overrides live inside the Merak monolith and must move into a surface
-  stylesheet. Polaris hides the dot grid at night; the site would need it. [V]
+- xyflow overrides live inside the Merak monolith; the site copies the generic
+  ones into its `canvas.css` (plan WD3, section 5.4). Polaris hides the dot grid at night; the site would need it. [V]
 - Polaris has no root-canvas keyboard connection; only the loop editor's `c`
   chord exists. xyflow itself has no keyboard edge creation. [V]
 - Licensing: Locust is Apache-2.0; dreamcolor10 has no LICENSE file and only
   `license = "MIT"` in Cargo metadata; all relevant commits are the owner's;
-  Phosphor icons are MIT but no notice ships with them. [V]
+  Phosphor icons are MIT but no notice ships with them. A fork into Locust
+  therefore needs the owner's statement that the code is contributed under
+  Apache-2.0, and copies no Polaris icons. [V; I]
 - `@33ccff/galaxy` is a repository-map visualization, not a design system; no
-  canvas file imports it. It is the precedent for a Git dependency pinned to a
-  full SHA with a lockfile check, shipping Svelte and TypeScript source.
-  dreamcolor10's CI installs it through a `galaxy-access` action with a
-  read-only `GALAXY_READ_TOKEN` secret. `andsav/locust.farm`, `33CCFF/galaxy`
-  and `33CCFF/dreamcolor10` all return 404 from the GitHub API without
-  credentials, so they are private. [V]
+  canvas file imports it. It was the precedent for a Git dependency pinned to a
+  full SHA, considered for a shared package before the owner chose a fork. [V]
+- Which shared pieces the web editor would use: `panelCamera.svelte.ts` glides
+  the camera when a slide-over panel opens (the site's settings use a page
+  column); `CanvasFrameBar.svelte` is a breadcrumb for nested frames (the site
+  has none); `CanvasDock*` and `dnd.ts` serve an icon dock (the site's + Add is
+  a list); `backEdgeGeometry.ts` routes loop edges (the site refuses cycles).
+  None of these is forked. [V source headers; I]
 
 ### 1.4 Polaris authoring patterns
 
-Worth keeping [V source; I mapping]: a floating start card that keeps the
-canvas usable; starters inserted as one undo step; quick setup with a footer
-counting hidden configured values; click-to-add from a sectioned dock; an
-inspector slide-over with question-phrased fields and radio rows with
-descriptions; the start-card reference highlight ("No step reads this input
+Worth keeping [V source; I mapping]: a start surface that keeps the editor
+usable (a start row outside the map on the site); starters inserted as one undo
+step; quick setup with a footer counting hidden configured values; sectioned
+click-to-add (the site's + Add list, not a dock); question-phrased settings
+fields with radio rows and descriptions (a page column on the site, not a
+slide-over); the start-card reference highlight ("No step reads this input
 yet"); honest meaning rows for edges; issues rendered at their control with
 one-click recovery that re-checks before applying; change receipts; a
 publication preview with consequence copy; one primary action; one gesture per
@@ -424,7 +436,7 @@ multiple writers; a single local author expects layout in undo. [V/I]
 
 Scores from 1 to 5 [I]:
 
-| Concept | First-time friendliness | Contract fidelity | Accessibility and mobile | Implementability on the shared surface | Hand-off robustness | Total |
+| Concept | First-time friendliness | Contract fidelity | Accessibility and mobile | Implementability on the Polaris canvas pieces | Hand-off robustness | Total |
 | --- | --- | --- | --- | --- | --- | --- |
 | Guided | 5 | 3 | 5 | 4 | 3 | 20 |
 | Canvas-native | 3 | 5 | 4 | 2 | 4 | 18 |
@@ -457,13 +469,16 @@ blocks (plan WD7).
 
 Four reviews produced 49 findings: 12 on first-time, phone and
 assistive-technology use, 12 on engineering, 14 on contract fidelity and 11 on
-trust and safety; none was a blocker. Each finding's evidence was checked
+trust and safety; none was a blocker. The review covered the shared-package
+version of the plan; after the owner chose a fork, the package-specific
+changes below lapsed, and the plan's `CanvasSurface` became the site's
+`OrgCanvas`. Each finding's evidence was checked
 against source or by a probe before it was applied. The table groups them by
 theme; plan identifiers are those of the final plan.
 
 | Theme | Verified evidence | Change in the plan |
 | --- | --- | --- |
-| xyflow keyboard and screen-reader defaults | Section 1.7's accessibility defaults; Polaris's `deleteKey={null}` stays behind in `BlueprintCanvas.svelte` | `CanvasSurface` fixes `deleteKey={null}`; card-scoped delete; lines out of the Tab order; card order from the List; skip links; full card labels; coordinates silenced; zoom floor as a prop (WD3, section 4.12) |
+| xyflow keyboard and screen-reader defaults | Section 1.7's accessibility defaults; Polaris's `deleteKey={null}` stays behind in `BlueprintCanvas.svelte` | `OrgCanvas` fixes `deleteKey={null}`; card-scoped delete; lines out of the Tab order; card order from the List; skip links; full card labels; coordinates silenced; zoom floor set by `OrgCanvas` (WD3, section 4.12) |
 | Contrast, glyphs and sizes | Section 1.5's font subset and contrast; section 1.3's control sizes and tooltip | Kind words and SVG icons; meaning-bearing outlines at 3:1; control and handle tokens; a Name field; refused-drop reasons at the drop point (sections 4.4, 4.12, 4.13) |
 | Phone use | xyflow's scroll and pan defaults; the Describe door lived only on the map's start card | A start row outside the map; a phone column order; a read-only preview; Send to my computer; the sticky bar hidden on focus; real-device checks (J7, W8) |
 | Vocabulary | Section 1.5: the site defines no "goal" or blueprint publishing; the draft used "contract X", "Locust ID" and "definition hash" for related things | A fixed vocabulary line; a glossary; "blueprint format"; "definition hash" on page and in the prompt (sections 4.6, 4.11) |
@@ -475,7 +490,7 @@ theme; plan identifiers are those of the final plan.
 | Forged boundaries and hidden text | Section 1.7's separator and hidden-character probe | Escaping in the editor text form; Check before copying; WR9; hostile-fixture tests (section 6.3, WV25) |
 | WebAssembly build and delivery | Section 1.2's getrandom and reproducibility findings; the fallback would have made site builds need Rust | Two remedies tried in W0; pinned tools and remapped paths; a committed module with behaviour checks if bytes differ (WD4, WD5) |
 | WD4 fallback | The Ajv alternative left hash, diff, codes and parity unspecified | A table of what each feature becomes without WD4 (plan section 3) |
-| Package access and supply chain | Section 1.3's private repositories and CI token; npm runs a Git dependency's `prepare` on install; no content security policy | A visibility decision; no install scripts; `kit.csp`; integrity on the WebAssembly fetch (WD1, WD2, WD14) |
+| Package access and supply chain | The review draft's package needed repository access and a CI token (lapsed); npm runs a Git dependency's `prepare` on install (method spot checks); no content security policy (section 1.5) | `kit.csp` and integrity on the WebAssembly fetch (WD14). The package items lapsed when the owner chose a fork |
 | Paste-back | Agents' replies must carry exact digests; copy-out was untested | Lenient inbound extraction with the real loader; a saved-file route; W0 measures copy-out (section 6.7) |
 | Copy check | The draft relied on the model computing SHA-256 and had no MCP-only branch | Locust reports length and digest of what it read (WR10); an MCP-only path; `doctor` as a fixed CLI phrase (section 6.2) |
 | Owner authority | Section 1.6's raw-binary path | Step 1 forbids other Locust programs, owner options and the state directory; W11 checks it |
@@ -485,7 +500,7 @@ theme; plan identifiers are those of the final plan.
 | Format mismatch | The draft offered an editor that does not exist and suggested updating Locust | Format line next to copy; development labelling; the agent names the person's contract and never suggests updating (WD6, section 6.5) |
 | Exclusive-sounding words | "Picked up" throughout, against D5 | "Who may work on what?"; a banned-word test (WV26) |
 | Composition test | Rows with free answers could not hash equal to one preset | Split assertions (section 4.5, WV04) |
-| Ownership and order | Workstream rules; W4's exit needed W5 and W6; `check_docs.py` fails on `main` | Owner column; Polaris adoption before the site consumes the package; corrected exits (section 7) |
+| Ownership and order | Workstream rules; W4's exit needed W5 and W6; `check_docs.py` fails on `main` | Owner column; corrected exits (section 7). The adoption ordering lapsed with the fork |
 | Polaris naming | J4's refusal copy named Polaris | Neutral copy from the loader's diagnostic; a visible-copy test (WV26) |
 | Research accuracy | The draft overstated Spotlighting's result for delimiting | Corrected in section 1.7; the risk row now ranks Locust's checks first |
 
@@ -518,11 +533,10 @@ Parts of findings not adopted, with the verified reason:
 | Alternative | Disposition and reason |
 | --- | --- |
 | Import `BlueprintCanvas.svelte` wholesale | Rejected: Merak node kinds, run state, loop and depth geometry; main plan section 8 forbids reusing them |
-| Vendor Polaris code into the site | Rejected: the site's formatter would rewrite it and the copies would diverge; duplicates conflict with greenfield |
+| A shared canvas package in its own repository, pinned by SHA in both apps | Rejected by the owner, 2026-10-04: fork from Polaris for the web instead; the two may look different. The review draft recommended it; its install, visibility and adoption details lapsed |
 | Package as a subdirectory of dreamcolor10 or Locust | Rejected: npm cannot install a Git subdirectory |
-| Publish the package to a registry now | Deferred to O12: needs publishing credentials and a release process |
-| A `prepare` script that builds the package on install | Rejected: runs arbitrary code and devDependency installs on every consumer install; the package's CI commits built output instead if needed |
-| Consuming the package before Polaris adopts it | Rejected: the moved code would exist in two repositories |
+| Fork the generic modules into the site | Adopted (owner decision): the site reformats and restyles them, and divergence from Polaris is accepted |
+| Fork every module Polaris shares between its canvases | Rejected: the slide-over camera, dock, frame bar, haptics and inline rename have no use on the web; unused code is dead code |
 | Add a `$lib` alias to the site | Rejected: breaks the site's `#lib` convention |
 | `ssr = false` for the editor route | Rejected: prerender yields an empty shell; no-JavaScript reading fails |
 | Ajv checks plus a site-written explanation | Rejected: a second describer of the contract; Ajv survives only as the WD4 alternative |
@@ -548,7 +562,7 @@ Parts of findings not adopted, with the verified reason:
 | Deep links into Claude Code or Cursor | Rejected: 5,000 and 10,000 character caps and documented abuse |
 | Fetching the blueprint by URL | Rejected: needs server storage; web fetch tools summarize and refuse localhost |
 | Base64 payloads; XML tags | Rejected: base64 cannot be reviewed; sentinel lines are harness-neutral, line-testable and avoid characters the site's prompt tests ban |
-| vitest, jsdom and testing-library in the site | Rejected: component tests live in the package; Playwright covers browser behaviour |
+| vitest, jsdom and testing-library in the site | Rejected: forked pure-module tests run under `node --test`; Playwright covers component and browser behaviour |
 | `elkjs`; `dagre` 0.8.5 | Rejected: licence and size; unmaintained |
 | Versioned editor routes | Deferred to the O12 continuity decision |
 | Literal `task.propose` with the JSON as text | Rejected: creates no definition and leaks the JSON into a shared goal |
@@ -579,8 +593,8 @@ Parts of findings not adopted, with the verified reason:
 10. Which getrandom remedy does lane A accept for the WebAssembly crate: a
     target-specific `wasm_js` feature, or a crate or feature boundary around the
     pure contract?
-11. Package owner, name, licence and visibility (plan WD1); whether a binary
-    export may live in Git (WD5).
+11. The owner's statement that the forked Polaris code is contributed under
+    Apache-2.0 (plan WD1); whether a binary export may live in Git (WD5).
 12. Will the availability record carry capability and blueprint-format entries
     (WR13)?
 13. Which style policy does xyflow's inline styling need under the site's
