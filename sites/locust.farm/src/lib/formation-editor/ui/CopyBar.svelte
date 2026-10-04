@@ -66,9 +66,7 @@
 		border: 1px solid var(--color-accent);
 		background: var(--color-accent);
 		color: var(--color-bg);
-		font: 500 0.8125rem / 1 var(--font-mono);
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
+		font: var(--text-ui-heading);
 		white-space: nowrap;
 		cursor: pointer;
 	}
@@ -93,7 +91,9 @@
 		max-width: 22rem;
 		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--color-accent);
-		background: var(--color-bg);
+		border-radius: var(--radius-control);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-popover);
 	}
 
 	.status:empty {

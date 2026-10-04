@@ -1,0 +1,318 @@
+{
+  "schema_version": 1,
+  "roles": {
+    "coordinator": {
+      "description": "Defines the shared contract, selects exact contributions, integrates and closes the goal."
+    },
+    "frontend": {
+      "description": "Builds the channel and live message interface against the selected contract."
+    },
+    "backend": {
+      "description": "Builds message storage and live delivery against the selected contract."
+    },
+    "reviewer": {
+      "description": "Reviews exact contributions and verifies the assembled app in a separate workspace."
+    }
+  },
+  "context": {
+    "guidance": "Build a small local team chat app with channels, display names, live messages between two browser sessions, and history that survives restart. Agree on the API and data model before parallel work. Use separate workspaces and exchange signed contributions through Locust. The selected contribution for each prerequisite is the input, never an unreviewed latest branch. No Slack integration, authentication or production hosting is required. Report actual checks and distinguish attempt completion from accepted contribution and applied code.",
+    "inputs": {}
+  },
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "kind": "independent",
+        "by": {
+          "kind": "members"
+        }
+      }
+    ]
+  },
+  "decisions": {
+    "completion": {
+      "kind": "reviews",
+      "by": {
+        "kind": "members"
+      },
+      "count": 1,
+      "exclude_author": true
+    },
+    "selection": {
+      "kind": "role",
+      "name": "coordinator"
+    },
+    "finish": {
+      "kind": "role",
+      "name": "coordinator"
+    }
+  },
+  "task_types": {
+    "contract": {
+      "work": {
+        "propose": {
+          "kind": "members"
+        },
+        "publish": {
+          "kind": "role",
+          "name": "coordinator"
+        },
+        "starts": [
+          {
+            "kind": "independent",
+            "by": {
+              "kind": "role",
+              "name": "coordinator"
+            }
+          }
+        ]
+      },
+      "decisions": {
+        "completion": {
+          "kind": "reviews",
+          "by": {
+            "kind": "role",
+            "name": "reviewer"
+          },
+          "count": 1,
+          "exclude_author": true
+        },
+        "selection": {
+          "kind": "role",
+          "name": "coordinator"
+        },
+        "finish": {
+          "kind": "role",
+          "name": "coordinator"
+        }
+      }
+    },
+    "frontend": {
+      "work": {
+        "propose": {
+          "kind": "members"
+        },
+        "publish": {
+          "kind": "role",
+          "name": "frontend"
+        },
+        "starts": [
+          {
+            "kind": "independent",
+            "by": {
+              "kind": "role",
+              "name": "frontend"
+            }
+          }
+        ]
+      },
+      "decisions": {
+        "completion": {
+          "kind": "reviews",
+          "by": {
+            "kind": "role",
+            "name": "reviewer"
+          },
+          "count": 1,
+          "exclude_author": true
+        },
+        "selection": {
+          "kind": "role",
+          "name": "coordinator"
+        },
+        "finish": {
+          "kind": "role",
+          "name": "coordinator"
+        }
+      }
+    },
+    "backend": {
+      "work": {
+        "propose": {
+          "kind": "members"
+        },
+        "publish": {
+          "kind": "role",
+          "name": "backend"
+        },
+        "starts": [
+          {
+            "kind": "independent",
+            "by": {
+              "kind": "role",
+              "name": "backend"
+            }
+          }
+        ]
+      },
+      "decisions": {
+        "completion": {
+          "kind": "reviews",
+          "by": {
+            "kind": "role",
+            "name": "reviewer"
+          },
+          "count": 1,
+          "exclude_author": true
+        },
+        "selection": {
+          "kind": "role",
+          "name": "coordinator"
+        },
+        "finish": {
+          "kind": "role",
+          "name": "coordinator"
+        }
+      }
+    },
+    "integration": {
+      "work": {
+        "propose": {
+          "kind": "members"
+        },
+        "publish": {
+          "kind": "role",
+          "name": "coordinator"
+        },
+        "starts": [
+          {
+            "kind": "independent",
+            "by": {
+              "kind": "role",
+              "name": "coordinator"
+            }
+          }
+        ]
+      },
+      "decisions": {
+        "completion": {
+          "kind": "reviews",
+          "by": {
+            "kind": "role",
+            "name": "reviewer"
+          },
+          "count": 1,
+          "exclude_author": true
+        },
+        "selection": {
+          "kind": "role",
+          "name": "coordinator"
+        },
+        "finish": {
+          "kind": "role",
+          "name": "coordinator"
+        }
+      }
+    },
+    "verification": {
+      "work": {
+        "propose": {
+          "kind": "members"
+        },
+        "publish": {
+          "kind": "role",
+          "name": "reviewer"
+        },
+        "starts": [
+          {
+            "kind": "independent",
+            "by": {
+              "kind": "role",
+              "name": "reviewer"
+            }
+          }
+        ]
+      },
+      "decisions": {
+        "completion": {
+          "kind": "reviews",
+          "by": {
+            "kind": "role",
+            "name": "coordinator"
+          },
+          "count": 1,
+          "exclude_author": true
+        },
+        "selection": {
+          "kind": "role",
+          "name": "coordinator"
+        },
+        "finish": {
+          "kind": "role",
+          "name": "coordinator"
+        }
+      }
+    }
+  },
+  "flow": {
+    "contract": {
+      "recipients": {
+        "kind": "role",
+        "name": "coordinator"
+      },
+      "task_type": "contract",
+      "requires": []
+    },
+    "frontend": {
+      "recipients": {
+        "kind": "role",
+        "name": "frontend"
+      },
+      "task_type": "frontend",
+      "requires": [
+        {
+          "stage": "contract",
+          "evidence": "selection"
+        }
+      ]
+    },
+    "backend": {
+      "recipients": {
+        "kind": "role",
+        "name": "backend"
+      },
+      "task_type": "backend",
+      "requires": [
+        {
+          "stage": "contract",
+          "evidence": "selection"
+        }
+      ]
+    },
+    "integration": {
+      "recipients": {
+        "kind": "role",
+        "name": "coordinator"
+      },
+      "task_type": "integration",
+      "requires": [
+        {
+          "stage": "frontend",
+          "evidence": "selection"
+        },
+        {
+          "stage": "backend",
+          "evidence": "selection"
+        }
+      ]
+    },
+    "verification": {
+      "recipients": {
+        "kind": "role",
+        "name": "reviewer"
+      },
+      "task_type": "verification",
+      "requires": [
+        {
+          "stage": "integration",
+          "evidence": "selection"
+        }
+      ]
+    }
+  }
+}

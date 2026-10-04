@@ -32,7 +32,7 @@ function block(prompt: string, name: string): string {
 
 test('a first visit is ready to copy with the Open way of working', async ({ page }) => {
 	await open(page);
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText('How does your team work?');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('How does your swarm work?');
 	await expect(page.locator('.ways .way')).toHaveCount(6);
 	await expect(page.locator('.ways .diagram text')).toHaveCount(0);
 	await expect(page.locator('.ways .title')).toHaveText([
@@ -344,7 +344,7 @@ test.describe('without JavaScript', () => {
 	test.use({ javaScriptEnabled: false });
 	test('the page still explains formations and links to the guide', async ({ page }) => {
 		await page.goto('/formations');
-		await expect(page.getByRole('heading', { level: 1 })).toHaveText('How does your team work?');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('How does your swarm work?');
 		await expect(page.getByRole('link', { name: 'Not set up yet? Start here.' })).toBeVisible();
 	});
 });

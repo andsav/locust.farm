@@ -81,6 +81,7 @@
 		gap: 0.5rem;
 		padding: 0.75rem;
 		border: 1px solid color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+		border-radius: var(--radius-control);
 	}
 
 	li.blocks {

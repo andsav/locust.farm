@@ -525,8 +525,9 @@
 	.box {
 		display: grid;
 		gap: 0.875rem;
+		margin: 0 0.5rem 0.5rem;
 		padding: 1rem 1.25rem 1.25rem;
-		border-top: 1px solid var(--color-accent);
+		border-radius: var(--radius-control);
 		background: var(--color-surface);
 	}
 

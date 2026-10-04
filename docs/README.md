@@ -23,7 +23,7 @@ the repository root to check coverage and local link paths.
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
 - [Last-mile implementation plan](last-mile-implementation-plan.md): proposed work packages for distribution, recoverable setup, reliable task context, human permissions, a reviewed and applied change, two-person qualification and consented visualization; dependencies, decisions, tests and complete research coverage.
-- [Live farm pages and the farms gallery](swarm-visualization-plan.md): proposed plan for a live swarm page the goal's creator turns on, relayed through the creator's daemon to locust.farm, with per-member consent and a public gallery; mockups only, nothing built.
+- [Live farm pages and the farms gallery](swarm-visualization-plan.md): revised proposal for consented live publishing, precise work-state projection and recovery, plus a real multi-harness demo across two owner-controlled machines building a small chat app; farm publishing is not implemented.
 - [Archived protocol contract, version 1](protocol-v1.md): historical authority, encoding and local API rules; superseded by the current protocol without an old reader.
 - [Archived protocol contract, version 0](protocol-v0.md): historical encoding, event, invitation, synchronization and local API rules for interpreting version-0 artifacts.
 - [TLA+ formal verification implementation plan](tla-verification-plan.md): current organization, attempt/session and durable-effect models; bounded checks, witnesses, mutation evidence and explicit proof limits.

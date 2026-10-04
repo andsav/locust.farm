@@ -756,6 +756,7 @@
 		align-items: center;
 		padding: 0.5rem 0.5rem 0.5rem 1rem;
 		border: 1px solid var(--color-accent);
+		border-radius: var(--radius-control);
 		color: var(--color-text);
 	}
 
@@ -769,6 +770,8 @@
 
 	.frame {
 		border: var(--border-hairline);
+		border-radius: var(--radius-panel);
+		background: var(--color-panel);
 	}
 
 	.bar {
@@ -792,7 +795,7 @@
 		width: 16rem;
 		border-color: transparent;
 		background: transparent;
-		font-weight: 500;
+		font-weight: 600;
 	}
 
 	.name input:hover {
@@ -830,7 +833,8 @@
 	}
 
 	.tool:hover:not(:disabled) {
-		border-color: var(--color-border);
+		border-color: transparent;
+		background: var(--color-surface);
 		color: var(--color-text);
 	}
 
@@ -849,13 +853,13 @@
 	}
 
 	.word:hover {
-		border-color: var(--color-border);
+		border-color: transparent;
+		background: var(--color-surface);
 		color: var(--color-text);
 	}
 
 	.word[aria-pressed='true'],
 	.word[aria-expanded='true'] {
-		border-color: var(--color-border);
 		background: var(--color-surface);
 		color: var(--color-text);
 	}
@@ -875,9 +879,11 @@
 		z-index: 30;
 		display: grid;
 		min-width: 14rem;
+		padding: 0.25rem;
 		border: var(--border-hairline);
+		border-radius: var(--radius-panel);
 		background: var(--color-surface);
-		box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.9);
+		box-shadow: var(--shadow-popover);
 	}
 
 	.menu button {
@@ -887,7 +893,7 @@
 	}
 
 	.menu button:hover {
-		background: var(--color-bg);
+		background: var(--color-surface-hover);
 	}
 
 	.spacer {
@@ -899,6 +905,10 @@
 		align-items: stretch;
 		margin-left: auto;
 	}
+	/* The copy button and the options toggle read as one split button. */
+	.prompt-actions :global(.copy .primary) {
+		border-radius: var(--radius-control) 0 0 var(--radius-control);
+	}
 	.prompt-options {
 		position: relative;
 	}
@@ -909,6 +919,7 @@
 		height: 2.5rem;
 		border: 1px solid var(--color-accent);
 		border-left-color: var(--color-bg);
+		border-radius: 0 var(--radius-control) var(--radius-control) 0;
 		background: var(--color-accent);
 		color: var(--color-bg);
 		cursor: pointer;
@@ -938,22 +949,24 @@
 		z-index: 35;
 		display: grid;
 		width: min(19rem, calc(100vw - 4.5rem));
+		padding: 0.25rem;
 		border: var(--border-hairline);
-		background: var(--color-bg);
-		box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.9);
+		border-radius: var(--radius-panel);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-popover);
 	}
 	.prompt-menu p {
-		margin: 0;
-		padding: 0.875rem 1rem;
+		margin: 0 0 0.25rem;
+		padding: 0.625rem 0.75rem 0.75rem;
 		border-bottom: var(--border-hairline);
 		color: var(--color-text-subtle);
-		font: var(--text-label);
-		line-height: 1.6;
+		font: var(--text-ui-small);
 	}
 	.prompt-menu button,
 	.prompt-menu a {
-		padding: 0.625rem 1rem;
+		padding: 0.5rem 0.75rem;
 		border: 0;
+		border-radius: var(--radius-control);
 		background: transparent;
 		color: var(--color-text-muted);
 		font: var(--text-ui);
@@ -962,7 +975,7 @@
 	}
 	.prompt-menu button:hover,
 	.prompt-menu a:hover {
-		background: var(--color-surface);
+		background: var(--color-surface-hover);
 		color: var(--color-text);
 	}
 
@@ -975,7 +988,9 @@
 		max-width: min(36rem, calc(100% - 2rem));
 		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--color-border);
+		border-radius: var(--radius-control);
 		background: var(--color-surface);
+		box-shadow: var(--shadow-popover);
 		transform: translateX(-50%);
 	}
 
@@ -988,7 +1003,6 @@
 	}
 
 	.roles {
-		font-size: 0.75rem;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem 1rem;
@@ -1018,6 +1032,12 @@
 		background: var(--color-surface);
 		color: var(--color-text);
 		font: var(--text-ui);
+	}
+
+	/* A role's name is an identifier, so it stays in mono. */
+	.chip span,
+	.chip.new input {
+		font: var(--text-code);
 	}
 
 	.chip span {
@@ -1059,11 +1079,11 @@
 	.muted {
 		margin: 0;
 		color: var(--color-text-subtle);
+		font: var(--text-ui-small);
 	}
 
 	.notes {
-		font: var(--text-label);
-		line-height: 1.6;
+		font: var(--text-ui-small);
 		display: grid;
 		gap: 0.25rem;
 		padding: 0.875rem 1.25rem 1rem;
@@ -1078,6 +1098,7 @@
 		position: absolute;
 		inset: 0;
 		overflow: hidden;
+		border-radius: 0 0 var(--radius-panel) var(--radius-panel);
 		pointer-events: none;
 	}
 
@@ -1088,6 +1109,7 @@
 	.panel-host.compact {
 		position: fixed;
 		z-index: 40;
+		border-radius: 0;
 	}
 
 	.panel-host.compact :global(.panel) {
@@ -1137,7 +1159,7 @@
 		.status {
 			margin-left: auto;
 			padding-inline: 0.25rem;
-			font-size: 0.75rem;
+			font: var(--text-ui-small);
 		}
 		.spacer {
 			display: none;

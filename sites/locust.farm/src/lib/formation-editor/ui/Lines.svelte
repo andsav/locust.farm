@@ -188,7 +188,7 @@
 			>
 				<span class="question">{QUESTIONS[point]}</span>
 				<span class="answer">{phrase(formation, MAIN, point)}</span>
-				<span class="change">Change</span>
+				<span class="change"><Icon name="pencil-simple" size={14} /></span>
 			</button>
 		{/each}
 		<span class="end" aria-hidden="true"></span>
@@ -253,10 +253,7 @@
 		border-bottom: var(--border-hairline);
 	}
 	.column-headings > span {
-		padding: 0.875rem 1rem;
-	}
-	.column-headings > span + span {
-		border-left: var(--border-hairline);
+		padding: 0.75rem 1rem;
 	}
 	.group {
 		gap: 0;
@@ -274,8 +271,9 @@
 	.row-label {
 		margin: 0;
 		color: var(--color-text-subtle);
-		font: var(--text-label);
+		font: var(--text-ui-small);
 	}
+	/* Each answer is a rounded target inset from its neighbours, in place of cell borders. */
 	.point,
 	.cell {
 		position: relative;
@@ -283,10 +281,11 @@
 		align-content: center;
 		gap: 0.375rem;
 		min-width: 0;
-		min-height: 5rem;
-		padding: 1rem;
+		min-height: 4.25rem;
+		margin: 0.375rem 0.25rem;
+		padding: 0.625rem 0.75rem;
 		border: 0;
-		border-left: var(--border-hairline);
+		border-radius: var(--radius-control);
 		background: transparent;
 		color: var(--color-text);
 		font: var(--text-ui);
@@ -298,12 +297,11 @@
 	}
 	button.point:hover,
 	button.cell:hover {
-		background: color-mix(in srgb, var(--color-surface) 55%, var(--color-bg));
+		background: color-mix(in srgb, var(--color-surface) 55%, var(--color-panel));
 	}
 	.point.open,
 	.cell.open {
 		background: var(--color-surface);
-		box-shadow: inset 0 -2px 0 var(--color-accent);
 	}
 	.point.problem,
 	.cell.problem {
@@ -311,9 +309,8 @@
 	}
 	.question {
 		color: var(--color-text-subtle);
-		font: var(--text-label);
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
+		font: var(--text-ui-small);
+		font-weight: 500;
 	}
 	.line .question {
 		position: absolute;
@@ -327,13 +324,15 @@
 		overflow-wrap: anywhere;
 	}
 
+	/* The pencil sits beside the answer and marks the point as one that can be changed. */
+	.point {
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		column-gap: 0.75rem;
+	}
+
 	.change {
-		justify-self: start;
-		color: var(--color-text-subtle);
-		font: var(--text-label);
-		letter-spacing: var(--tracking-label);
-		text-decoration: underline;
-		text-transform: uppercase;
+		color: var(--color-text-faint);
 	}
 
 	.point:hover .change,
@@ -341,20 +340,18 @@
 		color: var(--color-accent);
 	}
 
-	.end {
-		border-left: var(--border-hairline);
-	}
 	.box-host {
 		grid-column: 1 / -1;
 	}
 	.group > header {
 		padding: 0.5rem 1.25rem;
 		border-bottom: var(--border-hairline);
-		background: color-mix(in srgb, var(--color-surface) 25%, var(--color-bg));
+		background: color-mix(in srgb, var(--color-surface) 35%, var(--color-panel));
 	}
 	.group > header h2 {
 		color: var(--color-text-subtle);
-		font: var(--text-label);
+		font: var(--text-ui-small);
+		font-weight: 500;
 	}
 	.row .name {
 		align-self: center;
@@ -364,12 +361,13 @@
 		padding-inline: 0;
 		border: 0;
 		border-bottom: 1px dashed var(--color-border);
+		border-radius: 0;
 		background: transparent;
 		font-weight: 500;
 	}
 	.cell.same .answer {
 		color: var(--color-text-subtle);
-		font-size: 0.75rem;
+		font: var(--text-ui-small);
 	}
 	.cell.fixed {
 		margin: 0;
@@ -393,12 +391,11 @@
 		display: flex;
 		gap: 0.375rem;
 		align-items: center;
-		background: color-mix(in srgb, var(--color-surface) 45%, var(--color-bg));
-		font-size: 0.75rem;
+		font: var(--text-ui-small);
 	}
 	.task-help {
 		color: var(--color-text-subtle);
-		font-size: 0.75rem;
+		font: var(--text-ui-small);
 	}
 	.task-help[open] {
 		flex-basis: 100%;
@@ -437,11 +434,12 @@
 		.row .cell {
 			grid-column: 1 / -1;
 			min-height: 0;
-			border-left: 0;
-			padding: 0.875rem 1rem;
+			margin: 0.25rem 0.5rem;
+			padding: 0.625rem 0.5rem;
 		}
 		.line .question {
 			position: static;
+			grid-column: 1 / -1;
 			width: auto;
 			height: auto;
 			overflow: visible;

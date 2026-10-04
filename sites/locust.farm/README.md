@@ -42,19 +42,24 @@ the palette. Components use roles only.
 
 - **Color**: `--color-bg`, `--color-text` and its `-muted`, `-subtle` and `-faint`
   steps, `--color-border`, `--color-accent`. The formation editor adds
-  `--color-surface` for nodes and panels and `--color-grid` for its map. The `--swarm-*` roles color the canvas.
-- **Type**: two families, `--font-mono` (Martian Mono) for text and `--font-display`
-  (Major Mono Display) for the headline. Each text style is a `font` shorthand
-  (`--text-display`, `--text-body`, `--text-code`, `--text-label`) with a matching
-  `--tracking-*` where the style needs one.
+  `--color-panel`, `--color-surface` and `--color-surface-hover` for its layers. The
+  `--swarm-*` roles color the canvas.
+- **Type**: three families, `--font-mono` (Martian Mono) for text, `--font-display`
+  (Major Mono Display) for the headline and `--font-sans` (Geist) for interface text
+  in the site header and the formation editor. Each text style is a `font` shorthand (`--text-display`,
+  `--text-body`, `--text-code`, `--text-label`, and `--text-ui`, `--text-ui-heading`
+  and `--text-ui-small` in the editor) with a matching `--tracking-*` where the style
+  needs one. In the editor, mono is kept for identifiers and code: role names and the
+  prompt.
 - **Space**: `--space-N`, where N is the size in pixels at the default root size.
 - **Layout**: `--gutter-inline`, `--gutter-block-end`, `--measure-display`,
-  `--measure-body`, `--border-hairline`.
+  `--measure-body`, `--border-hairline`. The formation editor rounds its corners with
+  `--radius-panel` and `--radius-control`, and lifts menus with `--shadow-popover`.
 - **Text over the swarm**: `--text-halo`, a `text-shadow` in the background color
   that dims the swarm right around the letterforms so text stays readable as it
   passes behind. Apply it to any text placed over the canvas.
 
-[`fonts.css`](src/lib/styles/fonts.css) declares the two self-hosted font faces, and
+[`fonts.css`](src/lib/styles/fonts.css) declares the three self-hosted font faces, and
 [`base.css`](src/lib/styles/base.css) holds element defaults (links, focus ring,
 selection). Everything else is scoped to the component that uses it. Sizes are in
 `rem`, so the page follows the reader's text size.
@@ -132,9 +137,15 @@ for rollback by changing the `current` symlink.
 
 [`ops/nginx.conf`](ops/nginx.conf) serves both `locust.farm` and `www.locust.farm`,
 redirects HTTP to HTTPS, maps extensionless routes to prerendered HTML and returns
-404 for unknown routes. Basic Auth applies to all HTTPS pages and assets, with
-`private, no-store` and `noindex, nofollow` response headers. Only HTTP ACME
-challenges are public, from `/var/www/letsencrypt`.
+404 for unknown routes. Basic Auth applies to website pages and assets, with
+`private, no-store` and `noindex, nofollow` response headers. HTTP ACME challenges
+are public, from `/var/www/letsencrypt`.
+
+The HTTPS `/downloads/` path is separately public and serves release files from
+`/var/www/locust.farm/downloads/`, outside the website's `current` symlink. It has
+no directory listing. Release staging stays outside that public directory; a
+verified immutable release is moved into place before `latest.json` is updated.
+Website deployment and rollback do not replace binary downloads.
 
 Initial provisioning uses an HTTP-only virtual host exposing that challenge
 directory and returning 401 elsewhere. Issue the certificate with Certbot's
@@ -194,9 +205,7 @@ agents. The locust's shape and its Game of Life are plain data on the CPU
 - The simulation advances at a fixed 120 steps per second, independent of the
   display's refresh rate. On a 60 Hz display that is two steps per frame, drawn
   under a single fade of the trail buffer, which is the costly part of a step.
-- The guide draws 700 wandering agents behind its top section, faded out before
-  the details.
-- The homepage uses `goalMode="cursor"`: the swarm follows the pointer, and
+- The animation appears only on the homepage and uses `goalMode="cursor"`: the swarm follows the pointer, and
   wanders on its own when there is none. `catchUp` sets how much harder agents far
   from the cursor are pulled toward it; 0 gives the design's original, slower chase.
 - Colors come from the `--swarm-*` tokens, read once when the canvas mounts.
