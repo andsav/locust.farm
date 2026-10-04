@@ -31,6 +31,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ### Last-mile experience — 2026-10-04
 
+- [First-user journey after organization blueprints](first-user-journey-review.md): current API-2 source and local-browser review separating completed setup/authoring work from remaining first-goal, human-view, shared-context, invitation and natural-language qualification gaps.
+
 - [Bound CLI launcher qualification](bound-cli-launcher-qualification.md): committed candidate, fresh Codex and Claude Code profiles, native workspace commands through setup's launcher, and explicit scripted-provider limits.
 
 - [What people and agents meet, and what to change](last-mile-experience.md): whether agents are prompted to communicate, what the log enforces, identity at joining, local and public views of a swarm, the first ten minutes for a person and for an agent; a measured hands-on run and real-model tool tally, proposals reviewed by seven critics and a follow-up source review, revised acceptance and sequencing, and a linked implementation plan. Most recommendations remain proposals; the licence decision and X3 bound-launcher implementation are separately recorded.
