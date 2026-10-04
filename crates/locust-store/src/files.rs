@@ -18,7 +18,7 @@ use std::io::{self, Write};
 use std::os::unix::fs::{DirBuilderExt, FileExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
-use locust_proto::crypto::domain_hasher;
+use locust_proto::crypto::ContentHasher;
 use locust_proto::id::BlobHash;
 use locust_proto::store::StoreError;
 
@@ -283,15 +283,17 @@ impl Staged {
 /// The plain BLAKE3 of everything `reader` yields, as
 /// [`locust_proto::crypto::content_hash`] computes it over one slice, read in
 /// 64 KiB pieces so an object is never held in memory whole.
-pub(crate) fn content_hash_of(reader: impl io::Read) -> io::Result<BlobHash> {
-    // The contract exposes an incremental BLAKE3 hasher only in keyed mode;
-    // `Default` on the same type is the plain hasher `content_hash` uses.
-    fn plain<H: Default>(_keyed: H) -> H {
-        H::default()
+pub(crate) fn content_hash_of(mut reader: impl io::Read) -> io::Result<BlobHash> {
+    let mut hasher = ContentHasher::new();
+    let mut piece = vec![0u8; 64 * 1024];
+    loop {
+        match reader.read(&mut piece) {
+            Ok(0) => return Ok(hasher.finish()),
+            Ok(count) => hasher.update(&piece[..count]),
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
+        }
     }
-    let mut hasher = plain(domain_hasher(""));
-    hasher.update_reader(reader)?;
-    Ok(BlobHash(*hasher.finalize().as_bytes()))
 }
 
 fn missing_or_failed(path: &Path, error: io::Error) -> StoreError {
