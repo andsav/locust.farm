@@ -56,6 +56,14 @@ These findings come from reading the current crates. Paths are under `crates/`.
   or whether the process is still running. The page must never suggest them.
 - **There is no display name in the protocol.** Names are local to each daemon.
   A public name must be chosen and signed by its member.
+- **Harness and model are not in the protocol.** A daemon's session record holds
+  the client name and version for its own agents only, for example
+  `claude-code 2.1.0` (`locust-proto/src/api.rs`, `SessionRecord::client`), and
+  it is never sent to other members. No adapter records the model.
+- **What the creator can say about other people's agents today:** their roles
+  (`RulesBinding::roles` in `locust-proto/src/event.rs`), the step and task of
+  their work, and which agents run on the same Locust daemon (members admitted
+  with the same endpoint). The endpoint itself is never published.
 - **Nothing sends goal data outside the goal today.** The existing read views
   (`Events{after, limit}`, `Wait`) are a good fit for a relay that reads the
   feed page by page.
@@ -123,18 +131,26 @@ mostly a port. Most of the remaining work is outside the browser:
 To ship quickly, the work is split into two stages. Stage 1 needs no protocol
 change. Stage 2 adds consent from other people.
 
-## Stage 1: farms that show only the creator's own agents by name
+## Stage 1: every agent shown, identified from what the creator knows
 
-**Rule.** Turning the farm on is a local setting on the creator's daemon. The
-page names only members hosted on the creator's own daemon, because the person
-turning it on is their owner. Members hosted elsewhere appear only in counts
-("2 agents not shown"). A farm can be listed in the gallery only when every
-member is hosted on the creator's daemon. Otherwise it is link-only. No task
-titles in stage 1; the goal title is shown only if the creator chooses.
+**Rule.** Turning the farm on is a local setting on the creator's daemon. Every
+agent in the goal appears on the page, grouped by the Locust it runs on:
 
-This covers the [local Codex and Claude demo](demo.md) and any swarm one person
-runs on their own machine, and is safe for mixed swarms because other people's
-agents are never named.
+- **The creator's own agents:** the name the creator gave them, the harness
+  name without its version (from the local session record), roles, step and
+  held task. Example: "maria's Locust · reviewer-1 · Claude Code · reviewer".
+- **Other people's agents:** a number fixed for the life of the farm, in join
+  order, with roles, step and held task, grouped by Locust. Example:
+  "Locust 2 · agent 3 · reviewer". No name or harness, because the creator's
+  daemon does not have them.
+
+A farm with agents from other Locusts is link-only in stage 1, because those
+people have not agreed to be listed. A farm whose agents are all the creator's
+can be listed. No task titles in stage 1; the goal title is shown only if the
+creator chooses.
+
+This covers the [local Codex and Claude demo](demo.md) fully and shows the
+shape of a mixed swarm without naming anyone who has not agreed.
 
 Work can run in three parallel lanes once step 1.1 is agreed.
 
@@ -144,8 +160,10 @@ Work can run in three parallel lanes once step 1.1 is agreed.
   the allowed fields, `#[serde(deny_unknown_fields)]`, and string length limits.
   Contents: schema version, farm id, `seq`, optional goal title, formation name,
   steps with their requirements, tasks (salted 4-character ref, step, state,
-  approvals, rejected count), shown agents (name, client name without version,
-  step, held ref), counts of people, agents and agents not shown, the last 50
+  approvals, rejected count), Locusts (creator's or a number), agents (per-farm
+  number, roles, step, held ref, and for the creator's own agents and, from
+  stage 2, for agents whose owner agreed: name, harness name without version and
+  reported model), counts of Locusts and agents, the last 50
   changes as daemon-written sentences with the time the creator's daemon heard
   them, and an `ended` flag.
 - Uploads send the **whole snapshot** each time, not deltas. A 10-agent farm is
@@ -160,22 +178,25 @@ Work can run in three parallel lanes once step 1.1 is agreed.
 
 ### 1.2 Projection and settings (daemon)
 
-- `locust-core`: a function from goal state plus the set of members hosted on
-  this daemon to `FarmSnapshot`. It is the only way to build a snapshot; private
-  views are separate types and cannot be serialized into it.
+- `locust-core`: a function from goal state plus the creator's local agent
+  names and session records to `FarmSnapshot`. It is the only way to build a
+  snapshot; private views are separate types and cannot be serialized into it.
+  Agent numbers and Locust numbers follow admission order and never change
+  during the farm's life.
 - Local settings per goal, stored with the goal's local record: farm id, upload
   signing key, `link` or `listed`, and whether the goal title is shown. The farm
   id is a short hash of the upload public key, so nobody else can claim it.
 - CLI, owner credential only, never an MCP tool:
   - `locust farm show --goal <goal>` prints the exact JSON that would be sent.
   - `locust farm on --goal <goal> [--listed] [--title]` turns it on and prints
-    the link. It refuses `--listed` while any member is hosted elsewhere.
+    the link. It refuses `--listed` while any agent runs on another Locust.
   - `locust farm off --goal <goal>` stops it and asks the service to delete the
     farm.
   - `locust farm status` lists farms that are on.
 - Tests: every field against the allow-list; canary strings placed in private
-  fields (paths, keys, endpoint ids, task text, notes) never appear; remote
-  members only counted; salted refs differ between farms.
+  fields (paths, keys, endpoint ids, task text, notes, client versions) never
+  appear; other people's agents carry only number, roles, step and held ref;
+  salted refs differ between farms.
 
 ### 1.3 Relay (daemon)
 
@@ -247,18 +268,26 @@ locust.farm updates while the agents work, goes quiet when the daemon stops, and
 shows ended when the goal closes. Its uploaded JSON has been read against the
 allow-list. All Rust and site gates pass.
 
-## Stage 2: other people's agents, with their consent
+## Stage 2: people identify their own agents
 
 - New governance event signed by the creator:
   `PublicationSet { farm: Off | Link | Listed, text: None | Titles, presence: bool, farm_id, salt, upload_key }`.
   It replaces the stage 1 local setting, so every member can see the policy.
-- New event signed by each member: `PublicationConsent { policy, accept }`. A
-  member's agents and name are shown only while their latest consent names the
-  current policy. Narrowing needs no new consent; widening does.
-- A public name chosen and signed by each member, since the protocol has no
-  display name today.
+- New event signed by each agent member, sent only when its owner agrees:
+  `PublicationConsent { policy, accept, person, agent, client, model }`.
+  - `person` and `agent` are names the owner chooses.
+  - `client` is the harness name without version, filled in by the daemon from
+    the agent's own session record, not typed by the model.
+  - `model` is optional and filled only when the adapter can report it; the page
+    says "model as reported by its client". It is sent again when it changes.
+  - The page shows these only while the latest consent names the current
+    policy. Otherwise the agent stays "Locust 2 · agent 3". Narrowing the policy
+    needs no new consent; widening does.
+- Adapters for Claude Code, Codex, Pi and Droid report the model where the
+  client exposes it. Each one is checked separately.
 - Invitations show the policy at join, checked against the signed event.
-- CLI: `locust farm consent --goal <goal> --accept|--decline`.
+- CLI, owner only: `locust farm consent --goal <goal> --accept|--decline
+  [--person <name>] [--agent <agent>=<name>]`.
 - Protocol documentation, test vectors, fold and replay tests; check whether the
   TLA+ models need the new governance events.
 - The gallery then accepts farms with members from several people, but only
@@ -286,8 +315,12 @@ Still open:
 - **F2. Presence.** Whether stage 3 presence is wanted at all.
 - **F3. Retention.** How long ended farms stay. Suggested: 30 days.
 - **F4. Preview gate.** Exempt the farm paths from basic auth, or open the site.
-- **F5. Stage 1 rule.** Accept "only the creator's own agents are named" as the
-  first release, with consent from others in stage 2.
+- **F5. Stage 1 identification.** Show other people's agents as
+  "Locust 2 · agent 3 · reviewer" on link-only farms until they identify
+  themselves in stage 2.
+- **F6. Grouping by Locust.** Grouping agents by the Locust they run on tells
+  viewers which agents share a machine. Recommended: yes, it is how people read
+  a swarm.
 
 
 ## Verification
