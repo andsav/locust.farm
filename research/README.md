@@ -14,6 +14,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [Organization blueprints](organization-blueprints.md): proposed composable organization at goal/task creation, Merak comparison, primary-source research, open collaboration and review/pool examples, distributed authority constraints, and protocol migration scope. Not an accepted design.
+
 - [T2 integration findings](t2-integration-review.md): nested-content replication, materialization races, CLI error/session boundaries and local verification scope.
 - [Production T2 qualification](t2-production-qualification.md): production daemon/client experiments, real-model and scripted-provider boundaries, managed sessions and discovered compatibility defects.
 - [Real-model T2 qualification](t2-real-model-qualification.md): all four mixed-client roles, skill and native workspace operations, exact Pi resume, Droid continuation failure and evidence hygiene.
