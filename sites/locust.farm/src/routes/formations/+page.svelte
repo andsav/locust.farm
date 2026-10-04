@@ -65,7 +65,6 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 100dvh;
-		padding: 0 var(--gutter-inline) var(--gutter-block-end);
 	}
 
 	main {
@@ -74,9 +73,9 @@
 		flex-direction: column;
 		gap: 1.25rem;
 		width: 100%;
-		max-width: 110rem;
+		max-width: calc(110rem + 2 * var(--gutter-inline));
 		margin: 0 auto;
-		padding-top: 1.5rem;
+		padding: 1.5rem var(--gutter-inline) var(--gutter-block-end);
 	}
 
 	.intro {

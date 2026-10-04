@@ -45,8 +45,8 @@ the palette. Components use roles only.
   `--color-panel`, `--color-surface` and `--color-surface-hover` for its layers. The
   `--swarm-*` roles color the canvas.
 - **Type**: three families, `--font-mono` (Martian Mono) for text, `--font-display`
-  (Major Mono Display) for the headline and `--font-sans` (Geist) for the formation
-  editor's interface. Each text style is a `font` shorthand (`--text-display`,
+  (Major Mono Display) for the headline and `--font-sans` (Geist) for interface text
+  in the site header and the formation editor. Each text style is a `font` shorthand (`--text-display`,
   `--text-body`, `--text-code`, `--text-label`, and `--text-ui`, `--text-ui-heading`
   and `--text-ui-small` in the editor) with a matching `--tracking-*` where the style
   needs one. In the editor, mono is kept for identifiers and code: role names and the
@@ -137,9 +137,15 @@ for rollback by changing the `current` symlink.
 
 [`ops/nginx.conf`](ops/nginx.conf) serves both `locust.farm` and `www.locust.farm`,
 redirects HTTP to HTTPS, maps extensionless routes to prerendered HTML and returns
-404 for unknown routes. Basic Auth applies to all HTTPS pages and assets, with
-`private, no-store` and `noindex, nofollow` response headers. Only HTTP ACME
-challenges are public, from `/var/www/letsencrypt`.
+404 for unknown routes. Basic Auth applies to website pages and assets, with
+`private, no-store` and `noindex, nofollow` response headers. HTTP ACME challenges
+are public, from `/var/www/letsencrypt`.
+
+The HTTPS `/downloads/` path is separately public and serves release files from
+`/var/www/locust.farm/downloads/`, outside the website's `current` symlink. It has
+no directory listing. Release staging stays outside that public directory; a
+verified immutable release is moved into place before `latest.json` is updated.
+Website deployment and rollback do not replace binary downloads.
 
 Initial provisioning uses an HTTP-only virtual host exposing that challenge
 directory and returning 401 elsewhere. Issue the certificate with Certbot's

@@ -20,36 +20,36 @@
 		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: center;
-		row-gap: var(--space-12);
-		padding: var(--space-24) var(--gutter-inline);
-		color: var(--color-text-subtle);
-		font: var(--text-label);
-		letter-spacing: var(--tracking-label);
+		gap: var(--space-12);
+		padding: var(--space-18) var(--gutter-inline);
 		text-shadow: var(--text-halo);
-		text-transform: uppercase;
 	}
 
+	/* The wordmark stays in mono, as the name is written everywhere else. */
 	.brand {
-		color: var(--color-text);
+		font: var(--text-body);
+		font-weight: 500;
 	}
 
 	nav {
 		display: flex;
-		gap: var(--space-24);
+		gap: 0.125rem;
 	}
 
-	/* The labels are small, so each link's hit area extends past its text without moving it. */
-	a {
-		position: relative;
+	nav a {
+		padding: 0.375rem 0.625rem;
+		border-radius: var(--radius-control);
+		color: var(--color-text-subtle);
+		font: var(--text-ui);
 	}
 
-	a::after {
-		content: '';
-		position: absolute;
-		inset: calc(-1 * var(--space-14)) calc(-1 * var(--space-12) / 2);
+	nav a:hover {
+		color: var(--color-text);
 	}
 
 	nav [aria-current='page'] {
+		background: var(--color-surface);
 		color: var(--color-text);
+		text-shadow: none;
 	}
 </style>

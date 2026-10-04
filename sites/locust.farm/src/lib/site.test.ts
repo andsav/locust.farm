@@ -15,9 +15,9 @@ const description = 'Unleash collective intelligence on your hardest problems';
 test('the header links to the guide, the formation editor and docs after the home brand', () => {
 	assert.equal(HOME_PATH, '/');
 	assert.deepEqual(NAV_LINKS, [
-		{ label: 'start', href: GUIDE_PATH },
-		{ label: 'formations', href: FORMATIONS_PATH },
-		{ label: 'docs', href: DOCS_PATH }
+		{ label: 'Start', href: GUIDE_PATH },
+		{ label: 'Formations', href: FORMATIONS_PATH },
+		{ label: 'Docs', href: DOCS_PATH }
 	]);
 });
 
