@@ -1,0 +1,401 @@
+{
+  "record": "T1-M2-S1",
+  "date": "2026-10-03",
+  "started_local": "2026-10-03T19:56:26.372360-07:00",
+  "topology": "two owner-designated physical Macs, M1 coordinator and M2 worker; this record contains M2-side observations",
+  "architecture": "arm64",
+  "macos_version": "26.2",
+  "initial_git_status": "clean",
+  "source_commit": "8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02",
+  "binary": "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+  "build_metadata": {
+    "cargo_version": "cargo 1.96.1 (356927216 2026-06-26)",
+    "commit": "8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02",
+    "created_utc": "2026-10-04T02:55:55.295023+00:00",
+    "dirty_build_inputs": false,
+    "qualification": "not_run",
+    "rustc_version": "rustc 1.96.1 (31fca3adb 2026-06-26)\nbinary: rustc\ncommit-hash: 31fca3adb283cc9dfd56b49cdee9a96eb9c96ffd\ncommit-date: 2026-06-26\nhost: aarch64-apple-darwin\nrelease: 1.96.1\nLLVM version: 22.1.2",
+    "sha256": "f0f719f80a5205a8758be1e0e4c689af3e7595fa9880c0d138c24ffa98650299",
+    "target": "aarch64-apple-darwin",
+    "toolchain": "1.96.1",
+    "version": "0.1.0",
+    "version_output": "locust 0.1.0 (8ef9dbc2bcee) api 0 protocol 0"
+  },
+  "original_candidate_commit": "3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1",
+  "original_candidate_sha256": "299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf",
+  "matches_original_candidate": false,
+  "rust_and_build_input_diff_from_original": "empty",
+  "build_command": "python3 scripts/build_t1.py",
+  "build_exit_code": 0,
+  "release_compile_elapsed": "2m 06s",
+  "independent_verification": {
+    "checksum": "locust: OK",
+    "version": "locust 0.1.0 (8ef9dbc2bcee) api 0 protocol 0",
+    "file": "Mach-O 64-bit executable arm64"
+  },
+  "home": "/Users/andrei/.locust-t1",
+  "fresh_home": true,
+  "daemon_pid": 4296,
+  "daemon_log": "/Users/andrei/.locust-t1/logs/m2-daemon-01.log",
+  "daemon_command": [
+    "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+    "--home",
+    "/Users/andrei/.locust-t1",
+    "daemon",
+    "run"
+  ],
+  "socket_ready": true,
+  "network_overrides": {},
+  "checks": [
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--home",
+        "/Users/andrei/.locust-t1",
+        "--owner",
+        "--json",
+        "agent",
+        "enroll",
+        "m2",
+        "--manage-goals"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.033,
+      "stdout": "{\"ok\":true,\"result\":{\"agent_enrolled\":{\"agent\":\"a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f\",\"credential_path\":\"/Users/andrei/.locust-t1/agents/m2.credential\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--home",
+        "/Users/andrei/.locust-t1",
+        "--credential",
+        "/Users/andrei/.locust-t1/agents/m2.credential",
+        "--json",
+        "status"
+      ],
+      "exit_code": 0,
+      "response": {
+        "ok": true,
+        "result": {
+          "status": {
+            "agents": [
+              {
+                "agent": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+                "grants": {
+                  "manage_goals": true
+                },
+                "name": "m2",
+                "revoked": false
+              }
+            ],
+            "daemon_version": "0.1.0 (8ef9dbc2bcee)",
+            "endpoint": "bf72ec6208e0770be4cdfd29c06e960922dec58fd47fcffc038559118bf2d023",
+            "goals": []
+          }
+        }
+      }
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--home",
+        "/Users/andrei/.locust-t1",
+        "--credential",
+        "/Users/andrei/.locust-t1/agents/m2.credential",
+        "--json",
+        "doctor"
+      ],
+      "exit_code": 0,
+      "response": {
+        "ok": true,
+        "result": {
+          "checks": [
+            {
+              "detail": "/Users/andrei/.locust-t1 mode 0700",
+              "name": "state_directory",
+              "ok": true
+            },
+            {
+              "detail": "/Users/andrei/.locust-t1/daemon.sock",
+              "name": "socket_path",
+              "ok": true
+            },
+            {
+              "detail": "held by process 4296",
+              "name": "daemon_lock",
+              "ok": true
+            },
+            {
+              "detail": "socket accepted a connection",
+              "name": "socket_connection",
+              "ok": true
+            },
+            {
+              "detail": "API 0 daemon 0.1.0 (8ef9dbc2bcee)",
+              "name": "hello",
+              "ok": true
+            },
+            {
+              "detail": "status succeeded",
+              "name": "status",
+              "ok": true
+            },
+            {
+              "detail": "readable, 32 bytes, mode 0600",
+              "name": "credential_file",
+              "ok": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "goal_join",
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "goal",
+        "join",
+        "--ticket",
+        "<redacted invitation>"
+      ],
+      "local_time": "2026-10-03T19:57:36.569919-07:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.015,
+      "stdout": "{\"ok\":true,\"result\":{\"joined\":{\"coordinator\":\"ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e\",\"goal\":\"19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623\",\"membership\":\"joining\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "goal",
+        "status",
+        "--goal",
+        "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.008,
+      "stdout": "{\"ok\":true,\"result\":{\"goal_status\":{\"coordinator\":\"ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e\",\"decision_head\":\"07fdb4c2b60507966f8192766576306e1d3705a68bf6021eff1b1caeffaae88f\",\"goal\":\"19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623\",\"grants\":{\"decide\":false,\"execute\":false,\"takeover\":false},\"halted\":null,\"head\":null,\"members\":[{\"endpoint\":\"bf72ec6208e0770be4cdfd29c06e960922dec58fd47fcffc038559118bf2d023\",\"local\":true,\"member\":\"a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f\"},{\"endpoint\":\"e227d1abc740d67d5a28a9df1502fea112a6446a3b5b968ff0bfedaae595083f\",\"local\":false,\"member\":\"ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e\"}],\"peers\":[{\"connected\":true,\"endpoint\":\"e227d1abc740d67d5a28a9df1502fea112a6446a3b5b968ff0bfedaae595083f\",\"last_sync_ms\":1791082657517}],\"title\":\"Two Mac T1\",\"workspace\":null}}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "board",
+        "--goal",
+        "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.008,
+      "stdout": "{\"ok\":true,\"result\":{\"board\":[{\"applied\":false,\"assignee\":null,\"assignment\":null,\"attempt\":0,\"proposer\":\"ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e\",\"result\":null,\"state\":\"proposed\",\"task\":\"8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445\",\"title\":\"Return the text: T1 task completed.\"}]}}\n",
+      "stderr": ""
+    }
+  ],
+  "failures": [],
+  "pending": [
+    "assignment from M1",
+    "local execution authorization and session",
+    "claim and submission",
+    "M1 acceptance",
+    "offline catch-up",
+    "daemon restarts",
+    "OS sleep/wake"
+  ],
+  "enrollment": {
+    "ok": true,
+    "result": {
+      "agent_enrolled": {
+        "agent": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+        "credential_path": "/Users/andrei/.locust-t1/agents/m2.credential"
+      }
+    }
+  },
+  "preparation_status": {
+    "ok": true,
+    "result": {
+      "status": {
+        "agents": [
+          {
+            "agent": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+            "grants": {
+              "manage_goals": true
+            },
+            "name": "m2",
+            "revoked": false
+          }
+        ],
+        "daemon_version": "0.1.0 (8ef9dbc2bcee)",
+        "endpoint": "bf72ec6208e0770be4cdfd29c06e960922dec58fd47fcffc038559118bf2d023",
+        "goals": []
+      }
+    }
+  },
+  "preparation_doctor": {
+    "ok": true,
+    "result": {
+      "checks": [
+        {
+          "detail": "/Users/andrei/.locust-t1 mode 0700",
+          "name": "state_directory",
+          "ok": true
+        },
+        {
+          "detail": "/Users/andrei/.locust-t1/daemon.sock",
+          "name": "socket_path",
+          "ok": true
+        },
+        {
+          "detail": "held by process 4296",
+          "name": "daemon_lock",
+          "ok": true
+        },
+        {
+          "detail": "socket accepted a connection",
+          "name": "socket_connection",
+          "ok": true
+        },
+        {
+          "detail": "API 0 daemon 0.1.0 (8ef9dbc2bcee)",
+          "name": "hello",
+          "ok": true
+        },
+        {
+          "detail": "status succeeded",
+          "name": "status",
+          "ok": true
+        },
+        {
+          "detail": "readable, 32 bytes, mode 0600",
+          "name": "credential_file",
+          "ok": true
+        }
+      ]
+    }
+  },
+  "runtime_input_comparison": {
+    "command": [
+      "git",
+      "diff",
+      "--exit-code",
+      "3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1",
+      "8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02",
+      "--",
+      "Cargo.toml",
+      "Cargo.lock",
+      "rust-toolchain.toml",
+      "rust-toolchain",
+      "scripts/build_t1.py",
+      "scripts/tests/test_build_t1.py",
+      "crates",
+      ".cargo"
+    ],
+    "exit_code": 0,
+    "diff": "",
+    "stderr": ""
+  },
+  "scope": "owner-authorized mixed-build two-Mac connectivity/task smoke test; identical-artifact qualification excluded",
+  "m1": {
+    "source_commit": "3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1",
+    "sha256": "299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf",
+    "version": "locust 0.1.0 (3422c7b51948) api 0 protocol 0",
+    "goal": "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623",
+    "principal": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+    "proposed_task": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445",
+    "network_configuration": "daemon defaults",
+    "source": "owner-reported; M1 not inspected from M2"
+  },
+  "join_response": {
+    "ok": true,
+    "result": {
+      "joined": {
+        "coordinator": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+        "goal": "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623",
+        "membership": "joining"
+      }
+    }
+  },
+  "latest_goal_status": {
+    "ok": true,
+    "result": {
+      "goal_status": {
+        "coordinator": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+        "decision_head": "07fdb4c2b60507966f8192766576306e1d3705a68bf6021eff1b1caeffaae88f",
+        "goal": "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623",
+        "grants": {
+          "decide": false,
+          "execute": false,
+          "takeover": false
+        },
+        "halted": null,
+        "head": null,
+        "members": [
+          {
+            "endpoint": "bf72ec6208e0770be4cdfd29c06e960922dec58fd47fcffc038559118bf2d023",
+            "local": true,
+            "member": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f"
+          },
+          {
+            "endpoint": "e227d1abc740d67d5a28a9df1502fea112a6446a3b5b968ff0bfedaae595083f",
+            "local": false,
+            "member": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e"
+          }
+        ],
+        "peers": [
+          {
+            "connected": true,
+            "endpoint": "e227d1abc740d67d5a28a9df1502fea112a6446a3b5b968ff0bfedaae595083f",
+            "last_sync_ms": 1791082657517
+          }
+        ],
+        "title": "Two Mac T1",
+        "workspace": null
+      }
+    }
+  },
+  "latest_board": {
+    "ok": true,
+    "result": {
+      "board": [
+        {
+          "applied": false,
+          "assignee": null,
+          "assignment": null,
+          "attempt": 0,
+          "proposer": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+          "result": null,
+          "state": "proposed",
+          "task": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445",
+          "title": "Return the text: T1 task completed."
+        }
+      ]
+    }
+  },
+  "daemon_log_lines": [
+    "locust: daemon 0.1.0 (8ef9dbc2bcee) listening on /Users/andrei/.locust-t1/daemon.sock",
+    "locust: peer e227d1abc740d67d5a28a9df1502fea112a6446a3b5b968ff0bfedaae595083f paths [PathSnapshot { kind: Relay, selected: true, rtt: 56.926167ms }]"
+  ],
+  "principal": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+  "endpoint": "bf72ec6208e0770be4cdfd29c06e960922dec58fd47fcffc038559118bf2d023",
+  "membership_verified": true,
+  "observed_route": {
+    "kind": "Relay",
+    "selected": true,
+    "rtt_ms": 56.926167,
+    "source": "daemon peer path snapshot",
+    "remote_endpoint": "e227d1abc740d67d5a28a9df1502fea112a6446a3b5b968ff0bfedaae595083f"
+  },
+  "file_modes": {
+    "/Users/andrei/.locust-t1": "0o700",
+    "/Users/andrei/.locust-t1/owner.credential": "0o600",
+    "/Users/andrei/.locust-t1/agents/m2.credential": "0o600",
+    "/Users/andrei/.locust-t1/logs/m2-daemon-01.log": "0o600"
+  },
+  "completed_local": "2026-10-03T19:58:11.101633-07:00",
+  "status": "M2 ready and joined; assigned-task and recovery checks pending",
+  "credential_handling": "Only paths/modes recorded. Credential bytes, execution-session secrets and invitation excluded; invitation command argument redacted.",
+  "initial_topology": "one M2 daemon on the worker Mac; M1 not yet contacted",
+  "preserved_concurrent_documentation_commit": "8b5dd7b"
+}

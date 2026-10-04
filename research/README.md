@@ -17,6 +17,7 @@ repository root. Untracked drafts are excluded from the check.
 ### T1 runtime integration — 2026-10-03
 
 - [Runtime integration and discovery findings](t1-integration-2026-10-03.md): reviewed runtime fixes, the failed multicast-only run, passing default-network three-process flow and exact evidence boundaries.
+- [M2 preparation and two-Mac join](t1-m2-smoke-2026-10-03.md): verified worker readiness, matching Rust/build inputs across different artifacts and a successful owner-authorized mixed-build relay join; task and recovery checks remain pending.
 
 ### Lane A implementation review — 2026-10-03
 
