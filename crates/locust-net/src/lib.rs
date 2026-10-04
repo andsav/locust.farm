@@ -19,7 +19,7 @@ pub mod testkit;
 
 use iroh::endpoint::{
     Connection, ConnectionError, Incoming, NetReportConfig, PortmapperConfig, QuicTransportConfig,
-    RecvStream, SendStream, presets,
+    RecvStream, SendStream, VarInt, presets,
 };
 use iroh::{EndpointAddr, Watcher};
 use locust_proto::id::EndpointId;
@@ -29,6 +29,12 @@ use std::time::Duration;
 
 /// Protocol identifier negotiated by the authenticated Iroh handshake.
 pub const SYNC_ALPN: &[u8] = b"locust/sync/0";
+
+/// A connection whose peer has been silent this long is closed: three missed
+/// keep-alives. A dead process or a sleeping machine is noticed in this time.
+pub const CONNECTION_IDLE: Duration = Duration::from_secs(15);
+/// How often an otherwise idle connection is kept alive.
+pub const KEEP_ALIVE: Duration = Duration::from_secs(5);
 
 /// Transport category of an observed open network path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -235,6 +241,10 @@ impl Endpoint {
             .receive_window(budget.connection_receive_bytes.into())
             .datagram_receive_buffer_size(None)
             .datagram_send_buffer_size(0)
+            .max_idle_timeout(Some(
+                VarInt::from_u32(CONNECTION_IDLE.as_millis() as u32).into(),
+            ))
+            .keep_alive_interval(KEEP_ALIVE)
             .build();
         let mut builder = iroh::Endpoint::builder(presets::Minimal)
             .secret_key(iroh::SecretKey::from_bytes(&config.secret_key))

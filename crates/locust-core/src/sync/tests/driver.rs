@@ -61,3 +61,31 @@ fn finish_remains_in_flight_until_confirmed_and_failed_finish_backs_off() {
         }
     }
 }
+
+/// Two daemons whose exchanges failed together retry apart: each wait is cut
+/// short by a part of up to half drawn from its host, so a bad order of
+/// events does not repeat on the same schedule for ever.
+#[test]
+fn failed_exchanges_retry_at_jittered_times() {
+    let founded = Founded::new();
+    let mut retried = Vec::new();
+    // The first wait is one second, and may lose up to 500 ms of it.
+    for draw in [0, 300, 1_700] {
+        let mut host = host(1, founded.replica(&[]), &[1, 2]);
+        host.random = vec![draw];
+        let mut driver = Driver::new();
+        let mut out = Vec::new();
+        driver.handle(&mut host, PeerInput::Poll, 0, &mut out);
+        let [PeerOutput::Open { exchange, .. }] = out.as_slice() else {
+            panic!("open");
+        };
+        let exchange = *exchange;
+        out.clear();
+        driver.handle(&mut host, PeerInput::OpenFailed(exchange), 6, &mut out);
+        retried.push((7..=1_006).find(|&now| {
+            driver.handle(&mut host, PeerInput::Poll, now, &mut out);
+            !out.is_empty()
+        }));
+    }
+    assert_eq!(retried, [Some(1_006), Some(706), Some(806)]);
+}

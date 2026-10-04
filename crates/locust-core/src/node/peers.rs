@@ -275,6 +275,11 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
         }
         let _ = self.land(tx);
     }
+    fn random(&mut self) -> u64 {
+        let mut bytes = [0; 8];
+        self.entropy.borrow_mut().fill(&mut bytes);
+        u64::from_le_bytes(bytes)
+    }
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {

@@ -123,6 +123,10 @@ pub trait Host {
     /// Records the outcome of an exchange about a goal. Not called for an
     /// accepted exchange that never named one.
     fn exchange_ended(&mut self, report: Report);
+
+    /// A number drawn from the node's entropy, which spreads retries so that
+    /// two daemons whose exchange failed together do not retry together.
+    fn random(&mut self) -> u64;
 }
 
 /// The exchange bookkeeping of one daemon. The node feeds it every
@@ -131,10 +135,11 @@ pub trait Host {
 /// It opens at most one exchange per (goal, endpoint) at a time. A goal that
 /// changes while one is in flight runs once more after it ends. An endpoint
 /// whose exchange failed is retried after a wait that starts at
-/// [`MIN_BACKOFF_MS`] and doubles up to [`MAX_BACKOFF_MS`]; a completed
-/// exchange clears it. Every pair is reconciled at least every
-/// [`ANTI_ENTROPY_MS`] even when nothing changed here, which is what finds
-/// changes a missed push left behind.
+/// [`MIN_BACKOFF_MS`] and doubles up to [`MAX_BACKOFF_MS`], each wait cut
+/// short by a random part of up to half drawn through [`Host::random`]; a
+/// completed exchange clears it, whichever side opened it. Every pair is
+/// reconciled at least every [`ANTI_ENTROPY_MS`] even when nothing changed
+/// here, which is what finds changes a missed push left behind.
 #[derive(Debug, Default)]
 pub struct Driver {
     next_dialed: u64,
@@ -413,7 +418,10 @@ impl Driver {
             // Exchanges opened before the last failure do not double it.
             if now_ms >= backoff.retry_at_ms {
                 backoff.delay_ms = (backoff.delay_ms * 2).clamp(MIN_BACKOFF_MS, MAX_BACKOFF_MS);
-                backoff.retry_at_ms = now_ms + backoff.delay_ms;
+                // Both ends of a failed exchange back off; jitter keeps them
+                // from retrying in the same order again and again.
+                let jitter = host.random() % (backoff.delay_ms / 2);
+                backoff.retry_at_ms = now_ms + backoff.delay_ms - jitter;
             }
         }
         host.exchange_ended(Report {
@@ -425,6 +433,33 @@ impl Driver {
             ended,
             at_ms: now_ms,
         });
+    }
+
+    /// A member's endpoint just completed an exchange it opened, so it is
+    /// reachable now: its backoff is cleared. Content and keys travel only on
+    /// exchanges this daemon opens, so when the exchange brought new events
+    /// and the goal still wants either, one opens at once rather than when
+    /// the backoff or anti-entropy says. Without new events nothing is
+    /// opened, so two daemons that want content neither holds do not keep
+    /// answering each other.
+    fn peer_completed(
+        &mut self,
+        host: &mut dyn Host,
+        goal: GoalId,
+        endpoint: EndpointId,
+        received: bool,
+        now_ms: u64,
+        out: &mut Vec<PeerOutput>,
+    ) {
+        self.backoff.remove(&endpoint);
+        let wants = received
+            && host.replica(&goal).is_some_and(|replica| {
+                replica.next_wanted_blob(None).is_some() || !replica.wanted_keys().is_empty()
+            });
+        if wants {
+            self.links.entry((goal, endpoint)).or_default().due = true;
+            self.poll(host, now_ms, out);
+        }
     }
 
     /// Feeds an accepted exchange its next frame. Emits `Admit` as soon as
@@ -456,8 +491,15 @@ impl Driver {
         send(exchange, &mut self.frames, out);
         if let Some(ended) = responder.ended() {
             out.push(PeerOutput::Finish(exchange));
-            let _ = ended;
             self.finishing_accepted.insert(number);
+            // The peer's `Done` arrived, whatever the transport makes of
+            // the finish that follows.
+            if let (Ended::Completed, Some(goal), true) =
+                (ended, responder.goal(), responder.is_admitted())
+            {
+                let (endpoint, received) = (responder.remote(), responder.received());
+                self.peer_completed(host, goal, endpoint, received, now_ms, out);
+            }
         }
     }
     fn dialed_writable(&mut self, host: &mut dyn Host, number: u64, out: &mut Vec<PeerOutput>) {

@@ -2,6 +2,7 @@
 //! the engine; each stream has one reader and one ordered writer.
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
@@ -27,15 +28,31 @@ use crate::failure::Failure;
 /// This also bounds initial handshakes and connection admission; an admitted
 /// exchange that keeps completing frames has no overall duration limit.
 const IO_IDLE: Duration = Duration::from_secs(30);
+/// Longest the transport teardown may hold a stopping daemon. A healthy
+/// endpoint closes well within it; see [`Endpoint::close`].
+pub(crate) const TEARDOWN: Duration = Duration::from_secs(5);
 /// Aggregate QUIC receive credit reserved for unauthenticated connections.
 const UNADMITTED_RECEIVE_BYTES: usize = 64 * 1024 * 1024;
+/// The same credit for connections this daemon dials, until admitted. Dials
+/// have their own permits, so dials to an unreachable member cannot spend
+/// the permits that incoming connections need.
+const DIALED_RECEIVE_BYTES: usize = 64 * 1024 * 1024;
 const EVIDENCE_FRAME_BYTES: usize = 2 * (MAX_HEADER_BYTES + 128);
 fn admission_slots() -> usize {
     (UNADMITTED_RECEIVE_BYTES / TransportBudget::default().connection_receive_bytes as usize).max(1)
 }
+fn dial_slots() -> usize {
+    (DIALED_RECEIVE_BYTES / TransportBudget::default().connection_receive_bytes as usize).max(1)
+}
+/// Age from which a held connection gives way to a newer one to the same
+/// endpoint. A peer dials again only when it no longer holds the old
+/// connection, as after a restart; a younger one is the other half of a
+/// simultaneous dial and is kept, up to the cap.
+pub(super) const REPLACED_AFTER: Duration = Duration::from_secs(2);
 struct Connection {
     connection: PeerConnection,
     admitted: watch::Sender<bool>,
+    since: Instant,
 }
 
 pub(crate) async fn bind(secret_key: [u8; 32]) -> Result<Endpoint, Failure> {
@@ -100,10 +117,11 @@ struct Exchange {
 enum Event {
     Connected {
         connection: PeerConnection,
-        opening: Option<ExchangeId>,
+        dialed: bool,
         permit: OwnedSemaphorePermit,
         deadline: Instant,
     },
+    DialFailed(EndpointId),
     Link {
         link: Box<PeerLink>,
         connection: PeerConnection,
@@ -127,6 +145,9 @@ pub(crate) async fn serve(
     let mut connections: HashMap<EndpointId, Vec<Connection>> = HashMap::new();
     let mut exchanges: HashMap<ExchangeId, Exchange> = HashMap::new();
     let permits = Arc::new(Semaphore::new(admission_slots()));
+    let dials = Arc::new(Semaphore::new(dial_slots()));
+    // At most one dial per endpoint; the exchanges waiting for its outcome.
+    let mut dialing: HashMap<EndpointId, Vec<ExchangeId>> = HashMap::new();
     let mut accepted = 0u64;
     let mut hints = endpoint.hints();
     let mut poll = tokio::time::interval(Duration::from_secs(1));
@@ -143,21 +164,25 @@ pub(crate) async fn serve(
                 NetworkOutput::Processed(done) => { let _ = done.send(()); }
                 NetworkOutput::Action(action) => match action {
                     PeerOutput::Open { exchange, endpoint: peer, hints } => {
-                        let known = connections.get(&peer).and_then(|items| items.iter().find(|item| !item.connection.is_closed())).map(|item| (item.connection.clone(), item.admitted.clone()));
+                        // The newest connection: an older one may be to a process that is gone.
+                        let known = connections.get(&peer).and_then(|items| items.iter().rev().find(|item| !item.connection.is_closed())).map(|item| (item.connection.clone(), item.admitted.clone()));
                         let events = events.clone();
                         if let Some((connection, admission)) = known {
                             tasks.spawn(open_link(connection, exchange, admission, events));
+                        } else if let Some(waiting) = dialing.get_mut(&peer) {
+                            waiting.push(exchange);
                         } else {
-                            let Ok(permit) = permits.clone().try_acquire_owned() else {
+                            let Ok(permit) = dials.clone().try_acquire_owned() else {
                                 let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange)));
                                 continue;
                             };
+                            dialing.insert(peer, vec![exchange]);
                             let deadline = Instant::now() + IO_IDLE;
                             let endpoint = endpoint.clone();
                             tasks.spawn(async move {
                                 match tokio::time::timeout(IO_IDLE, endpoint.connect(peer, &hints)).await {
-                                    Ok(Ok(connection)) => { let _ = events.send(Event::Connected { connection, opening: Some(exchange), permit, deadline }); }
-                                    _ => { let _ = events.send(Event::OpenFailed(exchange)); }
+                                    Ok(Ok(connection)) => { let _ = events.send(Event::Connected { connection, dialed: true, permit, deadline }); }
+                                    _ => { let _ = events.send(Event::DialFailed(peer)); }
                                 }
                             });
                         }
@@ -181,25 +206,35 @@ pub(crate) async fn serve(
                 }
             },
             Some(event) = incoming.recv() => match event {
-                Event::Connected { connection, opening, permit, deadline } => {
+                Event::Connected { connection, dialed, permit, deadline } => {
                     let peer = connection.remote_id();
+                    // The connection was authenticated as the endpoint dialed.
+                    let opening = if dialed { dialing.remove(&peer).unwrap_or_default() } else { Vec::new() };
                     let held = connections.entry(peer).or_default();
                     held.retain(|item| !item.connection.is_closed());
+                    // The newest connection replaces the older ones at once;
+                    // exchanges stalled on them end and are retried on it.
+                    let now = Instant::now();
+                    held.retain(|item| {
+                        let replaced = now.duration_since(item.since) >= REPLACED_AFTER;
+                        if replaced { item.connection.close(); }
+                        !replaced
+                    });
                     // Keep the two connections needed by simultaneous dials.
-                    // Later exchanges reuse them; extra connections close.
+                    // Later exchanges reuse the newer; extra connections close.
                     if held.len() >= 2 {
                         connection.close();
-                        if let Some(exchange) = opening { let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange))); }
+                        for exchange in opening { let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange))); }
                         continue;
                     }
                     let (admission, admitted) = watch::channel(false);
-                    held.push(Connection { connection: connection.clone(), admitted: admission.clone() });
+                    held.push(Connection { connection: connection.clone(), admitted: admission.clone(), since: now });
                     let _ = jobs.send(Job::Peer(PeerInput::Connection { endpoint: peer, connected: true }));
                     super::log(format_args!("locust: peer {peer} paths {:?}", connection.path_snapshot()));
                     tasks.spawn(accept_links(connection.clone(), admission.clone(), events.clone(), stop.clone()));
                     let guarded = connection.clone();
                     tasks.spawn(async move { admission_guard(guarded, admitted, permit, deadline).await; });
-                    if let Some(exchange) = opening { tasks.spawn(open_link(connection, exchange, admission, events.clone())); }
+                    for exchange in opening { tasks.spawn(open_link(connection.clone(), exchange, admission.clone(), events.clone())); }
                 }
                 Event::Link { link, connection, exchange, admission } => {
                     let dialed = exchange.is_some();
@@ -214,6 +249,9 @@ pub(crate) async fn serve(
                     tasks.spawn(exchange_task(*link, connection, exchange, receiver, limits, jobs.clone(), events.clone(), stop.clone()));
                 }
                 Event::OpenFailed(exchange) => { let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange))); }
+                Event::DialFailed(peer) => {
+                    for exchange in dialing.remove(&peer).unwrap_or_default() { let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange))); }
+                }
                 Event::ConnectionClosed(peer) => {
                     let held = connections.entry(peer).or_default();
                     held.retain(|item| !item.connection.is_closed());
@@ -223,7 +261,15 @@ pub(crate) async fn serve(
                     }
                 }
                 Event::Ended(exchange) => {
-                    if let Some(link) = exchanges.remove(&exchange) && !*link.connection_admitted.borrow() { link.connection.close(); }
+                    // An unadmitted connection closes with its exchange, but not
+                    // under an exchange this daemon opened on it: the inviter's
+                    // refused dial to a joiner shares the join's connection.
+                    if let Some(link) = exchanges.remove(&exchange)
+                        && !*link.connection_admitted.borrow()
+                        && !carries_own_exchange(&exchanges, &link.connection_admitted)
+                    {
+                        link.connection.close();
+                    }
                 }
             },
             connection = endpoint.accept() => match connection {
@@ -233,7 +279,7 @@ pub(crate) async fn serve(
                     let events = events.clone();
                     tasks.spawn(async move {
                         if let Ok(Ok(connection)) = tokio::time::timeout(IO_IDLE, incoming.accept()).await {
-                            let _ = events.send(Event::Connected { connection, opening: None, permit, deadline });
+                            let _ = events.send(Event::Connected { connection, dialed: false, permit, deadline });
                         }
                     });
                 }
@@ -252,12 +298,41 @@ pub(crate) async fn serve(
             }
         }
     }
-    tasks.abort_all();
-    while tasks.join_next().await.is_some() {}
-    for connection in connections.into_values().flatten() {
-        connection.connection.close();
+    // One deadline for the whole teardown: the daemon exits whatever the
+    // transport does. The step it was abandoned in is logged.
+    let (step, reached) = watch::channel("stopping peer tasks");
+    let teardown = async {
+        tasks.abort_all();
+        while tasks.join_next().await.is_some() {}
+        for connection in connections.into_values().flatten() {
+            connection.connection.close();
+        }
+        step.send_replace("closing the peer endpoint");
+        endpoint.close().await;
+    };
+    if !finished_within(TEARDOWN, teardown).await {
+        super::log(format_args!(
+            "locust: peer transport teardown abandoned after {TEARDOWN:?} while {}",
+            *reached.borrow()
+        ));
     }
-    endpoint.close().await;
+}
+
+/// Whether `teardown` completed before the deadline. Otherwise it is dropped.
+async fn finished_within(limit: Duration, teardown: impl Future<Output = ()>) -> bool {
+    tokio::time::timeout(limit, teardown).await.is_ok()
+}
+
+/// Whether an exchange this daemon opened is in flight on the connection
+/// that `admission` belongs to.
+fn carries_own_exchange(
+    exchanges: &HashMap<ExchangeId, Exchange>,
+    admission: &watch::Sender<bool>,
+) -> bool {
+    exchanges.iter().any(|(exchange, link)| {
+        matches!(exchange, ExchangeId::Dialed(_))
+            && link.connection_admitted.same_channel(admission)
+    })
 }
 
 async fn open_link(
@@ -500,6 +575,15 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn teardown_that_never_completes_is_abandoned_at_its_deadline() {
+        let limit = Duration::from_millis(100);
+        let started = Instant::now();
+        assert!(!finished_within(limit, std::future::pending()).await);
+        assert!(started.elapsed() >= limit);
+        assert!(finished_within(TEARDOWN, async {}).await);
+    }
+
+    #[tokio::test]
     async fn either_direction_progress_keeps_an_exchange_alive_until_both_stall() {
         let (progress, activity) = watch::channel(Instant::now());
         let timer = idle_deadline(activity, Duration::from_millis(100));
@@ -730,5 +814,209 @@ mod tests {
         );
         a.close().await;
         b.close().await;
+    }
+
+    /// Runs the shell behind an engine that asks for `opens` once and reports
+    /// every input it receives.
+    fn scripted_shell(
+        endpoint: Endpoint,
+        opens: Vec<PeerOutput>,
+    ) -> (mpsc::UnboundedReceiver<PeerInput>, watch::Sender<bool>) {
+        let (jobs, job_rx) = std::sync::mpsc::channel();
+        let (out, output) = mpsc::unbounded_channel();
+        let (inputs, seen) = mpsc::unbounded_channel();
+        std::thread::spawn(move || {
+            let mut opens = Some(opens);
+            for job in job_rx {
+                let input = match job {
+                    Job::Peer(input) => input,
+                    Job::PeerFrame { input, processed } => {
+                        let _ = out.send(NetworkOutput::Processed(processed));
+                        input
+                    }
+                    _ => continue,
+                };
+                if matches!(input, PeerInput::Endpoint { .. }) {
+                    for open in opens.take().into_iter().flatten() {
+                        let _ = out.send(NetworkOutput::Action(open));
+                    }
+                }
+                let _ = inputs.send(input);
+            }
+        });
+        let (stop, stopped) = watch::channel(false);
+        tokio::spawn(serve(endpoint, jobs, output, stopped));
+        (seen, stop)
+    }
+
+    /// Exchanges requested while a dial to their endpoint is in flight share
+    /// that dial and its connection; the transport lets the peer limit
+    /// concurrent streams to two. Dials to endpoints that never answer use up
+    /// only the dial permits, so one more dial fails at once while an
+    /// incoming connection is still accepted.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn one_dial_per_endpoint_and_dials_leave_incoming_permits() {
+        use crate::daemon::durable_tests::local_endpoint;
+        let live = local_endpoint([161; 32]).await.unwrap();
+        let silent = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        let silent_hints = vec![silent.local_addr().unwrap().to_string()];
+        let shared = u64::from(TransportBudget::default().max_bidirectional_streams);
+        let mut opens: Vec<_> = (0..shared)
+            .map(|index| PeerOutput::Open {
+                exchange: ExchangeId::Dialed(index),
+                endpoint: live.id(),
+                hints: live.hints(),
+            })
+            .collect();
+        for index in 0..dial_slots() {
+            let unreachable = local_endpoint([170 + index as u8; 32]).await.unwrap();
+            opens.push(PeerOutput::Open {
+                exchange: ExchangeId::Dialed(shared + index as u64),
+                endpoint: unreachable.id(),
+                hints: silent_hints.clone(),
+            });
+            unreachable.close().await;
+        }
+        let shell = local_endpoint([160; 32]).await.unwrap();
+        let (id, hints) = (shell.id(), shell.hints());
+        let (mut seen, stop) = scripted_shell(shell, opens);
+        let wait = Duration::from_secs(10);
+        let connection = tokio::time::timeout(wait, async {
+            live.accept().await.unwrap().accept().await.unwrap()
+        })
+        .await
+        .expect("the live peer was dialed");
+        let deadline = Instant::now() + wait;
+        let (mut opened, mut failed) = (0, Vec::new());
+        while opened < shared || failed.is_empty() {
+            match tokio::time::timeout_at(deadline, seen.recv()).await {
+                Ok(Some(PeerInput::Opened(_))) => opened += 1,
+                Ok(Some(PeerInput::OpenFailed(exchange))) => failed.push(exchange),
+                Ok(Some(_)) => {}
+                _ => panic!("{opened} exchanges opened, {failed:?} failed"),
+            }
+        }
+        assert_eq!(
+            failed,
+            [ExchangeId::Dialed(shared - 1 + dial_slots() as u64)]
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(300), live.accept())
+                .await
+                .is_err(),
+            "the live peer was dialed more than once"
+        );
+        let caller = local_endpoint([162; 32]).await.unwrap();
+        let incoming = tokio::time::timeout(wait, caller.connect(id, &hints))
+            .await
+            .unwrap()
+            .expect("an incoming connection was accepted");
+        let mut link = incoming.open_link(FrameLimits::peer()).await.unwrap();
+        link.send(&SyncMessage::Hello {
+            version: locust_proto::PROTOCOL_VERSION,
+            goal: locust_proto::id::GoalId([7; 32]),
+        })
+        .await
+        .unwrap();
+        let deadline = Instant::now() + wait;
+        loop {
+            match tokio::time::timeout_at(deadline, seen.recv()).await {
+                Ok(Some(PeerInput::Accepted { remote, .. })) => {
+                    break assert_eq!(remote, caller.id());
+                }
+                Ok(Some(_)) => {}
+                _ => panic!("the incoming exchange never reached the engine"),
+            }
+        }
+        stop.send_replace(true);
+        drop((connection, incoming));
+        caller.close().await;
+        live.close().await;
+    }
+
+    /// Invites `joiner` to a new goal and returns how long its join took,
+    /// or `None` if it did not finish within `limit`.
+    fn join_new_goal(
+        inviter: &mut locust_proto::client::Client<std::os::unix::net::UnixStream>,
+        joiner: &crate::daemon::durable_tests::Running,
+        tag: u8,
+        title: &str,
+        limit: Duration,
+    ) -> (locust_proto::id::GoalId, Option<Duration>) {
+        use locust_proto::api::{Credential, Request, Response};
+        let key = joiner.enroll(tag);
+        let Ok(Response::GoalCreated { goal }) = inviter.call(Request::GoalCreate {
+            title: title.into(),
+        }) else {
+            panic!("goal not created")
+        };
+        let Ok(Response::Invited { ticket }) = inviter.call(Request::GoalInvite {
+            goal,
+            expires_ms: None,
+        }) else {
+            panic!("no invitation")
+        };
+        let mut client = joiner.client(Credential([tag; 32]), None);
+        let start = std::time::Instant::now();
+        client.call(Request::GoalJoin { ticket }).unwrap();
+        while start.elapsed() < limit {
+            if let Ok(Response::GoalStatus(status)) = client.call(Request::GoalStatus { goal })
+                && status.title.is_some()
+                && status.members.iter().any(|member| member.member == key)
+            {
+                return (goal, Some(start.elapsed()));
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        (goal, None)
+    }
+
+    /// SIM-9: a member that went offline while sharing eight goals makes the
+    /// sync driver open eight exchanges to it at once. Dials to it must not
+    /// take the permits that incoming connections need, so a new member's
+    /// join is not delayed by the 30-second connect deadline.
+    #[test]
+    fn dials_to_an_offline_member_in_eight_goals_do_not_block_a_new_join() {
+        use crate::daemon::durable_tests::Running;
+        use crate::testdir::short_dir;
+        use locust_proto::api::{Credential, Request};
+        let (first, second, third) = (short_dir(), short_dir(), short_dir());
+        let inviter = Running::start(first.path());
+        inviter.enroll(1);
+        let mut c = inviter.client(Credential([1; 32]), None);
+        let away = Running::start(second.path());
+        let mut goals = Vec::new();
+        for index in 0..8 {
+            let (goal, took) = join_new_goal(
+                &mut c,
+                &away,
+                2,
+                &format!("shared {index}"),
+                Duration::from_secs(20),
+            );
+            assert!(took.is_some(), "the member joined goal {index}");
+            goals.push(goal);
+        }
+        drop(away);
+        std::thread::sleep(Duration::from_secs(2));
+        // A change in every goal makes the inviter dial the offline member
+        // once per goal.
+        for goal in goals {
+            c.call(Request::NoteAdd {
+                goal,
+                about: None,
+                supersedes: None,
+                text: "while the member is away".into(),
+            })
+            .unwrap();
+        }
+        std::thread::sleep(Duration::from_millis(500));
+        let newcomer = Running::start(third.path());
+        let (_, took) = join_new_goal(&mut c, &newcomer, 3, "new", Duration::from_secs(10));
+        let took = took.expect("the new member joined within 10 seconds");
+        assert!(
+            took < Duration::from_secs(5),
+            "the new member's join took {took:?}"
+        );
     }
 }

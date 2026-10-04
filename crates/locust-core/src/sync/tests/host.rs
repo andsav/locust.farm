@@ -24,6 +24,9 @@ pub struct TestHost {
     /// Signs the admission of a joined key, anchored at the given event.
     pub coordinator: Option<(Author, EventId)>,
     pub reports: Vec<Report>,
+    /// What [`Host::random`] returns, in turn and then again from the start.
+    pub random: Vec<u64>,
+    draws: usize,
     seen: BTreeMap<GoalId, u64>,
 }
 
@@ -38,6 +41,8 @@ impl TestHost {
             admitted: BTreeMap::new(),
             coordinator: None,
             reports: Vec::new(),
+            random: vec![0],
+            draws: 0,
             seen: BTreeMap::new(),
         }
     }
@@ -169,5 +174,11 @@ impl Host for TestHost {
             }
         }
         self.reports.push(report);
+    }
+
+    fn random(&mut self) -> u64 {
+        let value = self.random[self.draws % self.random.len()];
+        self.draws += 1;
+        value
     }
 }

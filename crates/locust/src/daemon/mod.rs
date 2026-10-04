@@ -167,7 +167,9 @@ where
         Ok(())
     });
     let stopped = engine.shutdown();
-    drop(runtime);
+    // Bounded like the transport teardown: blocking work the transport left
+    // behind cannot hold the process either.
+    runtime.shutdown_timeout(network::TEARDOWN);
     drop(state);
     served.and(stopped)
 }

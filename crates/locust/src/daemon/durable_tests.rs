@@ -444,3 +444,144 @@ fn peer_decode_and_prefix_failures_deliver_refusals_before_close() {
     // Refused unauthenticated peers are closed; local service remains healthy.
     agent.call(Request::Status).unwrap();
 }
+
+#[test]
+fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
+    use locust_net::FrameLimits;
+    use locust_proto::invite::InviteSecret;
+    use locust_proto::sync::{Frontier, Refusal, SyncMessage};
+    let dir = short_dir();
+    let running = Running::start(dir.path());
+    running.enroll(1);
+    let mut agent = running.client(Credential([1; 32]), None);
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            let inviter = local_endpoint([93; 32]).await.unwrap();
+            let goal = GoalId([94; 32]);
+            let ticket = Invitation {
+                version: locust_proto::PROTOCOL_VERSION,
+                goal,
+                coordinator: locust_proto::crypto::Keypair::from_seed([95; 32]).public(),
+                endpoint: inviter.id(),
+                hints: inviter.hints(),
+                secret: InviteSecret([96; 32]),
+                expires_ms: None,
+            }
+            .to_ticket()
+            .unwrap();
+            agent.call(Request::GoalJoin { ticket }).unwrap();
+            let within = |seconds| Duration::from_secs(seconds);
+            let connection = tokio::time::timeout(within(10), async {
+                inviter.accept().await.unwrap().accept().await.unwrap()
+            })
+            .await
+            .expect("the joining daemon did not dial its inviter");
+            let mut join = connection.accept_link(FrameLimits::peer()).await.unwrap();
+            let hello = SyncMessage::Hello {
+                version: locust_proto::PROTOCOL_VERSION,
+                goal,
+            };
+            assert_eq!(join.recv().await.unwrap(), Some(hello.clone()));
+            assert!(matches!(
+                join.recv().await.unwrap(),
+                Some(SyncMessage::Join(_))
+            ));
+            // The inviter dials the joiner on the same connection before the
+            // joiner holds the goal, and is refused.
+            let mut link = connection.open_link(FrameLimits::peer()).await.unwrap();
+            link.send(&hello).await.unwrap();
+            link.send(&SyncMessage::Frontier(Frontier {
+                authors: Vec::new(),
+            }))
+            .await
+            .unwrap();
+            let reply = tokio::time::timeout(within(5), link.recv())
+                .await
+                .expect("timed out waiting for the refusal")
+                .unwrap();
+            assert_eq!(reply, Some(SyncMessage::Refused(Refusal::NotAMember)));
+            assert!(
+                tokio::time::timeout(within(2), connection.closed())
+                    .await
+                    .is_err(),
+                "the refused exchange closed the connection under the join in flight"
+            );
+            // Once the join itself ends, the unadmitted connection closes.
+            join.send(&SyncMessage::Refused(Refusal::NotAMember))
+                .await
+                .unwrap();
+            tokio::time::timeout(within(5), connection.closed())
+                .await
+                .expect("the unadmitted connection outlived its last exchange");
+            inviter.close().await;
+        });
+    agent.call(Request::Status).unwrap();
+}
+
+#[test]
+fn newer_connection_replaces_older_ones_from_the_same_endpoint() {
+    let dir = short_dir();
+    let running = Running::start(dir.path());
+    running.enroll(1);
+    let mut agent = running.client(Credential([1; 32]), None);
+    let goal = goal(&mut agent);
+    let Response::Invited { ticket } = agent
+        .call(Request::GoalInvite {
+            goal,
+            expires_ms: None,
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    let daemon = Invitation::from_ticket(ticket.as_str()).unwrap();
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            // One identity three times: a peer and the processes that
+            // replace it after a crash, while its old sockets stay silent.
+            let mut peers = Vec::new();
+            let mut connections = Vec::new();
+            for _ in 0..2 {
+                let peer = local_endpoint([97; 32]).await.unwrap();
+                let connection = peer.connect(daemon.endpoint, &daemon.hints).await.unwrap();
+                connections.push(connection);
+                peers.push(peer);
+            }
+            // Two connections made together are simultaneous dials: both stay.
+            for connection in &connections {
+                assert!(
+                    tokio::time::timeout(Duration::from_millis(500), connection.closed())
+                        .await
+                        .is_err()
+                );
+            }
+            tokio::time::sleep(super::network::REPLACED_AFTER).await;
+            let restarted = local_endpoint([97; 32]).await.unwrap();
+            let newest = restarted
+                .connect(daemon.endpoint, &daemon.hints)
+                .await
+                .unwrap();
+            for connection in &connections {
+                tokio::time::timeout(Duration::from_secs(5), connection.closed())
+                    .await
+                    .expect("an older connection outlived the one that replaced it");
+            }
+            assert!(
+                tokio::time::timeout(Duration::from_millis(500), newest.closed())
+                    .await
+                    .is_err(),
+                "the newest connection was not kept"
+            );
+            restarted.close().await;
+            for peer in peers {
+                peer.close().await;
+            }
+        });
+    agent.call(Request::Status).unwrap();
+}
