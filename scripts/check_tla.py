@@ -265,11 +265,21 @@ def model_scope(registry, cases):
     """Keep the modeled protocol identity separate from the running checkout."""
     if all(case["kind"] == "runner-fixture" for case in cases):
         return {"kind": "runner-fixtures", "runtime_conformance_claimed": False}
-    baseline = registry.get("model_baseline")
-    if not isinstance(baseline, dict) or not re.fullmatch(r"[a-f0-9]{40}", baseline.get("source_commit", "")):
-        raise CheckError("protocol model run requires an explicit source baseline")
-    return {"kind": "protocol-models", "modeled_baseline": baseline,
-            "runtime_conformance_claimed": False}
+    baselines = []
+    for case in cases:
+        if case["kind"] == "runner-fixture":
+            continue
+        baseline = case.get("model_baseline", registry.get("model_baseline"))
+        if not isinstance(baseline, dict) or not re.fullmatch(r"[a-f0-9]{40}", baseline.get("source_commit", "")):
+            raise CheckError("protocol model run requires an explicit source baseline")
+        if baseline not in baselines:
+            baselines.append(baseline)
+    result = {"kind": "protocol-models", "runtime_conformance_claimed": False}
+    if len(baselines) == 1:
+        result["modeled_baseline"] = baselines[0]
+    else:
+        result["modeled_baselines"] = baselines
+    return result
 
 
 def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_root=MODELS):
@@ -311,7 +321,7 @@ def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_ro
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bootstrap", action="store_true", help="fetch verified private tool cache")
-    parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended"))
+    parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended", "v1"))
     parser.add_argument("--case", action="append", help="run only specified case IDs")
     parser.add_argument("--timeout", type=float, help="override per-case seconds (timeout never passes)")
     parser.add_argument("--memory-mb", type=int, default=4096)
@@ -329,6 +339,8 @@ def main(argv=None):
         if not cases or (args.case and set(args.case) != {case["id"] for case in cases}):
             raise CheckError("empty suite or unknown case")
         scope = model_scope(registry, cases)
+        if "modeled_baselines" in scope:
+            print("Mixed protocol baselines; consult each case's model_baseline (or registry default).", flush=True)
         if scope.get("modeled_baseline", {}).get("status") == "historical":
             print("Historical protocol model check; current Rust conformance is not established.", flush=True)
         java, jar, identity = tools(manifest, bootstrap=args.bootstrap)

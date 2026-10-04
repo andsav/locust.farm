@@ -664,6 +664,1159 @@
         "UncertainCommitFencesSigning",
         "HealthyMemoryMatchesStore"
       ]
+    },
+    {
+      "id": "v1-goal-safety",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-safety.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-ir12",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-ir12.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-member-fork",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-member-fork.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected",
+        "AcceptedHeadsPermanent"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-conflicting",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-conflicting.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected",
+        "AcceptedHeadsPermanent"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-invalid",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-invalid.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-wrong-kind",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-wrong-kind.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-dependencies",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-dependencies.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-cutoff",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-cutoff.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-coordinator-fork",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-coordinator-fork.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-broken-anchor",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-broken-anchor.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-authority",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-authority.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-canonical-order",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-canonical-order.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-cancel-accept",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-cancel-accept.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-cancel",
+      "suite": [
+        "v1",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-cancel.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 900,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-removal",
+      "suite": [
+        "v1",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-removal.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 900,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-conflicting-reverse-keys",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-conflicting-reverse-keys.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected",
+        "AcceptedHeadsPermanent"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-dependencies-reverse-keys",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-dependencies-reverse-keys.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-canonical-order-reverse-keys",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-canonical-order-reverse-keys.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-ir5",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-ir5.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-ir5-reverse-keys",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-ir5-reverse-keys.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-goal-fork-witness",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-fork-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected",
+        "NoV1Completion"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      },
+      "violation": "NoV1Completion",
+      "trace_require": [
+        {
+          "lastDelivery": "9",
+          "acceptedHeadCount": "1",
+          "hasFork": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "v1-goal-removal-witness",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-removal-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected",
+        "NoV1Completion"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      },
+      "violation": "NoV1Completion",
+      "trace_require": [
+        {
+          "lastDelivery": "21",
+          "acceptedHeadCount": "1",
+          "acceptedHeadsLost": "TRUE"
+        }
+      ],
+      "trace_prefix": [
+        {
+          "lastDelivery": "20",
+          "acceptedHeadCount": "3",
+          "acceptedHeadsLost": "FALSE"
+        }
+      ]
+    },
+    {
+      "id": "v1-goal-pending-witness",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-pending-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected",
+        "NoPendingCommitment"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      },
+      "violation": "NoPendingCommitment",
+      "trace_require": [
+        {
+          "hasAcceptance": "FALSE",
+          "hasFork": "TRUE",
+          "lastDelivery": "9",
+          "acceptedHeadCount": "0"
+        }
+      ]
+    },
+    {
+      "id": "v1-goal-commitment-mutation",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-commitment-mutation.cfg",
+      "expect": "violation",
+      "kind": "mutation",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      },
+      "violation": "V1Outcomes",
+      "trace_require": [
+        {
+          "lastDelivery": "9",
+          "acceptedHeadCount": "0",
+          "acceptedHeadsLost": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "v1-goal-display-mutation",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-display-mutation.cfg",
+      "expect": "violation",
+      "kind": "mutation",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      },
+      "violation": "AcceptedResultDisplayed",
+      "trace_require": [
+        {
+          "lastDelivery": "9",
+          "displayedAcceptedMismatch": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "v1-session-aba-witness",
+      "suite": [
+        "v1",
+        "extended",
+        "fast"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-aba-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "StaleWritesCannotAuthor",
+        "WitnessABADelayedReject"
+      ],
+      "violation": "WitnessABADelayedReject",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-session-cancellation-witness",
+      "suite": [
+        "v1",
+        "extended",
+        "fast"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-cancellation-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "OnlyCurrentAuthorizedWrites",
+        "WitnessCancellationFence"
+      ],
+      "violation": "WitnessCancellationFence",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-session-failure-after-witness",
+      "suite": [
+        "v1",
+        "extended",
+        "fast"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-failure-after-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "UncertainCommitFencesSigning",
+        "IdempotentRequestsAuthorOnce",
+        "WitnessFailureAfterRecovery"
+      ],
+      "violation": "WitnessFailureAfterRecovery",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-session-failure-before-witness",
+      "suite": [
+        "v1",
+        "extended",
+        "fast"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-failure-before-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "UncertainCommitFencesSigning",
+        "IdempotentRequestsAuthorOnce",
+        "WitnessFailureBeforeRecovery"
+      ],
+      "violation": "WitnessFailureBeforeRecovery",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-session-generation-mutation",
+      "suite": [
+        "v1",
+        "extended",
+        "fast"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-generation-mutation.cfg",
+      "expect": "violation",
+      "kind": "mutation",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "StaleWritesCannotAuthor"
+      ],
+      "violation": "StaleWritesCannotAuthor",
+      "trace_require": [
+        {
+          "staleWriteSigned": "TRUE",
+          "staleWriteAuthored": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-session-principal-witness",
+      "suite": [
+        "v1",
+        "extended",
+        "fast"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-principal-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "NoCrossPrincipalEvents",
+        "WitnessPrincipalBoundary"
+      ],
+      "violation": "WitnessPrincipalBoundary",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-session-restart-replay-witness",
+      "suite": [
+        "v1",
+        "extended",
+        "fast"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-restart-replay-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "StaleWritesCannotAuthor",
+        "IdempotentRequestsAuthorOnce",
+        "WitnessRestartReplay"
+      ],
+      "violation": "WitnessRestartReplay",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-session-safety",
+      "suite": [
+        "v1",
+        "extended"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-safety.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 1800,
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyCurrentAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
+    },
+    {
+      "id": "v1-session-departure-witness",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-departure-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyCurrentAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "WitnessDepartureFence"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      },
+      "violation": "WitnessDepartureFence",
+      "trace_require": [
+        {
+          "phase": "8",
+          "lastOutcome": "\"Denied\"",
+          "reopened": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "v1-session-departure-replay-witness",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "SessionsV1.tla",
+      "config": "configs/v1/v1-session-departure-replay-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 60,
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyCurrentAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "WitnessDepartureReplay"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      },
+      "violation": "WitnessDepartureReplay",
+      "trace_require": [
+        {
+          "phase": "7",
+          "lastOutcome": "\"Replayed\""
+        }
+      ]
+    },
+    {
+      "id": "v1-goal-pending-recovery",
+      "suite": [
+        "v1",
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLogV1.tla",
+      "config": "configs/v1/v1-goal-pending-recovery.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 600,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed",
+        "V1Outcomes",
+        "IR5ForkProtected"
+      ],
+      "model_baseline": {
+        "status": "current-bounded",
+        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+        "protocol_version": 1,
+        "api_version": 1
+      }
     }
   ],
   "model_baseline": {

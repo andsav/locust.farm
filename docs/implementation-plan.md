@@ -65,7 +65,7 @@ The runtime was integrated in `885b372`. The [application](../crates/locust/src/
 | Workspace | Named preview/export/materialize and base-bound patch create/review/submit/accept/apply; typed manifest/contribution descendants replicate; local safety and recovery tests pass | Multi-peer retained-content and conflicting-worker workflow qualification through real clients and identified artifacts |
 | Later runtime features | Six integrated same-host workflows cover conflicting revisions, interrupted retained-content transfer, competing patches, cancellation, withdrawal/leave and offline-member rotation; [retained evidence](../research/operational-qualification.md) | Physical network/account qualification and remaining release requirements; local campaigns do not close entire gates |
 | Delivery | Identified native candidate builder; macOS/Linux CI declarations; signed manifest and withdrawal checks; reviewed activation, service ownership and persistent client setup; ten macOS native install/upgrade/launchd cases and three installed clients qualified locally; [local prompt](install-prompt.md) | Linux cross-build complete with runtime behavior unverified; production signing custody, public origin and download verification remain open |
-| Formal models | TLA+ stages 0/1 have bounded checks against the historical protocol-0 baseline | Protocol-1 rebaseline under the separate [formal verification plan](tla-verification-plan.md); stages 2–5 remain proposed |
+| Formal models | Historical protocol-0 models and separate bounded protocol-1 GoalLog/Sessions models; all 36 version-1 cases matched their registered outcomes in the [retained evidence](../research/tla/version-1.md) | Stages 2–5, replication/retention, durability, full model CI and Rust refinement remain unproved or proposed under the [formal verification plan](tla-verification-plan.md) |
 
 The [integration findings](../research/t1-integration-2026-10-03.md), [candidate identity](t1-build.md) and [release ledger](release-evidence.md) retain exact evidence and limitations. Multicast-only discovery failed on the development host; daemon-default lookup and relay configuration passed the same-host workflow. No complete release gate is recorded as passed. The [first-contact document](first-contact.md) describes the target journey and an older source snapshot, not current daemon readiness.
 
@@ -552,11 +552,13 @@ scopes against pinned interfaces; the owner retains physical/account testing
 for final acceptance, and lane C retains website/first-contact copy. None of these lanes silently
 substitutes its evidence for another's.
 
-**Separate formal-model track:** rebase the delivered protocol-0 models to
-protocol 1 before making current-code claims, then follow the proposed stages
-2–5 in the [TLA+ plan](tla-verification-plan.md). This is parallel work with its
-own status; historical bounded checks neither close product gates nor imply
-those proposed stages have been implemented.
+**Separate formal-model track:** bounded protocol-1 GoalLog and Sessions
+models now complement the historical protocol-0 models. The
+[version-1 record](../research/tla/version-1.md) retains 22 positive checks and
+14 expected witness/mutation counterexamples against its original pinned
+source and model inputs. These are not runs against this merged checkout or
+a proof of Rust refinement. Stages 2–5 in the [TLA+ plan](tla-verification-plan.md)
+remain proposed; the bounded results do not close product release gates.
 
 For Rust changes, the current [AGENTS.md](../AGENTS.md) requires the pinned
 toolchain and `cargo fmt --all --check`,
