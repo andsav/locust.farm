@@ -32,6 +32,20 @@ CHECKS = ("ready", "binding", "claim", "ordinary_pending", "held_wait", "interru
           "uncertain_recovery", "automatic_wake", "real_model", "packaged_install")
 
 
+def cancellation_acknowledged(cancel_detail, ack_detail, pending, *, cancel, attempt, task, principal):
+    """Exact effective protocol-2 acknowledgment plus removed local obligation."""
+    return (cancel_detail.get("view", {}).get("event") == cancel
+        and cancel_detail.get("view", {}).get("standing") == "effective"
+        and cancel_detail.get("body") == {"cancel_requested": {"attempt": attempt}}
+        and cancel_detail.get("task") == task
+        and ack_detail.get("view", {}).get("kind") == "cancel_acknowledged"
+        and ack_detail.get("view", {}).get("standing") == "effective"
+        and ack_detail.get("view", {}).get("author") == principal
+        and ack_detail.get("body") == {"cancel_acknowledged": {"cancel": cancel, "outcome": "uncertain"}}
+        and ack_detail.get("task") == task
+        and not any(item.get("cancel") == cancel for item in pending.get("to_acknowledge", [])))
+
+
 def metadata(view):
     detail = view.get("record", view).get("detail", [])
     return json.loads(bytes(detail)) if detail else {}
@@ -294,7 +308,21 @@ def qualify(client, binary, args):
                 task_view = daemon.call(["task", "show", "--goal", daemon.goal, "--task", task])["task"]["view"]
                 after = daemon.call(["pending", "--goal", daemon.goal])["pending"]
                 result["task_after_resume"] = task_view
-                checks["cancellation_acknowledged"] = fixture.assertion("pass" if not any(c["cancel"] == cancel for c in after["to_acknowledge"]) and task_view["state"] == {"cancelled": "uncertain"} else "fail", "Actual model-client tool explicitly recorded uncertain executor outcome; notification alone did not acknowledge cancellation")
+                cancel_detail = daemon.call(["event", "show", "--goal", daemon.goal, "--event", cancel])["event"]
+                ack_details = []
+                cursor = 0
+                while True:
+                    entries = daemon.call(["events", "--goal", daemon.goal, "--after", str(cursor), "--limit", "256"])["events"]
+                    if not entries:
+                        break
+                    for entry in entries:
+                        if entry["kind"] == "cancel_acknowledged":
+                            ack_details.append(daemon.call(["event", "show", "--goal", daemon.goal, "--event", entry["event"]])["event"])
+                    cursor = entries[-1]["position"]
+                result["cancellation_evidence"] = {"requested": cancel_detail, "acknowledgments": ack_details}
+                acknowledged = any(cancellation_acknowledged(cancel_detail, detail, after,
+                    cancel=cancel, attempt=claim["attempt"], task=task, principal=daemon.principal) for detail in ack_details)
+                checks["cancellation_acknowledged"] = fixture.assertion("pass" if acknowledged else "fail", "Actual model-client tool explicitly recorded uncertain executor outcome; notification alone did not acknowledge cancellation")
             restored = not config_file.exists() if baseline is None else config_file.read_bytes() == baseline
             checks["profile_restored"] = fixture.assertion("pass" if restored else "fail", "Selected profile MCP bytes restored after owned client exit")
             clean = all(clean_run(r) and r["native_exit_expected"] for r in result["runs"])
