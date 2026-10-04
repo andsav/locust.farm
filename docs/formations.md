@@ -1,7 +1,7 @@
 # Formations: accepted direction
 
 Date: 2026-10-04. **Status: accepted product direction and authoring requirements.**
-API 3 / protocol 3 now implements the standalone organization runtime, private
+API 4 / protocol 4 now implements the standalone organization runtime, private
 catalog and agent operations. The [implementation plan](formations-implementation-plan.md)
 remains the frozen delivery scope. The separate
 [execution ledger](formations-status.md) records completed checks
@@ -31,11 +31,11 @@ and agent references, tested tutorials, and publication verification.
 
 ## Name
 
-The owner renamed "blueprint" to "formation" on 2026-10-04. Merak already uses
-"blueprint" for its local execution graphs, and Locust's deterministic
+The owner renamed "formation" to "formation" on 2026-10-04. Merak already uses
+"formation" for its local execution graphs, and Locust's deterministic
 organization layer needs its own term. The rename covers the CLI, API operation
 names, MCP tools, hash domains, examples, site and documentation. It has no
-compatibility aliases. References to Merak and Polaris blueprints keep their name.
+compatibility aliases. References to Merak and Polaris formations keep their name.
 
 ## Greenfield implementation constraint
 

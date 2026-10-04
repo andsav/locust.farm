@@ -245,7 +245,7 @@ class OnboardingCheck:
                     and row["instance"] == clients[row["client"]]["instance"] for row in repeated["clients"]), "up repeat changed identity")
         require(self.pid() == initial_pid, "repeating onboarding restarted the daemon")
         principal = clients["codex"]["principal"]
-        self.cli("owner-grant", ["agent", "grant", "--agent", principal, "--manage-goals", "true"], owner=True)
+        self.cli("owner-grant", ["agent", "grant", "--agent", principal, "--grants", '{"manage_goals":true}'], owner=True)
         after_grant = self.cli("agent-add-after-grant", ["agent", "add", "codex", "--yes", "--profile-home", self.profile.home,
                                            "--workspace", self.profile.workspace])["clients"][0]
         require(after_grant["changed"] is False and after_grant["principal"] == principal

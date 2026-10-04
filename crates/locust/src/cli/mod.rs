@@ -6,10 +6,12 @@ mod doctor;
 mod formation;
 mod install;
 mod invitations;
+mod local_members;
 mod onboarding;
 mod package;
 mod permissions;
 mod presentation;
+mod selectors;
 mod service;
 mod setup;
 mod workspace;
@@ -22,8 +24,8 @@ use locust_proto::api::{
 use locust_proto::client::Client;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
 use locust_proto::local;
+use selectors::{resolve_goal, validate_goal};
 use serde_json::{Map, Value, json};
-use std::collections::BTreeSet;
 use std::io::{self, Read};
 use std::path::Path;
 
@@ -161,8 +163,12 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     if operation == "contract" {
         let mut contract = locust_proto::api::contract();
         contract["cli"] = args::contract();
-        let human = serde_json::to_string_pretty(&contract)
-            .map_err(|error| Failure::internal(format!("cannot render contract: {error}")))?;
+        let human = if matches.get_flag("json") {
+            String::new()
+        } else {
+            serde_json::to_string_pretty(&contract)
+                .map_err(|error| Failure::internal(format!("cannot render contract: {error}")))?
+        };
         return Ok(Output::success(contract, human));
     }
     if matches!(
@@ -198,6 +204,9 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     }
     if operation.starts_with("client.") {
         return client::run(matches, &operation, selected);
+    }
+    if operation == "goal.add-local" {
+        return local_members::run(matches, selected);
     }
     if operation.starts_with("invitation.") {
         return invitations::run(matches, &operation, selected);
@@ -272,8 +281,43 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             Value::String(stdin_text()?.trim_end_matches(['\r', '\n']).to_owned()),
         );
     }
+    let receipts =
+        if !generic_call && matches!(operation.as_str(), "context.read" | "context.acknowledge") {
+            let credential = Credential(connection::read_secret(&connection::credential_path(
+                matches, &home,
+            )?)?);
+            let session = connection::session_path(matches)?
+                .as_deref()
+                .map(connection::read_secret)
+                .transpose()?
+                .map(locust_proto::api::SessionSecret);
+            Some(crate::context_receipts::Cache::new(
+                &home, credential, session,
+            ))
+        } else {
+            None
+        };
+    if !generic_call && operation == "context.acknowledge" {
+        let reference = fields
+            .get("receipt")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                Failure::usage("--receipt requires the reference returned by context read")
+            })?;
+        fields.insert(
+            "receipt".into(),
+            serde_json::to_value(receipts.as_ref().unwrap().load(reference)?)
+                .map_err(|error| Failure::internal(error.to_string()))?,
+        );
+    }
     if !named_enrollment {
-        validate_fields(&operation, &fields)?;
+        if generic_call {
+            request(&operation, fields.clone())?
+                .check()
+                .map_err(Failure::from)?;
+        } else {
+            validate_fields(&operation, &fields)?;
+        }
     }
     let mut client = connection::open(matches, &home)?;
     let socket = local::socket_path(&home)?;
@@ -304,7 +348,7 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     } else {
         None
     };
-    if let Some(Value::String(goal)) = fields.get("goal") {
+    if !generic_call && let Some(Value::String(goal)) = fields.get("goal") {
         let goal = resolve_goal(&mut client, &socket, goal, on_behalf)?;
         fields.insert("goal".to_owned(), json!(goal));
     }
@@ -315,6 +359,9 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
                 fields.insert(field.to_owned(), json!(principal));
             }
         }
+    }
+    if !generic_call {
+        selectors::resolve_fields(&mut client, &socket, &mut fields, on_behalf)?;
     }
     let request = request(&operation, fields)?;
     let response_goal = request.goal();
@@ -357,10 +404,20 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             .map(|status| status.agents)
             .unwrap_or_default()
     };
-    let human = presentation::render(&response, &names, response_goal, response_principal)
-        .unwrap_or_else(|| human(&response, credential_path.as_deref()));
-    let mut result =
-        serde_json::to_value(&response).map_err(|error| Failure::internal(error.to_string()))?;
+    let mut result = match receipts {
+        Some(cache) => cache.present(&response)?,
+        None => {
+            serde_json::to_value(&response).map_err(|error| Failure::internal(error.to_string()))?
+        }
+    };
+    let human = if matches.get_flag("json") {
+        String::new()
+    } else if matches!(response, Response::Context(_)) && !generic_call {
+        serde_json::to_string_pretty(&result).expect("response encodes")
+    } else {
+        presentation::render(&response, &names, response_goal, response_principal)
+            .unwrap_or_else(|| human(&response, credential_path.as_deref()))
+    };
     if let Some(path) = credential_path {
         let tag = if author_enrollment {
             "author_enrolled"
@@ -401,6 +458,7 @@ fn validate_fields(operation: &str, fields: &Map<String, Value>) -> Result<(), F
             fields.insert(name.to_owned(), json!(PublicKey([0; 32])));
         }
     }
+    selectors::validate_fields(&mut fields)?;
     request(operation, fields)?.check().map_err(Failure::from)
 }
 fn status(
@@ -440,44 +498,6 @@ fn resolve_principal(
                 format!("principal {principal} is not enrolled"),
             )
         })
-}
-fn validate_goal(value: &str) -> Result<(), Failure> {
-    if !(8..=64).contains(&value.len()) || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err(Failure::usage(
-            "--goal requires a full hex identifier or a unique prefix of at least 8 hex characters",
-        ));
-    }
-    Ok(())
-}
-fn resolve_goal(
-    client: &mut LocalClient,
-    socket: &Path,
-    prefix: &str,
-    on_behalf: Option<PublicKey>,
-) -> Result<GoalId, Failure> {
-    validate_goal(prefix)?;
-    if prefix.len() == 64 {
-        return prefix
-            .parse()
-            .map_err(|_| Failure::usage("invalid goal identifier"));
-    }
-    let prefix = prefix.to_ascii_lowercase();
-    let matches: BTreeSet<_> = status(client, socket, on_behalf)?
-        .goals
-        .into_iter()
-        .map(|goal| goal.goal)
-        .filter(|goal| goal.to_string().starts_with(&prefix))
-        .collect();
-    match matches.len() {
-        0 => Err(Failure::new(
-            ErrorCode::NotFound,
-            format!("no visible goal matches {prefix}"),
-        )),
-        1 => Ok(*matches.first().unwrap()),
-        _ => Err(Failure::invalid(format!(
-            "goal prefix {prefix} is ambiguous; use more characters"
-        ))),
-    }
 }
 fn create_session(path: &str) -> Result<Output, Failure> {
     let path = local::session_path(Some(std::ffi::OsStr::new(path)))

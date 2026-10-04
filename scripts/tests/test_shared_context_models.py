@@ -68,13 +68,13 @@ class EvidenceTests(unittest.TestCase):
             'body': {'contribution_published': {'attempt': None, 'context': {'scope': 'goal'}}},
             'task': None, 'text': 'Windows backslash paths reach Linux; normalize before checking ..'},
             'text_complete': True}
-        self.receipt = {'goal': 'goal', 'principal': 'builder', 'session': 'session-b',
-                        'entries': [{'event': 'finding', 'version': 'exact-version'}], 'signature': 'signed'}
+        self.receipt = '0123456789abcdef0123456789abcdef'
         self.events = []
         self.call(1, 'locust_context_read', {'goal': 'goal'}, {'context': {
             'items': [self.finding], 'receipt': self.receipt}})
-        self.call(2, 'locust_context_acknowledge', {'receipt': copy.deepcopy(self.receipt)},
-                  {'context_acknowledged': {k: copy.deepcopy(v) for k, v in self.receipt.items() if k != 'signature'}})
+        self.call(2, 'locust_context_acknowledge', {'goal': 'goal', 'receipt': self.receipt},
+                  {'context_acknowledged': {'goal': 'goal', 'principal': 'builder', 'session': 'session-b',
+                      'entries': [{'event': 'finding', 'version': 'exact-version'}]}})
         (self.root / 'stdout').write_text(json.dumps({'type': 'turn.completed', 'usage': {'output_tokens': 1}}))
         self.report = {'goal': 'goal', 'base': 'base', 'principals': {
             'researcher': {'principal': 'researcher', 'instance': 'session-r'},
@@ -95,10 +95,9 @@ class EvidenceTests(unittest.TestCase):
         (self.root / 'mcp.jsonl').write_text(''.join(json.dumps(x) + '\n' for x in self.events))
         return evaluate(self.report)
 
-    def test_exact_receipt_chain_and_transposed_version(self):
+    def test_exact_receipt_chain_and_substituted_reference(self):
         self.assertTrue(self.evaluate()['builder_acknowledged_exact_receipt'])
-        self.events[2]['arguments']['receipt']['entries'][0]['version'] = 'altered-version'
-        self.events[3]['result']['result']['context_acknowledged']['entries'][0]['version'] = 'altered-version'
+        self.events[2]['arguments']['receipt'] = 'different-reference'
         self.assertFalse(self.evaluate()['builder_acknowledged_exact_receipt'])
 
     def test_matching_event_id_does_not_mask_wrong_delivered_text(self):
@@ -108,9 +107,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertFalse(result['builder_acknowledged_exact_receipt'])
 
     def test_another_sessions_receipt_cannot_qualify_builder(self):
-        for obj in (self.receipt, self.events[2]['arguments']['receipt'],
-                    self.events[3]['result']['result']['context_acknowledged']):
-            obj['session'] = 'another-session'
+        self.events[3]['result']['result']['context_acknowledged']['session'] = 'another-session'
         self.assertFalse(self.evaluate()['builder_acknowledged_exact_receipt'])
 
     def test_task_attribution_does_not_claim_direct_contribution_citation(self):

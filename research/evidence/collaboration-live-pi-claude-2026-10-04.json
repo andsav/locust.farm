@@ -1,0 +1,2006 @@
+{
+  "schema": "locust-live-pi-claude-evidence-v1",
+  "date": "2026-10-04",
+  "scope": "Real native Pi and Claude Code, direct real providers, production Locust CLI plus MCP, private profiles; five-test arithmetic patch fixture.",
+  "runtime": {
+    "version": "locust 0.1.0 (cf67b2e2bdae-dirty) api 4 protocol 4",
+    "artifacts": [
+      {
+        "name": "locust",
+        "sha256": "13969b848aa9dc279461f22bbb358a699fba10153e37fa04892328b706e13072"
+      },
+      {
+        "name": "config_probe",
+        "sha256": "c04c505cb771bed6023f0cb22b2817c9b5c89aafeb1df194b76eb3dc608873c3"
+      }
+    ],
+    "frozen_snapshot": "runtime02, intentionally unchanged across original and retry",
+    "revision_boundary": "runtime02 predates final network refusal fixes committed at c50; these single-daemon workflow scenarios do not exercise those fixes."
+  },
+  "model_metadata": {
+    "verified_before_each_campaign": true,
+    "openai": "gpt-6-luna",
+    "anthropic": "claude-haiku-4-5-20251001"
+  },
+  "cases": [
+    {
+      "campaign": "original",
+      "coordinator": "pi",
+      "worker": "claude-code",
+      "harness_error": null,
+      "assertions": {
+        "worker_skill_read": "pass",
+        "worker_mcp_inspection": "pass",
+        "worker_scoped_claim": "pass",
+        "worker_progress": "pass",
+        "worker_materialize": "pass",
+        "worker_fix_and_test": "pass",
+        "worker_capture_review_submit": "pass",
+        "coordinator_skill_read": "pass",
+        "coordinator_event_review": "pass",
+        "coordinator_diff_review": "pass",
+        "selected_before_integrated": "pass",
+        "coordinator_apply": "pass",
+        "explicit_coordinator_resume": "pass",
+        "fresh_coordinator_application": "not_run",
+        "final_files_and_tests": "pass",
+        "unrelated_work_and_git_head": "pass",
+        "daemon_result_integrity": "pass",
+        "real_model_completion": "pass",
+        "client_execution_and_cleanup": "pass",
+        "independent_collaborators": "not_run",
+        "default_approval": "not_run",
+        "packaged_release": "not_run"
+      },
+      "private_runtime_profiles_removed": true,
+      "stages": [
+        {
+          "role": "worker",
+          "client": "claude-code",
+          "scenario": "worker",
+          "client_version": "2.1.280 (Claude Code)",
+          "client_binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+          "selected_model": "claude-haiku-4-5-20251001",
+          "observed_native_models": [
+            "claude-haiku-4-5-20251001"
+          ],
+          "elapsed_ms": 67453,
+          "exit_code": 0,
+          "natural_cleanup": true,
+          "cleanup_verified": true,
+          "forced_cleanup": false,
+          "native_reported_usage": {
+            "total_cost_usd": 0.1168493,
+            "usage": {
+              "input_tokens": 121,
+              "cache_creation_input_tokens": 33788,
+              "cache_read_input_tokens": 384283,
+              "output_tokens": 7213,
+              "output_tokens_details": {
+                "thinking_tokens": 2332
+              },
+              "service_tier": "standard"
+            },
+            "modelUsage": {
+              "claude-haiku-4-5-20251001": {
+                "inputTokens": 121,
+                "outputTokens": 7213,
+                "cacheReadInputTokens": 384283,
+                "cacheCreationInputTokens": 33788,
+                "costUSD": 0.1168493,
+                "thinkingTokens": 2332,
+                "canonicalModel": "claude-haiku-4-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            },
+            "duration_ms": 66715,
+            "num_turns": 22,
+            "billing_evidence": "native client reported list cost, not provider invoice",
+            "accounting_scope": "first invocation of native session"
+          },
+          "context_observations": {
+            "reads": [
+              {
+                "id": 6,
+                "revision": 11,
+                "view": "full",
+                "items": 7,
+                "text_complete": true,
+                "json_result_bytes": 10834,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              }
+            ],
+            "acknowledgments": [
+              {
+                "id": 8,
+                "entries": 7
+              }
+            ],
+            "errors": [],
+            "visible_source_bearing_contributions": [],
+            "final_compact_checkpoint_observed": false
+          },
+          "native_call_counts": [
+            {
+              "tool": "Read",
+              "success": true,
+              "count": 3,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "mcp__locust__locust_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_goal_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_task_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_pending",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_context_read",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_event_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_context_acknowledge",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_start",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_report",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "workspace materialize"
+            },
+            {
+              "tool": "Read",
+              "success": false,
+              "count": 1,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "Edit",
+              "success": true,
+              "count": 1,
+              "operation": "native_file_edit"
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch create"
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch review"
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch submit"
+            },
+            {
+              "tool": "mcp__locust__locust_contribution_publish",
+              "success": true,
+              "count": 1
+            }
+          ],
+          "native_call_failures": [
+            {
+              "tool": "Read",
+              "success": false,
+              "operation": "native_file_read"
+            }
+          ],
+          "mcp_call_counts": [
+            {
+              "tool": "locust_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_goal_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_task_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_pending",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_event_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_attempt_start",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_contribution_publish",
+              "success": true,
+              "count": 1
+            }
+          ],
+          "context_and_source_calls": [
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": false,
+                "view": "full"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": true,
+              "parameters": {
+                "status": "progress"
+              }
+            },
+            {
+              "tool": "locust_contribution_publish",
+              "success": true,
+              "parameters": {
+                "sources": [
+                  "92df3564edd77e2b294f2566b63e1108eeb04b9299937708795948a80668d0bd"
+                ]
+              }
+            }
+          ],
+          "assertions": {
+            "worker_skill_read": "pass",
+            "worker_mcp_inspection": "pass",
+            "worker_scoped_claim": "pass",
+            "worker_progress": "pass",
+            "worker_materialize": "pass",
+            "worker_fix_and_test": "pass",
+            "worker_capture_review_submit": "pass"
+          }
+        },
+        {
+          "role": "coordinator",
+          "client": "pi",
+          "scenario": "coordinator-review",
+          "client_version": "1.0.1",
+          "client_binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+          "selected_model": "gpt-6-luna",
+          "observed_native_models": [
+            "gpt-6-luna"
+          ],
+          "elapsed_ms": 49837,
+          "exit_code": 0,
+          "natural_cleanup": true,
+          "cleanup_verified": true,
+          "forced_cleanup": false,
+          "native_reported_usage": {
+            "assistant_calls": 11,
+            "usage": {
+              "input": 33,
+              "output": 4626,
+              "cacheRead": 260562,
+              "cacheWrite": 47269,
+              "reasoning": 1759,
+              "totalTokens": 312490
+            },
+            "cost_usd": 0.010830545,
+            "billing_evidence": "native Pi model catalog estimate, not provider invoice",
+            "accounting_scope": "sum of new assistant message_end usage receipts emitted during this invocation, not prior session-history replay"
+          },
+          "context_observations": {
+            "reads": [
+              {
+                "id": 8,
+                "revision": 21,
+                "view": "full",
+                "items": 13,
+                "text_complete": true,
+                "json_result_bytes": 19147,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              },
+              {
+                "id": 13,
+                "revision": 23,
+                "view": "compact",
+                "items": 2,
+                "text_complete": true,
+                "json_result_bytes": 3691,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              }
+            ],
+            "acknowledgments": [
+              {
+                "id": 9,
+                "entries": 13
+              },
+              {
+                "id": 14,
+                "entries": 2
+              }
+            ],
+            "errors": [],
+            "visible_source_bearing_contributions": [
+              {
+                "event": "6f219b79030396edb6b5de68b6d8d681f4118c469684718aa449fce3a2f58e3e",
+                "sources": [
+                  "92df3564edd77e2b294f2566b63e1108eeb04b9299937708795948a80668d0bd"
+                ],
+                "text": "Verified shared finding: calculator.py add() function incorrectly used subtraction (a - b) instead of addition (a + b). Inspected test suite confirms five test cases validate correct addition behavior: positive, negative, mixed-sign, zero, and float operands. Bug diagnosis and fix confirmed by test execution."
+              }
+            ],
+            "final_compact_checkpoint_observed": true
+          },
+          "native_call_counts": [
+            {
+              "tool": "read",
+              "success": true,
+              "count": 6,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "codemode",
+              "success": true,
+              "count": 7
+            },
+            {
+              "tool": "mcp__locust__locust_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_goal_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_task_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_event_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch review"
+            },
+            {
+              "tool": "mcp__locust__locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_context_acknowledge",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_review_record",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch select"
+            }
+          ],
+          "native_call_failures": [],
+          "mcp_call_counts": [
+            {
+              "tool": "locust_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_goal_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_task_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_event_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_review_record",
+              "success": true,
+              "count": 1
+            }
+          ],
+          "context_and_source_calls": [
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": false,
+                "view": "full"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": true,
+                "view": "compact"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            }
+          ],
+          "assertions": {
+            "coordinator_skill_read": "pass",
+            "coordinator_event_review": "pass",
+            "coordinator_diff_review": "pass",
+            "selected_before_integrated": "pass"
+          }
+        },
+        {
+          "role": "coordinator",
+          "client": "pi",
+          "scenario": "coordinator-apply",
+          "client_version": "1.0.1",
+          "client_binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+          "selected_model": "gpt-6-luna",
+          "observed_native_models": [
+            "gpt-6-luna"
+          ],
+          "elapsed_ms": 29486,
+          "exit_code": 0,
+          "natural_cleanup": true,
+          "cleanup_verified": true,
+          "forced_cleanup": false,
+          "native_reported_usage": {
+            "assistant_calls": 8,
+            "usage": {
+              "input": 24,
+              "output": 3223,
+              "cacheRead": 487806,
+              "cacheWrite": 24331,
+              "reasoning": 803,
+              "totalTokens": 515384
+            },
+            "cost_usd": 0.009533335,
+            "billing_evidence": "native Pi model catalog estimate, not provider invoice",
+            "accounting_scope": "sum of new assistant message_end usage receipts emitted during this invocation, not prior session-history replay"
+          },
+          "context_observations": {
+            "reads": [
+              {
+                "id": 6,
+                "revision": 23,
+                "view": "full",
+                "items": 15,
+                "text_complete": true,
+                "json_result_bytes": 21741,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              },
+              {
+                "id": 9,
+                "revision": 24,
+                "view": "compact",
+                "items": 0,
+                "text_complete": true,
+                "json_result_bytes": 822,
+                "has_next": false,
+                "receipt_form": null
+              }
+            ],
+            "acknowledgments": [
+              {
+                "id": 7,
+                "entries": 15
+              }
+            ],
+            "errors": [],
+            "visible_source_bearing_contributions": [
+              {
+                "event": "6f219b79030396edb6b5de68b6d8d681f4118c469684718aa449fce3a2f58e3e",
+                "sources": [
+                  "92df3564edd77e2b294f2566b63e1108eeb04b9299937708795948a80668d0bd"
+                ],
+                "text": "Verified shared finding: calculator.py add() function incorrectly used subtraction (a - b) instead of addition (a + b). Inspected test suite confirms five test cases validate correct addition behavior: positive, negative, mixed-sign, zero, and float operands. Bug diagnosis and fix confirmed by test execution."
+              }
+            ],
+            "final_compact_checkpoint_observed": true
+          },
+          "native_call_counts": [
+            {
+              "tool": "read",
+              "success": true,
+              "count": 10,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "mcp__locust__locust_goal_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_task_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_event_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 3
+            },
+            {
+              "tool": "codemode",
+              "success": true,
+              "count": 3
+            },
+            {
+              "tool": "mcp__locust__locust_context_acknowledge",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch apply"
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "supplied_unittest_suite"
+            }
+          ],
+          "native_call_failures": [],
+          "mcp_call_counts": [
+            {
+              "tool": "locust_goal_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_task_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_event_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "count": 1
+            }
+          ],
+          "context_and_source_calls": [
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": false,
+                "view": "full"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": true,
+                "view": "compact"
+              }
+            }
+          ],
+          "assertions": {
+            "coordinator_apply": "pass",
+            "explicit_coordinator_resume": "pass"
+          }
+        }
+      ],
+      "same_native_coordinator_session_resumed": true,
+      "identity": {
+        "goal": "49a2446d8ea108d37684b55c6e06bcc23f07c774d3bb9c3031c748a5ce425cb7",
+        "task": "task:ae2527d444ceb48fdcaeb8edc2f877a780bec93efd2446415c690391bbd2dfe2",
+        "shared_finding": "92df3564edd77e2b294f2566b63e1108eeb04b9299937708795948a80668d0bd",
+        "base": "6197c56dfbf5fc232f2f06c8b86a73ea5ada172dee62f1513a5fb3b5109026c0",
+        "patch": "a17c378f41f5f57d6f203171323191cbf6c28d71407dfaa0ce06e083a0c101e3",
+        "head": "f79736ee143fca200d667ee80cf14909b0cbcc5c25e11dffb1764ed57e358ba7",
+        "result": "648ab818e44d5ecc54b1fb8371c938687daecea6d5dbb0baa1bff9f3c28c627e"
+      },
+      "installed_skill_sha256": [
+        "559775539413056c0eb5ef59aa346b9c25e3e0aaa6fb4bca3b3537cd9dce6a6b"
+      ]
+    },
+    {
+      "campaign": "original",
+      "coordinator": "claude-code",
+      "worker": "pi",
+      "harness_error": "ProductionError: Worker did not submit a production task result",
+      "assertions": {
+        "worker_skill_read": "pass",
+        "worker_mcp_inspection": "pass",
+        "worker_scoped_claim": "pass",
+        "worker_progress": "pass",
+        "worker_materialize": "not_run",
+        "worker_fix_and_test": "not_run",
+        "worker_capture_review_submit": "not_run",
+        "coordinator_skill_read": "not_run",
+        "coordinator_event_review": "not_run",
+        "coordinator_diff_review": "not_run",
+        "selected_before_integrated": "not_run",
+        "coordinator_apply": "not_run",
+        "explicit_coordinator_resume": "not_run",
+        "fresh_coordinator_application": "not_run",
+        "final_files_and_tests": "not_run",
+        "unrelated_work_and_git_head": "not_run",
+        "daemon_result_integrity": "not_run",
+        "real_model_completion": "fail",
+        "client_execution_and_cleanup": "fail",
+        "independent_collaborators": "not_run",
+        "default_approval": "not_run",
+        "packaged_release": "not_run"
+      },
+      "private_runtime_profiles_removed": true,
+      "stages": [
+        {
+          "role": "worker",
+          "client": "pi",
+          "scenario": "worker",
+          "client_version": "1.0.1",
+          "client_binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+          "selected_model": "gpt-6-luna",
+          "observed_native_models": [
+            "gpt-6-luna"
+          ],
+          "elapsed_ms": 76380,
+          "exit_code": 0,
+          "natural_cleanup": true,
+          "cleanup_verified": true,
+          "forced_cleanup": false,
+          "native_reported_usage": {
+            "assistant_calls": 20,
+            "usage": {
+              "input": 60,
+              "output": 7032,
+              "cacheRead": 530073,
+              "cacheWrite": 44974,
+              "reasoning": 3096,
+              "totalTokens": 582139
+            },
+            "cost_usd": 0.01444448,
+            "billing_evidence": "native Pi model catalog estimate, not provider invoice",
+            "accounting_scope": "sum of new assistant message_end usage receipts emitted during this invocation, not prior session-history replay"
+          },
+          "context_observations": {
+            "reads": [
+              {
+                "id": 7,
+                "revision": 11,
+                "view": "full",
+                "items": 7,
+                "text_complete": true,
+                "json_result_bytes": 10830,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              },
+              {
+                "id": 14,
+                "revision": 20,
+                "view": "compact",
+                "items": 5,
+                "text_complete": true,
+                "json_result_bytes": 6109,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              }
+            ],
+            "acknowledgments": [
+              {
+                "id": 9,
+                "entries": 7
+              },
+              {
+                "id": 15,
+                "entries": 5
+              }
+            ],
+            "errors": [
+              {
+                "tool": "locust_attempt_report",
+                "error": {
+                  "error": {
+                    "code": "conflict",
+                    "details": null,
+                    "message": "the attempt has ended"
+                  },
+                  "ok": false
+                }
+              },
+              {
+                "tool": "locust_attempt_start",
+                "error": {
+                  "error": {
+                    "code": "denied",
+                    "details": null,
+                    "message": "the pinned rules do not permit this attempt"
+                  },
+                  "ok": false
+                }
+              }
+            ],
+            "visible_source_bearing_contributions": [
+              {
+                "event": "dcc83e71818c09b5229d17eb21970ecad24647456f81474bbbc8cb9fcecd6c3d",
+                "sources": [
+                  "cca372920c25bec9eb6e90a02ee3a002ceb41642e197971fd3dd3eff8a9e75a0"
+                ],
+                "text": "I inspected the shared finding cca372920c25bec9eb6e90a02ee3a002ceb41642e197971fd3dd3eff8a9e75a0. It reports that add(2, 3) returns -1 because calculator.py subtracts b; this is the finding's reported observation, not yet an independent inspection of the materialized source."
+              }
+            ],
+            "final_compact_checkpoint_observed": true
+          },
+          "native_call_counts": [
+            {
+              "tool": "read",
+              "success": true,
+              "count": 3,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "codemode",
+              "success": true,
+              "count": 11
+            },
+            {
+              "tool": "mcp__locust__locust_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_goal_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_task_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_pending",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_event_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_context_acknowledge",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_start",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_contribution_publish",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_report",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "workspace materialize"
+            },
+            {
+              "tool": "bash",
+              "success": false,
+              "count": 1,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "edit",
+              "success": true,
+              "count": 1,
+              "operation": "native_file_edit"
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch create"
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch review"
+            },
+            {
+              "tool": "bash",
+              "success": false,
+              "count": 1,
+              "operation": "patch submit"
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_report",
+              "success": false,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_start",
+              "success": false,
+              "count": 1
+            }
+          ],
+          "native_call_failures": [
+            {
+              "tool": "bash",
+              "success": false,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "bash",
+              "success": false,
+              "operation": "patch submit",
+              "error": {
+                "code": "superseded",
+                "message": "this session does not hold the current attempt generation"
+              }
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_report",
+              "success": false
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_start",
+              "success": false
+            }
+          ],
+          "mcp_call_counts": [
+            {
+              "tool": "locust_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_goal_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_task_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_pending",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_event_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_contribution_publish",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_attempt_start",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": false,
+              "count": 1
+            },
+            {
+              "tool": "locust_attempt_start",
+              "success": false,
+              "count": 1
+            }
+          ],
+          "context_and_source_calls": [
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": false,
+                "view": "full"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            },
+            {
+              "tool": "locust_contribution_publish",
+              "success": true,
+              "parameters": {
+                "sources": [
+                  "cca372920c25bec9eb6e90a02ee3a002ceb41642e197971fd3dd3eff8a9e75a0"
+                ]
+              }
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": true,
+              "parameters": {
+                "status": "progress"
+              }
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": true,
+              "parameters": {
+                "status": "completed"
+              }
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": true,
+                "view": "compact"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": false,
+              "parameters": {
+                "status": "progress"
+              }
+            }
+          ],
+          "assertions": {
+            "worker_skill_read": "pass",
+            "worker_mcp_inspection": "pass",
+            "worker_scoped_claim": "pass",
+            "worker_progress": "pass",
+            "worker_materialize": "not_run",
+            "worker_fix_and_test": "not_run",
+            "worker_capture_review_submit": "not_run"
+          }
+        }
+      ],
+      "identity": {
+        "goal": "65a2f7cbd27e86149c20c7b8f3bd353abe9263b0b317b5974cb854aa75c9f046",
+        "task": "task:7e4349f19a6f142fe11bc8812c8b8a8a39b819b560be0bc23e6d110344dc2047",
+        "shared_finding": "cca372920c25bec9eb6e90a02ee3a002ceb41642e197971fd3dd3eff8a9e75a0",
+        "base": "9e1598a28780ffdd788f5a6053ff909df9ec45ce558b1e3ed6fc7210ce166fd0"
+      },
+      "installed_skill_sha256": [
+        "559775539413056c0eb5ef59aa346b9c25e3e0aaa6fb4bca3b3537cd9dce6a6b"
+      ]
+    },
+    {
+      "campaign": "retry_after_skill_clarification",
+      "coordinator": "claude-code",
+      "worker": "pi",
+      "harness_error": null,
+      "assertions": {
+        "worker_skill_read": "pass",
+        "worker_mcp_inspection": "pass",
+        "worker_scoped_claim": "pass",
+        "worker_progress": "pass",
+        "worker_materialize": "pass",
+        "worker_fix_and_test": "pass",
+        "worker_capture_review_submit": "pass",
+        "coordinator_skill_read": "pass",
+        "coordinator_event_review": "pass",
+        "coordinator_diff_review": "pass",
+        "selected_before_integrated": "pass",
+        "coordinator_apply": "pass",
+        "explicit_coordinator_resume": "pass",
+        "fresh_coordinator_application": "not_run",
+        "final_files_and_tests": "pass",
+        "unrelated_work_and_git_head": "pass",
+        "daemon_result_integrity": "pass",
+        "real_model_completion": "pass",
+        "client_execution_and_cleanup": "pass",
+        "independent_collaborators": "not_run",
+        "default_approval": "not_run",
+        "packaged_release": "not_run"
+      },
+      "private_runtime_profiles_removed": true,
+      "stages": [
+        {
+          "role": "worker",
+          "client": "pi",
+          "scenario": "worker",
+          "client_version": "1.0.1",
+          "client_binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+          "selected_model": "gpt-6-luna",
+          "observed_native_models": [
+            "gpt-6-luna"
+          ],
+          "elapsed_ms": 59508,
+          "exit_code": 0,
+          "natural_cleanup": true,
+          "cleanup_verified": true,
+          "forced_cleanup": false,
+          "native_reported_usage": {
+            "assistant_calls": 21,
+            "usage": {
+              "input": 63,
+              "output": 4283,
+              "cacheRead": 510535,
+              "cacheWrite": 40982,
+              "reasoning": 948,
+              "totalTokens": 555863
+            },
+            "cost_usd": 0.0123759,
+            "billing_evidence": "native Pi model catalog estimate, not provider invoice",
+            "accounting_scope": "sum of new assistant message_end usage receipts emitted during this invocation, not prior session-history replay"
+          },
+          "context_observations": {
+            "reads": [
+              {
+                "id": 7,
+                "revision": 11,
+                "view": "full",
+                "items": 7,
+                "text_complete": true,
+                "json_result_bytes": 10832,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              },
+              {
+                "id": 13,
+                "revision": 21,
+                "view": "compact",
+                "items": 6,
+                "text_complete": true,
+                "json_result_bytes": 7730,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              }
+            ],
+            "acknowledgments": [
+              {
+                "id": 9,
+                "entries": 7
+              },
+              {
+                "id": 14,
+                "entries": 6
+              }
+            ],
+            "errors": [],
+            "visible_source_bearing_contributions": [
+              {
+                "event": "799a906d36190c2bf6f9dd07c1a32f1cb4cbdea22451e5c86dcefd1288db64fb",
+                "sources": [
+                  "6c02a825f711e7b4da99bc7bcb67e6e2d3c88a37d946a86ff67f6fcc692e8f51"
+                ],
+                "text": "I inspected the shared report and the materialized calculator.py: add(a, b) returns a - b, so add(2, 3) yields -1 instead of 5. The supplied suite covers positive, negative, mixed-sign, zero, and float addition; the defect is the subtraction operator."
+              }
+            ],
+            "final_compact_checkpoint_observed": true
+          },
+          "native_call_counts": [
+            {
+              "tool": "read",
+              "success": true,
+              "count": 3,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "codemode",
+              "success": true,
+              "count": 8
+            },
+            {
+              "tool": "mcp__locust__locust_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_goal_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_task_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_pending",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_event_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_context_acknowledge",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_start",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_attempt_report",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "workspace materialize"
+            },
+            {
+              "tool": "mcp__locust__locust_contribution_publish",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "bash",
+              "success": false,
+              "count": 3,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "edit",
+              "success": true,
+              "count": 1,
+              "operation": "native_file_edit"
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch create"
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch review"
+            },
+            {
+              "tool": "bash",
+              "success": false,
+              "count": 1,
+              "operation": "patch submit"
+            },
+            {
+              "tool": "bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch submit"
+            }
+          ],
+          "native_call_failures": [
+            {
+              "tool": "bash",
+              "success": false,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "bash",
+              "success": false,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "bash",
+              "success": false,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "bash",
+              "success": false,
+              "operation": "patch submit"
+            }
+          ],
+          "mcp_call_counts": [
+            {
+              "tool": "locust_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_goal_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_task_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_pending",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_event_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_attempt_start",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_contribution_publish",
+              "success": true,
+              "count": 1
+            }
+          ],
+          "context_and_source_calls": [
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": false,
+                "view": "full"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            },
+            {
+              "tool": "locust_attempt_report",
+              "success": true,
+              "parameters": {
+                "status": "progress"
+              }
+            },
+            {
+              "tool": "locust_contribution_publish",
+              "success": true,
+              "parameters": {
+                "sources": [
+                  "6c02a825f711e7b4da99bc7bcb67e6e2d3c88a37d946a86ff67f6fcc692e8f51"
+                ]
+              }
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": true,
+                "view": "compact"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            }
+          ],
+          "assertions": {
+            "worker_skill_read": "pass",
+            "worker_mcp_inspection": "pass",
+            "worker_scoped_claim": "pass",
+            "worker_progress": "pass",
+            "worker_materialize": "pass",
+            "worker_fix_and_test": "pass",
+            "worker_capture_review_submit": "pass"
+          }
+        },
+        {
+          "role": "coordinator",
+          "client": "claude-code",
+          "scenario": "coordinator-review",
+          "client_version": "2.1.280 (Claude Code)",
+          "client_binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+          "selected_model": "claude-haiku-4-5-20251001",
+          "observed_native_models": [
+            "claude-haiku-4-5-20251001"
+          ],
+          "elapsed_ms": 80035,
+          "exit_code": 0,
+          "natural_cleanup": true,
+          "cleanup_verified": true,
+          "forced_cleanup": false,
+          "native_reported_usage": {
+            "total_cost_usd": 0.10868129999999998,
+            "usage": {
+              "input_tokens": 113,
+              "cache_creation_input_tokens": 26928,
+              "cache_read_input_tokens": 370233,
+              "output_tokens": 7577,
+              "output_tokens_details": {
+                "thinking_tokens": 3211
+              },
+              "service_tier": "standard"
+            },
+            "modelUsage": {
+              "claude-haiku-4-5-20251001": {
+                "inputTokens": 113,
+                "outputTokens": 7577,
+                "cacheReadInputTokens": 370233,
+                "cacheCreationInputTokens": 26928,
+                "costUSD": 0.10868129999999998,
+                "thinkingTokens": 3211,
+                "canonicalModel": "claude-haiku-4-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            },
+            "duration_ms": 79345,
+            "num_turns": 21,
+            "billing_evidence": "native client reported list cost, not provider invoice",
+            "accounting_scope": "first invocation of native session"
+          },
+          "context_observations": {
+            "reads": [
+              {
+                "id": 6,
+                "revision": 21,
+                "view": "full",
+                "items": 13,
+                "text_complete": true,
+                "json_result_bytes": 19126,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              }
+            ],
+            "acknowledgments": [
+              {
+                "id": 7,
+                "entries": 13
+              }
+            ],
+            "errors": [],
+            "visible_source_bearing_contributions": [
+              {
+                "event": "799a906d36190c2bf6f9dd07c1a32f1cb4cbdea22451e5c86dcefd1288db64fb",
+                "sources": [
+                  "6c02a825f711e7b4da99bc7bcb67e6e2d3c88a37d946a86ff67f6fcc692e8f51"
+                ],
+                "text": "I inspected the shared report and the materialized calculator.py: add(a, b) returns a - b, so add(2, 3) yields -1 instead of 5. The supplied suite covers positive, negative, mixed-sign, zero, and float addition; the defect is the subtraction operator."
+              }
+            ],
+            "final_compact_checkpoint_observed": false
+          },
+          "native_call_counts": [
+            {
+              "tool": "Read",
+              "success": true,
+              "count": 5,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "mcp__locust__locust_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_goal_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_task_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_event_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch review"
+            },
+            {
+              "tool": "Read",
+              "success": false,
+              "count": 1,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_context_read",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_context_acknowledge",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_review_record",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch select"
+            }
+          ],
+          "native_call_failures": [
+            {
+              "tool": "Read",
+              "success": false,
+              "operation": "native_file_read"
+            }
+          ],
+          "mcp_call_counts": [
+            {
+              "tool": "locust_status",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_goal_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_task_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_event_show",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_review_record",
+              "success": true,
+              "count": 1
+            }
+          ],
+          "context_and_source_calls": [
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": false,
+                "view": "full"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            }
+          ],
+          "assertions": {
+            "coordinator_skill_read": "pass",
+            "coordinator_event_review": "pass",
+            "coordinator_diff_review": "pass",
+            "selected_before_integrated": "pass"
+          }
+        },
+        {
+          "role": "coordinator",
+          "client": "claude-code",
+          "scenario": "coordinator-apply",
+          "client_version": "2.1.280 (Claude Code)",
+          "client_binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+          "selected_model": "claude-haiku-4-5-20251001",
+          "observed_native_models": [
+            "claude-haiku-4-5-20251001"
+          ],
+          "elapsed_ms": 46063,
+          "exit_code": 0,
+          "natural_cleanup": true,
+          "cleanup_verified": true,
+          "forced_cleanup": false,
+          "native_reported_usage": {
+            "total_cost_usd": 0.20329339999999999,
+            "usage": {
+              "input_tokens": 81,
+              "cache_creation_input_tokens": 20126,
+              "cache_read_input_tokens": 472986,
+              "output_tokens": 4415,
+              "output_tokens_details": {
+                "thinking_tokens": 1310
+              },
+              "service_tier": "standard"
+            },
+            "modelUsage": {
+              "claude-haiku-4-5-20251001": {
+                "inputTokens": 194,
+                "outputTokens": 11992,
+                "thinkingTokens": 4521,
+                "cacheReadInputTokens": 843219,
+                "cacheCreationInputTokens": 47054,
+                "costUSD": 0.20329339999999999,
+                "canonicalModel": "claude-haiku-4-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            },
+            "duration_ms": 45626,
+            "num_turns": 13,
+            "billing_evidence": "native client reported list cost, not provider invoice",
+            "accounting_scope": "total_cost_usd and modelUsage are cumulative for resumed native session; usage is current invocation",
+            "incremental_reported_list_cost_usd": 0.0946121,
+            "delta_validation": {
+              "input_tokens": {
+                "modelUsage_delta": 81,
+                "current_invocation_usage": 81
+              },
+              "output_tokens": {
+                "modelUsage_delta": 4415,
+                "current_invocation_usage": 4415
+              },
+              "cache_read_input_tokens": {
+                "modelUsage_delta": 472986,
+                "current_invocation_usage": 472986
+              },
+              "cache_creation_input_tokens": {
+                "modelUsage_delta": 20126,
+                "current_invocation_usage": 20126
+              }
+            }
+          },
+          "context_observations": {
+            "reads": [
+              {
+                "id": 5,
+                "revision": 24,
+                "view": "full",
+                "items": 15,
+                "text_complete": true,
+                "json_result_bytes": 21405,
+                "has_next": false,
+                "receipt_form": "ctx:reference"
+              },
+              {
+                "id": 7,
+                "revision": 24,
+                "view": "compact",
+                "items": 0,
+                "text_complete": true,
+                "json_result_bytes": 822,
+                "has_next": false,
+                "receipt_form": null
+              }
+            ],
+            "acknowledgments": [
+              {
+                "id": 6,
+                "entries": 15
+              }
+            ],
+            "errors": [],
+            "visible_source_bearing_contributions": [
+              {
+                "event": "799a906d36190c2bf6f9dd07c1a32f1cb4cbdea22451e5c86dcefd1288db64fb",
+                "sources": [
+                  "6c02a825f711e7b4da99bc7bcb67e6e2d3c88a37d946a86ff67f6fcc692e8f51"
+                ],
+                "text": "I inspected the shared report and the materialized calculator.py: add(a, b) returns a - b, so add(2, 3) yields -1 instead of 5. The supplied suite covers positive, negative, mixed-sign, zero, and float addition; the defect is the subtraction operator."
+              }
+            ],
+            "final_compact_checkpoint_observed": true
+          },
+          "native_call_counts": [
+            {
+              "tool": "mcp__locust__locust_goal_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_task_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "patch apply"
+            },
+            {
+              "tool": "Read",
+              "success": true,
+              "count": 3,
+              "operation": "native_file_read"
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1,
+              "operation": "supplied_unittest_suite"
+            },
+            {
+              "tool": "Bash",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "mcp__locust__locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "mcp__locust__locust_context_acknowledge",
+              "success": true,
+              "count": 1
+            }
+          ],
+          "native_call_failures": [],
+          "mcp_call_counts": [
+            {
+              "tool": "locust_goal_status",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_task_show",
+              "success": true,
+              "count": 1
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "count": 2
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "count": 1
+            }
+          ],
+          "context_and_source_calls": [
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": false,
+                "view": "full"
+              }
+            },
+            {
+              "tool": "locust_context_acknowledge",
+              "success": true,
+              "parameters": {
+                "receipt_form": "ctx:reference"
+              }
+            },
+            {
+              "tool": "locust_context_read",
+              "success": true,
+              "parameters": {
+                "limit": 16,
+                "unread_only": true,
+                "view": "compact"
+              }
+            }
+          ],
+          "assertions": {
+            "coordinator_apply": "pass",
+            "explicit_coordinator_resume": "pass"
+          }
+        }
+      ],
+      "same_native_coordinator_session_resumed": true,
+      "identity": {
+        "goal": "6192c92361b08786e97fd44cf9ecbc7e18ff20795f93b03ebb5dd683a34cd09f",
+        "task": "task:f6e23655935312146391fb5b2b0789a979a1fa1ddb490d758b1dcb67801c1a48",
+        "shared_finding": "6c02a825f711e7b4da99bc7bcb67e6e2d3c88a37d946a86ff67f6fcc692e8f51",
+        "base": "ad4a7420e205cb9194104227ff36d9376759f3745311e501de2fcdc4bc57123a",
+        "patch": "b6740cbe8af191d0ad6c194147f7a36408b19e81ea99035cfeeb98b43692e984",
+        "head": "7a53cc071232f12fe10284ae9ea103c1a326a4ef47efe41774f7db772acd3935",
+        "result": "b8312e4b85ae624653842d8da2f2e88f6c033d86a2b2133980c66c89476cb2e6"
+      },
+      "installed_skill_sha256": [
+        "9783f695235f8ea82a5bd8f158b83e1a119524e0f9ca741f8875b140087f76f7"
+      ]
+    }
+  ],
+  "material_findings": [
+    {
+      "finding": "Native response codec failure corrected before these campaigns",
+      "cause": "Adjacent tagged context/pending enums required Deserialize_any, unsupported by postcard.",
+      "change": "Externally tagged enums plus production Response native codec roundtrips in focused core tests.",
+      "boundary": "These campaigns exercise the corrected frozen API4 runtime."
+    },
+    {
+      "finding": "Pi ended its attempt before submitting its task-backed patch",
+      "original_case": "claude-code coordinator / pi worker",
+      "observed_sequence": [
+        "attempt.report progress",
+        "edit, supplied tests pass, patch create and review",
+        "attempt.report completed",
+        "patch submit rejected superseded",
+        "attempt.report progress rejected conflict: the attempt has ended",
+        "attempt.start denied: the pinned rules do not permit this attempt",
+        "native worker ended without task result"
+      ],
+      "change": "SKILL.md explicitly states completed/failed ends the attempt and releases its claim; publish task-backed contributions and submit patches before any terminal report; ended attempts cannot be reused.",
+      "retry": "Fresh private profiles, same runtime and models, updated skill. Reverse pair completed all workflow assertions and same-session Claude resume.",
+      "boundary": "Single successful retry supports guidance correction; it does not prove models will always follow ordering."
+    },
+    {
+      "finding": "Claude omitted requested compact checkpoints",
+      "stages": [
+        "original successful Claude worker",
+        "retry Claude coordinator-review"
+      ],
+      "boundary": "Full context reads and acknowledgments succeeded. Missing checkpoints are native model instruction adherence gaps, retained separately from daemon/CLI/MCP correctness."
+    },
+    {
+      "finding": "Resumed Claude usage fields have different accounting scopes",
+      "observed": "result.usage input/output/cache values are current invocation; modelUsage and total_cost_usd accumulate across the resumed native session. Every resumed modelUsage token delta exactly matches the apply result.usage.",
+      "review_reported_list_cost_usd": 0.1086813,
+      "resumed_session_total_reported_list_cost_usd": 0.2032934,
+      "incremental_apply_reported_list_cost_usd": 0.0946121,
+      "guidance": "Preserve field names and scopes; subtract validated cumulative endpoints instead of summing generic cost fields. Pi totals sum only new assistant usage receipts emitted for each invocation.",
+      "boundary": "Native list/catalog estimates; provider invoice not verified."
+    }
+  ],
+  "boundaries": [
+    "Two native clients use separate protected sessions of the same enrolled participant. Independent-principal collaboration, default approval behavior and packaged release were not exercised.",
+    "Shared findings have signed declared source EventIds visible in the other session. Neither declaration nor acknowledgment proves comprehension or use.",
+    "No context response in this fixture had a next page; multi-page completeness and cursor invalidation are covered by focused core tests, not claimed from these live small-fixture runs.",
+    "No agent execution deadline was imposed. RPC/cleanup waits were explicit. No user configuration or global permissions changed.",
+    "Complete transcripts and native configuration remain ignored local artifacts. This summary omits credentials, private configuration, absolute machine paths and full transcripts.",
+    "Usage/cost values are native client reports or Pi catalog estimates, not provider invoices. Claude resumed modelUsage and total_cost_usd are cumulative; raw values and validated incremental delta are both retained. No sum of cumulative totals is reported."
+  ],
+  "retained_local_reports": [
+    "output/collaboration-followups/live-pi-claude/report.json",
+    "output/collaboration-followups/live-pi-claude-retry/report.json"
+  ],
+  "source_versions": {
+    "skill_path": "skills/locust/SKILL.md",
+    "final_skill_sha256": "9783f695235f8ea82a5bd8f158b83e1a119524e0f9ca741f8875b140087f76f7",
+    "baseline_skill_sha256": "559775539413056c0eb5ef59aa346b9c25e3e0aaa6fb4bca3b3537cd9dce6a6b",
+    "retry_skill_sha256": "9783f695235f8ea82a5bd8f158b83e1a119524e0f9ca741f8875b140087f76f7"
+  }
+}

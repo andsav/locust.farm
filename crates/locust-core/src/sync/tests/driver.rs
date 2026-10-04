@@ -259,3 +259,75 @@ fn wall_clock_steps_do_not_delay_retries_or_advance_anti_entropy() {
         assert!(matches!(out.as_slice(), [PeerOutput::Open { .. }]));
     }
 }
+
+/// The responder may close its unadmitted connection after delivering its
+/// terminal refusal, before our own FIN is acknowledged. That transport close
+/// must not erase a refusal we have already decoded from this authenticated peer.
+#[test]
+fn a_received_invitation_refusal_survives_a_failed_local_finish() {
+    use crate::sync::Joining;
+    use locust_proto::engine::PeerTime;
+    use locust_proto::invite::{InviteSecret, JoinRequest};
+    use locust_proto::sync::Refusal;
+    use locust_proto::testkit::Author;
+    for received_refusal in [false, true] {
+        let founded = Founded::new();
+        let mut host = host(1, founded.replica(&[]), &[1]);
+        host.joins.push(Joining {
+            goal: founded.goal,
+            endpoint: endpoint(2),
+            hints: vec![],
+            request: JoinRequest::sign(
+                founded.goal,
+                endpoint(1),
+                InviteSecret([9; 32]),
+                &Author::new(4).key,
+            ),
+        });
+        let mut driver = Driver::new();
+        let mut out = Vec::new();
+        let time = PeerTime {
+            unix_ms: 1,
+            elapsed_ms: 1,
+        };
+        driver.handle(&mut host, PeerInput::Poll, time, &mut out);
+        let PeerOutput::Open { exchange, .. } = out.remove(0) else {
+            panic!("join open")
+        };
+        driver.handle(&mut host, PeerInput::Opened(exchange), time, &mut out);
+        driver.handle(&mut host, PeerInput::Writable(exchange), time, &mut out);
+        driver.handle(&mut host, PeerInput::Writable(exchange), time, &mut out);
+        out.clear();
+        let frame = if received_refusal {
+            SyncMessage::Refused(Refusal::InvitationRefused)
+        } else {
+            // This malformed response causes our own ProtocolError refusal.
+            // Merely queuing an outbound refusal is not remote delivery.
+            SyncMessage::Done
+        };
+        driver.handle(
+            &mut host,
+            PeerInput::Frame { exchange, frame },
+            time,
+            &mut out,
+        );
+        driver.handle(&mut host, PeerInput::Writable(exchange), time, &mut out);
+        assert!(
+            out.iter()
+                .any(|output| matches!(output, PeerOutput::Finish(id) if *id == exchange))
+        );
+        assert!(host.reports.is_empty());
+        driver.handle(&mut host, PeerInput::Closed(exchange), time, &mut out);
+        assert_eq!(host.reports.len(), 1);
+        assert!(host.reports[0].join);
+        assert_eq!(
+            host.reports[0].ended,
+            if received_refusal {
+                Ended::Refused(Refusal::InvitationRefused)
+            } else {
+                Ended::Aborted
+            }
+        );
+        assert_eq!(host.joins.is_empty(), received_refusal);
+    }
+}

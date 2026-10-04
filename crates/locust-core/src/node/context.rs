@@ -8,18 +8,17 @@
 use std::collections::BTreeSet;
 
 use locust_proto::api::{
-    ApiError, BlobState, ContextAcknowledgment, ContextCursor, ContextDocument, ContextItem,
-    ContextNews, ContextReceipt, ContextSeen, ContextView, ErrorCode, Response,
+    ApiError, BlobState, ContextAcknowledgment, ContextCursor, ContextItem, ContextNews,
+    ContextReceipt, ContextSeen, ContextView, ContextViewMode, ErrorCode, Response,
 };
 use locust_proto::codec;
 use locust_proto::crypto::{self, Keypair};
 use locust_proto::engine::Entropy;
-use locust_proto::event::{Event, Scope, TaskId};
+use locust_proto::event::{Event, TaskId};
 use locust_proto::id::{BlobHash, EventId, GoalId, InstanceId, PublicKey, Signature};
 use locust_proto::store::{LocalWrite, Space, Store, StoreError};
 
 use super::Node;
-use super::access::not_found;
 use super::callers::Actor;
 use super::commit::Tx;
 use super::entry::Entry;
@@ -118,20 +117,24 @@ fn relevant(entry: &Entry, event: &Event, task: Option<TaskId>) -> bool {
 impl<S: Store, E: Entropy> Node<S, E> {
     /// Version only metadata: immutable payload identity and readable status
     /// suffice to detect new text without loading every payload for news counts.
-    fn context_seen(&self, entry: &Entry, event: &Event, actor: &Actor) -> ContextSeen {
+    fn context_seen(&self, entry: &Entry, event: &Event, actor: &Actor) -> (ContextSeen, bool) {
         let payload_state = event.header().payload.map(|payload| {
             (
                 payload,
                 self.blob_state(entry, &payload.hash, actor.principal.as_ref()),
             )
         });
-        ContextSeen {
-            event: event.id(),
-            version: crypto::content_hash(
-                &codec::encode(&(entry.event_view(event), payload_state))
-                    .expect("context versions encode"),
-            ),
-        }
+        let unavailable = payload_state.is_some_and(|(_, state)| state != BlobState::Held);
+        (
+            ContextSeen {
+                event: event.id(),
+                version: crypto::content_hash(
+                    &codec::encode(&(entry.event_view(event), payload_state))
+                        .expect("context versions encode"),
+                ),
+            },
+            unavailable,
+        )
     }
 
     pub(super) fn context_news(&self, entry: &Entry, actor: &Actor) -> Option<ContextNews> {
@@ -148,14 +151,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .flat_map(|author| entry.goal.points(author))
             .filter_map(|point| entry.goal.event(&point.id))
         {
-            let seen = self.context_seen(entry, event, actor);
+            let (seen, unavailable) = self.context_seen(entry, event, actor);
             if !entry.context.contains(principal, session, seen) {
                 news.unacknowledged += 1;
-                if event.header().payload.is_some_and(|payload| {
-                    self.blob_state(entry, &payload.hash, Some(&principal)) != BlobState::Held
-                }) {
-                    news.unavailable += 1;
-                }
+                news.unavailable += u64::from(unavailable);
             }
         }
         Some(news)
@@ -171,6 +170,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         limit: u32,
         preview_chars: Option<u32>,
         unread_only: bool,
+        view: ContextViewMode,
     ) -> Plan {
         let entry = self.readable(actor, &goal)?;
         if limit == 0 {
@@ -194,6 +194,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 || cursor.revision != revision
                 || cursor.task != task
                 || cursor.unread_only != unread_only
+                || cursor.view != view
+                || cursor.preview_chars != preview_chars
+                || cursor.limit != limit
                 || cursor.reader != actor.principal
                 || cursor.session != session
         }) {
@@ -203,19 +206,29 @@ impl<S: Store, E: Entropy> Node<S, E> {
             ));
         }
         let start = after.as_ref().map_or(0, |cursor| cursor.offset);
+        let reader = actor.principal.zip(session);
+        let mut news = reader.map(|_| ContextNews::default());
+        // The page and its pending summary describe the same snapshot. Compute
+        // versions once, including out-of-scope events in goal-wide news.
         let mut events: Vec<_> = entry
             .goal
             .authors()
             .flat_map(|author| entry.goal.points(author))
             .filter_map(|point| entry.goal.event(&point.id))
-            .filter(|event| relevant(entry, event, task))
-            .map(|event| {
-                let seen = self.context_seen(entry, event, actor);
-                let acknowledged = actor
-                    .principal
-                    .zip(session)
-                    .map(|(principal, session)| entry.context.contains(principal, session, seen));
-                (event, seen, acknowledged)
+            .filter_map(|event| {
+                let mut acknowledged = None;
+                let seen = reader.map(|(principal, session)| {
+                    let (seen, unavailable) = self.context_seen(entry, event, actor);
+                    let seen_before = entry.context.contains(principal, session, seen);
+                    acknowledged = Some(seen_before);
+                    if !seen_before {
+                        let news = news.as_mut().expect("a session has context news");
+                        news.unacknowledged += 1;
+                        news.unavailable += u64::from(unavailable);
+                    }
+                    seen
+                });
+                relevant(entry, event, task).then_some((event, seen, acknowledged))
             })
             .collect();
         events.sort_by_key(|(event, _, _)| {
@@ -254,7 +267,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     text.truncate(byte);
                     complete = false;
                 }
-                if complete {
+                if complete && let Some(seen) = seen {
                     delivered.push(seen);
                 }
                 ContextItem {
@@ -271,6 +284,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
             session,
             task,
             unread_only,
+            view,
+            preview_chars,
+            limit,
             offset: end,
         });
         let receipt = actor
@@ -290,57 +306,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     .sign(RECEIPT_DOMAIN, &receipt_digest(&receipt));
                 receipt
             });
-        let Response::GoalStatus(status) = self.goal_status(actor, goal)?.response else {
-            unreachable!("goal status has one response type")
-        };
-        let task = task
-            .map(|task| {
-                let selected = entry.goal.selected_task(task);
-                let found = entry
-                    .state()
-                    .tasks
-                    .get(&task)
-                    .or(selected.as_ref())
-                    .ok_or_else(|| not_found("no such task"))?;
-                Ok::<_, ApiError>(self.task_detail(entry, found, actor.principal.as_ref()))
-            })
+        let summary = after
+            .is_none()
+            .then(|| self.context_summary(entry, actor, task, view, news))
             .transpose()?;
-        let (effective_rules_json, inputs) = match &task {
-            Some(task) => (task.effective_rules_json.clone(), task.inputs.clone()),
-            None => {
-                let rules = entry
-                    .goal
-                    .current_context(Scope::Goal)
-                    .and_then(|context| entry.goal.effective_rules(context, &entry.definitions));
-                let inputs = entry
-                    .state()
-                    .current_rules
-                    .and_then(|id| entry.state().rules.get(&id))
-                    .map(|rules| rules.binding.inputs.clone())
-                    .unwrap_or_default();
-                (
-                    serde_json::to_string(&rules).expect("effective rules encode"),
-                    inputs,
-                )
-            }
-        };
         answer(Response::Context(Box::new(ContextView {
             revision,
-            status,
-            task,
-            effective_rules_json,
-            inputs,
-            documents: entry
-                .state()
-                .documents
-                .iter()
-                .map(|(doc, state)| ContextDocument {
-                    doc: *doc,
-                    selected: state.selected,
-                    revisions: state.revisions.iter().copied().collect(),
-                })
-                .collect(),
-            pending: self.pending_work(entry, actor),
+            summary,
             items,
             next,
             receipt,

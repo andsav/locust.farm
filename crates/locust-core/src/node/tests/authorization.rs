@@ -169,6 +169,7 @@ fn removed_principal_and_viewer_cannot_read_new_epoch_but_readmission_restores_h
             summary: "old".into(),
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     ));
@@ -183,6 +184,7 @@ fn removed_principal_and_viewer_cannot_read_new_epoch_but_readmission_restores_h
             summary: "new".into(),
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     ));
@@ -366,6 +368,7 @@ fn leaving_member_cannot_clear_local_departure_with_a_spare_ticket() {
             summary: "still left".into(),
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     );

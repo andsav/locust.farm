@@ -844,13 +844,17 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
     let launcher_ready = r
         .as_ref()
         .is_some_and(|record| record.launcher == launcher_image);
-    let intact = if let Some(r) = &r {
-        entry(s.client, &snapshot(&p.config)?)?.as_deref() == Some(&r.entry)
-            && snapshot(&p.skill)? == r.skill
-            && launcher_ready
+    let mcp_ready = if let Some(record) = &r {
+        entry(s.client, &snapshot(&p.config)?)?.as_deref() == Some(&record.entry)
     } else {
         false
     };
+    let skill_ready = if let Some(record) = &r {
+        snapshot(&p.skill)? == record.skill
+    } else {
+        false
+    };
+    let intact = mcp_ready && skill_ready && launcher_ready;
     let binding_matches = r.as_ref().is_some_and(|r| {
         r.spec.executable == s.executable
             && r.spec.daemon_home == s.daemon_home
@@ -860,7 +864,7 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
             && r.spec.profile_home == s.profile_home
     });
     Ok(
-        json!({"owned":r.is_some(),"configured":intact,"binding_matches":binding_matches,"pending":exists(&p.intent)?,"client":s.client,"profile_home":s.profile_home,"launcher":p.launcher,"launcher_ready":launcher_ready,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"}),
+        json!({"owned":r.is_some(),"configured":intact,"binding_matches":binding_matches,"pending":exists(&p.intent)?,"client":s.client,"profile_home":s.profile_home,"launcher":p.launcher,"launcher_ready":launcher_ready,"mcp_ready":mcp_ready,"skill_ready":skill_ready,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"}),
     )
 }
 #[cfg(test)]

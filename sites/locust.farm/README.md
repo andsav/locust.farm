@@ -71,7 +71,7 @@ A test checks that the prompt matches the contract word for word.
 
 - The prompt only points the agent at `https://locust.farm/start`. It carries no
   command, download, invitation or secret. The address is the canonical one; the
-  page is available locally and is not deployed by this repository.
+  preview is hosted at that address behind Basic Auth.
 - `SETUP_ARTIFACT` is unset because no setup is published. The guide then tells
   agents to report their harness and capabilities and stop. Set it to lane B's
   canonical setup location once that exists, and update each route's status from
@@ -103,11 +103,52 @@ manifest; reference tables derive from those exports, with parity tests. The sha
 `docs/reference/availability.json` supplies public-install facts to `/start`,
 `llms.txt` and the manual. Code-copy controls reuse the truthful clipboard helper
 and select the code for manual copying on failure. No released track or
-hosting/deployment configuration is claimed.
+public installation availability is claimed.
 
 Use Node 22.18 or newer (Node 24.14.1 is pinned by .node-version and CI). CI should run `npm ci`,
 `npm run lint`, `npm run check`, `npm test` and `npm run build` in this directory.
 Prose changes require no Rust build; contract export/parity checks belong to Rust.
+
+## Deployment
+
+The preview runs on the shared 3cf.ai Nginx host, `root@96.126.103.38`.
+[`adapter-static`](https://svelte.dev/docs/kit/adapter-static) emits the complete site
+under `build/`; the postbuild check validates the published pages, links, client
+assets and documentation hashes. No Node process is required on the server.
+
+Use the Node version in `.node-version` and run:
+
+```sh
+bash scripts/deploy-production.sh
+```
+
+The script builds committed `HEAD` in a temporary clean checkout, runs all four
+site gates, uploads a release to `/var/www/locust.farm/releases/<commit>`, verifies
+its SHA-256 inventory on the server, and atomically switches `current`. Uncommitted
+work is excluded. It requires the initial server provisioning below and checks
+that public requests receive HTTP 401. Authenticated content and browser behavior
+must also be verified after each deployment. Earlier releases remain available
+for rollback by changing the `current` symlink.
+
+[`ops/nginx.conf`](ops/nginx.conf) serves both `locust.farm` and `www.locust.farm`,
+redirects HTTP to HTTPS, maps extensionless routes to prerendered HTML and returns
+404 for unknown routes. Basic Auth applies to all HTTPS pages and assets, with
+`private, no-store` and `noindex, nofollow` response headers. Only HTTP ACME
+challenges are public, from `/var/www/letsencrypt`.
+
+Initial provisioning uses an HTTP-only virtual host exposing that challenge
+directory and returning 401 elsewhere. Issue the certificate with Certbot's
+`certonly --webroot -w /var/www/letsencrypt -d locust.farm -d www.locust.farm` mode,
+using the server's existing ACME account. Install `ops/nginx.conf` as
+`/etc/nginx/sites-available/locust.farm`, link it in `sites-enabled`, test with
+`nginx -t`, and reload. The certificate and full trust chain live at
+`/etc/letsencrypt/live/locust.farm/`; renewal uses webroot validation and a deploy
+hook to reload Nginx. Keep the existing server renewal scheduler enabled.
+
+The password file is `/etc/nginx/locust.farm.htpasswd`, owned by `root:www-data`
+with mode `0640`. Provision it using `htpasswd -cB` with an interactive password
+prompt or stdin; keep credentials and password hashes off Git. DNS needs an apex
+A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
 
 ## Formation editor
 

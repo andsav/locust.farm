@@ -20,7 +20,7 @@ fn option(name: &'static str, help: &'static str, required: bool) -> Arg {
     Arg::new(name).long(name).help(help).required(required)
 }
 fn goal() -> Arg {
-    option("goal", "Goal identifier or unique prefix", true)
+    option("goal", "Goal title, full identifier or unique prefix", true)
 }
 fn root() -> Arg {
     option(
@@ -49,15 +49,18 @@ pub(super) fn commands() -> [Command; 2] {
             .arg(goal()).arg(root()).arg(option("base", "Full base snapshot manifest identifier", true))
             .arg(option("commit", "Committed tree to compare with the base", false).required_unless_present("path").conflicts_with("path"))
             .arg(option("path", "Exact relative file to capture, or missing base file to delete; repeat for each path", false).action(ArgAction::Append).required_unless_present("commit")))
-        .subcommand(Command::new("review").about("Read exact before/after content and show text diffs or binary summaries").arg(goal()).arg(patch()))
+        .subcommand(Command::new("review").about("Read exact before/after content and show text diffs or binary summaries").arg(goal())
+            .arg(option("subject", "Contribution event identifier or unique prefix; derives its signed patch", false).required_unless_present("patch").conflicts_with("patch"))
+            .arg(option("patch", "Full content identifier for an unpublished patch", false).required_unless_present("subject")))
         .subcommand(Command::new("submit").about("Submit a validated contribution using the current claimed generation")
             .arg(goal()).arg(patch()).arg(option("attempt", "Full attempt event identifier", true))
             .arg(option("generation", "Current claim generation", true))
+            .arg(option("source", "Full event identifier declared as a source; repeat for each source (not proof of model use)", false).action(ArgAction::Append))
             .arg(Arg::new("summary").required(true).allow_hyphen_values(true).help("Summary text, or - to read standard input")))
         .subcommand(Command::new("select").about("Select an exact reviewed contribution within its scope")
-            .arg(goal()).arg(option("subject", "Full contribution event identifier", true)).arg(option("expected", "Current scope selection decision identifier", false)).arg(patch()))
+            .arg(goal()).arg(option("subject", "Contribution event identifier or unique prefix", true)).arg(option("expected", "Current scope selection decision identifier or unique prefix", false)))
         .subcommand(Command::new("apply").about("Apply a selected contribution to a recorded root; preserve originals for recovery")
-            .arg(goal()).arg(root()).arg(patch()).arg(option("subject", "Exact selected contribution event identifier", true)).arg(option("expected-base", "Exact manifest the local changes are expected to start from", true))
+            .arg(goal()).arg(root()).arg(option("subject", "Selected contribution event identifier or unique prefix; derives its signed patch and base", true))
             .arg(option("expected-git-head", "Full expected Git HEAD; required when applying to an exported Git root", false))
             .arg(Arg::new("local-choice").long("local-choice").action(ArgAction::SetTrue).help("Requires --owner and --as: owner chooses an effective contribution for local application without shared selection or approval")))]
 }
@@ -151,8 +154,20 @@ pub(super) fn run(
             output(serde_json::to_value(report).map_err(|e| Failure::internal(e.to_string()))?)
         }
         "patch.review" => {
-            let review = locust_workspace::review_contribution(hash(args, "patch")?, &mut api)
-                .map_err(workspace_error)?;
+            let (patch, signed_base) = if args.get_one::<String>("subject").is_some() {
+                let (_, patch, base) = contribution(&mut api, value(args, "subject"))?;
+                (patch, Some(base))
+            } else {
+                (hash(args, "patch")?, None)
+            };
+            let review =
+                locust_workspace::review_contribution(patch, &mut api).map_err(workspace_error)?;
+            if signed_base.is_some_and(|base| base != review.base) {
+                return Err(Failure::new(
+                    ErrorCode::Conflict,
+                    "signed contribution base differs from its patch",
+                ));
+            }
             output(serde_json::to_value(review).map_err(|e| Failure::internal(e.to_string()))?)
         }
         "patch.submit" => {
@@ -164,9 +179,13 @@ pub(super) fn run(
             let patch = hash(args, "patch")?;
             let review =
                 locust_workspace::review_contribution(patch, &mut api).map_err(workspace_error)?;
-            let attempt = value(args, "attempt")
-                .parse()
-                .map_err(|_| Failure::usage("--attempt requires a full event identifier"))?;
+            let attempt = super::selectors::resolve_event(
+                api.client,
+                api.socket,
+                goal,
+                value(args, "attempt"),
+                on_behalf,
+            )?;
             let generation = value(args, "generation")
                 .parse()
                 .map_err(|_| Failure::usage("--generation requires an unsigned 32-bit integer"))?;
@@ -189,6 +208,16 @@ pub(super) fn run(
                     )
                 })?
                 .task;
+            let sources = args
+                .get_many::<String>("source")
+                .into_iter()
+                .flatten()
+                .map(|source| {
+                    source
+                        .parse()
+                        .map_err(|_| Failure::usage("--source requires a full event identifier"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
             let response = api.call(Request::ContributionPublish {
                 goal,
                 task: Some(task),
@@ -197,42 +226,27 @@ pub(super) fn run(
                 summary,
                 base: Some(review.base),
                 patch: Some(patch),
+                sources,
                 artifacts: vec![review.head],
             })?;
             response_output(response)
         }
         "patch.select" => {
-            let subject = value(args, "subject")
-                .parse()
-                .map_err(|_| Failure::usage("--subject requires a full event identifier"))?;
-            let patch = hash(args, "patch")?;
+            let (subject, patch, base) = contribution(&mut api, value(args, "subject"))?;
             let review =
                 locust_workspace::review_contribution(patch, &mut api).map_err(workspace_error)?;
-            let Response::Event(event) = api.call(Request::Event {
-                goal,
-                event: subject,
-            })?
-            else {
-                return Err(Failure::internal("expected event detail"));
-            };
-            match event.body {
-                Body::ContributionPublished {
-                    base: Some(base),
-                    patch: Some(stored),
-                    ..
-                } if base == review.base && stored == patch => {}
-                _ => {
-                    return Err(Failure::new(
-                        ErrorCode::Conflict,
-                        "subject does not name this exact contribution and base",
-                    ));
-                }
+            if review.base != base {
+                return Err(Failure::new(
+                    ErrorCode::Conflict,
+                    "signed contribution base differs from its patch",
+                ));
             }
             let expected = args
                 .get_one::<String>("expected")
-                .map(|text| text.parse())
-                .transpose()
-                .map_err(|_| Failure::usage("--expected requires a full event identifier"))?;
+                .map(|text| {
+                    super::selectors::resolve_event(api.client, api.socket, goal, text, on_behalf)
+                })
+                .transpose()?;
             response_output(api.call(Request::ScopeSelect {
                 goal,
                 subject,
@@ -242,11 +256,7 @@ pub(super) fn run(
         "patch.apply" => {
             let root = absolute(args, "root")?;
             require_binding(&binding, &root)?;
-            let expected_base = hash(args, "expected-base")?;
-            let patch = hash(args, "patch")?;
-            let subject = value(args, "subject")
-                .parse()
-                .map_err(|_| Failure::usage("--subject requires a full event identifier"))?;
+            let (subject, patch, expected_base) = contribution(&mut api, value(args, "subject"))?;
             let local_choice = args.get_flag("local-choice");
             if local_choice && (api.client.caller() != Caller::Owner || api.on_behalf.is_none()) {
                 return Err(Failure::new(
@@ -286,6 +296,31 @@ pub(super) fn run(
             output(serde_json::to_value(report).map_err(|e| Failure::internal(e.to_string()))?)
         }
         _ => unreachable!("workspace dispatch"),
+    }
+}
+/// Resolve the exact signed contribution, never a "latest" artifact or inferred selection.
+fn contribution(
+    api: &mut Objects<'_>,
+    value: &str,
+) -> Result<(locust_proto::id::EventId, BlobHash, BlobHash), Failure> {
+    let subject =
+        super::selectors::resolve_event(api.client, api.socket, api.goal, value, api.on_behalf)?;
+    let Response::Event(event) = api.call(Request::Event {
+        goal: api.goal,
+        event: subject,
+    })?
+    else {
+        unreachable!("checked response")
+    };
+    match event.body {
+        Body::ContributionPublished {
+            base: Some(base),
+            patch: Some(patch),
+            ..
+        } => Ok((subject, patch, base)),
+        _ => Err(Failure::invalid(
+            "subject must name a contribution with a signed patch and base",
+        )),
     }
 }
 fn require_local_choice_owner(matches: &ArgMatches) -> Result<(), Failure> {
@@ -502,12 +537,8 @@ mod tests {
             "goal",
             "--root",
             "/workspace",
-            "--patch",
-            "patch",
             "--subject",
             "subject",
-            "--expected-base",
-            "base",
             "--local-choice",
         ];
         let parse = |globals: &[&str]| {

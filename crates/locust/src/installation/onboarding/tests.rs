@@ -843,3 +843,114 @@ fn symlinked_and_hardlinked_private_secrets_and_journals_are_refused() {
         }
     }
 }
+
+#[test]
+fn diagnostics_inspect_saved_profiles_without_rewriting_files_or_identities() {
+    for client in [Client::Codex, Client::Claude, Client::Pi] {
+        let fixture = Fixture::new(client, true);
+        let result = fixture.complete();
+        let before = fs::read(record_path(&fixture.spec).unwrap()).unwrap();
+        let selected = diagnostics::select(
+            &fixture.spec.daemon_home,
+            client,
+            &fixture.spec.profile_home,
+        )
+        .unwrap();
+        assert_eq!(selected.spec, fixture.spec);
+        assert!(selected.completed());
+        let identity = selected.identity().unwrap();
+        assert_eq!(identity["principal"], result["principal"]);
+        assert_eq!(identity["instance"], result["instance"]);
+        let state = setup::status(&selected.binding).unwrap();
+        for field in [
+            "configured",
+            "mcp_ready",
+            "skill_ready",
+            "launcher_ready",
+            "binding_matches",
+        ] {
+            assert_eq!(state[field], true, "{field}");
+        }
+        assert_eq!(state["discovered"], false);
+        assert_eq!(state["api_ready"], false);
+        assert_eq!(
+            fs::read(record_path(&fixture.spec).unwrap()).unwrap(),
+            before
+        );
+        assert_eq!(fixture.agents().len(), 1);
+    }
+}
+
+#[test]
+fn diagnostics_report_revoked_or_replaced_credentials_without_enrolling() {
+    let fixture = Fixture::new(Client::Codex, true);
+    fixture.complete();
+    let selected = diagnostics::select(
+        &fixture.spec.daemon_home,
+        Client::Codex,
+        &fixture.spec.profile_home,
+    )
+    .unwrap();
+    let principal = fixture.agents()[0].agent;
+    fixture
+        .owner()
+        .call(Request::AgentRevoke { agent: principal })
+        .unwrap();
+    assert!(selected.identity().is_err());
+    assert_eq!(fixture.agents().len(), 1);
+    assert!(fixture.agents()[0].revoked);
+    fs::write(&selected.binding.credential, [9; 32]).unwrap();
+    let error = selected.identity().unwrap_err();
+    assert!(error.message.contains("secret changed"));
+    assert_eq!(fs::read(&selected.binding.credential).unwrap(), [9; 32]);
+}
+
+#[test]
+fn diagnostics_do_not_follow_a_journal_redirect_to_another_profile() {
+    let fixture = Fixture::new(Client::Claude, true);
+    fixture.complete();
+    let path = record_path(&fixture.spec).unwrap();
+    let mut record: Record = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    record.spec.profile_home = fixture.spec.workspace.clone();
+    fs::write(&path, encode(&record).unwrap()).unwrap();
+    assert!(
+        diagnostics::select(
+            &fixture.spec.daemon_home,
+            Client::Claude,
+            &fixture.spec.profile_home
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn setup_diagnostics_distinguish_changed_skill_from_intact_mcp_and_launcher() {
+    let fixture = Fixture::new(Client::Codex, true);
+    fixture.complete();
+    let binding = setup_spec(&fixture.spec).unwrap();
+    let (_, skill, _) = setup::profile_paths(Client::Codex, &fixture.spec.profile_home);
+    fs::write(&skill, b"user modification").unwrap();
+    let status = setup::status(&binding).unwrap();
+    assert_eq!(status["configured"], false);
+    assert_eq!(status["skill_ready"], false);
+    assert_eq!(status["mcp_ready"], true);
+    assert_eq!(status["launcher_ready"], true);
+    assert_eq!(fs::read(skill).unwrap(), b"user modification");
+}
+
+#[test]
+fn setup_diagnostics_distinguish_mcp_removal_and_launcher_permission_changes() {
+    let fixture = Fixture::new(Client::Codex, true);
+    fixture.complete();
+    let binding = setup_spec(&fixture.spec).unwrap();
+    let (config, _, launcher) = setup::profile_paths(Client::Codex, &fixture.spec.profile_home);
+    fs::write(&config, b"").unwrap();
+    let state = setup::status(&binding).unwrap();
+    assert_eq!(state["mcp_ready"], false);
+    assert_eq!(state["skill_ready"], true);
+    assert_eq!(state["launcher_ready"], true);
+    fs::set_permissions(&launcher, fs::Permissions::from_mode(0o600)).unwrap();
+    let state = setup::status(&binding).unwrap();
+    assert_eq!(state["launcher_ready"], false);
+    assert_eq!(fs::metadata(launcher).unwrap().mode() & 0o7777, 0o600);
+}

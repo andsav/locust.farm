@@ -480,10 +480,34 @@ pub(super) fn render(
                 lines.push(format!("  Review: {} · Selection: {}", if contribution.approved { "approved" } else { "not approved" }, if contribution.selected { "selected" } else { "not selected" }));
                 lines.push(format!("  {}", contribution.text.as_deref().map(safe).unwrap_or_else(|| "Text is not held locally.".into())));
                 if let Some(patch) = contribution.patch { lines.push(format!("  Patch: {patch}")); }
+                for source in &contribution.sources { lines.push(format!("  Declared source: {source}")); }
                 for artifact in &contribution.artifacts { lines.push(format!("  Artifact: {artifact}")); }
                 for evidence in &contribution.evidence { lines.push(format!("  Evidence: {evidence}")); }
             }
             if lines.is_empty() { lines.push("No contributions in this view.".into()); }
+            lines
+        }
+        Response::ContributionInspected(inspected) => {
+            let event = &inspected.contribution;
+            let mut lines = vec![format!("Contribution {} · {}", event.view.event, tag(&event.view.standing)), format!("Author: {}", label(event.view.author, names))];
+            if let Some(text) = &event.text { lines.push(format!("Summary: {}", safe(text))); }
+            else if event.payload.is_some() { lines.push("Summary text is not held locally.".into()); }
+            if let Some(task) = event.task { lines.push(format!("Task: {task}")); }
+            for (kind, reference) in inspected.attempt.iter().map(|item| ("Attempt", item))
+                .chain(inspected.task_round.iter().map(|item| ("Task round", item)))
+                .chain(inspected.declared_sources.iter().map(|item| ("Declared source", item))) {
+                match &reference.detail {
+                    Some(detail) => {
+                        lines.push(format!("{kind}: {} · {} · {} · {}", reference.event, safe(&detail.view.kind), label(detail.view.author, names), tag(&detail.view.standing)));
+                        if let Some(text) = &detail.text { lines.push(format!("  {}", safe(text))); }
+                        else if detail.payload.is_some() { lines.push("  Text is not held locally.".into()); }
+                        for content in &detail.content { lines.push(format!("  Content {}: {}", content.hash, tag(&content.state))); }
+                    }
+                    None => lines.push(format!("{kind}: {} · event is not held locally", reference.event)),
+                }
+            }
+            if inspected.declared_sources.is_empty() { lines.push("No sources declared.".into()); }
+            else { lines.push("Sources are signed declarations by the author; they do not prove use or approval.".into()); }
             lines
         }
         Response::Session(view) => session(view, names),

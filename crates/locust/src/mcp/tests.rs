@@ -1,4 +1,5 @@
 use super::*;
+use locust_proto::api::Response;
 use locust_proto::api::{ApiError, ClientHello, RequestFrame, ResponseFrame, ServerHello};
 use locust_proto::{API_VERSION, codec};
 use std::os::unix::net::UnixListener;
@@ -6,6 +7,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt};
 
 fn auth(socket: PathBuf) -> Arc<Authentication> {
     Arc::new(Authentication {
+        home: socket.parent().unwrap().to_owned(),
         socket,
         credential: Credential([1; 32]),
         session: Some(SessionSecret([2; 32])),
@@ -137,7 +139,7 @@ async fn owner_credentials_never_dispatch_a_model_operation() {
     let result = invoke(
         auth(socket),
         Call {
-            request: Request::Status,
+            request: ClientRequest::Native(Request::Status),
             idempotency: None,
         },
         Arc::new(Cancellation::new()),
@@ -433,7 +435,7 @@ fn a_cancelled_queued_blocking_worker_never_starts_a_handshake() {
         let call = tokio::spawn(invoke(
             auth(socket),
             Call {
-                request: Request::Status,
+                request: ClientRequest::Native(Request::Status),
                 idempotency: None,
             },
             cancellation.clone(),
@@ -494,6 +496,7 @@ async fn private_author_uses_catalog_without_an_execution_session() {
     let (output, reader) = tokio::io::duplex(8192);
     let mut reader = BufReader::new(reader);
     let authentication = Arc::new(Authentication {
+        home: socket.parent().unwrap().to_owned(),
         socket,
         credential: Credential([1; 32]),
         session: None,

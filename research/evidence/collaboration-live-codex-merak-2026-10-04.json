@@ -1,0 +1,2009 @@
+{
+  "accounting_boundary": "Raw native/client counters retained. Resumed Codex thread totals differenced only with retained same-thread preceding receipts. Client cost fields are not provider billing. No speed, cost reduction, or causal collaboration claim.",
+  "attempts": [
+    {
+      "api_version": 4,
+      "application": {},
+      "artifacts": {},
+      "attempt": "01",
+      "binary_paths": {
+        "codex": "/opt/homebrew/Caskroom/codex/0.153.4/bin/codex",
+        "config_probe": "output/collaboration-followups/runtime/config_probe",
+        "locust": "output/collaboration-followups/runtime/locust",
+        "merak": "/Users/andrei/Projects26/merak10/target/debug/merak"
+      },
+      "binary_sha256": {
+        "codex": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "config_probe": "16bb4c6d80b85b5f05419e801296438d6074e2bcfe63db4cc7fdb24aced2243d",
+        "locust": "c95a2e1231ef82b7d25c44a0e15e1825908ba83c1b106a0d4626dd0fb1335619",
+        "merak": "6c6f83e65103b2d2c65eb6a51c257b1eced498f8275bf63736f292dc30f06a25"
+      },
+      "client_versions": {
+        "codex": "codex-cli 0.153.4",
+        "locust": "locust 0.1.0 (cf67b2e2bdae-dirty) api 4 protocol 4",
+        "merak": "merak 0.1.0"
+      },
+      "execution_deadline": null,
+      "findings": {
+        "cause": "Agent safely stopped after discovering execute:false. Own permission.inspect was denied owner-only; original harness incorrectly demanded a knowingly unauthorized mutation.",
+        "outcome": "failed",
+        "subsequent_changes": [
+          "Product now permits authenticated self permission inspection. Harness accepts authenticated execute:false inspection plus unchanged artifact and no successful claim, followed by person grant and same-thread/session recovery."
+        ]
+      },
+      "finished": "2026-10-04T20:13:56.270206+00:00",
+      "fixture_environment": null,
+      "harness_sha256": {
+        "scripts/check_collaboration_acceptance.py": "9d26c244101b972d86e1ac7442bd2e615351c6ac7933dbf3ca4c257866c93798",
+        "scripts/check_shared_context_models.py": "dca1e497fb3885c5c65f49fd41518be0fc3897a0901a7e542122b89a90bc4807",
+        "scripts/client_qualification/acceptance_case.py": "fb06b609253fc03604c65c44ba9c6a8de6bcfa3b540fce2ec38257c5f5763dfa",
+        "scripts/client_qualification/acceptance_evidence.py": "612f03b7959e734fb578a90936eb029212e4bab6b148f35eac5409e163f0bca5",
+        "scripts/client_qualification/collaboration_case.py": "6eb84e9d7e90960a967424880f9ba26f78c09d01235d9555320bcae718f5332a"
+      },
+      "input_sha256": {
+        "README.md": "d52702b3efe02edb7498f66be091125c8de777012d2fdd681b891241f175ba2b",
+        "private_operational_note": "e74463d741fc02a0bf9ebb11b959e3eb72bd440a40bd7987c0ed624ab028e3ee",
+        "safe_member.py": "0f6952800f568003301a0dbc505cfc88011286543f9ee964f48e85a32422414d"
+      },
+      "original_assertions": {},
+      "original_error": "RuntimeError: Builder did not encounter actual missing execution authorization",
+      "original_report": {
+        "bytes": 35627,
+        "path": "output/collaboration-acceptance-20261004-01/report.json",
+        "sha256": "4328301445c404379ccf7689de886c794d7f8cc9b1cd8157d71a3f424ebcb11a"
+      },
+      "passed": false,
+      "phases": [
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 104372,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 25348,
+            "input_tokens": 129961,
+            "native_thread": "01a1088c-d92a-7a90-9c56-5c85622a8fc1",
+            "observed_models": [],
+            "output_tokens": 1554,
+            "phase_usage": {
+              "cache_write_input_tokens": 25181,
+              "cached_input_tokens": 104372,
+              "input_tokens": 129961,
+              "output_tokens": 1554,
+              "reasoning_output_tokens": 601
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 25181,
+              "cached_input_tokens": 104372,
+              "input_tokens": 129961,
+              "output_tokens": 1554,
+              "reasoning_output_tokens": 601
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 25589
+          },
+          "accounting_assessment": "posthoc correction of historical client counters",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 50124,
+              "path": "output/collaboration-acceptance-20261004-01/builder-gdvurbzm/permission.mcp.jsonl",
+              "sha256": "88dfc759a5223a23d8853e8f0f20151fbe5867c3c9fa9ac75b2ba96f24150805"
+            },
+            "prompt": {
+              "bytes": 2315,
+              "path": "output/collaboration-acceptance-20261004-01/builder-gdvurbzm/permission.prompt.txt",
+              "sha256": "dffa1b6a08a0b6d1a19b62689b3e681eeccc4401879261ca3902d6a8c5c5cc14"
+            },
+            "stderr": {
+              "bytes": 39,
+              "path": "output/collaboration-acceptance-20261004-01/builder-gdvurbzm/permission.stderr",
+              "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+            },
+            "stdout": {
+              "bytes": 42556,
+              "path": "output/collaboration-acceptance-20261004-01/builder-gdvurbzm/permission.stdout",
+              "sha256": "5d2a7220ad30b5f3924a4236fa95137a3e1513291f77ac7947f43260f7befb39"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "No native selected-model metadata retained in original report",
+          "phase": "permission",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null
+        }
+      ],
+      "private_profiles_removed": true,
+      "protocol_version": 4,
+      "provenance": {
+        "declared_sources": null,
+        "final_contribution": null,
+        "final_patch": null,
+        "finding_events": [],
+        "goal": "e2e866db0ac91b2d3ffcf47d1b78c4e799677dbe59e05a800c7f73184ba899ff",
+        "initial_contribution": null,
+        "peer_reviews": [],
+        "principals": {
+          "builder": {
+            "instance": "1fa21e78169acb62b8ae7c55d796105d",
+            "principal": "c9a08a4a1939a3261d879a95b1cbb4aea25755e904d675ad6fa9465c25686ab8"
+          },
+          "integrator": {
+            "instance": "0109bcebb1ac70c513e67067bcce8a14",
+            "principal": "6dc32ded66da25e99a3579c032d0a5ee47b1de4683abe701f9d478c51b6019d2"
+          },
+          "researcher": {
+            "instance": "6cd252c3d03119eb7d85dbc4ec2da4b0",
+            "principal": "c6aac756b7a05912508c4c1b179cd7b0c481dfdd64dc7ea287ebd5918c754ea5"
+          }
+        }
+      },
+      "review_policy": null,
+      "rpc_startup_cleanup_timeout_seconds": 30,
+      "runtime_boundary": "Initial frozen runtime before authenticated self-permission inspection",
+      "skill_sha256": "559775539413056c0eb5ef59aa346b9c25e3e0aaa6fb4bca3b3537cd9dce6a6b",
+      "source_commit": "cf67b2e2bdae74b4e096397ec9b90047b35b9608",
+      "source_dirty": true,
+      "started": "2026-10-04T20:13:28.433882+00:00"
+    },
+    {
+      "api_version": 4,
+      "application": {},
+      "artifacts": {
+        "initial_artifact": {
+          "bytes": 570,
+          "path": "output/collaboration-acceptance-20261004-02/initial-artifact/safe_member.py",
+          "sha256": "36cb64c0badad680f9d82a07ded4206303640dccd0d2e4256d203bba009478a0"
+        },
+        "revised_artifact": {
+          "bytes": 610,
+          "path": "output/collaboration-acceptance-20261004-02/revised-artifact/safe_member.py",
+          "sha256": "0cab3f9eef1c5e6521b7b84a323bd6d8491accc6fb738614830f63ccd0f97118"
+        }
+      },
+      "attempt": "02",
+      "binary_paths": {
+        "codex": "/opt/homebrew/Caskroom/codex/0.153.4/bin/codex",
+        "config_probe": "output/collaboration-followups/runtime02/config_probe",
+        "locust": "output/collaboration-followups/runtime02/locust",
+        "merak": "/Users/andrei/Projects26/merak10/target/debug/merak"
+      },
+      "binary_sha256": {
+        "codex": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "config_probe": "c04c505cb771bed6023f0cb22b2817c9b5c89aafeb1df194b76eb3dc608873c3",
+        "locust": "13969b848aa9dc279461f22bbb358a699fba10153e37fa04892328b706e13072",
+        "merak": "6c6f83e65103b2d2c65eb6a51c257b1eced498f8275bf63736f292dc30f06a25"
+      },
+      "client_versions": {
+        "codex": "codex-cli 0.153.4",
+        "locust": "locust 0.1.0 (cf67b2e2bdae-dirty) api 4 protocol 4",
+        "merak": "merak 0.1.0"
+      },
+      "execution_deadline": null,
+      "findings": {
+        "cause": "Real Merak reviewer repeatedly used a mistyped long macOS temporary cwd, could not retrieve patch, and honestly returned without signed approval. Application was withheld.",
+        "observations": [
+          "Initial artifact passed public portability oracle and failed reserved deployment root. Revised artifact passed all14 oracle cases.",
+          "Native Python tool command was unavailable; python3 import failed at str|None under old environment. A later shell command returned0 because py_compile followed failed import.",
+          "Independent private-profile environment reproduction found /usr/local/bin/python3 Python3.9.7; this is not a version probe emitted by the model.",
+          "Declared finding source, exact read and acknowledgement retained; this is behavior evidence, not proof of model reasoning causality."
+        ],
+        "outcome": "failed_before_application",
+        "subsequent_changes": [
+          "Future private Profile roots moved to short owned /tmp paths, retaining0700 permissions and fresh isolated homes. CLI guidance uses relative ./locust-scoped/default assigned cwd.",
+          "Acceptance fixture now declares Python>=3.12 and supplies known interpreter; archived pilot fixture unchanged.",
+          "Future native Codex session snapshots retain exact tool outcomes per phase and selected model, with key redacted before writing.",
+          "Fixed cumulative usage double counting, exact-patch peer review binding, and initial public oracle plus signed-patch guard. No historical reports rewritten."
+        ]
+      },
+      "finished": "2026-10-04T20:25:39.383959+00:00",
+      "fixture_environment": null,
+      "harness_sha256": {
+        "scripts/check_collaboration_acceptance.py": "a582761f9db361d71d19ec0329fe8fdb55880520407b614f3d5ba7109c66f15e",
+        "scripts/check_shared_context_models.py": "dca1e497fb3885c5c65f49fd41518be0fc3897a0901a7e542122b89a90bc4807",
+        "scripts/client_qualification/acceptance_case.py": "96c9916912e7e02dd568d02c7ae48cf30fc529a56d22cb135d3a08a8d8003a85",
+        "scripts/client_qualification/acceptance_evidence.py": "b17a3249b42fa88f4dead3193c0c1273af29a8cc5778aa185f2b5e12c0097336",
+        "scripts/client_qualification/collaboration_case.py": "6eb84e9d7e90960a967424880f9ba26f78c09d01235d9555320bcae718f5332a"
+      },
+      "input_sha256": {
+        "README.md": "d52702b3efe02edb7498f66be091125c8de777012d2fdd681b891241f175ba2b",
+        "private_operational_note": "e74463d741fc02a0bf9ebb11b959e3eb72bd440a40bd7987c0ed624ab028e3ee",
+        "safe_member.py": "0f6952800f568003301a0dbc505cfc88011286543f9ee964f48e85a32422414d"
+      },
+      "original_assertions": {},
+      "original_error": "RuntimeError: Real peer did not approve the exact final submission; local application withheld",
+      "original_report": {
+        "bytes": 365407,
+        "path": "output/collaboration-acceptance-20261004-02/report.json",
+        "sha256": "19fef3d3fb8a1050248aa065d237dcf3fb4a9bd9cb6174b2422e03063a7dd9ef"
+      },
+      "passed": false,
+      "phases": [
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 50943,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 13479,
+            "input_tokens": 69477,
+            "native_thread": "01a10893-074f-7921-90bc-291c38d548bb",
+            "observed_models": [],
+            "output_tokens": 767,
+            "phase_usage": {
+              "cache_write_input_tokens": 18262,
+              "cached_input_tokens": 50943,
+              "input_tokens": 69477,
+              "output_tokens": 767,
+              "reasoning_output_tokens": 435
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 18262,
+              "cached_input_tokens": 50943,
+              "input_tokens": 69477,
+              "output_tokens": 767,
+              "reasoning_output_tokens": 435
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 18534
+          },
+          "accounting_assessment": "posthoc correction of historical client counters",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 42629,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/permission.mcp.jsonl",
+              "sha256": "6f8b8e794ea4050068068ba55d261f092baf8a1d4f1ac303f99234205bff45ab"
+            },
+            "prompt": {
+              "bytes": 2315,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/permission.prompt.txt",
+              "sha256": "4e6af1cff56f39131438a38791c94f2fa62830d63888764885e2229f8735efb4"
+            },
+            "stderr": {
+              "bytes": 39,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/permission.stderr",
+              "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+            },
+            "stdout": {
+              "bytes": 16835,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/permission.stdout",
+              "sha256": "3748e78f846e8688fa839212de9f096f2ab7b57c4f7810c227286ae301a25385"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "No native selected-model metadata retained in original report",
+          "phase": "permission",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 1110276,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 150698,
+            "input_tokens": 1154510,
+            "native_thread": "01a10893-074f-7921-90bc-291c38d548bb",
+            "observed_models": [],
+            "output_tokens": 13892,
+            "phase_usage": {
+              "cache_write_input_tokens": 42330,
+              "cached_input_tokens": 1110276,
+              "input_tokens": 1154510,
+              "output_tokens": 13892,
+              "reasoning_output_tokens": 7811
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 60592,
+              "cached_input_tokens": 1161219,
+              "input_tokens": 1223987,
+              "output_tokens": 14659,
+              "reasoning_output_tokens": 8246
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 44234
+          },
+          "accounting_assessment": "posthoc correction of historical client counters",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 107285,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/initial.mcp.jsonl",
+              "sha256": "1fe461f98e0700893526680c5832faf43a089d06467a8c92323042122e2010be"
+            },
+            "prompt": {
+              "bytes": 2440,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/initial.prompt.txt",
+              "sha256": "8e4a7acdb1c85d775934eb46d51e69d74767737d81388bdbcfe1e2cf9e0962fe"
+            },
+            "stderr": {
+              "bytes": 0,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/initial.stderr",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "stdout": {
+              "bytes": 374882,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/initial.stdout",
+              "sha256": "cc1fc72c78e616813ea5e7cbe7997c713ed60b232b182e31f76249b9bd113ceb"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "No native selected-model metadata retained in original report",
+          "phase": "initial",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": "01a10893-074f-7921-90bc-291c38d548bb"
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 191331,
+            "client_cost_micros": 7234,
+            "client_cost_micros_reported": true,
+            "client_cost_usd": 0.007234,
+            "cost_source": null,
+            "elapsed_ms": 43696,
+            "input_tokens": 218688,
+            "native_thread": null,
+            "observed_models": [
+              "openai/gpt-6-luna"
+            ],
+            "output_tokens": 3792,
+            "phase_usage": {
+              "cache_read_tokens": 191331,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 27324,
+              "cache_write_tokens_reported": true,
+              "cost": 0.007234,
+              "cost_micros": 7234,
+              "cost_micros_reported": true,
+              "input_tokens": 218688,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 3792,
+              "reasoning_tokens": 1229,
+              "reasoning_tokens_reported": true
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_read_tokens": 191331,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 27324,
+              "cache_write_tokens_reported": true,
+              "cost": 0.007234,
+              "cost_micros": 7234,
+              "cost_micros_reported": true,
+              "input_tokens": 218688,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 3792,
+              "reasoning_tokens": 1229,
+              "reasoning_tokens_reported": true
+            },
+            "raw_client_usage_scope": "Merak run totals",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 27357
+          },
+          "accounting_assessment": "posthoc correction of historical client counters",
+          "cleanup_verified": true,
+          "client": "merak",
+          "evidence_files": {
+            "events": {
+              "bytes": 19932,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/research.events.txt",
+              "sha256": "9e785f936797c0dfa1635a80b3917db39e013cd82c1d63fc4ef85c62464c771c"
+            },
+            "prompt": {
+              "bytes": 1924,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/research.prompt.txt",
+              "sha256": "75c77c801cc3616d0d3e863ee93a5a7914708224ff5109a0e0f9a5567e01a021"
+            },
+            "stderr": {
+              "bytes": 2295,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/research.stderr",
+              "sha256": "063c86483147222b5ebec23e93bc2b7ecb80279667f3f5dd4e08766f3373cb7b"
+            },
+            "stdout": {
+              "bytes": 1223,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/research.stdout",
+              "sha256": "b6c5c425afac7a32e80505a7d984276e2db12ea977a9dfdd3ed3238d00735703"
+            },
+            "transcript": {
+              "bytes": 397714,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/research.transcript.json",
+              "sha256": "737ac1a2fb1d554f3b650f59b2e5dd0d7ab2c2a8438674f642103d24f91290f4"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "Merak reported run totals",
+          "phase": "research",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null,
+          "transcript_completeness": {
+            "continuation": null,
+            "output_bytes": 386625,
+            "output_truncated": false,
+            "truncated": false,
+            "truncation_reasons": []
+          }
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 1472620,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 92345,
+            "input_tokens": 1509889,
+            "native_thread": "01a10893-074f-7921-90bc-291c38d548bb",
+            "observed_models": [],
+            "output_tokens": 8992,
+            "phase_usage": {
+              "cache_write_input_tokens": 36045,
+              "cached_input_tokens": 1472620,
+              "input_tokens": 1509889,
+              "output_tokens": 8992,
+              "reasoning_output_tokens": 4415
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 96637,
+              "cached_input_tokens": 2633839,
+              "input_tokens": 2733876,
+              "output_tokens": 23651,
+              "reasoning_output_tokens": 12661
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 37269
+          },
+          "accounting_assessment": "posthoc correction of historical client counters",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 120067,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/revision.mcp.jsonl",
+              "sha256": "927956d44bed0d852b62b18b30d1aa60fbe251d36e52a587766c1bf83cc2db4d"
+            },
+            "prompt": {
+              "bytes": 2260,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/revision.prompt.txt",
+              "sha256": "351337687f6a487a75a48180f42cc840bf1a942d826a81f5c1da06f95f6010e5"
+            },
+            "stderr": {
+              "bytes": 0,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/revision.stderr",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "stdout": {
+              "bytes": 186936,
+              "path": "output/collaboration-acceptance-20261004-02/builder-_5u7y7te/revision.stdout",
+              "sha256": "f38826eca25501a786c0fb26b3282457ac216fefdb379f0449e175ef08328841"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "No native selected-model metadata retained in original report",
+          "phase": "revision",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": "01a10893-074f-7921-90bc-291c38d548bb"
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 81012,
+            "client_cost_micros": 3924,
+            "client_cost_micros_reported": true,
+            "client_cost_usd": 0.003924,
+            "cost_source": null,
+            "elapsed_ms": 22694,
+            "input_tokens": 99063,
+            "native_thread": null,
+            "observed_models": [
+              "openai/gpt-6-luna"
+            ],
+            "output_tokens": 1713,
+            "phase_usage": {
+              "cache_read_tokens": 81012,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 17958,
+              "cache_write_tokens_reported": true,
+              "cost": 0.003924,
+              "cost_micros": 3924,
+              "cost_micros_reported": true,
+              "input_tokens": 99063,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 1713,
+              "reasoning_tokens": 390,
+              "reasoning_tokens_reported": true
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_read_tokens": 81012,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 17958,
+              "cache_write_tokens_reported": true,
+              "cost": 0.003924,
+              "cost_micros": 3924,
+              "cost_micros_reported": true,
+              "input_tokens": 99063,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 1713,
+              "reasoning_tokens": 390,
+              "reasoning_tokens_reported": true
+            },
+            "raw_client_usage_scope": "Merak run totals",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 18051
+          },
+          "accounting_assessment": "posthoc correction of historical client counters",
+          "cleanup_verified": true,
+          "client": "merak",
+          "evidence_files": {
+            "events": {
+              "bytes": 13447,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/review.events.txt",
+              "sha256": "ad760c5f72bd6164176119e94e38ee9721775095af2817e6778016580e4a35d0"
+            },
+            "prompt": {
+              "bytes": 2119,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/review.prompt.txt",
+              "sha256": "9f29008a894179c4c0e39b2dc8e6eb1e689e32a0c60dacf728a97fe8adc13f9a"
+            },
+            "stderr": {
+              "bytes": 1489,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/review.stderr",
+              "sha256": "63b3bf27acf9b3e14af17c7f4d9a85423303435bc3f3e484868c0a3fd9791ff5"
+            },
+            "stdout": {
+              "bytes": 1180,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/review.stdout",
+              "sha256": "f70097c5c585f4330e23af8362b55fde612367c33e947e161407c9ac7be682e4"
+            },
+            "transcript": {
+              "bytes": 264345,
+              "path": "output/collaboration-acceptance-20261004-02/researcher-sb2col2z/review.transcript.json",
+              "sha256": "b84a55bc086c62950d291ff5ee7e8d0e9ee565a02180e0876ebd0002a372e852"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "Merak reported run totals",
+          "phase": "review",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null,
+          "transcript_completeness": {
+            "continuation": null,
+            "output_bytes": 256634,
+            "output_truncated": false,
+            "truncated": false,
+            "truncation_reasons": []
+          }
+        }
+      ],
+      "posthoc_evidence": [
+        {
+          "bytes": 1391,
+          "path": "output/collaboration-acceptance-20261004-02/partial-assessment.json",
+          "sha256": "466619260292c4cae73d0251b4306847c11e4404cb557de029953470ce91ec33"
+        },
+        {
+          "bytes": 233,
+          "path": "output/collaboration-acceptance-20261004-02/native-python-environment-probe.json",
+          "sha256": "c79608b8322946e8fa97170e36b886e72138ee02a50ea2c4443cf7873755e1d6"
+        },
+        {
+          "bytes": 286,
+          "path": "output/collaboration-acceptance-20261004-02/native-codex-session-snapshot.json",
+          "sha256": "39e845fa2f669d96b38a92f364e5fd017faf1dda883de13bbc7be5aa0f9650d0"
+        },
+        {
+          "bytes": 8782,
+          "path": "output/collaboration-review-20261004/usage-semantics.json",
+          "sha256": "fa65ae42aa166bb650a8875bb501a5e5c98289caf56e043ab26754fd5e87ba23"
+        }
+      ],
+      "posthoc_oracle_assessment": {
+        "initial_private_oracle": {
+          "artifact": "output/collaboration-acceptance-20261004-02/initial-artifact/safe_member.py",
+          "assertions": [
+            {
+              "name": "artifact_present",
+              "passed": true
+            },
+            {
+              "case_count": 14,
+              "exit_code": 1,
+              "name": "behavior_oracle",
+              "passed": false,
+              "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 30, in <module>\nAssertionError: deployment metadata root rejected: expected None, got '.archive-index'\n",
+              "stderr_bytes": 162,
+              "stderr_sha256": "ea0e279ddd262c16d2a885063e858e904e452d5c7508bfb9c50a294ff017921b",
+              "stdout": "",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "success_marker_observed": false
+            }
+          ],
+          "passed": false
+        },
+        "initial_public_oracle": {
+          "artifact": "output/collaboration-acceptance-20261004-02/initial-artifact/safe_member.py",
+          "assertions": [
+            {
+              "name": "artifact_present",
+              "passed": true
+            },
+            {
+              "case_count": 9,
+              "exit_code": 0,
+              "name": "behavior_oracle",
+              "passed": true,
+              "stderr": "",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout": "passed 9 archive path cases\n",
+              "stdout_bytes": 28,
+              "stdout_sha256": "3a39295737cff1ae5ee6e277accbef231f663144a09d19f2cb6eb5395203d3b1",
+              "success_marker_observed": true
+            }
+          ],
+          "passed": true
+        },
+        "label": "Posthoc independent oracle assessment; original harness assertions/report preserved",
+        "revised_private_oracle": {
+          "artifact": "output/collaboration-acceptance-20261004-02/revised-artifact/safe_member.py",
+          "assertions": [
+            {
+              "name": "artifact_present",
+              "passed": true
+            },
+            {
+              "case_count": 14,
+              "exit_code": 0,
+              "name": "behavior_oracle",
+              "passed": true,
+              "stderr": "",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout": "passed 14 archive path cases\n",
+              "stdout_bytes": 29,
+              "stdout_sha256": "19b27124de9795ee796bd1841c21afae5fea7186a540840c3a4512c3cbace812",
+              "success_marker_observed": true
+            }
+          ],
+          "passed": true
+        }
+      },
+      "posthoc_selected_model_metadata": {
+        "boundary": "Partial mid-run native thread snapshot; model selection metadata, not provider billing. No final native snapshot retained for historical02.",
+        "models": [
+          "gpt-6-luna"
+        ],
+        "sources": [
+          {
+            "bytes": 1458627,
+            "path": "output/collaboration-acceptance-20261004-02/native-codex-session-snapshot/2026/10/04/rollout-2026-10-04T13-20-15-01a10893-074f-7921-90bc-291c38d548bb.jsonl",
+            "sha256": "db920bb51e6d151ac05c53e03cc6080ed6453efea4ebbf2703118e7ff53cd4b8"
+          }
+        ]
+      },
+      "private_profiles_removed": true,
+      "protocol_version": 4,
+      "provenance": {
+        "declared_sources": [
+          "78feb7fba9f38ad6d6b72ba454e62666dec7ec6c9e3faa96b8bad37d99f70498"
+        ],
+        "final_contribution": "f04e97750dfeff459ed85e8e8e84f9e74b9c2df2f54bb82be5646df18a3b4079",
+        "final_patch": "d7fcbd5ebb971e9b91e1a8cb288fcaece163a5f237e9e1d11f09265d01f023ec",
+        "finding_events": [
+          "78feb7fba9f38ad6d6b72ba454e62666dec7ec6c9e3faa96b8bad37d99f70498"
+        ],
+        "goal": "20591581cbcca1aab7d7415c14593d8a43c505b2791c0945dc21f99588190c20",
+        "initial_contribution": null,
+        "peer_reviews": [],
+        "principals": {
+          "builder": {
+            "instance": "5d62ece63d5d5bbd74938159f9eb0f47",
+            "principal": "0f755bf4c9d83f13105a6254cf8799ae3d50f5eee696cad61b1707de3e7a3bc8"
+          },
+          "integrator": {
+            "instance": "f7a94a175b737eecee4c631af031fb6f",
+            "principal": "5fc38368b543daf88a646d7563a3e08afa001749b4c37a2114d52e883737b607"
+          },
+          "researcher": {
+            "instance": "630e207aec8028d6644bd812e10469db",
+            "principal": "5e0ad01759cca978121f981d5417297128ab7a90902569367e874e64d205b313"
+          }
+        }
+      },
+      "review_policy": null,
+      "rpc_startup_cleanup_timeout_seconds": 30,
+      "runtime_boundary": "Frozen runtime02 includes self-permission inspection and default sources fixes; predates later network-refusal fix, which this one-daemon workflow does not exercise",
+      "skill_sha256": "559775539413056c0eb5ef59aa346b9c25e3e0aaa6fb4bca3b3537cd9dce6a6b",
+      "source_commit": "cf67b2e2bdae74b4e096397ec9b90047b35b9608",
+      "source_dirty": true,
+      "started": "2026-10-04T20:20:13.719943+00:00"
+    },
+    {
+      "api_version": 4,
+      "application": {},
+      "artifacts": {
+        "initial_artifact": {
+          "bytes": 1147,
+          "path": "output/collaboration-acceptance-20261004-03/initial-artifact/safe_member.py",
+          "sha256": "4452c5906831d1d3f031880cfa694ce1db86b4d5ef0b12181d8f3733ea4cb6e6"
+        },
+        "revised_artifact": {
+          "bytes": 1220,
+          "path": "output/collaboration-acceptance-20261004-03/revised-artifact/safe_member.py",
+          "sha256": "12486c85d9c5718fa7b01d458a5633d81b4dde1cb3f01f4d9ecc4d890d02c4c5"
+        }
+      },
+      "attempt": "03",
+      "binary_paths": {
+        "codex": "/opt/homebrew/Caskroom/codex/0.153.4/bin/codex",
+        "config_probe": "output/collaboration-followups/runtime02/config_probe",
+        "locust": "output/collaboration-followups/runtime02/locust",
+        "merak": "/Users/andrei/Projects26/merak10/target/debug/merak"
+      },
+      "binary_sha256": {
+        "codex": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "config_probe": "c04c505cb771bed6023f0cb22b2817c9b5c89aafeb1df194b76eb3dc608873c3",
+        "locust": "13969b848aa9dc279461f22bbb358a699fba10153e37fa04892328b706e13072",
+        "merak": "6c6f83e65103b2d2c65eb6a51c257b1eced498f8275bf63736f292dc30f06a25"
+      },
+      "client_versions": {
+        "codex": "codex-cli 0.153.4",
+        "locust": "locust 0.1.0 (cf67b2e2bdae-dirty) api 4 protocol 4",
+        "merak": "merak 0.1.0"
+      },
+      "execution_deadline": null,
+      "findings": {
+        "cause": "Acceptance harness selected open blueprint (completion by author declaration), which does not make peers eligible for signed reviews. Real reviewer inspected exact patch/source, then review.record correctly returned conflict: reviewer is not eligible for this exact candidate. Application withheld.",
+        "observations": [
+          "Missing-permission recovery, signed initial public implementation, exact finding read/ack, signed sources, revision private oracle and cleanup passed. Local review permission is independent of candidate review eligibility.",
+          "Short default working directory and supplied Python3.12 guidance avoided the earlier path/interpreter failures."
+        ],
+        "outcome": "failed_before_application",
+        "subsequent_changes": [
+          "Acceptance selects existing bundled peer-review blueprint; count1 member review excluding contribution author. No production review rules changed.",
+          "Scripted non-model frozen-daemon smoke first proved exact independent signed review and separate-workspace apply preserving dirty tracked/untracked files and HEAD."
+        ]
+      },
+      "finished": "2026-10-04T20:42:12.005656+00:00",
+      "fixture_environment": {
+        "cli_guidance": "./locust-scoped; default assigned cwd",
+        "native_codex_evidence": "Per-phase private session snapshots, provider key redacted before retention",
+        "public_python_minimum": "3.12",
+        "supplied_python": "/opt/homebrew/Cellar/python@3.12/3.12.1/Frameworks/Python.framework/Versions/3.12/bin/python3.12",
+        "temporary_profiles": "Owned private /tmp directories; no ambient client profiles copied"
+      },
+      "harness_sha256": {
+        "scripts/check_collaboration_acceptance.py": "c91a86f8eb1fe3c28041b08e32c7dda5dccab27ac0461a3e7b3c2c4d28e4213d",
+        "scripts/check_shared_context_models.py": "37f81c57bbbedcf22563ff41969e1f648672a9186fabb5a52dd4d8b17a37094b",
+        "scripts/client_qualification/acceptance_case.py": "da59fe8048d12546040a1c275876818c3634db186532b414bf3130c626e72b07",
+        "scripts/client_qualification/acceptance_evidence.py": "0e7b18b79541e459776a259405a3e77db938957e994b5a01e132894dc930f366",
+        "scripts/client_qualification/collaboration_case.py": "6eb84e9d7e90960a967424880f9ba26f78c09d01235d9555320bcae718f5332a",
+        "scripts/client_qualification/collaboration_evidence.py": "0cff5b2b7c1111b7f4e38859d588b0b1d54a3bf7267e84480b56b23a68fd3b15",
+        "scripts/client_qualification/production.py": "403a8c8eb2949a9a01acc212b7160b4d5761b1fb1b08e9cbe65437adb8a0e842",
+        "scripts/client_qualification/real_models.py": "2a5a604fb92d6c54171e8ab40868c91fa9bc7b60825f50e67023a333481553a9",
+        "scripts/client_qualification/runtime.py": "efb836983ee2d2372e686dbdbff485643ef96d2e660936379ad5dabf532fc71a"
+      },
+      "input_sha256": {
+        "README.md": "63ad6fa8658a1c63c576bd3ba0b10c0e98d0d85f1ca5207ed9487f5c98bf2f19",
+        "private_operational_note": "e74463d741fc02a0bf9ebb11b959e3eb72bd440a40bd7987c0ed624ab028e3ee",
+        "safe_member.py": "0f6952800f568003301a0dbc505cfc88011286543f9ee964f48e85a32422414d"
+      },
+      "original_assertions": {
+        "artifact_changed_and_private_behavior_recovered": true,
+        "attributed_finding_read_and_acknowledged": true,
+        "builder_work_preceded_private_finding": true,
+        "direct_source_provenance_declared": true,
+        "explicit_application_independently_verified": false,
+        "missing_permission_stop_then_same_agent_recovery": true,
+        "real_model_runs_completed_and_cleaned_up": true,
+        "real_peer_reviewed_and_approved_exact_submission": false,
+        "submitted_patch_matches_revised_artifact": true
+      },
+      "original_error": "RuntimeError: Real peer did not approve the exact final submission; local application withheld",
+      "original_report": {
+        "bytes": 149781,
+        "path": "output/collaboration-acceptance-20261004-03/report.json",
+        "sha256": "19b3f0c61a8bd4171dbdb1d8b7eec346f1b4be0d6d3e34ceef616427220a3219"
+      },
+      "passed": false,
+      "phases": [
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 32639,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 11280,
+            "input_tokens": 50632,
+            "native_thread": "01a108a0-0486-7d20-8602-7a9346aee60e",
+            "observed_models": [
+              "gpt-6-luna"
+            ],
+            "output_tokens": 821,
+            "phase_usage": {
+              "cache_write_input_tokens": 17789,
+              "cached_input_tokens": 32639,
+              "input_tokens": 50632,
+              "output_tokens": 821,
+              "reasoning_output_tokens": 561
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 17789,
+              "cached_input_tokens": 32639,
+              "input_tokens": 50632,
+              "output_tokens": 821,
+              "reasoning_output_tokens": 561
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 17993
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 40796,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/permission.mcp.jsonl",
+              "sha256": "53f9e5ecf60178c9dae7bc2c93612436408e4f1673e62efb757bb15390737f38"
+            },
+            "prompt": {
+              "bytes": 2490,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/permission.prompt.txt",
+              "sha256": "3190e4237a5607cd39e744fbccb8cf8760c5ba6c58ab0da838eed245d0a01554"
+            },
+            "stderr": {
+              "bytes": 39,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/permission.stderr",
+              "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+            },
+            "stdout": {
+              "bytes": 3661,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/permission.stdout",
+              "sha256": "d8d53d817bfc4587a019d4d81dccdf58cdb34bec40ee33e290ce0c6fcc947a40"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [
+            {
+              "bytes": 73502,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/permission.native-session/2026/10/04/rollout-2026-10-04T13-34-27-01a108a0-0486-7d20-8602-7a9346aee60e.jsonl",
+              "sha256": "42adf9ac8b3d82887ccde1e7cb687347ee5cc564749360279891e9a903846c20"
+            }
+          ],
+          "natural_cleanup": true,
+          "observed_model_scope": "Client turn-context selection; provider billing not collected",
+          "phase": "permission",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 667804,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 123508,
+            "input_tokens": 697763,
+            "native_thread": "01a108a0-0486-7d20-8602-7a9346aee60e",
+            "observed_models": [
+              "gpt-6-luna"
+            ],
+            "output_tokens": 9451,
+            "phase_usage": {
+              "cache_write_input_tokens": 28531,
+              "cached_input_tokens": 667804,
+              "input_tokens": 697763,
+              "output_tokens": 9451,
+              "reasoning_output_tokens": 5378
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 46320,
+              "cached_input_tokens": 700443,
+              "input_tokens": 748395,
+              "output_tokens": 10272,
+              "reasoning_output_tokens": 5939
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 29959
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 83502,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/initial.mcp.jsonl",
+              "sha256": "65d4da75f7552bf7d21a284699b322d739a1240b8e4a1fc86ba4fb165a51fdd1"
+            },
+            "prompt": {
+              "bytes": 2615,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/initial.prompt.txt",
+              "sha256": "e7e1f9cad3efb240bef53d0bd4d8fc22577557e71102455537f6389d80234b3e"
+            },
+            "stderr": {
+              "bytes": 0,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/initial.stderr",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "stdout": {
+              "bytes": 118147,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/initial.stdout",
+              "sha256": "9cc0fb0258e90a6643b7e6d7009614c9f53029aa788ab705c7b1e05678fb297b"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [
+            {
+              "bytes": 455555,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/initial.native-session/2026/10/04/rollout-2026-10-04T13-34-27-01a108a0-0486-7d20-8602-7a9346aee60e.jsonl",
+              "sha256": "ae73a2b1d63034fca44244cdc308db518c58c5c40a41b104168efb2a0026ce23"
+            }
+          ],
+          "natural_cleanup": true,
+          "observed_model_scope": "Client turn-context selection; provider billing not collected",
+          "phase": "initial",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": "01a108a0-0486-7d20-8602-7a9346aee60e"
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 341165,
+            "client_cost_micros": 9541,
+            "client_cost_micros_reported": true,
+            "client_cost_usd": 0.009541,
+            "cost_source": null,
+            "elapsed_ms": 67140,
+            "input_tokens": 378808,
+            "native_thread": null,
+            "observed_models": [
+              "openai/gpt-6-luna"
+            ],
+            "output_tokens": 2834,
+            "phase_usage": {
+              "cache_read_tokens": 341165,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 37583,
+              "cache_write_tokens_reported": true,
+              "cost": 0.009541,
+              "cost_micros": 9541,
+              "cost_micros_reported": true,
+              "input_tokens": 378808,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 2834,
+              "reasoning_tokens": 1346,
+              "reasoning_tokens_reported": true
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_read_tokens": 341165,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 37583,
+              "cache_write_tokens_reported": true,
+              "cost": 0.009541,
+              "cost_micros": 9541,
+              "cost_micros_reported": true,
+              "input_tokens": 378808,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 2834,
+              "reasoning_tokens": 1346,
+              "reasoning_tokens_reported": true
+            },
+            "raw_client_usage_scope": "Merak run totals",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 37643
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "merak",
+          "evidence_files": {
+            "events": {
+              "bytes": 28733,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/research.events.txt",
+              "sha256": "ec2204d509b0210545f99e9e9c0e5724d950c39cd5d673d4bf10fa7409ff1310"
+            },
+            "prompt": {
+              "bytes": 2099,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/research.prompt.txt",
+              "sha256": "66b61d691826485a9ceaac903a45c8fb187cb6c657e06d53b73ca2ee79691e4a"
+            },
+            "stderr": {
+              "bytes": 2553,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/research.stderr",
+              "sha256": "5b5f95445ad2b0fa1604454032bf7bd9a2d44580cc633607154531e8286c449d"
+            },
+            "stdout": {
+              "bytes": 1064,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/research.stdout",
+              "sha256": "7031aa09040a1100f7dea30444a2b34df3029a9bd7e055da5b9ca3491464bbe0"
+            },
+            "transcript": {
+              "bytes": 622960,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/research.transcript.json",
+              "sha256": "9dd20829facfcd8e3b01abc417be7f4ebee854e949c7cb3f8aa0ee2de5175d38"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "Merak reported run totals",
+          "phase": "research",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null,
+          "transcript_completeness": {
+            "continuation": null,
+            "output_bytes": 607977,
+            "output_truncated": false,
+            "truncated": false,
+            "truncation_reasons": []
+          }
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 1076849,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 116843,
+            "input_tokens": 1109169,
+            "native_thread": "01a108a0-0486-7d20-8602-7a9346aee60e",
+            "observed_models": [
+              "gpt-6-luna"
+            ],
+            "output_tokens": 7630,
+            "phase_usage": {
+              "cache_write_input_tokens": 31164,
+              "cached_input_tokens": 1076849,
+              "input_tokens": 1109169,
+              "output_tokens": 7630,
+              "reasoning_output_tokens": 4023
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 77484,
+              "cached_input_tokens": 1777292,
+              "input_tokens": 1857564,
+              "output_tokens": 17902,
+              "reasoning_output_tokens": 9962
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 32320
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 104958,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/revision.mcp.jsonl",
+              "sha256": "68f3b36e42ce7ef4c0ef5ec46a9c638ef24e0c330f260a7d8116846e8caa077e"
+            },
+            "prompt": {
+              "bytes": 2435,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/revision.prompt.txt",
+              "sha256": "e26d274b3caa2e086c480b78022c94c3d4dd22c3c2300999362244f555d240dd"
+            },
+            "stderr": {
+              "bytes": 0,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/revision.stderr",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "stdout": {
+              "bytes": 143970,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/revision.stdout",
+              "sha256": "4d43a07b416ff1d7d29de673a764602992cb77322e8a0141687f5595473579f9"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [
+            {
+              "bytes": 812669,
+              "path": "output/collaboration-acceptance-20261004-03/builder-i4ckzdus/revision.native-session/2026/10/04/rollout-2026-10-04T13-34-27-01a108a0-0486-7d20-8602-7a9346aee60e.jsonl",
+              "sha256": "88bb8a25a3db5e6a8dce822075536a893cc8914234ed1988d236d2da2df14338"
+            }
+          ],
+          "natural_cleanup": true,
+          "observed_model_scope": "Client turn-context selection; provider billing not collected",
+          "phase": "revision",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": "01a108a0-0486-7d20-8602-7a9346aee60e"
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 818111,
+            "client_cost_micros": 18212,
+            "client_cost_micros_reported": true,
+            "client_cost_usd": 0.018212,
+            "cost_source": null,
+            "elapsed_ms": 145286,
+            "input_tokens": 855858,
+            "native_thread": null,
+            "observed_models": [
+              "openai/gpt-6-luna"
+            ],
+            "output_tokens": 10600,
+            "phase_usage": {
+              "cache_read_tokens": 818111,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 37663,
+              "cache_write_tokens_reported": true,
+              "cost": 0.018212,
+              "cost_micros": 18212,
+              "cost_micros_reported": true,
+              "input_tokens": 855858,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 10600,
+              "reasoning_tokens": 6265,
+              "reasoning_tokens_reported": true
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_read_tokens": 818111,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 37663,
+              "cache_write_tokens_reported": true,
+              "cost": 0.018212,
+              "cost_micros": 18212,
+              "cost_micros_reported": true,
+              "input_tokens": 855858,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 10600,
+              "reasoning_tokens": 6265,
+              "reasoning_tokens_reported": true
+            },
+            "raw_client_usage_scope": "Merak run totals",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 37747
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "merak",
+          "evidence_files": {
+            "events": {
+              "bytes": 43957,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/review.events.txt",
+              "sha256": "592e1abd526f67bb8d1b20e55413811a43ea1fd8a4d018437a3f7bbbc82a0e85"
+            },
+            "prompt": {
+              "bytes": 2294,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/review.prompt.txt",
+              "sha256": "b06f43fcbcdc6c3120be1cc5763100225ad244fc436cb8f973bdd2d83f49ef1a"
+            },
+            "stderr": {
+              "bytes": 4505,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/review.stderr",
+              "sha256": "ab83cf2e8a8a08249963d31b19ce832503c43fa52a33e945efe82ae137b8fd96"
+            },
+            "stdout": {
+              "bytes": 1615,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/review.stdout",
+              "sha256": "d3d93f8be2ca099e25a71b78291f3c4ac57930fcb1fe00df87d862eb660bffd6"
+            },
+            "transcript": {
+              "bytes": 1070898,
+              "path": "output/collaboration-acceptance-20261004-03/researcher-o25buli3/review.transcript.json",
+              "sha256": "738371ffbff08a3593bf902e14484a15c80ed222ba3aba10378a8af0374a052b"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "Merak reported run totals",
+          "phase": "review",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null,
+          "transcript_completeness": {
+            "continuation": {
+              "after_event_sequence": 266,
+              "effect_offset": 58,
+              "effect_snapshot_count": 62,
+              "include_internal": true,
+              "reuse_turn_id_filter": false,
+              "start_turn_index": 0
+            },
+            "output_bytes": 1048038,
+            "output_truncated": true,
+            "truncated": true,
+            "truncation_reasons": [
+              "max_output_bytes"
+            ]
+          }
+        }
+      ],
+      "posthoc_behavior_assessment": {
+        "assertions": {
+          "artifact_changed_and_private_behavior_recovered": true,
+          "attributed_finding_read_and_acknowledged": true,
+          "builder_work_preceded_private_finding": true,
+          "direct_source_provenance_declared": true,
+          "explicit_application_independently_verified": false,
+          "missing_permission_stop_then_same_agent_recovery": true,
+          "real_model_runs_completed_and_cleaned_up": true,
+          "real_peer_reviewed_and_approved_exact_submission": false,
+          "submitted_patch_matches_revised_artifact": true
+        },
+        "evaluator": {
+          "bytes": 18773,
+          "path": "scripts/client_qualification/acceptance_evidence.py",
+          "sha256": "296bfd41e807fd4955da2af6a4214716c32a28498a22f7353c562e15e86a0383"
+        },
+        "exact_patch_review_effect_complete": true,
+        "label": "Independent assessment with corrected relevant-effect completeness predicate; original report preserved",
+        "passed": false
+      },
+      "private_profiles_removed": true,
+      "protocol_version": 4,
+      "provenance": {
+        "declared_sources": [
+          "1cf9443e5b83a1e0ee70184a891caf94d423c0093efdde52b222e07ff6468110"
+        ],
+        "final_contribution": "38930ccc3a644757b0052b73072ed2ca26aefb15fd24880473374f1e9bb1533a",
+        "final_patch": "64ead7dc49b004c36d1a89278c014c614eb297a4d3469dd9e06b50a84f628d06",
+        "finding_events": [
+          "1cf9443e5b83a1e0ee70184a891caf94d423c0093efdde52b222e07ff6468110"
+        ],
+        "goal": "d886b10d3ab44427eb96f4f1b4722eb1d4c40ba6f31639b2c9d1ee6c63a5f244",
+        "initial_contribution": "e9aa23883a67aa20d9d38cd471d26935cf9d6c5483b008c5e793c0f80f4b40fb",
+        "peer_reviews": [],
+        "principals": {
+          "builder": {
+            "instance": "cc54e3f406ace62d4ac21eb71054dba5",
+            "principal": "d550c616b9762850671e44fe208e17b16861b70289b8a74aead6129a41488284"
+          },
+          "integrator": {
+            "instance": "e3ec20701b85fe9ebcfcdfc2d6e99ad4",
+            "principal": "59cc9458adfc7d987cf81da10e1e97803304c3d3a965bd2e093f1c2e7bb6b49c"
+          },
+          "researcher": {
+            "instance": "82f5dc51ffe5af4a0d7e81a856ce2392",
+            "principal": "045926923ec4cd168e2ede67d43926d20aad9b73e4d917112338f9537976fdfb"
+          }
+        }
+      },
+      "review_policy": null,
+      "rpc_startup_cleanup_timeout_seconds": 30,
+      "runtime_boundary": "Frozen runtime02 includes self-permission inspection and default sources fixes; predates later network-refusal fix, which this one-daemon workflow does not exercise",
+      "skill_sha256": "9783f695235f8ea82a5bd8f158b83e1a119524e0f9ca741f8875b140087f76f7",
+      "source_commit": "c50a43f54a6168a631351c6500b44ccd1167d27c",
+      "source_dirty": true,
+      "started": "2026-10-04T20:34:25.056675+00:00"
+    },
+    {
+      "api_version": 4,
+      "application": {
+        "actor": "person-harness",
+        "dirty_work_preserved": true,
+        "distinct_workspace": true,
+        "git_head_preserved": true,
+        "patch": "6befba04cccb3aac037331a858397d05da97c7f71ed6847541327d1f2a5df89a",
+        "subject": "5426048b26ee4f41446cb2af5498433e84ed0d2c74bb8c2c70f6091c95c36627"
+      },
+      "artifacts": {
+        "applied_artifact": {
+          "bytes": 1210,
+          "path": "output/collaboration-acceptance-20261004-04/applied-artifact/safe_member.py",
+          "sha256": "dfd5da3f8aafb600beefcb561ce6b23619155b59f741de6830f0ba013f5e8c9c"
+        },
+        "initial_artifact": {
+          "bytes": 1162,
+          "path": "output/collaboration-acceptance-20261004-04/initial-artifact/safe_member.py",
+          "sha256": "f1782749a699888829f5f07dc99b65485443e57030aaa8241b7fadd2f994099f"
+        },
+        "revised_artifact": {
+          "bytes": 1210,
+          "path": "output/collaboration-acceptance-20261004-04/revised-artifact/safe_member.py",
+          "sha256": "dfd5da3f8aafb600beefcb561ce6b23619155b59f741de6830f0ba013f5e8c9c"
+        }
+      },
+      "attempt": "04",
+      "binary_paths": {
+        "codex": "/opt/homebrew/Caskroom/codex/0.153.4/bin/codex",
+        "config_probe": "output/collaboration-followups/runtime02/config_probe",
+        "locust": "output/collaboration-followups/runtime02/locust",
+        "merak": "/Users/andrei/Projects26/merak10/target/debug/merak"
+      },
+      "binary_sha256": {
+        "codex": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "config_probe": "c04c505cb771bed6023f0cb22b2817c9b5c89aafeb1df194b76eb3dc608873c3",
+        "locust": "13969b848aa9dc279461f22bbb358a699fba10153e37fa04892328b706e13072",
+        "merak": "6c6f83e65103b2d2c65eb6a51c257b1eced498f8275bf63736f292dc30f06a25"
+      },
+      "client_versions": {
+        "codex": "codex-cli 0.153.4",
+        "locust": "locust 0.1.0 (cf67b2e2bdae-dirty) api 4 protocol 4",
+        "merak": "merak 0.1.0"
+      },
+      "execution_deadline": null,
+      "findings": {
+        "outcome": "verified_behavioral_pass"
+      },
+      "finished": "2026-10-04T20:52:03.330529+00:00",
+      "fixture_environment": {
+        "cli_guidance": "./locust-scoped; default assigned cwd",
+        "native_codex_evidence": "Per-phase private session snapshots, provider key redacted before retention",
+        "public_python_minimum": "3.12",
+        "supplied_python": "/opt/homebrew/Cellar/python@3.12/3.12.1/Frameworks/Python.framework/Versions/3.12/bin/python3.12",
+        "temporary_profiles": "Owned private /tmp directories; no ambient client profiles copied"
+      },
+      "harness_sha256": {
+        "scripts/check_collaboration_acceptance.py": "566aadb62f3535452557cfa46091ba90a0447a8dbb7753e5195842d2262da540",
+        "scripts/check_shared_context_models.py": "37f81c57bbbedcf22563ff41969e1f648672a9186fabb5a52dd4d8b17a37094b",
+        "scripts/client_qualification/acceptance_case.py": "da59fe8048d12546040a1c275876818c3634db186532b414bf3130c626e72b07",
+        "scripts/client_qualification/acceptance_evidence.py": "0e7b18b79541e459776a259405a3e77db938957e994b5a01e132894dc930f366",
+        "scripts/client_qualification/collaboration_case.py": "6eb84e9d7e90960a967424880f9ba26f78c09d01235d9555320bcae718f5332a",
+        "scripts/client_qualification/collaboration_evidence.py": "0cff5b2b7c1111b7f4e38859d588b0b1d54a3bf7267e84480b56b23a68fd3b15",
+        "scripts/client_qualification/production.py": "403a8c8eb2949a9a01acc212b7160b4d5761b1fb1b08e9cbe65437adb8a0e842",
+        "scripts/client_qualification/real_models.py": "2a5a604fb92d6c54171e8ab40868c91fa9bc7b60825f50e67023a333481553a9",
+        "scripts/client_qualification/runtime.py": "efb836983ee2d2372e686dbdbff485643ef96d2e660936379ad5dabf532fc71a"
+      },
+      "input_sha256": {
+        "README.md": "63ad6fa8658a1c63c576bd3ba0b10c0e98d0d85f1ca5207ed9487f5c98bf2f19",
+        "private_operational_note": "e74463d741fc02a0bf9ebb11b959e3eb72bd440a40bd7987c0ed624ab028e3ee",
+        "safe_member.py": "0f6952800f568003301a0dbc505cfc88011286543f9ee964f48e85a32422414d"
+      },
+      "original_assertions": {
+        "artifact_changed_and_private_behavior_recovered": true,
+        "attributed_finding_read_and_acknowledged": true,
+        "builder_existing_work_preserved": true,
+        "builder_work_preceded_private_finding": true,
+        "direct_source_provenance_declared": true,
+        "explicit_application_independently_verified": true,
+        "missing_permission_stop_then_same_agent_recovery": true,
+        "real_model_runs_completed_and_cleaned_up": true,
+        "real_peer_reviewed_and_approved_exact_submission": true,
+        "submitted_patch_matches_revised_artifact": true
+      },
+      "original_error": null,
+      "original_report": {
+        "bytes": 372648,
+        "path": "output/collaboration-acceptance-20261004-04/report.json",
+        "sha256": "6316750c3bd372c94694d94680757ee13838da8f996002f75496e6c2ab510227"
+      },
+      "passed": true,
+      "phases": [
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 50484,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 14284,
+            "input_tokens": 68892,
+            "native_thread": "01a108a9-0bc4-7363-a6f2-becc6c985afd",
+            "observed_models": [
+              "gpt-6-luna"
+            ],
+            "output_tokens": 722,
+            "phase_usage": {
+              "cache_write_input_tokens": 18136,
+              "cached_input_tokens": 50484,
+              "input_tokens": 68892,
+              "output_tokens": 722,
+              "reasoning_output_tokens": 445
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 18136,
+              "cached_input_tokens": 50484,
+              "input_tokens": 68892,
+              "output_tokens": 722,
+              "reasoning_output_tokens": 445
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 18408
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 42631,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/permission.mcp.jsonl",
+              "sha256": "57dbffe130cebd3465542234f9c88a442f4043714651c7f455209980341387ec"
+            },
+            "prompt": {
+              "bytes": 2490,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/permission.prompt.txt",
+              "sha256": "7121ba32484a61ad331bc8c5742f7a25ad5f57984a8d9ec950e8ebc9f27e98f6"
+            },
+            "stderr": {
+              "bytes": 39,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/permission.stderr",
+              "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+            },
+            "stdout": {
+              "bytes": 17374,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/permission.stdout",
+              "sha256": "27b0c834540a92689830044d20cd9aba6b211e9d4bfb3cafffe51fdacc064d90"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [
+            {
+              "bytes": 110935,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/permission.native-session/2026/10/04/rollout-2026-10-04T13-44-18-01a108a9-0bc4-7363-a6f2-becc6c985afd.jsonl",
+              "sha256": "4010b9b425a5259e2dc41e54a3efac6ce11d7249cb66a9bf5e2f79d011ae0a2e"
+            }
+          ],
+          "natural_cleanup": true,
+          "observed_model_scope": "Client turn-context selection; provider billing not collected",
+          "phase": "permission",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 927849,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 157873,
+            "input_tokens": 963034,
+            "native_thread": "01a108a9-0bc4-7363-a6f2-becc6c985afd",
+            "observed_models": [
+              "gpt-6-luna"
+            ],
+            "output_tokens": 12130,
+            "phase_usage": {
+              "cache_write_input_tokens": 33349,
+              "cached_input_tokens": 927849,
+              "input_tokens": 963034,
+              "output_tokens": 12130,
+              "reasoning_output_tokens": 7416
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 51485,
+              "cached_input_tokens": 978333,
+              "input_tokens": 1031926,
+              "output_tokens": 12852,
+              "reasoning_output_tokens": 7861
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 35185
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 88951,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/initial.mcp.jsonl",
+              "sha256": "58d32ab40c619e7c6659a2912832e5bfbd749c8f691f4edbae9f5f706e2efdf5"
+            },
+            "prompt": {
+              "bytes": 2615,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/initial.prompt.txt",
+              "sha256": "1d95a71271f0093d123c877dbc890da002dc759b765346644551e21f68f263d2"
+            },
+            "stderr": {
+              "bytes": 0,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/initial.stderr",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "stdout": {
+              "bytes": 336073,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/initial.stdout",
+              "sha256": "cd0b425a63de4a54d330446d3fd3348297b63859d64101803d59c93c7bc66ec0"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [
+            {
+              "bytes": 980007,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/initial.native-session/2026/10/04/rollout-2026-10-04T13-44-18-01a108a9-0bc4-7363-a6f2-becc6c985afd.jsonl",
+              "sha256": "c1d7bfe526688c72fc27cc9251fade8141febf9c8688575bae03332e0933a265"
+            }
+          ],
+          "natural_cleanup": true,
+          "observed_model_scope": "Client turn-context selection; provider billing not collected",
+          "phase": "initial",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": "01a108a9-0bc4-7363-a6f2-becc6c985afd"
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 214283,
+            "client_cost_micros": 8328,
+            "client_cost_micros_reported": true,
+            "client_cost_usd": 0.008328,
+            "cost_source": null,
+            "elapsed_ms": 56248,
+            "input_tokens": 243359,
+            "native_thread": null,
+            "observed_models": [
+              "openai/gpt-6-luna"
+            ],
+            "output_tokens": 5091,
+            "phase_usage": {
+              "cache_read_tokens": 214283,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 29040,
+              "cache_write_tokens_reported": true,
+              "cost": 0.008328,
+              "cost_micros": 8328,
+              "cost_micros_reported": true,
+              "input_tokens": 243359,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 5091,
+              "reasoning_tokens": 3239,
+              "reasoning_tokens_reported": true
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_read_tokens": 214283,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 29040,
+              "cache_write_tokens_reported": true,
+              "cost": 0.008328,
+              "cost_micros": 8328,
+              "cost_micros_reported": true,
+              "input_tokens": 243359,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 5091,
+              "reasoning_tokens": 3239,
+              "reasoning_tokens_reported": true
+            },
+            "raw_client_usage_scope": "Merak run totals",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 29076
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "merak",
+          "evidence_files": {
+            "events": {
+              "bytes": 21465,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/research.events.txt",
+              "sha256": "8ecaf4782e3725c75e71344e40dd8d57780319925db6279c1209c44416da762d"
+            },
+            "prompt": {
+              "bytes": 2099,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/research.prompt.txt",
+              "sha256": "9654041ec95038c3b57fc45a7392db64db1ac01e1fd9991e632d37bef1326b8a"
+            },
+            "stderr": {
+              "bytes": 2519,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/research.stderr",
+              "sha256": "8bf597dae931adaeeb8ca14349be260e136d8b60e2f1d43e6a3cf873dc4d4b9f"
+            },
+            "stdout": {
+              "bytes": 1183,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/research.stdout",
+              "sha256": "b0a1d3c0f4099914a9675f3f8c9fca94e0f443549860cc5e5457a2ce117422c5"
+            },
+            "transcript": {
+              "bytes": 433522,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/research.transcript.json",
+              "sha256": "2bcf6a431d654dca4f5bbbf2ea1fe14c8cf70bfd6d4f0f70dda835e96a32660a"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "Merak reported run totals",
+          "phase": "research",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null,
+          "transcript_completeness": {
+            "continuation": null,
+            "output_bytes": 421587,
+            "output_truncated": false,
+            "truncated": false,
+            "truncation_reasons": []
+          }
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 1426259,
+            "client_cost_micros": null,
+            "client_cost_micros_reported": null,
+            "client_cost_usd": null,
+            "cost_source": null,
+            "elapsed_ms": 122086,
+            "input_tokens": 1461762,
+            "native_thread": "01a108a9-0bc4-7363-a6f2-becc6c985afd",
+            "observed_models": [
+              "gpt-6-luna"
+            ],
+            "output_tokens": 9973,
+            "phase_usage": {
+              "cache_write_input_tokens": 34143,
+              "cached_input_tokens": 1426259,
+              "input_tokens": 1461762,
+              "output_tokens": 9973,
+              "reasoning_output_tokens": 6094
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_write_input_tokens": 85628,
+              "cached_input_tokens": 2404592,
+              "input_tokens": 2493688,
+              "output_tokens": 22825,
+              "reasoning_output_tokens": 13955
+            },
+            "raw_client_usage_scope": "Codex cumulative native thread counters",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 35503
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "codex",
+          "evidence_files": {
+            "mcp_events": {
+              "bytes": 107549,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/revision.mcp.jsonl",
+              "sha256": "e4b19c0d8171d67821ff3ca8915b97b6a6aae731225f4bded3deba298d053161"
+            },
+            "prompt": {
+              "bytes": 2435,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/revision.prompt.txt",
+              "sha256": "2767a61be02888f25312a34f3c6c560e16969bfe379bee43ea3dfd12f9b573f5"
+            },
+            "stderr": {
+              "bytes": 0,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/revision.stderr",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "stdout": {
+              "bytes": 158908,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/revision.stdout",
+              "sha256": "356d530021882140abaac4aca1426a7521a6a7981fb19afd5cb008b9579e29ec"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [
+            {
+              "bytes": 1411845,
+              "path": "output/collaboration-acceptance-20261004-04/builder-hreve50b/revision.native-session/2026/10/04/rollout-2026-10-04T13-44-18-01a108a9-0bc4-7363-a6f2-becc6c985afd.jsonl",
+              "sha256": "a20ec35da7a5e88693076c7b3e20890f4343102ac1105fb89164742605c59315"
+            }
+          ],
+          "natural_cleanup": true,
+          "observed_model_scope": "Client turn-context selection; provider billing not collected",
+          "phase": "revision",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": "01a108a9-0bc4-7363-a6f2-becc6c985afd"
+        },
+        {
+          "accounting": {
+            "billed_cost_usd": null,
+            "billing_evidence": "not collected",
+            "cached_input_tokens": 574628,
+            "client_cost_micros": 14366,
+            "client_cost_micros_reported": true,
+            "client_cost_usd": 0.014366,
+            "cost_source": null,
+            "elapsed_ms": 113034,
+            "input_tokens": 614606,
+            "native_thread": null,
+            "observed_models": [
+              "openai/gpt-6-luna"
+            ],
+            "output_tokens": 7222,
+            "phase_usage": {
+              "cache_read_tokens": 574628,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 39903,
+              "cache_write_tokens_reported": true,
+              "cost": 0.014366,
+              "cost_micros": 14366,
+              "cost_micros_reported": true,
+              "input_tokens": 614606,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 7222,
+              "reasoning_tokens": 5153,
+              "reasoning_tokens_reported": true
+            },
+            "phase_usage_unavailable": {},
+            "raw_client_usage": {
+              "cache_read_tokens": 574628,
+              "cache_read_tokens_reported": true,
+              "cache_write_tokens": 39903,
+              "cache_write_tokens_reported": true,
+              "cost": 0.014366,
+              "cost_micros": 14366,
+              "cost_micros_reported": true,
+              "input_tokens": 614606,
+              "model": "openai/gpt-6-luna",
+              "models": [
+                "openai/gpt-6-luna"
+              ],
+              "output_tokens": 7222,
+              "reasoning_tokens": 5153,
+              "reasoning_tokens_reported": true
+            },
+            "raw_client_usage_scope": "Merak run totals",
+            "reported_cost_usd": null,
+            "requested_model": "gpt-6-luna",
+            "uncached_input_tokens": 39978
+          },
+          "accounting_assessment": "native run accounting",
+          "cleanup_verified": true,
+          "client": "merak",
+          "evidence_files": {
+            "events": {
+              "bytes": 34774,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/review.events.txt",
+              "sha256": "5857ac564d1f41e898db33aabda0750d2a6cd71948c8539558ee9ae74786cc19"
+            },
+            "prompt": {
+              "bytes": 2294,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/review.prompt.txt",
+              "sha256": "3adea8a84c4ac46998636dffc6e64981ac1b8e04919e3ad24b45b3dda0d9a9f2"
+            },
+            "stderr": {
+              "bytes": 2951,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/review.stderr",
+              "sha256": "ed814ad776875eb3c36d4392c976a9b6c3b501b803febac56996b53d8c4ed609"
+            },
+            "stdout": {
+              "bytes": 1220,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/review.stdout",
+              "sha256": "dc52a570100aeac214299c3d211883a4e1342086ea7d9f7ca48b67401653fa68"
+            },
+            "transcript": {
+              "bytes": 889841,
+              "path": "output/collaboration-acceptance-20261004-04/researcher-vvgdhp95/review.transcript.json",
+              "sha256": "66e5e584a2938fb258562180ddb5f24c84f1de9ec451bfcaf29960ab2d8d9b65"
+            }
+          },
+          "exit_code": 0,
+          "native_sessions": [],
+          "natural_cleanup": true,
+          "observed_model_scope": "Merak reported run totals",
+          "phase": "review",
+          "requested_model": "gpt-6-luna",
+          "resume_thread": null,
+          "transcript_completeness": {
+            "continuation": null,
+            "output_bytes": 872188,
+            "output_truncated": false,
+            "truncated": false,
+            "truncation_reasons": []
+          }
+        }
+      ],
+      "posthoc_behavior_assessment": {
+        "assertions": {
+          "artifact_changed_and_private_behavior_recovered": true,
+          "attributed_finding_read_and_acknowledged": true,
+          "builder_work_preceded_private_finding": true,
+          "direct_source_provenance_declared": true,
+          "explicit_application_independently_verified": true,
+          "missing_permission_stop_then_same_agent_recovery": true,
+          "real_model_runs_completed_and_cleaned_up": true,
+          "real_peer_reviewed_and_approved_exact_submission": true,
+          "submitted_patch_matches_revised_artifact": true
+        },
+        "evaluator": {
+          "bytes": 18773,
+          "path": "scripts/client_qualification/acceptance_evidence.py",
+          "sha256": "296bfd41e807fd4955da2af6a4214716c32a28498a22f7353c562e15e86a0383"
+        },
+        "exact_patch_review_effect_complete": true,
+        "label": "Independent assessment with corrected relevant-effect completeness predicate; original report preserved",
+        "passed": true
+      },
+      "private_profiles_removed": true,
+      "protocol_version": 4,
+      "provenance": {
+        "declared_sources": [
+          "47f961a37eae3c2e03501034201d2d1faf0f9446367b73e2eece575d66e1fb55"
+        ],
+        "final_contribution": "5426048b26ee4f41446cb2af5498433e84ed0d2c74bb8c2c70f6091c95c36627",
+        "final_patch": "6befba04cccb3aac037331a858397d05da97c7f71ed6847541327d1f2a5df89a",
+        "finding_events": [
+          "47f961a37eae3c2e03501034201d2d1faf0f9446367b73e2eece575d66e1fb55"
+        ],
+        "goal": "ddc861525e8beca146683d132a04d402aed4d95d6a263949e17de55a0f629849",
+        "initial_contribution": "669363f987adb4a1c1f42e1168d951885466438a302138d34def5ca5343e021f",
+        "peer_reviews": [
+          {
+            "author": "4481cf4cc060f7f7033e4f7b9364eba356c9f9d0b7a86e3114ae21fcd5b67b0e",
+            "event": "88174eb71b44094e9b0a43df9060301dc72d10d4124a6799a8ed0e97373cdfd1",
+            "subject": "47f961a37eae3c2e03501034201d2d1faf0f9446367b73e2eece575d66e1fb55",
+            "verdict": "approve"
+          },
+          {
+            "author": "c173023d53f86f2dc2db4ae63938a2e8a79f8c9b1a75059414eee70a1b50a2af",
+            "event": "69e239c8285c5f37254b9308a8239b82c26c984486c21efaaeaceccb46e577de",
+            "subject": "5426048b26ee4f41446cb2af5498433e84ed0d2c74bb8c2c70f6091c95c36627",
+            "verdict": "approve"
+          }
+        ],
+        "principals": {
+          "builder": {
+            "instance": "77aab4e39d58848d1e73159078c0a96e",
+            "principal": "4481cf4cc060f7f7033e4f7b9364eba356c9f9d0b7a86e3114ae21fcd5b67b0e"
+          },
+          "integrator": {
+            "instance": "5df72fd267f7a402794af4ef7e7481fb",
+            "principal": "9b1abbeeaa4a6d9cca41b0b617143a5879a625555c3e60ee88bb12ce7c437b24"
+          },
+          "researcher": {
+            "instance": "891ca8d7018d95e6e2b1ee036e5c4628",
+            "principal": "c173023d53f86f2dc2db4ae63938a2e8a79f8c9b1a75059414eee70a1b50a2af"
+          }
+        }
+      },
+      "review_policy": {
+        "by": {
+          "kind": "members"
+        },
+        "count": 1,
+        "exclude_author": true,
+        "kind": "reviews"
+      },
+      "rpc_startup_cleanup_timeout_seconds": 30,
+      "runtime_boundary": "Frozen runtime02 includes self-permission inspection and default sources fixes; predates later network-refusal fix, which this one-daemon workflow does not exercise",
+      "skill_sha256": "9783f695235f8ea82a5bd8f158b83e1a119524e0f9ca741f8875b140087f76f7",
+      "source_commit": "c50a43f54a6168a631351c6500b44ccd1167d27c",
+      "source_dirty": true,
+      "started": "2026-10-04T20:44:16.831668+00:00"
+    }
+  ],
+  "campaign_cost": {
+    "billed_cost_usd": null,
+    "billing_evidence": "not collected",
+    "boundary": "Partial sum of client-returned cost fields only; no Codex dollar price or provider invoice collected, not total campaign billing.",
+    "known_client_cost_usd_sum": 0.061605,
+    "missing_client_cost_phase_count": 10
+  },
+  "campaign_date": "2026-10-04",
+  "campaign_token_totals": {
+    "cached_input_tokens": {
+      "known_sum": 9140625,
+      "missing_phase_count": 0
+    },
+    "input_tokens": {
+      "known_sum": 9625471,
+      "missing_phase_count": 0
+    },
+    "output_tokens": {
+      "known_sum": 97184,
+      "missing_phase_count": 0
+    },
+    "uncached_input_tokens": {
+      "known_sum": 484846,
+      "missing_phase_count": 0
+    }
+  },
+  "independent_review_evidence": [
+    {
+      "bytes": 8782,
+      "path": "output/collaboration-review-20261004/usage-semantics.json",
+      "sha256": "fa65ae42aa166bb650a8875bb501a5e5c98289caf56e043ab26754fd5e87ba23"
+    },
+    {
+      "bytes": 1357,
+      "path": "output/collaboration-review-20261004/peer-review-false-pass.json",
+      "sha256": "2a23db2798a9040bd4cc5fa243130502a1907b75f08f851c4384f7ac18f28e5d"
+    }
+  ],
+  "non_model_review_policy_smoke": {
+    "bytes": 610,
+    "path": "output/collaboration-acceptance-review-policy-smoke/report.json",
+    "sha256": "800947ca29a16a496c9f35282aa4ddf6702a8ad6a89f8dbb59fbf1f931d14b02"
+  },
+  "requested_model": "gpt-6-luna",
+  "schema": 1,
+  "scope": "One host, real Codex and Merak clients, private profiles, production SQLite daemon, independent fixture oracle and workspace application. No distributed physical-host claim."
+}

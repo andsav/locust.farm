@@ -84,13 +84,12 @@ def evaluate(report):
     delivered = []
     for _, response in _calls(events, "locust_context_read"):
         context = response.get("context", {})
-        receipt = context.get("receipt") or {}
+        receipt = context.get("receipt")
         for item in context.get("items", []):
             event_id = item.get("event", {}).get("view", {}).get("event")
-            seen = [entry for entry in receipt.get("entries", []) if entry.get("event") == event_id]
-            if (event_id in finding_ids and item.get("text_complete") is True and seen
-                    and item.get("event", {}).get("text") == finding_texts[event_id]
-                    and all(entry.get("version") for entry in seen)):
+            if (event_id in finding_ids and item.get("text_complete") is True
+                    and isinstance(receipt, str) and receipt
+                    and item.get("event", {}).get("text") == finding_texts[event_id]):
                 delivered.append((event_id, receipt))
 
     acknowledged = set()
@@ -98,14 +97,13 @@ def evaluate(report):
         supplied = request.get("arguments", {}).get("receipt")
         accepted = response.get("context_acknowledged", {})
         for event_id, receipt in delivered:
-            if (supplied == receipt and receipt.get("goal") == report.get("goal")
-                    and receipt.get("principal") == builder.get("principal")
-                    and receipt.get("session") == builder.get("instance")
-                    and accepted.get("goal") == receipt.get("goal")
-                    and accepted.get("principal") == receipt.get("principal")
-                    and accepted.get("session") == receipt.get("session")
-                    and accepted.get("entries") == receipt.get("entries")
-                    and any(entry.get("event") == event_id for entry in receipt.get("entries", []))):
+            if (supplied == receipt
+                    and request.get("arguments", {}).get("goal") == report.get("goal")
+                    and accepted.get("goal") == report.get("goal")
+                    and accepted.get("principal") == builder.get("principal")
+                    and accepted.get("session") == builder.get("instance")
+                    and any(entry.get("event") == event_id and entry.get("version")
+                            for entry in accepted.get("entries", []))):
                 acknowledged.add(event_id)
 
     final = report.get("final_context", [])

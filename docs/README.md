@@ -13,7 +13,7 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-- [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 3/protocol 3 runtime and authoring are implemented; current qualification is tracked separately.
+- [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 4/protocol 4 runtime and authoring are implemented; current qualification is tracked separately.
 - [Formation implementation status](formations-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
 - [Formation implementation plan](formations-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
 - [Formation semantics and removal inventory](formations-semantics.md): accepted administration and scoped-authority model, concrete scenario expectations, outstanding signed-proof obligations and source-based replacement inventory.
@@ -69,3 +69,5 @@ the repository root to check coverage and local link paths.
 - [Troubleshooting, FAQ and glossary](guide/help.md): Symptom-specific next actions and exact collaboration terminology.
 - [Authoring schema and command reference](guide/schema-reference.md): generated fields, offline operations and exact example downloads.
 - [Local API, MCP and event reference boundaries](guide/runtime-reference.md): transport, effects, proof and generation boundaries.
+
+- [Local Codex and Claude demo](demo.md): reviewed onboarding, named local participants, explicit permissions, shared findings and exact contribution application.

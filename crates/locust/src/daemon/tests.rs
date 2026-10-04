@@ -382,6 +382,7 @@ fn note(goal: GoalId, text: &str) -> Request {
         generation: None,
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
         summary: text.to_string(),
     }

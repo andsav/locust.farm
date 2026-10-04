@@ -79,6 +79,7 @@ pub(super) fn finding(goal: GoalId, text: &str) -> Request {
         summary: text.into(),
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
     }
 }
@@ -149,6 +150,7 @@ fn publish(goal: GoalId, task: TaskId, attempt: EventId, generation: u32) -> Req
         summary: "Completed with evidence".into(),
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
     }
 }

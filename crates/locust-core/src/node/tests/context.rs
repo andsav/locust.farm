@@ -2,7 +2,16 @@
 
 use super::lifecycle::{authorize, event, finding, offered, progress, setup};
 use super::*;
-use locust_proto::api::{ContextCursor, ContextReceipt, ContextView};
+use locust_proto::api::{
+    ContextCursor, ContextReceipt, ContextSnapshot, ContextSummary, ContextView,
+};
+
+fn full(view: &ContextView) -> &ContextSnapshot {
+    let Some(ContextSummary::Full(snapshot)) = view.summary.as_ref() else {
+        panic!("expected full initial context summary")
+    };
+    snapshot
+}
 use locust_proto::event::{Doc, ReviewVerdict, TaskId};
 use locust_proto::id::{EventId, GoalId};
 use locust_proto::store::{Blob, Space, Store};
@@ -16,6 +25,7 @@ fn read(
     unread_only: bool,
 ) -> Request {
     Request::Context {
+        view: locust_proto::api::ContextViewMode::Full,
         goal,
         task,
         after,
@@ -171,7 +181,7 @@ fn preview_and_unavailable_payload_cannot_acknowledge_text_and_late_payload_is_n
             .as_ref()
             .is_none_or(|receipt| receipt.entries.iter().all(|entry| entry.event != finding))
     );
-    assert!(unavailable.pending.context_news.unwrap().unavailable > 0);
+    assert!(full(&unavailable).pending.context_news.unwrap().unavailable > 0);
     if let Some(receipt) = unavailable.receipt {
         acknowledge(&mut d, agent, receipt);
     }
@@ -296,8 +306,8 @@ fn task_context_joins_scoped_progress_findings_reviews_and_documents_at_one_revi
         },
     ));
     let view = context(&mut d, agent, goal, Some(task), false);
-    assert_eq!(view.revision, view.pending.revision);
-    assert_eq!(view.task.as_ref().unwrap().view.task, task);
+    assert_eq!(view.revision, full(&view).pending.revision);
+    assert_eq!(full(&view).task.as_ref().unwrap().view.task, task);
     for id in [report, global, scoped, review, document] {
         assert!(contains(&view, id));
     }
@@ -313,7 +323,7 @@ fn task_context_joins_scoped_progress_findings_reviews_and_documents_at_one_revi
         .unwrap();
     assert_eq!(review.event.text.as_deref(), Some("Missing retry evidence"));
     assert_eq!(review.event.view.author, principal);
-    assert!(!view.effective_rules_json.is_empty());
+    assert!(!full(&view).effective_rules_json.is_empty());
 }
 
 #[test]
@@ -450,7 +460,7 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
             }),
         },
     );
-    let expected = context(&mut d, agent, goal, None, false)
+    let expected = full(&context(&mut d, agent, goal, None, false))
         .status
         .current_rules
         .unwrap();
@@ -485,16 +495,308 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
     )));
     let goal_view = context(&mut d, agent, goal, None, false);
     let task_view = context(&mut d, agent, goal, Some(task), false);
-    let detail = task_view.task.as_ref().unwrap();
+    let detail = full(&task_view).task.as_ref().unwrap();
     assert_eq!(detail.task_type.as_deref(), Some("reviewed"));
-    assert_eq!(task_view.effective_rules_json, detail.effective_rules_json);
+    assert_eq!(
+        full(&task_view).effective_rules_json,
+        detail.effective_rules_json
+    );
     assert_ne!(
-        task_view.effective_rules_json,
-        goal_view.effective_rules_json
+        full(&task_view).effective_rules_json,
+        full(&goal_view).effective_rules_json
     );
     assert_eq!(
-        task_view.inputs,
+        full(&task_view).inputs,
         BTreeMap::from([("workspace".into(), hash)])
     );
-    assert!(goal_view.inputs.is_empty());
+    assert!(full(&goal_view).inputs.is_empty());
+}
+
+#[test]
+fn scoped_pages_keep_goal_wide_news_and_viewers_remain_observational() {
+    let (mut d, principal, owner, agent, goal) = setup();
+    let (task, _) = offered(&mut d, agent, goal, principal);
+    let (unrelated, _) = offered(&mut d, agent, goal, principal);
+    let mut request = finding(goal, "Only the other task sees this finding");
+    let Request::ContributionPublish { task: scope, .. } = &mut request else {
+        panic!()
+    };
+    *scope = Some(unrelated);
+    let excluded = event(d.ok(agent, request));
+    let page = context(&mut d, agent, goal, Some(task), true);
+    assert!(!contains(&page, excluded));
+    assert_eq!(
+        d.ok(agent, Request::Pending { goal }),
+        Response::Pending(full(&page).pending.clone())
+    );
+    acknowledge(&mut d, agent, page.receipt.unwrap());
+    let empty = context(&mut d, agent, goal, Some(task), true);
+    assert!(empty.items.is_empty());
+    assert!(
+        full(&empty)
+            .pending
+            .context_news
+            .as_ref()
+            .unwrap()
+            .unacknowledged
+            > 0
+    );
+    assert_eq!(
+        d.ok(agent, Request::Pending { goal }),
+        Response::Pending(full(&empty).pending.clone())
+    );
+    d.ok(
+        owner,
+        Request::ViewerEnroll {
+            agent: principal,
+            credential: credential(9).digest(),
+        },
+    );
+    let (_, refused) = d.hello(credential(9), Some(session(9)));
+    assert!(matches!(refused, ServerHello::Refused { .. }));
+    let viewer = d.connect(credential(9), None);
+    let observed = context(&mut d, viewer, goal, Some(task), true);
+    assert!(observed.receipt.is_none());
+    assert!(full(&observed).pending.context_news.is_none());
+    assert!(
+        observed
+            .items
+            .iter()
+            .all(|item| item.acknowledged.is_none())
+    );
+}
+
+#[test]
+fn standing_changes_invalidate_receipts_and_reorder_context_after_restart() {
+    use locust_proto::event::Event;
+
+    let (mut d, _, _, agent, goal) = setup();
+    let (member, member_conn) = super::authorization::join_local(&mut d, agent, goal, 2);
+    let subject = event(d.ok(member_conn, finding(goal, "Previously effective evidence")));
+    let before = context(&mut d, agent, goal, None, true);
+    let original = before
+        .items
+        .iter()
+        .find(|item| item.event.view.event == subject)
+        .unwrap();
+    assert_eq!(
+        original.event.view.standing,
+        locust_proto::api::Standing::Effective
+    );
+    let receipt = before.receipt.unwrap();
+    let old_version = receipt
+        .entries
+        .iter()
+        .find(|seen| seen.event == subject)
+        .unwrap()
+        .version;
+    acknowledge(&mut d, agent, receipt);
+
+    let mut header = d.node.goals[&goal]
+        .goal
+        .event(&subject)
+        .unwrap()
+        .header()
+        .clone();
+    header.at_ms += 1;
+    let fork = Event::sign(header, d.node.signer(&member).unwrap()).unwrap();
+    let mut tx = crate::node::commit::Tx::none();
+    tx.commit.events.push(fork);
+    d.node.land(tx).unwrap();
+    let changed = context(&mut d, agent, goal, None, true);
+    let item = changed
+        .items
+        .iter()
+        .find(|item| item.event.view.event == subject)
+        .unwrap();
+    assert_ne!(
+        item.event.view.standing,
+        locust_proto::api::Standing::Effective
+    );
+    assert_ne!(
+        changed
+            .receipt
+            .as_ref()
+            .unwrap()
+            .entries
+            .iter()
+            .find(|seen| seen.event == subject)
+            .unwrap()
+            .version,
+        old_version
+    );
+    let positions: Vec<_> = changed
+        .items
+        .iter()
+        .map(|item| item.event.view.position)
+        .collect();
+    assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
+    d.restart();
+    let agent = d.connect(credential(1), Some(session(1)));
+    assert_eq!(context(&mut d, agent, goal, None, true), changed);
+    acknowledge(&mut d, agent, changed.receipt.unwrap());
+    assert!(context(&mut d, agent, goal, None, true).items.is_empty());
+}
+
+#[test]
+fn pending_reviews_only_count_the_callers_effective_reviews() {
+    use locust_proto::api::GoalGrants;
+    use locust_proto::event::Event;
+    use locust_proto::organization::{CompletionRule, Formation, Selector};
+
+    fn needs_review(d: &mut Daemon, actor: ConnId, goal: GoalId, subject: EventId) -> bool {
+        let Response::Pending(pending) = d.ok(actor, Request::Pending { goal }) else {
+            panic!()
+        };
+        pending.to_review.iter().any(|item| item.subject == subject)
+    }
+
+    let (mut d, _, owner, agent, goal) = setup();
+    let (reviewer, reviewer_conn) = super::authorization::join_local(&mut d, agent, goal, 2);
+    let expected = full(&context(&mut d, agent, goal, None, false))
+        .status
+        .current_rules
+        .unwrap();
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Reviews {
+        by: Selector::Members,
+        count: 1,
+        exclude_author: false,
+    };
+    d.ok(
+        agent,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            roles: Default::default(),
+            inputs: Default::default(),
+        },
+    );
+    d.ok(
+        owner,
+        Request::GoalGrant {
+            goal,
+            agent: reviewer,
+            grants: GoalGrants {
+                review: true,
+                ..Default::default()
+            },
+        },
+    );
+    let subject = event(d.ok(agent, finding(goal, "A finding awaiting review")));
+    let review = event(d.ok(
+        reviewer_conn,
+        Request::ReviewRecord {
+            goal,
+            subject,
+            verdict: ReviewVerdict::Reject,
+            text: "Evidence still required".into(),
+        },
+    ));
+    assert!(needs_review(&mut d, agent, goal, subject));
+    assert!(!needs_review(&mut d, reviewer_conn, goal, subject));
+
+    let mut header = d.node.goals[&goal]
+        .goal
+        .event(&review)
+        .unwrap()
+        .header()
+        .clone();
+    header.at_ms += 1;
+    let fork = Event::sign(header, d.node.signer(&reviewer).unwrap()).unwrap();
+    let mut tx = crate::node::commit::Tx::none();
+    tx.commit.events.push(fork);
+    d.node.land(tx).unwrap();
+    assert!(needs_review(&mut d, agent, goal, subject));
+    assert!(needs_review(&mut d, reviewer_conn, goal, subject));
+    d.restart();
+    let reviewer_conn = d.connect(credential(2), None);
+    assert!(needs_review(&mut d, reviewer_conn, goal, subject));
+}
+
+/// A deterministic, opt-in workload; copy this test onto a comparison revision
+/// to measure identical requests and verify their serialized response hashes.
+#[test]
+#[ignore = "opt-in performance comparison; cargo test -p locust-core --release context_read_performance -- --ignored --nocapture"]
+fn context_read_performance() {
+    use std::hint::black_box;
+    use std::time::Instant;
+
+    fn measure(d: &mut Daemon, agent: ConnId, findings: usize, label: &str, request: Request) {
+        let expected = d.ok(agent, request.clone());
+        let encoded = serde_json::to_vec(&expected).unwrap();
+        let mut samples = Vec::new();
+        for _ in 0..15 {
+            let started = Instant::now();
+            let actual = black_box(d.ok(agent, request.clone()));
+            samples.push(started.elapsed().as_nanos());
+            assert_eq!(actual, expected);
+        }
+        samples.sort_unstable();
+        println!(
+            "context_perf findings={findings} operation={label} median_ns={} bytes={} response_hash={}",
+            samples[samples.len() / 2],
+            encoded.len(),
+            locust_proto::crypto::content_hash(&encoded),
+        );
+    }
+
+    for findings in [32, 128, 256] {
+        let (mut d, _, _, agent, goal) = setup();
+        for index in 0..findings {
+            let subject = event(d.ok(
+                agent,
+                finding(goal, &format!("Finding {index}: shared context")),
+            ));
+            if index % 4 == 0 {
+                d.ok(
+                    agent,
+                    Request::ReviewRecord {
+                        goal,
+                        subject,
+                        verdict: ReviewVerdict::Reject,
+                        text: "Additional evidence required".into(),
+                    },
+                );
+            }
+        }
+        measure(
+            &mut d,
+            agent,
+            findings,
+            "pending_unread",
+            Request::Pending { goal },
+        );
+        measure(
+            &mut d,
+            agent,
+            findings,
+            "context_page",
+            read(goal, None, None, 16, None, false),
+        );
+        measure(
+            &mut d,
+            agent,
+            findings,
+            "context_unread_page",
+            read(goal, None, None, 16, None, true),
+        );
+        let receipt = context(&mut d, agent, goal, None, true).receipt.unwrap();
+        acknowledge(&mut d, agent, receipt);
+        measure(
+            &mut d,
+            agent,
+            findings,
+            "pending_seen",
+            Request::Pending { goal },
+        );
+        measure(
+            &mut d,
+            agent,
+            findings,
+            "context_seen",
+            read(goal, None, None, 16, None, true),
+        );
+    }
 }

@@ -7,8 +7,9 @@ with disposable Codex and Claude profiles. This page describes the
 [enrollment journal](../crates/locust/src/installation/onboarding.rs) and its
 [recovery tests](../crates/locust/src/installation/onboarding/tests.rs).
 Configuration, authenticated daemon readiness and native model discovery are
-separate observations. Earlier [bound-launcher qualification](../research/bound-cli-launcher-qualification.md)
-does not qualify this new orchestration route.
+separate observations. The [combined demo qualification](../research/demo-qualification.md)
+now covers fresh native Codex/Claude execution through `up`, selected-profile
+diagnostics and retries on API 4, using scripted loopback providers.
 
 ## Start with verified software
 
@@ -114,7 +115,20 @@ credential. Software removal preserves daemon identity/data and this onboarding
 journal, credentials and sessions. Remove the selected owned client setup and
 service before removing software they reference; see [removal](installation.md).
 
-W3 remains partial: separate display metadata and renaming, atomic managed-session
-client metadata, and onboarding integration with `doctor` are deferred. No
+W3 remains partial: separate display metadata and renaming and atomic managed-session
+client metadata are deferred. Selected-profile `doctor` integration is implemented. No
 end-to-end real-model workflow, physical-machine pass or public-distribution
 qualification is implied by these component and local installation tests.
+
+## Inspect a configured profile
+
+Run `locust doctor --client codex` (or `claude`/`pi`) with the same daemon home
+and selected `--profile-home`. The protected journal supplies the recorded
+software prefix and workspace; explicit overrides must agree. Checks cover
+installation signatures, the chosen service, authenticated daemon access, saved
+identity, MCP registration, skill, launcher and effective workspace configuration.
+Use `--service none` for a foreground daemon. Every failed check supplies a
+recovery action; doctor changes no files and does not claim native discovery.
+
+Continue with the [local demo](demo.md) to create a goal, add the second local
+participant, choose permissions and inspect/apply a reviewed contribution.

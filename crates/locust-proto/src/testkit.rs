@@ -213,6 +213,7 @@ pub fn every_body() -> Vec<Body> {
             attempt: None,
             base: Some(hash),
             patch: Some(hash),
+            sources: Vec::new(),
             artifacts: vec![hash],
         },
         Body::CompletionDeclared {

@@ -107,12 +107,12 @@ execution budgets.
 | Durable proof | [commitments](../crates/locust-core/src/goal/commitments.rs), [screening](../crates/locust-core/src/goal/screen.rs) | Exact contribution ancestry survives forks through coordinator commitments; new decisions need an equally explicit retention/proof model |
 | Claims and execution | [claims](../crates/locust-core/src/node/requests/claims.rs), [sessions](../crates/locust-core/src/node/sessions.rs), [managed sessions](managed-clients.md) | Current claim generations fence sessions on one daemon; they are not a distributed open-pool reservation algorithm |
 | Content graph | [content graph](../crates/locust-core/src/node/content_graph.rs), [content requests](../crates/locust-core/src/node/requests/content.rs) | Admission and fetchability follow typed roots; standalone contributions and formation definitions need explicit root types |
-| Persistence | [store open](../crates/locust-store/src/store.rs), [preflight](../crates/locust-store/src/connection.rs), [schema](../crates/locust-store/src/schema.rs), [local records](../crates/locust-core/src/node/records.rs) | Current schema 3 initializes directly; unsupported schema/event markers are refused before initialization or collection. No migration chain or previous-schema reader remains |
+| Persistence | [store open](../crates/locust-store/src/store.rs), [preflight](../crates/locust-store/src/connection.rs), [schema](../crates/locust-store/src/schema.rs), [local records](../crates/locust-core/src/node/records.rs) | Current schema 4 initializes directly; unsupported schema/event markers are refused before initialization or collection. No migration chain or previous-schema reader remains |
 | Authoring/API surfaces | [operation registry](../crates/locust-proto/src/api.rs), [CLI arguments](../crates/locust/src/cli/args.rs), [MCP schema](../crates/locust/src/mcp/schema.rs) | Operation metadata is shared, but field schemas/CLI mappings are not all generated; budget work for contract generation and parity tests |
 | Workspace integration | [CLI workspace](../crates/locust/src/cli/workspace.rs), [application](../crates/locust-workspace/src/apply.rs) | Submission needs assignment/generation; application assumes a goal's accepted head. Both assumptions must change for open contributions and multiple selected outputs |
 | Installation | [onboarding](onboarding.md), [packaging](packaging.md) | Source setup and local Mac qualification exist; artifact trust, client discovery, and live publication have separate evidence |
 | Public site | [site README](../sites/locust.farm/README.md), [docs placeholder](../sites/locust.farm/src/routes/docs/+page.svelte), [guide](../sites/locust.farm/src/lib/onboarding/guide.ts), [CI](../.github/workflows/ci.yml) | `/docs` is a placeholder; public guide claims need reconciliation; CI does not run site checks |
-| Polaris | Separate Merak repository, paths in section 8 | Blueprint editor pieces exist, but a production Locust connector/organization editor does not |
+| Polaris | Separate Merak repository, paths in section 8 | Formation editor pieces exist, but a production Locust connector/organization editor does not |
 
 Preserve existing crate boundaries from [workstreams](workstreams.md). Put plain
 types/canonical contracts in `locust-proto`, pure evaluation in `locust-core`,
@@ -898,12 +898,12 @@ code references, not current Locust integration claims.
 | Typed native requests and channel policy | `src-tauri/src/routes.rs`, `src-tauri/src/handlers.rs`; add dedicated typed operations and enforce their permissions |
 | Frontend/native contracts | `crates/merak-contract/src/lib.rs`, `crates/merak-contract/codegen/generator.rs`; connect generated Locust schemas through the supported dependency |
 | Product API and dispatch | `crates/polaris/frontend/src/lib/productApi.ts` and `crates/polaris/frontend/src/lib/api/dispatch.ts` native adapter pattern; avoid UI shell calls or caller-selected credential paths |
-| Editor interactions | `crates/polaris/frontend/src/lib/components/blueprint/BlueprintEditorPageImpl.svelte` and `crates/polaris/frontend/src/lib/blueprints/{draftSubscriber,presentationCas,recordProjection}.ts`; reuse interactions without their execution semantics |
+| Editor interactions | `crates/polaris/frontend/src/lib/components/formation/FormationEditorPageImpl.svelte` and `crates/polaris/frontend/src/lib/formations/{draftSubscriber,presentationCas,recordProjection}.ts`; reuse interactions without their execution semantics |
 | Browser and native verification | `crates/polaris/e2e/legs.mjs`, `crates/polaris/e2e/playwright.config.ts` plus actual native adapter and packaged-app tests |
 
 Reuse draft subscription, presentation CAS and conflict UI patterns, not Merak's
-execution `NodeKind`, `BlueprintVersion`, run controller or local-worker identity.
-An organization agreement and a local execution blueprint have different owners.
+execution `NodeKind`, `FormationVersion`, run controller or local-worker identity.
+An organization agreement and a local execution formation have different owners.
 Existing viewer credentials cannot be made authoring credentials by adding editor
 buttons. Source/visual parity does not require shipping every Merak graph feature.
 

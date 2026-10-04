@@ -75,6 +75,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .map(
                 |(contribution, selected)| locust_proto::api::ContributionView {
                     contribution: contribution.id,
+                    sources: contribution.sources.clone(),
                     author: contribution.author,
                     context: contribution.context,
                     attempt: contribution.attempt,
@@ -92,6 +93,49 @@ impl<S: Store, E: Entropy> Node<S, E> {
             )
             .collect();
         answer(Response::Contributions(contributions))
+    }
+
+    pub(super) fn contribution_inspect(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        contribution: EventId,
+    ) -> Plan {
+        use locust_proto::api::{ContributionInspection, ContributionSource};
+        use locust_proto::event::Body;
+        let entry = self.readable(actor, &goal)?;
+        let found = entry
+            .goal
+            .event(&contribution)
+            .ok_or_else(|| not_found("no such contribution"))?;
+        let Body::ContributionPublished {
+            context,
+            attempt,
+            sources,
+            ..
+        } = &found.header().body
+        else {
+            return Err(ApiError::new(
+                ErrorCode::Invalid,
+                "event is not a contribution",
+            ));
+        };
+        let reference = |event| ContributionSource {
+            event,
+            detail: entry
+                .goal
+                .event(&event)
+                .map(|found| self.event_detail(entry, found, actor.principal.as_ref())),
+        };
+        answer(Response::ContributionInspected(Box::new(
+            ContributionInspection {
+                contribution: self.event_detail(entry, found, actor.principal.as_ref()),
+                declared_sources: sources.iter().copied().map(reference).collect(),
+                attempt: attempt.map(reference),
+                task_round: matches!(context.scope, Scope::Task(_))
+                    .then(|| reference(context.round)),
+            },
+        )))
     }
 
     pub(super) fn event_show(&self, actor: &Actor, goal: GoalId, event: EventId) -> Plan {

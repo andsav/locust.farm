@@ -356,16 +356,7 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
     );
     p.cli(
         &authority,
-        &[
-            "patch",
-            "select",
-            "--goal",
-            goal,
-            "--patch",
-            hash,
-            "--subject",
-            result,
-        ],
+        &["patch", "select", "--goal", goal, "--subject", result],
     );
     assert_eq!(
         fs::read_to_string(root.path().join("code.txt")).unwrap(),
@@ -386,12 +377,8 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
             result,
             "--goal",
             goal,
-            "--patch",
-            hash,
             "--root",
             root.path().to_str().unwrap(),
-            "--expected-base",
-            base,
             "--expected-git-head",
             &commit,
         ],
@@ -484,6 +471,27 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
 
     let authority = ["--credential", credential, "--session", first_session];
     let pending_before = participant.cli(&authority, &["pending", "--goal", goal]);
+    let page = participant.cli(
+        &authority,
+        &["pending", "page", "--goal", goal, "--limit", "1"],
+    );
+    for category in [
+        "to_authorize",
+        "to_start",
+        "claimed",
+        "held_elsewhere",
+        "to_review",
+        "to_acknowledge",
+        "deliveries",
+    ] {
+        assert_eq!(
+            page["pending_page"]["counts"][category].as_u64().unwrap(),
+            pending_before["pending"][category]
+                .as_array()
+                .unwrap()
+                .len() as u64
+        );
+    }
     let watched = participant.cli(&authority, &["watch", "--goal", goal, "--timeout-ms", "0"]);
     assert_eq!(watched["initial"], pending_before["pending"]);
     assert!(matches!(
@@ -510,9 +518,38 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     assert!(!watched_human.contains("--owner --as"));
 
     let mut mcp = Mcp::new(&participant, credential, first_session);
-    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"task":null,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","base":null,"patch":null,"artifacts":[]}));
+    let own_permissions = mcp.tool(
+        "locust_permission_inspect",
+        json!({"goal":goal,"agent":principal}),
+    );
+    assert_eq!(own_permissions["permissions"]["grants"]["contribute"], true);
+    assert_eq!(own_permissions["permissions"]["grants"]["review"], false);
+    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"task":null,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","base":null,"patch":null,"artifacts":[],"sources":[]}));
     let event = finding["recorded"]["event"].as_str().unwrap();
-    let query = json!({"goal":goal,"task":null,"after":null,"limit":2,"preview_chars":null,"unread_only":true});
+    let query = json!({"goal":goal,"view":"compact","task":null,"after":null,"limit":2,"preview_chars":null,"unread_only":true});
+    let cli_page = participant.cli(
+        &authority,
+        &[
+            "context",
+            "read",
+            "--goal",
+            goal,
+            "--view",
+            "compact",
+            "--limit",
+            "2",
+            "--unread-only",
+            "true",
+        ],
+    );
+    let cli_receipt = cli_page["context"]["receipt"].as_str().unwrap();
+    assert!(cli_receipt.starts_with("ctx:"));
+    assert_eq!(cli_receipt.len(), 68);
+    // CLI and MCP use the same private reference namespace for this session.
+    mcp.tool(
+        "locust_context_acknowledge",
+        json!({"goal":goal,"receipt":cli_receipt}),
+    );
     let mut after = Value::Null;
     let mut read_finding = false;
     let mut last_receipt = Value::Null;
@@ -533,6 +570,7 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
             }
         }
         if !brief["receipt"].is_null() {
+            assert!(brief["receipt"].as_str().unwrap().starts_with("ctx:"));
             last_receipt = brief["receipt"].clone();
             mcp.tool(
                 "locust_context_acknowledge",
@@ -548,6 +586,24 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     let pending = mcp.tool("locust_pending", json!({"goal":goal}));
     assert_eq!(pending["pending"]["context_news"]["unacknowledged"], 0);
     drop(mcp);
+    // A fresh CLI process resolves an MCP-created reference after bridge exit.
+    participant.cli(
+        &authority,
+        &[
+            "context",
+            "acknowledge",
+            "--goal",
+            goal,
+            "--receipt",
+            last_receipt.as_str().unwrap(),
+        ],
+    );
+    let mut reopened = Mcp::new(&participant, credential, first_session);
+    reopened.tool(
+        "locust_context_acknowledge",
+        json!({"goal":goal,"receipt":last_receipt}),
+    );
+    drop(reopened);
     let second_session_path = participant.home.path().join("second.session");
     let second_session = second_session_path.to_str().unwrap();
     participant.cli(&[], &["session", "create", second_session]);
@@ -561,5 +617,169 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     );
     let denied = other.request("tools/call", json!({"name":"locust_context_acknowledge","arguments":{"goal":goal,"receipt":last_receipt}}));
     assert_eq!(denied["isError"], true);
-    assert_eq!(denied["structuredContent"]["error"]["code"], "denied");
+    assert_eq!(denied["structuredContent"]["error"]["code"], "invalid");
+}
+
+#[test]
+fn reviewed_local_membership_uses_names_without_tickets_or_hidden_work_grants() {
+    let participant = Participant::new();
+    let alice = participant.cli(&["--owner"], &["agent", "enroll", "alice"]);
+    let bob = participant.cli(&["--owner"], &["agent", "enroll", "bob"]);
+    let bob_key = bob["agent_enrolled"]["agent"].as_str().unwrap();
+    let created = participant.cli(
+        &["--owner", "--as", "alice"],
+        &[
+            "goal",
+            "create",
+            "--title",
+            "Demo work",
+            "--formation",
+            "peer-review",
+        ],
+    );
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    let invites = || participant.cli(&["--owner"], &["invitation", "list", "--goal", "Demo work"]);
+    assert_eq!(
+        invites()["invitations"]["invitations"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+    let plan = participant.cli(
+        &["--owner"],
+        &[
+            "goal",
+            "add-local",
+            "--goal",
+            "Demo work",
+            "--agent",
+            "bob",
+            "--plan",
+        ],
+    );
+    assert_eq!(plan["action"], "review_required");
+    assert_eq!(plan["plan"]["sharing"], "whole_goal");
+    assert_eq!(plan["plan"]["permissions_changed"], false);
+    assert_eq!(
+        invites()["invitations"]["invitations"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+    // --json is never an interactive approval, even without explicit --plan.
+    let unapproved = participant.cli(
+        &["--owner"],
+        &["goal", "add-local", "--goal", "Demo work", "--agent", "bob"],
+    );
+    assert_eq!(unapproved["changed"], false);
+    assert_eq!(
+        invites()["invitations"]["invitations"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+    let joined = participant.cli(
+        &["--owner"],
+        &[
+            "goal",
+            "add-local",
+            "--goal",
+            "Demo work",
+            "--agent",
+            "bob",
+            "--yes",
+        ],
+    );
+    assert_eq!(joined["membership"], "member");
+    assert_eq!(joined["changed"], true);
+    assert_eq!(joined["permissions_changed"], false);
+    assert!(!joined.to_string().contains("ticket"));
+    let inventory = invites();
+    assert_eq!(
+        inventory["invitations"]["invitations"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        inventory["invitations"]["invitations"][0]["state"],
+        "redeemed"
+    );
+    let permissions = participant.cli(
+        &["--owner"],
+        &[
+            "permission",
+            "inspect",
+            "--goal",
+            "Demo work",
+            "--agent",
+            "bob",
+        ],
+    );
+    assert!(
+        permissions["permissions"]["grants"]
+            .as_object()
+            .unwrap()
+            .values()
+            .all(|value| value == false)
+    );
+    assert_eq!(permissions["permissions"]["membership"], "member");
+    let owner_status = participant.cli(&["--owner"], &["status"]);
+    assert!(
+        owner_status["status"]["agents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|agent| agent["grants"]["manage_goals"] == false)
+    );
+    let repeated = participant.cli(
+        &["--owner"],
+        &[
+            "goal",
+            "add-local",
+            "--goal",
+            "Demo work",
+            "--agent",
+            "bob",
+            "--yes",
+        ],
+    );
+    assert_eq!(repeated["changed"], false);
+    assert_eq!(inventory, invites());
+    let goal_status = participant.cli(&["--owner"], &["goal", "status", "--goal", goal]);
+    assert!(
+        goal_status["goal_status"]["members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["member"] == bob_key)
+    );
+    // A member cannot invoke the owner handoff, and parsing a preset does not
+    // leave the agent with daemon-wide goal-management permission.
+    let denied = participant
+        .command()
+        .args([
+            "--credential",
+            bob["agent_enrolled"]["credential_path"].as_str().unwrap(),
+            "--json",
+            "goal",
+            "add-local",
+            "--goal",
+            "Demo work",
+            "--agent",
+            "alice",
+            "--yes",
+        ])
+        .output()
+        .unwrap();
+    assert!(!denied.status.success());
+    assert_eq!(inventory, invites());
+    assert_ne!(
+        alice["agent_enrolled"]["agent"],
+        bob["agent_enrolled"]["agent"]
+    );
 }

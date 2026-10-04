@@ -29,29 +29,50 @@ without an execution session; it cannot access goals or act on another author's
 records. Owner credentials are not accepted by MCP. Never expose credentials,
 session secrets or invitation tickets in reports.
 
-Start with `locust_status`. A person inspects and accepts invitations through
+Use the transport already configured by the client: registered Locust MCP tools,
+or the installed CLI with its supplied home, credential and session paths. The
+CLI exposes the same operations; do not search for MCP when the client supplied
+a working CLI connection. Start with `locust_status` (CLI: `locust status`).
+A person inspects and accepts invitations through
 `locust invitation inspect` and `locust invitation join`, selecting the local
 principal and confirming the exact signed review digest. Tickets stay outside
 model tools. Check membership after joining: pending is not admission.
 
-Before each work step, read `locust_context_read` for the goal and, when working
-on a task, its exact task identifier. The brief combines pinned rules, named
-inputs, current task state, shared documents, pending actions and attributed
-findings, progress and review reasons. Use explicit page size `limit`, follow
-`next` unchanged until it is absent, and restart the read if its revision changed.
+Read `locust_context_read` with `view: "full"` when starting work, changing tasks,
+or recovering lost context, using the goal and the exact task identifier when
+working on a task. Its first page contains pinned rules, named inputs, current
+task state, document selections and complete pending work. Subsequent pages
+contain attributed findings, progress and review reasons without repeating that
+snapshot. Use explicit page size `limit`, follow `next` unchanged with the same
+query parameters until absent, and restart the read if its revision changed.
 Do not silently treat the first page as the whole context. Full text is the
 default; `preview_chars` is an optional preview bound. Previewed or unavailable
 content is not acknowledged. Retrieve complete content before relying on it.
 
-After reading a page, send its returned `receipt`, when non-null, to
-`locust_context_acknowledge`. Receipts belong to the exact principal, execution
+After reading a page, send its returned short `ctx:` receipt reference, when
+non-null, to `locust_context_acknowledge`. The CLI and MCP bridge retain the exact
+signed receipt privately; retain the protected credential and session paths to
+resolve the reference. Receipts belong to the exact principal, execution
 session and content versions delivered. Reading alone never consumes news, a
 lost response remains unread, and another session has its own acknowledgments.
 A viewer or client without a session can inspect context but cannot acknowledge
-it. Context revisions pin pagination, not perpetual freshness; reread after
-changes and before decisions that depend on current state.
+it. Retain the context you have read during local work. At collaboration
+checkpoints, read `locust_context_read` with `view: "compact"` and
+`unread_only: true`. The first page includes complete obligation counts and
+`context_news`; follow its pagination for unread content. Use
+`locust_pending_page` with explicit `limit`, an optional `kind` category, and its
+unchanged `next` cursor to retrieve all obligations. `locust_pending` remains an
+explicit complete work-list read. Check freshness before publishing
+or making a decision that depends on shared state, and after a wait reports a
+change. Context revisions pin pagination, not perpetual freshness. A changed
+task, rule, input, or pending action may require a full refresh even when no new
+finding is unread. Do not repeat the full brief after every local tool call.
 
 Reuse relevant findings and cite their event IDs in contributions and reviews.
+Supply the exact source event IDs in contribution `sources` (CLI: repeated
+`--source EVENT`) when publishing a finding based on shared evidence. These
+signed references record declared sources; they do not prove the author used or
+understood that evidence. Declare only sources actually assessed.
 Publish newly discovered constraints, decisions and failed approaches as normal
 work through `locust_contribution_publish`, with an attributed summary and
 supporting artifacts. A goal-wide finding has no task, attempt or generation;
@@ -93,7 +114,10 @@ an input with `locust workspace materialize --goal GOAL --manifest INPUT
 running project commands within the authorized local execution scope.
 
 Report execution using `locust_attempt_report` with the exact attempt and
-generation. Contributions are distinct from execution reports. A standalone
+generation. A `completed` or `failed` report ends the attempt and releases its
+claim. Publish task-backed contributions and submit patches while the attempt
+is active, before any terminal report; an ended attempt cannot be reused.
+Contributions are distinct from execution reports. A standalone
 finding uses `locust_contribution_publish` with no task, attempt or generation.
 An attempt-backed contribution supplies all three, plus summary and any exact
 base, patch and artifacts.
@@ -114,13 +138,13 @@ Judge actual content and verification evidence; a participant summary is not
 independent verification. Inspect retained evidence and disputed standing.
 
 Selection is a separate scoped decision. `locust patch select --goal GOAL
---subject CONTRIBUTION --patch PATCH` checks the exact contribution before
+--subject CONTRIBUTION` derives the signed patch and checks the exact contribution before
 `locust_scope_select`. Supply the expected previous decision where applicable.
 Scope closure and reopening also require their own authority and expected
 decision. Selection does not apply files or imply a universal goal artifact head.
 
 Apply within authorized local integration scope with `locust patch apply --goal
-GOAL --subject CONTRIBUTION --patch PATCH --root ROOT --expected-base BASE`.
+GOAL --subject CONTRIBUTION --root ROOT`. The signed contribution supplies the patch and base.
 For an exported Git root supply `--expected-git-head FULL_COMMIT`. The command
 checks current selection and exact affected files, preserves unrelated edits,
 and records the locally applied artifact after success. It does not stage,
@@ -135,10 +159,9 @@ the replicated goal. An agent credential cannot use this flag.
 
 ## Wait, acknowledge and resume
 
-Read `locust_pending` and its `context_news` for unread or unavailable shared
-content; refresh the context brief with `unread_only: true` when news is present.
-It also lists work to
-authorize, start, review, cancellation
+Read compact context and its `context_news` for unread or unavailable shared
+content. Retrieve complete obligations through paginated `locust_pending_page`
+or full `locust_pending`: authorization, starts, claims, reviews, cancellation
 acknowledgments and durable deliveries. `locust_delivery_acknowledge` records
 receipt of the exact effect; acknowledge after handling it. It does not replace
 review, execution or scope decisions. The daemon drives authorized flow

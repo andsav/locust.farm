@@ -197,6 +197,7 @@ fn a_forked_author_with_more_variants_than_one_inventory_page_converges() {
                     attempt: None,
                     base: None,
                     patch: None,
+                    sources: Vec::new(),
                     artifacts: vec![],
                 },
             )
@@ -264,6 +265,7 @@ fn unequal_divergent_prefixes_still_exchange_inventory_and_converge() {
             attempt: None,
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     )];
@@ -278,6 +280,7 @@ fn unequal_divergent_prefixes_still_exchange_inventory_and_converge() {
             attempt: None,
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     )];

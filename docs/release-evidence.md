@@ -1,6 +1,6 @@
 # October 4 release evidence ledger
 
-**Current status: API 3 / protocol 3 is implemented; release
+**Current status: API 4 / protocol 4 is implemented; release
 qualification remains open.** The
 [organization implementation ledger](formations-status.md) tracks
 the current runtime, full manual, native integration and V01–V22 scenarios.
@@ -21,6 +21,10 @@ recovered. This one-host pilot does not close R8 or qualify a native package. Ex
 [isolated signed Polaris native acceptance](guide/polaris.md) and
 [Linux build-only evidence](../research/linux-installation-qualification.md).
 
+The owner reports physical-machine behavior working and has excluded further
+physical-machine acceptance from this implementation work. No repetition is
+required here.
+
 Droid's native Execute child failed before its full workspace flow, key-only
 local mDNS still fails, and broader Merak gates remain unresolved. Physical
 machines, sleep/wake, independent accounts/real providers, production signing
@@ -28,7 +32,7 @@ custody, canonical public artifacts and public-download acceptance remain open.
 
 The R1–R10 table and dated records below preserve the earlier implementation
 plan's evidence. **Pre-organization-cutover candidates do not qualify the current
-API 3 / protocol 3 runtime.** Their historical version/hash, old operation names
+API 4 / protocol 4 runtime.** Their historical version/hash, old operation names
 and format descriptions are retained as evidence rather than current operating
 instructions. Public release remains deferred by the owner; no complete release
 gate is recorded as passed.
@@ -238,6 +242,16 @@ ignores), 177 existing Python tests and 10 new harness tests. This adds local
 installed daemon/configuration evidence, without native client/model execution,
 Linux/systemd, interactive approval or production trust claims. Those gates and
 W3 metadata/renaming/doctor work remain open.
+
+**Demo follow-up, 2026-10-04:** the exact `527ada5` macOS API-4 candidate
+passed [fresh native Codex/Claude through up](../research/demo-qualification.md),
+selected-profile doctor, bound-launcher workspace execution, restart/retry and
+owned cleanup (25/24 assertions passed; 4/5 explicitly not run). Launchd and
+foreground onboarding plus named two-member administration passed 16 grouped
+checks each. This closes the native `up` route and selected-doctor gap for these
+clients under scripted providers. Real-model selection, interactive approval,
+Linux and production trust remain separate gates; W3 display metadata/renaming
+remain deferred. See the [demo guide](demo.md).
 
 **Bound launcher follow-up, 2026-10-04:** `4030795` adds a setup-owned CLI
 launcher and points the installed skill to it. The exact committed macOS

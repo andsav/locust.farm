@@ -1,5 +1,5 @@
 {
-  "api_version": 3,
+  "api_version": 4,
   "cli": {
     "arguments": [
       {
@@ -74,7 +74,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -99,7 +99,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -117,7 +117,7 @@
               },
               {
                 "action": "Set",
-                "help": "Limit this change to one task's local execution authorization",
+                "help": "Task title or typed task:/effect: identifier or unique prefix",
                 "long": "task",
                 "name": "task",
                 "positional": false,
@@ -142,7 +142,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -160,7 +160,7 @@
               },
               {
                 "action": "Set",
-                "help": "Limit this change to one task's local execution authorization",
+                "help": "Task title or typed task:/effect: identifier or unique prefix",
                 "long": "task",
                 "name": "task",
                 "positional": false,
@@ -195,7 +195,7 @@
         "arguments": [
           {
             "action": "Set",
-            "help": "Goal identifier or unique prefix",
+            "help": "Goal title, full identifier or unique prefix",
             "long": "goal",
             "name": "goal",
             "positional": false,
@@ -339,7 +339,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -391,7 +391,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -400,11 +400,20 @@
               },
               {
                 "action": "Set",
-                "help": "Full contribution content identifier",
+                "help": "Contribution event identifier or unique prefix; derives its signed patch",
+                "long": "subject",
+                "name": "subject",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Full content identifier for an unpublished patch",
                 "long": "patch",
                 "name": "patch",
                 "positional": false,
-                "required": true,
+                "required": false,
                 "short": null
               }
             ],
@@ -416,7 +425,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -451,6 +460,15 @@
                 "short": null
               },
               {
+                "action": "Append",
+                "help": "Full event identifier declared as a source; repeat for each source (not proof of model use)",
+                "long": "source",
+                "name": "source",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
                 "action": "Set",
                 "help": "Summary text, or - to read standard input",
                 "long": null,
@@ -468,7 +486,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -477,7 +495,7 @@
               },
               {
                 "action": "Set",
-                "help": "Full contribution event identifier",
+                "help": "Contribution event identifier or unique prefix",
                 "long": "subject",
                 "name": "subject",
                 "positional": false,
@@ -486,20 +504,11 @@
               },
               {
                 "action": "Set",
-                "help": "Current scope selection decision identifier",
+                "help": "Current scope selection decision identifier or unique prefix",
                 "long": "expected",
                 "name": "expected",
                 "positional": false,
                 "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Full contribution content identifier",
-                "long": "patch",
-                "name": "patch",
-                "positional": false,
-                "required": true,
                 "short": null
               }
             ],
@@ -511,7 +520,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -529,27 +538,9 @@
               },
               {
                 "action": "Set",
-                "help": "Full contribution content identifier",
-                "long": "patch",
-                "name": "patch",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Exact selected contribution event identifier",
+                "help": "Selected contribution event identifier or unique prefix; derives its signed patch and base",
                 "long": "subject",
                 "name": "subject",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Exact manifest the local changes are expected to start from",
-                "long": "expected-base",
-                "name": "expected-base",
                 "positional": false,
                 "required": true,
                 "short": null
@@ -1901,10 +1892,74 @@
         "summary": "Export API, event and MCP contracts offline"
       },
       {
-        "arguments": [],
+        "arguments": [
+          {
+            "action": "Set",
+            "help": "Software prefix; defaults to the selected onboarding journal",
+            "long": "prefix",
+            "name": "prefix",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Inspect this enrolled client in the selected profile",
+            "long": "client",
+            "name": "client",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Selected client profile home (defaults to HOME)",
+            "long": "profile-home",
+            "name": "profile-home",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Workspace to inspect (defaults to the enrolled workspace)",
+            "long": "workspace",
+            "name": "workspace",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Service manager to inspect; defaults to this platform when inspecting a client",
+            "long": "service",
+            "name": "service",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Service manager profile home (defaults to HOME)",
+            "long": "service-profile-home",
+            "name": "service-profile-home",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Service logs directory (defaults to daemon home/logs)",
+            "long": "log-dir",
+            "name": "log-dir",
+            "positional": false,
+            "required": false,
+            "short": null
+          }
+        ],
         "commands": [],
         "name": "doctor",
-        "summary": "Check local daemon readiness"
+        "summary": "Check daemon readiness and a selected installation or enrolled client profile"
       },
       {
         "arguments": [
@@ -1999,22 +2054,6 @@
         "commands": [],
         "name": "contributions",
         "summary": "contributions"
-      },
-      {
-        "arguments": [
-          {
-            "action": "Set",
-            "help": "Value, or - for standard input on text fields",
-            "long": "goal",
-            "name": "goal",
-            "positional": false,
-            "required": true,
-            "short": null
-          }
-        ],
-        "commands": [],
-        "name": "pending",
-        "summary": "pending"
       },
       {
         "arguments": [
@@ -2699,6 +2738,15 @@
                 "positional": false,
                 "required": false,
                 "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "view",
+                "name": "view",
+                "positional": false,
+                "required": true,
+                "short": null
               }
             ],
             "commands": [],
@@ -2718,11 +2766,11 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
+                "help": "ctx: reference returned by context read with this credential and session",
                 "long": "receipt",
                 "name": "receipt",
                 "positional": false,
-                "required": false,
+                "required": true,
                 "short": null
               }
             ],
@@ -2795,6 +2843,15 @@
               },
               {
                 "action": "Set",
+                "help": "JSON value matching formation contract or the API schema",
+                "long": "sources",
+                "name": "sources",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
                 "help": "Value, or - for standard input on text fields",
                 "long": null,
                 "name": "summary",
@@ -2815,6 +2872,31 @@
             "commands": [],
             "name": "publish",
             "summary": "contribution publish"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "contribution",
+                "name": "contribution",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "inspect",
+            "summary": "Inspect a contribution, its author-declared sources and exact attempt/task chain; declarations are not proof of model use"
           }
         ],
         "name": "contribution",
@@ -3351,6 +3433,15 @@
                 "positional": false,
                 "required": true,
                 "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Bundled organization name from formation examples; no JSON required",
+                "long": "formation",
+                "name": "formation",
+                "positional": false,
+                "required": false,
+                "short": null
               }
             ],
             "commands": [],
@@ -3463,6 +3554,49 @@
             "commands": [],
             "name": "status",
             "summary": "goal status"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique hex prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Enrolled local agent name or full principal key",
+                "long": "agent",
+                "name": "agent",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Inspect sharing and membership without issuing an invitation",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Approve sharing this selected goal with this selected local agent",
+                "long": "yes",
+                "name": "yes",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "add-local",
+            "summary": "Review whole-goal sharing with an enrolled local agent; permissions stay unchanged"
           }
         ],
         "name": "goal",
@@ -3499,6 +3633,66 @@
         ],
         "name": "member",
         "summary": null
+      },
+      {
+        "arguments": [
+          {
+            "action": "Set",
+            "help": "Value, or - for standard input on text fields",
+            "long": "goal",
+            "name": "goal",
+            "positional": false,
+            "required": true,
+            "short": null
+          }
+        ],
+        "commands": [
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "JSON value matching formation contract or the API schema",
+                "long": "after",
+                "name": "after",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "kind",
+                "name": "kind",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "JSON value matching formation contract or the API schema",
+                "long": "limit",
+                "name": "limit",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "page",
+            "summary": "Read a page of pending work, with complete category counts and revision-bound continuation"
+          }
+        ],
+        "name": "pending",
+        "summary": "pending"
       },
       {
         "arguments": [],
@@ -4089,7 +4283,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -4123,7 +4317,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -5107,10 +5301,18 @@
                     "type": "null"
                   }
                 ]
+              },
+              "sources": {
+                "description": "Author-declared citations, not causal dependencies or proof of use.",
+                "items": {
+                  "$ref": "#/$defs/EventId"
+                },
+                "type": "array"
               }
             },
             "required": [
               "context",
+              "sources",
               "artifacts"
             ],
             "type": "object"
@@ -5620,6 +5822,14 @@
     {
       "audience": "agent",
       "goal_scoped": true,
+      "mcp_tool": "locust_contribution_inspect",
+      "name": "contribution.inspect",
+      "read_only": true,
+      "summary": "Inspect a contribution, its author-declared sources and exact attempt/task chain; declarations are not proof of model use"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
       "mcp_tool": "locust_completion_declare",
       "name": "completion.declare",
       "read_only": false,
@@ -5680,6 +5890,14 @@
       "name": "cancel.acknowledge",
       "read_only": false,
       "summary": "cancel acknowledge"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_pending_page",
+      "name": "pending.page",
+      "read_only": true,
+      "summary": "Read a page of pending work, with complete category counts and revision-bound continuation"
     },
     {
       "audience": "agent",
@@ -5890,12 +6108,12 @@
       "summary": "Join as the selected enrolled principal after reviewing this exact signed invitation; grants remain unchanged"
     },
     {
-      "audience": "owner",
+      "audience": "agent",
       "goal_scoped": true,
-      "mcp_tool": null,
+      "mcp_tool": "locust_permission_inspect",
       "name": "permission.inspect",
       "read_only": true,
-      "summary": "Inspect an enrolled principal's explicit local permissions and membership"
+      "summary": "Inspect your own local permissions and task authorizations; only the owner can inspect another principal"
     },
     {
       "audience": "owner",
@@ -5938,7 +6156,7 @@
       "summary": "Show local participants and work needing permission, action or review across goals without acknowledging it"
     }
   ],
-  "protocol_version": 3,
+  "protocol_version": 4,
   "request_schema": {
     "$defs": {
       "AttemptStatus": {
@@ -5969,10 +6187,23 @@
           "goal": {
             "$ref": "#/$defs/GoalId"
           },
+          "limit": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
           "offset": {
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "preview_chars": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "reader": {
             "anyOf": [
@@ -6011,12 +6242,17 @@
           },
           "unread_only": {
             "type": "boolean"
+          },
+          "view": {
+            "$ref": "#/$defs/ContextViewMode"
           }
         },
         "required": [
           "goal",
           "revision",
           "unread_only",
+          "view",
+          "limit",
           "offset"
         ],
         "type": "object"
@@ -6074,6 +6310,14 @@
           "version"
         ],
         "type": "object"
+      },
+      "ContextViewMode": {
+        "description": "Explicit scope snapshot detail. Event text completeness is controlled only\nby the separately requested preview, never by this summary choice.",
+        "enum": [
+          "compact",
+          "full"
+        ],
+        "type": "string"
       },
       "Doc": {
         "enum": [
@@ -6158,6 +6402,78 @@
       },
       "InstanceId": {
         "pattern": "^[0-9a-fA-F]{32}$",
+        "type": "string"
+      },
+      "PendingCursor": {
+        "description": "Continuation for one complete obligation query and execution session.\nChanges to goal content or local work authority require restarting the read.",
+        "properties": {
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limit": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "offset": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstanceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "goal",
+          "revision",
+          "limit",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "PendingKind": {
+        "enum": [
+          "to_authorize",
+          "to_start",
+          "claimed",
+          "held_elsewhere",
+          "to_acknowledge",
+          "to_review",
+          "deliveries"
+        ],
         "type": "string"
       },
       "PublicKey": {
@@ -7291,6 +7607,14 @@
                   }
                 ]
               },
+              "sources": {
+                "default": [],
+                "description": "Known events in this goal that the author declares as sources.\nThis does not attest that a model read, understood or used them.",
+                "items": {
+                  "$ref": "#/$defs/EventId"
+                },
+                "type": "array"
+              },
               "summary": {
                 "type": "string"
               },
@@ -7346,6 +7670,31 @@
         },
         "required": [
           "contributions"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "contribution.inspect": {
+            "additionalProperties": false,
+            "properties": {
+              "contribution": {
+                "$ref": "#/$defs/EventId"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal",
+              "contribution"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "contribution.inspect"
         ],
         "type": "object"
       },
@@ -7629,6 +7978,53 @@
         },
         "required": [
           "pending"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "pending.page": {
+            "additionalProperties": false,
+            "properties": {
+              "after": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PendingCursor"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "kind": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PendingKind"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "limit": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "goal",
+              "limit"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "pending.page"
         ],
         "type": "object"
       },
@@ -8150,10 +8546,14 @@
               },
               "unread_only": {
                 "type": "boolean"
+              },
+              "view": {
+                "$ref": "#/$defs/ContextViewMode"
               }
             },
             "required": [
               "goal",
+              "view",
               "limit",
               "unread_only"
             ],
@@ -8941,10 +9341,18 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "sources": {
+                    "description": "Author-declared citations, not causal dependencies or proof of use.",
+                    "items": {
+                      "$ref": "#/$defs/EventId"
+                    },
+                    "type": "array"
                   }
                 },
                 "required": [
                   "context",
+                  "sources",
                   "artifacts"
                 ],
                 "type": "object"
@@ -9283,16 +9691,112 @@
         ],
         "type": "object"
       },
+      "ContextBrief": {
+        "description": "Small current-scope checkpoint. Detailed rules, task text, membership, peer\nstatus and obligations remain available through explicit full/detail reads.",
+        "properties": {
+          "administrator": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Context"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "context_news": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ContextNews"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/$defs/ContextDocumentSelection"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "governance_head": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "halted": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Halt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending": {
+            "$ref": "#/$defs/PendingCounts"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "goal",
+          "administrator",
+          "documents",
+          "pending"
+        ],
+        "type": "object"
+      },
       "ContextCursor": {
         "description": "A continuation for exactly one observed revision and query. If the goal\nchanges, restart the read; pages from different revisions are never joined.\nSession acknowledgments do not change this revision. The offset addresses\nrelevant events before unread filtering, so acknowledging each page is safe.",
         "properties": {
           "goal": {
             "$ref": "#/$defs/GoalId"
           },
+          "limit": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
           "offset": {
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "preview_chars": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "reader": {
             "anyOf": [
@@ -9331,12 +9835,17 @@
           },
           "unread_only": {
             "type": "boolean"
+          },
+          "view": {
+            "$ref": "#/$defs/ContextViewMode"
           }
         },
         "required": [
           "goal",
           "revision",
           "unread_only",
+          "view",
+          "limit",
           "offset"
         ],
         "type": "object"
@@ -9367,6 +9876,28 @@
         "required": [
           "doc",
           "revisions"
+        ],
+        "type": "object"
+      },
+      "ContextDocumentSelection": {
+        "description": "Document selections without repeating the complete revision history.",
+        "properties": {
+          "doc": {
+            "$ref": "#/$defs/Doc"
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "doc"
         ],
         "type": "object"
       },
@@ -9468,7 +9999,8 @@
         ],
         "type": "object"
       },
-      "ContextView": {
+      "ContextSnapshot": {
+        "description": "Complete scope metadata on an explicitly requested full first page.",
         "properties": {
           "documents": {
             "items": {
@@ -9487,6 +10019,63 @@
             "description": "Named inputs of the requested goal or task scope.",
             "type": "object"
           },
+          "pending": {
+            "$ref": "#/$defs/PendingWork",
+            "description": "Goal-wide obligations from the same observation as all other fields."
+          },
+          "status": {
+            "$ref": "#/$defs/GoalStatus"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "effective_rules_json",
+          "inputs",
+          "documents",
+          "pending"
+        ],
+        "type": "object"
+      },
+      "ContextSummary": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "compact": {
+                "$ref": "#/$defs/ContextBrief"
+              }
+            },
+            "required": [
+              "compact"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "full": {
+                "$ref": "#/$defs/ContextSnapshot"
+              }
+            },
+            "required": [
+              "full"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ContextView": {
+        "properties": {
           "items": {
             "items": {
               "$ref": "#/$defs/ContextItem"
@@ -9502,10 +10091,6 @@
                 "type": "null"
               }
             ]
-          },
-          "pending": {
-            "$ref": "#/$defs/PendingWork",
-            "description": "Goal-wide obligations from the same observation as all other fields."
           },
           "receipt": {
             "anyOf": [
@@ -9523,28 +10108,92 @@
             "minimum": 0,
             "type": "integer"
           },
-          "status": {
-            "$ref": "#/$defs/GoalStatus"
-          },
-          "task": {
+          "summary": {
             "anyOf": [
               {
-                "$ref": "#/$defs/TaskDetail"
+                "$ref": "#/$defs/ContextSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only on the first page. Continuations deliver items and receipts\nfrom the same revision without repeating the scope snapshot."
+          }
+        },
+        "required": [
+          "revision",
+          "items"
+        ],
+        "type": "object"
+      },
+      "ContextViewMode": {
+        "description": "Explicit scope snapshot detail. Event text completeness is controlled only\nby the separately requested preview, never by this summary choice.",
+        "enum": [
+          "compact",
+          "full"
+        ],
+        "type": "string"
+      },
+      "ContributionInspection": {
+        "description": "Attributed provenance of one signed contribution. Inspecting never\nacknowledges context or changes approval/selection eligibility.",
+        "properties": {
+          "attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ContributionSource"
               },
               {
                 "type": "null"
               }
             ]
+          },
+          "contribution": {
+            "$ref": "#/$defs/EventDetail"
+          },
+          "declared_sources": {
+            "items": {
+              "$ref": "#/$defs/ContributionSource"
+            },
+            "type": "array"
+          },
+          "task_round": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ContributionSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exact signed round event, not a newer current task round."
           }
         },
         "required": [
-          "revision",
-          "status",
-          "effective_rules_json",
-          "inputs",
-          "documents",
-          "pending",
-          "items"
+          "contribution",
+          "declared_sources"
+        ],
+        "type": "object"
+      },
+      "ContributionSource": {
+        "description": "One referenced event and its locally available header, standing and content.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventDetail"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None when this replica does not yet hold the event. Content availability\nand attributed text, when held, are reported inside the detail."
+          },
+          "event": {
+            "$ref": "#/$defs/EventId"
+          }
+        },
+        "required": [
+          "event"
         ],
         "type": "object"
       },
@@ -9607,6 +10256,13 @@
           "selected": {
             "type": "boolean"
           },
+          "sources": {
+            "description": "Signed author declarations. They do not prove content was used.",
+            "items": {
+              "$ref": "#/$defs/EventId"
+            },
+            "type": "array"
+          },
           "text": {
             "type": [
               "string",
@@ -9616,6 +10272,7 @@
         },
         "required": [
           "contribution",
+          "sources",
           "author",
           "context",
           "approved",
@@ -10614,6 +11271,260 @@
         ],
         "type": "object"
       },
+      "PendingCounts": {
+        "description": "Counts describe all obligations, even when a page filters one category.",
+        "properties": {
+          "claimed": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "deliveries": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "held_elsewhere": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "to_acknowledge": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "to_authorize": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "to_review": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "to_start": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "to_authorize",
+          "to_start",
+          "claimed",
+          "held_elsewhere",
+          "to_acknowledge",
+          "to_review",
+          "deliveries"
+        ],
+        "type": "object"
+      },
+      "PendingCursor": {
+        "description": "Continuation for one complete obligation query and execution session.\nChanges to goal content or local work authority require restarting the read.",
+        "properties": {
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limit": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "offset": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstanceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "goal",
+          "revision",
+          "limit",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "PendingItem": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "to_authorize": {
+                "$ref": "#/$defs/WorkItem"
+              }
+            },
+            "required": [
+              "to_authorize"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "to_start": {
+                "$ref": "#/$defs/WorkItem"
+              }
+            },
+            "required": [
+              "to_start"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "claimed": {
+                "$ref": "#/$defs/Claim"
+              }
+            },
+            "required": [
+              "claimed"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "held_elsewhere": {
+                "$ref": "#/$defs/Claim"
+              }
+            },
+            "required": [
+              "held_elsewhere"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "to_acknowledge": {
+                "$ref": "#/$defs/CancelItem"
+              }
+            },
+            "required": [
+              "to_acknowledge"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "to_review": {
+                "$ref": "#/$defs/ReviewItem"
+              }
+            },
+            "required": [
+              "to_review"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "deliveries": {
+                "$ref": "#/$defs/DeliveryItem"
+              }
+            },
+            "required": [
+              "deliveries"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PendingKind": {
+        "enum": [
+          "to_authorize",
+          "to_start",
+          "claimed",
+          "held_elsewhere",
+          "to_acknowledge",
+          "to_review",
+          "deliveries"
+        ],
+        "type": "string"
+      },
+      "PendingPage": {
+        "properties": {
+          "context_news": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ContextNews"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "counts": {
+            "$ref": "#/$defs/PendingCounts"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/$defs/PendingItem"
+            },
+            "type": "array"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingCursor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "counts",
+          "items"
+        ],
+        "type": "object"
+      },
       "PendingWork": {
         "properties": {
           "claimed": {
@@ -11598,6 +12509,18 @@
       },
       {
         "additionalProperties": false,
+        "properties": {
+          "pending_page": {
+            "$ref": "#/$defs/PendingPage"
+          }
+        },
+        "required": [
+          "pending_page"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
         "description": "Answers `wait`.",
         "properties": {
           "waited": {
@@ -11638,6 +12561,18 @@
         },
         "required": [
           "contributions"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "contribution_inspected": {
+            "$ref": "#/$defs/ContributionInspection"
+          }
+        },
+        "required": [
+          "contribution_inspected"
         ],
         "type": "object"
       },

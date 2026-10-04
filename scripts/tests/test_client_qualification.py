@@ -22,6 +22,26 @@ from client_qualification.runtime import Process, Profile, SocketFixture, record
 
 
 class QualificationTests(unittest.TestCase):
+    def test_native_execute_probe_rejects_parent_success_with_failed_child(self):
+        with tempfile.TemporaryDirectory() as output:
+            path = Path(output) / "native.stdout"
+            call = {"type": "tool_call", "toolId": "Execute", "id": "c",
+                    "timestamp": 10, "parameters": {"command": "/bin/echo marker"}}
+            reply = {"type": "tool_result", "toolId": "Execute", "id": "c", "timestamp": 70,
+                     "isError": True, "error": {"message": "Command terminated by signal: SIGKILL"}}
+            run = {"stdout": str(path), "exit_code": 0, "timed_out": False, "forced_cleanup": False}
+            path.write_text(json.dumps(call) + "\n" + json.dumps(reply) + "\n")
+            failed = harness.execute_probe_outcome(run, "/bin/echo marker", "marker")
+            self.assertFalse(failed["executed"])
+            self.assertEqual(failed["tool_elapsed_ms"], 60)
+            reply.update(isError=False, value="marker\n[Process exited with code 0]")
+            reply.pop("error")
+            path.write_text(json.dumps(call) + "\n" + json.dumps(reply) + "\n")
+            self.assertTrue(harness.execute_probe_outcome(run, "/bin/echo marker", "marker")["executed"])
+            self.assertFalse(harness.execute_probe_outcome(run, "/bin/echo other", "marker")["executed"])
+            for flag in ("timed_out", "forced_cleanup"):
+                self.assertFalse(harness.execute_probe_outcome(dict(run, **{flag: True}), "/bin/echo marker", "marker")["executed"])
+
     def test_codex_default_approval_denial_requires_structured_tool_failure(self):
         with tempfile.TemporaryDirectory() as output:
             path = Path(output) / "events.jsonl"

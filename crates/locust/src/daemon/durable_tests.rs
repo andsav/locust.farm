@@ -187,6 +187,30 @@ fn eventually<T>(mut read: impl FnMut() -> Option<T>) -> T {
     }
 }
 
+/// Preserve the latest observation and the invitation phase on a watchdog
+/// failure. These reads contain membership and peer state, never a ticket.
+#[track_caller]
+fn eventually_observed<R: std::fmt::Debug, T>(
+    phase: &str,
+    mut read: impl FnMut() -> R,
+    mut ready: impl FnMut(&R) -> Option<T>,
+) -> T {
+    let start = Instant::now();
+    let deadline = start + Duration::from_secs(20);
+    loop {
+        let observed = read();
+        if let Some(value) = ready(&observed) {
+            return value;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{phase} did not converge after {:?}; latest observation: {observed:?}",
+            start.elapsed()
+        );
+        thread::sleep(Duration::from_millis(25));
+    }
+}
+
 #[test]
 fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
     let dir = short_dir();
@@ -232,6 +256,7 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
         generation: None,
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
         summary: "Retried safely".into(),
     };
@@ -273,6 +298,7 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
                 summary: "Restarted work is complete".into(),
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![],
             })
             .unwrap(),
@@ -366,17 +392,21 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
             ..
         }
     ));
-    eventually(|| match owner.call(Request::Status) {
-        Ok(Response::Status(status))
-            if status
-                .goals
-                .iter()
-                .any(|entry| entry.goal == goal && entry.membership == Membership::Refused) =>
-        {
-            Some(())
-        }
-        _ => None,
-    });
+    eventually_observed(
+        "revoked invitation refusal",
+        || owner.call(Request::Status),
+        |observed| match observed {
+            Ok(Response::Status(status))
+                if status
+                    .goals
+                    .iter()
+                    .any(|entry| entry.goal == goal && entry.membership == Membership::Refused) =>
+            {
+                Some(())
+            }
+            _ => None,
+        },
+    );
     assert!(
         matches!(owner.call(refused_join), Err(locust_proto::client::ClientError::Api(error)) if error.code == ErrorCode::Denied)
     );
@@ -414,16 +444,20 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
         }
     ));
     let mut member = recipient.client(Credential([2; 32]), None);
-    eventually(|| match member.call(Request::GoalStatus { goal }) {
-        Ok(Response::GoalStatus(status))
-            if status.members.iter().any(|entry| entry.member == principal) =>
-        {
-            assert_eq!(status.grants, GoalGrants::default());
-            assert!(status.workspace.is_none());
-            Some(())
-        }
-        _ => None,
-    });
+    eventually_observed(
+        "replacement invitation admission",
+        || member.call(Request::GoalStatus { goal }),
+        |observed| match observed {
+            Ok(Response::GoalStatus(status))
+                if status.members.iter().any(|entry| entry.member == principal) =>
+            {
+                assert_eq!(status.grants, GoalGrants::default());
+                assert!(status.workspace.is_none());
+                Some(())
+            }
+            _ => None,
+        },
+    );
     assert!(matches!(
         owner.call(join.clone()).unwrap(),
         Response::Joined {
@@ -532,6 +566,23 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
             takeover: false,
         })
         .unwrap();
+    // Task text and the later work offer replicate independently. Seeing the
+    // task does not yet prove that this exact offered attempt is eligible.
+    eventually_observed(
+        "worker offer readiness",
+        || w.call(Request::Pending { goal }),
+        |observed| match observed {
+            Ok(Response::Pending(work))
+                if work
+                    .to_start
+                    .iter()
+                    .any(|item| item.task == task && item.offer == Some(assignment)) =>
+            {
+                Some(())
+            }
+            _ => None,
+        },
+    );
     let Response::Claimed(claim) = w
         .call(Request::AttemptStart {
             goal,
@@ -560,6 +611,7 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
             summary: summary.clone(),
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         })
         .unwrap(),

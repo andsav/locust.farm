@@ -1,12 +1,17 @@
 //! MCP schemas are extracted from the typed request contract.
-use locust_proto::api::{OPERATIONS, Operation, operation_schema};
+use crate::context_receipts::operation_schema;
+use locust_proto::api::{OPERATIONS, Operation};
 use serde_json::{Value, json};
-pub(super) fn tools() -> Vec<Value> {
-    OPERATIONS
-        .iter()
-        .filter(|operation| operation.tool)
-        .map(tool)
-        .collect()
+use std::sync::OnceLock;
+pub(super) fn tools() -> &'static [Value] {
+    static TOOLS: OnceLock<Vec<Value>> = OnceLock::new();
+    TOOLS.get_or_init(|| {
+        OPERATIONS
+            .iter()
+            .filter(|operation| operation.tool)
+            .map(tool)
+            .collect()
+    })
 }
 fn tool(operation: &Operation) -> Value {
     let mut input =
@@ -39,8 +44,47 @@ fn tool(operation: &Operation) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn every_tool_retains_its_generated_request_fields() {
+    #[ignore = "explicit schema cost measurement"]
+    fn tool_schema_cost_report() {
+        use std::{hint::black_box, time::Instant};
+
+        let iterations = std::env::var("LOCUST_SCHEMA_BENCH_ITERATIONS")
+            .map(|value| value.parse::<usize>().expect("positive iteration count"))
+            .unwrap_or(100);
+        assert!(iterations > 0);
+        let cold_start = Instant::now();
+        let first = tools();
+        let cold_ns = cold_start.elapsed().as_nanos();
+        let encoded = serde_json::to_vec(&first).unwrap();
+        let mut construction_ns = Vec::with_capacity(iterations);
+        let mut serialization_ns = Vec::with_capacity(iterations);
+        for _ in 0..iterations {
+            let start = Instant::now();
+            black_box(tools());
+            construction_ns.push(start.elapsed().as_nanos());
+            let start = Instant::now();
+            black_box(serde_json::to_vec(&first).unwrap());
+            serialization_ns.push(start.elapsed().as_nanos());
+        }
+        construction_ns.sort_unstable();
+        serialization_ns.sort_unstable();
+        println!(
+            "{}",
+            json!({
+                "iterations": iterations,
+                "tool_count": first.len(),
+                "compact_bytes": encoded.len(),
+                "cold_construction_ns": cold_ns,
+                "warm_construction_median_ns": construction_ns[iterations / 2],
+                "serialization_median_ns": serialization_ns[iterations / 2],
+            })
+        );
+    }
+
+    #[test]
+    fn every_tool_retains_its_client_request_fields() {
         let tools = tools();
         for operation in OPERATIONS.iter().filter(|operation| operation.tool) {
             let tool = tools

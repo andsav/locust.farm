@@ -61,6 +61,7 @@ pub fn storm(r: &mut Run) -> Result<(), Fail> {
                 summary: text.clone(),
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: Vec::new(),
             };
             match r.w.call(m, Who::Agent, request) {

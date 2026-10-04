@@ -489,6 +489,7 @@ mod tests {
             attempt: None,
             base: None,
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         }
     }
@@ -768,6 +769,7 @@ mod tests {
                 attempt: None,
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![],
             },
         );

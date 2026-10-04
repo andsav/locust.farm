@@ -144,6 +144,9 @@ pub(crate) async fn serve(
     let mut tasks = JoinSet::new();
     let mut connections: HashMap<EndpointId, Vec<Connection>> = HashMap::new();
     let mut exchanges: HashMap<ExchangeId, Exchange> = HashMap::new();
+    // Reserve the connection before spawning an open: its previous exchange
+    // can end before the new stream reaches Event::Link.
+    let mut opening_links: HashMap<ExchangeId, watch::Sender<bool>> = HashMap::new();
     let permits = Arc::new(Semaphore::new(admission_slots()));
     let dials = Arc::new(Semaphore::new(dial_slots()));
     // At most one dial per endpoint; the exchanges waiting for its outcome.
@@ -183,6 +186,7 @@ pub(crate) async fn serve(
                         let known = connections.get(&peer).and_then(|items| items.iter().rev().find(|item| !item.connection.is_closed())).map(|item| (item.connection.clone(), item.admitted.clone()));
                         let events = events.clone();
                         if let Some((connection, admission)) = known {
+                            opening_links.insert(exchange, admission.clone());
                             tasks.spawn(open_link(connection, exchange, admission, events));
                         } else if let Some(waiting) = dialing.get_mut(&peer) {
                             waiting.push(exchange);
@@ -249,9 +253,13 @@ pub(crate) async fn serve(
                     tasks.spawn(accept_links(connection.clone(), admission.clone(), events.clone(), stop.clone()));
                     let guarded = connection.clone();
                     tasks.spawn(async move { admission_guard(guarded, admitted, permit, deadline).await; });
-                    for exchange in opening { tasks.spawn(open_link(connection.clone(), exchange, admission.clone(), events.clone())); }
+                    for exchange in opening {
+                        opening_links.insert(exchange, admission.clone());
+                        tasks.spawn(open_link(connection.clone(), exchange, admission.clone(), events.clone()));
+                    }
                 }
                 Event::Link { link, connection, exchange, admission } => {
+                    if let Some(exchange) = exchange { opening_links.remove(&exchange); }
                     let dialed = exchange.is_some();
                     let exchange = exchange.unwrap_or_else(|| { accepted += 1; ExchangeId::Accepted(accepted) });
                     let (commands, receiver) = mpsc::unbounded_channel();
@@ -263,7 +271,10 @@ pub(crate) async fn serve(
                     let _ = jobs.send(Job::Peer(input));
                     tasks.spawn(exchange_task(*link, connection, exchange, receiver, limits, jobs.clone(), events.clone(), stop.clone()));
                 }
-                Event::OpenFailed(exchange) => { let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange))); }
+                Event::OpenFailed(exchange) => {
+                    opening_links.remove(&exchange);
+                    let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange)));
+                }
                 Event::DialFailed(peer) => {
                     for exchange in dialing.remove(&peer).unwrap_or_default() { let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange))); }
                 }
@@ -276,15 +287,7 @@ pub(crate) async fn serve(
                     }
                 }
                 Event::Ended(exchange) => {
-                    // An unadmitted connection closes with its exchange, but not
-                    // under an exchange this daemon opened on it: the inviter's
-                    // refused dial to a joiner shares the join's connection.
-                    if let Some(link) = exchanges.remove(&exchange)
-                        && !*link.connection_admitted.borrow()
-                        && !carries_own_exchange(&exchanges, &link.connection_admitted)
-                    {
-                        link.connection.close();
-                    }
+                    end_exchange(&mut exchanges, &opening_links, exchange);
                 }
             },
             connection = endpoint.accept() => match connection {
@@ -338,16 +341,33 @@ async fn finished_within(limit: Duration, teardown: impl Future<Output = ()>) ->
     tokio::time::timeout(limit, teardown).await.is_ok()
 }
 
-/// Whether an exchange this daemon opened is in flight on the connection
-/// that `admission` belongs to.
+/// An unadmitted connection closes with its exchange, unless this daemon
+/// has an established or pending exchange on it. Opening a stream is async;
+/// the reservation must survive the gap before the stream is registered.
+fn end_exchange(
+    exchanges: &mut HashMap<ExchangeId, Exchange>,
+    opening: &HashMap<ExchangeId, watch::Sender<bool>>,
+    exchange: ExchangeId,
+) {
+    if let Some(link) = exchanges.remove(&exchange)
+        && !*link.connection_admitted.borrow()
+        && !carries_own_exchange(exchanges, opening, &link.connection_admitted)
+    {
+        link.connection.close();
+    }
+}
+
 fn carries_own_exchange(
     exchanges: &HashMap<ExchangeId, Exchange>,
+    opening: &HashMap<ExchangeId, watch::Sender<bool>>,
     admission: &watch::Sender<bool>,
 ) -> bool {
     exchanges.iter().any(|(exchange, link)| {
         matches!(exchange, ExchangeId::Dialed(_))
             && link.connection_admitted.same_channel(admission)
-    })
+    }) || opening
+        .values()
+        .any(|pending| pending.same_channel(admission))
 }
 
 async fn open_link(
@@ -588,6 +608,56 @@ async fn admission_guard(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Force the scheduling gap between reserving our next stream and its
+    /// Event::Link. Finishing the refused exchange in that gap must not close
+    /// the connection under the next invitation. Check real QUIC usability,
+    /// then check that ending the last unadmitted stream still closes it.
+    #[tokio::test]
+    async fn a_pending_own_stream_survives_an_unadmitted_exchange_ending() {
+        use crate::daemon::durable_tests::local_endpoint;
+        let a = local_endpoint([201; 32]).await.unwrap();
+        let b = local_endpoint([202; 32]).await.unwrap();
+        let hints = b.hints();
+        let (outgoing, incoming) = tokio::join!(a.connect(b.id(), &hints), async {
+            b.accept().await.unwrap().accept().await
+        });
+        let connection = outgoing.unwrap();
+        let remote = incoming.unwrap();
+        let (admission, _admitted) = watch::channel(false);
+        let make_exchange = || {
+            let (commands, _receiver) = mpsc::unbounded_channel();
+            let (limit, _limits) = watch::channel(MAX_HELLO_FRAME_BYTES);
+            Exchange {
+                commands,
+                limit,
+                connection_admitted: admission.clone(),
+                connection: connection.clone(),
+            }
+        };
+        let accepted = ExchangeId::Accepted(1);
+        let own = ExchangeId::Dialed(1);
+        let mut exchanges = HashMap::from([(accepted, make_exchange())]);
+        let mut opening = HashMap::from([(own, admission.clone())]);
+        end_exchange(&mut exchanges, &opening, accepted);
+        assert!(
+            !connection.is_closed(),
+            "a pending own stream lost its connection"
+        );
+        let mut sent = connection.open_link(FrameLimits::hello()).await.unwrap();
+        sent.send(&SyncMessage::Done).await.unwrap();
+        let mut read = remote.accept_link(FrameLimits::hello()).await.unwrap();
+        assert_eq!(read.recv().await.unwrap(), Some(SyncMessage::Done));
+        opening.remove(&own);
+        exchanges.insert(own, make_exchange());
+        end_exchange(&mut exchanges, &opening, own);
+        assert!(
+            connection.is_closed(),
+            "the last unadmitted stream leaked its connection"
+        );
+        a.close().await;
+        b.close().await;
+    }
 
     #[tokio::test]
     async fn teardown_that_never_completes_is_abandoned_at_its_deadline() {
@@ -1039,6 +1109,7 @@ mod tests {
                 generation: None,
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![],
                 summary: "while the member is away".into(),
             })

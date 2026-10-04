@@ -64,6 +64,7 @@ pub fn finding(r: &mut Run, m: usize, text: &str) -> Result<EventId, Fail> {
         summary: text.into(),
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: Vec::new(),
     };
     let event = r.record(m, Who::Agent, "finding", request)?;
@@ -335,6 +336,7 @@ fn submit(
         summary: RESULT_TEXT.into(),
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts,
     }
 }

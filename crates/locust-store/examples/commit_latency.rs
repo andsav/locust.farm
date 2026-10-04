@@ -50,6 +50,7 @@ fn main() {
                 attempt: None,
                 base: None,
                 patch: None,
+                sources: Vec::new(),
                 artifacts: vec![],
             },
         )
@@ -154,6 +155,7 @@ impl Largest {
                 key_epoch: u32::MAX,
             }),
             body: Body::ContributionPublished {
+                sources: vec![],
                 context: locust_proto::event::Context {
                     scope: locust_proto::event::Scope::Goal,
                     round: EventId([0xaa; 32]),

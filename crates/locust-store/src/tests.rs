@@ -41,6 +41,7 @@ fn contribution() -> Body {
         attempt: None,
         base: None,
         patch: None,
+        sources: Vec::new(),
         artifacts: vec![],
     }
 }
@@ -664,6 +665,7 @@ fn largest_header(n: usize, prev: EventId) -> Header {
             key_epoch: u32::MAX,
         }),
         body: Body::ContributionPublished {
+            sources: vec![],
             context: Context {
                 scope: Scope::Goal,
                 round: EventId([0xaa; 32]),

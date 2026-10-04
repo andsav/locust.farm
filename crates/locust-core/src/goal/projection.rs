@@ -190,6 +190,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
             Body::ContributionPublished {
                 context,
                 attempt,
+                sources,
                 base,
                 patch,
                 artifacts,
@@ -203,6 +204,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                         author: h.author,
                         context: *context,
                         attempt: *attempt,
+                        sources: sources.clone(),
                         base: *base,
                         patch: *patch,
                         artifacts: artifacts.clone(),
@@ -329,6 +331,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                 Body::ContributionPublished {
                     context,
                     attempt,
+                    sources,
                     base,
                     patch,
                     artifacts,
@@ -337,6 +340,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                     author: h.author,
                     context: *context,
                     attempt: *attempt,
+                    sources: sources.clone(),
                     base: *base,
                     patch: *patch,
                     artifacts: artifacts.clone(),

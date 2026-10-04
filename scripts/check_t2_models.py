@@ -203,7 +203,7 @@ Result: {work['result']}; patch: {work['patch']}; claimed head: {work['head']}.
 1. Inspect locust_status, locust_goal_status, locust_task_show and locust_event_show (event={work['result']}) through MCP. Confirm this exact task/assignment/base/patch/head result.
 2. Independently run CLI patch review --goal {work['goal']} --patch {work['patch']}; read and judge the actual diff. Require only calculator.py changed and the fix matches the test requirements. The worker summary is not independent test proof.
 3. Inspect original source {work['source']}: calculator.py must still have the bug, test_calculator.py unchanged, unrelated.txt preserved, and Git HEAD exactly {work['commit']}. Do not execute code until inspected.
-4. If the exact contribution is correct, first record locust_review_record with verdict approve and an evidence-based explanation for its subject, then run CLI patch select --goal {work['goal']} --subject {work['result']} --patch {work['patch']}.
+4. If the exact contribution is correct, first record locust_review_record with verdict approve and an evidence-based explanation for its subject, then run CLI patch select --goal {work['goal']} --subject {work['result']}.
 5. Check locust_task_show after selection; selected must equal {work['result']}. Check locust_goal_status: workspace.integrated must still identify base {work['base']}. Confirm original calculator.py unchanged.
 6. STOP BEFORE APPLYING. Do not edit or apply files in this turn. Report this observed acceptance/application boundary.
 '''
@@ -212,7 +212,7 @@ Result: {work['result']}; patch: {work['patch']}; claimed head: {work['head']}.
 def apply_prompt(daemon, role, work, binary):
     return model_context(daemon, role, work, binary) + f'''Continue the same authorized coordinator session. The harness independently verified acceptance of patch {work['patch']}, accepted head {work['head']}, no integration and unchanged original files/HEAD/WIP.
 Use the exact scoped CLI prefix supplied again above; never infer credential/session paths or inspect process environments.
-Read locust_goal_status and task via MCP to reconcile current state. Apply exactly this accepted contribution with CLI patch apply --goal {work['goal']} --subject {work['result']} --patch {work['patch']} --root {work['source']} --expected-base {work['base']} --expected-git-head {work['commit']}.
+Read locust_goal_status and task via MCP to reconcile current state. Apply exactly this accepted contribution with CLI patch apply --goal {work['goal']} --subject {work['result']} --root {work['source']} --expected-git-head {work['commit']}.
 Inspect resulting calculator.py and unchanged test_calculator.py, then run {shlex.quote(sys.executable)} -B -m unittest discover -s . -v in {work['source']}. Verify unrelated.txt still says "preserve unrelated local work" and Git HEAD remains {work['commit']}.
 Read locust_goal_status again and confirm workspace.integrated equals accepted head {work['head']}. Do not stage, commit, reset or push. Report actual outcomes.
 '''

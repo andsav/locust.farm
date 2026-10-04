@@ -213,6 +213,7 @@ fn contribution_follows_only_base_and_head_and_artifacts_stay_opaque() {
             attempt: None,
             base: None,
             patch: Some(patch),
+            sources: Vec::new(),
             artifacts: vec![artifact],
         },
     );
@@ -526,6 +527,7 @@ fn independent_contribution_bases_are_manifest_roots() {
             attempt: None,
             base: Some(base),
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     );
@@ -540,6 +542,7 @@ fn independent_contribution_bases_are_manifest_roots() {
             attempt: None,
             base: Some(head),
             patch: None,
+            sources: Vec::new(),
             artifacts: vec![],
         },
     );
@@ -579,6 +582,7 @@ fn noncanonical_contribution_cannot_authorize_its_manifests() {
             attempt: None,
             base: None,
             patch: Some(patch),
+            sources: Vec::new(),
             artifacts: vec![],
         },
     );

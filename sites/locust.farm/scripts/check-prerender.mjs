@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const output = resolve('.svelte-kit/output/prerendered/pages');
+const output = resolve('build');
 const bytes = (path) => readFileSync(resolve(output, `.${path}`), 'utf8');
 const pageFile = (path) => (path === '/' ? '/index.html' : `${path}.html`);
 const index = JSON.parse(bytes('/docs/next/index.json'));
@@ -18,6 +18,8 @@ const routes = [
 for (const route of routes) {
 	const html = bytes(pageFile(route));
 	assert.ok(html.includes('<h1'), `Missing article heading: ${route}`);
+	for (const match of html.matchAll(/(?:src|href)="(\/_app\/[^"?#]+)[^"]*"/g))
+		assert.ok(existsSync(resolve(output, `.${match[1]}`)), `Missing client asset: ${match[1]}`);
 	for (const match of html.matchAll(/<a\b[^>]*href="([^"]+)"/g)) {
 		const url = new URL(match[1], `https://locust.farm${route}`);
 		if (url.origin !== 'https://locust.farm') continue;

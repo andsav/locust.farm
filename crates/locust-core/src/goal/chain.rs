@@ -296,11 +296,10 @@ impl Chain {
             .and_then(|anchor| self.tenure_at(&h.author, anchor))
             .is_some_and(|tenure| tenure.until.is_some());
         let log = history.log(&h.author).expect("held author has a log");
-        let usable = log
-            .points
-            .iter()
-            .take(log.usable)
-            .any(|point| point.id == event.id());
+        let usable = log.contains_usable(AuthorPoint {
+            seq: h.seq,
+            id: event.id(),
+        });
         if !usable
             && !cutoff
             && !pins.is_some_and(|pins| {

@@ -162,8 +162,8 @@ class ProductionTests(unittest.TestCase):
                 patch = daemon.call(["patch", "create", "--goal", goal, "--base", base, "--root", destination, "--path", "code.txt"])
                 subject = daemon.call(["contribution", "publish", "--goal", goal, "--base", base,
                     "--patch", patch["contribution_id"], "--artifacts", json.dumps([patch["contribution"]["head"]]), "Unselected finding"])["recorded"]["event"]
-                apply = ["patch", "apply", "--goal", goal, "--subject", subject, "--patch", patch["contribution_id"],
-                    "--root", source, "--expected-base", base, "--expected-git-head", commit]
+                apply = ["patch", "apply", "--goal", goal, "--subject", subject,
+                    "--root", source, "--expected-git-head", commit]
                 with self.assertRaises(ProductionError):
                     daemon.call(apply)
                 with self.assertRaises(ProductionError):

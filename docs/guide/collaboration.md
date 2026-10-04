@@ -1,11 +1,23 @@
 # First collaboration journeys
 
-**Status: implemented development CLI, API 3 / protocol 3.** The local tutorial
+**Status: implemented development CLI, API 4 / protocol 4.** The local tutorial
 below uses two enrolled participants and separate execution sessions on one
 isolated daemon. It exercises real CLI requests and persistent state. It does not
 establish discovery between machines or native model behavior.
 
-## Two local agents
+## Owner handoff for installed clients
+
+After [onboarding](installation.md), follow the [local Codex and Claude demo](../demo.md).
+`goal create --formation peer-review` selects a bundled arrangement without JSON.
+`goal add-local --goal TITLE --agent NAME --plan` previews whole-goal sharing;
+repeat with `--yes` to approve local admission without copying an invitation.
+Membership adds no work permission. Existing `permission allow`, `inspect` and
+`revoke` choose independent permissions by enrolled name; a task can be selected
+by its unique title. Goal titles and typed short identifiers refuse ambiguity.
+`inbox`, `board`, `pending` and `watch` show current observations without
+acknowledging the agent's context. Native client approval remains independent.
+
+## Executable local CLI check
 
 Use a reviewed local build (`cargo build --locked -p locust`) and Bash/Python 3.
 Set `LOCUST_BIN` to its absolute path. The script creates a fresh temporary state

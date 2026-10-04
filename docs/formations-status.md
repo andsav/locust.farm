@@ -2,15 +2,18 @@
 
 Updated 2026-10-04. This records execution of the frozen
 [implementation plan](formations-implementation-plan.md); it does
-not change its scope. The current runtime is API 3 / protocol 3 (store schema 3). Signed invitation
-previews and local context acknowledgments change the format; older homes are
+not change its scope. The current runtime is API 4 / protocol 4 (store schema 4). Signed contribution source declarations and explicit context views change the
+format; older homes are
 refused without migration. Qualification records below retain the exact earlier
-artifacts they exercised and do not qualify these additions. The integrated
-runtime and exported contract are committed at `1b81bef7a3caafa219f5a4096a01b3a49d505c56`,
+artifacts they exercised and do not qualify these additions. The initial organization
+runtime and exported contract were committed at `1b81bef7a3caafa219f5a4096a01b3a49d505c56`,
 following the initial engine cutover at `c88e3bc`. The exact native candidate
 `0a295cdabe6a878cc733c791ca73863933cfa45a` includes subsequent setup/package
 cleanup and the matching manual. It is locally qualified within the boundaries
 below, not a published or fully qualified release.
+
+The [collaboration follow-ups](../research/collaboration-followups.md) record the
+API-4 additions, invitation fixes and simulation findings, including failures.
 
 ## Current package status
 
@@ -66,6 +69,13 @@ The [paired performance measurement](../research/organization-protocol2-performa
 records a remaining healthy replay/batch regression after removing repeated proof
 work. Its changed authorization workload and host contention are explicit. There
 is no production capacity or general speed claim.
+
+The subsequent [API-3 performance pass](../research/performance-cost-pass.md)
+compares the same current behavior against `be7c076`: the MCP catalog is 91.2%
+smaller, context reads improve about 2.2× at 256 findings, and 512-task
+replay/batch work improves 19–25%. Exact response/evaluation checks and measured
+binary identities are retained. Provider billing, packaged qualification and
+full-history scaling remain separate from these local measurements.
 
 ## Current qualification failures and network boundary
 

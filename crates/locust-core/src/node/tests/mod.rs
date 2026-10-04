@@ -2,6 +2,7 @@
 //! `locust_proto::engine`.
 
 mod context;
+mod context_views;
 mod daemon;
 mod invitations;
 mod permissions;
@@ -238,3 +239,5 @@ mod formal;
 mod authorization;
 
 mod delivery;
+
+mod provenance;

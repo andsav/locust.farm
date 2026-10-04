@@ -4,8 +4,8 @@
   "repository": "https://github.com/andsav/locust.farm",
   "versions": {
     "software": "unreleased",
-    "api": 3,
-    "protocol": 3,
+    "api": 4,
+    "protocol": 4,
     "formationSchema": 1
   },
   "pages": [
@@ -329,6 +329,7 @@
   "sourceLinks": [
     "docs/installation.md",
     "docs/onboarding.md",
+    "docs/demo.md",
     "docs/managed-clients.md",
     "docs/first-contact.md",
     "docs/formation-prompt.md",
@@ -386,7 +387,7 @@
     {
       "slug": "quickstarts/two-local-agents",
       "page": "collaboration",
-      "section": "two-local-agents"
+      "section": "owner-handoff-for-installed-clients"
     },
     {
       "slug": "quickstarts/invite-a-person",

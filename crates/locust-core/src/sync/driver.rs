@@ -162,6 +162,9 @@ struct Dialed {
     joining_member: Option<PublicKey>,
     initiator: Initiator,
     finishing: Option<Ended>,
+    /// A refusal already decoded from the authenticated remote endpoint.
+    /// Its fact survives failure to acknowledge our own closing half-stream.
+    received_refusal: Option<Refusal>,
     proof: Option<[WireEvent; 2]>,
     proof_sent: bool,
     admitted: bool,
@@ -238,9 +241,21 @@ impl Driver {
                 exchange: ExchangeId::Dialed(number),
                 frame,
             } => self.dialed_step(host, number, Some(frame), now_ms, out),
-            PeerInput::OpenFailed(ExchangeId::Dialed(number))
-            | PeerInput::Closed(ExchangeId::Dialed(number)) => {
+            PeerInput::OpenFailed(ExchangeId::Dialed(number)) => {
                 self.end_dialed(host, number, Ended::Aborted, now_ms);
+            }
+            PeerInput::Closed(ExchangeId::Dialed(number)) => {
+                // A remote terminal refusal is an observed protocol fact. The
+                // responder can close its unadmitted connection once that
+                // frame is acknowledged, before our own FIN is acknowledged.
+                // Completed and locally emitted refusals still require finish
+                // confirmation; a close alone never proves their delivery.
+                let ended = self
+                    .dialed
+                    .get(&number)
+                    .and_then(|dialed| dialed.received_refusal)
+                    .map_or(Ended::Aborted, Ended::Refused);
+                self.end_dialed(host, number, ended, now_ms);
             }
             PeerInput::Accepted {
                 exchange: ExchangeId::Accepted(number),
@@ -325,6 +340,7 @@ impl Driver {
                     joining_member: join.map(|join| join.request.member),
                     initiator,
                     finishing: None,
+                    received_refusal: None,
                     proof: proofs
                         .iter()
                         .find(|(goal, endpoint, _)| (*goal, *endpoint) == pair)
@@ -383,6 +399,10 @@ impl Driver {
             dialed.admitted = true;
         }
         dialed.initiator.authorize_outbound(authorized);
+        let received_refusal = match &frame {
+            Some(SyncMessage::Refused(reason)) => Some(*reason),
+            _ => None,
+        };
         let ended = match host.replica(&dialed.goal) {
             Some(replica) => {
                 match frame {
@@ -395,6 +415,11 @@ impl Driver {
             // The goal is gone; end without a word.
             None => Some(Ended::Aborted),
         };
+        if let Some(reason) = received_refusal
+            && ended == Some(Ended::Refused(reason))
+        {
+            dialed.received_refusal = Some(reason);
+        }
         if let Some(ended) = ended {
             out.push(PeerOutput::Finish(exchange));
             dialed.finishing = Some(ended);
