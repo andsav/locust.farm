@@ -1,7 +1,9 @@
 # Live farm pages and the farms gallery
 
-**Status: revised implementation proposal, 2026-10-04. Farm publishing is not
-implemented.** The [farm](../research/evidence/swarm-visualization/farm.html),
+**Status: first development implementation, 2026-10-04.** The publisher, signed
+consent, service and public routes are implemented; see the [operator and user
+guide](guide/farm-publication.md). Production deployment and the two-physical-machine,
+real-harness rehearsal remain unverified. The [farm](../research/evidence/swarm-visualization/farm.html),
 [gallery](../research/evidence/swarm-visualization/gallery.html) and
 [controls](../research/evidence/swarm-visualization/controls.html) are mockups with
 invented data. They establish a visual direction; this document supersedes their
@@ -28,7 +30,8 @@ consent. Rich presence and model reporting remain outside the demo requirement.
 
 ## What is already implemented
 
-These are source-backed starting points, not qualification of the future farm:
+These are source-backed foundations. Implementation and verification boundaries
+are documented in the [farm guide](guide/farm-publication.md):
 
 | Available behavior | Source and boundary |
 |---|---|
@@ -46,8 +49,10 @@ real-model collaboration across two physical machines. Its `peer-review`
 [preset](../crates/locust-proto/src/organization/presets.rs) has no configured
 stages or finish authority and is not the formation for this demo.
 
-Missing today: the farm schema, publisher, service, public routes, signed public
-profiles/consent, and the complete two-machine rehearsal. A daemon does not know
+The [schema](../crates/locust-proto/src/farm.rs), [publisher](../crates/locust-core/src/node/farm.rs),
+[service](../crates/locust-farm/src/lib.rs), public routes and signed public profiles/consent
+now implement the first slice. The complete two-machine rehearsal remains open.
+A daemon does not know
 remote tool use, prompts, tokens, costs or process liveness from work events.
 
 ## Changes to earlier proposals

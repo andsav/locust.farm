@@ -92,7 +92,7 @@
 //! longer hash to the stored identifier; that, a row indexed under another
 //! goal, author or position, and an object file that is missing or of the
 //! wrong length are reported as `StoreError::Corrupted`. Tables are `STRICT`.
-//! The current schema marker is `PRAGMA user_version = 2`. Empty unmarked
+//! The current schema marker is `PRAGMA user_version = 5`. Empty unmarked
 //! databases initialize directly; every other nonzero marker and unmarked
 //! nonempty database is refused with [`OpenError::UnsupportedSchema`].
 //! No migration or old-format reader is provided.

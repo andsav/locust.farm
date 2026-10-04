@@ -3,6 +3,7 @@ mod args;
 mod client;
 mod connection;
 mod doctor;
+mod farm;
 mod formation;
 mod install;
 mod invitations;
@@ -160,6 +161,9 @@ fn stdin_text() -> Result<String, Failure> {
 }
 fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let (operation, selected) = args::selected(matches);
+    if operation.starts_with("farm.") {
+        return farm::run(matches, &operation, selected);
+    }
     if operation == "contract" {
         let mut contract = locust_proto::api::contract();
         contract["cli"] = args::contract();

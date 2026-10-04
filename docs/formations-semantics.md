@@ -2,8 +2,8 @@
 
 Date: 2026-10-04. **Status: accepted signed semantics and replacement inventory.**
 This document develops [the accepted direction](formations.md) and
-[implementation plan](formations-implementation-plan.md). API 4 /
-protocol 4 is implemented. The [execution ledger](formations-status.md)
+[implementation plan](formations-implementation-plan.md). API 5 /
+protocol 5 is implemented. The [execution ledger](formations-status.md)
 records exact source checks and remaining qualification; this specification is
 not itself proof that every acceptance campaign has passed. The removal inventory
 records the completed replacements and their enforcing sources. Historical

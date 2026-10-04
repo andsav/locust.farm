@@ -20,6 +20,7 @@ const routes = [
 	'/',
 	'/start',
 	'/formations',
+	'/farms',
 	'/docs',
 	...index.pages.map((page) => page.url),
 	...index.routes.map((route) => route.url)
@@ -33,6 +34,10 @@ for (const route of routes) {
 		const url = new URL(match[1], `https://locust.farm${route}`);
 		if (url.origin !== 'https://locust.farm') continue;
 		if (hostedDownloads.has(url.href)) continue;
+		if (/^\/farm\/[^/]+\/?$/.test(url.pathname)) {
+			assert.ok(existsSync(resolve(output, 'farm.html')), 'Missing dynamic farm shell');
+			continue;
+		}
 		const target = url.pathname.includes('.') ? url.pathname : pageFile(url.pathname);
 		assert.ok(
 			existsSync(resolve(output, `.${target}`)),
@@ -57,6 +62,7 @@ for (const artifact of index.artifacts)
 		artifact.sha256,
 		artifact.url
 	);
+assert.ok(bytes('/farm.html').includes('content-security-policy'));
 assert.ok(bytes('/sitemap.xml').includes('/docs/next/overview'));
 console.log(
 	`Checked ${routes.length} prerendered routes, ${index.pages.length} raw articles and ${index.artifacts.length} exact assets, including local links and anchors.`

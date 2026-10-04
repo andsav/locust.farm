@@ -176,6 +176,17 @@ impl Chain {
                             }
                         }
                     }
+                    Body::PublicationSet(set) => {
+                        if set.policy.validate().is_err()
+                            || set.farm_id != locust_proto::farm::FarmId::from_key(set.upload_key)
+                        {
+                            status = Standing::Excluded(Exclusion::Precondition(
+                                "invalid publication policy or identity",
+                            ));
+                        } else {
+                            chain.state.publication = Some((event.id(), set.clone()));
+                        }
+                    }
                     Body::TaskRevised { .. } => {
                         // Exact task/round authorization is checked by the shared work evaluator.
                     }

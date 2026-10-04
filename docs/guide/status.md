@@ -12,6 +12,8 @@ reviewed machine-readable source for these facts.
 
 The existing source includes a local daemon, CLI, stdio MCP bridge, signed
 candidate installation, user-session service support and resumable onboarding.
+API 5 / protocol 5 adds [consented public farm views](farm-publication.md), signed invitation disclosure and typed harness bindings. The development store schema is 5. The published terminal preview remains the separately qualified API-4 artifact.
+
 API 4 / protocol 4 contains organization rules, offline authoring and semantic diff,
 private revisioned drafts and immutable publication, taskless contributions,
 independent attempts, exact completion/review, scoped decisions and durable flow.

@@ -15,7 +15,7 @@ use std::net::SocketAddr;
 use serde::{Deserialize, Serialize};
 
 use crate::PROTOCOL_VERSION;
-use crate::api::{InvitationPreview, InvitationSharing};
+use crate::api::{InvitationPreview, InvitationPublication, InvitationSharing};
 use crate::codec;
 use crate::crypto::{self, Keypair, domain};
 use crate::id::{EndpointId, GoalId, Hex, PublicKey, Signature, hex_to_vec};
@@ -126,6 +126,8 @@ pub struct Invitation {
     pub expires_ms: Option<u64>,
     /// The actual read boundary offered by this protocol.
     pub sharing: InvitationSharing,
+    /// Publication policy advertised at issuance and reconciled against shared history.
+    pub publication: Option<InvitationPublication>,
     /// Administrator signature over every preceding field, including the
     /// capability digest. Verified before any preview or join intent.
     pub signature: Signature,
@@ -219,6 +221,7 @@ impl Invitation {
             secret,
             expires_ms,
             sharing: InvitationSharing::WholeGoal,
+            publication: None,
             signature: Signature([0; 64]),
         };
         invitation.sign(administrator)?;
@@ -246,6 +249,7 @@ impl Invitation {
             self.secret.digest(),
             self.expires_ms,
             self.sharing,
+            &self.publication,
         ))
         .map_err(|_| InviteError::Malformed)?;
         Ok(crypto::domain_hash(INVITATION_SIGNATURE, &bytes))
@@ -280,6 +284,7 @@ impl Invitation {
             expires_ms: self.expires_ms,
             expired: self.expires_ms.is_some_and(|expiry| now_ms >= expiry),
             sharing: self.sharing,
+            publication: self.publication.clone(),
             review: format!("{}", Hex(&crypto::domain_hash(INVITATION_REVIEW, &bytes))),
             signature_verified: true,
             title_provenance: "administrator_signed_presentation".into(),
@@ -293,6 +298,14 @@ impl Invitation {
     fn check(&self) -> Result<(), InviteError> {
         if self.version != PROTOCOL_VERSION {
             return Err(InviteError::UnsupportedVersion(self.version));
+        }
+        if let Some(advertised) = &self.publication {
+            let publication = &advertised.publication;
+            if publication.farm_id != crate::farm::FarmId::from_key(publication.upload_key)
+                || publication.policy.validate().is_err()
+            {
+                return Err(InviteError::Malformed);
+            }
         }
         if self.hints.len() <= MAX_HINTS && self.hints.iter().all(|hint| is_hint_text(hint)) {
             Ok(())
@@ -441,6 +454,41 @@ mod tests {
             &testkit::keypair(1),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn publication_policy_is_signed_and_reviewable() {
+        use crate::farm::{DisclosurePolicy, FARM_VERSION, FarmId, FarmVisibility, PublicationSet};
+        let mut ticket = invitation();
+        let key = testkit::keypair(9).public();
+        ticket.publication = Some(InvitationPublication {
+            event: crate::id::EventId([7; 32]),
+            publication: PublicationSet {
+                farm_id: FarmId::from_key(key),
+                upload_key: key,
+                visibility: Some(FarmVisibility::Listed),
+                policy: DisclosurePolicy {
+                    version: FARM_VERSION,
+                    title: None,
+                    formation: "Shared work".into(),
+                    stage_labels: Default::default(),
+                    role_labels: Default::default(),
+                    recent_changes: 20,
+                },
+            },
+        });
+        assert!(ticket.verify().is_err());
+        ticket.sign(&testkit::keypair(1)).unwrap();
+        let decoded = Invitation::from_ticket(ticket.to_ticket().unwrap().as_str()).unwrap();
+        assert_eq!(decoded.preview(0).unwrap().publication, ticket.publication);
+        ticket
+            .publication
+            .as_mut()
+            .unwrap()
+            .publication
+            .policy
+            .formation = "Changed".into();
+        assert_eq!(ticket.verify(), Err(InviteError::InvalidSignature));
     }
 
     fn with_hints(hints: &[&str]) -> Invitation {

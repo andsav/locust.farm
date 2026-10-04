@@ -266,6 +266,15 @@ fn render_preview(preview: &InvitationPreview) -> String {
             ""
         },
     );
+    if let Some(advertised) = &preview.publication {
+        text.push_str(&format!(
+            "Publication policy at issuance: {}\n",
+            safe(&serde_json::to_string(&advertised.publication).expect("publication JSON"))
+        ));
+        text.push_str("Joining does not consent to public publication. Review the current policy after joining and explicitly consent with farm consent.\n");
+    } else {
+        text.push_str("Publication policy at issuance: none. Joining does not consent to future public publication.\n");
+    }
     for fact in &preview.sharing_facts {
         text.push_str(&format!("- {fact}\n"));
     }
@@ -300,6 +309,7 @@ mod tests {
         let preview = invitation.preview(0).unwrap();
         let rendered = render_preview(&preview);
         assert!(rendered.contains("administrator-signed presentation"));
+        assert!(rendered.contains("Joining does not consent"));
         assert!(rendered.contains("does not verify a human identity"));
         assert!(rendered.contains("including available history"));
         assert!(rendered.contains("grants no local execution"));

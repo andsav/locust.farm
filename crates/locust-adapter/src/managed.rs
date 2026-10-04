@@ -555,6 +555,12 @@ where
         delivery: Value::Null,
     };
     let mut record = SessionRecord {
+        harness: match spec.client {
+            Client::Codex => locust_proto::farm::Harness::Codex,
+            Client::ClaudeCode => locust_proto::farm::Harness::ClaudeCode,
+            Client::FactoryDroid => locust_proto::farm::Harness::FactoryDroid,
+            Client::Pi => locust_proto::farm::Harness::Pi,
+        },
         client: format!("{} {}", client_name(spec.client), spec.version),
         state: SessionState::Launching,
         client_session: None,

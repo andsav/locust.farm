@@ -33,6 +33,7 @@ use crate::failure::Failure;
 use crate::version;
 
 mod connection;
+mod farm;
 mod frames;
 pub(crate) mod home;
 #[cfg(test)]
@@ -158,7 +159,8 @@ where
         };
         tokio::join!(
             shell::serve(listener, &engine, &daemon_version, shutdown),
-            network
+            network,
+            farm::serve(engine.jobs.clone(), engine.stop.subscribe())
         );
         Ok(())
     });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { GUIDE_PATH } from './onboarding/guide.ts';
-import { FORMATIONS_PATH, DOCS_PATH, HOME_PATH, NAV_LINKS } from './site.ts';
+import { FORMATIONS_PATH, DOCS_PATH, HOME_PATH, FARMS_PATH, NAV_LINKS } from './site.ts';
 
 const routes = new URL('../routes/', import.meta.url);
 
@@ -17,6 +17,7 @@ test('the header links to the guide, the formation editor and docs after the hom
 	assert.deepEqual(NAV_LINKS, [
 		{ label: 'Start', href: GUIDE_PATH },
 		{ label: 'Formations', href: FORMATIONS_PATH },
+		{ label: 'Farms', href: FARMS_PATH },
 		{ label: 'Docs', href: DOCS_PATH }
 	]);
 });

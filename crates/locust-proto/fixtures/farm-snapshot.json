@@ -1,0 +1,331 @@
+{
+  "version": 1,
+  "farm_id": "0123456789abcdef0123456789abcdef",
+  "title": "Build a small team chat",
+  "formation": "Collaborative build",
+  "goal_state": "open",
+  "observed_at_ms": 1791153900000,
+  "groups": [
+    {
+      "id": 1,
+      "label": "Machine A",
+      "last_sync_at_ms": null
+    },
+    {
+      "id": 2,
+      "label": "Machine B",
+      "last_sync_at_ms": 1791153895000
+    }
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Coordinator",
+      "group": 1,
+      "harness": "codex",
+      "roles": [
+        "Integrator"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Frontend",
+      "group": 1,
+      "harness": "claude_code",
+      "roles": [
+        "Frontend"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Backend",
+      "group": 2,
+      "harness": "codex",
+      "roles": [
+        "Backend"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Reviewer",
+      "group": 2,
+      "harness": "pi",
+      "roles": [
+        "Reviewer"
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "id": 1,
+      "label": "Contract",
+      "prerequisites": []
+    },
+    {
+      "id": 2,
+      "label": "Frontend",
+      "prerequisites": [
+        1
+      ]
+    },
+    {
+      "id": 3,
+      "label": "Backend",
+      "prerequisites": [
+        1
+      ]
+    },
+    {
+      "id": 4,
+      "label": "Integration",
+      "prerequisites": [
+        2,
+        3
+      ]
+    },
+    {
+      "id": 5,
+      "label": "Verification",
+      "prerequisites": [
+        4
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "reference": "0001",
+      "stage": 1,
+      "round": 1,
+      "state": "completed",
+      "completed": true,
+      "closed": false,
+      "selected_candidate": 1
+    },
+    {
+      "id": 2,
+      "reference": "0002",
+      "stage": 1,
+      "round": 1,
+      "state": "completed",
+      "completed": true,
+      "closed": false,
+      "selected_candidate": 2
+    },
+    {
+      "id": 3,
+      "reference": "0003",
+      "stage": 2,
+      "round": 1,
+      "state": "reported",
+      "completed": false,
+      "closed": false,
+      "selected_candidate": null
+    },
+    {
+      "id": 4,
+      "reference": "0004",
+      "stage": 2,
+      "round": 1,
+      "state": "awaiting_evidence",
+      "completed": false,
+      "closed": false,
+      "selected_candidate": null
+    },
+    {
+      "id": 5,
+      "reference": "0005",
+      "stage": 2,
+      "round": 1,
+      "state": "open",
+      "completed": false,
+      "closed": false,
+      "selected_candidate": null
+    },
+    {
+      "id": 6,
+      "reference": "0006",
+      "stage": 3,
+      "round": 1,
+      "state": "awaiting_evidence",
+      "completed": false,
+      "closed": false,
+      "selected_candidate": null
+    },
+    {
+      "id": 7,
+      "reference": "0007",
+      "stage": 3,
+      "round": 1,
+      "state": "reported",
+      "completed": false,
+      "closed": false,
+      "selected_candidate": null
+    },
+    {
+      "id": 8,
+      "reference": "0008",
+      "stage": 4,
+      "round": 1,
+      "state": "open",
+      "completed": false,
+      "closed": false,
+      "selected_candidate": null
+    },
+    {
+      "id": 9,
+      "reference": "0009",
+      "stage": 5,
+      "round": 1,
+      "state": "open",
+      "completed": false,
+      "closed": false,
+      "selected_candidate": null
+    },
+    {
+      "id": 10,
+      "reference": "000a",
+      "stage": null,
+      "round": 1,
+      "state": "reported",
+      "completed": false,
+      "closed": false,
+      "selected_candidate": null
+    }
+  ],
+  "attempts": [
+    {
+      "id": 1,
+      "agent": 1,
+      "task": 1,
+      "round": 1,
+      "state": "completed",
+      "observed_at_ms": 1791153898000
+    },
+    {
+      "id": 2,
+      "agent": 1,
+      "task": 2,
+      "round": 1,
+      "state": "completed",
+      "observed_at_ms": 1791153896000
+    },
+    {
+      "id": 3,
+      "agent": 2,
+      "task": 3,
+      "round": 1,
+      "state": "progress",
+      "observed_at_ms": 1791153894000
+    },
+    {
+      "id": 4,
+      "agent": 2,
+      "task": 4,
+      "round": 1,
+      "state": "progress",
+      "observed_at_ms": 1791153892000
+    },
+    {
+      "id": 6,
+      "agent": 3,
+      "task": 6,
+      "round": 1,
+      "state": "progress",
+      "observed_at_ms": 1791153888000
+    },
+    {
+      "id": 7,
+      "agent": 3,
+      "task": 7,
+      "round": 1,
+      "state": "progress",
+      "observed_at_ms": 1791153886000
+    },
+    {
+      "id": 10,
+      "agent": 2,
+      "task": 10,
+      "round": 1,
+      "state": "progress",
+      "observed_at_ms": 1791153880000
+    },
+    {
+      "id": 11,
+      "agent": 4,
+      "task": 4,
+      "round": 1,
+      "state": "started",
+      "observed_at_ms": 1791153900000
+    }
+  ],
+  "candidates": [
+    {
+      "id": 1,
+      "agent": 1,
+      "task": 1,
+      "round": 1,
+      "completed": true,
+      "selected": true,
+      "evidence_count": 1,
+      "requirement": "1 eligible distinct review"
+    },
+    {
+      "id": 2,
+      "agent": 1,
+      "task": 2,
+      "round": 1,
+      "completed": true,
+      "selected": true,
+      "evidence_count": 1,
+      "requirement": "1 eligible distinct review"
+    },
+    {
+      "id": 4,
+      "agent": 2,
+      "task": 4,
+      "round": 1,
+      "completed": false,
+      "selected": false,
+      "evidence_count": 0,
+      "requirement": "1 eligible distinct review"
+    },
+    {
+      "id": 6,
+      "agent": 3,
+      "task": 6,
+      "round": 1,
+      "completed": false,
+      "selected": false,
+      "evidence_count": 0,
+      "requirement": "1 eligible distinct review"
+    }
+  ],
+  "changes": [
+    {
+      "id": 1,
+      "kind": "task",
+      "agent": 1,
+      "task": 1,
+      "observed_at_ms": null,
+      "text": "Work configuration changed"
+    },
+    {
+      "id": 2,
+      "kind": "contribution",
+      "agent": 2,
+      "task": 4,
+      "observed_at_ms": 1791153890000,
+      "text": "Contribution published"
+    },
+    {
+      "id": 3,
+      "kind": "attempt",
+      "agent": 4,
+      "task": 4,
+      "observed_at_ms": 1791153900000,
+      "text": "Attempt reported"
+    }
+  ],
+  "omitted_changes": 0
+}

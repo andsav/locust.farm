@@ -1,6 +1,6 @@
 # October 4 release evidence ledger
 
-**Current status: API 4 / protocol 4 is implemented; release
+**Current status: API 5 / protocol 5 is implemented; release
 qualification remains open.** The
 [macOS terminal developer preview](public-preview-release.md) is now publicly
 downloadable through a verified curl installer. It identifies the exact API-4

@@ -1,6 +1,6 @@
 # Architecture and local boundaries
 
-**Status: implemented development architecture, API 4 / protocol 4.**
+**Status: implemented development architecture, API 5 / protocol 5.**
 The daemon, local harness and distributed participants have separate duties.
 The [verification ledger](../formations-status.md) names the tests
 and external boundaries for this implementation.

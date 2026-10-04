@@ -3,7 +3,14 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::id::{EndpointId, GoalId, PublicKey};
+use crate::id::{EndpointId, EventId, GoalId, PublicKey};
+
+/// Administrator-signed publication facts; joining never grants publication consent.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct InvitationPublication {
+    pub event: EventId,
+    pub publication: crate::farm::PublicationSet,
+}
 
 /// The sharing boundary signed into every invitation. A topic or role is
 /// never a confidential subset of a goal.
@@ -25,6 +32,7 @@ pub struct InvitationPreview {
     pub expires_ms: Option<u64>,
     pub expired: bool,
     pub sharing: InvitationSharing,
+    pub publication: Option<InvitationPublication>,
     /// Digest of this complete signed invitation; confirmation must echo it.
     pub review: String,
     pub signature_verified: bool,

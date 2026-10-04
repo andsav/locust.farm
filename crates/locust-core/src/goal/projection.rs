@@ -63,6 +63,19 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
     });
     for event in &events {
         match &event.header().body {
+            Body::PublicationConsent(consent) => {
+                let author = event.header().author;
+                let prior = out
+                    .state
+                    .publication_consents
+                    .get(&author)
+                    .and_then(|(id, _)| v.history.get(id));
+                if prior.is_none_or(|p| p.header().seq < event.header().seq) {
+                    out.state
+                        .publication_consents
+                        .insert(author, (event.id(), consent.clone()));
+                }
+            }
             Body::TaskOpened { binding } => add_task(
                 &mut out.state,
                 TaskId::Authored(event.id()),

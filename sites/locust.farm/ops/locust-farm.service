@@ -1,0 +1,28 @@
+[Unit]
+Description=Locust public farm snapshots
+After=network.target
+
+[Service]
+Type=simple
+User=locust-farm
+Group=locust-farm
+StateDirectory=locust-farm
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/locust-farm
+ExecStart=/opt/locust-farm/current/locust-farm serve --bind 127.0.0.1:4319 --database /var/lib/locust-farm/farm.sqlite --allowlist /etc/locust-farm/publishers
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

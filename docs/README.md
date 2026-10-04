@@ -14,7 +14,7 @@ the repository root to check coverage and local link paths.
 ## Index
 
 - [Published macOS terminal preview](public-preview-release.md): public curl installer, exact API-4 binary/signatures, native and public-download verification, and remaining readiness boundaries.
-- [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 4/protocol 4 runtime and authoring are implemented; current qualification is tracked separately.
+- [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 5/protocol 5 runtime and authoring are implemented; current qualification is tracked separately.
 - [Formation implementation status](formations-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
 - [Formation implementation plan](formations-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
 - [Formation semantics and removal inventory](formations-semantics.md): accepted administration and scoped-authority model, concrete scenario expectations, outstanding signed-proof obligations and source-based replacement inventory.
@@ -24,7 +24,8 @@ the repository root to check coverage and local link paths.
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
 - [Last-mile implementation plan](last-mile-implementation-plan.md): proposed work packages for distribution, recoverable setup, reliable task context, human permissions, a reviewed and applied change, two-person qualification and consented visualization; dependencies, decisions, tests and complete research coverage.
-- [Live farm pages and the farms gallery](swarm-visualization-plan.md): revised proposal for consented live publishing, precise work-state projection and recovery, plus a real multi-harness demo across two owner-controlled machines building a small chat app; farm publishing is not implemented.
+- [Public farm views](guide/farm-publication.md): owner controls, explicit participant consent, delivery status and local service operation.
+- [Live farm pages and the farms gallery](swarm-visualization-plan.md): accepted first-slice design and planned real multi-harness rehearsal across two owner-controlled machines building a small chat app.
 - [Archived protocol contract, version 1](protocol-v1.md): historical authority, encoding and local API rules; superseded by the current protocol without an old reader.
 - [Archived protocol contract, version 0](protocol-v0.md): historical encoding, event, invitation, synchronization and local API rules for interpreting version-0 artifacts.
 - [TLA+ formal verification implementation plan](tla-verification-plan.md): current organization, attempt/session and durable-effect models; bounded checks, witnesses, mutation evidence and explicit proof limits.

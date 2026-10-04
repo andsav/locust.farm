@@ -292,8 +292,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .local
                 .push(Feed::entry_write(&goal, position, event));
         }
-        for principal in entry.local.joins.keys() {
-            if entry.is_member(principal) {
+        for (principal, join) in &entry.local.joins {
+            if entry.is_member(principal)
+                && super::requests::invitations::publication_matches(
+                    &entry.goal,
+                    join.publication.as_ref(),
+                )
+            {
                 tx.commit.local.push(local::join_delete(&goal, principal));
                 tx.commit
                     .local

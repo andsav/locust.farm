@@ -4,6 +4,7 @@
 mod context;
 mod context_views;
 mod daemon;
+mod farm;
 mod invitations;
 mod permissions;
 

@@ -37,9 +37,10 @@
     "compact-context-and-paginated-pending-work",
     "private-short-context-receipt-references",
     "signed-contribution-source-inspection",
-    "own-permission-inspection"
+    "own-permission-inspection",
+    "consented-public-farm-projection"
   ],
-  "organizationRuntime": "implemented-development-api-4-protocol-4",
+  "organizationRuntime": "implemented-development-api-5-protocol-5",
   "qualification": [
     {
       "platform": "macOS arm64",

@@ -1,6 +1,6 @@
 # locust.farm
 
-The Locust marketing site: prerendered SvelteKit marketing pages and development documentation. `/` says what Locust is for, `/start` is the first-contact guide with
+The Locust site: prerendered SvelteKit marketing pages, development documentation and live farm views. `/` says what Locust is for, `/start` is the first-contact guide with
 the entry prompt, `/formations` is the formation editor, and `/docs` indexes the unreleased manual. It is a
 self-contained npm project with its own `package.json` and `node_modules`.
 
@@ -28,6 +28,7 @@ src/lib/components/  Svelte components
 src/lib/onboarding/  The guide's content and the clipboard helper, in plain TypeScript
 src/lib/site.ts      Header links
 src/lib/swarm/       The swarm animation, in plain TypeScript
+src/lib/farm/        Public farm views, shared stage map, live client and generated public types
 static/              Files served as they are
 ```
 
@@ -166,15 +167,21 @@ The script builds committed `HEAD` in a temporary clean checkout, runs all four
 site gates, uploads a release to `/var/www/locust.farm/releases/<commit>`, verifies
 its SHA-256 inventory on the server, and atomically switches `current`. Uncommitted
 work is excluded. It requires the initial server provisioning below and checks
-that public requests receive HTTP 401. Authenticated content and browser behavior
+that unauthenticated requests to the preview pages receive HTTP 401. Authenticated content and browser behavior
 must also be verified after each deployment. Earlier releases remain available
 for rollback by changing the `current` symlink.
 
 [`ops/nginx.conf`](ops/nginx.conf) serves both `locust.farm` and `www.locust.farm`,
 redirects HTTP to HTTPS, maps extensionless routes to prerendered HTML and returns
-404 for unknown routes. Basic Auth applies to website pages and assets, with
+404 for unknown routes, apart from the client-rendered `/farm/<id>` shell. Basic Auth applies to preview pages, with
 `private, no-store` and `noindex, nofollow` response headers. HTTP ACME challenges
 are public, from `/var/www/letsencrypt`.
+
+Farm pages, the gallery, their shared client assets and `/api/farms` are public.
+The API proxies to the separate `locust-farm` process. See the
+[farm operator guide](ops/README.md) for its installation and verification.
+The deployment script's preview authentication checks do not establish that the
+farm service, event stream or hydrated public routes work; verify those separately.
 
 The HTTPS `/downloads/` path is separately public and serves release files from
 `/var/www/locust.farm/downloads/`, outside the website's `current` symlink. It has
@@ -195,6 +202,25 @@ The password file is `/etc/nginx/locust.farm.htpasswd`, owned by `root:www-data`
 with mode `0640`. Provision it using `htpasswd -cB` with an interactive password
 prompt or stdin; keep credentials and password hashes off Git. DNS needs an apex
 A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
+
+## Live farms
+
+`/farm/<id>` loads a full public snapshot and subscribes to ordered full-state SSE
+updates. `/farms` displays only listed, available farms. Both use the same stage
+map, with the task table supplying the complete keyboard-readable detail. Data
+comes from the API; the production routes contain no mock farms.
+
+For local development, run `locust-farm serve` on `127.0.0.1:4319` and start the
+site with `npm run dev`. `LOCUST_FARM_API` overrides that proxy target. The static
+adapter generates `farm.html` for dynamic farm URLs. Nginx routes only `/farm/`
+through that fallback; unrelated unknown paths retain their normal 404 behavior.
+
+The Rust `FarmSnapshot` schema is exported to
+`docs/reference/generated/farm.schema.json`. After changing it, run
+`node scripts/generate-farm-types.mjs --write` here. Unit tests reject generated
+type drift. Runtime schema validation is enforced by the Rust service before it
+persists any snapshot. The local publication commands and consent workflow are
+documented in [Public farm views](../../docs/guide/farm-publication.md).
 
 ## Formation editor
 

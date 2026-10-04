@@ -41,6 +41,7 @@ pub(super) struct JoinRecord {
     pub endpoint: EndpointId,
     pub hints: Vec<String>,
     pub secret: InviteSecret,
+    pub publication: Option<locust_proto::api::InvitationPublication>,
     /// True once the inviter refused the ticket.
     pub refused: bool,
 }
@@ -55,6 +56,8 @@ pub(super) struct Authorization {
 /// One goal's local records, as loaded.
 #[derive(Debug, Default)]
 pub(super) struct Local {
+    pub goal_sync: BTreeMap<EndpointId, u64>,
+    pub farm: Option<super::farm::FarmLocal>,
     /// Zero until the first commit about the goal; a stored revision is
     /// never zero.
     pub revision: u64,
@@ -147,6 +150,13 @@ impl Local {
         let tag = *key.first().ok_or_else(records::bad_key)?;
         let subject = || records::part::<32>(key, REST).ok_or_else(records::bad_key);
         match (tag, value) {
+            (b'Y', Some(value)) => {
+                self.goal_sync
+                    .insert(EndpointId(subject()?), records::read(value)?);
+            }
+            (_, Some(value)) if super::farm::is_record(key) => {
+                self.farm = Some(records::read(value)?)
+            }
             (REVISION, Some(value)) => self.revision = records::read(value)?,
             (TITLE, Some(value)) => self.title = Some(records::read(value)?),
             (GRANTS, Some(value)) => {

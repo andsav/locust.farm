@@ -168,3 +168,5 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Current manual recipe qualification](documentation-qualification.md): exact executable Markdown journeys, binary/recipe hashes and local daemon/application evidence.
 
 - [Organization protocol 2 native package qualification](organization-native-qualification.md): exact native candidate installation, three supported persistent setups, four managed recovery clients, executable manual and installed offline discovery, with explicit unrun boundaries.
+
+- [Farm development qualification](farm-qualification.md): local daemon/service recovery, browser/proxy evidence, and explicit discovery/real-harness boundaries.

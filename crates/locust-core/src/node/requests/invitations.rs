@@ -192,7 +192,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let own = self.own_endpoint()?;
         let secret = InviteSecret(self.random());
         let goal_title = self.title(entry, Some(&administrator));
-        let invitation = Invitation::signed(
+        let mut invitation = Invitation::signed(
             goal,
             goal_title.clone(),
             own.endpoint,
@@ -202,6 +202,19 @@ impl<S: Store, E: Entropy> Node<S, E> {
             self.signer(&administrator)?,
         )
         .map_err(invite_error)?;
+        invitation.publication = entry
+            .state()
+            .publication
+            .as_ref()
+            .map(
+                |(event, publication)| locust_proto::api::InvitationPublication {
+                    event: *event,
+                    publication: publication.clone(),
+                },
+            );
+        invitation
+            .sign(self.signer(&administrator)?)
+            .map_err(invite_error)?;
         let ticket = invitation.to_ticket().map_err(invite_error)?;
         let mut tx = Tx::none();
         tx.local(records::put(
@@ -256,6 +269,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 ));
             }
             if entry.membership(&principal) == Some(Membership::Member) {
+                if !publication_matches(&entry.goal, invitation.publication.as_ref()) {
+                    return Err(conflict(
+                        "the advertised publication policy is not effective in the held goal",
+                    ));
+                }
                 return answer(Response::Joined {
                     goal,
                     administrator: invitation.administrator,
@@ -294,6 +312,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
             ));
         }
         if invitation.endpoint == own {
+            if !self.goals.get(&goal).is_some_and(|entry| {
+                publication_matches(&entry.goal, invitation.publication.as_ref())
+            }) {
+                return Err(conflict(
+                    "the advertised publication policy is not effective in the held goal",
+                ));
+            }
             let request = locust_proto::invite::JoinRequest::sign(
                 goal,
                 own,
@@ -323,6 +348,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 endpoint: invitation.endpoint,
                 hints: invitation.hints.clone(),
                 secret: invitation.secret,
+                publication: invitation.publication.clone(),
                 refused: false,
             },
         ))
@@ -351,4 +377,18 @@ fn invite_error(error: InviteError) -> ApiError {
         _ => ErrorCode::Invalid,
     };
     ApiError::new(code, error.to_string())
+}
+
+/// An invitation may name an older policy, but that exact signed event must
+/// exist in effective history before admission is presented as reconciled.
+pub(in crate::node) fn publication_matches(
+    goal: &crate::goal::Goal,
+    advertised: Option<&locust_proto::api::InvitationPublication>,
+) -> bool {
+    advertised.is_none_or(|advertised| {
+        goal.standing(&advertised.event) == Some(crate::goal::Standing::Effective)
+            && goal.event(&advertised.event).is_some_and(|event| {
+                matches!(&event.header().body, locust_proto::event::Body::PublicationSet(publication) if publication == &advertised.publication)
+            })
+    })
 }
