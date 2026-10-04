@@ -63,7 +63,14 @@ fn text() -> Value {
     json!({"type": "string"})
 }
 fn number(maximum: u64) -> Value {
-    json!({"type": "integer", "minimum": 0, "maximum": maximum})
+    let mut schema = json!({"type": "integer", "minimum": 0});
+    // Model providers may parse schema numbers as IEEE-754 doubles and reject
+    // u64::MAX. Omit that annotation rather than inventing a smaller API limit;
+    // the typed request still validates the full unsigned integer range.
+    if maximum < (1_u64 << 53) {
+        schema["maximum"] = json!(maximum);
+    }
+    schema
 }
 fn array(maximum: usize) -> Value {
     json!({"type": "array", "items": hex(32), "maxItems": maximum})
@@ -190,6 +197,57 @@ fn input(name: &str) -> Value {
 mod tests {
     use super::*;
     use locust_proto::api::{Audience, Request};
+
+    #[test]
+    fn provider_schemas_avoid_unsafe_numbers_without_lowering_api_limits() {
+        fn check(value: &Value) {
+            match value {
+                Value::Number(number) => assert!(number.as_u64().unwrap() < 1_u64 << 53),
+                Value::Array(values) => values.iter().for_each(check),
+                Value::Object(fields) => fields.values().for_each(check),
+                _ => {}
+            }
+        }
+        tools().iter().for_each(check);
+        let goal = "01".repeat(32);
+        for (operation, field, fields) in [
+            (
+                "goal.invite",
+                "expires_ms",
+                json!({"goal": goal, "expires_ms": u64::MAX}),
+            ),
+            (
+                "task.propose",
+                "deadline_ms",
+                json!({"goal": goal, "text": "test", "depends_on": [], "deadline_ms": u64::MAX}),
+            ),
+            (
+                "wait",
+                "seen",
+                json!({"goal": goal, "seen": u64::MAX, "timeout_ms": 1}),
+            ),
+            (
+                "events",
+                "after",
+                json!({"goal": goal, "after": u64::MAX, "limit": 1}),
+            ),
+        ] {
+            let schema = input(operation);
+            let property = &schema["properties"][field];
+            let property = if property.get("anyOf").is_some() {
+                &property["anyOf"][0]
+            } else {
+                property
+            };
+            assert!(property.get("maximum").is_none());
+            let request: Request = serde_json::from_value(json!({operation: fields})).unwrap();
+            assert_eq!(request.name(), operation);
+        }
+        assert_eq!(
+            input("wait")["properties"]["timeout_ms"]["maximum"],
+            u32::MAX
+        );
+    }
 
     fn sample(schema: &Value) -> Value {
         if schema.get("anyOf").is_some() {
