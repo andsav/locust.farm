@@ -48,6 +48,25 @@ Exact reproduction commands, observations and remaining boundaries are in the [i
 
 **A-C4, relevant to R7/R9/R10 and T1:** the identified protocol-1 artifact from `d253a07bf26cef2b59172df16297383fd286e369` reports `locust 0.1.0 (d253a07bf26c) api 1 protocol 1`, SHA-256 `4231754e08f1b4b5fb77ae4e56c6a92c4212e4968659f9b1cea94682d6834f25`. The isolated archived-source build, independent checksum/version/format checks and all 21 local three-process checks passed (24.69 seconds). The [verification](../research/evidence/t1-remediation-verification-2026-10-03.json), [workflow summary](../research/evidence/t1-remediation-local-2026-10-03.json) and [redacted transcript](../research/evidence/t1-remediation-local-2026-10-03.jsonl) retain exact identity, direct/relay observations, task acceptance, coordinator-offline exchange and restarts. This is one physical Mac and an ad hoc signed executable; physical-machine qualification, real-client collaboration, installation and public distribution remain separate. The owner is handling further live testing separately.
 
+**A-C5 / B-C9, relevant to T2 and R3/R4/R6:** `8a7d170` implements the
+production stdio MCP bridge, packaged operating-skill source, typed referenced
+content replication, and snapshot/contribution preview, export, materialize,
+create, review, submit, accept and apply commands. Whole-workspace formatting,
+strict Clippy and **483 Rust tests** passed (zero failures, nine explicit
+ignores); documentation/link checks and skill validation passed. The tests
+include real OS-pipe interruption/output-closure cleanup, nine Node/Driver
+content-graph regressions, conflict/recovery and concurrent materialization
+checks, and one production Node/MemStore workflow driven by real MCP and CLI
+subprocesses. Independent Sol review found and helped close a materialization
+race, CLI error-code loss and operating-skill omissions; the
+[retained findings](../research/t2-integration-review.md) and
+[workflow/verification record](t2-workflow.md) link enforcing code and tests.
+This is local source/component integration on macOS arm64, not an identified
+release artifact, installed-client real-model collaboration, physical-machine
+qualification or Linux execution proof. The owner handles live qualification
+separately; a parallel lane can pin this commit for production-client checks.
+Managed launch, installation and publication remain outside this checkpoint.
+
 ## T1 preparation and run status
 
 **Owner update, October 3:** start the physical run on the two available Apple Silicon Macs. Publication remains deferred; AirDrop or a shared folder can carry the executable bundle. Each Mac initializes independent state. The [T1 run guide](t1-run.md) defines the first pass and optional third-peer extension. The owner subsequently authorized a mixed-build smoke test when M2 lacked the original bundle and verified matching Rust/build inputs; identical-artifact qualification remains pending.
