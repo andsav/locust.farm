@@ -88,7 +88,7 @@ records. Refuse unowned collisions and preserve concurrent edits; a byte match i
 not proof that Locust owns a pre-existing file. Provider/account credentials,
 client approval rules and environment overrides stay outside implicit setup.
 
-Software version, blueprint schema, local API, network protocol and persistent
+Software version, formation schema, local API, network protocol and persistent
 state format are distinct identities. The development source context must name
 its current markers. Unsupported state/protocol input is refused before mutation
 or decoding with an old reader. A same-model restart is recovery, not migration.

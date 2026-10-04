@@ -72,7 +72,7 @@ test('unsafe schemes and outside-repository paths are refused', () => {
 test('inventory hashes exactly served Markdown and shares status and version context', () => {
 	const index = inventory();
 	assert.match(index.sourceCommit, /^[0-9a-f]{40}$/);
-	assert.equal(index.versions.blueprintSchema, 1);
+	assert.equal(index.versions.formationSchema, 1);
 	for (const page of index.pages)
 		assert.equal(
 			page.sha256,
@@ -88,11 +88,11 @@ test('generated references and exact example assets share the exported Rust cont
 	assert.deepEqual(schema, contract.schema);
 	const reference = articleFor('schema-reference')!;
 	for (const operation of contract.operations)
-		assert.ok(reference.text.includes(`locust blueprint ${operation.name}`));
+		assert.ok(reference.text.includes(`locust formation ${operation.name}`));
 	for (const example of contract.examples)
 		assert.deepEqual(
 			JSON.parse(artifactFor(`/docs/next/examples/${example.name}.json`)!.bytes),
-			example.blueprint
+			example.formation
 		);
 	for (const artifact of inventory().artifacts)
 		assert.equal(

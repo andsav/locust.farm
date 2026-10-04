@@ -344,7 +344,7 @@ pub struct Grants {
     pub manage_goals: bool,
 }
 
-/// Explicit local authorization; shared blueprint eligibility never grants it.
+/// Explicit local authorization; shared formation eligibility never grants it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct GoalGrants {
     pub administer: bool,
@@ -386,7 +386,7 @@ pub struct ResponseFrame {
     pub result: Result<Response, ApiError>,
 }
 
-/// Current greenfield API. Blueprint rules and local grants are separate.
+/// Current greenfield API. Formation rules and local grants are separate.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub enum Request {
@@ -422,7 +422,7 @@ pub enum Request {
     #[serde(rename = "goal.create")]
     GoalCreate {
         title: String,
-        blueprint_json: Option<String>,
+        formation_json: Option<String>,
         roles: BTreeMap<String, Vec<PublicKey>>,
         inputs: BTreeMap<String, BlobHash>,
     },
@@ -449,7 +449,7 @@ pub enum Request {
     RulesBind {
         goal: GoalId,
         expected: EventId,
-        blueprint_json: String,
+        formation_json: String,
         roles: BTreeMap<String, Vec<PublicKey>>,
         inputs: BTreeMap<String, BlobHash>,
     },
@@ -605,45 +605,45 @@ pub enum Request {
     BlobStat { goal: GoalId, hashes: Vec<BlobHash> },
     #[serde(rename = "blob.withdraw")]
     BlobWithdraw { goal: GoalId, hash: BlobHash },
-    #[serde(rename = "blueprint.draft.create")]
-    BlueprintDraftCreate {
+    #[serde(rename = "formation.draft.create")]
+    FormationDraftCreate {
         id: String,
         expected_revision: u64,
         source: String,
     },
-    #[serde(rename = "blueprint.draft.update")]
-    BlueprintDraftUpdate {
+    #[serde(rename = "formation.draft.update")]
+    FormationDraftUpdate {
         id: String,
         expected_revision: u64,
         source: String,
     },
-    #[serde(rename = "blueprint.draft.show")]
-    BlueprintDraft { id: String },
-    #[serde(rename = "blueprint.drafts")]
-    BlueprintDrafts,
-    #[serde(rename = "blueprint.publish")]
-    BlueprintPublish {
+    #[serde(rename = "formation.draft.show")]
+    FormationDraft { id: String },
+    #[serde(rename = "formation.drafts")]
+    FormationDrafts,
+    #[serde(rename = "formation.publish")]
+    FormationPublish {
         draft: String,
         id: String,
         expected_revision: u64,
         expected_source_hash: String,
     },
-    #[serde(rename = "blueprint.show")]
-    BlueprintPublication { id: String },
-    #[serde(rename = "blueprint.list")]
-    BlueprintPublications,
-    #[serde(rename = "blueprint.presentation.show")]
-    BlueprintPresentation { id: String },
-    #[serde(rename = "blueprint.presentation.update")]
-    BlueprintPresentationUpdate {
+    #[serde(rename = "formation.show")]
+    FormationPublication { id: String },
+    #[serde(rename = "formation.list")]
+    FormationPublications,
+    #[serde(rename = "formation.presentation.show")]
+    FormationPresentation { id: String },
+    #[serde(rename = "formation.presentation.update")]
+    FormationPresentationUpdate {
         id: String,
         expected_revision: u64,
         data_json: String,
     },
-    #[serde(rename = "blueprint.validate")]
-    BlueprintValidate { source: String },
-    #[serde(rename = "blueprint.explain")]
-    BlueprintExplain { source: String },
+    #[serde(rename = "formation.validate")]
+    FormationValidate { source: String },
+    #[serde(rename = "formation.explain")]
+    FormationExplain { source: String },
 
     #[serde(rename = "context.read")]
     Context {
@@ -837,17 +837,17 @@ operations! {
     BlobGet { .. } => ("blob.get", true, true, Agent, false, "blob get"),
     BlobStat { .. } => ("blob.stat", true, true, Agent, true, "blob stat"),
     BlobWithdraw { .. } => ("blob.withdraw", false, true, Agent, true, "blob withdraw"),
-    BlueprintDraftCreate { .. } => ("blueprint.draft.create", false, false, Author, true, "blueprint draft create"),
-    BlueprintDraftUpdate { .. } => ("blueprint.draft.update", false, false, Author, true, "blueprint draft update"),
-    BlueprintDraft { .. } => ("blueprint.draft.show", true, false, Author, true, "blueprint draft show"),
-    BlueprintDrafts => ("blueprint.drafts", true, false, Author, true, "blueprint drafts"),
-    BlueprintPublish { .. } => ("blueprint.publish", false, false, Author, true, "blueprint publish"),
-    BlueprintPublication { .. } => ("blueprint.show", true, false, Author, true, "blueprint show"),
-    BlueprintPublications => ("blueprint.list", true, false, Author, true, "blueprint list"),
-    BlueprintPresentation { .. } => ("blueprint.presentation.show", true, false, Author, true, "blueprint presentation show"),
-    BlueprintPresentationUpdate { .. } => ("blueprint.presentation.update", false, false, Author, true, "blueprint presentation update"),
-    BlueprintValidate { .. } => ("blueprint.validate", true, false, Author, true, "blueprint validate"),
-    BlueprintExplain { .. } => ("blueprint.explain", true, false, Author, true, "blueprint explain"),
+    FormationDraftCreate { .. } => ("formation.draft.create", false, false, Author, true, "formation draft create"),
+    FormationDraftUpdate { .. } => ("formation.draft.update", false, false, Author, true, "formation draft update"),
+    FormationDraft { .. } => ("formation.draft.show", true, false, Author, true, "formation draft show"),
+    FormationDrafts => ("formation.drafts", true, false, Author, true, "formation drafts"),
+    FormationPublish { .. } => ("formation.publish", false, false, Author, true, "formation publish"),
+    FormationPublication { .. } => ("formation.show", true, false, Author, true, "formation show"),
+    FormationPublications => ("formation.list", true, false, Author, true, "formation list"),
+    FormationPresentation { .. } => ("formation.presentation.show", true, false, Author, true, "formation presentation show"),
+    FormationPresentationUpdate { .. } => ("formation.presentation.update", false, false, Author, true, "formation presentation update"),
+    FormationValidate { .. } => ("formation.validate", true, false, Author, true, "formation validate"),
+    FormationExplain { .. } => ("formation.explain", true, false, Author, true, "formation explain"),
     Context { .. } => ("context.read", true, true, Agent, true, "Read a coherent goal or task brief with attributed findings, progress, review reasons and pending actions; reads do not acknowledge content"),
     ContextAcknowledge { .. } => ("context.acknowledge", false, true, Agent, true, "Acknowledge the complete content delivered to this execution session using its exact receipt; other sessions remain unread"),
     InvitationInspect { .. } => ("invitation.inspect", true, false, Agent, false, "Verify a signed invitation and preview its issuer, goal and sharing boundary without joining"),
@@ -921,17 +921,17 @@ impl Request {
             Self::BlobGet { goal, .. } => Some(*goal),
             Self::BlobStat { goal, .. } => Some(*goal),
             Self::BlobWithdraw { goal, .. } => Some(*goal),
-            Self::BlueprintDraftCreate { .. } => None,
-            Self::BlueprintDraftUpdate { .. } => None,
-            Self::BlueprintDraft { .. } => None,
-            Self::BlueprintDrafts => None,
-            Self::BlueprintPublish { .. } => None,
-            Self::BlueprintPublication { .. } => None,
-            Self::BlueprintPublications => None,
-            Self::BlueprintPresentation { .. } => None,
-            Self::BlueprintPresentationUpdate { .. } => None,
-            Self::BlueprintValidate { .. } => None,
-            Self::BlueprintExplain { .. } => None,
+            Self::FormationDraftCreate { .. } => None,
+            Self::FormationDraftUpdate { .. } => None,
+            Self::FormationDraft { .. } => None,
+            Self::FormationDrafts => None,
+            Self::FormationPublish { .. } => None,
+            Self::FormationPublication { .. } => None,
+            Self::FormationPublications => None,
+            Self::FormationPresentation { .. } => None,
+            Self::FormationPresentationUpdate { .. } => None,
+            Self::FormationValidate { .. } => None,
+            Self::FormationExplain { .. } => None,
             Self::Context { goal, .. }
             | Self::ContextAcknowledge { goal, .. }
             | Self::GoalInvitations { goal }
@@ -1042,26 +1042,26 @@ impl Request {
             Self::BlobGet { .. } => matches!(response, Response::Blob { .. }),
             Self::BlobStat { .. } => matches!(response, Response::BlobStates(_)),
             Self::BlobWithdraw { .. } => matches!(response, Response::Done),
-            Self::BlueprintDraftCreate { .. } => matches!(response, Response::BlueprintDraft(_)),
-            Self::BlueprintDraftUpdate { .. } => matches!(response, Response::BlueprintDraft(_)),
-            Self::BlueprintDraft { .. } => matches!(response, Response::BlueprintDraft(_)),
-            Self::BlueprintDrafts => matches!(response, Response::BlueprintDrafts(_)),
-            Self::BlueprintPublish { .. } => matches!(response, Response::BlueprintPublication(_)),
-            Self::BlueprintPublication { .. } => {
-                matches!(response, Response::BlueprintPublication(_))
+            Self::FormationDraftCreate { .. } => matches!(response, Response::FormationDraft(_)),
+            Self::FormationDraftUpdate { .. } => matches!(response, Response::FormationDraft(_)),
+            Self::FormationDraft { .. } => matches!(response, Response::FormationDraft(_)),
+            Self::FormationDrafts => matches!(response, Response::FormationDrafts(_)),
+            Self::FormationPublish { .. } => matches!(response, Response::FormationPublication(_)),
+            Self::FormationPublication { .. } => {
+                matches!(response, Response::FormationPublication(_))
             }
-            Self::BlueprintPublications => matches!(response, Response::BlueprintPublications(_)),
-            Self::BlueprintPresentation { .. } => {
-                matches!(response, Response::BlueprintPresentation(_))
+            Self::FormationPublications => matches!(response, Response::FormationPublications(_)),
+            Self::FormationPresentation { .. } => {
+                matches!(response, Response::FormationPresentation(_))
             }
-            Self::BlueprintPresentationUpdate { .. } => {
-                matches!(response, Response::BlueprintPresentation(_))
+            Self::FormationPresentationUpdate { .. } => {
+                matches!(response, Response::FormationPresentation(_))
             }
-            Self::BlueprintValidate { .. } => {
-                matches!(response, Response::BlueprintInspection { .. })
+            Self::FormationValidate { .. } => {
+                matches!(response, Response::FormationInspection { .. })
             }
-            Self::BlueprintExplain { .. } => {
-                matches!(response, Response::BlueprintInspection { .. })
+            Self::FormationExplain { .. } => {
+                matches!(response, Response::FormationInspection { .. })
             }
         }
     }
@@ -1079,7 +1079,7 @@ pub fn contract() -> serde_json::Value {
     json!({
         "api_version": crate::API_VERSION,
         "protocol_version": crate::PROTOCOL_VERSION,
-        "blueprint_schema_version": crate::organization::SCHEMA_VERSION,
+        "formation_schema_version": crate::organization::SCHEMA_VERSION,
         "operations": OPERATIONS.iter().map(|operation| json!({
             "name": operation.name,
             "summary": operation.summary,
@@ -1183,12 +1183,12 @@ pub enum Response {
     AuthorEnrolled {
         author: PublicKey,
     },
-    BlueprintDraft(Draft),
-    BlueprintDrafts(Vec<Draft>),
-    BlueprintPublication(Publication),
-    BlueprintPublications(Vec<Publication>),
-    BlueprintPresentation(Presentation),
-    BlueprintInspection {
+    FormationDraft(Draft),
+    FormationDrafts(Vec<Draft>),
+    FormationPublication(Publication),
+    FormationPublications(Vec<Publication>),
+    FormationPresentation(Presentation),
+    FormationInspection {
         json: String,
     },
     Context(Box<ContextView>),
@@ -1904,7 +1904,7 @@ mod tests {
             on_behalf: None,
             request: Request::GoalCreate {
                 title: "open".into(),
-                blueprint_json: None,
+                formation_json: None,
                 roles: BTreeMap::new(),
                 inputs: BTreeMap::new(),
             },

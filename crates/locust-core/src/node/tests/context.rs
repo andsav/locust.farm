@@ -422,20 +422,20 @@ fn acknowledging_an_older_receipt_leaves_later_findings_unread() {
 #[test]
 fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
     use locust_proto::organization::{
-        Blueprint, CompletionRule, DecisionRules, Input, InputKind, Selector, TaskType,
+        CompletionRule, DecisionRules, Formation, Input, InputKind, Selector, TaskType,
     };
     use std::collections::BTreeMap;
 
     let (mut d, _, _, agent, goal) = setup();
-    let mut blueprint = Blueprint::default();
-    blueprint.context.inputs.insert(
+    let mut formation = Formation::default();
+    formation.context.inputs.insert(
         "workspace".into(),
         Input {
             kind: InputKind::Artifact,
             required: false,
         },
     );
-    blueprint.task_types.insert(
+    formation.task_types.insert(
         "reviewed".into(),
         TaskType {
             work: None,
@@ -459,7 +459,7 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
         Request::RulesBind {
             goal,
             expected,
-            blueprint_json: serde_json::to_string(&blueprint).unwrap(),
+            formation_json: serde_json::to_string(&formation).unwrap(),
             roles: BTreeMap::new(),
             inputs: BTreeMap::new(),
         },

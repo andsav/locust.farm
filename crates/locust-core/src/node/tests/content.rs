@@ -142,7 +142,7 @@ fn content_put_get_scope_withdrawal_and_reput_survive_restart() {
         agent,
         Request::GoalCreate {
             title: "Other".into(),
-            blueprint_json: None,
+            formation_json: None,
             roles: Default::default(),
             inputs: Default::default(),
         },

@@ -3,20 +3,20 @@ use locust_core::goal::Goal;
 use locust_proto::{
     event::*,
     id::{DefinitionHash, EndpointId},
-    organization::{Authority, Blueprint},
+    organization::{Authority, Formation},
     store::{Commit, MemStore, Store},
     testkit::{self, Author},
 };
 use std::{collections::BTreeMap, hint::black_box, time::Instant};
 
-fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, Blueprint>) {
+fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, Formation>) {
     let mut admin = Author::new(1);
     let mut worker = Author::new(2);
-    let mut blueprint = Blueprint::default();
-    blueprint.decisions.selection = Some(Authority::Participant {
+    let mut formation = Formation::default();
+    formation.decisions.selection = Some(Authority::Participant {
         key: admin.key.public().to_string(),
     });
-    let genesis = admin.genesis_with(&blueprint);
+    let genesis = admin.genesis_with(&formation);
     let goal = genesis.header().goal;
     let self_admission = admin.event(
         goal,
@@ -34,7 +34,7 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
             endpoint: EndpointId([2; 32]),
         },
     );
-    let (binding, _) = testkit::rules_binding(&goal, 0, &blueprint, BTreeMap::new());
+    let (binding, _) = testkit::rules_binding(&goal, 0, &formation, BTreeMap::new());
     let bound = admin.event(
         goal,
         Some(admission.id()),
@@ -114,7 +114,7 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
     events.extend(fork);
     (
         events,
-        BTreeMap::from([(testkit::definition_hash(&blueprint), blueprint)]),
+        BTreeMap::from([(testkit::definition_hash(&formation), formation)]),
     )
 }
 fn sample(mut run: impl FnMut()) -> (u128, u128, u128) {

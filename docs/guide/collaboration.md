@@ -65,8 +65,8 @@ alice attempt start --goal "$goal" --task "$task" >"$demo/alice-claim.json"
 bob attempt start --goal "$goal" --task "$task" >"$demo/bob-claim.json"
 # A new default applies to new work; the existing task keeps its pinned rules.
 rules=$(alice goal status --goal "$goal" | pick goal_status.current_rules)
-peer_review=$("$LOCUST_BIN" blueprint example peer-review)
-alice rules bind --goal "$goal" --expected "$rules" --blueprint-json "$peer_review" >/dev/null
+peer_review=$("$LOCUST_BIN" formation example peer-review)
+alice rules bind --goal "$goal" --expected "$rules" --formation-json "$peer_review" >/dev/null
 candidate=$(alice contribution publish --goal "$goal" 'A finding for peer review' | pick recorded.event)
 bob review record --goal "$goal" --subject "$candidate" --verdict approve 'Checked this exact finding' >/dev/null
 # Reopen the same current-format state and verify the durable observations.
@@ -161,7 +161,7 @@ locust workspace export --goal GOAL --root /absolute/repository --commit COMMIT
 locust workspace materialize --goal GOAL --manifest MANIFEST --destination /absolute/new-workspace
 ```
 
-Use the returned manifest as a named task input declared by the blueprint, for
+Use the returned manifest as a named task input declared by the formation, for
 example `task open --goal GOAL --inputs '{"workspace":"MANIFEST"}' 'Review the snapshot'`.
 Undeclared input names are refused. Exporting material does not execute it or
 change the recipient's main checkout. A patch names its exact base and artifact;

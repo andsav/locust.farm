@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn normalized_defaults_and_whitespace_are_equivalent() {
         let full =
-            serde_json::to_string(&locust_proto::organization::Blueprint::default()).unwrap();
+            serde_json::to_string(&locust_proto::organization::Formation::default()).unwrap();
         let diff = compare("{\"schema_version\":1}", &full);
         assert_eq!(diff.equivalent, Some(true));
         assert!(diff.changes.is_empty());

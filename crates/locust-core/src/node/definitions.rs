@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use locust_proto::crypto::ContentKey;
 use locust_proto::event::{Body, Event};
 use locust_proto::id::{DefinitionHash, GoalId};
-use locust_proto::organization::Blueprint;
+use locust_proto::organization::Formation;
 use locust_proto::seal;
 use locust_proto::store::{Blob, Commit, LocalWrite, Space, Store, StoreError};
 
@@ -13,10 +13,10 @@ use super::{entry, records};
 use crate::goal::DefinitionLookup;
 
 #[derive(Clone, Debug, Default)]
-pub(super) struct Definitions(BTreeMap<DefinitionHash, Blueprint>);
+pub(super) struct Definitions(BTreeMap<DefinitionHash, Formation>);
 
 impl DefinitionLookup for Definitions {
-    fn definition(&self, hash: &DefinitionHash) -> Option<&Blueprint> {
+    fn definition(&self, hash: &DefinitionHash) -> Option<&Formation> {
         self.0.get(hash)
     }
 }

@@ -15,7 +15,7 @@ explanation. A visual shape alone is not the executable rule.
 | Review panel | Distinct eligible reviewers satisfy a threshold | Threshold approval is not consensus on a single output |
 | Pipeline/handoff | Named evidence enables configured downstream work | Durable offer delivery is not remote receipt, local permission or execution |
 
-Canonical JSON examples are available through [offline authoring](blueprint-authoring.md).
+Canonical JSON examples are available through [offline authoring](formation-authoring.md).
 They are supported definitions; they do not prove a live instance is ready.
 Exclusive distributed reservation remains deferred and must not be inferred from
 local worker claims or a peer-review task queue.
@@ -46,12 +46,12 @@ Updating future defaults does not reinterpret an already pinned task. Rebinding,
 revising an active round or reopening work are explicit authorized current-model
 transitions naming the expected prior context. Old signatures retain their original
 meaning. These operations do not migrate schema formats or activate old readers.
-The authenticated `blueprint draft`, `blueprint publish` and presentation
-operations implement this lifecycle. `goal create --blueprint-json` instantiates
+The authenticated `formation draft`, `formation publish` and presentation
+operations implement this lifecycle. `goal create --formation-json` instantiates
 a definition; `rules bind --expected` changes future defaults. `task revise
 --expected-round` and scoped reopen explicitly change active work. Inspect
 the `effective_rules_json` field returned by
 `task show --goal GOAL --task TASK` before acting on a pinned task.
 
 [Completion](completion.md) describes candidate verdicts;
-[authoring](blueprint-authoring.md) gives offline and private publication commands.
+[authoring](formation-authoring.md) gives offline and private publication commands.

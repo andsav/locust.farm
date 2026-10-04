@@ -26,9 +26,9 @@
 	--color-text-faint: var(--neutral-500);
 	--color-border: var(--neutral-800);
 	--color-accent: var(--ember-500);
-	/* Raised surfaces in the blueprint editor: stage nodes, panels and cards. */
+	/* Raised surfaces in the formation editor: stage nodes, panels and cards. */
 	--color-surface: var(--neutral-900);
-	/* The dot grid behind the blueprint editor's stage map. */
+	/* The dot grid behind the formation editor's stage map. */
 	--color-grid: var(--neutral-850);
 
 	/* Swarm canvas roles, read by the WebGL renderer. */
@@ -49,7 +49,7 @@
 	--text-body: 400 0.8125rem / 1.7 var(--font-mono);
 	--text-code: 400 0.75rem / 1.25 var(--font-mono);
 	--text-label: 400 0.6875rem / 1.25 var(--font-mono);
-	/* Controls and form text in the blueprint editor. */
+	/* Controls and form text in the formation editor. */
 	--text-ui: 400 0.8125rem / 1.5 var(--font-mono);
 	--tracking-display: -0.03em;
 	--tracking-label: 0.08em;
@@ -68,7 +68,7 @@
 	--measure-display: 51.25rem;
 	--measure-body: 32.5rem;
 
-	/* Motion in the blueprint editor; reduced motion sets both to 0s. */
+	/* Motion in the formation editor; reduced motion sets both to 0s. */
 	--duration-fast: 120ms;
 	--duration-slow: 240ms;
 

@@ -144,7 +144,7 @@ fn presentation_cas_never_changes_source_or_semantic_identity() {
 fn all_reusable_presets_publish_without_bound_members() {
     let mut store = MemStore::new();
     for preset in presets() {
-        let source = serde_json::to_string(&preset.blueprint).unwrap();
+        let source = serde_json::to_string(&preset.formation).unwrap();
         let created = create(&mut store, &preset.name, &source);
         let prepared = prepare_publish(
             &store,

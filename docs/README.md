@@ -13,13 +13,13 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-- [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements; API 3/protocol 3 runtime and authoring are implemented; current qualification is tracked separately.
-- [Organization blueprint implementation status](organization-blueprints-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
-- [Organization blueprints implementation plan](organization-blueprints-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
-- [Organization blueprint semantics and removal inventory](organization-blueprints-semantics.md): accepted administration and scoped-authority model, concrete scenario expectations, outstanding signed-proof obligations and source-based replacement inventory.
-- [Public documentation implementation plan](public-documentation-plan.md): complete locust.farm manual inventory, versioned human/agent references, site architecture, checked examples, CI and live publication gates; required organization-blueprint delivery workstream.
-- [Blueprint editor on locust.farm plan](blueprint-authoring-plan.md): the `/blueprints` editor that opens with six ways of working, shows the rules as one line of four points with steps as rows under it, checks blueprints in TypeScript against Locust-generated test cases, and copies a prompt that has the agent check, draft and publish with Locust; implemented, not yet tried with real first-time users.
-- [Blueprint prompt contract](blueprint-prompt.md): the exact fixed text of the prompt the blueprint editor copies, its data blocks and integrity values, its limits, and why it does not start a goal.
+- [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 3/protocol 3 runtime and authoring are implemented; current qualification is tracked separately.
+- [Formation implementation status](formations-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
+- [Formation implementation plan](formations-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
+- [Formation semantics and removal inventory](formations-semantics.md): accepted administration and scoped-authority model, concrete scenario expectations, outstanding signed-proof obligations and source-based replacement inventory.
+- [Public documentation implementation plan](public-documentation-plan.md): complete locust.farm manual inventory, versioned human/agent references, site architecture, checked examples, CI and live publication gates; required formation delivery workstream.
+- [Formation editor on locust.farm plan](formation-authoring-plan.md): the `/formations` editor that opens with six ways of working, shows the rules as one line of four points with steps as rows under it, checks formations in TypeScript against Locust-generated test cases, and copies a prompt that has the agent check, draft and publish with Locust; implemented, not yet tried with real first-time users.
+- [Formation prompt contract](formation-prompt.md): the exact fixed text of the prompt the formation editor copies, its data blocks and integrity values, its limits, and why it does not start a goal.
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
 - [Last-mile implementation plan](last-mile-implementation-plan.md): proposed work packages for distribution, recoverable setup, reliable task context, human permissions, a reviewed and applied change, two-person qualification and consented visualization; dependencies, decisions, tests and complete research coverage.
@@ -53,7 +53,7 @@ the repository root to check coverage and local link paths.
 - [Reader guide index](guide/README.md): canonical public articles and publication boundaries.
 - [Locust overview](guide/overview.md): Current source capabilities, public availability and the organization direction.
 - [Goals and organizations](guide/concepts.md): The current goal, organization, participant and authority model.
-- [Blueprint authoring](guide/blueprint-authoring.md): Offline checks, private publication and contextual runtime readiness.
+- [Formation authoring](guide/formation-authoring.md): Offline checks, private publication and contextual runtime readiness.
 - [Architecture and local boundaries](guide/architecture.md): Daemon, harness, transport and optional Polaris responsibilities.
 - [Availability and evidence](guide/status.md): Publication, platform qualification and development capability boundaries.
 - [Local installation and onboarding](guide/installation.md): Review trusted local candidates, profile/service choices and separate readiness observations.

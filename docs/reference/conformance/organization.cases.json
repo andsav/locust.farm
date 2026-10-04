@@ -1,5 +1,5 @@
 {
-  "description": "Conformance cases for offline blueprint inspection. check_blueprints.py runs each through the Locust CLI and writes the results to docs/reference/generated/organization.vectors.json. Keep at least one case for every diagnostic code.",
+  "description": "Conformance cases for offline formation inspection. check_formations.py runs each through the Locust CLI and writes the results to docs/reference/generated/organization.vectors.json. Keep at least one case for every diagnostic code.",
   "cases": [
     {
       "id": "preset/open",

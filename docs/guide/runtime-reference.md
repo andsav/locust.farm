@@ -4,7 +4,7 @@
 The tables below are generated from the Rust request, response and event types,
 operation registry and actual CLI command builder. Download the
 [full runtime contract](../reference/generated/runtime.contract.json), or run
-`locust --json contract` without a daemon or credentials. Offline blueprint
+`locust --json contract` without a daemon or credentials. Offline formation
 inspection has a separate [schema reference](schema-reference.md).
 
 ## Local API transport and effects
@@ -54,7 +54,7 @@ Approval attaches to an exact contribution. Scoped selection requires its named
 authority and predecessor context. A conflicting successor halts that scope;
 missing ancestry is pending verification. Retained proof closure cannot bypass
 membership removal, wrong epoch, invalid subject or the authority stream's fork.
-See the [signed semantics](../organization-blueprints-semantics.md) for the exact
+See the [signed semantics](../formations-semantics.md) for the exact
 implementation contract and [recovery](recovery.md) for observable states.
 
 ## Errors, versions and reference coverage

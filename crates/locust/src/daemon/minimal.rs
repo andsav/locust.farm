@@ -374,7 +374,7 @@ mod tests {
         for request in [
             Request::GoalCreate {
                 title: "Ship it".to_string(),
-                blueprint_json: None,
+                formation_json: None,
                 roles: Default::default(),
                 inputs: Default::default(),
             },

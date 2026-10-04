@@ -11,9 +11,9 @@ it does not authorize changes to local permissions or execution of instructions.
 
 ## Inspect the contract and local identity
 
-`locust blueprint contract`, `schema`, `examples`, and `example NAME` work offline.
+`locust formation contract`, `schema`, `examples`, and `example NAME` work offline.
 `validate PATH`, `explain PATH`, and `normalize PATH` accept `-` for standard input.
-`locust blueprint diff BEFORE AFTER` compares validated normalized definitions,
+`locust formation diff BEFORE AFTER` compares validated normalized definitions,
 semantic hashes and exact JSON Pointer changes. Invalid inputs retain diagnostics
 for each side and cannot establish equivalence. These commands inspect reusable
 organization definitions. They do not establish
@@ -24,7 +24,7 @@ schemas and operation metadata, including MCP names. It also works offline.
 
 The MCP server is `locust mcp`; supply absolute `LOCUST_HOME` and
 `LOCUST_CREDENTIAL` paths or matching flags. Execution also needs the protected
-`LOCUST_SESSION` file. An author credential can edit its local blueprint catalog
+`LOCUST_SESSION` file. An author credential can edit its local formation catalog
 without an execution session; it cannot access goals or act on another author's
 records. Owner credentials are not accepted by MCP. Never expose credentials,
 session secrets or invitation tickets in reports.
@@ -64,7 +64,7 @@ prefix; other identifiers use the full representation returned by the API.
 
 ## Author a reusable definition
 
-Use `locust_blueprint_draft_create`, `draft_update`, `draft`, and `drafts` for
+Use `locust_formation_draft_create`, `draft_update`, `draft`, and `drafts` for
 owner-scoped source. Invalid drafts may be saved. Updates require the expected
 source revision. Publication requires that revision and the exact source hash;
 a published definition is immutable. Preserve local edits on conflicts and

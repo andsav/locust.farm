@@ -478,13 +478,13 @@ async fn private_author_uses_catalog_without_an_execution_session() {
         codec::write_frame(&mut stream, &codec::encode(&welcome).unwrap()).unwrap();
         let frame: RequestFrame =
             codec::decode(&codec::read_frame(&mut stream, 4096).unwrap().unwrap()).unwrap();
-        assert_eq!(frame.request, Request::BlueprintDrafts);
+        assert_eq!(frame.request, Request::FormationDrafts);
         assert_eq!(frame.on_behalf, None);
         codec::write_frame(
             &mut stream,
             &codec::encode(&ResponseFrame {
                 id: frame.id,
-                result: Ok(Response::BlueprintDrafts(vec![])),
+                result: Ok(Response::FormationDrafts(vec![])),
             })
             .unwrap(),
         )
@@ -500,7 +500,7 @@ async fn private_author_uses_catalog_without_an_execution_session() {
     });
     let bridge = tokio::spawn(serve(input, output, authentication, None));
     initialize(&mut writer, &mut reader, VERSIONS[0]).await;
-    send(&mut writer,json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"locust_blueprint_drafts"}})).await;
+    send(&mut writer,json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"locust_formation_drafts"}})).await;
     let answer = receive(&mut reader).await;
     assert_eq!(answer["result"]["structuredContent"]["ok"], true);
     drop(writer);

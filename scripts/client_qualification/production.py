@@ -70,7 +70,7 @@ def operation(args):
     names = list(map(str, args))
     if not names:
         return "missing"
-    if names[0] in {"call", "agent", "goal", "task", "session", "workspace", "patch", "contribution", "attempt", "review", "scope", "work", "blueprint", "daemon"}:
+    if names[0] in {"call", "agent", "goal", "task", "session", "workspace", "patch", "contribution", "attempt", "review", "scope", "work", "formation", "daemon"}:
         names = names[:2]
     else:
         names = names[:1]
@@ -269,10 +269,10 @@ class ProductionDaemon:
             for path in (self.credential, self.session):
                 if path.is_symlink() or not path.is_file() or path.stat().st_mode & 0o777 != 0o600 or path.stat().st_size != 32:
                     raise ProductionError("production authentication files are not private 32-byte secrets")
-            blueprint = self.call(["blueprint", "example", "coordinator"])
-            blueprint["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
+            formation = self.call(["formation", "example", "coordinator"])
+            formation["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
             created = self.call(["goal", "create", "--title", "Production client qualification",
-                "--blueprint-json", json.dumps(blueprint), "--roles", json.dumps({"coordinator": [self.principal]})])
+                "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [self.principal]})])
             self.goal = created.get("goal_created", {}).get("goal")
             if not isinstance(self.goal, str) or not PUBLIC_ID.fullmatch(self.goal):
                 raise ProductionError("production goal creation did not return a goal")

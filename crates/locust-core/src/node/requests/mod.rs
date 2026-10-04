@@ -204,10 +204,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
             } => self.agent_enroll(name, grants, credential),
             Request::GoalCreate {
                 title,
-                blueprint_json,
+                formation_json,
                 roles,
                 inputs,
-            } => self.goal_create(actor, title, blueprint_json, roles, inputs, now),
+            } => self.goal_create(actor, title, formation_json, roles, inputs, now),
             Request::GoalGrant {
                 goal,
                 agent,
@@ -217,10 +217,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::RulesBind {
                 goal,
                 expected,
-                blueprint_json,
+                formation_json,
                 roles,
                 inputs,
-            } => self.rules_bind(actor, goal, expected, blueprint_json, roles, inputs, now),
+            } => self.rules_bind(actor, goal, expected, formation_json, roles, inputs, now),
             Request::WorkspaceSet { goal, binding } => self.workspace_set(actor, goal, binding),
             Request::Board { goal } => self.board(actor, goal),
             Request::Task { goal, task } => self.task_show(actor, goal, task),
@@ -329,17 +329,17 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 text,
             } => self.doc_revise(actor, goal, doc, base, text, now),
             Request::Wait { .. } => unreachable!("wait is dispatched before planning"),
-            request @ (Request::BlueprintDraftCreate { .. }
-            | Request::BlueprintDraftUpdate { .. }
-            | Request::BlueprintDraft { .. }
-            | Request::BlueprintDrafts
-            | Request::BlueprintPublish { .. }
-            | Request::BlueprintPublication { .. }
-            | Request::BlueprintPublications
-            | Request::BlueprintPresentation { .. }
-            | Request::BlueprintPresentationUpdate { .. }
-            | Request::BlueprintValidate { .. }
-            | Request::BlueprintExplain { .. }) => self.catalog(actor, request),
+            request @ (Request::FormationDraftCreate { .. }
+            | Request::FormationDraftUpdate { .. }
+            | Request::FormationDraft { .. }
+            | Request::FormationDrafts
+            | Request::FormationPublish { .. }
+            | Request::FormationPublication { .. }
+            | Request::FormationPublications
+            | Request::FormationPresentation { .. }
+            | Request::FormationPresentationUpdate { .. }
+            | Request::FormationValidate { .. }
+            | Request::FormationExplain { .. }) => self.catalog(actor, request),
         }
     }
 }

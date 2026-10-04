@@ -103,7 +103,7 @@ fn operation(name: &'static str, api: &'static str) -> Command {
                 .help(if field.schema["type"] == "string" {
                     "Value, or - for standard input on text fields"
                 } else {
-                    "JSON value matching blueprint contract or the API schema"
+                    "JSON value matching formation contract or the API schema"
                 });
         if positional {
             argument = argument.allow_hyphen_values(true);
@@ -179,7 +179,7 @@ pub(super) fn command() -> Command {
         .subcommand(super::service::commands())
         .subcommand(super::setup::commands())
         .subcommand(super::onboarding::up_command())
-        .subcommand(super::blueprint::commands())
+        .subcommand(super::formation::commands())
         .subcommand(Command::new("contract").about("Export API, event and MCP contracts offline"))
         .subcommand(Command::new("doctor").about("Check local daemon readiness"))
         .subcommand(
@@ -214,7 +214,7 @@ pub(super) fn command() -> Command {
             || api.name == "inbox"
             || matches!(
                 api.name,
-                "blueprint.validate" | "blueprint.explain" | "agent.enroll" | "author.enroll"
+                "formation.validate" | "formation.explain" | "agent.enroll" | "author.enroll"
             )
         {
             continue;
@@ -265,7 +265,7 @@ pub(super) fn command() -> Command {
     );
     groups.entry("author").or_default().push(
         Command::new("enroll")
-            .about("Enroll a private blueprint author and store its credential")
+            .about("Enroll a private formation author and store its credential")
             .arg(Arg::new("name").required(true)),
     );
     for (name, children) in groups {
@@ -342,7 +342,7 @@ pub(super) fn text_field(operation: &str) -> Option<&'static str> {
             Some("text")
         }
         "contribution.publish" => Some("summary"),
-        "blueprint.draft.create" | "blueprint.draft.update" => Some("source"),
+        "formation.draft.create" | "formation.draft.update" => Some("source"),
         _ => None,
     }
 }
@@ -351,7 +351,7 @@ pub(super) fn text_field(operation: &str) -> Option<&'static str> {
 mod tests {
     use super::*;
     #[test]
-    fn new_goal_uses_empty_bindings_and_optional_blueprint() {
+    fn new_goal_uses_empty_bindings_and_optional_formation() {
         let matches = command()
             .try_get_matches_from(["locust", "goal", "create", "--title", "open"])
             .unwrap();
@@ -361,7 +361,7 @@ mod tests {
         )
         .unwrap();
         assert!(
-            matches!(request,locust_proto::api::Request::GoalCreate{blueprint_json:None,roles,inputs,..} if roles.is_empty() && inputs.is_empty())
+            matches!(request,locust_proto::api::Request::GoalCreate{formation_json:None,roles,inputs,..} if roles.is_empty() && inputs.is_empty())
         );
     }
     #[test]
@@ -398,7 +398,7 @@ mod tests {
         let matches = command()
             .try_get_matches_from([
                 "locust",
-                "blueprint",
+                "formation",
                 "draft",
                 "update",
                 "--id",
@@ -408,6 +408,6 @@ mod tests {
                 "{",
             ])
             .unwrap();
-        assert_eq!(selected(&matches).0, "blueprint.draft.update");
+        assert_eq!(selected(&matches).0, "formation.draft.update");
     }
 }

@@ -13,8 +13,8 @@
     "stdio-mcp",
     "candidate-installation",
     "resumable-onboarding",
-    "offline-blueprint-authoring",
-    "private-blueprint-catalog",
+    "offline-formation-authoring",
+    "private-formation-catalog",
     "organization-rules",
     "taskless-contributions",
     "independent-attempts",
@@ -44,12 +44,12 @@
     },
     {
       "platform": "macOS arm64",
-      "scope": "Earlier API 2/protocol 2 source gates, persistent local CLI/daemon acceptance, six blueprint exports, four executable manual recipes and three-process default-network collaboration and all six operational cases",
+      "scope": "Earlier API 2/protocol 2 source gates, persistent local CLI/daemon acceptance, six formation exports, four executable manual recipes and three-process default-network collaboration and all six operational cases",
       "limits": "No public release, real-provider or physical-machine claim. Same-host default networking passes while isolated key-only multicast discovery fails. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
-        "docs/organization-blueprints-status.md",
+        "docs/formations-status.md",
         "docs/guide/collaboration.md",
-        "docs/guide/blueprint-authoring.md",
+        "docs/guide/formation-authoring.md",
         "docs/guide/apply.md",
         "docs/guide/sharing.md",
         "research/organization-local-discovery.md"

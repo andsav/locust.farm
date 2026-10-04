@@ -12,8 +12,8 @@ Labels: **[V]** checked by the author in the source or in an accepted document;
 The owner said on 2026-10-04 that an exclusive claim "could be a good
 addition": one member takes a task, and other members cannot work on it until
 it is released or replaced. It is decision 13 in the
-[blueprint editor plan](../docs/blueprint-authoring-plan.md) and "wanted, not
-built" in the [editor review](blueprint-editor-review.md). The accepted
+[formation editor plan](../docs/formation-authoring-plan.md) and "wanted, not
+built" in the [editor review](formation-editor-review.md). The accepted
 documents defer it as package O13.
 
 What do the accepted documents already require of it, and what is the smallest
@@ -69,14 +69,14 @@ page. Naming is open question 8.
 | The read model is built only from effective events. An event that replay rejects is not shown. | [projection.rs](../crates/locust-core/src/goal/projection.rs) lines 50 and 102 [V] |
 | The codec identifies enum variants by declaration index, so variants are only appended. | [codec.rs](../crates/locust-proto/src/codec.rs) module text [V] |
 | A fork in the administrator's own log halts the administrator chain. | [chain.rs](../crates/locust-core/src/goal/chain.rs) lines 193 to 203 [V] |
-| The editor says "Anyone. No lock: two members can work on the same task." | [words.ts](../sites/locust.farm/src/lib/blueprint-editor/model/words.ts) line 131, [PointBox.svelte](../sites/locust.farm/src/lib/blueprint-editor/ui/PointBox.svelte) line 252 [V] |
-| O13 is deferred and not selected. V04 is conditional on it. | [status](../docs/organization-blueprints-status.md) lines 32, 177 and 184 [V] |
+| The editor says "Anyone. No lock: two members can work on the same task." | [words.ts](../sites/locust.farm/src/lib/formation-editor/model/words.ts) line 131, [PointBox.svelte](../sites/locust.farm/src/lib/formation-editor/ui/PointBox.svelte) line 252 [V] |
+| O13 is deferred and not selected. V04 is conditional on it. | [status](../docs/formations-status.md) lines 32, 177 and 184 [V] |
 
 ## What the accepted documents already require
 
 All [V], quoted or closely paraphrased.
 
-From the [accepted direction](../docs/organization-blueprints.md), section
+From the [accepted direction](../docs/formations.md), section
 "Accepted governance and scoped decisions":
 
 - A scope may name an optional authority for exclusive reservation. It need not
@@ -85,7 +85,7 @@ From the [accepted direction](../docs/organization-blueprints.md), section
   Independent work and non-exclusive evidence continue.
 - No reservation authority is implicit in open work.
 
-From the [implementation plan](../docs/organization-blueprints-implementation-plan.md),
+From the [implementation plan](../docs/formations-implementation-plan.md),
 decision D5 and package O13:
 
 - A named, task-scoped, single-writer reservation authority.
@@ -108,7 +108,7 @@ decision D5 and package O13:
 - The gate: the M3 review decides from observed pooled work whether duplicate
   attempts cost enough to build this.
 
-From the [semantics](../docs/organization-blueprints-semantics.md):
+From the [semantics](../docs/formations-semantics.md):
 
 - "YAML and exclusive reservations remain deferred". D14 does not bring O13
   forward. Reservation events are absent until O13 is selected.
@@ -155,7 +155,7 @@ Rules for the validator: [I]
   not attached to a task. The lock adds a second condition for results that are
   attached to the task.
 - `schema_version` stays 1. The kind is added after the existing two, so
-  blueprints without it keep their meaning and their hash.
+  formations without it keep their meaning and their hash.
 
 ## Who hands tasks out
 
@@ -163,8 +163,8 @@ Two options. [I]
 
 | Option | For | Against |
 | --- | --- | --- |
-| The goal's administrator, always. No field in the blueprint. | Same answer as stages (decision 10; the review records the owner's reason, that a separate runner was confusing). Nothing to fill in when a goal starts. One computer to keep on, and a goal with steps already needs it on. | Departs from "named authority" in D5 and from "no reservation authority is implicit". The administrator's key signs every grant, and that key's log also carries membership and rules. |
-| A role or member named in the blueprint, as selection and finish are today. | Matches D5 as written. Keeps reservation signing out of the administrator's log. | A new role to explain and to bind. At goal creation the only member is the creator, so the role is the administrator anyway until rules are bound again (editor review, finding 1). |
+| The goal's administrator, always. No field in the formation. | Same answer as stages (decision 10; the review records the owner's reason, that a separate runner was confusing). Nothing to fill in when a goal starts. One computer to keep on, and a goal with steps already needs it on. | Departs from "named authority" in D5 and from "no reservation authority is implicit". The administrator's key signs every grant, and that key's log also carries membership and rules. |
+| A role or member named in the formation, as selection and finish are today. | Matches D5 as written. Keeps reservation signing out of the administrator's log. | A new role to explain and to bind. At goal creation the only member is the creator, so the role is the administrator anyway until rules are bound again (editor review, finding 1). |
 
 Recommended: the administrator, with no field. A named authority can be added
 later as an optional field without changing what the first form means. The
@@ -410,7 +410,7 @@ Not a plan, only the files a build would touch. [I]
 | Events | [event.rs](../crates/locust-proto/src/event.rs), the protocol and API versions in [lib.rs](../crates/locust-proto/src/lib.rs) |
 | Replay | [fold.rs](../crates/locust-core/src/goal/fold.rs), [projection.rs](../crates/locust-core/src/goal/projection.rs), [state.rs](../crates/locust-core/src/goal/state.rs), [delegation.rs](../crates/locust-core/src/goal/delegation.rs), [goal/mod.rs](../crates/locust-core/src/goal/mod.rs) |
 | Daemon | [node/flow.rs](../crates/locust-core/src/node/flow.rs), [claims.rs](../crates/locust-core/src/node/requests/claims.rs), [api.rs](../crates/locust-proto/src/api.rs) |
-| Editor | [line.ts](../sites/locust.farm/src/lib/blueprint-editor/model/line.ts), [words.ts](../sites/locust.farm/src/lib/blueprint-editor/model/words.ts), [checks.ts](../sites/locust.farm/src/lib/blueprint-editor/model/checks.ts), [PointBox.svelte](../sites/locust.farm/src/lib/blueprint-editor/ui/PointBox.svelte), [diagrams.ts](../sites/locust.farm/src/lib/blueprint-editor/ui/diagrams.ts) |
+| Editor | [line.ts](../sites/locust.farm/src/lib/formation-editor/model/line.ts), [words.ts](../sites/locust.farm/src/lib/formation-editor/model/words.ts), [checks.ts](../sites/locust.farm/src/lib/formation-editor/model/checks.ts), [PointBox.svelte](../sites/locust.farm/src/lib/formation-editor/ui/PointBox.svelte), [diagrams.ts](../sites/locust.farm/src/lib/formation-editor/ui/diagrams.ts) |
 | Documents | The semantics' deferred lines and event table, O13 and V04 in the plan and the status ledger, decision 13 in the editor plan, the guide |
 
 ## Open questions for the owner
@@ -419,7 +419,7 @@ Not a plan, only the files a build would touch. [I]
    observed pooled work. "Could be a good addition" is recorded as wanted, not
    as selected.
 2. Who hands tasks out: always the member who started the goal, or a role
-   named in the blueprint as D5 says? Recommended: the first, with the named
+   named in the formation as D5 says? Recommended: the first, with the named
    role as a later option.
 3. What is locked: starting work and posting a result for the task, or only
    starting work? Recommended: both. Findings not attached to the task stay
@@ -436,7 +436,7 @@ Not a plan, only the files a build would touch. [I]
 8. Words. The code has `Claim` for a local session. Recommended: `exclusive`
    in the format, `reservation` in events, "takes" and "one member at a time"
    on the page. Should the page say "claim" or "lock" anywhere?
-9. Should starting a goal whose blueprint has exclusive work, or steps, give
+9. Should starting a goal whose formation has exclusive work, or steps, give
    the starter's Locust the `flow` grant? Without it no task is handed out and
    nothing says why.
 10. Should one of the six ways of working use the new answer, for example

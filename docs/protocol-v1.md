@@ -3,11 +3,11 @@
 > **Historical pre-organization document.** Its protocol-1 commands, source
 > snapshots and qualification claims do not apply to API 2 / protocol 2. Read
 > [the current manual](guide/overview.md) and
-> [implementation status](organization-blueprints-status.md) for current behavior.
+> [implementation status](formations-status.md) for current behavior.
 > No legacy reader, migration or old-runtime support is provided.
 
-**Replacement scope, 2026-10-04:** this document describes the pre-blueprint
-implementation. The [accepted greenfield constraint](organization-blueprints.md)
+**Replacement scope, 2026-10-04:** this document describes the pre-formation
+implementation. The [accepted greenfield constraint](formations.md)
 requires replacing it without migrations, backward compatibility or dead code.
 Version-1 enum ordering and byte fixtures describe this contract only; they do
 not require dead variants, old decoders, retained binaries or a parallel engine

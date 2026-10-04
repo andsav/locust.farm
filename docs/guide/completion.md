@@ -67,6 +67,6 @@ outcome. Retain the earlier record and expose the changed status rather than
 calling it irreversible finality. [Event evidence and recovery](recovery.md)
 explains scope and author-log forks.
 
-The [signed semantics](../organization-blueprints-semantics.md) are the engineering
+The [signed semantics](../formations-semantics.md) are the engineering
 source for these rules. [Organization lifecycle](organization.md) explains which
 revisions change future defaults and which need explicit active-round transitions.

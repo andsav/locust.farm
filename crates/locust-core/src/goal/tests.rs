@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use locust_proto::event::*;
 use locust_proto::id::{DefinitionHash, EndpointId, EventId, GoalId};
 use locust_proto::organization::{
-    Authority, Blueprint, CompletionRule, EvidenceKind, Prerequisite, Selector, Stage,
+    Authority, CompletionRule, EvidenceKind, Formation, Prerequisite, Selector, Stage,
 };
 use locust_proto::store::{Commit, MemStore, Store};
 use locust_proto::testkit::{self, Author};
@@ -14,20 +14,20 @@ struct Fixture {
     admin: Author,
     workers: Vec<Author>,
     events: Vec<Event>,
-    definitions: BTreeMap<DefinitionHash, Blueprint>,
+    definitions: BTreeMap<DefinitionHash, Formation>,
     id: GoalId,
     anchor: EventId,
     rules: EventId,
     admissions: Vec<EventId>,
 }
 impl Fixture {
-    fn new(blueprint: Blueprint) -> Self {
-        let inspected = crate::organization::inspect(&serde_json::to_string(&blueprint).unwrap());
+    fn new(formation: Formation) -> Self {
+        let inspected = crate::organization::inspect(&serde_json::to_string(&formation).unwrap());
         assert!(inspected.valid, "{:?}", inspected.diagnostics);
-        let blueprint = inspected.normalized.unwrap();
+        let formation = inspected.normalized.unwrap();
         let mut admin = Author::new(1);
         let workers: Vec<_> = (2..=4).map(Author::new).collect();
-        let genesis = admin.genesis_with(&blueprint);
+        let genesis = admin.genesis_with(&formation);
         let id = genesis.header().goal;
         let mut anchor = genesis.id();
         let mut events = vec![genesis];
@@ -47,7 +47,7 @@ impl Fixture {
             admissions.push(event.id());
             events.push(event);
         }
-        let roles = blueprint
+        let roles = formation
             .roles
             .keys()
             .map(|name| {
@@ -59,7 +59,7 @@ impl Fixture {
                 (name.clone(), principals)
             })
             .collect();
-        let (binding, _) = testkit::rules_binding(&id, 0, &blueprint, roles);
+        let (binding, _) = testkit::rules_binding(&id, 0, &formation, roles);
         let bound = admin.event(
             id,
             Some(anchor),
@@ -75,7 +75,7 @@ impl Fixture {
             admin,
             workers,
             events,
-            definitions: BTreeMap::from([(testkit::definition_hash(&blueprint), blueprint)]),
+            definitions: BTreeMap::from([(testkit::definition_hash(&formation), formation)]),
             id,
             anchor,
             rules,
@@ -161,22 +161,22 @@ impl Fixture {
         id
     }
 }
-fn review_blueprint(count: u32) -> Blueprint {
-    let mut blueprint = Blueprint::default();
-    blueprint.decisions.completion = CompletionRule::Reviews {
+fn review_formation(count: u32) -> Formation {
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Reviews {
         by: Selector::Members,
         count,
         exclude_author: true,
     };
-    blueprint.decisions.selection = Some(Authority::Participant {
+    formation.decisions.selection = Some(Authority::Participant {
         key: testkit::keypair(1).public().to_string(),
     });
-    blueprint
+    formation
 }
 
 #[test]
 fn open_taskless_work_needs_no_administrator_decision() {
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let context = f.context();
     let first = f.publish(0, context);
     let second = f.publish(1, context);
@@ -191,7 +191,7 @@ fn open_taskless_work_needs_no_administrator_decision() {
 
 #[test]
 fn unknown_definition_waits_and_refresh_uses_exact_hash() {
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let subject = f.publish(0, f.context());
     let mut goal = Goal::new(f.id);
     goal.apply(&f.events, &BTreeMap::new());
@@ -200,7 +200,7 @@ fn unknown_definition_waits_and_refresh_uses_exact_hash() {
     assert!(changes.judged.contains(&subject));
     assert_eq!(goal.standing(&subject), Some(Standing::Effective));
     let hash = *f.definitions.keys().next().unwrap();
-    let mut wrong = Blueprint::default();
+    let mut wrong = Formation::default();
     wrong.context.guidance = "not the pinned definition".into();
     goal.refresh(&BTreeMap::from([(hash, wrong)]));
     assert!(!goal.standing(&subject).unwrap().is_effective());
@@ -208,7 +208,7 @@ fn unknown_definition_waits_and_refresh_uses_exact_hash() {
 
 #[test]
 fn independent_attempts_and_contributions_survive_reverse_arrival_and_restart() {
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let context = f.task();
     let a = f.worker(
         0,
@@ -254,7 +254,7 @@ fn independent_attempts_and_contributions_survive_reverse_arrival_and_restart() 
 
 #[test]
 fn threshold_counts_distinct_non_author_principals_on_the_exact_subject() {
-    let mut f = Fixture::new(review_blueprint(2));
+    let mut f = Fixture::new(review_formation(2));
     let context = f.task();
     let first = f.publish(0, context);
     let second = f.publish(0, context);
@@ -275,7 +275,7 @@ fn threshold_counts_distinct_non_author_principals_on_the_exact_subject() {
 
 #[test]
 fn member_fork_retracts_unpinned_approval_but_scoped_decision_retains_exact_proof() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
@@ -305,7 +305,7 @@ fn member_fork_retracts_unpinned_approval_but_scoped_decision_retains_exact_proo
 
 #[test]
 fn a_scoped_decision_waits_for_its_exact_missing_review() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
@@ -330,7 +330,7 @@ fn a_scoped_decision_waits_for_its_exact_missing_review() {
 
 #[test]
 fn scope_equivocation_halts_only_that_stream_and_keeps_other_work() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let a = f.publish(0, context);
     let b = f.publish(0, context);
@@ -359,7 +359,7 @@ fn scope_equivocation_halts_only_that_stream_and_keeps_other_work() {
 
 #[test]
 fn a_selection_cannot_substitute_another_task_or_count_unlisted_reviews() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let other = f.task();
     let candidate = f.publish(0, other);
@@ -371,7 +371,7 @@ fn a_selection_cannot_substitute_another_task_or_count_unlisted_reviews() {
         evidence: vec![review],
     });
     assert!(!f.goal().standing(&wrong).unwrap().is_effective());
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let candidate = f.publish(0, context);
     f.review(1, context, candidate);
@@ -389,7 +389,7 @@ fn a_selection_cannot_substitute_another_task_or_count_unlisted_reviews() {
 
 #[test]
 fn removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate() {
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let context = f.context();
     let first = f.publish(0, context);
     let last = f.publish(0, context);
@@ -421,7 +421,7 @@ fn removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate(
 
 #[test]
 fn missing_or_invalid_retention_cutoff_does_not_reopen_membership() {
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let subject = f.publish(0, f.context());
     f.admin(Body::MemberRemoved {
         member: f.workers[0].key.public(),
@@ -434,7 +434,7 @@ fn missing_or_invalid_retention_cutoff_does_not_reopen_membership() {
     let goal = f.goal();
     assert!(!goal.state().is_member(&f.workers[0].key.public()));
     assert!(goal.standing(&subject).unwrap().is_pending());
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let subject = f.publish(0, f.context());
     let wrong = f.publish(1, f.context());
     f.admin(Body::MemberRemoved {
@@ -452,7 +452,7 @@ fn missing_or_invalid_retention_cutoff_does_not_reopen_membership() {
 
 #[test]
 fn active_round_revision_never_reinterprets_old_evidence() {
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let old = f.task();
     let first = f.publish(0, old);
     let Scope::Task(task) = old.scope else {
@@ -482,9 +482,9 @@ fn active_round_revision_never_reinterprets_old_evidence() {
     assert_eq!(goal.current_context(old.scope), Some(current));
 }
 
-fn pipeline() -> Blueprint {
-    let mut blueprint = Blueprint::default();
-    blueprint.flow.insert(
+fn pipeline() -> Formation {
+    let mut formation = Formation::default();
+    formation.flow.insert(
         "research".into(),
         Stage {
             task_type: None,
@@ -492,7 +492,7 @@ fn pipeline() -> Blueprint {
             recipients: Selector::Members,
         },
     );
-    blueprint.flow.insert(
+    formation.flow.insert(
         "build".into(),
         Stage {
             task_type: None,
@@ -503,7 +503,7 @@ fn pipeline() -> Blueprint {
             recipients: Selector::Members,
         },
     );
-    blueprint
+    formation
 }
 
 #[test]
@@ -548,7 +548,7 @@ fn daemon_effects_advance_configured_stages_and_deduplicate_logical_work() {
 
 #[test]
 fn ordinary_publication_automatically_requires_review_delivery_by_its_author() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
     let goal = f.goal();
@@ -598,7 +598,7 @@ fn effect_cannot_change_recipients_and_fork_retraction_removes_outbox_projection
         f.goal().standing(&wrong),
         Some(Standing::Excluded(_))
     ));
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
     let desired = f
@@ -625,7 +625,7 @@ fn effect_cannot_change_recipients_and_fork_retraction_removes_outbox_projection
 
 #[test]
 fn shared_document_selection_requires_the_same_exact_review_evidence() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = Context {
         scope: Scope::Document(Doc::Plan),
         round: f.rules,
@@ -652,7 +652,7 @@ fn shared_document_selection_requires_the_same_exact_review_evidence() {
     assert!(goal.state().revisions[&revision].approved);
     assert_eq!(goal.standing(&decision), Some(Standing::Effective));
     assert_eq!(goal.state().documents[&Doc::Plan].selected, Some(revision));
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = Context {
         scope: Scope::Document(Doc::Summary),
         round: f.rules,
@@ -679,7 +679,7 @@ fn shared_document_selection_requires_the_same_exact_review_evidence() {
 
 #[test]
 fn same_slot_scope_authority_equivocation_is_explicitly_disputed() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
@@ -700,7 +700,7 @@ fn same_slot_scope_authority_equivocation_is_explicitly_disputed() {
 #[test]
 fn removal_payload_uses_rotated_epoch_and_rejects_old_epoch() {
     for epoch in [0, 1] {
-        let mut f = Fixture::new(Blueprint::default());
+        let mut f = Fixture::new(Formation::default());
         let removal = f.admin(Body::MemberRemoved {
             member: f.workers[0].key.public(),
             admission: f.admissions[1],
@@ -733,7 +733,7 @@ fn removal_payload_uses_rotated_epoch_and_rejects_old_epoch() {
 
 #[test]
 fn only_delivery_recipients_can_acknowledge_and_ack_does_not_start_work() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     f.publish(0, context);
     let goal = f.goal();
@@ -764,7 +764,7 @@ fn only_delivery_recipients_can_acknowledge_and_ack_does_not_start_work() {
 
 #[test]
 fn incompatible_proof_branches_dispute_only_their_scope() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
@@ -783,7 +783,7 @@ fn incompatible_proof_branches_dispute_only_their_scope() {
 
 #[test]
 fn scope_proof_cannot_retain_evidence_past_the_administrator_cutoff() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
@@ -812,7 +812,7 @@ fn scope_proof_cannot_retain_evidence_past_the_administrator_cutoff() {
 
 #[test]
 fn selection_predecessor_cannot_cross_task_scopes() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let first = f.task();
     let subject = f.publish(0, first);
     let review = f.review(1, first, subject);
@@ -838,7 +838,7 @@ fn selection_predecessor_cannot_cross_task_scopes() {
 
 #[test]
 fn accepted_fork_branch_is_readable_only_in_its_selected_scope() {
-    let mut f = Fixture::new(review_blueprint(1));
+    let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
@@ -914,8 +914,8 @@ fn nested_tasks_inherit_parent_authority_and_reject_widening() {
             by: Selector::TaskCreator,
         }],
     };
-    let mut blueprint = Blueprint::default();
-    blueprint.task_types.insert(
+    let mut formation = Formation::default();
+    formation.task_types.insert(
         "restricted".into(),
         TaskType {
             work: Some(restricted),
@@ -929,21 +929,21 @@ fn nested_tasks_inherit_parent_authority_and_reject_widening() {
             }),
         },
     );
-    blueprint.task_types.insert(
+    formation.task_types.insert(
         "wide".into(),
         TaskType {
             work: Some(WorkRules::default()),
             decisions: Some(DecisionRules::default()),
         },
     );
-    blueprint.task_types.insert(
+    formation.task_types.insert(
         "weak".into(),
         TaskType {
             work: None,
             decisions: Some(DecisionRules::default()),
         },
     );
-    let mut f = Fixture::new(blueprint);
+    let mut f = Fixture::new(formation);
     let binding = |task_type: Option<&str>, parent| TaskBinding {
         rules: f.rules,
         task_type: task_type.map(str::to_owned),
@@ -1012,10 +1012,10 @@ fn nested_tasks_inherit_parent_authority_and_reject_widening() {
 
 #[test]
 fn nested_task_keeps_parent_rules_after_future_defaults_change() {
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let parent = f.task();
     let old_rules = f.rules;
-    let (binding, _) = testkit::rules_binding(&f.id, 0, &Blueprint::default(), BTreeMap::new());
+    let (binding, _) = testkit::rules_binding(&f.id, 0, &Formation::default(), BTreeMap::new());
     f.admin(Body::RulesBound {
         expected: Some(old_rules),
         binding,
@@ -1037,11 +1037,11 @@ fn nested_task_keeps_parent_rules_after_future_defaults_change() {
 
 #[test]
 fn starts_bind_causal_closure_without_rejecting_concurrent_offline_work() {
-    let mut blueprint = Blueprint::default();
-    blueprint.decisions.finish = Some(Authority::Participant {
+    let mut formation = Formation::default();
+    formation.decisions.finish = Some(Authority::Participant {
         key: Author::new(1).key.public().to_string(),
     });
-    let mut f = Fixture::new(blueprint);
+    let mut f = Fixture::new(formation);
     let context = f.task();
     let close = f.admin(Body::ScopeDecided {
         context,
@@ -1144,16 +1144,16 @@ fn starts_bind_causal_closure_without_rejecting_concurrent_offline_work() {
 
 #[test]
 fn start_cannot_use_another_scope_or_selection_as_closure_position() {
-    let mut blueprint = Blueprint::default();
+    let mut formation = Formation::default();
     let authority = Authority::Participant {
         key: Author::new(1).key.public().to_string(),
     };
-    blueprint.decisions.finish = Some(authority.clone());
-    blueprint.decisions.selection = Some(authority);
-    blueprint.decisions.completion = CompletionRule::Contribution {
+    formation.decisions.finish = Some(authority.clone());
+    formation.decisions.selection = Some(authority);
+    formation.decisions.completion = CompletionRule::Contribution {
         by: Selector::Members,
     };
-    let mut f = Fixture::new(blueprint);
+    let mut f = Fixture::new(formation);
     let context = f.task();
     let another = f.task();
     let close = f.admin(Body::ScopeDecided {
@@ -1196,7 +1196,7 @@ fn start_cannot_use_another_scope_or_selection_as_closure_position() {
 
 #[test]
 fn new_child_cannot_reuse_parent_round_superseded_at_its_anchor() {
-    let mut f = Fixture::new(Blueprint::default());
+    let mut f = Fixture::new(Formation::default());
     let parent = f.task();
     let revised = f.admin(Body::TaskRevised {
         task: match parent.scope {

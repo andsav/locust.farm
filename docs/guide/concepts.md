@@ -11,16 +11,16 @@ Joining a goal, accepting an assignment and finishing an artifact are distinct
 acts. A participant's local execution is not the same thing as a distributed
 assignment or an accepted result.
 
-## Organizations and blueprints
+## Organizations and formations
 
 An organization defines how participants coordinate: roles, assignments,
-communication rules and decision authority. A blueprint is a declarative definition
-of those rules. A blueprint instance adds the concrete bindings required to run
+communication rules and decision authority. A formation is a declarative definition
+of those rules. A formation instance adds the concrete bindings required to run
 it, such as who fills a role and which authority may finalize a decision.
 
 A valid definition can describe an organization without being ready to execute.
 Offline checks cannot observe whether a participant is online, local permissions
-exist, or an instance has the required authority. See [Blueprint authoring](blueprint-authoring.md).
+exist, or an instance has the required authority. See [Formation authoring](formation-authoring.md).
 
 ## Participants and local agents
 
@@ -57,9 +57,9 @@ Unsupported definitions should receive a clear diagnostic. The greenfield design
 supports one current contract; it does not offer format conversion, mixed-version
 runtime branches or an old-reader fallback.
 
-Read the [accepted organization decision](../organization-blueprints.md) for the
-full model and [implementation plan](../organization-blueprints-implementation-plan.md)
-for its fixed scope and [implementation ledger](../organization-blueprints-status.md)
+Read the [accepted organization decision](../formations.md) for the
+full model and [implementation plan](../formations-implementation-plan.md)
+for its fixed scope and [implementation ledger](../formations-status.md)
 for completed checks. Return to [Locust overview](overview.md) for
 present availability.
 

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use locust_proto::organization::{Blueprint, SCHEMA_VERSION, semantic_hash};
+use locust_proto::organization::{Formation, SCHEMA_VERSION, semantic_hash};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -56,7 +56,7 @@ pub struct Explanation {
 pub struct Inspection {
     pub valid: bool,
     pub diagnostics: Vec<Diagnostic>,
-    pub normalized: Option<Blueprint>,
+    pub normalized: Option<Formation>,
     pub semantic_hash: Option<String>,
     pub explanation: Option<Explanation>,
 }
@@ -91,8 +91,8 @@ pub fn inspect(source: &str) -> Inspection {
             "Use the contract exported by this build. Unsupported documents are not converted.",
         )]);
     }
-    let mut blueprint: Blueprint = match serde_path_to_error::deserialize(value) {
-        Ok(blueprint) => blueprint,
+    let mut formation: Formation = match serde_path_to_error::deserialize(value) {
+        Ok(formation) => formation,
         Err(error) => {
             let path = error
                 .path()
@@ -109,21 +109,21 @@ pub fn inspect(source: &str) -> Inspection {
                 "definition",
                 &path,
                 error.inner().to_string(),
-                "Use blueprint schema or a bundled example for supported fields and values.",
+                "Use formation schema or a bundled example for supported fields and values.",
             )]);
         }
     };
-    let diagnostics = validation::validate(&blueprint);
+    let diagnostics = validation::validate(&formation);
     if !diagnostics.is_empty() {
         return Inspection::failed(diagnostics);
     }
-    normalize::normalize(&mut blueprint);
+    normalize::normalize(&mut formation);
     Inspection {
         valid: true,
         diagnostics,
-        semantic_hash: Some(semantic_hash(&blueprint)),
-        explanation: Some(explanation::explain(&blueprint)),
-        normalized: Some(blueprint),
+        semantic_hash: Some(semantic_hash(&formation)),
+        explanation: Some(explanation::explain(&formation)),
+        normalized: Some(formation),
     }
 }
 

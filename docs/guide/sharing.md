@@ -101,8 +101,8 @@ def get(person, goal, digest):
 def publish(person, goal, digest, summary):
     return call(person, 'contribution', 'publish', '--goal', goal, '--artifacts', json.dumps([digest]), summary)['recorded']['event']
 people = {p: call('owner', 'agent', 'enroll', p, '--manage-goals')['agent_enrolled']['agent'] for p in ['bridge', 'subgroup']}
-coordinator = subprocess.check_output([binary, 'blueprint', 'example', 'coordinator'], text=True)
-parent = call('bridge', 'goal', 'create', '--title', 'Parent', '--blueprint-json', coordinator, '--roles', json.dumps({'coordinator': [people['bridge']]}))['goal_created']['goal']
+coordinator = subprocess.check_output([binary, 'formation', 'example', 'coordinator'], text=True)
+parent = call('bridge', 'goal', 'create', '--title', 'Parent', '--formation-json', coordinator, '--roles', json.dumps({'coordinator': [people['bridge']]}))['goal_created']['goal']
 child = call('subgroup', 'goal', 'create', '--title', 'Subgroup')['goal_created']['goal']
 ticket = call('subgroup', 'goal', 'invite', '--goal', child)['invited']['ticket']
 call('bridge', 'goal', 'join', '--ticket', ticket)

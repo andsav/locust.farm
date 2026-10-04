@@ -603,6 +603,6 @@
   "required": [
     "schema_version"
   ],
-  "title": "Blueprint",
+  "title": "Formation",
   "type": "object"
 }

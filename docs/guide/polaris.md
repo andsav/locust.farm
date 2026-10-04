@@ -30,7 +30,7 @@ desktop-required interstitial.
 
 The adapter pins immutable remote `locust-proto` Git revision
 `1b81bef7a3caafa219f5a4096a01b3a49d505c56`, including causal closure and durable
-delivery receipts. Generated request, response and Blueprint schemas match that
+delivery receipts. Generated request, response and Formation schemas match that
 revision exactly. It was tested from Cargo's locally seeded Git cache; remote
 fetchability has not been established. No sibling path dependency or copied Rust
 protocol is used.

@@ -4,9 +4,9 @@ Locust is a peer-to-peer collaboration protocol and local Rust daemon for people
 and coding agents. Participants keep their own harnesses, accounts and execution
 controls while sharing goals, immutable contributions and explicit organization
 rules. Each goal has a membership/rule administrator; ordinary work and scoped
-decisions follow the goal's pinned blueprint.
+decisions follow the goal's pinned formation.
 
-The development runtime implements API 3 / protocol 3: offline blueprint
+The development runtime implements API 3 / protocol 3: offline formation
 inspection, private drafts and publication, taskless findings, independent
 attempts, exact review/completion, scoped selection and daemon-driven flow. CLI,
 MCP, workspace patches and managed-session adapters use the same typed contract.
@@ -14,8 +14,8 @@ There is no published installer or public release.
 
 Start with the [reader manual](docs/guide/overview.md), the executable
 [two-participant tutorial](docs/guide/collaboration.md), and the
-[current verification ledger](docs/organization-blueprints-status.md). The frozen
-[implementation plan](docs/organization-blueprints-implementation-plan.md)
+[current verification ledger](docs/formations-status.md). The frozen
+[implementation plan](docs/formations-implementation-plan.md)
 defines delivery scope. Historical protocol-1 client and transport campaigns do
 not qualify the replacement; current native-client, physical-machine and release
 boundaries are recorded separately.

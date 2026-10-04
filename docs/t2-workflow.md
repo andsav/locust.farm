@@ -3,7 +3,7 @@
 > **Historical pre-organization document.** Its protocol-1 commands, source
 > snapshots and qualification claims do not apply to API 2 / protocol 2. Read
 > [the current manual](guide/overview.md) and
-> [implementation status](organization-blueprints-status.md) for current behavior.
+> [implementation status](formations-status.md) for current behavior.
 > No legacy reader, migration or old-runtime support is provided.
 
 Status: implemented and locally verified, October 3, 2026. This document records

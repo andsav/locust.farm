@@ -7,7 +7,7 @@
 | No public installer | Software publication is unavailable | Report harness capabilities and stop; do not invent a download |
 | Service request succeeded but API does not answer | Manager request and authenticated readiness differ | Inspect settled service status, then authenticated daemon diagnosis |
 | MCP configuration exists but no tools appear | Native discovery/readiness is unverified | Inspect the client's MCP view and supported refresh; preserve policy |
-| Blueprint JSON parses but validation fails | Shape or semantics are unsupported | Follow diagnostic code/phase/path and correction; inspect exact schema |
+| Formation JSON parses but validation fails | Shape or semantics are unsupported | Follow diagnostic code/phase/path and correction; inspect exact schema |
 | Offline validation passes but work cannot run | Contextual bindings or local permissions may be missing | Inspect `rules effective`, `pending` and the requested action's diagnostic |
 | Review arrives before binding proof | Evidence is pending verification | Fetch/retain dependency proof and reevaluate; do not count or reject early |
 | Two candidates meet review threshold | Both can qualify | Use explicit selection only if a unique output is required |
@@ -60,4 +60,4 @@ private drafts/publication, taskless contributions, independent attempts, scoped
 completion and durable flow. The site includes raw Markdown, versioned inventories,
 search and generated CLI/API/MCP/event references. Public software publication and
 website deployment remain unavailable. See the
-[implementation ledger](../organization-blueprints-status.md) for current evidence.
+[implementation ledger](../formations-status.md) for current evidence.

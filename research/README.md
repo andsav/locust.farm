@@ -21,9 +21,9 @@ repository root. Untracked drafts are excluded from the check.
 - [Protocol-1 replay and ingestion baseline](organization-protocol1-performance.md): measured healthy and pinned-member-fork histories before the organization engine replacement; exact harness, results and measurement limits.
 
 - [Installed onboarding qualification](onboarding-qualification.md): committed macOS candidate, launchd and existing-daemon onboarding, identity/grant preservation and verified cleanup.
-- [Organization blueprints](organization-blueprints.md): research behind the accepted organization and authoring direction, with Merak comparison, primary sources, open collaboration and review/pool examples; detailed protocol mechanisms and migration remain proposals.
-- [Blueprint authoring on locust.farm](blueprint-authoring.md): research for the web editor plan: later owner decisions (TypeScript checks, renamed contract fields, six ways of working, stage-only map) and Locust decoder quirks, then the earlier contract, Polaris canvas, site, prompt and ecosystem findings, compared designs and review records.
-- [Blueprint editor review: first-time understanding](blueprint-editor-review.md): walkthrough, two model-played cold reads, a runtime source check and a word inventory of the built editor; where the page and the runtime disagree, and a proposal to show the rules as one line with four points; not accepted.
+- [Formations](formations.md): research behind the accepted organization and authoring direction, with Merak comparison, primary sources, open collaboration and review/pool examples; detailed protocol mechanisms and migration remain proposals.
+- [Formation authoring on locust.farm](formation-authoring.md): research for the web editor plan: later owner decisions (TypeScript checks, renamed contract fields, six ways of working, stage-only map) and Locust decoder quirks, then the earlier contract, Polaris canvas, site, prompt and ecosystem findings, compared designs and review records.
+- [Formation editor review: first-time understanding](formation-editor-review.md): walkthrough, two model-played cold reads, a runtime source check and a word inventory of the built editor; where the page and the runtime disagree, and a proposal to show the rules as one line with four points; not accepted.
 - [Exclusive claim on a task: proposal](exclusive-task-claim.md): what the accepted documents already require of a reservation, a third start rule kind, the goal's administrator as the one who hands tasks out, the events and replay rules, results posted without the task, release, replacement, offline and fork cases, the editor's new answer and ten questions for the owner. Proposal; nothing built.
 
 - [T2 integration findings](t2-integration-review.md): nested-content replication, materialization races, CLI error/session boundaries and local verification scope.
@@ -36,7 +36,7 @@ repository root. Untracked drafts are excluded from the check.
 
 - [Real-model shared-context pilot](shared-context-real-model-pilot.md): Merak/GPT Luna finding to Codex/GPT Luna implementation, independent patch/oracle evidence, session acknowledgment and retained citation/receipt friction.
 
-- [First-user journey after organization blueprints](first-user-journey-review.md): current API-2 source and local-browser review separating completed setup/authoring work from remaining first-goal, human-view, shared-context, invitation and natural-language qualification gaps.
+- [First-user journey after formations](first-user-journey-review.md): current API-2 source and local-browser review separating completed setup/authoring work from remaining first-goal, human-view, shared-context, invitation and natural-language qualification gaps.
 
 - [Bound CLI launcher qualification](bound-cli-launcher-qualification.md): committed candidate, fresh Codex and Claude Code profiles, native workspace commands through setup's launcher, and explicit scripted-provider limits.
 

@@ -33,7 +33,7 @@ pub const OPERATIONS: &[Operation] = &[
     Operation {
         name: "example",
         input: "example_name",
-        output: "blueprint",
+        output: "formation",
         summary: "Print a bundled example (raw JSON unless --json)",
     },
     Operation {
@@ -57,7 +57,7 @@ pub const OPERATIONS: &[Operation] = &[
     Operation {
         name: "normalize",
         input: "json_path_or_stdin",
-        output: "blueprint_or_invalid_inspection",
+        output: "formation_or_invalid_inspection",
         summary: "Print normalized semantic JSON (raw JSON unless --json)",
     },
 ];

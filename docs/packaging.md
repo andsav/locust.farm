@@ -59,7 +59,7 @@ This builder emits **no signing key or signature**. A signed candidate requires 
 `manual.tar` is a deterministic regular-file archive. It contains the exact
 repository `LICENSE`, `docs/site.json`, and the pages, artifacts and source links
 selected by that manifest, including generated schemas, contracts, example
-blueprints and availability metadata. Its canonical `manual.json` records the
+formations and availability metadata. Its canonical `manual.json` records the
 full source commit, manual versions and each member's SHA-256, size and mode.
 API and protocol versions must match the binary's source constants. The signed
 release manifest authenticates the complete manual payload.

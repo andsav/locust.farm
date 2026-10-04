@@ -80,7 +80,7 @@ fn decisions(value: &mut DecisionRules) {
         authority(value);
     }
 }
-pub(super) fn normalize(value: &mut Blueprint) {
+pub(super) fn normalize(value: &mut Formation) {
     work(&mut value.work);
     decisions(&mut value.decisions);
     for task_type in value.task_types.values_mut() {

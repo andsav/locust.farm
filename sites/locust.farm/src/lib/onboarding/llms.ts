@@ -56,12 +56,12 @@ Availability reviewed ${AVAILABILITY.reviewed}; organization runtime: ${AVAILABI
 
 - [Home](${ORIGIN}/): what Locust is for
 - [Start](${GUIDE_URL}): the first-contact guide, with the entry prompt for people and the instructions for agents
-- [Blueprints](${ORIGIN}/blueprints): an editor for blueprints, the rules a goal follows. It needs Locust on the person's computer and copies a prompt that follows docs/blueprint-prompt.md: the agent checks the blueprint with Locust, saves a private draft and asks before publishing
+- [Formations](${ORIGIN}/formations): an editor for formations, the rules a goal follows. It needs Locust on the person's computer and copies a prompt that follows docs/formation-prompt.md: the agent checks the formation with Locust, saves a private draft and asks before publishing
 - [Docs](${ORIGIN}/docs): unreleased development documentation
 - [Development inventory](${ORIGIN}/docs/next/index.json): source commit, contract versions, page status and raw Markdown URLs
-- [Blueprint authoring](${ORIGIN}/docs/next/blueprint-authoring): offline checks, private drafts/publication and explicit runtime bindings
+- [Formation authoring](${ORIGIN}/docs/next/formation-authoring): offline checks, private drafts/publication and explicit runtime bindings
 - [Runtime contract](${ORIGIN}/docs/next/reference/runtime.contract.json): generated CLI, API, MCP and signed-event definitions
-- [Blueprint schema](${ORIGIN}/docs/next/reference/organization.schema.json): current exported JSON shape
+- [Formation schema](${ORIGIN}/docs/next/reference/organization.schema.json): current exported JSON shape
 - [Authoring contract](${ORIGIN}/docs/next/reference/organization.contract.json): exact offline operations, examples and capability boundaries
 - [Peer-review example](${ORIGIN}/docs/next/examples/peer-review.json): exact checked definition; not a running organization
 - [Availability](${ORIGIN}/docs/next/reference/availability.json): reviewed publication and qualification facts

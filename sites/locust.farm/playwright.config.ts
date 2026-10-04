@@ -1,4 +1,4 @@
-// Browser tests for the blueprint editor, run against the production build.
+// Browser tests for the formation editor, run against the production build.
 // npm run test:e2e builds the site, serves it with vite preview and runs them.
 import { defineConfig, devices } from '@playwright/test';
 
@@ -15,7 +15,7 @@ export default defineConfig({
 	},
 	webServer: {
 		command: 'npm run preview -- --port 4174 --strictPort',
-		url: 'http://localhost:4174/blueprints',
+		url: 'http://localhost:4174/formations',
 		reuseExistingServer: false,
 		timeout: 60_000
 	}

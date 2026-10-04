@@ -1,6 +1,6 @@
 //! Bundled examples of the offline authoring contract.
 use super::{
-    Authority, Blueprint, CompletionRule, DecisionRules, EvidenceKind, Prerequisite, Preset, Role,
+    Authority, CompletionRule, DecisionRules, EvidenceKind, Formation, Prerequisite, Preset, Role,
     Selector, Stage, StartRule, TaskType,
 };
 
@@ -10,27 +10,27 @@ fn role(name: &str) -> Selector {
 fn authority(name: &str) -> Authority {
     Authority::Role { name: name.into() }
 }
-fn declare_role(blueprint: &mut Blueprint, name: &str, description: &str) {
-    blueprint.roles.insert(
+fn declare_role(formation: &mut Formation, name: &str, description: &str) {
+    formation.roles.insert(
         name.into(),
         Role {
             description: description.into(),
         },
     );
 }
-fn preset(name: &str, description: &str, blueprint: Blueprint) -> Preset {
+fn preset(name: &str, description: &str, formation: Formation) -> Preset {
     Preset {
         name: name.into(),
         description: description.into(),
-        blueprint,
+        formation,
     }
 }
 
 /// Examples ship within the binary's contract dependency; no checkout is needed.
 pub fn presets() -> Vec<Preset> {
-    let open = Blueprint::default();
+    let open = Formation::default();
 
-    let mut coordinator = Blueprint::default();
+    let mut coordinator = Formation::default();
     declare_role(
         &mut coordinator,
         "coordinator",
@@ -50,14 +50,14 @@ pub fn presets() -> Vec<Preset> {
         finish: Some(authority("coordinator")),
     };
 
-    let mut peer_review = Blueprint::default();
+    let mut peer_review = Formation::default();
     peer_review.decisions.completion = CompletionRule::Reviews {
         by: Selector::Members,
         count: 1,
         exclude_author: true,
     };
 
-    let mut independent = Blueprint::default();
+    let mut independent = Formation::default();
     declare_role(
         &mut independent,
         "judge",
@@ -65,7 +65,7 @@ pub fn presets() -> Vec<Preset> {
     );
     independent.decisions.selection = Some(authority("judge"));
 
-    let mut panel = Blueprint::default();
+    let mut panel = Formation::default();
     declare_role(&mut panel, "reviewer", "Reviews work done by other people.");
     panel.decisions.completion = CompletionRule::Reviews {
         by: role("reviewer"),
@@ -73,7 +73,7 @@ pub fn presets() -> Vec<Preset> {
         exclude_author: true,
     };
 
-    let mut pipeline = Blueprint::default();
+    let mut pipeline = Formation::default();
     pipeline.task_types.insert(
         "draft".into(),
         TaskType {

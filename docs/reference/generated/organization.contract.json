@@ -1,7 +1,8 @@
 {
   "examples": [
     {
-      "blueprint": {
+      "description": "Members contribute and independently start work; authors declare completion.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
@@ -37,11 +38,11 @@
           ]
         }
       },
-      "description": "Members contribute and independently start work; authors declare completion.",
       "name": "open"
     },
     {
-      "blueprint": {
+      "description": "A coordinator offers work, reviews completion, selects contributions and closes the goal.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
@@ -94,11 +95,11 @@
           ]
         }
       },
-      "description": "A coordinator offers work, reviews completion, selects contributions and closes the goal.",
       "name": "coordinator"
     },
     {
-      "blueprint": {
+      "description": "Members independently start work; completion requires one review by another member.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
@@ -136,11 +137,11 @@
           ]
         }
       },
-      "description": "Members independently start work; completion requires one review by another member.",
       "name": "peer-review"
     },
     {
-      "blueprint": {
+      "description": "Authors complete independent attempts; a bound judge selects contributions.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
@@ -183,11 +184,11 @@
           ]
         }
       },
-      "description": "Authors complete independent attempts; a bound judge selects contributions.",
       "name": "independent-attempts"
     },
     {
-      "blueprint": {
+      "description": "Completion requires two distinct reviews from the reviewer role, excluding the author.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
@@ -230,11 +231,11 @@
           ]
         }
       },
-      "description": "Completion requires two distinct reviews from the reviewer role, excluding the author.",
       "name": "review-panel"
     },
     {
-      "blueprint": {
+      "description": "A draft stage needs one review by another member; a ship stage starts when the draft is complete.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
@@ -306,7 +307,6 @@
           ]
         }
       },
-      "description": "A draft stage needs one review by another member; a ship stage starts when the draft is complete.",
       "name": "pipeline"
     }
   ],
@@ -332,7 +332,7 @@
     {
       "input": "example_name",
       "name": "example",
-      "output": "blueprint",
+      "output": "formation",
       "summary": "Print a bundled example (raw JSON unless --json)"
     },
     {
@@ -356,7 +356,7 @@
     {
       "input": "json_path_or_stdin",
       "name": "normalize",
-      "output": "blueprint_or_invalid_inspection",
+      "output": "formation_or_invalid_inspection",
       "summary": "Print normalized semantic JSON (raw JSON unless --json)"
     }
   ],
@@ -965,7 +965,7 @@
     "required": [
       "schema_version"
     ],
-    "title": "Blueprint",
+    "title": "Formation",
     "type": "object"
   },
   "schema_version": 1,

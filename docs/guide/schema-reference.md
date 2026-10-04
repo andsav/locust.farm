@@ -1,6 +1,6 @@
 # Authoring schema and command reference
 
-**Status: implemented offline authoring contract, blueprint schema version 1.**
+**Status: implemented offline authoring contract, formation schema version 1.**
 The tables on this page are rendered from committed exports of the Rust model and
 CLI catalog. They are not separately maintained signatures. Download the
 [exact schema](../reference/generated/organization.schema.json),
@@ -12,7 +12,7 @@ This reference covers offline JSON discovery and inspection only. It does not
 provide runtime publication, binding, goal mutation, execution or flow delivery.
 API/protocol identifiers shown in the page context identify the source contract;
 they do not claim that offline validation exercises the daemon or wire protocol.
-Unsupported blueprint schema versions are rejected; no conversion is offered.
+Unsupported formation schema versions are rejected; no conversion is offered.
 
 ## Inspect the current definition
 
@@ -32,5 +32,5 @@ not credentials or invitations.
 
 The generated sections below expose every offline operation, root schema field
 and shipped example from the same current export. The [runtime reference](runtime-reference.md) separately generates the current
-CLI/API/MCP and signed-event surfaces. Use [authoring](blueprint-authoring.md)
+CLI/API/MCP and signed-event surfaces. Use [authoring](formation-authoring.md)
 for private publication and binding procedures.

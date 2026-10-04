@@ -98,7 +98,7 @@ pub enum Space {
     /// Content keys per goal and key epoch.
     Key = 11,
     /// Owner-scoped local drafts, presentation revisions and immutable publications.
-    Blueprint = 12,
+    Formation = 12,
 }
 
 /// One local record: its key and its value.

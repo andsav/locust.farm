@@ -1,14 +1,14 @@
 //! Frozen protocol-3 encodings. Unsupported protocol versions have no reader.
 use crate::event::*;
 use crate::id::*;
-use crate::organization::{Authority, Blueprint, CompletionRule, Selector};
+use crate::organization::{Authority, CompletionRule, Formation, Selector};
 use crate::testkit::{self, Author};
 use std::collections::BTreeMap;
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 fn transcript() -> (Vec<Event>, Effect, crate::store::Blob) {
-    let mut definition = Blueprint::default();
+    let mut definition = Formation::default();
     definition.decisions.completion = CompletionRule::Reviews {
         by: Selector::Members,
         count: 1,

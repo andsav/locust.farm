@@ -96,7 +96,7 @@ fn decisions(value: &DecisionRules, prefix: &str, lines: &mut Vec<String>) {
         ),
     });
 }
-pub(super) fn explain(value: &Blueprint) -> Explanation {
+pub(super) fn explain(value: &Formation) -> Explanation {
     let mut summary = vec![
         "The goal administrator manages membership and rules separately from work permissions."
             .into(),

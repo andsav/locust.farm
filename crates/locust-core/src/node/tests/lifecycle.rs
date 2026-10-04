@@ -24,12 +24,12 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
     let principal = daemon.enroll("administrator", 1, true);
     let owner = daemon.owner();
     let agent = daemon.connect(credential(1), Some(session(1)));
-    let mut blueprint = locust_proto::organization::presets()
+    let mut formation = locust_proto::organization::presets()
         .into_iter()
         .find(|preset| preset.name == "coordinator")
         .unwrap()
-        .blueprint;
-    blueprint.context.inputs.insert(
+        .formation;
+    formation.context.inputs.insert(
         "workspace".into(),
         locust_proto::organization::Input {
             kind: locust_proto::organization::InputKind::Artifact,
@@ -40,7 +40,7 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
         agent,
         Request::GoalCreate {
             title: "A test goal".into(),
-            blueprint_json: Some(serde_json::to_string(&blueprint).unwrap()),
+            formation_json: Some(serde_json::to_string(&formation).unwrap()),
             roles: std::collections::BTreeMap::from([("coordinator".into(), vec![principal])]),
             inputs: Default::default(),
         },

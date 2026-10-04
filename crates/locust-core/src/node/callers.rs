@@ -143,7 +143,7 @@ pub(super) fn resolve(
                 || operation.audience != Audience::Author
             {
                 return Err(denied(
-                    "this credential only accesses its private blueprint catalog",
+                    "this credential only accesses its private formation catalog",
                 ));
             }
             if principals.active(&principal).is_none() {

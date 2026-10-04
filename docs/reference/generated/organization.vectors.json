@@ -688,7 +688,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "missing field `schema_version`",
             "path": "",
             "phase": "definition",
@@ -709,8 +709,8 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
-            "message": "invalid type: null, expected struct Blueprint",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
+            "message": "invalid type: null, expected struct Formation",
             "path": "",
             "phase": "definition",
             "related_paths": [],
@@ -730,8 +730,8 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
-            "message": "invalid type: string \"x\", expected struct Blueprint",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
+            "message": "invalid type: string \"x\", expected struct Formation",
             "path": "",
             "phase": "definition",
             "related_paths": [],
@@ -751,7 +751,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: string \"1\", expected u32",
             "path": "/schema_version",
             "phase": "definition",
@@ -772,7 +772,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: floating point `1.0`, expected u32",
             "path": "/schema_version",
             "phase": "definition",
@@ -793,7 +793,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid value: integer `-1`, expected u32",
             "path": "/schema_version",
             "phase": "definition",
@@ -814,7 +814,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: floating point `1.8446744073709552e+19`, expected u32",
             "path": "/schema_version",
             "phase": "definition",
@@ -835,7 +835,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown field `extra`, expected one of `schema_version`, `roles`, `context`, `work`, `decisions`, `task_types`, `flow`",
             "path": "/extra",
             "phase": "definition",
@@ -856,7 +856,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: sequence, expected a map",
             "path": "/roles",
             "phase": "definition",
@@ -877,7 +877,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown field `desc`, expected `description`",
             "path": "/roles/a/desc",
             "phase": "definition",
@@ -898,7 +898,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: integer `1`, expected a string",
             "path": "/roles/a/description",
             "phase": "definition",
@@ -919,7 +919,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "missing field `name`",
             "path": "/work/propose",
             "phase": "definition",
@@ -940,7 +940,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
             "path": "/work/propose/kind",
             "phase": "definition",
@@ -961,7 +961,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: integer `5`, expected variant identifier",
             "path": "/work/propose/kind",
             "phase": "definition",
@@ -982,7 +982,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: integer `5`, expected internally tagged enum Selector",
             "path": "/work/propose",
             "phase": "definition",
@@ -1003,7 +1003,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown field `y`, expected `name`",
             "path": "/work/propose",
             "phase": "definition",
@@ -1024,7 +1024,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "missing field `kind`",
             "path": "/work/starts/0",
             "phase": "definition",
@@ -1045,7 +1045,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "missing field `by`",
             "path": "/work/starts/0",
             "phase": "definition",
@@ -1066,7 +1066,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
             "path": "/work/starts/0",
             "phase": "definition",
@@ -1087,7 +1087,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: integer `5`, expected a string",
             "path": "/work/starts/0",
             "phase": "definition",
@@ -1108,7 +1108,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: map, expected a sequence",
             "path": "/work/starts",
             "phase": "definition",
@@ -1129,7 +1129,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown variant `bogus`, expected `role` or `participant`",
             "path": "/decisions/selection/kind",
             "phase": "definition",
@@ -1150,7 +1150,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "missing field `name`",
             "path": "/decisions/selection",
             "phase": "definition",
@@ -1171,7 +1171,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: integer `5`, expected internally tagged enum Authority",
             "path": "/decisions/selection",
             "phase": "definition",
@@ -1192,7 +1192,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown field `runner`, expected one of `recipients`, `task_type`, `requires`",
             "path": "/flow/s/runner",
             "phase": "definition",
@@ -1288,7 +1288,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "missing field `evidence`",
             "path": "/flow/s/requires/0",
             "phase": "definition",
@@ -1309,7 +1309,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown variant `x`, expected one of `publication`, `review`, `completion`, `selection`",
             "path": "/flow/s/requires/0/evidence",
             "phase": "definition",
@@ -1330,7 +1330,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid value: integer `-1`, expected u32",
             "path": "/decisions/completion",
             "phase": "definition",
@@ -1351,7 +1351,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: floating point `1.5`, expected u32",
             "path": "/decisions/completion",
             "phase": "definition",
@@ -1372,7 +1372,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "missing field `count`",
             "path": "/decisions/completion",
             "phase": "definition",
@@ -1393,7 +1393,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown variant `file`, expected `text` or `artifact`",
             "path": "/context/inputs/x/kind",
             "phase": "definition",
@@ -1414,7 +1414,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: string \"yes\", expected a boolean",
             "path": "/context/inputs/x/required",
             "phase": "definition",
@@ -1435,7 +1435,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: integer `1`, expected a string",
             "path": "/context/guidance",
             "phase": "definition",
@@ -1456,7 +1456,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "invalid type: integer `5`, expected a string",
             "path": "/flow/s/task_type",
             "phase": "definition",
@@ -1477,7 +1477,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown variant `x`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
             "path": "/task_types/t/work/propose/kind",
             "phase": "definition",
@@ -1498,7 +1498,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown field `rules`, expected `work` or `decisions`",
             "path": "/task_types/t/rules",
             "phase": "definition",
@@ -1519,7 +1519,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
             "path": "/work/propose",
             "phase": "definition",
@@ -1540,7 +1540,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown field `closure`, expected one of `completion`, `selection`, `finish`",
             "path": "/decisions/closure",
             "phase": "definition",
@@ -1561,7 +1561,7 @@
         "diagnostics": [
           {
             "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
             "message": "unknown field `variations`, expected one of `schema_version`, `roles`, `context`, `work`, `decisions`, `task_types`, `flow`",
             "path": "/variations",
             "phase": "definition",
@@ -3430,5 +3430,5 @@
       "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"members\", \"x\": 1}}}"
     }
   ],
-  "generated_by": "scripts/check_blueprints.py"
+  "generated_by": "scripts/check_formations.py"
 }

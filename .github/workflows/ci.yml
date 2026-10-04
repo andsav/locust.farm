@@ -39,7 +39,7 @@ jobs:
       - name: Rust tests
         run: cargo test --locked --workspace
       - name: Authoring schema and example parity
-        run: python3 scripts/check_blueprints.py
+        run: python3 scripts/check_formations.py
       - name: Executable manual recipes
         run: python3 scripts/check_documentation.py --binary target/debug/locust --timeout 60
       - name: Python helper tests

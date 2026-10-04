@@ -16,7 +16,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// authenticated goal administrator. Roles never grant that authority themselves.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct Blueprint {
+pub struct Formation {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     #[serde(default)]
@@ -35,7 +35,7 @@ pub struct Blueprint {
     pub flow: BTreeMap<String, Stage>,
 }
 
-impl Default for Blueprint {
+impl Default for Formation {
     fn default() -> Self {
         Self {
             schema_version: SCHEMA_VERSION,
@@ -248,13 +248,13 @@ pub enum EvidenceKind {
 
 /// Exported from the same types used by deserialization and validation.
 pub fn schema() -> serde_json::Value {
-    serde_json::to_value(schema_for!(Blueprint)).expect("JSON Schema is JSON serializable")
+    serde_json::to_value(schema_for!(Formation)).expect("JSON Schema is JSON serializable")
 }
 
 /// The semantic identity of a normalized current-format definition. This is
 /// distinct from the hash of encrypted bytes used to share it within a goal.
-pub fn semantic_hash(normalized: &Blueprint) -> String {
-    let bytes = crate::codec::encode(normalized).expect("blueprint is canonically encodable");
+pub fn semantic_hash(normalized: &Formation) -> String {
+    let bytes = crate::codec::encode(normalized).expect("formation is canonically encodable");
     let mut hash = blake3::Hasher::new_derive_key("locust organization definition v1");
     hash.update(&bytes);
     hash.finalize().to_hex().to_string()
@@ -265,7 +265,7 @@ pub fn semantic_hash(normalized: &Blueprint) -> String {
 pub struct Preset {
     pub name: String,
     pub description: String,
-    pub blueprint: Blueprint,
+    pub formation: Formation,
 }
 
 mod presets;

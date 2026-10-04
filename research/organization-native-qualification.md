@@ -44,7 +44,7 @@ natural cleanup.
 
 All four [executable manual recipes](../scripts/check_documentation.py) passed
 against the installed binary: open patch application, private authoring, local
-collaboration and separate-goal export. Installed runtime and blueprint contracts
+collaboration and separate-goal export. Installed runtime and formation contracts
 were retrieved with `HOME=/dev/null`; the installed manual was validated without
 checkout access. Campaign watchdogs were explicitly 300 seconds to accommodate
 previously observed host loader delays; no product execution budget changed.

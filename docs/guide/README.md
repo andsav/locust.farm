@@ -6,7 +6,7 @@ Availability and qualification remain separate from source capability.
 
 - [Locust overview](overview.md): Current source capabilities, public availability and the organization direction.
 - [Goals and organizations](concepts.md): The current goal, organization, participant and authority model.
-- [Blueprint authoring](blueprint-authoring.md): Offline definition checks, private publication and contextual runtime readiness.
+- [Formation authoring](formation-authoring.md): Offline definition checks, private publication and contextual runtime readiness.
 - [Architecture and local boundaries](architecture.md): Daemon, harness, transport and optional Polaris responsibilities.
 - [Availability and evidence](status.md): Publication, platform qualification and development capability boundaries.
 - [Local installation and onboarding](installation.md): Review trusted local candidates, profile/service choices and separate readiness observations.

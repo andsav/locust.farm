@@ -43,7 +43,7 @@
 				? ' · uncommitted working tree'
 				: ''}<br />
 			Software: {data.manifest.versions.software} · API: {data.manifest.versions.api} · Protocol: {data
-				.manifest.versions.protocol} · Blueprint schema: {data.manifest.versions.blueprintSchema}
+				.manifest.versions.protocol} · Formation schema: {data.manifest.versions.formationSchema}
 		</p>
 		<nav class="toc" aria-label="On this page">
 			<strong>On this page</strong
