@@ -1,0 +1,381 @@
+{
+  "record": "T1-M2-S2",
+  "date": "2026-10-03",
+  "scope": "owner-authorized mixed-build two-Mac CLI task smoke test",
+  "started_local": "2026-10-03T20:02:25.002926-07:00",
+  "binary": "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+  "source_commit": "8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02",
+  "sha256": "f0f719f80a5205a8758be1e0e4c689af3e7595fa9880c0d138c24ffa98650299",
+  "home": "/Users/andrei/.locust-t1",
+  "credential_path": "/Users/andrei/.locust-t1/agents/m2.credential",
+  "session_path": "/Users/andrei/.locust-t1/sessions/t1.secret",
+  "goal": "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623",
+  "assignment": "50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef",
+  "principal": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+  "received_coordination_note": "29da3721554d786e7f92de1e1d3501aa2f1ca80008ae5e5fa5b779d327d1153d",
+  "coordination_note_author": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+  "submission_idempotency_key": "<retained in private M2 context; unused>",
+  "checks": [
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "board",
+        "--goal",
+        "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623"
+      ],
+      "local_time": "2026-10-03T20:02:25.003549-07:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.007,
+      "stdout": "{\"ok\":true,\"result\":{\"board\":[{\"applied\":false,\"assignee\":\"a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f\",\"assignment\":\"50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef\",\"attempt\":1,\"proposer\":\"ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e\",\"result\":null,\"state\":\"assigned\",\"task\":\"8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445\",\"title\":\"Return the text: T1 task completed.\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "--owner",
+        "task",
+        "authorize",
+        "--goal",
+        "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623",
+        "--assignment",
+        "50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef"
+      ],
+      "local_time": "2026-10-03T20:02:25.011176-07:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.013,
+      "stdout": "{\"ok\":true,\"result\":\"done\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "session",
+        "create",
+        "/Users/andrei/.locust-t1/sessions/t1.secret"
+      ],
+      "local_time": "2026-10-03T20:02:25.025376-07:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.026,
+      "stdout": "{\"ok\":true,\"result\":{\"instance\":\"a9033fc2c7d3e0fbe28fa73db80623a2\",\"session_path\":\"/Users/andrei/.locust-t1/sessions/t1.secret\"}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "notes",
+        "--goal",
+        "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623"
+      ],
+      "local_time": "2026-10-03T20:02:59.753178-07:00",
+      "session_selected": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.009,
+      "stdout": "{\"ok\":true,\"result\":{\"notes\":[{\"about\":\"8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445\",\"at_ms\":1791082859525,\"author\":\"ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e\",\"note\":\"29da3721554d786e7f92de1e1d3501aa2f1ca80008ae5e5fa5b779d327d1153d\",\"supersedes\":null,\"text\":\"M1 to M2: let us coordinate through this Locust goal. Your assignment is 50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef for task 8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445. Inspect current task state; if it has not already been submitted, authorize it locally, create or reuse your protected session, claim it, and submit exactly: T1 task completed. Use the returned claim generation and preserve a submission idempotency key for retries. M1 will inspect and accept the result. Reply with a Locust note on this task containing your result event ID, binary version/source commit/SHA-256, macOS version and architecture. Keep the daemon running. Read new goal notes and pending work to continue coordination here; no need to paste event IDs through the human once we both use this channel.\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "board",
+        "--goal",
+        "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623"
+      ],
+      "local_time": "2026-10-03T20:02:59.752809-07:00",
+      "session_selected": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.01,
+      "stdout": "{\"ok\":true,\"result\":{\"board\":[{\"applied\":false,\"assignee\":\"a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f\",\"assignment\":\"50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef\",\"attempt\":1,\"proposer\":\"ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e\",\"result\":null,\"state\":\"assigned\",\"task\":\"8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445\",\"title\":\"Return the text: T1 task completed.\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "pending",
+        "--goal",
+        "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623"
+      ],
+      "local_time": "2026-10-03T20:02:59.753113-07:00",
+      "session_selected": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.01,
+      "stdout": "{\"ok\":true,\"result\":{\"pending\":{\"claimed\":[],\"held_elsewhere\":[],\"revision\":9,\"to_acknowledge\":[],\"to_authorize\":[],\"to_claim\":[{\"assignment\":\"50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef\",\"task\":\"8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445\"}],\"to_review\":[]}}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "event",
+        "show",
+        "--goal",
+        "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623",
+        "--event",
+        "50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef"
+      ],
+      "local_time": "2026-10-03T20:02:59.757759-07:00",
+      "session_selected": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.013,
+      "stdout": "{\"ok\":true,\"result\":{\"event\":{\"anchor\":\"07fdb4c2b60507966f8192766576306e1d3705a68bf6021eff1b1caeffaae88f\",\"body\":{\"task_assigned\":{\"assignee\":\"a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f\",\"attempt\":1,\"task\":\"8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445\"}},\"content\":[],\"payload\":null,\"task\":\"8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445\",\"text\":null,\"view\":{\"at_ms\":1791082736323,\"author\":\"ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e\",\"event\":\"50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef\",\"kind\":\"task_assigned\",\"position\":5,\"standing\":\"effective\"}}}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "status"
+      ],
+      "local_time": "2026-10-03T20:02:59.753045-07:00",
+      "session_selected": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.011,
+      "stdout": "{\"ok\":true,\"result\":{\"status\":{\"agents\":[{\"agent\":\"a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f\",\"grants\":{\"manage_goals\":true},\"name\":\"m2\",\"revoked\":false}],\"daemon_version\":\"0.1.0 (8ef9dbc2bcee)\",\"endpoint\":\"bf72ec6208e0770be4cdfd29c06e960922dec58fd47fcffc038559118bf2d023\",\"goals\":[{\"goal\":\"19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623\",\"halted\":null,\"member\":\"a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f\",\"membership\":\"member\",\"title\":\"Two Mac T1\"}]}}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/t1/8ef9dbc2bcee86dc5e505cd486f38acf9b3e5c02/locust",
+        "--json",
+        "doctor"
+      ],
+      "local_time": "2026-10-03T20:02:59.759136-07:00",
+      "session_selected": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.009,
+      "stdout": "{\"ok\":true,\"result\":{\"checks\":[{\"detail\":\"/Users/andrei/.locust-t1 mode 0700\",\"name\":\"state_directory\",\"ok\":true},{\"detail\":\"/Users/andrei/.locust-t1/daemon.sock\",\"name\":\"socket_path\",\"ok\":true},{\"detail\":\"held by process 4296\",\"name\":\"daemon_lock\",\"ok\":true},{\"detail\":\"socket accepted a connection\",\"name\":\"socket_connection\",\"ok\":true},{\"detail\":\"API 0 daemon 0.1.0 (8ef9dbc2bcee)\",\"name\":\"hello\",\"ok\":true},{\"detail\":\"status succeeded\",\"name\":\"status\",\"ok\":true},{\"detail\":\"readable, 32 bytes, mode 0600\",\"name\":\"credential_file\",\"ok\":true},{\"detail\":\"readable, 32 bytes, mode 0600\",\"name\":\"session_file\",\"ok\":true}]}}\n",
+      "stderr": ""
+    }
+  ],
+  "failures": [],
+  "before_board": [
+    {
+      "applied": false,
+      "assignee": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+      "assignment": "50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef",
+      "attempt": 1,
+      "proposer": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+      "result": null,
+      "state": "assigned",
+      "task": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445",
+      "title": "Return the text: T1 task completed."
+    }
+  ],
+  "authorization": {
+    "ok": true,
+    "result": "done"
+  },
+  "session_created": {
+    "ok": true,
+    "result": {
+      "instance": "a9033fc2c7d3e0fbe28fa73db80623a2",
+      "session_path": "/Users/andrei/.locust-t1/sessions/t1.secret"
+    }
+  },
+  "session_mode": "0600",
+  "current_notes": {
+    "ok": true,
+    "result": {
+      "notes": [
+        {
+          "about": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445",
+          "at_ms": 1791082859525,
+          "author": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+          "note": "29da3721554d786e7f92de1e1d3501aa2f1ca80008ae5e5fa5b779d327d1153d",
+          "supersedes": null,
+          "text": "M1 to M2: let us coordinate through this Locust goal. Your assignment is 50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef for task 8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445. Inspect current task state; if it has not already been submitted, authorize it locally, create or reuse your protected session, claim it, and submit exactly: T1 task completed. Use the returned claim generation and preserve a submission idempotency key for retries. M1 will inspect and accept the result. Reply with a Locust note on this task containing your result event ID, binary version/source commit/SHA-256, macOS version and architecture. Keep the daemon running. Read new goal notes and pending work to continue coordination here; no need to paste event IDs through the human once we both use this channel."
+        }
+      ]
+    }
+  },
+  "current_board": {
+    "ok": true,
+    "result": {
+      "board": [
+        {
+          "applied": false,
+          "assignee": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+          "assignment": "50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef",
+          "attempt": 1,
+          "proposer": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+          "result": null,
+          "state": "assigned",
+          "task": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445",
+          "title": "Return the text: T1 task completed."
+        }
+      ]
+    }
+  },
+  "current_pending": {
+    "ok": true,
+    "result": {
+      "pending": {
+        "claimed": [],
+        "held_elsewhere": [],
+        "revision": 9,
+        "to_acknowledge": [],
+        "to_authorize": [],
+        "to_claim": [
+          {
+            "assignment": "50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef",
+            "task": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445"
+          }
+        ],
+        "to_review": []
+      }
+    }
+  },
+  "current_event": {
+    "ok": true,
+    "result": {
+      "event": {
+        "anchor": "07fdb4c2b60507966f8192766576306e1d3705a68bf6021eff1b1caeffaae88f",
+        "body": {
+          "task_assigned": {
+            "assignee": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+            "attempt": 1,
+            "task": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445"
+          }
+        },
+        "content": [],
+        "payload": null,
+        "task": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445",
+        "text": null,
+        "view": {
+          "at_ms": 1791082736323,
+          "author": "ae4642dab1649c4126d5bcacf20c56b9c22d09cef49e1fb037f4b4eb532e310e",
+          "event": "50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef",
+          "kind": "task_assigned",
+          "position": 5,
+          "standing": "effective"
+        }
+      }
+    }
+  },
+  "current_status": {
+    "ok": true,
+    "result": {
+      "status": {
+        "agents": [
+          {
+            "agent": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+            "grants": {
+              "manage_goals": true
+            },
+            "name": "m2",
+            "revoked": false
+          }
+        ],
+        "daemon_version": "0.1.0 (8ef9dbc2bcee)",
+        "endpoint": "bf72ec6208e0770be4cdfd29c06e960922dec58fd47fcffc038559118bf2d023",
+        "goals": [
+          {
+            "goal": "19a6ceda4b41a80860177835c74626e4a0d1f5b7218214a73ebb92a91b6cf623",
+            "halted": null,
+            "member": "a979795f5f99fed3a619a8f8d612dcb876685888495dd39c245b54d7056e265f",
+            "membership": "member",
+            "title": "Two Mac T1"
+          }
+        ]
+      }
+    }
+  },
+  "current_doctor": {
+    "ok": true,
+    "result": {
+      "checks": [
+        {
+          "detail": "/Users/andrei/.locust-t1 mode 0700",
+          "name": "state_directory",
+          "ok": true
+        },
+        {
+          "detail": "/Users/andrei/.locust-t1/daemon.sock",
+          "name": "socket_path",
+          "ok": true
+        },
+        {
+          "detail": "held by process 4296",
+          "name": "daemon_lock",
+          "ok": true
+        },
+        {
+          "detail": "socket accepted a connection",
+          "name": "socket_connection",
+          "ok": true
+        },
+        {
+          "detail": "API 0 daemon 0.1.0 (8ef9dbc2bcee)",
+          "name": "hello",
+          "ok": true
+        },
+        {
+          "detail": "status succeeded",
+          "name": "status",
+          "ok": true
+        },
+        {
+          "detail": "readable, 32 bytes, mode 0600",
+          "name": "credential_file",
+          "ok": true
+        },
+        {
+          "detail": "readable, 32 bytes, mode 0600",
+          "name": "session_file",
+          "ok": true
+        }
+      ]
+    }
+  },
+  "version": "locust 0.1.0 (8ef9dbc2bcee) api 0 protocol 0",
+  "architecture": "arm64",
+  "macos_version": "26.2",
+  "daemon_pid": 4296,
+  "daemon_alive": true,
+  "daemon_log_lines": [
+    "locust: daemon 0.1.0 (8ef9dbc2bcee) listening on /Users/andrei/.locust-t1/daemon.sock",
+    "locust: peer e227d1abc740d67d5a28a9df1502fea112a6446a3b5b968ff0bfedaae595083f paths [PathSnapshot { kind: Relay, selected: true, rtt: 56.926167ms }]"
+  ],
+  "claim_run": false,
+  "submission_run": false,
+  "coordination_reply_sent": false,
+  "stop_reason": "Owner requested evidence-only handoff; new evidence left uncommitted. No claim or submission was attempted.",
+  "pending": [
+    "claim with protected session",
+    "submit with returned generation and saved local idempotency key",
+    "M1 acceptance",
+    "offline catch-up",
+    "daemon restarts",
+    "OS sleep/wake"
+  ],
+  "completed_local": "2026-10-03T20:02:59.799319-07:00",
+  "previous_evidence": "t1-m2-smoke-2026-10-03.json",
+  "status": "assignment authorized, protected session created; ready to claim at owner handoff",
+  "before_pending": {
+    "ok": true,
+    "result": {
+      "pending": {
+        "claimed": [],
+        "held_elsewhere": [],
+        "revision": 8,
+        "to_acknowledge": [],
+        "to_authorize": [
+          {
+            "assignment": "50024601853742ae22a7a3b33d3a33bee8e89f265a31fb003a6776c195a285ef",
+            "task": "8570524049313563b9b2a3e48637077f0dbabff09f00dcc65e209a4d333f0445"
+          }
+        ],
+        "to_claim": [],
+        "to_review": []
+      }
+    }
+  },
+  "before_pending_source": "Authenticated CLI pending --goal inspection before local authorization; exit code 0",
+  "m1_network_configuration": "daemon defaults, owner reported",
+  "execution_scope": "Task-readiness only; stopped before claim/submission at direct owner request"
+}
