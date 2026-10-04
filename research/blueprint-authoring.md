@@ -11,6 +11,56 @@ their agent.
 Labels: **[V]** verified by reading source or running a command; **[I]**
 inference or recommendation; **[R]** third-party report, not confirmed here.
 
+## Later decisions and findings, 2026-10-04
+
+This section supersedes the rest of the note where they disagree. The rest
+records the first two rounds of research. Identifiers such as WD4 or WR10 refer
+to earlier drafts of the plan, kept in Git history; the current
+[plan](../docs/blueprint-authoring-plan.md) lists decisions in plain words.
+
+**Owner decisions after the first rounds.**
+
+- Checks run in TypeScript in the page, not as WebAssembly. A WebAssembly build
+  of `locust-core` was the earlier recommendation; it did not compile for the
+  browser (`getrandom` through `chacha20poly1305`) and was judged too heavy for
+  what the page needs.
+- Contract names changed to `task_types`, `task_type`, `decisions.finish` and
+  `runner` (commit `74ec9fb`). Findings below that say `variations`, `closure`
+  or `materializer` predate the rename.
+- The page opens with six ways of working, each with an animated diagram. The
+  canvas shows only stages; everything else is edited as properties. Nodes and
+  the side panel keep Polaris's look in the site's colours and font.
+- Starting a goal is left out of the prompt.
+
+**Findings from the revision at `809bbbe`.** [V] unless marked.
+
+- The offline inspection is about 1,100 lines of Rust: loader, 13 rule codes
+  plus `invalid_json`, `duplicate_key`, `unsupported_version` and
+  `invalid_structure`, normalization, explanation and diff. A TypeScript port of
+  the parts the page needs is practical [I].
+- Locust's decoder is wider than its exported schema: a root array such as
+  `[2]` passes the version check because the check reads `schema_version` only
+  from objects; structs accept positional arrays (`"work":[]`); tagged enums
+  accept array forms; unit selectors accept and drop extra fields
+  (`{"kind":"members","x":1}`); input and evidence kinds accept a map form. The
+  port follows the schema, and the test cases stay inside it. These are worth
+  fixing in Locust.
+- Messages for `invalid_json` and `invalid_structure` come from `serde_json`
+  and include its own float formatting and type names. Matching them exactly in
+  TypeScript is possible but costly; the page shows its own plain message for
+  those two codes and matches code, phase and path.
+- Explanation lines format names with Rust's `{:?}`, which escapes some
+  non-ASCII characters. Exact agreement is tested on ASCII names [I].
+- `goal.create` takes inline `blueprint_json`, makes the creator the only
+  member, needs the daemon-wide `manage_goals` grant, and needs each required
+  input bound to a blob sealed with the goal's own key, which cannot exist
+  before the goal does. Every role must be present in the binding, and
+  `finish`, `selection` and `runner` roles need exactly one member.
+- A stage's runner's daemon creates the stage's task and delivers it when the
+  stage is ready; no agent process is started.
+- The presentation record is opaque `data_json` with its own revision and is
+  never part of a blueprint's identity.
+
 ## Question
 
 The owner asked for a plan, 2026-10-04: someone who has Locust authors a
