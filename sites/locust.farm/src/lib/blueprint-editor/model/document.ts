@@ -1,0 +1,210 @@
+// What the editor holds: the blueprint, the stage layout and the way of working
+// it started from. The layout is presentation only. It travels in Locust's
+// presentation record under the page's own key and never changes the
+// blueprint.
+
+import { compareCodePoints } from '../contract/text.ts';
+import type {
+	Authority,
+	Blueprint,
+	CompletionRule,
+	DecisionRules,
+	Selector,
+	StartRule,
+	WorkRules
+} from '../contract/types.ts';
+
+export interface Point {
+	x: number;
+	y: number;
+}
+
+export interface Layout {
+	stages: Record<string, Point>;
+	/** Keys other tools wrote into the same presentation record; kept as they are. */
+	others: Record<string, unknown>;
+}
+
+export interface EditorDocument {
+	/** A short name, kept in the layout so the agent can name the draft. */
+	name: string;
+	blueprint: Blueprint;
+	layout: Layout;
+	/** The way of working last applied, if any. */
+	way: string | null;
+}
+
+export const LAYOUT_KEY = 'locust.farm';
+
+export function emptyLayout(): Layout {
+	return { stages: {}, others: {} };
+}
+
+/** The presentation record's JSON object for this document. */
+export function presentation(document: EditorDocument): Record<string, unknown> {
+	const stages: Record<string, Point> = {};
+	for (const name of Object.keys(document.layout.stages).sort(compareCodePoints)) {
+		if (Object.hasOwn(document.blueprint.flow, name)) {
+			const { x, y } = document.layout.stages[name];
+			stages[name] = { x: Math.round(x), y: Math.round(y) };
+		}
+	}
+	return {
+		...document.layout.others,
+		[LAYOUT_KEY]: { name: document.name, way: document.way, stages }
+	};
+}
+
+/** Reads a presentation record, keeping other tools' keys. */
+export function readPresentation(value: unknown): {
+	layout: Layout;
+	name: string | null;
+	way: string | null;
+} {
+	const layout = emptyLayout();
+	let name: string | null = null;
+	let way: string | null = null;
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+		return { layout, name, way };
+	}
+	for (const [key, item] of Object.entries(value)) {
+		if (key !== LAYOUT_KEY) {
+			layout.others[key] = item;
+			continue;
+		}
+		if (typeof item !== 'object' || item === null) continue;
+		const own = item as Record<string, unknown>;
+		if (typeof own.name === 'string') name = own.name;
+		if (typeof own.way === 'string') way = own.way;
+		const stages = own.stages;
+		if (typeof stages === 'object' && stages !== null) {
+			for (const [stage, point] of Object.entries(stages as Record<string, unknown>)) {
+				const p = point as Partial<Point> | null;
+				if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) {
+					layout.stages[stage] = { x: p.x as number, y: p.y as number };
+				}
+			}
+		}
+	}
+	return { layout, name, way };
+}
+
+// Serialization in Rust field order, with map keys in code point order, so the
+// same blueprint always produces the same bytes.
+
+function selector(value: Selector): unknown {
+	switch (value.kind) {
+		case 'role':
+			return { kind: value.kind, name: value.name };
+		case 'participant':
+			return { kind: value.kind, key: value.key };
+		case 'any':
+			return { kind: value.kind, selectors: value.selectors.map(selector) };
+		default:
+			return { kind: value.kind };
+	}
+}
+
+function authority(value: Authority | null): unknown {
+	if (value === null) return null;
+	return value.kind === 'role'
+		? { kind: value.kind, name: value.name }
+		: { kind: value.kind, key: value.key };
+}
+
+function start(value: StartRule): unknown {
+	return value.kind === 'offered'
+		? { kind: value.kind, by: selector(value.by), to: selector(value.to) }
+		: { kind: value.kind, by: selector(value.by) };
+}
+
+function completion(value: CompletionRule): unknown {
+	switch (value.kind) {
+		case 'contribution':
+		case 'declaration':
+			return { kind: value.kind, by: selector(value.by) };
+		case 'reviews':
+			return {
+				kind: value.kind,
+				by: selector(value.by),
+				count: value.count,
+				exclude_author: value.exclude_author
+			};
+		case 'check':
+			return { kind: value.kind, name: value.name, by: selector(value.by) };
+		default:
+			return { kind: value.kind, rules: value.rules.map(completion) };
+	}
+}
+
+function work(value: WorkRules): unknown {
+	return {
+		propose: selector(value.propose),
+		publish: selector(value.publish),
+		starts: value.starts.map(start)
+	};
+}
+
+function decisions(value: DecisionRules): unknown {
+	return {
+		completion: completion(value.completion),
+		selection: authority(value.selection),
+		finish: authority(value.finish)
+	};
+}
+
+function sortedRecord<T, U>(record: Record<string, T>, map: (value: T) => U): Record<string, U> {
+	const out: Record<string, U> = {};
+	for (const key of Object.keys(record).sort(compareCodePoints)) out[key] = map(record[key]);
+	return out;
+}
+
+/** The blueprint as plain JSON data in a stable order. */
+export function blueprintData(value: Blueprint): Record<string, unknown> {
+	return {
+		schema_version: value.schema_version,
+		roles: sortedRecord(value.roles, (role) => ({ description: role.description })),
+		context: {
+			guidance: value.context.guidance,
+			inputs: sortedRecord(value.context.inputs, (input) => ({
+				kind: input.kind,
+				required: input.required
+			}))
+		},
+		work: work(value.work),
+		decisions: decisions(value.decisions),
+		task_types: sortedRecord(value.task_types, (taskType) => ({
+			work: taskType.work && work(taskType.work),
+			decisions: taskType.decisions && decisions(taskType.decisions)
+		})),
+		flow: sortedRecord(value.flow, (stage) => ({
+			runner: authority(stage.runner),
+			recipients: selector(stage.recipients),
+			task_type: stage.task_type,
+			requires: stage.requires.map((item) => ({ stage: item.stage, evidence: item.evidence }))
+		}))
+	};
+}
+
+// Control, format (bidirectional and zero-width), separator, private-use and
+// tag characters are written as \u escapes, so pasted text stays readable and
+// no line of a blueprint can be mistaken for something else. The value is
+// unchanged.
+const ESCAPE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\u0085\u{E0000}-\u{E007F}]/gu;
+
+/** Two-space indented JSON with LF line endings and no final newline. */
+export function toText(value: unknown): string {
+	return JSON.stringify(value, null, 2).replace(ESCAPE, (char) => {
+		if (char === '\n' || char === '\r' || char === '\t') return char;
+		const code = char.codePointAt(0)!;
+		if (code <= 0xffff) return `\\u${code.toString(16).padStart(4, '0')}`;
+		const high = Math.floor((code - 0x10000) / 0x400) + 0xd800;
+		const low = ((code - 0x10000) % 0x400) + 0xdc00;
+		return `\\u${high.toString(16)}\\u${low.toString(16)}`;
+	});
+}
+
+/** The exact text the prompt and downloads carry for the blueprint. */
+export function blueprintText(value: Blueprint): string {
+	return toText(blueprintData(value));
+}

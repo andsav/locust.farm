@@ -39,12 +39,12 @@ test('refuses lone surrogates, raw control characters and trailing text', () => 
 });
 
 test('orders strings by code point, as Rust does', () => {
-	const sorted = ['\u{1F600}', '～', 'b', 'a'].sort(compareCodePoints);
-	assert.deepEqual(sorted, ['a', 'b', '～', '\u{1F600}']);
+	const sorted = ['\u{1F600}', '\u{ff5e}', 'b', 'a'].sort(compareCodePoints);
+	assert.deepEqual(sorted, ['a', 'b', '\u{ff5e}', '\u{1F600}']);
 });
 
 test('escapes pointers and debug-quotes names', () => {
 	assert.equal(escapePointer('a/b~c'), 'a~1b~0c');
-	assert.equal(rustDebug('say "hi" \\ ré\n'), '"say \\"hi\\" \\\\ ré\\n"');
+	assert.equal(rustDebug('say "hi" \\ r\u{e9}\n'), '"say \\"hi\\" \\\\ r\u{e9}\\n"');
 	assert.equal(rustDebug('a\u0007'), '"a\\u{7}"');
 });
