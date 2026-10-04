@@ -1,6 +1,6 @@
 # Locust implementation plan
 
-Updated: 2026-10-03. **Current execution: production-client campaigns and managed launch, recovery, delivery and cancellation are implemented and locally exercised. All four clients completed the real-model workspace flow in both roles; Droid required a fresh coordinator session after native resume failed. Four-client scripted managed lifecycle/recovery checks passed. Default interactive approval, automatic skill discovery, independent accounts and physical-machine qualification remain open. Next: operational workflows and packaging; physical-machine and independent-account acceptance tests are deferred to the end. See [production findings](../research/t2-production-qualification.md), [managed sessions](managed-clients.md) and section 10.**
+Updated: 2026-10-04. **Current execution: operational workflows, native macOS installation/upgrade/services and the installed Codex/Claude/Pi experience have retained local results against identified source `5bb254d`. Managed lifecycle and recovery were refreshed against the same installed artifact. Linux x86_64 checks are running under Docker emulation. Physical-machine, sleep/wake, interactive approval and independent-account acceptance stay at the end, when the owner is available. Production signing and publication remain deferred. See [installation](installation.md), [installed-client findings](../research/installed-client-qualification.md) and section 10.**
 
 **Prior T1 checkpoint:** persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. The physical-machine qualification uses the owner's two available Macs. The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass remains a separate qualification activity; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.
 
@@ -59,17 +59,17 @@ The runtime was integrated in `885b372`. The [application](../crates/locust/src/
 
 | Area | Implemented and retained evidence | Still needed |
 |---|---|---|
-| Runtime, protocol and persistence | Protocol/API 1 remediation at `d253a07`; initial T2 at `8a7d170`; current managed-session source passes 511 Rust tests with nine explicit ignores, formatting and strict Clippy | Complete gate coverage and physical-machine qualification; the ignored checks are not passes |
+| Runtime, protocol and persistence | Protocol/API 1 remediation at `d253a07`; initial T2 at `8a7d170`; current service/setup source at `5bb254d` passes 571 Rust tests with 11 explicit ignores, formatting and strict Clippy | Complete gate coverage and physical-machine qualification; the ignored checks are not passes |
 | Peer task and recovery flow | Identified protocol-1 Apple Silicon artifact `d253a07` passed 21 checks with three processes on one Mac; older mixed-build two-Mac evidence records join, note and assignment readiness | Complete task/recovery/sleep checks on two physical Macs using one identified current artifact; third-peer and separate-network checks separately |
-| Coding clients | Four actual clients with production MCP, explicit operating-skill reads and real-model workspace flows; managed launch/readiness/binding/resume/recovery with ordinary pending tools and durable cancellation | Droid provider-key-only native resume and externally guarded native execution failures; default interactive approvals, automatic skill discovery, independent accounts, claimed hooks and installed-client qualification |
+| Coding clients | Four earlier actual clients with production MCP and real-model flows; current identified macOS candidate additionally passes installed skill/MCP discovery, native workspace flow and managed lifecycle/recovery for Codex, Claude and Pi | Droid provider-key-only native resume and externally guarded native execution failures; default interactive approvals, independent accounts, claimed hooks and Droid installed qualification |
 | Workspace | Named preview/export/materialize and base-bound patch create/review/submit/accept/apply; typed manifest/contribution descendants replicate; local safety and recovery tests pass | Multi-peer retained-content and conflicting-worker workflow qualification through real clients and identified artifacts |
-| Later runtime features | Document revisions, member removal/key rotation and multi-chunk transfer have implementation and component tests | Their complete workflow and release qualification; inclusion in core tests does not close those gates |
-| Delivery | Identified local arm64 T1 candidate, build helper, Linux source-check CI configuration, local website and entry guide | Identified T2 artifact, macOS CI, platform runtime checks, installer/services, signed platform artifacts and public-download qualification; publication is deferred |
+| Later runtime features | Six integrated same-host workflows cover conflicting revisions, interrupted retained-content transfer, competing patches, cancellation, withdrawal/leave and offline-member rotation; [retained evidence](../research/operational-qualification.md) | Physical network/account qualification and remaining release requirements; local campaigns do not close entire gates |
+| Delivery | Identified native candidate builder; macOS/Linux CI declarations; signed manifest and withdrawal checks; reviewed activation, service ownership and persistent client setup; ten macOS native install/upgrade/launchd cases and three installed clients qualified locally; [local prompt](install-prompt.md) | Linux emulated checks in progress; production signing custody, license, public origin and download verification remain open |
 | Formal models | TLA+ stages 0/1 have bounded checks against the historical protocol-0 baseline | Protocol-1 rebaseline under the separate [formal verification plan](tla-verification-plan.md); stages 2–5 remain proposed |
 
 The [integration findings](../research/t1-integration-2026-10-03.md), [candidate identity](t1-build.md) and [release ledger](release-evidence.md) retain exact evidence and limitations. Multicast-only discovery failed on the development host; daemon-default lookup and relay configuration passed the same-host workflow. No complete release gate is recorded as passed. The [first-contact document](first-contact.md) describes the target journey and an older source snapshot, not current daemon readiness.
 
-**Physical qualification, handled separately by the owner:** use two Macs with one identified binary and independent state directories. The ledger already records a historical mixed-build join, note and assignment-readiness smoke test; it does not record completed task acceptance, restart or sleep/wake qualification. Continue with the [T1 guide](t1-run.md), recording the artifact actually tested. The identified T1 artifact does not contain T2; build and identify a T2 candidate before qualifying its client/workspace path. A third daemon can run on either Mac to test surviving-peer exchange while the coordinator is offline; record that topology as three daemons on two machines. A third physical Mac is not a prerequisite. No two-peer run establishes that three-peer behavior.
+**Physical qualification, handled separately by the owner:** use two Macs with one identified binary and independent state directories. The ledger already records a historical mixed-build join, note and assignment-readiness smoke test; it does not record completed task acceptance, restart or sleep/wake qualification. Continue with the [T1 guide](t1-run.md), recording the artifact actually tested. The current [native candidate](packaging.md) includes T2 and the installed-client paths; use its exact recorded identity for new qualification. Historical T1 artifacts remain separate. A third daemon can run on either Mac to test surviving-peer exchange while the coordinator is offline; record that topology as three daemons on two machines. A third physical Mac is not a prerequisite. No two-peer run establishes that three-peer behavior.
 
 The [landscape survey](../research/landscape.md) evaluates Iroh, rust-libp2p, OpenDHT, p2panda, Willow, Radicle, A2A and MCP. The MoltMesh review provides concrete lessons from its [architecture/consensus](../research/moltmesh-architecture-and-consensus.md), [network/storage](../research/moltmesh-networking-and-storage.md), [task/SDK](../research/moltmesh-tasks-and-sdk.md) and [security](../research/moltmesh-security.md) paths. The [validation report](../research/moltmesh-validation.md) separates executed tests from source review.
 
@@ -241,14 +241,14 @@ Command status below is checked against the [CLI command tree](../crates/locust/
 | Goals | Implemented named create, invite, join, status and leave commands |
 | Board | Implemented `board`, `pending`, `events`, `event show`, `wait` and `task show` |
 | Tasks | Named propose, assign, authorize, claim, takeover, progress, submit, cancel, decline and fail; result accept/reject; broader request surface through `call` |
-| Scratchpad | Named `doc read`, `doc revise`, `doc accept` and note operations; complete workflow qualification remains later work |
+| Scratchpad | Named `doc read`, `doc revise`, `doc accept` and note operations; conflicting revisions and acceptance exercised in the same-host operational campaign |
 | Artifacts/workspace | Implemented named `workspace preview/export/materialize` and `patch create/review/submit/accept/apply`; see [commands and boundaries](t2-workflow.md) |
 
 Provide human-readable output plus versioned `--json` responses, stable error codes, request IDs and semantic result states. Keep a short documented happy path; JSON is an output format, not where uncommon operations are hidden. Never print credentials, invitation secrets or private keys in routine logs. Support an immediate pending-work query and wait-until-event with a caller-selected timeout, with distinct no-event, disconnected, denied, unsupported-version and corrupted-state outcomes. Adapter defaults must fit the tested client version's limits; there is no universal shortest-client timeout or hidden task-runtime cap. Persist/recover delivery state before checkpointing, independently of the model session.
 
 Explicit resume is the supported baseline. Hooks may surface pending-work/cancellation IDs at qualified lifecycle points; their elevated output contains daemon-authored identifiers/status, not peer-written instructions. Hook polling is nonblocking and uses ordinary authorization. Idle wake, mid-tool interruption and closed-session activation are separate capabilities, never inferred from a successful wait or MCP handshake. The daemon enforces collaboration authority; the participant's adapter/runner enforces local execution policy. Automatic wake is scoped only to Merak for now; Codex, Claude Code, Factory Droid and Pi use active sessions and explicit resume. Deeper execution/sandbox extensions remain separate; baseline Pi participation is required. A supervised external client is another option. [Agent-agnostic integration](../research/agent-agnostic-integration.md).
 
-The [operating skill](../skills/locust/SKILL.md) now teaches enrollment and goal joining, context inspection, typed coordination operations, attempt recovery, progress reporting, patch/result submission and the distinction between completion, acceptance and integration. Its coordinator and worker playbooks name review criteria and exact assignments. Source validation, independent review and explicit native reads/use by real models passed; automatic skill discovery and installed experience remain unqualified. Peer content remains untrusted task data under the host's existing permission/sandbox controls. Skill prose does not enforce security. The daemon enforces collaboration permissions; the selected client or runner enforces local execution restrictions.
+The [operating skill](../skills/locust/SKILL.md) now teaches enrollment and goal joining, context inspection, typed coordination operations, attempt recovery, progress reporting, patch/result submission and the distinction between completion, acceptance and integration. Its coordinator and worker playbooks name review criteria and exact assignments. Source validation, independent review and explicit native reads/use by real models passed in the earlier campaign. Automatic metadata discovery and the installed experience have separate local scripted-provider evidence for Codex, Claude and Pi; Droid and broader account/approval acceptance remain open. Peer content remains untrusted task data under the host's existing permission/sandbox controls. Skill prose does not enforce security. The daemon enforces collaboration permissions; the selected client or runner enforces local execution restrictions.
 
 The [Agent Skills specification](https://agentskills.io/specification) supports instructions and optional scripts. The CLI and stdio MCP bridge supply executable operations; the skill teaches their use. Qualify the bridge early on isolated default configurations for all four baseline clients, testing actual daemon reachability and each client's permission behavior. [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), [Claude Code MCP](https://code.claude.com/docs/en/mcp).
 
@@ -338,7 +338,8 @@ Module/file ownership should be explicit before concurrent edits. Shared event t
 | Local production-client campaigns completed | Scripted production MCP and real-provider synthetic workspace task; all four clients in both roles | A-C6/B-C10: exact versions, artifacts, policies, explicit skill reads and public object IDs. Droid native resume and guarded native execution remain failed; broader account/approval/install gates remain open |
 | Final acceptance: physical qualification | Use one identified current artifact on two Macs; complete task acceptance, offline catch-up, restart and OS sleep/wake; add a third daemon for coordinator-offline exchange and retained-content fetch | Historical mixed-build join/note/assignment-readiness evidence exists; complete current-artifact qualification remains open. Retain hash/version, OS, routes and exact process/host topology |
 | Managed implementation and local campaigns completed | Locally authorized launch/readiness/binding, explicit resume, ordinary-tool pending delivery, cancellation and conservative crash recovery for four clients | A-C7/B-C11: actual-binary normal and fault checks with exact separate artifact identities; no active hook, automatic wake or confinement claim |
-| Remaining product and release work | Complete operational workflows, diagnostics, platform packaging, installer/services and independent-collaborator qualification | Section 10 sequence, full M0–M6 exit evidence and exact artifact/platform/client matrix |
+| Operational and installed macOS campaigns completed | Six integrated operational workflows, ten native install/upgrade/launchd cases and the prioritized three-client installed experience | A-C8 through A-C10 / B-C12 through B-C14; exact `5bb254d` artifact for the final campaigns, including measured resources and explicit limits |
+| Remaining platform and acceptance work | Finish emulated Linux qualification; retain actual Linux systemd, physical-machine, independent-account and production trust requirements | Section 10 sequence, full M0–M6 exit evidence and exact artifact/platform/client matrix |
 | Publication: deferred | Revisit only when requested by the owner and after go/no-go | Public-artifact verification against the exact tested candidate |
 
 These are execution priorities, not passing records. The two-Mac first pass replaces waiting for a third physical laptop; it does not waive three-instance fault tests or the four-client baseline. Deterministic tests continue alongside integrated work. A failed required check is recorded and fixed; an unverified behavior is never presented as supported.
@@ -444,8 +445,10 @@ Keep unit/state-machine tests deterministic and exercise delayed, reordered, par
 T2 implementation is complete at `8a7d170`; `aaf1b5b` records its verification.
 Steps 1–3 now have implemented harnesses/runtime and retained local campaign
 results in A-C6/B-C10 and A-C7/B-C11. Failed and unrun qualification cases remain
-open. Step 4 is the next implementation/workflow checkpoint. This sequence does
-not authorize publication or replace M0–M6 acceptance criteria.
+open. Step 4 has retained local workflow results; step 5 implementation is
+complete, native macOS installation and step 6 local campaigns have passed, and
+Linux emulated checks remain in progress. This sequence
+does not authorize publication or replace M0–M6 acceptance criteria.
 
 **Owner sequencing update:** finish operational hardening, packaging and local
 installed-client verification before requesting physical-machine testing. The
@@ -461,8 +464,10 @@ and Pi. This changes work order, not the evidence already recorded.
    from integrated files and preserve unrelated dirty work. Droid's native
    command under the external guard and real-provider native coordinator resume
    remain failed; explicit fresh-session application passed. Automatic skill
-   discovery, default interactive approval, independent accounts and installed
-   experience remain unqualified. See [findings](../research/t2-production-qualification.md).
+   discovery and installed experience were outside that earlier campaign; the
+   three prioritized clients now have separate local installed evidence below.
+   Default interactive approval and independent accounts remain unqualified.
+   See [findings](../research/t2-production-qualification.md).
 2. **Managed launch and recovery implemented and locally exercised.**
    [The foreground launcher](managed-clients.md) preserves explicit client policy,
    persists launch intent, requires native identity plus authenticated MCP
@@ -480,36 +485,44 @@ and Pi. This changes work order, not the evidence already recorded.
    races have component coverage. A notification or client exit never implies a
    stopped/completed outcome. Qualified active hooks, automatic wake and worker
    confinement remain false capabilities. Optional Merak wake is separate.
-4. **Complete the operational workflows using existing core behavior.** Exercise
-   member removal/key rotation with an offline member, conflicting document
-   revisions, cancellation acknowledgment, and multi-chunk snapshot/patch
-   transfer through the daemon. Interrupt and resume transfer, disconnect the
-   original content source and fetch from a retained third replica, withdraw
-   local payloads and leave a goal. Exercise two workers on the same base, stale
-   acceptance and conflicting application while preserving dirty work. Resolve
-   discovered gaps and document retention/garbage-collection policy, metadata
-   pins and active-transfer protection. Done means enforcing tests plus retained
-   workflow results; no replacement key-rotation or document engine is planned.
-5. **Build platform packaging and the deterministic installer.** Add macOS CI
-   alongside the configured Linux checks. Build identified macOS arm64 and Linux
-   x86_64 artifacts and smoke-test fresh-database write/read/restart. Implement
-   the signed manifest/trust-root and withdrawn-version checks, installer,
-   user-session services, skill installation and scoped MCP configuration.
-   Preserve existing client settings and identity. Cover repeat and interrupted
-   install, failed service start, upgrades/migrations, recovery and uninstall
-   with separate data-purge intent. Run `doctor` plus a real client API roundtrip
-   and report reload/discovery status. Resolve the owner's license,
-   distribution-origin and signing-custody choices before release signing;
-   local implementation and artifact testing can proceed without publication.
-6. **Verify the local installed experience.** On available clean local test
-   environments, exercise the identified artifacts and pasteable install prompt.
-   Prioritize Codex, Claude and Pi: automatic skill/bridge discovery, normal
-   permission and denied setup paths, managed launch/resume, task completion,
-   contribution acceptance and actual application. Preserve unrelated settings
-   and dirty work. Finish redacted diagnostics joined by task/event/session IDs;
-   measure binary size, idle CPU/memory/network, startup and transfer memory.
-   Record unavailable platform/account cases for the final acceptance pass.
-   Lane C updates onboarding from verified commands and artifacts.
+4. **Operational workflows implemented and locally exercised.** The
+   [six-scenario daemon campaign](../research/operational-qualification.md)
+   verifies offline-member rotation, conflicting document revisions, durable
+   cancellation acknowledgment, withdrawal/leave, and 12 MiB snapshot/patch
+   transfer interrupted after a durable partial receive. A restarted retained
+   third replica supplies content while the origin is offline. Competing workers,
+   stale acceptance and dirty application refusal preserve local work.
+   [Network hardening](../research/network-hardening-final.md) fixes clock-step
+   scheduling and founding-content priority and exercises early invitation
+   readiness. Retention and active-transfer protection are documented with
+   enforcing tests. These are same-host and deterministic results, with physical
+   topology and sleep behavior still separate.
+5. **Packaging implemented; native macOS installation qualified locally.** The
+   [native builder](packaging.md) and macOS/Linux CI declarations identify
+   archived committed source. [Installation](installation.md) verifies explicit
+   trust, signatures, payloads and remembered withdrawals before activation.
+   The exact `5bb254d` candidate passed ten native install, same-schema
+   cross-commit upgrade, launchd failure/retry, restart and conservative removal
+   cases. Identity, notes and unrelated files were preserved. The
+   [local prompt](install-prompt.md) composes reviewed software, service and
+   profile operations. Linux checks under Docker x86_64 emulation are in progress;
+   actual Linux systemd, schema migration, production trust and physical-machine
+   evidence remain distinct requirements. CI declarations do not establish a
+   hosted run. License, signing custody and public origin stay owner choices.
+6. **Prioritized local installed experience exercised.** Actual Codex 0.153.4,
+   Claude Code 2.1.280 and Pi 1.0.1 passed persistent skill metadata discovery,
+   native skill reads, setup-installed MCP calls, task/contribution acceptance
+   and application, daemon restart, fresh native chats and owned configuration
+   removal. Independent checks preserved unrelated settings and dirty work.
+   The [retained campaign](../research/installed-client-qualification.md) records
+   exact default denials and separate permissive runs; its scripted local
+   provider does not establish real-model behavior or human approval. Managed
+   launch/resume/cancellation and conservative crash recovery also passed against
+   that installed artifact. Droid was omitted by priority and retains its older
+   results and failures, without promotion to this build. Binary size, startup,
+   idle RSS/CPU and transfer RSS were measured; network bytes and peak memory
+   were not. Lane C has a [canonical handoff](lane-b-log.md) for its onboarding;
+   no public setup URL is invented.
 7. **Final acceptance: physical machines, networks and independent accounts.**
    Resume only when the owner is available, using the [two-Mac guide](t1-run.md)
    and one identified candidate with independent homes/accounts. Verify task

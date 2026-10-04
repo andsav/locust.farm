@@ -129,7 +129,8 @@ verified installer. The restarted final daemon retained its endpoint identity
 and prior note and passed doctor. Both releases use version 0.1.0; their full
 source, manifest and executable identities differ and are recorded. This is
 an actual native cross-commit upgrade, not a substituted probe or manifest-only
-fixture.
+fixture. The database schema is unchanged between these two commits; this
+checks activation and data preservation, not migration between schema versions.
 
 The launchd failure case observed daemon exit code 6 with the synthetic
 non-directory home, preserved the owned unit and ownership record, and passed

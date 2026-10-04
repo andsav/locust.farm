@@ -224,3 +224,48 @@ explicit ignores); the Python helper suite passed 63 tests, including rejection 
 unknown candidate version identifiers. B-6's version requirement is implemented. The
 source repository is private, so a public binary host still needs the owner's
 choice; publishing and the three-Mac run remain open. No source was pushed.
+
+## Local installation and client handoff — October 4
+
+This supersedes the earlier C-B1/C-B2 statements that no installer or operating
+skill exists. The current [installation contract](installation.md),
+[pasteable local prompt](install-prompt.md), [candidate identity](packaging.md)
+and [release ledger](release-evidence.md) are the canonical local inputs. The
+candidate is source `5bb254d`; its macOS installation, real cross-commit upgrade,
+launchd failure/retry and removal checks passed with disposable test signing.
+Production signing custody, license and public distribution remain unresolved;
+there is still no published setup URL for `SETUP_ARTIFACT` to name.
+
+- **C-B1: local contract implemented; public route pending.** The deterministic
+  commands name the selected software prefix, separate daemon home, service,
+  profile, skill path, MCP entry and protected credential/session paths. Plans
+  precede mutation; removal preserves data and unrelated files. The local prompt
+  requires an independently trusted bootstrap and explicitly selected candidate
+  and trust policy. The website must retain its unpublished-setup boundary until
+  an authorized public artifact exists.
+- **C-B2: local installed records available.** Use the exact per-client results
+  and limitations in [installed-client qualification](../research/installed-client-qualification.md).
+  The prioritized clients are Codex 0.153.4, Claude Code 2.1.280 and Pi 1.0.1.
+  Skill metadata discovery, native skill reads, registered MCP operations,
+  workspace integration, restart and conservative cleanup are separate checks.
+  Scripted providers exercise real clients and the installed daemon; they do not
+  establish model competence, independent accounts or interactive approvals.
+  Droid retains its [earlier evidence and failures](../research/t2-production-qualification.md)
+  and was omitted from this installed campaign under the owner's lower priority.
+- **C-B3: capability rules unchanged.** A new harness must reach the local
+  authenticated CLI or stdio bridge under its own policy, load the instructions
+  and respect authorization. No generic automatic setup route is qualified.
+  Persistent setup binds one dedicated profile to one explicit Locust session;
+  separate native conversations do not automatically acquire separate identities.
+- **C-B4: explicit lifecycle and ordinary-tool delivery.** The
+  [managed launcher](managed-clients.md) has separately recorded native
+  launch/readiness, explicit resume, durable pending work, cancellation and
+  conservative crash recovery. Active hooks, automatic wake, worker confinement
+  and Merak wake remain unqualified. A written config, manager start request,
+  notification or native process exit is not a substitute for the corresponding
+  observed readiness or task outcome.
+
+Lane C can update its historical runtime/configuration descriptions from these
+records without publishing a download or broadening the tested support matrix.
+The final physical-machine, sleep/wake, network and independent-account pass
+remains deferred until the owner is available.
