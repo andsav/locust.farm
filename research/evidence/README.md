@@ -2,6 +2,7 @@
 
 These files preserve local characterization probes and captured results from 2026-10-03. Each names its target revision and distinguishes upstream research from Locust implementation evidence.
 
+- [Performance and cost measurements](performance-cost-2026-10-04.json): paired API-3 release binaries, schema bytes, CLI/MCP timings, context response hashes and full engine evaluation fingerprints; interpreted in the [performance report](../performance-cost-pass.md).
 - [Real-model shared-context pilot](shared-context-models-2026-10-04.json): separate Merak and Codex principals using GPT Luna on API 3; exact finding/read/acknowledgment and patch evidence, independent oracle, missing citation and recovered receipt error; interpreted in the [pilot findings](../shared-context-real-model-pilot.md).
 - [Installed onboarding qualification](onboarding-qualification-2026-10-04.json): exact committed macOS candidate, launchd and existing-daemon observations, protected identity fingerprints, operation receipts and cleanup; interpreted in the [onboarding findings](../onboarding-qualification.md).
 - [Last-mile experience measurements](last-mile-experience-2026-10-04.json): the per-tool tally of 132 real-model MCP calls across 31 logs, `tools/list` size figures and descriptions at `6757d75`, response sizes for a catch-up and a one-task worker sequence, and the error text for common agent mistakes; measured once on scratch daemons since deleted; interpreted in the [last-mile findings](../last-mile-experience.md).

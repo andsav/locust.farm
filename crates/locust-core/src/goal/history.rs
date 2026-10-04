@@ -67,6 +67,14 @@ impl AuthorLog {
         Some(self.points[self.usable.checked_sub(1)?].id)
     }
 
+    /// Usable positions are exactly `0..usable`, with one event at each index.
+    pub fn contains_usable(&self, point: AuthorPoint) -> bool {
+        usize::try_from(point.seq)
+            .ok()
+            .and_then(|index| self.points[..self.usable].get(index))
+            == Some(&point)
+    }
+
     fn insert(&mut self, point: AuthorPoint, slot: Slot, events: &[Event]) -> Placed {
         let at = self.points.partition_point(|held| *held < point);
         let shares = |held: Option<&AuthorPoint>| held.is_some_and(|held| held.seq == point.seq);

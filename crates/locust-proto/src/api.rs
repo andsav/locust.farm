@@ -82,6 +82,7 @@
 pub mod context;
 pub mod invitations;
 pub mod permissions;
+mod schema;
 pub use context::*;
 pub use invitations::*;
 pub use permissions::*;
@@ -1066,10 +1067,10 @@ impl Request {
         }
     }
 }
-/// Generated full request schema. MCP consumers select the matching operation
-/// branch and retain root definitions rather than hand-copying field schemas.
+/// Generated full request schema. The immutable schema is generated once;
+/// callers receive an owned copy they can inspect or modify independently.
 pub fn request_schema() -> serde_json::Value {
-    serde_json::to_value(schema_for!(Request)).expect("request schema serializes")
+    schema::request().clone()
 }
 
 /// Offline discovery from the same types and registry used by the daemon,
@@ -1833,36 +1834,10 @@ impl From<CodecError> for ApiError {
     }
 }
 
-/// One operation's fields, extracted from the authoritative request schema.
+/// One operation's fields and reachable definitions, extracted from the
+/// authoritative request schema. Unreferenced definitions are omitted.
 pub fn operation_schema(name: &str) -> Option<serde_json::Value> {
-    let schema = request_schema();
-    for branch in schema
-        .get("oneOf")
-        .or_else(|| schema.get("anyOf"))?
-        .as_array()?
-    {
-        if branch.get("const").and_then(serde_json::Value::as_str) == Some(name)
-            || branch
-                .get("enum")
-                .and_then(serde_json::Value::as_array)
-                .is_some_and(|values| values.iter().any(|value| value.as_str() == Some(name)))
-        {
-            return Some(
-                serde_json::json!({"type":"object","properties":{},"additionalProperties":false}),
-            );
-        }
-        if let Some(input) = branch
-            .get("properties")
-            .and_then(|properties| properties.get(name))
-        {
-            let mut input = input.clone();
-            if let Some(definitions) = schema.get("$defs") {
-                input["$defs"] = definitions.clone();
-            }
-            return Some(input);
-        }
-    }
-    None
+    schema::operation(name).cloned()
 }
 
 #[cfg(test)]

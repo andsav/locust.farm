@@ -31,6 +31,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ### Last-mile experience — 2026-10-04
 
+- [Performance and agent cost pass](performance-cost-pass.md): paired API-3 schema, CLI/MCP, context and history measurements with exact behavior checks and explicit provider-cost boundaries.
+
 - [Real-model shared-context pilot](shared-context-real-model-pilot.md): Merak/GPT Luna finding to Codex/GPT Luna implementation, independent patch/oracle evidence, session acknowledgment and retained citation/receipt friction.
 
 - [First-user journey after organization blueprints](first-user-journey-review.md): current API-2 source and local-browser review separating completed setup/authoring work from remaining first-goal, human-view, shared-context, invitation and natural-language qualification gaps.

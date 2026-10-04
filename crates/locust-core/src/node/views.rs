@@ -4,8 +4,8 @@
 use std::collections::BTreeSet;
 
 use locust_proto::api::{
-    self, BlobState, BlobStatus, CancelItem, DeliveryItem, EventDetail, EventView, GoalSummary,
-    Membership, PendingWork, ReviewItem, TaskDetail, TaskView, WorkItem,
+    self, BlobState, BlobStatus, CancelItem, ContextNews, DeliveryItem, EventDetail, EventView,
+    GoalSummary, Membership, PendingWork, ReviewItem, TaskDetail, TaskView, WorkItem,
 };
 use locust_proto::engine::Entropy;
 use locust_proto::event::{AttemptStatus, Body, Context, Event, Scope};
@@ -220,9 +220,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
 
     /// Durable evidence determines pending work after every retry and restart.
     pub(super) fn pending_work(&self, entry: &Entry, actor: &Actor) -> PendingWork {
+        self.pending_work_with_news(entry, actor, self.context_news(entry, actor))
+    }
+
+    pub(super) fn pending_work_with_news(
+        &self,
+        entry: &Entry,
+        actor: &Actor,
+        context_news: Option<ContextNews>,
+    ) -> PendingWork {
         let mut work = PendingWork {
             revision: entry.revision(),
-            context_news: self.context_news(entry, actor),
+            context_news,
             ..PendingWork::default()
         };
         let candidates: Vec<_> = match actor.principal {
@@ -320,6 +329,22 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     }
                 }
             }
+            // Review state is already indexed by author. Collect effective
+            // subjects once instead of scanning the whole goal for each one.
+            let reviewed: BTreeSet<_> = entry
+                .goal
+                .points(&principal)
+                .iter()
+                .filter_map(|point| entry.goal.event(&point.id))
+                .filter_map(|event| match &event.header().body {
+                    Body::ReviewRecorded { subject, .. }
+                        if entry.goal.standing(&event.id()) == Some(Standing::Effective) =>
+                    {
+                        Some(*subject)
+                    }
+                    _ => None,
+                })
+                .collect();
             let reviewable = entry
                 .state()
                 .contributions
@@ -334,14 +359,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 );
             for (subject, context, approved) in reviewable {
                 if !approved
+                    && !reviewed.contains(&subject)
                     && entry
                         .goal
                         .can_review(subject, principal, &entry.definitions)
                 {
-                    let reviewed = entry.goal.authors().flat_map(|author| entry.goal.points(author)).filter_map(|point| entry.goal.event(&point.id)).any(|event| event.header().author == principal && entry.goal.standing(&event.id()) == Some(Standing::Effective) && matches!(&event.header().body, Body::ReviewRecorded { subject: reviewed, .. } if *reviewed == subject));
-                    if !reviewed {
-                        work.to_review.push(ReviewItem { subject, context });
-                    }
+                    work.to_review.push(ReviewItem { subject, context });
                 }
             }
             for ((effect, recipient), delivery) in &entry.deliveries {

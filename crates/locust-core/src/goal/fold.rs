@@ -19,6 +19,7 @@ use super::rules::{self, Resolved, invalid};
 use super::standing::{Dependency, Evaluation, Halt, Standing, Waiting};
 
 type CacheKey = (EventId, Option<EventId>);
+type DecisionPredecessor = (PublicKey, ScopeKey, Option<EventId>);
 
 pub(super) struct Verifier<'a, D: DefinitionLookup + ?Sized> {
     pub history: &'a History,
@@ -31,6 +32,8 @@ pub(super) struct Verifier<'a, D: DefinitionLookup + ?Sized> {
     pub missing: RefCell<BTreeSet<Dependency>>,
     pub scope_halts: RefCell<BTreeMap<ScopeKey, Halt>>,
     witnesses: BTreeMap<EventId, Vec<EventId>>,
+    // Candidates only: authorization and conflicts are still checked each fold.
+    decision_successors: BTreeMap<DecisionPredecessor, Vec<EventId>>,
     closure_index: RefCell<commitments::Index>,
 }
 
@@ -43,6 +46,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
     ) -> Self {
         closure_index.refresh(history);
         let mut witnesses = BTreeMap::<EventId, Vec<EventId>>::new();
+        let mut decision_successors = BTreeMap::<DecisionPredecessor, Vec<EventId>>::new();
         for event in &history.events {
             if let Body::CompletionDeclared { subject, .. }
             | Body::ReviewRecorded { subject, .. }
@@ -50,9 +54,26 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             {
                 witnesses.entry(subject).or_default().push(event.id());
             }
+            if let Body::ScopeDecided {
+                context,
+                previous,
+                action,
+                ..
+            } = &event.header().body
+            {
+                let key = ScopeKey {
+                    context: *context,
+                    purpose: action.purpose(),
+                };
+                decision_successors
+                    .entry((event.header().author, key, *previous))
+                    .or_default()
+                    .push(event.id());
+            }
         }
         Self {
             witnesses,
+            decision_successors,
             closure_index: RefCell::new(closure_index),
             history,
             chain,
@@ -582,28 +603,13 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             return Err(invalid("principal is not the named scope authority"));
         }
         let successors: Vec<_> = self
-            .history
-            .events
-            .iter()
-            .filter(|candidate| {
-                if candidate.header().author != event.header().author {
-                    return false;
-                }
-                let Body::ScopeDecided {
-                    context: other,
-                    previous: prior,
-                    action: other_action,
-                    ..
-                } = &candidate.header().body
-                else {
-                    return false;
-                };
-                if *other != *context
-                    || *prior != *previous
-                    || other_action.purpose() != action.purpose()
-                {
-                    return false;
-                }
+            .decision_successors
+            .get(&(event.header().author, key, *previous))
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|id| {
+                let candidate = self.history.get(id).expect("indexed decision exists");
                 matches!(
                     self.chain.authorize(
                         self.history,
@@ -614,7 +620,6 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     Standing::Effective | Standing::Pending(Waiting::ForkProof)
                 )
             })
-            .map(Event::id)
             .collect();
         if successors.len() > 1 {
             let mut events = successors;

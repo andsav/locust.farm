@@ -168,6 +168,16 @@ fn measure_organization_goal() {
             } else {
                 "healthy"
             };
+            // This deterministic fixture digest includes standings, missing
+            // dependencies, retained proofs and effects as well as read models.
+            // It compares before/after binaries; it is not a wire-format hash.
+            let fingerprint = locust_proto::crypto::content_hash(
+                format!("{:?}", expected.evaluation()).as_bytes(),
+            );
+            println!(
+                "# evaluation_blake3,{kind},{tasks},{},{fingerprint}",
+                events.len()
+            );
             for mode in [
                 "store_replay",
                 "decoded_batch_ingest",
@@ -195,7 +205,7 @@ fn measure_organization_goal() {
                             goal
                         }
                     };
-                    assert_eq!(actual.state(), expected.state());
+                    assert_eq!(actual.evaluation(), expected.evaluation());
                     black_box(actual);
                 });
                 println!(

@@ -161,8 +161,12 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     if operation == "contract" {
         let mut contract = locust_proto::api::contract();
         contract["cli"] = args::contract();
-        let human = serde_json::to_string_pretty(&contract)
-            .map_err(|error| Failure::internal(format!("cannot render contract: {error}")))?;
+        let human = if matches.get_flag("json") {
+            String::new()
+        } else {
+            serde_json::to_string_pretty(&contract)
+                .map_err(|error| Failure::internal(format!("cannot render contract: {error}")))?
+        };
         return Ok(Output::success(contract, human));
     }
     if matches!(
@@ -357,8 +361,12 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             .map(|status| status.agents)
             .unwrap_or_default()
     };
-    let human = presentation::render(&response, &names, response_goal, response_principal)
-        .unwrap_or_else(|| human(&response, credential_path.as_deref()));
+    let human = if matches.get_flag("json") {
+        String::new()
+    } else {
+        presentation::render(&response, &names, response_goal, response_principal)
+            .unwrap_or_else(|| human(&response, credential_path.as_deref()))
+    };
     let mut result =
         serde_json::to_value(&response).map_err(|error| Failure::internal(error.to_string()))?;
     if let Some(path) = credential_path {

@@ -703,6 +703,135 @@ fn same_slot_scope_authority_equivocation_is_explicitly_disputed() {
 }
 
 #[test]
+fn usable_prefix_lookup_matches_scan_across_gaps_forks_and_duplicate_arrival() {
+    let mut f = Fixture::new(Blueprint::default());
+    let mut subjects = Vec::new();
+    for _ in 0..8 {
+        subjects.push(f.publish(0, f.context()));
+        f.publish(1, f.context());
+    }
+    f.fork(subjects[3], 2);
+    for shift in 0..f.events.len() {
+        let mut incoming = f.events.clone();
+        incoming.rotate_left(shift);
+        if shift % 2 == 1 {
+            incoming.reverse();
+        }
+        let mut history = super::history::History::default();
+        for event in &incoming {
+            history.insert(event);
+            assert!(history.insert(event).is_none());
+            for candidate in &f.events {
+                if let Some(log) = history.log(&candidate.header().author) {
+                    let point = AuthorPoint {
+                        seq: candidate.header().seq,
+                        id: candidate.id(),
+                    };
+                    let scanned = log.points[..log.usable]
+                        .iter()
+                        .any(|held| held.id == point.id);
+                    assert_eq!(log.contains_usable(point), scanned);
+                    assert!(!log.contains_usable(AuthorPoint {
+                        seq: u64::MAX,
+                        id: candidate.id(),
+                    }));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn decision_successors_keep_author_scope_purpose_and_predecessor_separate() {
+    let mut blueprint = review_blueprint(1);
+    blueprint.decisions.completion = CompletionRule::Contribution {
+        by: Selector::Members,
+    };
+    blueprint.decisions.closure = blueprint.decisions.selection.clone();
+    let mut f = Fixture::new(blueprint);
+    let first = f.task();
+    let other = f.task();
+    let subject = f.publish(0, first);
+    let other_subject = f.publish(0, other);
+    let selected = f.admin(Body::ScopeDecided {
+        context: first,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![],
+    });
+    let other_selected = f.admin(Body::ScopeDecided {
+        context: other,
+        previous: None,
+        action: DecisionAction::Select {
+            subject: other_subject,
+        },
+        evidence: vec![],
+    });
+    let closed = f.admin(Body::ScopeDecided {
+        context: first,
+        previous: None,
+        action: DecisionAction::Close,
+        evidence: vec![],
+    });
+    let reopened = f.admin(Body::ScopeDecided {
+        context: first,
+        previous: Some(closed),
+        action: DecisionAction::Reopen,
+        evidence: vec![],
+    });
+    let replacement = f.admin(Body::ScopeDecided {
+        context: first,
+        previous: Some(selected),
+        action: DecisionAction::Select { subject },
+        evidence: vec![],
+    });
+    let unauthorized = f.worker(
+        1,
+        Body::ScopeDecided {
+            context: first,
+            previous: None,
+            action: DecisionAction::Select { subject },
+            evidence: vec![],
+        },
+    );
+    let mut before = f.goal();
+    for id in [selected, other_selected, closed, reopened, replacement] {
+        assert_eq!(before.standing(&id), Some(Standing::Effective));
+    }
+    assert!(matches!(
+        before.standing(&unauthorized),
+        Some(Standing::Excluded(_))
+    ));
+    let competing = f.admin(Body::ScopeDecided {
+        context: first,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![],
+    });
+    before.apply(std::slice::from_ref(f.event(competing)), &f.definitions);
+    for id in [selected, competing, replacement] {
+        assert_eq!(before.standing(&id), Some(Standing::Disputed));
+    }
+    for id in [other_selected, closed, reopened] {
+        assert_eq!(before.standing(&id), Some(Standing::Effective));
+    }
+    let expected = f.goal();
+    assert_eq!(before.evaluation(), expected.evaluation());
+    for shift in 0..f.events.len() {
+        let mut incoming = f.events.clone();
+        incoming.rotate_left(shift);
+        if shift % 2 == 1 {
+            incoming.reverse();
+        }
+        let mut actual = Goal::new(f.id);
+        for batch in incoming.chunks(3) {
+            actual.apply(batch, &f.definitions);
+        }
+        assert_eq!(actual.evaluation(), expected.evaluation());
+    }
+}
+
+#[test]
 fn removal_payload_uses_rotated_epoch_and_rejects_old_epoch() {
     for epoch in [0, 1] {
         let mut f = Fixture::new(Blueprint::default());

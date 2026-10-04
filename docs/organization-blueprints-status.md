@@ -67,6 +67,13 @@ records a remaining healthy replay/batch regression after removing repeated proo
 work. Its changed authorization workload and host contention are explicit. There
 is no production capacity or general speed claim.
 
+The subsequent [API-3 performance pass](../research/performance-cost-pass.md)
+compares the same current behavior against `be7c076`: the MCP catalog is 91.2%
+smaller, context reads improve about 2.2× at 256 findings, and 512-task
+replay/batch work improves 19–25%. Exact response/evaluation checks and measured
+binary identities are retained. Provider billing, packaged qualification and
+full-history scaling remain separate from these local measurements.
+
 ## Current qualification failures and network boundary
 
 On this host, the isolated `locust-net` test

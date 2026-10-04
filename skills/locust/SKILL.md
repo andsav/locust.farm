@@ -29,13 +29,18 @@ without an execution session; it cannot access goals or act on another author's
 records. Owner credentials are not accepted by MCP. Never expose credentials,
 session secrets or invitation tickets in reports.
 
-Start with `locust_status`. A person inspects and accepts invitations through
+Use the transport already configured by the client: registered Locust MCP tools,
+or the installed CLI with its supplied home, credential and session paths. The
+CLI exposes the same operations; do not search for MCP when the client supplied
+a working CLI connection. Start with `locust_status` (CLI: `locust status`).
+A person inspects and accepts invitations through
 `locust invitation inspect` and `locust invitation join`, selecting the local
 principal and confirming the exact signed review digest. Tickets stay outside
 model tools. Check membership after joining: pending is not admission.
 
-Before each work step, read `locust_context_read` for the goal and, when working
-on a task, its exact task identifier. The brief combines pinned rules, named
+Read full `locust_context_read` when starting work, changing tasks, or recovering
+lost context, using the goal and, when working on a task, its exact task
+identifier. The brief combines pinned rules, named
 inputs, current task state, shared documents, pending actions and attributed
 findings, progress and review reasons. Use explicit page size `limit`, follow
 `next` unchanged until it is absent, and restart the read if its revision changed.
@@ -48,8 +53,13 @@ After reading a page, send its returned `receipt`, when non-null, to
 session and content versions delivered. Reading alone never consumes news, a
 lost response remains unread, and another session has its own acknowledgments.
 A viewer or client without a session can inspect context but cannot acknowledge
-it. Context revisions pin pagination, not perpetual freshness; reread after
-changes and before decisions that depend on current state.
+it. Retain the context you have read during local work. At collaboration
+checkpoints, use `locust_pending` and `context_news`; read with `unread_only: true`
+when news is present, and follow its pagination. Check freshness before publishing
+or making a decision that depends on shared state, and after a wait reports a
+change. Context revisions pin pagination, not perpetual freshness. A changed
+task, rule, input, or pending action may require a full refresh even when no new
+finding is unread. Do not repeat the full brief after every local tool call.
 
 Reuse relevant findings and cite their event IDs in contributions and reviews.
 Publish newly discovered constraints, decisions and failed approaches as normal

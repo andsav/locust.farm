@@ -118,20 +118,24 @@ fn relevant(entry: &Entry, event: &Event, task: Option<TaskId>) -> bool {
 impl<S: Store, E: Entropy> Node<S, E> {
     /// Version only metadata: immutable payload identity and readable status
     /// suffice to detect new text without loading every payload for news counts.
-    fn context_seen(&self, entry: &Entry, event: &Event, actor: &Actor) -> ContextSeen {
+    fn context_seen(&self, entry: &Entry, event: &Event, actor: &Actor) -> (ContextSeen, bool) {
         let payload_state = event.header().payload.map(|payload| {
             (
                 payload,
                 self.blob_state(entry, &payload.hash, actor.principal.as_ref()),
             )
         });
-        ContextSeen {
-            event: event.id(),
-            version: crypto::content_hash(
-                &codec::encode(&(entry.event_view(event), payload_state))
-                    .expect("context versions encode"),
-            ),
-        }
+        let unavailable = payload_state.is_some_and(|(_, state)| state != BlobState::Held);
+        (
+            ContextSeen {
+                event: event.id(),
+                version: crypto::content_hash(
+                    &codec::encode(&(entry.event_view(event), payload_state))
+                        .expect("context versions encode"),
+                ),
+            },
+            unavailable,
+        )
     }
 
     pub(super) fn context_news(&self, entry: &Entry, actor: &Actor) -> Option<ContextNews> {
@@ -148,14 +152,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .flat_map(|author| entry.goal.points(author))
             .filter_map(|point| entry.goal.event(&point.id))
         {
-            let seen = self.context_seen(entry, event, actor);
+            let (seen, unavailable) = self.context_seen(entry, event, actor);
             if !entry.context.contains(principal, session, seen) {
                 news.unacknowledged += 1;
-                if event.header().payload.is_some_and(|payload| {
-                    self.blob_state(entry, &payload.hash, Some(&principal)) != BlobState::Held
-                }) {
-                    news.unavailable += 1;
-                }
+                news.unavailable += u64::from(unavailable);
             }
         }
         Some(news)
@@ -203,19 +203,29 @@ impl<S: Store, E: Entropy> Node<S, E> {
             ));
         }
         let start = after.as_ref().map_or(0, |cursor| cursor.offset);
+        let reader = actor.principal.zip(session);
+        let mut news = reader.map(|_| ContextNews::default());
+        // The page and its pending summary describe the same snapshot. Compute
+        // versions once, including out-of-scope events in goal-wide news.
         let mut events: Vec<_> = entry
             .goal
             .authors()
             .flat_map(|author| entry.goal.points(author))
             .filter_map(|point| entry.goal.event(&point.id))
-            .filter(|event| relevant(entry, event, task))
-            .map(|event| {
-                let seen = self.context_seen(entry, event, actor);
-                let acknowledged = actor
-                    .principal
-                    .zip(session)
-                    .map(|(principal, session)| entry.context.contains(principal, session, seen));
-                (event, seen, acknowledged)
+            .filter_map(|event| {
+                let mut acknowledged = None;
+                let seen = reader.map(|(principal, session)| {
+                    let (seen, unavailable) = self.context_seen(entry, event, actor);
+                    let seen_before = entry.context.contains(principal, session, seen);
+                    acknowledged = Some(seen_before);
+                    if !seen_before {
+                        let news = news.as_mut().expect("a session has context news");
+                        news.unacknowledged += 1;
+                        news.unavailable += u64::from(unavailable);
+                    }
+                    seen
+                });
+                relevant(entry, event, task).then_some((event, seen, acknowledged))
             })
             .collect();
         events.sort_by_key(|(event, _, _)| {
@@ -254,7 +264,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     text.truncate(byte);
                     complete = false;
                 }
-                if complete {
+                if complete && let Some(seen) = seen {
                     delivered.push(seen);
                 }
                 ContextItem {
@@ -340,7 +350,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     revisions: state.revisions.iter().copied().collect(),
                 })
                 .collect(),
-            pending: self.pending_work(entry, actor),
+            pending: self.pending_work_with_news(entry, actor, news),
             items,
             next,
             receipt,

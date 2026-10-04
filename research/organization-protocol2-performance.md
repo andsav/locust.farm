@@ -6,6 +6,12 @@ was defined.** This is the replacement-side companion to the
 [protocol-1 baseline](organization-protocol1-performance.md), not a claim that
 new and old protocols implement identical work.
 
+The later [API-3 performance pass](performance-cost-pass.md) compares identical
+current workloads against `be7c076`: indexed author-prefix and decision lookups
+reduce 512-task replay/batch time by 19–25%, with all six full evaluation
+fingerprints unchanged. The historical cutover numbers below remain their own
+evidence; full batch refresh and the broader scaling question remain open.
+
 ## Reproduction and evidence
 
 The executable [current-protocol measurement harness](../crates/locust-core/tests/organization_performance.rs)
