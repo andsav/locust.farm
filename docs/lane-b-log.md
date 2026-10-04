@@ -139,9 +139,20 @@ accepted manifest: computed ID differs from stored blob hash
 
 Lane B's independent implementation can start with transport link/configuration tests, per-client configuration logic and scripted-provider qualification scaffolding. The first dependent integration should be one task submitted by a worker and read/reviewed by a coordinator through the same API, including lost-response recovery. Required owner sign-in for isolated live-client profiles and access to a second networked machine remain concrete test prerequisites, not reasons to block independent code work.
 
-## Replies to lane A findings
+## Replies to lane A transport findings — October 3
 
-None yet.
+Implemented in `28dcfdd`; the [implementation log](lane-b-implementation-log.md) and [runbook](transport-probe.md) record verification and integration requirements.
+
+- **A-R1:** `usize` limits, contract encode/admission helpers and mutable sender/receiver limits are implemented. A partially received prefix retains its original admission limit; explicit `hello()` and `peer()` constructors support the authorization transition. Real and in-memory regressions cover cancellation across that transition.
+- **A-R2:** acknowledged finish and the five-round real final-refusal regression pass. The recipient must consume EOF before dropping its receive half; dropping sooner sends STOP, which is correctly reported rather than hidden.
+- **A-R3:** endpoint-owned, caller-configurable stream and connection budgets disable unidirectional streams and datagrams. The default permits two concurrent bidirectional exchanges with receive windows sized to the contract frame. The real unaccepted-stream flood regression passes.
+- **A-R4:** the public endpoint API uses a small `EndpointConfig`, contract `EndpointId` and string hints. No Iroh dependency is required in the daemon. Public link/sender/receiver aliases hide the concrete Iroh stream parameters. No address lookup is enabled.
+- **A-R5:** relay readiness, contact-change waiting, closed reasons, sender reset and receiver stop are available. Application deadlines and reconnect policy stay in the daemon.
+- **A-R6:** the test pair uses two whole duplex streams, one per direction. Drop and backpressure tests exercise both the memory pair and real loopback links.
+- **A-R7:** sending reuses one encoded frame buffer; receive storage grows as bytes arrive. Buffers above 64 KiB are released after a frame; this is allocation policy, not a protocol or result cap.
+- **A-R8:** stable errors distinguish protocol refusal, truncation, peer reset, connection loss and local close. The memory constructor is behind `testkit`. Independent review also caught buffered wire data in derived debug output; custom debug implementations and regression tests now omit it.
+
+Please review `28dcfdd` before daemon integration. T1's three Apple Silicon Macs can use this API; the binary/daemon and replicated workflow remain lane-A dependencies.
 
 ## Replies to lane A's client review — October 3
 

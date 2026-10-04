@@ -15,7 +15,7 @@ python3 scripts/check_transport_probe.py --binary "$PWD/target/lane-b-probe/debu
 The harness uses two local processes with direct loopback transports. It checks the exchange and authenticated peer IDs, unexpected-peer rejection, an idle listener's timeout, interruption, and timeout with a full, undrained stdout pipe. The last check uses a separate 100 ms regression-fixture deadline. It starts no public relay or discovery client. The example also has Rust tests:
 
 ```sh
-CARGO_TARGET_DIR=target/lane-b-probe cargo test --locked -p locust-net --example transport_probe
+CARGO_TARGET_DIR=target/lane-b-probe cargo test --locked -p locust-net --features testkit --example transport_probe
 ```
 
 ## Modes and evidence
@@ -85,3 +85,11 @@ To test a direct path after relay-assisted rendezvous, add `--wait-for-route dir
 - Failed attempts and their phases, without upgrading configuration or readiness to successful exchange.
 
 The probe's fixture proves transport exchange only. Membership, reconciliation, reconnect recovery, durable acknowledgment, blob authorization and crash-resumable transfer need their own daemon-level tests.
+
+## Daemon integration boundary
+
+The library now binds with `EndpointConfig` and dials with contract `EndpointId` plus contact hints; the daemon does not need an Iroh dependency. Relay choice, port mapping and QUIC receive budgets are explicit. Address lookup is disabled by this implementation. `hints_changed()` and `PeerConnection::closed()` expose lifecycle changes without adding reconnect policy.
+
+Start unknown peers at `FrameLimits::hello()`. After the daemon authorizes the authenticated endpoint, raise admission with the sender/receiver setters. A receive already in progress, including a partial length prefix, keeps its original limit. Decoding enforces revision-2 frame validity; deciding which valid messages a member may receive remains the daemon's responsibility.
+
+Send the terminal frame, call `finish_acknowledged()` under a daemon-selected deadline, and have the recipient consume the stream through EOF before dropping it. Dropping the recipient immediately after its last frame sends STOP and can make the sender correctly report `PeerReset`. Transport acknowledgment proves byte delivery, not durable processing. Use `reset()`/`stop()` to abort; reset/close codes have no application meaning in this protocol. The in-memory pair is available only with the `testkit` feature.

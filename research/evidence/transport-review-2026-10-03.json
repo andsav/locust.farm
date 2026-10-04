@@ -1,0 +1,143 @@
+{
+  "recorded_utc": "2026-10-04T00:03:11.141566+00:00",
+  "source_commit": "28dcfdd4ff2e5cb094c24722d58e73b6d2ddd711",
+  "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+  "toolchain": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+  "binary_sha256": "3dd18ccf5d30c7786677bc15bf5c52fade8c83348df3d620a096c3a78ae56fdb",
+  "timeout_ms": 30000,
+  "evidence_level": "same-host two-process transport only",
+  "results": [
+    {
+      "scenario": "default-n0-relay",
+      "mode": "relay",
+      "status": "pass",
+      "relay_url": "https://usw1-1.relay.n0.iroh.link./",
+      "independent_relay_operator": false,
+      "separate_hosts": false,
+      "separate_networks": false,
+      "both_authenticated_ids_match": true,
+      "listener_exit": 0,
+      "connector_exit": 0,
+      "listener_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "122936"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "106951"
+        }
+      ],
+      "connector_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "123061"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "107305"
+        }
+      ]
+    },
+    {
+      "scenario": "custom-n0-east",
+      "mode": "relay",
+      "status": "pass",
+      "relay_url": "https://use1-1.relay.n0.iroh.link/",
+      "independent_relay_operator": false,
+      "separate_hosts": false,
+      "separate_networks": false,
+      "both_authenticated_ids_match": true,
+      "listener_exit": 0,
+      "connector_exit": 0,
+      "listener_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "154875"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "155704"
+        }
+      ],
+      "connector_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "180263"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "relay",
+          "selected": "true",
+          "rtt_us": "174985"
+        }
+      ]
+    },
+    {
+      "scenario": "auto-direct",
+      "mode": "auto",
+      "status": "pass",
+      "relay_url": "https://usw1-1.relay.n0.iroh.link./",
+      "independent_relay_operator": false,
+      "separate_hosts": false,
+      "separate_networks": false,
+      "both_authenticated_ids_match": true,
+      "listener_exit": 0,
+      "connector_exit": 0,
+      "listener_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "direct",
+          "selected": "true",
+          "rtt_us": "718"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "direct",
+          "selected": "true",
+          "rtt_us": "718"
+        }
+      ],
+      "connector_paths": [
+        {
+          "record": "path",
+          "phase": "before",
+          "kind": "direct",
+          "selected": "true",
+          "rtt_us": "1800"
+        },
+        {
+          "record": "path",
+          "phase": "after",
+          "kind": "direct",
+          "selected": "true",
+          "rtt_us": "973"
+        }
+      ]
+    }
+  ]
+}
