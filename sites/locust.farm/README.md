@@ -42,19 +42,24 @@ the palette. Components use roles only.
 
 - **Color**: `--color-bg`, `--color-text` and its `-muted`, `-subtle` and `-faint`
   steps, `--color-border`, `--color-accent`. The formation editor adds
-  `--color-surface` for nodes and panels and `--color-grid` for its map. The `--swarm-*` roles color the canvas.
-- **Type**: two families, `--font-mono` (Martian Mono) for text and `--font-display`
-  (Major Mono Display) for the headline. Each text style is a `font` shorthand
-  (`--text-display`, `--text-body`, `--text-code`, `--text-label`) with a matching
-  `--tracking-*` where the style needs one.
+  `--color-panel`, `--color-surface` and `--color-surface-hover` for its layers. The
+  `--swarm-*` roles color the canvas.
+- **Type**: three families, `--font-mono` (Martian Mono) for text, `--font-display`
+  (Major Mono Display) for the headline and `--font-sans` (Geist) for the formation
+  editor's interface. Each text style is a `font` shorthand (`--text-display`,
+  `--text-body`, `--text-code`, `--text-label`, and `--text-ui`, `--text-ui-heading`
+  and `--text-ui-small` in the editor) with a matching `--tracking-*` where the style
+  needs one. In the editor, mono is kept for identifiers and code: role names and the
+  prompt.
 - **Space**: `--space-N`, where N is the size in pixels at the default root size.
 - **Layout**: `--gutter-inline`, `--gutter-block-end`, `--measure-display`,
-  `--measure-body`, `--border-hairline`.
+  `--measure-body`, `--border-hairline`. The formation editor rounds its corners with
+  `--radius-panel` and `--radius-control`, and lifts menus with `--shadow-popover`.
 - **Text over the swarm**: `--text-halo`, a `text-shadow` in the background color
   that dims the swarm right around the letterforms so text stays readable as it
   passes behind. Apply it to any text placed over the canvas.
 
-[`fonts.css`](src/lib/styles/fonts.css) declares the two self-hosted font faces, and
+[`fonts.css`](src/lib/styles/fonts.css) declares the three self-hosted font faces, and
 [`base.css`](src/lib/styles/base.css) holds element defaults (links, focus ring,
 selection). Everything else is scoped to the component that uses it. Sizes are in
 `rem`, so the page follows the reader's text size.

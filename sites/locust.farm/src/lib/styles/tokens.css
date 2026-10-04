@@ -8,6 +8,7 @@
 :root {
 	/* Palette: warm near-black neutrals and one ember accent. */
 	--neutral-950: #060706;
+	--neutral-925: #121310;
 	--neutral-900: #20211d;
 	--neutral-850: #262722;
 	--neutral-800: #2b2c28;
@@ -26,10 +27,11 @@
 	--color-text-faint: var(--neutral-500);
 	--color-border: var(--neutral-800);
 	--color-accent: var(--ember-500);
-	/* Raised surfaces in the formation editor: stage nodes, panels and cards. */
+	/* The formation editor's layers: the panel it sits on, raised controls, menus and
+	   cards on that panel, and a raised surface under the pointer. */
+	--color-panel: var(--neutral-925);
 	--color-surface: var(--neutral-900);
-	/* The dot grid behind the formation editor's stage map. */
-	--color-grid: var(--neutral-850);
+	--color-surface-hover: var(--neutral-800);
 
 	/* Swarm canvas roles, read by the WebGL renderer. */
 	--swarm-bg: var(--color-bg);
@@ -39,8 +41,10 @@
 	--swarm-cell-leg: var(--neutral-850);
 	--swarm-cell-eye: var(--ember-900);
 
-	/* Typography. Mono for text, Major Mono Display for the display headline; text
-	   styles are `font` shorthands plus tracking. */
+	/* Typography. Mono for text, Major Mono Display for the display headline and Geist
+	   for the formation editor's interface; text styles are `font` shorthands plus
+	   tracking. */
+	--font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 	--font-display: 'Major Mono Display', var(--font-mono);
 	/* 46px, shrinking on narrow screens so the longest word of the headline still fits. */
@@ -49,8 +53,10 @@
 	--text-body: 400 0.8125rem / 1.7 var(--font-mono);
 	--text-code: 400 0.75rem / 1.25 var(--font-mono);
 	--text-label: 400 0.6875rem / 1.25 var(--font-mono);
-	/* Controls and form text in the formation editor. */
-	--text-ui: 400 0.8125rem / 1.5 var(--font-mono);
+	/* The formation editor: controls and form text, headings, and notes and hints. */
+	--text-ui: 400 0.875rem / 1.5 var(--font-sans);
+	--text-ui-heading: 600 0.875rem / 1.4 var(--font-sans);
+	--text-ui-small: 400 0.8125rem / 1.5 var(--font-sans);
 	--tracking-display: -0.03em;
 	--tracking-label: 0.08em;
 
@@ -74,6 +80,11 @@
 
 	/* Borders. */
 	--border-hairline: 1px solid var(--color-border);
+
+	/* Corners in the formation editor: its panels, and the controls inside them. */
+	--radius-panel: 0.75rem;
+	--radius-control: 0.5rem;
+	--shadow-popover: 0 16px 40px -16px rgb(0 0 0 / 0.7);
 
 	/*
 	 * Text takes precedence over the swarm. A halo in the background color dims

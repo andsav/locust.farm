@@ -57,9 +57,8 @@
 
 	h3 {
 		color: var(--color-text-subtle);
-		font: var(--text-label);
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
+		font: var(--text-ui-small);
+		font-weight: 500;
 	}
 
 	.locust ul {
@@ -68,7 +67,7 @@
 		margin: 0;
 		padding-left: 1rem;
 		color: var(--color-text-muted);
-		font: var(--text-code);
+		font: var(--text-ui-small);
 	}
 
 	.faint {

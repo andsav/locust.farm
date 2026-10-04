@@ -59,6 +59,7 @@
 		align-items: center;
 		min-height: 2.25rem;
 		padding: 0 0.75rem;
+		border-radius: var(--radius-control);
 		color: var(--color-text-muted);
 		cursor: pointer;
 	}
@@ -82,5 +83,6 @@
 	.message {
 		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--color-accent);
+		border-radius: var(--radius-control);
 	}
 </style>

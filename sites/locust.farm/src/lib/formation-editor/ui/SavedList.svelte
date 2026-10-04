@@ -83,6 +83,7 @@
 		min-height: 3.25rem;
 		padding: 0.5rem 0.25rem;
 		border: 0;
+		border-radius: 0;
 		background: transparent;
 		text-align: left;
 	}
@@ -101,7 +102,7 @@
 	.when,
 	.faint {
 		color: var(--color-text-faint);
-		font: var(--text-label);
+		font: var(--text-ui-small);
 	}
 
 	li .icon-button {

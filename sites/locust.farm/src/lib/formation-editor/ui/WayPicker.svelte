@@ -39,9 +39,7 @@
 	.ways {
 		display: grid;
 		grid-template-columns: repeat(6, minmax(0, 1fr));
-		gap: 1px;
-		border: 1px solid var(--color-border);
-		background: var(--color-border);
+		gap: 0.5rem;
 	}
 
 	@media (max-width: 72rem) {
@@ -63,25 +61,19 @@
 		gap: 0.25rem;
 		min-height: 0;
 		padding: 0.5rem 0.75rem 0.75rem;
-		border: 0;
-		background: var(--color-bg);
+		border: 1px solid transparent;
+		background: var(--color-panel);
 		color: var(--color-text);
 		text-align: left;
-		cursor: pointer;
 	}
 
 	.way:hover {
-		background: color-mix(in srgb, var(--color-surface) 50%, var(--color-bg));
+		background: var(--color-surface);
 	}
 
 	.way.current {
+		border-color: var(--color-accent);
 		background: var(--color-surface);
-		box-shadow: inset 0 0 0 1px var(--color-accent);
-	}
-
-	.way:focus-visible {
-		outline: 1px solid var(--color-accent);
-		outline-offset: -4px;
 	}
 
 	svg {
@@ -94,7 +86,8 @@
 		display: flex;
 		gap: 0.5rem;
 		align-items: baseline;
-		font: 500 0.8125rem / 1.5 var(--font-mono);
+		font: var(--text-ui);
+		font-weight: 500;
 	}
 
 	.way:not(.current) .title {
