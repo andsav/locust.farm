@@ -1,0 +1,1279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Farms · locust.farm</title>
+<meta name="description" content="Live swarms whose creators chose to list their farm page." />
+<style>
+/* Fonts: the mockup was drawn with the site's self-hosted Martian Mono and Major Mono
+   Display (sites/locust.farm/src/lib/styles/fonts.css), loaded by absolute local paths.
+   This archived copy does not bundle the font files: it uses an installed copy if there
+   is one, else the system monospace font, so type may differ from the PNGs. */
+@font-face {
+	font-family: 'Martian Mono Variable';
+	font-style: normal;
+	font-weight: 100 800;
+	src: local('Martian Mono Variable'), local('Martian Mono');
+}
+
+@font-face {
+	font-family: 'Major Mono Display';
+	font-style: normal;
+	font-weight: 400;
+	src: local('Major Mono Display'), local('MajorMonoDisplay-Regular');
+}
+
+/* Tokens: copied from sites/locust.farm/src/lib/styles/tokens.css. */
+:root {
+	--neutral-950: #060706;
+	--neutral-900: #20211d;
+	--neutral-850: #262722;
+	--neutral-800: #2b2c28;
+	--neutral-500: #6f6f68;
+	--neutral-400: #9a9a92;
+	--neutral-300: #b5b5ad;
+	--neutral-100: #f1f1ec;
+	--ember-900: #5a2212;
+	--ember-500: #ff4a1c;
+
+	--color-bg: var(--neutral-950);
+	--color-text: var(--neutral-100);
+	--color-text-muted: var(--neutral-300);
+	--color-text-subtle: var(--neutral-400);
+	--color-text-faint: var(--neutral-500);
+	--color-border: var(--neutral-800);
+	--color-accent: var(--ember-500);
+	--color-surface: var(--neutral-900);
+	--color-grid: var(--neutral-850);
+
+	--font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	--font-display: 'Major Mono Display', var(--font-mono);
+	--text-display: 400 clamp(1.25rem, (100vw - 2 * var(--gutter-inline)) / 9, 2.875rem) / 1.15
+		var(--font-display);
+	--text-body: 400 0.8125rem / 1.7 var(--font-mono);
+	--text-code: 400 0.75rem / 1.25 var(--font-mono);
+	--text-label: 400 0.6875rem / 1.25 var(--font-mono);
+	--text-ui: 400 0.8125rem / 1.5 var(--font-mono);
+	--tracking-display: -0.03em;
+	--tracking-label: 0.08em;
+
+	--space-12: 0.75rem;
+	--space-14: 0.875rem;
+	--space-16: 1rem;
+	--space-18: 1.125rem;
+	--space-22: 1.375rem;
+	--space-24: 1.5rem;
+
+	--gutter-inline: clamp(1.25rem, 4vw, 3rem);
+	--gutter-block-end: clamp(1.25rem, 4vw, 2.5rem);
+	--measure-display: 51.25rem;
+	--measure-body: 32.5rem;
+
+	--duration-fast: 120ms;
+	--duration-slow: 240ms;
+
+	--border-hairline: 1px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--duration-fast: 0s;
+		--duration-slow: 0s;
+	}
+}
+
+/* Base: copied from sites/locust.farm/src/lib/styles/base.css. */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	color-scheme: dark;
+	background: var(--color-bg);
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--color-bg);
+	color: var(--color-text);
+	font: var(--text-body);
+}
+
+h1,
+h2,
+h3,
+p {
+	margin: 0;
+}
+
+code {
+	font: inherit;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+a:hover {
+	color: var(--color-accent);
+}
+
+:focus-visible {
+	outline: 1px solid var(--color-accent);
+	outline-offset: 4px;
+}
+
+::selection {
+	background: var(--color-accent);
+	color: var(--color-bg);
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Proposal: on farm pages ember means one thing, a task that is done. Link hover,
+   focus and selection use the text colour instead of the accent. */
+.farm-site a:hover {
+	color: var(--color-text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.farm-site :focus-visible {
+	outline-color: var(--color-text);
+}
+
+.farm-site ::selection {
+	background: var(--color-text);
+	color: var(--color-bg);
+}
+
+/* The mockup bar is not part of the design. */
+.mockbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	padding: 0.5rem var(--gutter-inline);
+	border-bottom: 1px dashed var(--color-text-faint);
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+}
+
+.mockbar strong {
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+.mockbar .switch {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.375rem;
+}
+
+.mockbar button,
+.mockbar a.btn {
+	padding: 0.25rem 0.5rem;
+	border: 1px dashed var(--color-text-faint);
+	border-radius: 2px;
+	background: transparent;
+	color: var(--color-text-muted);
+	font: var(--text-label);
+	cursor: pointer;
+}
+
+.mockbar [aria-pressed='true'] {
+	border-style: solid;
+	border-color: var(--color-text-subtle);
+	color: var(--color-text);
+}
+
+/* Site header: SiteHeader.svelte, with one proposed link, "farms". */
+.site-header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	row-gap: var(--space-12);
+	padding: var(--space-24) var(--gutter-inline);
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+}
+
+.site-header .brand {
+	color: var(--color-text);
+}
+
+.site-header nav {
+	display: flex;
+	gap: var(--space-24);
+}
+
+.site-header [aria-current='page'] {
+	color: var(--color-text);
+}
+
+.label {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+}
+
+/* Major Mono Display draws its capitals as odd alternates, so titles are shown in
+   lower case. The text itself is unchanged for screen readers and copying. */
+.display {
+	font-family: var(--font-display);
+	font-weight: 400;
+	letter-spacing: var(--tracking-display);
+	text-transform: lowercase;
+}
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-height: 2.25rem;
+	padding: 0.375rem 0.875rem;
+	border: var(--border-hairline);
+	border-color: #3a3b36;
+	border-radius: 2px;
+	background: var(--color-bg);
+	color: var(--color-text);
+	font: var(--text-ui);
+	cursor: pointer;
+}
+
+.btn:hover {
+	border-color: var(--color-text-faint);
+}
+
+
+main {
+	display: grid;
+	gap: 1.75rem;
+	padding: 0.5rem var(--gutter-inline) var(--gutter-block-end);
+}
+
+.top {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 1.25rem 3rem;
+	align-items: end;
+}
+
+h1.display {
+	font: var(--text-display);
+	letter-spacing: var(--tracking-display);
+	text-transform: lowercase;
+}
+
+.intro {
+	display: grid;
+	gap: 0.75rem;
+	max-width: 44rem;
+	margin-top: 1rem;
+	color: var(--color-text-muted);
+}
+
+.intro a {
+	color: var(--color-text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.bar {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.75rem 1.5rem;
+	padding-top: 1rem;
+	border-top: var(--border-hairline);
+}
+
+.filters {
+	display: flex;
+	flex-wrap: wrap;
+	border: var(--border-hairline);
+}
+
+.filters button {
+	padding: 0.5rem 0.875rem;
+	border: 0;
+	border-right: var(--border-hairline);
+	background: transparent;
+	color: var(--color-text-subtle);
+	font: var(--text-ui);
+	cursor: pointer;
+}
+
+.filters button:last-child {
+	border-right: 0;
+}
+
+.filters button span {
+	color: var(--color-text-faint);
+	margin-left: 0.375rem;
+}
+
+.filters [aria-pressed='true'] {
+	background: var(--color-surface);
+	color: var(--color-text);
+	box-shadow: inset 0 -1px 0 var(--color-text);
+}
+
+.order {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	letter-spacing: 0.01em;
+}
+
+.cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+	gap: 2rem 1.5rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.card {
+	position: relative;
+	display: grid;
+	grid-template-rows: auto auto 1fr auto;
+	gap: 0.375rem;
+	padding-bottom: 0.875rem;
+	border-bottom: var(--border-hairline);
+}
+
+.thumb {
+	margin-bottom: 0.5rem;
+	border: var(--border-hairline);
+	background: var(--color-bg);
+	transition: border-color var(--duration-fast);
+}
+
+.thumb svg {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.card[data-state='quiet'] .thumb svg {
+	opacity: 0.42;
+}
+
+.card:hover .thumb {
+	border-color: var(--color-text-faint);
+}
+
+.card.fresh .thumb {
+	border-color: var(--color-text-faint);
+}
+
+.card h2 {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	color: var(--color-text);
+	font: var(--text-ui);
+	font-weight: 500;
+}
+
+.card h2.untitled {
+	color: var(--color-text-subtle);
+	font-weight: 400;
+}
+
+.card a::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+}
+
+.card a:hover {
+	text-decoration: none;
+}
+
+.card a:focus-visible {
+	outline: none;
+}
+
+.card:focus-within {
+	outline: 1px solid var(--color-text);
+	outline-offset: 6px;
+}
+
+.lines {
+	display: grid;
+	align-content: start;
+	gap: 0.125rem;
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	line-height: 1.6;
+	letter-spacing: 0.01em;
+}
+
+.lines .steps {
+	color: var(--color-text-faint);
+}
+
+.counts {
+	color: var(--color-text-muted);
+}
+
+.counts b {
+	color: var(--color-accent);
+	font-weight: 500;
+}
+
+.state {
+	display: flex;
+	align-items: start;
+	gap: 0.5rem;
+	margin-top: 0.375rem;
+	color: var(--color-text-muted);
+	font: var(--text-label);
+	letter-spacing: 0.01em;
+}
+
+.state b {
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+.state .age {
+	color: var(--color-text-subtle);
+}
+
+.state > span {
+	display: grid;
+	gap: 0.125rem;
+}
+
+.status-mark {
+	flex: none;
+	width: 0.5rem;
+	height: 0.5rem;
+	margin-top: 0.25rem;
+	background: var(--color-text);
+}
+
+[data-state='quiet'] .status-mark {
+	background: transparent;
+	border: 1.5px solid var(--color-text);
+}
+
+[data-state='ended'] .status-mark {
+	width: 0.625rem;
+	height: 2px;
+	margin-top: 0.4375rem;
+}
+
+.about {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 1.5rem 2.5rem;
+	margin-top: 1rem;
+	padding-top: 1.25rem;
+	border-top: var(--border-hairline);
+}
+
+.about h2 {
+	margin-bottom: 0.5rem;
+	color: var(--color-text);
+	font: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+	font-weight: 500;
+}
+
+.about p,
+.about li {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	line-height: 1.65;
+	letter-spacing: 0.01em;
+}
+
+.about ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.375rem;
+}
+
+.about b {
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+.about a {
+	color: var(--color-text-muted);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.foot {
+	padding-top: 0.75rem;
+	border-top: 1px dashed var(--color-text-faint);
+	color: var(--color-text-faint);
+	font: var(--text-label);
+	line-height: 1.6;
+}
+
+[hidden] {
+	display: none !important;
+}
+
+.mockbar .short {
+	display: none;
+}
+
+@media (max-width: 760px) {
+	.top {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.filters button {
+		padding: 0.5rem 0.625rem;
+		font-size: 0.75rem;
+	}
+
+	.about {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mockbar .btn,
+	.mockbar .long {
+		display: none;
+	}
+
+	.mockbar .short {
+		display: inline;
+	}
+
+	.filters {
+		border: 0;
+		gap: 0.375rem;
+	}
+
+	.filters button,
+	.filters button:last-child {
+		border: var(--border-hairline);
+	}
+
+	.intro {
+		margin-top: 0.5rem;
+	}
+}
+</style>
+</head>
+<body class="farm-site">
+<div class="mockbar">
+	<span><strong>Mockup.</strong> <span class="long">Made-up farms. Each picture is drawn by the same layout code as the farm page. Two cards get a scripted update.</span><span class="short">Made-up farms.</span></span>
+	<span class="switch"><a class="btn" href="farm.html">Farm page</a><a class="btn" href="controls.html">Controls</a></span>
+</div>
+<header class="site-header"><a class="brand" href="#home">locust.farm</a><nav aria-label="Primary"><a href="#start">start</a><a href="#formations">formations</a><a href="gallery.html" aria-current="page">farms</a><a href="#docs">docs</a></nav></header>
+<main>
+	<section class="top" aria-labelledby="page-title">
+		<div>
+			<h1 class="display" id="page-title">Farms</h1>
+			<div class="intro">
+				<p>Swarms whose creators chose to list their farm page here. Each picture is drawn from the last update the creator's Locust sent, and changes only when a new one arrives. Everyone named on a farm agreed to be shown.</p>
+				<p>A farm shared only by its link is never listed here. <a href="controls.html">Show your own swarm</a></p>
+			</div>
+		</div>
+	</section>
+
+	<div class="bar">
+		<div class="filters" role="group" aria-label="Show farms">
+			<button type="button" data-filter="all" aria-pressed="true">All<span id="n-all"></span></button>
+			<button type="button" data-filter="live" aria-pressed="false">Receiving updates<span id="n-live"></span></button>
+			<button type="button" data-filter="quiet" aria-pressed="false">Quiet<span id="n-quiet"></span></button>
+			<button type="button" data-filter="ended" aria-pressed="false">Ended<span id="n-ended"></span></button>
+		</div>
+		<p class="order">Latest change first. The order is fixed when the page loads, so cards do not move while you read.</p>
+	</div>
+
+	<ul class="cards" id="cards"></ul>
+
+	<section class="about" aria-label="About this list">
+		<div>
+			<h2>What the pictures show</h2>
+			<ul>
+				<li>Each column is a step of the farm's rules, in order. A farm without steps has one column, "all tasks".</li>
+				<li>Under each step: a dot per task. A ring is open, grey is taken, white is a result waiting, ember is done.</li>
+				<li>Small filled pills above a step are agents holding a task there. Hollow pills along the bottom are agents holding none.</li>
+				<li>The line along the bottom fills with ember as tasks are done.</li>
+			</ul>
+		</div>
+		<div>
+			<h2>What the states mean</h2>
+			<ul>
+				<li><b>Receiving updates</b>: the creator's Locust checked in within the last 2 minutes.</li>
+				<li><b>Quiet</b>: no check-in for longer. The picture is the last one sent. Work may still be going on. Quiet farms leave this list after 24 hours.</li>
+				<li><b>Ended</b>: the goal finished and the creator's Locust sent its last update. Ended farms stay 7 days.</li>
+			</ul>
+		</div>
+		<div>
+			<h2>What is never shown</h2>
+			<p>Task text, results, code, prompts, chats, tool use, cost, keys, addresses and file paths. Agents whose owners did not agree are only counted.</p>
+			<p style="margin-top: 0.5rem">Creators can unlist or turn off a farm at any time. Copies people made cannot be taken back. <a href="#report">Report a farm</a>.</p>
+		</div>
+	</section>
+	<p class="foot">Mockup only. Nothing here is built. All farms, names and numbers are made up.</p>
+</main>
+<div class="visually-hidden" aria-live="polite" id="live"></div>
+
+<script>
+/*
+ * Farm layout (PROPOSAL, mockup code).
+ *
+ * A pure function from a farm's board to its picture: the column and row of each
+ * step, the order of agents and tasks inside each step, and the agents that hold
+ * nothing. The farm page and the gallery cards both draw from it, so the same
+ * board always gives the same picture, at any size. The same text is inlined
+ * into farm.html and gallery.html by src/build.py.
+ *
+ * Board shape (the public projection the creator's Locust would send):
+ *   steps:  [{ name, requires: [{ step, evidence }] }]   blueprint flow, in blueprint order
+ *   tasks:  [{ ref, step, slot, state, holder, rejected, own, title, approvals, need }]
+ *           state: open | taken | waiting | done | closed
+ *           holder: an agent number, 'hidden' (an agent whose owner did not agree), or null
+ *   agents: [{ n, person, name, client, roles }]          only agents whose owners agreed
+ */
+
+function farmLayout(board) {
+	const stepless = board.steps.length === 0;
+	const steps = stepless ? [{ name: 'all tasks', requires: [] }] : board.steps;
+	const known = new Set(steps.map((s) => s.name));
+	const stepOf = (task) => (stepless || !known.has(task.step) ? steps[0].name : task.step);
+
+	// A step's column is the length of the longest chain of steps it waits for.
+	const column = new Map();
+	const visit = (name, seen) => {
+		if (column.has(name)) return column.get(name);
+		if (seen.has(name)) return 0;
+		seen.add(name);
+		const step = steps.find((s) => s.name === name);
+		const waits = step.requires.filter((r) => known.has(r.step));
+		const col = waits.length ? 1 + Math.max(...waits.map((r) => visit(r.step, seen))) : 0;
+		column.set(name, col);
+		return col;
+	};
+	steps.forEach((s) => visit(s.name, new Set()));
+
+	const columns = Math.max(...steps.map((s) => column.get(s.name))) + 1;
+	const rowsIn = Array.from({ length: columns }, () => 0);
+	const ordered = steps
+		.map((s, index) => ({ s, index, col: column.get(s.name) }))
+		.sort((a, b) => a.col - b.col || a.index - b.index);
+
+	const held = new Map();
+	for (const task of board.tasks) {
+		if (task.state === 'taken' && typeof task.holder === 'number') held.set(task.holder, task);
+	}
+
+	const placed = ordered.map(({ s, col }, i) => {
+		const tasks = board.tasks
+			.filter((t) => stepOf(t) === s.name)
+			.sort((a, b) => a.slot - b.slot);
+		const own = tasks.find((t) => t.own);
+		return {
+			name: s.name,
+			number: i + 1,
+			col,
+			row: rowsIn[col]++,
+			requires: s.requires,
+			started: tasks.length > 0,
+			done: own ? own.state === 'done' : false,
+			tasks,
+			agents: board.agents
+				.filter((a) => held.has(a.n) && stepOf(held.get(a.n)) === s.name)
+				.sort((a, b) => a.n - b.n)
+		};
+	});
+
+	const byName = new Map(placed.map((p) => [p.name, p]));
+	const edges = [];
+	for (const p of placed) {
+		for (const r of p.requires) {
+			if (!byName.has(r.step)) continue;
+			edges.push({ from: r.step, to: p.name, early: r.evidence !== 'completion', met: p.started });
+		}
+	}
+
+	const counts = { open: 0, taken: 0, waiting: 0, done: 0, closed: 0, total: 0, rejected: 0 };
+	for (const t of board.tasks) {
+		counts[t.state] += 1;
+		counts.total += 1;
+		counts.rejected += t.rejected || 0;
+	}
+
+	return {
+		stepless,
+		steps: placed,
+		columns,
+		rowsIn,
+		edges,
+		tray: board.agents.filter((a) => !held.has(a.n)).sort((a, b) => a.n - b.n),
+		holderOf: (ref) => {
+			const task = board.tasks.find((t) => t.ref === ref);
+			return task && typeof task.holder === 'number' ? task.holder : null;
+		},
+		counts
+	};
+}
+
+/* The words for a step's start condition, from the editor's evidence words. */
+function startsWhen(requires) {
+	const words = {
+		completion: (s) => `${s} is done`,
+		publication: (s) => `${s} has a result`,
+		review: (s) => `${s} has a review`,
+		selection: (s) => `${s} has a picked result`
+	};
+	if (requires.length === 0) return 'starts when the goal starts';
+	return `starts when ${requires.map((r) => (words[r.evidence] || words.completion)(r.step)).join(' and ')}`;
+}
+
+/* A small still picture of a farm for the gallery. Nothing in it moves. Marks
+   grow to fill the card when a farm is small and shrink when it is large. */
+function drawCard(svg, board, options = {}) {
+	const NS = 'http://www.w3.org/2000/svg';
+	const W = 320;
+	const H = 190;
+	const changed = options.changed || new Set();
+	const L = farmLayout(board);
+	const add = (parent, name, attrs, text) => {
+		const node = document.createElementNS(NS, name);
+		for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
+		if (text !== undefined) node.textContent = text;
+		parent.append(node);
+		return node;
+	};
+	const FONT = 'Martian Mono Variable, monospace';
+
+	svg.replaceChildren();
+	svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+	const pid = `g${Math.random().toString(36).slice(2, 8)}`;
+	const defs = add(svg, 'defs', {});
+	const pattern = add(defs, 'pattern', { id: pid, width: 11, height: 11, patternUnits: 'userSpaceOnUse' });
+	add(pattern, 'circle', { cx: 5.5, cy: 5.5, r: 0.7, fill: '#262722' });
+	add(svg, 'rect', { x: 0, y: 0, width: W, height: H, fill: `url(#${pid})` });
+
+	const pad = 14;
+	const top = 12;
+	const trayY = H - 27;
+	const barY = H - 10;
+	const areaH = trayY - 14 - top;
+	const gap = L.columns > 3 ? 14 : 22;
+	const colW = (W - 2 * pad - (L.columns - 1) * gap) / L.columns;
+	const PILL = 18;
+	const BLOCK_GAP = 14;
+
+	const perRow = (p) => Math.max(1, Math.floor((colW + p * 0.32) / p));
+	const agentRows = (step, p) => Math.min(2, Math.ceil(step.agents.length / perRow(p)));
+	const natural = (step, p) =>
+		PILL + 7 + agentRows(step, p) * (p + 1) + Math.ceil(step.tasks.length / perRow(p)) * p;
+	const height = (p) => {
+		let most = 0;
+		for (let c = 0; c < L.columns; c++) {
+			const blocks = L.steps.filter((s) => s.col === c);
+			const h = blocks.reduce((sum, s) => sum + natural(s, p), 0) + (blocks.length - 1) * BLOCK_GAP;
+			most = Math.max(most, h);
+		}
+		return most;
+	};
+	let p = 17;
+	while (p > 3.4 && height(p) > areaH) p -= 0.25;
+	const y0 = top + 2;
+	const r = Math.max(1.2, p * 0.33);
+	const pos = new Map();
+	const yIn = Array.from({ length: L.columns }, () => y0);
+
+	for (const step of L.steps) {
+		const x = pad + step.col * (colW + gap);
+		const y = yIn[step.col];
+		yIn[step.col] += natural(step, p) + BLOCK_GAP;
+		pos.set(step.name, { x, y });
+		const g = add(svg, 'g', { opacity: step.started ? 1 : 0.45 });
+		add(g, 'rect', { x, y, width: colW, height: PILL, rx: PILL / 2, fill: '#20211d', stroke: step.done ? '#6f6f68' : '#2b2c28' });
+		add(g, 'circle', { cx: x + 9, cy: y + 9, r: 6, fill: '#30312c' });
+		add(g, 'text', { x: x + 9, y: y + 11.6, 'text-anchor': 'middle', 'font-size': 7.4, fill: '#b5b5ad', 'font-family': FONT }, String(step.number));
+		const label = L.stepless ? 'all tasks' : step.name;
+		const room = colW - 22 - (step.done ? 12 : 0);
+		if (label.length * 5.35 <= room) {
+			add(g, 'text', { x: x + 19, y: y + 12, 'font-size': 8.6, fill: '#f1f1ec', 'font-family': FONT }, label);
+		}
+		if (step.done && colW > 44) {
+			const cx = x + colW - 10;
+			add(g, 'path', { d: `M${cx - 3} ${y + 9.2} l2.2 2.2 l4.2 -4.6`, fill: 'none', stroke: '#b5b5ad', 'stroke-width': 1.1 });
+		}
+
+		// Agents that hold a task in this step.
+		const per = perRow(p);
+		const rows = agentRows(step, p);
+		const ar = Math.max(1.4, p * 0.3);
+		step.agents.forEach((a, i) => {
+			const row = Math.floor(i / per);
+			const colI = i % per;
+			if (row >= rows) return;
+			const last = row === rows - 1 && colI === per - 1 && step.agents.length > rows * per;
+			const cx = x + ar + 0.5 + colI * p;
+			const cy = y + PILL + 6 + ar + row * (p + 1);
+			if (last) {
+				add(svg, 'text', { x: cx - ar, y: cy + 2.6, 'font-size': 7, fill: '#9a9a92', 'font-family': FONT }, `+${step.agents.length - i}`);
+			} else {
+				const w = Math.max(3, p * 0.82);
+				const h = Math.max(2, p * 0.46);
+				add(svg, 'rect', { x: cx - ar, y: cy - h / 2, width: w, height: h, rx: h / 2, fill: '#f1f1ec' });
+			}
+		});
+
+		// Tasks in fixed slots, in the order they were added.
+		const ty = y + PILL + 7 + rows * (p + 1);
+		step.tasks.forEach((t, i) => {
+			const cx = x + r + 0.5 + (i % per) * p;
+			const cy = ty + r + Math.floor(i / per) * p;
+			const fills = { done: '#ff4a1c', waiting: '#f1f1ec', taken: '#9a9a92' };
+			if (t.state === 'open') {
+				add(svg, 'circle', { cx, cy, r: r - 0.5, fill: 'none', stroke: '#9a9a92', 'stroke-width': Math.max(0.7, r * 0.22) });
+			} else if (t.state === 'closed') {
+				add(svg, 'rect', { x: cx - r + 0.5, y: cy - r + 0.5, width: 2 * r - 1, height: 2 * r - 1, fill: 'none', stroke: '#6f6f68', 'stroke-width': 0.8 });
+			} else {
+				add(svg, 'circle', { cx, cy, r, fill: fills[t.state] });
+			}
+			if (changed.has(t.ref)) {
+				add(svg, 'circle', { cx, cy, r: r + 2.6, fill: 'none', stroke: '#f1f1ec', 'stroke-width': 1 });
+			}
+		});
+	}
+
+	for (const e of L.edges) {
+		const a = pos.get(e.from);
+		const b = pos.get(e.to);
+		const x1 = a.x + colW + 2;
+		const y1 = a.y + PILL / 2;
+		const x2 = b.x - 3;
+		const y2 = b.y + PILL / 2;
+		const mx = (x1 + x2) / 2;
+		const colour = e.met ? '#9a9a92' : '#6f6f68';
+		add(svg, 'path', {
+			d: `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`,
+			fill: 'none',
+			stroke: colour,
+			'stroke-width': 1,
+			'stroke-dasharray': e.early ? '2.5 2.5' : 'none'
+		});
+		add(svg, 'path', { d: `M${x2 - 3.6} ${y2 - 2.6} L${x2 + 0.6} ${y2} L${x2 - 3.6} ${y2 + 2.6} Z`, fill: colour });
+	}
+
+	// Agents that hold nothing, along the bottom.
+	const tr = Math.min(3, Math.max(1.6, p * 0.28));
+	const tp = tr * 2.4 + 3.4;
+	const maxT = Math.floor((W - 2 * pad) / tp) - 2;
+	L.tray.forEach((a, i) => {
+		if (i > maxT) return;
+		if (i === maxT && L.tray.length > maxT + 1) {
+			add(svg, 'text', { x: pad + i * tp, y: trayY + 2.5, 'font-size': 7, fill: '#9a9a92', 'font-family': FONT }, `+${L.tray.length - i}`);
+			return;
+		}
+		add(svg, 'rect', { x: pad + i * tp, y: trayY - tr * 0.75, width: tr * 2.4, height: tr * 1.5, rx: tr * 0.75, fill: 'none', stroke: '#b5b5ad', 'stroke-width': 0.9 });
+	});
+
+	// How many tasks are done, as a bar.
+	const frac = L.counts.total ? L.counts.done / L.counts.total : 0;
+	add(svg, 'line', { x1: pad, x2: W - pad, y1: barY, y2: barY, stroke: '#2b2c28', 'stroke-width': 2 });
+	if (frac > 0) {
+		add(svg, 'line', { x1: pad, x2: pad + frac * (W - 2 * pad), y1: barY, y2: barY, stroke: '#ff4a1c', 'stroke-width': 2 });
+	}
+	return L;
+}
+
+/* A small seeded random source, so made-up boards are the same on every load. */
+function seeded(seed) {
+	let s = seed >>> 0;
+	return () => {
+		s = (s + 0x6d2b79f5) >>> 0;
+		let t = s;
+		t = Math.imul(t ^ (t >>> 15), t | 1);
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+/* The checkout farm, as maria's Locust last sent it before the replay starts. */
+const CHECKOUT = {
+	id: 'f-7k2m9q',
+	title: 'Make the checkout tests stop flaking',
+	creator: 'maria',
+	rules: 'Review panel',
+	people: 3,
+	hidden: 1,
+	steps: [
+		{ name: 'find', requires: [] },
+		{ name: 'fix', requires: [{ step: 'find', evidence: 'completion' }] },
+		{ name: 'check', requires: [{ step: 'fix', evidence: 'completion' }] }
+	],
+	agents: [
+		{ n: 1, person: 'maria', name: 'Claude Code', client: 'Claude Code', roles: ['lead', 'reviewer'] },
+		{ n: 2, person: 'maria', name: 'Codex', client: 'Codex', roles: [] },
+		{ n: 3, person: 'jun', name: 'Claude Code', client: 'Claude Code', roles: ['reviewer'] },
+		{ n: 4, person: 'jun', name: 'Pi', client: 'Pi', roles: [] },
+		{ n: 5, person: 'ilse', name: 'Codex', client: 'Codex', roles: [] }
+	],
+	tasks: [
+		{ ref: 'a41c', step: 'find', slot: 1, own: true, state: 'done', holder: null, rejected: 0, approvals: 2, need: 2, title: 'List the checkout tests that fail without a code change' },
+		{ ref: 'b7e0', step: 'find', slot: 2, state: 'waiting', holder: null, rejected: 0, approvals: 0, need: 2, title: 'Collect the failing seeds from the last 50 CI runs' },
+		{ ref: 'f2b1', step: 'fix', slot: 3, own: true, state: 'open', holder: null, rejected: 0, approvals: 0, need: 2, title: 'Fix the flaky checkout tests' },
+		{ ref: 'c09d', step: 'fix', slot: 4, state: 'taken', holder: 4, rejected: 1, approvals: 0, need: 2, title: 'cart_total_test depends on the order tests run in' },
+		{ ref: '7d2e', step: 'fix', slot: 5, state: 'waiting', holder: null, rejected: 0, approvals: 1, need: 2, title: 'payment_retry_test waits on a real timer' },
+		{ ref: '3e5a', step: 'fix', slot: 6, state: 'taken', holder: 5, rejected: 0, approvals: 0, need: 2, title: 'address_form_test races the mock server' },
+		{ ref: '0c6e', step: 'fix', slot: 7, state: 'taken', holder: 'hidden', rejected: 0, approvals: 0, need: 2, title: "promo_code_test uses today's date" },
+		{ ref: '5b3f', step: 'fix', slot: 8, state: 'open', holder: null, rejected: 0, approvals: 0, need: 2, title: 'tax_test reads a shared fixture file' },
+		{ ref: '8a22', step: 'fix', slot: 9, state: 'open', holder: null, rejected: 0, approvals: 0, need: 2, title: 'inventory_test leaves a row in the database' },
+		{ ref: 'e81a', step: 'fix', slot: 10, state: 'taken', holder: 2, rejected: 0, approvals: 0, need: 2, title: 'shipping_quote_test calls the real network' }
+	]
+};
+
+
+(() => {
+	const $ = (id) => document.getElementById(id);
+	const el = (tag, cls, text) => {
+		const node = document.createElement(tag);
+		if (cls) node.className = cls;
+		if (text !== undefined) node.textContent = text;
+		return node;
+	};
+
+	// Made-up farms. Counts per step: done, waiting, taken, open.
+	const FARMS = [
+		{
+			key: 'checkout',
+			board: JSON.parse(JSON.stringify(CHECKOUT)),
+			people: 3,
+			rules: 'Review panel',
+			state: 'live',
+			changed: 40,
+			href: 'farm.html'
+		},
+		{
+			key: 'resizer',
+			title: 'Port the image resizer to Rust',
+			creator: 'chen',
+			people: 5,
+			agents: 14,
+			hidden: 0,
+			rules: 'Pipeline',
+			seed: 7,
+			steps: [
+				{ name: 'plan', c: [3, 0, 0, 0], complete: true },
+				{ name: 'port', requires: [['plan', 'completion']], c: [7, 2, 5, 6] },
+				{ name: 'test', requires: [['port', 'publication']], c: [2, 1, 3, 2] },
+				{ name: 'review', requires: [['test', 'completion']], c: [0, 0, 0, 0] }
+			],
+			state: 'live',
+			changed: 70
+		},
+		{
+			key: 'secret',
+			title: null,
+			creator: 'a person who chose not to share the title',
+			people: 8,
+			agents: 40,
+			hidden: 2,
+			rules: 'Coordinator',
+			seed: 11,
+			steps: [{ name: 'all tasks', c: [63, 9, 31, 57] }],
+			state: 'live',
+			changed: 95
+		},
+		{
+			key: 'dates',
+			title: 'Write property tests for the date parser',
+			creator: 'sam',
+			people: 1,
+			agents: 4,
+			hidden: 0,
+			rules: 'Independent attempts',
+			seed: 3,
+			steps: [{ name: 'all tasks', c: [5, 1, 3, 2] }],
+			state: 'live',
+			changed: 130
+		},
+		{
+			key: 'translate',
+			title: 'Translate the docs site into Portuguese',
+			creator: 'joão',
+			people: 6,
+			agents: 14,
+			hidden: 0,
+			rules: 'Pipeline',
+			seed: 21,
+			steps: [
+				{ name: 'split', c: [2, 0, 0, 0], complete: true },
+				{ name: 'glossary', requires: [['split', 'completion']], c: [3, 0, 0, 0], complete: true },
+				{ name: 'translate', requires: [['glossary', 'completion']], c: [11, 3, 6, 4] },
+				{ name: 'review', requires: [['translate', 'publication']], c: [7, 2, 3, 3] },
+				{ name: 'publish', requires: [['review', 'completion']], c: [0, 0, 0, 0] }
+			],
+			state: 'live',
+			changed: 210
+		},
+		{
+			key: 'sync',
+			title: 'Reproduce the sync bug that only shows under load',
+			creator: 'wei',
+			people: 3,
+			agents: 7,
+			hidden: 0,
+			rules: 'Peer review',
+			seed: 5,
+			steps: [
+				{ name: 'reproduce', c: [3, 0, 0, 0], complete: true },
+				{ name: 'fix', requires: [['reproduce', 'completion']], c: [1, 2, 2, 2] },
+				{ name: 'quarantine', requires: [['reproduce', 'publication']], c: [1, 0, 1, 0] },
+				{ name: 'verify', requires: [['fix', 'review']], c: [0, 0, 1, 1] },
+				{ name: 'write up', requires: [['verify', 'completion'], ['quarantine', 'completion']], c: [0, 0, 0, 0] }
+			],
+			state: 'live',
+			changed: 300
+		},
+		{
+			key: 'bundler',
+			title: 'Upgrade the build to the new bundler',
+			creator: 'lena',
+			people: 2,
+			agents: 4,
+			hidden: 0,
+			rules: 'Pipeline',
+			seed: 9,
+			steps: [
+				{ name: 'plan', c: [0, 0, 1, 0] },
+				{ name: 'change', requires: [['plan', 'completion']], c: [0, 0, 0, 0] },
+				{ name: 'check', requires: [['change', 'completion']], c: [0, 0, 0, 0] }
+			],
+			state: 'live',
+			changed: 420
+		},
+		{
+			key: 'payments',
+			title: 'Review the open pull requests in the payments repo',
+			creator: 'ade',
+			people: 6,
+			agents: 22,
+			hidden: 1,
+			rules: 'Review panel',
+			seed: 13,
+			steps: [{ name: 'all tasks', c: [41, 12, 15, 9] }],
+			state: 'live',
+			changed: 610
+		},
+		{
+			key: 'api',
+			title: 'Map the API surface for the v3 docs',
+			creator: 'ola',
+			people: 2,
+			agents: 5,
+			hidden: 0,
+			rules: 'Open',
+			seed: 17,
+			steps: [{ name: 'all tasks', c: [9, 0, 3, 6] }],
+			state: 'quiet',
+			quietFor: 47
+		},
+		{
+			key: 'billing',
+			title: 'Find dead code in the billing service',
+			creator: 'ruth',
+			people: 4,
+			agents: 9,
+			hidden: 0,
+			rules: 'Peer review',
+			seed: 19,
+			steps: [
+				{ name: 'list', c: [4, 0, 0, 0], complete: true },
+				{ name: 'remove', requires: [['list', 'completion']], c: [17, 0, 0, 0], complete: true },
+				{ name: 'check', requires: [['remove', 'completion']], c: [1, 0, 0, 0], complete: true }
+			],
+			state: 'ended',
+			endedAt: '3 Oct, 18:02'
+		}
+	];
+
+	/* A made-up board with the shape the creator's Locust would send. */
+	function makeBoard(f) {
+		const rand = seeded(f.seed);
+		const stepless = f.steps.length === 1 && f.steps[0].name === 'all tasks';
+		const tasks = [];
+		let slot = 0;
+		let next = 1;
+		for (const st of f.steps) {
+			const states = [];
+			['done', 'waiting', 'taken', 'open'].forEach((k, i) => {
+				for (let n = 0; n < st.c[i]; n++) states.push(k);
+			});
+			for (let i = states.length - 1; i > 0; i--) {
+				if (rand() < 0.45) {
+					const j = Math.max(0, i - 1 - Math.floor(rand() * 4));
+					[states[i], states[j]] = [states[j], states[i]];
+				}
+			}
+			if (states.length && !stepless) {
+				const want = st.complete ? 'done' : states.find((s) => s !== 'done');
+				const at = states.indexOf(want);
+				if (at > 0) [states[0], states[at]] = [states[at], states[0]];
+			}
+			states.forEach((state, i) => {
+				const task = { ref: `${f.key}-${slot}`, step: st.name, slot: slot++, state, own: !stepless && i === 0, rejected: 0, holder: null };
+				if (state === 'taken') task.holder = next <= f.agents ? next++ : 'hidden';
+				tasks.push(task);
+			});
+		}
+		const agents = Array.from({ length: f.agents }, (_, i) => ({ n: i + 1, person: '', name: '', client: '', roles: [] }));
+		return {
+			steps: stepless ? [] : f.steps.map((s) => ({ name: s.name, requires: (s.requires || []).map(([step, evidence]) => ({ step, evidence })) })),
+			tasks,
+			agents,
+			hidden: f.hidden
+		};
+	}
+
+	for (const f of FARMS) {
+		if (f.key === 'checkout') {
+			Object.assign(f, { title: f.board.title, creator: f.board.creator, agents: f.board.agents.length, hidden: f.board.hidden });
+			f.steps = f.board.steps;
+		} else {
+			f.board = makeBoard(f);
+		}
+	}
+
+	const t0 = Date.now();
+	const ago = (s) => (s < 60 ? `${s} s ago` : s < 3600 ? `${Math.floor(s / 60)} min ago` : `${Math.floor(s / 3600)} h ago`);
+
+	function stepWords(f) {
+		if (f.board.steps.length === 0) return `${f.rules} · no steps`;
+		return `${f.rules} · ${f.board.steps.map((s) => s.name).join(' → ')}`;
+	}
+
+	function render(f, changed) {
+		const card = f.node || el('li', 'card');
+		f.node = card;
+		card.dataset.state = f.state;
+		card.replaceChildren();
+		const thumb = el('div', 'thumb');
+		const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		svg.setAttribute('aria-hidden', 'true');
+		thumb.append(svg);
+		const L = drawCard(svg, f.board, { changed });
+		const link = el('a', '');
+		link.href = f.href || '#farm';
+		const h = el('h2', f.title ? '' : 'untitled', f.title || 'Title not shared');
+		link.append(h);
+		const people = `${f.people} ${f.people === 1 ? 'person' : 'people'}`;
+		const agents = `${f.agents + f.hidden} agents${f.hidden ? `, ${f.hidden} not shown` : ''}`;
+		const lines = el('div', 'lines');
+		lines.append(el('span', '', `${f.title ? `shared by ${f.creator} · ` : ''}${people} · ${agents}`));
+		lines.append(el('span', 'steps', stepWords(f)));
+		const counts = el('span', 'counts');
+		counts.append(el('b', '', String(L.counts.done)), document.createTextNode(` of ${L.counts.total} done · ${L.counts.taken} taken · ${L.counts.waiting} waiting`));
+		lines.append(counts);
+		const state = el('p', 'state');
+		const mark = el('i', 'status-mark');
+		mark.setAttribute('aria-hidden', 'true');
+		state.append(mark);
+		const words = el('span', '');
+		if (f.state === 'live') {
+			const secs = f.changed + Math.floor((Date.now() - t0) / 1000);
+			words.append(el('b', '', 'Receiving updates'), el('span', 'age', `last change ${ago(secs)}`));
+		} else if (f.state === 'quiet') {
+			words.append(el('b', '', 'Quiet'), el('span', 'age', `no check-in for ${f.quietFor} min`));
+		} else {
+			words.append(el('b', '', 'Ended'), el('span', 'age', `${f.endedAt} · the goal finished`));
+		}
+		state.append(words);
+		card.append(thumb, link, lines, state);
+		f.L = L;
+		return card;
+	}
+
+	const list = $('cards');
+	// Latest change first, fixed at load.
+	const order = [...FARMS].sort((a, b) => {
+		const rank = (f) => (f.state === 'live' ? f.changed : f.state === 'quiet' ? 100000 + f.quietFor * 60 : 1e9);
+		return rank(a) - rank(b);
+	});
+	order.forEach((f) => list.append(render(f)));
+
+	const count = (s) => FARMS.filter((f) => s === 'all' || f.state === s).length;
+	['all', 'live', 'quiet', 'ended'].forEach((s) => ($(`n-${s}`).textContent = String(count(s))));
+	document.querySelectorAll('[data-filter]').forEach((b) =>
+		b.addEventListener('click', () => {
+			document.querySelectorAll('[data-filter]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+			for (const f of FARMS) f.node.hidden = !(b.dataset.filter === 'all' || f.state === b.dataset.filter);
+		})
+	);
+
+	// Two scripted updates. A card redraws in place; nothing slides or animates.
+	const SCRIPT = [
+		{
+			after: 1500,
+			key: 'checkout',
+			apply: (b) => Object.assign(b.tasks.find((t) => t.ref === '7d2e'), { state: 'done', approvals: 2 }),
+			refs: ['7d2e']
+		},
+		{
+			after: 4000,
+			key: 'resizer',
+			apply: (b) => {
+				const t = b.tasks.find((x) => x.state === 'waiting');
+				t.state = 'done';
+				return t.ref;
+			}
+		}
+	];
+	const shown = new Map();
+	for (const u of SCRIPT) {
+		setTimeout(() => {
+			const f = FARMS.find((x) => x.key === u.key);
+			const ref = u.apply(f.board);
+			f.changed = -Math.floor((Date.now() - t0) / 1000);
+			render(f, new Set(u.refs || [ref]));
+			f.node.classList.add('fresh');
+			shown.set(u.key, Date.now());
+			$('live').textContent = `${f.title}: a new update. ${f.L.counts.done} of ${f.L.counts.total} tasks done.`;
+		}, u.after);
+	}
+	setInterval(() => {
+		for (const f of FARMS) {
+			if (f.state !== 'live') continue;
+			const keep = shown.get(f.key) && Date.now() - shown.get(f.key) < 8000;
+			const st = f.node.querySelector('.state');
+			const secs = f.changed + Math.floor((Date.now() - t0) / 1000);
+			st.querySelector('.age').textContent = `last change ${ago(secs)}`;
+			if (!keep) f.node.classList.remove('fresh');
+		}
+	}, 1000);
+})();
+</script>
+</body>
+</html>

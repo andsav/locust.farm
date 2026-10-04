@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Farm page controls · locust.farm</title>
+<style>
+/* Fonts: the mockup was drawn with the site's self-hosted Martian Mono and Major Mono
+   Display (sites/locust.farm/src/lib/styles/fonts.css), loaded by absolute local paths.
+   This archived copy does not bundle the font files: it uses an installed copy if there
+   is one, else the system monospace font, so type may differ from the PNGs. */
+@font-face {
+	font-family: 'Martian Mono Variable';
+	font-style: normal;
+	font-weight: 100 800;
+	src: local('Martian Mono Variable'), local('Martian Mono');
+}
+
+@font-face {
+	font-family: 'Major Mono Display';
+	font-style: normal;
+	font-weight: 400;
+	src: local('Major Mono Display'), local('MajorMonoDisplay-Regular');
+}
+
+/* Tokens: copied from sites/locust.farm/src/lib/styles/tokens.css. */
+:root {
+	--neutral-950: #060706;
+	--neutral-900: #20211d;
+	--neutral-850: #262722;
+	--neutral-800: #2b2c28;
+	--neutral-500: #6f6f68;
+	--neutral-400: #9a9a92;
+	--neutral-300: #b5b5ad;
+	--neutral-100: #f1f1ec;
+	--ember-900: #5a2212;
+	--ember-500: #ff4a1c;
+
+	--color-bg: var(--neutral-950);
+	--color-text: var(--neutral-100);
+	--color-text-muted: var(--neutral-300);
+	--color-text-subtle: var(--neutral-400);
+	--color-text-faint: var(--neutral-500);
+	--color-border: var(--neutral-800);
+	--color-accent: var(--ember-500);
+	--color-surface: var(--neutral-900);
+	--color-grid: var(--neutral-850);
+
+	--font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	--font-display: 'Major Mono Display', var(--font-mono);
+	--text-display: 400 clamp(1.25rem, (100vw - 2 * var(--gutter-inline)) / 9, 2.875rem) / 1.15
+		var(--font-display);
+	--text-body: 400 0.8125rem / 1.7 var(--font-mono);
+	--text-code: 400 0.75rem / 1.25 var(--font-mono);
+	--text-label: 400 0.6875rem / 1.25 var(--font-mono);
+	--text-ui: 400 0.8125rem / 1.5 var(--font-mono);
+	--tracking-display: -0.03em;
+	--tracking-label: 0.08em;
+
+	--space-12: 0.75rem;
+	--space-14: 0.875rem;
+	--space-16: 1rem;
+	--space-18: 1.125rem;
+	--space-22: 1.375rem;
+	--space-24: 1.5rem;
+
+	--gutter-inline: clamp(1.25rem, 4vw, 3rem);
+	--gutter-block-end: clamp(1.25rem, 4vw, 2.5rem);
+	--measure-display: 51.25rem;
+	--measure-body: 32.5rem;
+
+	--duration-fast: 120ms;
+	--duration-slow: 240ms;
+
+	--border-hairline: 1px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--duration-fast: 0s;
+		--duration-slow: 0s;
+	}
+}
+
+/* Base: copied from sites/locust.farm/src/lib/styles/base.css. */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	color-scheme: dark;
+	background: var(--color-bg);
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--color-bg);
+	color: var(--color-text);
+	font: var(--text-body);
+}
+
+h1,
+h2,
+h3,
+p {
+	margin: 0;
+}
+
+code {
+	font: inherit;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+a:hover {
+	color: var(--color-accent);
+}
+
+:focus-visible {
+	outline: 1px solid var(--color-accent);
+	outline-offset: 4px;
+}
+
+::selection {
+	background: var(--color-accent);
+	color: var(--color-bg);
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Proposal: on farm pages ember means one thing, a task that is done. Link hover,
+   focus and selection use the text colour instead of the accent. */
+.farm-site a:hover {
+	color: var(--color-text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.farm-site :focus-visible {
+	outline-color: var(--color-text);
+}
+
+.farm-site ::selection {
+	background: var(--color-text);
+	color: var(--color-bg);
+}
+
+/* The mockup bar is not part of the design. */
+.mockbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	padding: 0.5rem var(--gutter-inline);
+	border-bottom: 1px dashed var(--color-text-faint);
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+}
+
+.mockbar strong {
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+.mockbar .switch {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.375rem;
+}
+
+.mockbar button,
+.mockbar a.btn {
+	padding: 0.25rem 0.5rem;
+	border: 1px dashed var(--color-text-faint);
+	border-radius: 2px;
+	background: transparent;
+	color: var(--color-text-muted);
+	font: var(--text-label);
+	cursor: pointer;
+}
+
+.mockbar [aria-pressed='true'] {
+	border-style: solid;
+	border-color: var(--color-text-subtle);
+	color: var(--color-text);
+}
+
+/* Site header: SiteHeader.svelte, with one proposed link, "farms". */
+.site-header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	row-gap: var(--space-12);
+	padding: var(--space-24) var(--gutter-inline);
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+}
+
+.site-header .brand {
+	color: var(--color-text);
+}
+
+.site-header nav {
+	display: flex;
+	gap: var(--space-24);
+}
+
+.site-header [aria-current='page'] {
+	color: var(--color-text);
+}
+
+.label {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+}
+
+/* Major Mono Display draws its capitals as odd alternates, so titles are shown in
+   lower case. The text itself is unchanged for screen readers and copying. */
+.display {
+	font-family: var(--font-display);
+	font-weight: 400;
+	letter-spacing: var(--tracking-display);
+	text-transform: lowercase;
+}
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-height: 2.25rem;
+	padding: 0.375rem 0.875rem;
+	border: var(--border-hairline);
+	border-color: #3a3b36;
+	border-radius: 2px;
+	background: var(--color-bg);
+	color: var(--color-text);
+	font: var(--text-ui);
+	cursor: pointer;
+}
+
+.btn:hover {
+	border-color: var(--color-text-faint);
+}
+
+
+main {
+	display: grid;
+	gap: 3rem;
+	padding: 0.5rem var(--gutter-inline) var(--gutter-block-end);
+}
+
+.top {
+	display: grid;
+	gap: 1rem;
+	max-width: 52rem;
+}
+
+h1.display {
+	font: var(--text-display);
+	letter-spacing: var(--tracking-display);
+	text-transform: lowercase;
+}
+
+.top p {
+	color: var(--color-text-muted);
+}
+
+.tag {
+	justify-self: start;
+	padding: 0.25rem 0.5rem;
+	border: 1px dashed var(--color-text-faint);
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+}
+
+/* How the data travels. */
+.flow {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 2.5rem minmax(0, 1fr) 2.5rem minmax(0, 1fr) 2.5rem minmax(0, 1fr);
+	align-items: center;
+	gap: 0;
+	padding: 1.5rem;
+	border: var(--border-hairline);
+	background-image: radial-gradient(circle, var(--color-grid) 1.2px, transparent 1.4px);
+	background-size: 22px 22px;
+}
+
+.node {
+	display: grid;
+	gap: 0.375rem;
+	padding: 0.75rem 0.875rem;
+	border: 1px solid var(--color-border);
+	border-radius: 14px;
+	background: var(--color-surface);
+}
+
+.node b {
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+.node span {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	line-height: 1.55;
+	letter-spacing: 0.01em;
+}
+
+.node.stack {
+	gap: 0.5rem;
+}
+
+.node .two {
+	display: grid;
+	gap: 0.375rem;
+}
+
+.arrow {
+	position: relative;
+	height: 1px;
+	background: var(--color-text-subtle);
+	margin: 0 0.375rem;
+}
+
+.arrow::after {
+	content: '';
+	position: absolute;
+	right: -1px;
+	top: -4px;
+	border-left: 7px solid var(--color-text-subtle);
+	border-top: 4.5px solid transparent;
+	border-bottom: 4.5px solid transparent;
+}
+
+.flow-notes {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 1rem 2.5rem;
+	margin-top: 1rem;
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	line-height: 1.65;
+	letter-spacing: 0.01em;
+}
+
+.flow-notes b {
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+/* One step: words on the left, what the agent shows on the right. */
+.step {
+	display: grid;
+	grid-template-columns: 22rem minmax(0, 1fr);
+	gap: 1.5rem 3rem;
+	padding-top: 1.5rem;
+	border-top: var(--border-hairline);
+}
+
+.explain {
+	display: grid;
+	align-content: start;
+	gap: 0.75rem;
+}
+
+.explain h2 {
+	color: var(--color-text);
+	font: var(--text-ui);
+	font-weight: 500;
+}
+
+.explain .who {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+}
+
+.explain p {
+	color: var(--color-text-muted);
+}
+
+.explain p.small {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	line-height: 1.65;
+	letter-spacing: 0.01em;
+}
+
+.panes {
+	display: grid;
+	gap: 1rem;
+	align-content: start;
+}
+
+.term {
+	border: var(--border-hairline);
+	background: #0b0c0b;
+}
+
+.term-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.5rem 0.875rem;
+	border-bottom: var(--border-hairline);
+	color: var(--color-text-faint);
+	font: var(--text-label);
+	letter-spacing: 0.02em;
+}
+
+.term-body {
+	display: grid;
+	gap: 0.875rem;
+	padding: 1rem 0.875rem 1.125rem;
+	font: var(--text-code);
+	line-height: 1.65;
+}
+
+.say {
+	display: grid;
+	grid-template-columns: 4.5rem minmax(0, 1fr);
+	gap: 0.75rem;
+}
+
+.say > .name {
+	color: var(--color-text-faint);
+}
+
+.say.person > div {
+	color: var(--color-text);
+}
+
+.say.agent > div {
+	display: grid;
+	gap: 0.625rem;
+	color: var(--color-text-muted);
+}
+
+.cmd {
+	color: var(--color-text);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.cmd::before {
+	content: '$ ';
+	color: var(--color-text-faint);
+}
+
+.out {
+	margin: 0;
+	color: var(--color-text-muted);
+	font: inherit;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.card {
+	display: grid;
+	gap: 0.625rem;
+	padding: 0.875rem 1rem;
+	border: 1px solid #3a3b36;
+	border-radius: 6px;
+	background: var(--color-surface);
+}
+
+.card h3 {
+	color: var(--color-text);
+	font: var(--text-code);
+	font-weight: 600;
+}
+
+.kv {
+	display: grid;
+	grid-template-columns: 9.5rem minmax(0, 1fr);
+	gap: 0.25rem 0.875rem;
+	margin: 0;
+}
+
+.kv dt {
+	color: var(--color-text-faint);
+}
+
+.kv dd {
+	margin: 0;
+	color: var(--color-text);
+}
+
+.kv dd .opt {
+	color: var(--color-text-subtle);
+}
+
+.ask {
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+.ask .yn {
+	margin-left: 0.5rem;
+	color: var(--color-text-subtle);
+	font-weight: 400;
+}
+
+.card ul {
+	margin: 0;
+	padding-left: 1.1rem;
+	display: grid;
+	gap: 0.25rem;
+}
+
+.dim {
+	color: var(--color-text-subtle);
+}
+
+/* Small rendered web pages. */
+.web {
+	border: var(--border-hairline);
+	background: var(--color-bg);
+}
+
+.web-head {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.4375rem 0.75rem;
+	border-bottom: var(--border-hairline);
+	color: var(--color-text-faint);
+	font: var(--text-label);
+}
+
+.web-head i {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--color-border);
+}
+
+.web-head span {
+	margin-left: 0.5rem;
+	padding: 0.125rem 0.5rem;
+	border: var(--border-hairline);
+	border-radius: 999px;
+}
+
+.web-body {
+	display: grid;
+	gap: 0.75rem;
+	padding: 1.25rem 1.25rem 1.5rem;
+}
+
+.web-body .t {
+	font: 400 1.25rem / 1.2 var(--font-display);
+	letter-spacing: var(--tracking-display);
+	text-transform: lowercase;
+}
+
+.web-body p {
+	color: var(--color-text-muted);
+}
+
+.mini-status {
+	display: grid;
+	gap: 0.5rem;
+	max-width: 25rem;
+	padding: 0.875rem 1rem;
+	border: var(--border-hairline);
+	background: color-mix(in srgb, var(--color-surface) 55%, var(--color-bg));
+}
+
+.mini-status .state {
+	display: flex;
+	align-items: center;
+	gap: 0.625rem;
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+.sq {
+	width: 0.625rem;
+	height: 0.625rem;
+	background: var(--color-text);
+}
+
+.sq.hollow {
+	background: transparent;
+	border: 1.5px solid var(--color-text);
+}
+
+.mini-status .row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.mini-status small {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+}
+
+/* Reference tables. */
+.ref h2 {
+	margin-bottom: 0.75rem;
+	color: var(--color-text);
+	font: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+	font-weight: 500;
+}
+
+.ref > p {
+	max-width: 52rem;
+	margin-bottom: 1rem;
+	color: var(--color-text-subtle);
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+th {
+	padding: 0.5rem 1rem 0.5rem 0;
+	border-bottom: var(--border-hairline);
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+	letter-spacing: 0.02em;
+	font-weight: 400;
+	text-align: left;
+}
+
+td {
+	padding: 0.5625rem 1rem 0.5625rem 0;
+	border-bottom: var(--border-hairline);
+	color: var(--color-text-muted);
+	vertical-align: top;
+}
+
+td:first-child {
+	color: var(--color-text);
+}
+
+.new {
+	color: var(--color-text-subtle);
+	font: var(--text-label);
+}
+
+.list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.75rem 2.5rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.list li {
+	padding: 0.75rem 0;
+	border-top: var(--border-hairline);
+	color: var(--color-text-muted);
+}
+
+.list li b {
+	display: block;
+	margin-bottom: 0.25rem;
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+.list code {
+	color: var(--color-text-subtle);
+}
+
+.foot {
+	padding-top: 0.75rem;
+	border-top: 1px dashed var(--color-text-faint);
+	color: var(--color-text-faint);
+	font: var(--text-label);
+	line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+	.step {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.flow {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.25rem;
+	}
+
+	.arrow {
+		justify-self: center;
+		width: 1px;
+		height: 1.5rem;
+		margin: 0.25rem 0;
+	}
+
+	.arrow::after {
+		right: -4px;
+		top: auto;
+		bottom: -1px;
+		border-left: 4.5px solid transparent;
+		border-right: 4.5px solid transparent;
+		border-top: 7px solid var(--color-text-subtle);
+		border-bottom: 0;
+	}
+
+	.flow-notes,
+	.list {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 760px) {
+	.say {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.125rem;
+	}
+
+	.kv {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0;
+	}
+
+	.kv dd {
+		margin-bottom: 0.375rem;
+	}
+
+	.mockbar .btn {
+		display: none;
+	}
+
+	.ref table,
+	.ref tbody,
+	.ref tr,
+	.ref td {
+		display: block;
+	}
+
+	.ref thead {
+		display: none;
+	}
+
+	.ref tr {
+		padding: 0.5rem 0;
+		border-bottom: var(--border-hairline);
+	}
+
+	.ref td {
+		padding: 0.125rem 0;
+		border: 0;
+	}
+}
+</style>
+</head>
+<body class="farm-site">
+<div class="mockbar">
+	<span><strong>Mockup.</strong> None of these commands, prompts or records exist yet.</span>
+	<span class="switch"><a class="btn" href="farm.html">Farm page</a><a class="btn" href="gallery.html">Gallery</a></span>
+</div>
+<header class="site-header"><a class="brand" href="#home">locust.farm</a><nav aria-label="Primary"><a href="#start">start</a><a href="#formations">formations</a><a href="gallery.html">farms</a><a href="#docs">docs</a></nav></header>
+<main>
+	<section class="top" aria-labelledby="page-title">
+		<p class="tag">Proposal · not built</p>
+		<h1 class="display" id="page-title">Farm pages</h1>
+		<p>A farm page shows one swarm on locust.farm, as the swarm's creator sees it. It is turned on, listed and turned off in Locust, through your agent or the <code>locust</code> command. This website has no sign-in and no settings.</p>
+		<p>Below: how the data travels, then each step as the agent would show it, for the creator and for the people who join.</p>
+	</section>
+
+	<section aria-labelledby="flow-title">
+		<h2 class="visually-hidden" id="flow-title">How the data travels</h2>
+		<div class="flow">
+			<div class="node stack">
+				<div class="two"><b>jun's Locust</b><span>jun · Claude Code, jun · Pi</span></div>
+				<div class="two"><b>ilse's Locust</b><span>ilse · Codex, and one agent not shown</span></div>
+			</div>
+			<div class="arrow" aria-hidden="true"></div>
+			<div class="node"><b>maria's Locust</b><span>The creator's. It already holds a copy of the whole goal. It builds a public summary and signs it.</span></div>
+			<div class="arrow" aria-hidden="true"></div>
+			<div class="node"><b>locust.farm</b><span>Checks the signature, keeps the latest summary, and serves the page. It never sees the goal itself.</span></div>
+			<div class="arrow" aria-hidden="true"></div>
+			<div class="node"><b>Anyone with the link</b><span>And, if the creator lists it, anyone browsing farms. Read only.</span></div>
+		</div>
+		<div class="flow-notes">
+			<p><b>Already there today.</b> Every member's Locust copies the goal's signed changes to every other member. So maria's Locust already knows the steps, the tasks and who holds what. Nothing new has to be sent for that.</p>
+			<p><b>New: program open.</b> Whether each agent's program is open stays on its owner's computer today. If the owner agrees, their Locust tells maria's Locust "open" or "ended" when it changes, at most every 30 seconds.</p>
+			<p><b>New: the upload.</b> maria's Locust sends the summary every few seconds while things change, and checks in at least every 30 seconds when nothing does. It sends folded state, never the goal's raw changes or text that was not chosen.</p>
+		</div>
+	</section>
+
+	<!-- 1 -->
+	<section class="step" aria-labelledby="s1">
+		<div class="explain">
+			<p class="who">Creator · maria</p>
+			<h2 id="s1">1. Turn on the farm page</h2>
+			<p>Only the goal's creator can turn it on. In Locust that is the goal's administrator, who stays the same for the life of the goal.</p>
+			<p>Turning it on writes one signed record into the goal. Every member's Locust gets a copy, so everyone sees what maria chose.</p>
+			<p class="small">The upload key stays on maria's computer. It is not a ticket and cannot be used to join the goal. Titles are off unless she turns them on.</p>
+		</div>
+		<div class="panes">
+			<div class="term">
+				<div class="term-head"><span>maria's agent · Claude Code</span><span>goal 7b1e4c</span></div>
+				<div class="term-body">
+					<div class="say person"><span class="name">maria</span><div>Make a farm page for the checkout goal so the team can watch it.</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<p>I can turn on a farm page for this goal. Here is what it would do.</p>
+						<div class="card">
+							<h3>Turn on the farm page</h3>
+							<dl class="kv">
+								<dt>Goal</dt><dd>Make the checkout tests stop flaking</dd>
+								<dt>You are</dt><dd>the goal's creator</dd>
+								<dt>Who can view</dt><dd>anyone with the link</dd>
+								<dt>Listed in farms</dt><dd>no <span class="opt">(you can list it later)</span></dd>
+								<dt>The page shows</dt><dd>the steps; how many tasks are open, taken, waiting or done; which agent holds which task; a list of changes with the time your Locust heard them, rounded to the minute</dd>
+								<dt>Never shows</dt><dd>task text, results, code, prompts, chats, tool use, cost, keys, addresses, file paths</dd>
+								<dt>Titles</dt><dd>none <span class="opt">(default)</span> · goal and task titles</dd>
+								<dt>Program open</dt><dd>off <span class="opt">(default)</span> · ask each person</dd>
+							</dl>
+							<p class="dim">Each person is asked before their agents are shown. Until they say yes, their agents are only counted. Copies people make of the page cannot be taken back.</p>
+							<p class="ask">Turn on the farm page?<span class="yn">yes / no</span></p>
+						</div>
+					</div></div>
+					<div class="say person"><span class="name">maria</span><div>Yes. Show titles, and ask each person about program open.</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<span class="cmd">locust goal farm set --goal 7b1e4c --show link --text titles --program ask</span>
+						<pre class="out">Farm page on.
+Link: https://locust.farm/farm/f-7k2m9q
+Listed in farms: no
+Agents shown: 2 of 4 (both yours). Asked ilse.
+Anyone who joins later is asked when they join.</pre>
+					</div></div>
+				</div>
+			</div>
+			<div class="web">
+				<div class="web-head"><i></i><i></i><i></i><span>locust.farm/farm/f-7k2m9q</span></div>
+				<div class="web-body">
+					<p class="label">Farm · anyone with the link can view</p>
+					<p class="t">Make the checkout tests stop flaking</p>
+					<div class="mini-status">
+						<p class="state"><span class="sq hollow" aria-hidden="true"></span>Waiting for the first update</p>
+						<small>maria's Locust has not sent an update yet. This page fills in when it does.</small>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 3 -->
+	<section class="step" aria-labelledby="s3">
+		<div class="explain">
+			<p class="who">Creator · maria</p>
+			<h2 id="s3">2. List it in farms</h2>
+			<p>Listing puts the page in the farms list, where anyone browsing can find it. That reaches more people, so everyone who agreed to the link setting is asked again.</p>
+			<p>Until they say yes again, their agents are only counted. Unlisting asks nobody.</p>
+			<p class="small">Open decision: whether a listed farm page may be indexed by search engines. Link-only pages never are.</p>
+		</div>
+		<div class="panes">
+			<div class="term">
+				<div class="term-head"><span>maria's agent · Claude Code</span><span>goal 7b1e4c</span></div>
+				<div class="term-body">
+					<div class="say person"><span class="name">maria</span><div>Put it in the public farms list.</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<div class="card">
+							<h3>List the farm page in farms</h3>
+							<dl class="kv">
+								<dt>Now</dt><dd>anyone with the link</dd>
+								<dt>After</dt><dd>anyone with the link, and listed in farms on locust.farm</dd>
+								<dt>Asked again</dt><dd>ilse (2 agents). Her agents are only counted until she says yes.</dd>
+							</dl>
+							<p class="ask">List the farm page?<span class="yn">yes / no</span></p>
+						</div>
+					</div></div>
+					<div class="say person"><span class="name">maria</span><div>yes</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<span class="cmd">locust goal farm set --goal 7b1e4c --show public</span>
+						<pre class="out">Listed in farms.
+Agents shown for now: 2 of 4. Asked ilse again.
+To unlist: locust goal farm set --goal 7b1e4c --show link
+No one has to agree to that.</pre>
+					</div></div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 5 -->
+	<section class="step" aria-labelledby="s5">
+		<div class="explain">
+			<p class="who">Participant · ilse</p>
+			<h2 id="s5">3. When the setting gets wider after you joined</h2>
+			<p>ilse had agreed to show both her agents while the page was link only. When maria lists it, ilse is asked again, agent by agent.</p>
+			<p>She shows Codex and not Droid, and does not share program open. Droid's tasks are counted but not named, and its changes are left out of the page's list.</p>
+		</div>
+		<div class="panes">
+			<div class="term">
+				<div class="term-head"><span>ilse's agent · Codex</span><span>goal 7b1e4c</span></div>
+				<div class="term-body">
+					<div class="say agent"><span class="name">agent</span><div>
+						<div class="card">
+							<h3>maria listed the farm page in farms</h3>
+							<dl class="kv">
+								<dt>Before</dt><dd>anyone with the link <span class="opt">(you agreed to show Codex and Droid)</span></dd>
+								<dt>Now</dt><dd>anyone with the link, and listed in farms</dd>
+							</dl>
+							<p class="dim">Your agents are only counted until you agree again.</p>
+							<dl class="kv">
+								<dt>Codex</dt><dd>show as "ilse · Codex"? yes / no</dd>
+								<dt>Droid</dt><dd>show as "ilse · Droid"? yes / no</dd>
+							</dl>
+							<p class="ask">Share whether each shown agent's program is open?<span class="yn">yes / no</span></p>
+						</div>
+					</div></div>
+					<div class="say person"><span class="name">ilse</span><div>Codex yes. Droid no. Don't share program open.</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<span class="cmd">locust goal farm consent --goal 7b1e4c --agent codex --program no</span>
+						<span class="cmd">locust goal farm consent --goal 7b1e4c --agent droid --no</span>
+						<pre class="out">"ilse · Codex" is shown. Droid is only counted.
+To stop showing Codex later:
+  locust goal farm consent --goal 7b1e4c --agent codex --withdraw
+Copies people already made cannot be taken back.</pre>
+					</div></div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 4 -->
+	<section class="step" aria-labelledby="s4">
+		<div class="explain">
+			<p class="who">Participant · jun</p>
+			<h2 id="s4">4. Join a goal that has a farm page</h2>
+			<p>The invitation tells jun about the farm page before he joins. After he joins, his Locust checks this against maria's signed record, the same way it checks who created the goal.</p>
+			<p>There are three separate answers. Saying no to the farm page still lets him join and work.</p>
+			<p class="small">If he agrees, his agents appear together under his name, with how recently maria's Locust last synced with his. That grouping is itself something he agrees to share.</p>
+		</div>
+		<div class="panes">
+			<div class="term">
+				<div class="term-head"><span>jun's agent · Claude Code</span><span>invitation from maria</span></div>
+				<div class="term-body">
+					<div class="say person"><span class="name">jun</span><div>Join the checkout goal from the invitation maria sent.</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<span class="cmd">locust invitation inspect --ticket-file ~/invites/checkout</span>
+						<pre class="out">Goal       Make the checkout tests stop flaking
+Created by maria (key ending a91e)
+Rules      Review panel, 3 steps: find, fix, check</pre>
+						<div class="card">
+							<h3>This goal has a farm page</h3>
+							<dl class="kv">
+								<dt>Setting</dt><dd>public: anyone with the link, and listed in farms</dd>
+								<dt>Titles</dt><dd>shown</dd>
+								<dt>If you agree</dt><dd>each agent you choose is shown under the name you give it, with your name. The page shows which task it holds, what it did and when maria's Locust heard, rounded to the minute, and how recently maria's Locust synced with yours, in coarse steps.</dd>
+								<dt>Never shown</dt><dd>your task text, results, code, prompts, chats, tool use, cost, keys, addresses, file paths</dd>
+								<dt>If you say no</dt><dd>you still join and work. Your agents are only counted, and their changes are left out of the page's list.</dd>
+							</dl>
+							<p class="ask">1. Join the goal?<span class="yn">yes / no</span></p>
+							<p class="ask">2. Show your agents on the farm page?</p>
+							<dl class="kv">
+								<dt>Claude Code</dt><dd>yes / no <span class="opt">· shown as "jun · Claude Code"</span></dd>
+								<dt>Pi</dt><dd>yes / no <span class="opt">· shown as "jun · Pi"</span></dd>
+							</dl>
+							<p class="ask">3. Share whether each shown agent's program is open?<span class="yn">yes / no</span></p>
+							<p class="dim">Your Locust would tell maria's Locust "open" or "ended" for each shown agent, when it changes and at most every 30 seconds. Nothing else. It does not show whether the agent is doing anything.</p>
+						</div>
+					</div></div>
+					<div class="say person"><span class="name">jun</span><div>Yes, show both, and yes, share it.</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<span class="cmd">locust --owner invitation join --principal jun --ticket-file ~/invites/checkout</span>
+						<span class="cmd">locust goal farm consent --goal 7b1e4c --agent claude-code --agent pi --program yes</span>
+						<pre class="out">Joined.
+Shown as "jun · Claude Code" and "jun · Pi".
+The farm setting matches maria's signed record.</pre>
+					</div></div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 2 -->
+	<section class="step" aria-labelledby="s2">
+		<div class="explain">
+			<p class="who">Creator · maria</p>
+			<h2 id="s2">5. Copy the link</h2>
+			<p>Later, with jun and ilse in the goal. The link carries a random farm id, not the goal's id, so it cannot be used to join the goal.</p>
+			<p>Anyone viewing the page can also copy it with the Copy link button. The button says whether copying worked.</p>
+		</div>
+		<div class="panes">
+			<div class="term">
+				<div class="term-head"><span>maria's agent · Claude Code</span><span>goal 7b1e4c</span></div>
+				<div class="term-body">
+					<div class="say person"><span class="name">maria</span><div>What's the farm link again?</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<span class="cmd">locust goal farm status --goal 7b1e4c</span>
+						<pre class="out">Setting        public: anyone with the link, listed in farms
+Link           https://locust.farm/farm/f-7k2m9q
+Titles         shown
+Program open   asked each person
+Agents shown   5 of 6. 1 is only counted.
+Last update    sent 14:06, received by locust.farm
+The link cannot be used to join the goal.</pre>
+					</div></div>
+				</div>
+			</div>
+			<div class="web">
+				<div class="web-head"><i></i><i></i><i></i><span>locust.farm/farm/f-7k2m9q</span></div>
+				<div class="web-body">
+					<div class="mini-status">
+						<p class="state"><span class="sq" aria-hidden="true"></span>Receiving updates from maria's Locust</p>
+						<small>It last checked in 3 s ago. Last change heard at 14:06, by its clock.</small>
+						<div class="row"><button type="button" class="btn">Pause updates</button><button type="button" class="btn" id="copy">Copy link</button><small id="copy-out">Copied the link.</small></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 6 -->
+	<section class="step" aria-labelledby="s6">
+		<div class="explain">
+			<p class="who">Anyone in the goal</p>
+			<h2 id="s6">6. Stop showing, turn off, or end</h2>
+			<p><b class="strong">A person withdraws.</b> Their agents go back to being counted only, from the next update.</p>
+			<p><b class="strong">The creator turns the page off.</b> Updates stop and locust.farm deletes the farm. The link shows only a short notice.</p>
+			<p><b class="strong">The goal finishes.</b> maria's Locust sends a last update. The page says Ended, stays 7 days, and is then deleted.</p>
+			<p class="small">In every case, copies people already made cannot be taken back.</p>
+		</div>
+		<div class="panes">
+			<div class="term">
+				<div class="term-head"><span>maria's agent · Claude Code</span><span>goal 7b1e4c</span></div>
+				<div class="term-body">
+					<div class="say person"><span class="name">maria</span><div>Turn off the farm page.</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<p>This stops the updates and asks locust.farm to delete the page. Every member's Locust gets the new setting. Copies people already made cannot be taken back.</p>
+						<p class="ask">Turn off the farm page?<span class="yn">yes / no</span></p>
+					</div></div>
+					<div class="say person"><span class="name">maria</span><div>yes</div></div>
+					<div class="say agent"><span class="name">agent</span><div>
+						<span class="cmd">locust goal farm set --goal 7b1e4c --show off</span>
+						<pre class="out">Farm page off. locust.farm deleted it at 18:12.
+The link now shows only a notice.</pre>
+					</div></div>
+				</div>
+			</div>
+			<div class="web">
+				<div class="web-head"><i></i><i></i><i></i><span>locust.farm/farm/f-7k2m9q</span></div>
+				<div class="web-body">
+					<p class="t">This farm page was turned off</p>
+					<p>Its creator turned it off on 4 Oct at 18:12. locust.farm keeps only this notice.</p>
+					<p><a href="gallery.html" style="text-decoration: underline; text-underline-offset: 3px">See farms that are listed</a></p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="ref" aria-labelledby="src-title">
+		<h2 id="src-title">Where each part of the page comes from</h2>
+		<p>"Already copied" means every member's Locust holds it today. "New" needs the protocol or daemon work listed below.</p>
+		<table>
+			<thead><tr><th>Part of the page</th><th>Comes from</th><th>Shown when</th></tr></thead>
+			<tbody>
+				<tr><td>Steps, rules and roles</td><td>the goal's rules, held by maria's Locust <span class="new">· already copied</span></td><td>always</td></tr>
+				<tr><td>Goal and task titles</td><td>the goal, decrypted by maria's Locust <span class="new">· already copied</span></td><td>only if maria chose titles; the default is none</td></tr>
+				<tr><td>Task states and who holds what</td><td>the goal's signed changes, folded by maria's Locust <span class="new">· already copied</span></td><td>always; the holder is named only if its owner agreed</td></tr>
+				<tr><td>Changes heard, and their times</td><td>when maria's Locust heard each change, rounded to the minute <span class="new">· new</span></td><td>always; changes by agents not shown are left out</td></tr>
+				<tr><td>Agent and person names</td><td>chosen by each owner, signed <span class="new">· new</span></td><td>only for agents whose owner agreed</td></tr>
+				<tr><td>Program open</td><td>each owner's Locust tells maria's Locust <span class="new">· new message</span></td><td>only if that owner agreed to share it</td></tr>
+				<tr><td>Last sync with maria's Locust</td><td>maria's Locust's own record, in coarse steps <span class="new">· already there, kept local today</span></td><td>only for people with at least one agent shown</td></tr>
+				<tr><td>Check-in age, Quiet</td><td>locust.farm's clock: when the last update arrived</td><td>always</td></tr>
+				<tr><td>Ended</td><td>the goal's finish decision, then a last update from maria's Locust</td><td>after the goal finishes, for 7 days</td></tr>
+			</tbody>
+		</table>
+	</section>
+
+	<section class="ref" aria-labelledby="new-title">
+		<h2 id="new-title">What would be new</h2>
+		<ul class="list">
+			<li><b>A signed farm setting in the goal</b>Off, link or public; titles none or shown; program open off or asked. Written by the creator, copied to every member. <code>PublicationSet</code></li>
+			<li><b>A signed agreement per agent</b>Written by the agent's owner, naming the current setting. Wider settings ask again; narrower ones do not. <code>PublicationConsent</code></li>
+			<li><b>A short "program open" message</b>From each participant's Locust to the creator's, only when its owner agreed. Kept out of the goal's history.</li>
+			<li><b>Heard times</b>The creator's Locust stores when it heard each change, so the page never shows the author's own clock as fact.</li>
+			<li><b>The upload</b>The creator's Locust sends the folded summary to locust.farm, signed, with an upload key that stays on that computer.</li>
+			<li><b>Commands</b><code>locust goal farm set</code>, <code>status</code> and <code>consent</code>, and the matching local API calls.</li>
+			<li><b>On the website</b><code>/farm/[id]</code> and <code>/farms</code>, not prerendered, a stream for updates, an upload endpoint, storage, noindex for link-only pages, deletion on turn-off, and a report link.</li>
+			<li><b>A decision first</b>Earlier proposals put third-party pages on a separate origin, not on locust.farm, and planned no hosted publisher at first. Hosting farms here needs that decided.</li>
+		</ul>
+	</section>
+
+	<p class="foot">Mockup only. Command names follow the existing <code>locust goal invite</code> and <code>locust invitation join</code> style. Names, ids and times are made up.</p>
+</main>
+<script>
+(() => {
+	const out = document.getElementById('copy-out');
+	document.getElementById('copy').addEventListener('click', async () => {
+		try {
+			await navigator.clipboard.writeText('https://locust.farm/farm/f-7k2m9q');
+			out.textContent = 'Copied the link.';
+		} catch {
+			out.textContent = 'Could not copy. The link is https://locust.farm/farm/f-7k2m9q';
+		}
+	});
+})();
+</script>
+</body>
+</html>
