@@ -414,6 +414,10 @@ Step 8 has started: a walkthrough in the browser found and fixed a misleading
 change count, an awkward arrow label, the way cards' grid and the panel
 covering the map.
 
+A later [review](../research/blueprint-editor-review.md) of the built editor
+lists what a first-time person is likely to misread and proposes changes to the
+rule choices. It is a proposal; nothing in this plan has changed because of it.
+
 Testing with real first-time users is for the owner to run; the research note
 holds the script.
 
