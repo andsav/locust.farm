@@ -1,6 +1,6 @@
 # Locust implementation plan
 
-Updated: 2026-10-03. **Current execution: T2 MCP, operating skill and snapshot/contribution flow are implemented and locally verified; the owner is handling live client and physical-machine testing separately. See [T2 workflow](t2-workflow.md). Managed sessions and installation follow T2.**
+Updated: 2026-10-03. **Current execution: T2 MCP, operating skill and snapshot/contribution flow are implemented and locally verified at `8a7d170`; production-client and physical-machine qualification remain open. Managed client sessions are the next implementation checkpoint, followed by installation. The owner handles live testing separately. See [T2 workflow](t2-workflow.md) and the concrete remaining sequence in section 10.**
 
 **Prior T1 checkpoint:** persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. The physical-machine qualification uses the owner's two available Macs. The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass remains a separate qualification activity; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.
 
@@ -47,7 +47,7 @@ The first release must prove this entire flow with real coding agents and a real
 | Initial execution | Active sessions and explicit resume for all four baseline clients; automatic wake only for Merak for now | Wait/resume and active-session delivery are qualified per client; Merak wake requires its own evidence |
 | Initial release targets | macOS arm64 and Linux x86_64; Codex, Claude Code, Factory Droid and Pi local clients | Four-client baseline required by the owner; exact versions and platform coverage require qualification, not a current support claim |
 
-The [version 1 contract](protocol-v1.md) and [workstreams](workstreams.md) record settled interfaces and ownership. Table entries describe the design, not universal implementation or support claims; section 2 records what exists. Windows, more architectures and Cursor remain later qualification targets. The historical candidate reports API 0/protocol 0; current remediation source uses API 1/protocol 1 and requires fresh goal state; follow the workstream rules for wire-format changes and golden vectors.
+The [version 1 contract](protocol-v1.md) and [workstreams](workstreams.md) record settled interfaces and ownership. Table entries describe the design, not universal implementation or support claims; section 2 records what exists. Windows, more architectures and Cursor remain later qualification targets. Historical protocol-0 candidates remain in the evidence ledger; current source and the identified remediation candidate use API 1/protocol 1 and require fresh goal state; follow the workstream rules for wire-format changes and golden vectors.
 
 ### Deferred scope
 
@@ -59,16 +59,17 @@ The runtime was integrated in `885b372`. The [application](../crates/locust/src/
 
 | Area | Implemented and retained evidence | Still needed |
 |---|---|---|
-| Runtime, protocol and persistence | Integrated daemon and CLI; the integration record reports 391 passing Rust tests and five explicit ignores | Complete gate coverage and physical-machine qualification |
-| Peer task and recovery flow | Exact Apple Silicon candidate `3422c7b` passed 21 checks with three local processes, including coordinator outage and restart | Two physical Macs, observed routes and OS sleep/wake; third-peer extension separately |
-| Coding clients | Configuration generation for Codex, Claude Code, Droid and Pi; actual client binaries exercised with scripted providers and a fixture MCP server | Production `locust mcp`, operating skill, real-daemon/model task flow and managed client lifecycle |
-| Workspace | Git snapshot export and safe materialization libraries | CLI/API integration of that workflow and manifest-bound patches |
+| Runtime, protocol and persistence | Protocol/API 1 remediation at `d253a07`; integrated T2 source at `8a7d170` passes 483 Rust tests, with nine explicit ignores, formatting and strict Clippy | Complete gate coverage and physical-machine qualification; the ignored checks are not passes |
+| Peer task and recovery flow | Identified protocol-1 Apple Silicon artifact `d253a07` passed 21 checks with three processes on one Mac; older mixed-build two-Mac evidence records join, note and assignment readiness | Complete task/recovery/sleep checks on two physical Macs using one identified current artifact; third-peer and separate-network checks separately |
+| Coding clients | Four-client configuration and actual binaries with scripted providers/fixture MCP; production `locust mcp` and operating-skill source now implemented, with local pipe and real-core integration tests | Production bridge/skill qualification in actual clients, real-model task flow and Locust-managed client lifecycle |
+| Workspace | Named preview/export/materialize and base-bound patch create/review/submit/accept/apply; typed manifest/contribution descendants replicate; local safety and recovery tests pass | Multi-peer retained-content and conflicting-worker workflow qualification through real clients and identified artifacts |
 | Later runtime features | Document revisions, member removal/key rotation and multi-chunk transfer have implementation and component tests | Their complete workflow and release qualification; inclusion in core tests does not close those gates |
-| Delivery | Identified local arm64 candidate; local website and entry guide | Installer, signed platform artifacts and public-download qualification; publication is deferred |
+| Delivery | Identified local arm64 T1 candidate, build helper, Linux source-check CI configuration, local website and entry guide | Identified T2 artifact, macOS CI, platform runtime checks, installer/services, signed platform artifacts and public-download qualification; publication is deferred |
+| Formal models | TLA+ stages 0/1 have bounded checks against the historical protocol-0 baseline | Protocol-1 rebaseline under the separate [formal verification plan](tla-verification-plan.md); stages 2–5 remain proposed |
 
 The [integration findings](../research/t1-integration-2026-10-03.md), [candidate identity](t1-build.md) and [release ledger](release-evidence.md) retain exact evidence and limitations. Multicast-only discovery failed on the development host; daemon-default lookup and relay configuration passed the same-host workflow. No complete release gate is recorded as passed. The [first-contact document](first-contact.md) describes the target journey and an older source snapshot, not current daemon readiness.
 
-**Immediate owner update:** start with two Macs, using the same verified binary and independent state directories. Run joining, task acceptance, offline catch-up, sequential restart and sleep/wake via the [T1 guide](t1-run.md). A third daemon can later run on either Mac to test two surviving peers exchanging while the coordinator is offline; record that topology as three daemons on two machines. A third physical Mac is not a prerequisite for the first pass. No two-peer run establishes that three-peer behavior.
+**Physical qualification, handled separately by the owner:** use two Macs with one identified binary and independent state directories. The ledger already records a historical mixed-build join, note and assignment-readiness smoke test; it does not record completed task acceptance, restart or sleep/wake qualification. Continue with the [T1 guide](t1-run.md), recording the artifact actually tested. The identified T1 artifact does not contain T2; build and identify a T2 candidate before qualifying its client/workspace path. A third daemon can run on either Mac to test surviving-peer exchange while the coordinator is offline; record that topology as three daemons on two machines. A third physical Mac is not a prerequisite. No two-peer run establishes that three-peer behavior.
 
 The [landscape survey](../research/landscape.md) evaluates Iroh, rust-libp2p, OpenDHT, p2panda, Willow, Radicle, A2A and MCP. The MoltMesh review provides concrete lessons from its [architecture/consensus](../research/moltmesh-architecture-and-consensus.md), [network/storage](../research/moltmesh-networking-and-storage.md), [task/SDK](../research/moltmesh-tasks-and-sdk.md) and [security](../research/moltmesh-security.md) paths. The [validation report](../research/moltmesh-validation.md) separates executed tests from source review.
 
@@ -234,20 +235,20 @@ Command status below is checked against the [CLI command tree](../crates/locust/
 | Area | Current surface and remaining work |
 |---|---|
 | Lifecycle | Implemented: `locust daemon run`, `locust daemon stop`, `locust status`, `locust doctor`; managed service installation remains open |
-| Client bridge | Planned: `locust mcp` over stdio and any qualified client hooks |
+| Client bridge | Implemented: `locust mcp` over stdio with scoped authority, typed tools and interruption/output-closure cleanup; actual-client qualification and lifecycle hooks remain open |
 | Managed client sessions | Protected session-file creation and local session API exist; client launch/readiness/resume integration remains open |
 | Identity and enrollment | `agent enroll` plus typed local API operations through `call`; full lifecycle qualification remains open |
 | Goals | Implemented named create, invite, join, status and leave commands |
 | Board | Implemented `board`, `pending`, `events`, `event show`, `wait` and `task show` |
 | Tasks | Named propose, assign, authorize, claim, takeover, progress, submit, cancel, decline and fail; result accept/reject; broader request surface through `call` |
 | Scratchpad | Named `doc read`, `doc revise`, `doc accept` and note operations; complete workflow qualification remains later work |
-| Artifacts/workspace | Blob API and snapshot libraries exist; no complete named snapshot/materialize/patch/apply CLI workflow |
+| Artifacts/workspace | Implemented named `workspace preview/export/materialize` and `patch create/review/submit/accept/apply`; see [commands and boundaries](t2-workflow.md) |
 
 Provide human-readable output plus versioned `--json` responses, stable error codes, request IDs and semantic result states. Keep a short documented happy path; JSON is an output format, not where uncommon operations are hidden. Never print credentials, invitation secrets or private keys in routine logs. Support an immediate pending-work query and wait-until-event with a caller-selected timeout, with distinct no-event, disconnected, denied, unsupported-version and corrupted-state outcomes. Adapter defaults must fit the tested client version's limits; there is no universal shortest-client timeout or hidden task-runtime cap. Persist/recover delivery state before checkpointing, independently of the model session.
 
 Explicit resume is the supported baseline. Hooks may surface pending-work/cancellation IDs at qualified lifecycle points; their elevated output contains daemon-authored identifiers/status, not peer-written instructions. Hook polling is nonblocking and uses ordinary authorization. Idle wake, mid-tool interruption and closed-session activation are separate capabilities, never inferred from a successful wait or MCP handshake. The daemon enforces collaboration authority; the participant's adapter/runner enforces local execution policy. Automatic wake is scoped only to Merak for now; Codex, Claude Code, Factory Droid and Pi use active sessions and explicit resume. Deeper execution/sandbox extensions remain separate; baseline Pi participation is required. A supervised external client is another option. [Agent-agnostic integration](../research/agent-agnostic-integration.md).
 
-The skill teaches enrollment and goal joining, context inspection, typed coordination operations, attempt recovery, progress reporting, patch/result submission and the distinction between completion and acceptance. Ship coordinator and worker playbooks with goal/task templates: the coordinator decomposes work and names review criteria; the worker claims the exact assignment, executes against its input and submits evidence; the coordinator reviews that evidence before acceptance. Exercise these playbooks in the first real-agent run. The skill can include small invocation helpers and protocol examples. It must treat peer content as untrusted task data and use the host's existing permission/sandbox controls. Skill prose does not enforce security. The daemon enforces collaboration permissions; the selected client or runner enforces local execution restrictions.
+The [operating skill](../skills/locust/SKILL.md) now teaches enrollment and goal joining, context inspection, typed coordination operations, attempt recovery, progress reporting, patch/result submission and the distinction between completion, acceptance and integration. Its coordinator and worker playbooks name review criteria and exact assignments. Source validation and independent review passed; installation, discovery and actual-model use still need qualification. Exercise both playbooks in real-agent runs. Peer content remains untrusted task data under the host's existing permission/sandbox controls. Skill prose does not enforce security. The daemon enforces collaboration permissions; the selected client or runner enforces local execution restrictions.
 
 The [Agent Skills specification](https://agentskills.io/specification) supports instructions and optional scripts. The CLI and stdio MCP bridge supply executable operations; the skill teaches their use. Qualify the bridge early on isolated default configurations for all four baseline clients, testing actual daemon reachability and each client's permission behavior. [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), [Claude Code MCP](https://code.claude.com/docs/en/mcp).
 
@@ -272,7 +273,7 @@ Treat launch as a recoverable side effect. A unique launch identifier alone does
 
 Keep wake issued, notification emitted/enqueued, attempt durably claimed, result submitted and result accepted as separate states. A hook flush or plugin enqueue does not prove the model saw the work or took ownership. Client exit after delivery, lost/duplicate/late wake, expired credentials and stale bindings must leave unclaimed work recoverable through the daemon. Hook callbacks stay nonblocking; a missed wake cannot be the only record of pending work.
 
-The [client qualification harness](client-qualification.md) already exercises actual client binaries in isolated profiles with scripted providers and an independently written fixture MCP server. Extend it to the production daemon and bridge as those paths become available. Test launch/delivery/resume/cancellation through actual client binaries, then run separate real-model task flows and packaged installation checks. hcom's passing lifecycle cases and intermittent Claude approval-resume failure identify scenarios to exercise; they do not qualify Locust. Default-permission tests must be distinct from deliberately permissive lifecycle tests. Test automatic wake only in the Merak-specific path for now, and claim it only for the exact version/profile where it passes. The four baseline clients require active-session and explicit-resume evidence.
+The [client qualification harness](client-qualification.md) already exercises actual client binaries in isolated profiles with scripted providers and an independently written fixture MCP server. Extend it now to the implemented production daemon and bridge. Test launch/delivery/resume/cancellation through actual client binaries, then run separate real-model task flows and packaged installation checks. hcom's passing lifecycle cases and intermittent Claude approval-resume failure identify scenarios to exercise; they do not qualify Locust. Default-permission tests must be distinct from deliberately permissive lifecycle tests. Test automatic wake only in the Merak-specific path for now, and claim it only for the exact version/profile where it passes. The four baseline clients require active-session and explicit-resume evidence.
 
 ### First-session contract
 
@@ -332,11 +333,12 @@ Module/file ownership should be explicit before concurrent edits. Shared event t
 
 | Order | Required integrated result | Evidence to retain |
 |---|---|---|
-| Completed local foundation | Integrated daemon, CLI, core, store and peer transport; exact candidate passes the three-process workflow | Existing A-C1/A-C2 records in the release ledger |
-| Now: T1 on two Macs | Copy the same identified candidate, create independent identities, join, complete an assigned task, exchange notes, stop/restart each daemon, recover offline writes and test OS sleep/wake | Hash/version and OS per Mac, event IDs, observed routes, failure and recovery records; no physical run recorded yet |
-| Three-peer extension | Add a third daemon with an independent home, on either available Mac or a later third Mac; verify passive history retention and surviving-peer exchange with the coordinator offline | Exact process/host topology; three daemons on two hosts is not three physical Macs |
-| Next: T2 | Production MCP bridge and skill, workspace snapshot and patch, a real code task with a mixed-client pair, wait/interruption/explicit resume; then all four baseline clients | Actual client/profile/account modes, artifact/event IDs and recovery results |
-| Later release qualification | Complete outstanding runtime, lifecycle, signed packaging, installation and independent-collaborator gates | Exact artifact/platform/client matrix and open failures |
+| Completed local foundation | Protocol/API 1 daemon, CLI, core, store and peer transport; identified candidate passes the three-process workflow | A-C3/A-C4; historical A-C1/A-C2 remain attributable to their earlier source/artifacts |
+| Completed T2 implementation | Production MCP bridge, operating skill, workspace snapshots and manifest-bound contribution review/accept/apply | A-C5/B-C9 at `8a7d170`: 483 passing Rust tests, nine explicit ignores, independent review and local real-core MCP/CLI integration |
+| Parallel: production-client qualification | Pin T2 source/artifact; extend actual-client harness from fixture MCP to production daemon/MCP; run a real code task with a mixed-client pair, then all four clients | Exact client/profile/account modes, skill discovery, workspace tool access, wait/interruption/resume and artifact/event IDs; production-client results not yet recorded |
+| Parallel: physical qualification | Use one identified current artifact on two Macs; complete task acceptance, offline catch-up, restart and OS sleep/wake; add a third daemon for coordinator-offline exchange and retained-content fetch | Historical mixed-build join/note/assignment-readiness evidence exists; complete current-artifact qualification remains open. Retain hash/version, OS, routes and exact process/host topology |
+| Next implementation: managed sessions | Locally authorized launch, readiness, session/attempt binding, explicit resume, active-session delivery and crash/cancellation recovery for four clients | Per-client capability records and actual-binary tests; no baseline-client automatic wake claim |
+| Remaining product and release work | Complete operational workflows, diagnostics, platform packaging, installer/services and independent-collaborator qualification | Section 10 sequence, full M0–M6 exit evidence and exact artifact/platform/client matrix |
 | Publication: deferred | Revisit only when requested by the owner and after go/no-go | Public-artifact verification against the exact tested candidate |
 
 These are execution priorities, not passing records. The two-Mac first pass replaces waiting for a third physical laptop; it does not waive three-instance fault tests or the four-client baseline. Deterministic tests continue alongside integrated work. A failed required check is recorded and fixed; an unverified behavior is never presented as supported.
@@ -437,14 +439,114 @@ Build tests around invariants and boundary failures, not copies of implementatio
 
 Keep unit/state-machine tests deterministic and exercise delayed, reordered, partitioned and clock-skewed inputs through a small controllable harness. Add real database crash tests as storage lands. Automate two-peer tests and use three local daemon instances where coordinator outage/revoked-author ancestry requires them; a third physical laptop is unnecessary. Run separate-network and actual coding-agent tests as soon as their paths exist. A new simulation framework is not a prerequisite. Link commands/raw evidence in the ledger; intermittent failures remain failures to investigate and are not erased by a rerun.
 
-## 10. Implementation workflow and immediate next steps
+## 10. Concrete remaining sequence
 
-1. Run the [two-Mac T1 guide](t1-run.md) with the exact [identified local candidate](t1-build.md). Copy only the executable bundle, create independent state on each Mac, and verify matching hashes. Record task flow, notes, offline catch-up, restart and sleep/wake in the ledger. Fix failures before adding unrelated features.
-2. Retain three-peer fault coverage. Add a third daemon on either Mac when exercising surviving-peer exchange without the coordinator; a later third physical Mac is a separate topology check, not a prerequisite for starting now.
-3. Complete T2: implement `locust mcp` and the operating skill, connect snapshot export/materialization and patches to the task workflow, then use two real coding clients on the available Macs. Exercise default-profile approvals, wait, interruption and explicit resume; extend the runnable pair to Codex, Claude Code, Factory Droid and Pi.
-4. Complete remaining workflow and qualification work for key rotation, cancellation delivery, document revisions, larger content and Locust-managed client sessions. Some core behavior already exists; consult section 2 before creating replacement implementations. Keep independent-collaborator evidence separate from the owner's two-machine test.
-5. Prepare the remaining release/install support matrix against the exact candidate. Public distribution remains deferred until the owner requests it; do not create a public repository or publish artifacts as part of local testing.
+T2 implementation is complete at `8a7d170`; `aaf1b5b` records its verification.
+The sequence below tracks remaining work, not authorization to publish or a
+replacement for the M0–M6 acceptance criteria. The ledger is the authority for
+what has actually been qualified. Fix failures at the affected checkpoint and
+retain the failed observation alongside the correction.
 
-For Rust changes, use the pinned toolchain and crate-scoped `cargo fmt -p <crate> --check`, `cargo clippy --locked -p <crate> --all-targets -- -D warnings`, and `cargo test --locked -p <crate>`. Integration commits and changes to `locust-proto`, the root manifest or lockfile require the full-workspace equivalents. Documentation changes require content/link review and `python3 scripts/check_docs.py`; website changes have their own checks. [AGENTS.md](../AGENTS.md) and [workstreams](workstreams.md) define these rules; the [CI workflow](../.github/workflows/ci.yml) runs workspace checks. Requirements above count as verified only at the evidence level their enforcing code, tests and retained runs establish.
+1. **Qualify the production T2 path now, in parallel with implementation.** Pin
+   `8a7d170` or an explicitly identified successor. Extend the existing
+   [client harness](client-qualification.md) to the actual daemon and `locust mcp`
+   in isolated Codex, Claude Code, Factory Droid and Pi profiles. Check scoped
+   credentials, tool schemas, approval/denial, held wait, interruption, bridge
+   cleanup and native-session resume. Separately run real models through the
+   operating skill: export, assign, claim, materialize, edit, submit, review,
+   accept and apply. Workspace I/O uses the trusted CLI, so qualify that access
+   as well as MCP. Start with a mixed-client pair, then cover each baseline
+   client as coordinator and worker. Done means retained production-path
+   evidence with exact versions, permission/account modes and immutable IDs;
+   scripted-provider and real-model records remain distinct.
+2. **Implement managed client launch and recovery.** Start with one complete
+   client path, then cover all four. Compose the existing configuration and local
+   session APIs with durable launch intent, explicit argv/environment, readiness
+   observations and process/native-session bindings to the exact
+   assignment/attempt/generation. Implement locally initiated new/resume/rebind,
+   preserving the participant's permission policy. Reconcile crashes before and
+   after spawn; an unknown launch outcome must not create a second worker.
+   Done means actual-binary tests for ready, blocked, exited, resumed and
+   uncertain states, with no launch triggered by a remote assignment.
+3. **Connect managed sessions to delivery and cancellation.** Surface
+   daemon-authored pending-work/cancellation IDs through qualified client hooks
+   or ordinary tools. Recover work from durable task state after lost or
+   duplicated notifications, client exit and daemon restart. Exercise stale
+   sessions, claim takeover and cancellation/result races; distinguish requested
+   cancellation from an observed executor outcome. Done means per-client
+   active-session and explicit-resume evidence with honest capability reporting.
+   Automatic wake remains a separate Merak-only option; it is not a fifth
+   required client or a prerequisite for the four-client baseline.
+4. **Complete the operational workflows using existing core behavior.** Exercise
+   member removal/key rotation with an offline member, conflicting document
+   revisions, cancellation acknowledgment, and multi-chunk snapshot/patch
+   transfer through the daemon. Interrupt and resume transfer, disconnect the
+   original content source and fetch from a retained third replica, withdraw
+   local payloads and leave a goal. Exercise two workers on the same base, stale
+   acceptance and conflicting application while preserving dirty work. Resolve
+   discovered gaps and document retention/garbage-collection policy, metadata
+   pins and active-transfer protection. Done means enforcing tests plus retained
+   workflow results; no replacement key-rotation or document engine is planned.
+5. **Close physical-network and operational evidence in parallel.** The owner
+   continues the [two-Mac guide](t1-run.md) using one identified current artifact
+   and independent homes: task completion, offline catch-up, each daemon's
+   restart and OS sleep/wake. Add a third daemon for coordinator-offline exchange
+   and retained-content checks; record two-host and three-host topologies
+   accurately. Exercise separate networks, direct and forced-relay routes, an
+   independently operated alternate relay, discovery outage and unavailable
+   holders. Finish redacted diagnostics joined by task/event/session IDs and
+   measure binary size, idle CPU/memory/network, startup and transfer memory.
+   Done means retained route/recovery/resource records, with unsupported or
+   unavailable cases kept open rather than inferred from local tests.
+6. **Build platform packaging and the deterministic installer.** Add macOS CI
+   alongside the configured Linux checks. Build identified macOS arm64 and Linux
+   x86_64 artifacts and smoke-test fresh-database write/read/restart. Implement
+   the signed manifest/trust-root and withdrawn-version checks, installer,
+   user-session services, skill installation and scoped MCP configuration.
+   Preserve existing client settings and identity. Cover repeat and interrupted
+   install, failed service start, upgrades/migrations, recovery and uninstall
+   with separate data-purge intent. Run `doctor` plus a real client API roundtrip
+   and report reload/discovery status. Resolve the owner's license,
+   distribution-origin and signing-custody choices before release signing;
+   local implementation and artifact testing can proceed without publication.
+7. **Qualify the complete installed experience.** On clean environments for each
+   claimed platform/client combination, use the same identified artifacts and
+   pasteable install prompt. Two people on separate machines and independent
+   accounts complete the mixed-client task without a shared forge account.
+   Cover all four clients in both roles, unmanaged CLI/MCP and claimed managed
+   lifecycle behavior, acceptance versus actual integration, disconnect/restart
+   and denied setup/reload paths. Lane C updates the website and first-contact
+   instructions from these verified commands and artifacts. Done means the full
+   M0–M6/ledger requirements are satisfied for the declared support matrix;
+   a local build or successful install alone does not close it.
+8. **Publication remains deferred.** When the owner reopens it, review the exact
+   candidate and all gate records for go/no-go, publish only the authorized
+   artifacts and independently verify the public manifest, signatures, hashes
+   and first-install path. No public repository or release is created merely
+   to complete the local steps above.
+
+**Parallel ownership:** a qualification lane can own the production-client
+harness and its research evidence while the A/B orchestrator owns managed-session
+integration. Assign disjoint files before both touch `locust-adapter`, the CLI or
+shared types. Operational workflow tests and packaging can run in separate
+scopes against pinned interfaces; the owner retains physical/account testing,
+and lane C retains website/first-contact copy. None of these lanes silently
+substitutes its evidence for another's.
+
+**Separate formal-model track:** rebase the delivered protocol-0 models to
+protocol 1 before making current-code claims, then follow the proposed stages
+2–5 in the [TLA+ plan](tla-verification-plan.md). This is parallel work with its
+own status; historical bounded checks neither close product gates nor imply
+those proposed stages have been implemented.
+
+For Rust changes, the current [AGENTS.md](../AGENTS.md) requires the pinned
+toolchain and `cargo fmt --all --check`,
+`cargo clippy --locked --workspace --all-targets -- -D warnings`, and
+`cargo test --locked --workspace` before committing. Focused package checks are
+useful during development but do not replace those gates. Documentation changes
+require content/link review and `python3 scripts/check_docs.py`; website changes
+have their own checks. The [CI workflow](../.github/workflows/ci.yml) runs
+workspace checks. Requirements count as verified only at the evidence level
+their enforcing code, tests and retained runs establish.
 
 Commit completed scoped work, preserve unrelated changes, and keep useful experimental evidence in `research/`. Keep design status accurate: a published plan, a passing local test, a working packaged daemon and a successful real-peer collaboration are four separate outcomes.

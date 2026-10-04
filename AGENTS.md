@@ -29,19 +29,13 @@ in `research/`; do not leave their only copy in ignored `output/` or agent state
 - Add dependencies or abstractions only when the current task needs them.
 - Use the compiler and components pinned in `rust-toolchain.toml`.
 - Never commit secrets, local environment files, or build output. Track `Cargo.lock`.
-- For Rust changes, run the checks for the crate you changed before committing:
+- For Rust changes, run the following before committing:
 
   ```sh
-  cargo fmt -p <crate> --check
-  cargo clippy --locked -p <crate> --all-targets -- -D warnings
-  cargo test --locked -p <crate>
+  cargo fmt --all --check
+  cargo clippy --locked --workspace --all-targets -- -D warnings
+  cargo test --locked --workspace
   ```
-
-  Several streams share this checkout, so another crate may be mid-edit and
-  must not block your commit. The integration owner runs the same three checks
-  with `--all` and `--workspace` at every integration commit, and so does
-  anyone changing `locust-proto`, the root `Cargo.toml` or `Cargo.lock`. See
-  `docs/workstreams.md` for crate ownership and the shared-checkout rules.
 
 - For changes under `sites/locust.farm/`, run `npm run lint`, `npm run check`,
   `npm test`, and `npm run build` in that directory. They do not need a Rust rebuild.

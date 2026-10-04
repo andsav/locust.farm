@@ -1,6 +1,6 @@
 # October 4 release evidence ledger
 
-**Status: component evidence is accumulating; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is now deferred by the owner. Immediate priority: T1 on the two available Macs. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace the detailed M0–M6 exit evidence or conformance matrix.
+**Status: T2 implementation is locally verified; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is now deferred by the owner. Managed sessions are the next implementation checkpoint; production-client qualification and the owner's two-Mac testing proceed separately. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace the detailed M0–M6 exit evidence or conformance matrix.
 
 The repository owner decides release go/no-go and changes to required scope or support claims. Agents record failures and remediate them; they cannot waive requirements. The [review response](implementation-plan-review-response.md) explains the changes that introduced this register.
 
@@ -10,15 +10,15 @@ The repository owner decides release go/no-go and changes to required scope or s
 |---|---|---|---|
 | R1 — Protocol and identity | M0–M3: byte/signature fixtures, authority, goal scoping, restore/copy and per-goal conflict behavior | Partial; gate open | A-C1; A-C3 |
 | R2 — Authorization and confidentiality | M1/M2: scoped local API, membership, event/blob admission, encryption/key changes and malformed/member-input controls | Partial; gate open | A-C1; A-C3 |
-| R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Partial; gate open | A-C1; A-C3 |
-| R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Partial; gate open | A-C1; A-C3 |
-| R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Partial; gate open | A-C1 |
-| R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2; B-C5; B-C8 (scripted fixture only) |
+| R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Partial; gate open | A-C1; A-C3; A-C5/B-C9 (typed content-graph component coverage) |
+| R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Partial; gate open | A-C1; A-C3; A-C5/B-C9 (local MCP/CLI task and pipe-cancellation checks) |
+| R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Partial; gate open | A-C1; A-C5/B-C9 (complete local snapshot/contribution command flow and recovery tests) |
+| R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2; B-C5; B-C8 (scripted fixture); A-C5/B-C9 (production bridge/skill implemented; actual-client qualification still open) |
 | R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2; B-C5; B-C8 (scripted fixture only) |
-| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7; A-C2 (identified candidate; installation still unqualified) |
+| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7; A-C2; A-C4 (identified protocol-1 T1 candidate; installation and T2 packaging still unqualified) |
 | R8 — Real collaboration | M6: two people/machines, mixed-client flows covering all four baseline clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
-| R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3; B-C4; A-C1; A-C2 (same-host direct/public relay); M1 observation and T1-M2-S1/S2 (mixed-build two-Mac join, note and assignment) |
-| R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Partial; gate open | A-C2 (exact local artifact only) |
+| R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3; B-C4; A-C1; A-C2; A-C3/A-C4 (same-host component/artifact evidence); M1 observation and T1-M2-S1/S2 (mixed-build two-Mac join, note and assignment) |
+| R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Partial; gate open | A-C2; A-C4 (exact local artifacts only) |
 
 ## Partial component evidence — October 3
 
@@ -48,7 +48,7 @@ Exact reproduction commands, observations and remaining boundaries are in the [i
 
 **A-C4, relevant to R7/R9/R10 and T1:** the identified protocol-1 artifact from `d253a07bf26cef2b59172df16297383fd286e369` reports `locust 0.1.0 (d253a07bf26c) api 1 protocol 1`, SHA-256 `4231754e08f1b4b5fb77ae4e56c6a92c4212e4968659f9b1cea94682d6834f25`. The isolated archived-source build, independent checksum/version/format checks and all 21 local three-process checks passed (24.69 seconds). The [verification](../research/evidence/t1-remediation-verification-2026-10-03.json), [workflow summary](../research/evidence/t1-remediation-local-2026-10-03.json) and [redacted transcript](../research/evidence/t1-remediation-local-2026-10-03.jsonl) retain exact identity, direct/relay observations, task acceptance, coordinator-offline exchange and restarts. This is one physical Mac and an ad hoc signed executable; physical-machine qualification, real-client collaboration, installation and public distribution remain separate. The owner is handling further live testing separately.
 
-**A-C5 / B-C9, relevant to T2 and R3/R4/R6:** `8a7d170` implements the
+**A-C5 / B-C9, relevant to T2 and R3/R4/R5/R6:** `8a7d170` implements the
 production stdio MCP bridge, packaged operating-skill source, typed referenced
 content replication, and snapshot/contribution preview, export, materialize,
 create, review, submit, accept and apply commands. Whole-workspace formatting,
@@ -81,7 +81,7 @@ Managed launch, installation and publication remain outside this checkpoint.
 
 | Required record | Current evidence |
 |---|---|
-| One identified `aarch64-apple-darwin` binary | Candidate from `3422c7b` passes all 21 local three-process checks; version and SHA-256 verified; see [candidate record](t1-build.md) |
+| One identified `aarch64-apple-darwin` binary | Current protocol-1 T1 candidate from `d253a07` passes all 21 local three-process checks (A-C4); older protocol-0 candidate `3422c7b` remains the artifact in the two-Mac smoke records. Neither contains T2; see [candidate record](t1-build.md) |
 | Matching candidate identity on two Macs | Pending; M1 and M2 have different commits/hashes with verified matching Rust/build inputs and explicit owner authorization for a smoke test |
 | Two members, observed routes and encrypted task completion | M1 and M2 both observe two members, decrypted title, selected relay and assignment; M2 received M1's note and authorized execution/session locally; claim/submission and acceptance pending |
 | Offline note authored with coordinator stopped; catch-up on restart | Two-Mac first pass pending; must not be described as exchange between two surviving peers |
