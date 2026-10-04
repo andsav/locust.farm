@@ -169,6 +169,7 @@
 
 	function toggle(kind: 'problems' | 'words' | 'prompt' | 'open' | 'saved') {
 		fileOpen = false;
+		promptOptionsOpen = false;
 		if (panel?.kind === kind) {
 			panel = null;
 			return;
@@ -219,11 +220,19 @@
 		element.focus();
 	}
 
+	// Toolbar disclosures.
+	let promptOptionsOpen = $state(false);
+	let promptOptions: HTMLDetailsElement | undefined = $state();
+	let promptOptionsToggle: HTMLElement | undefined = $state();
+
 	// The File menu.
 	let fileOpen = $state(false);
 	let fileMenu: HTMLDivElement | undefined = $state();
 
 	function onpointerdown(event: PointerEvent) {
+		if (promptOptionsOpen && promptOptions && !promptOptions.contains(event.target as Node)) {
+			promptOptionsOpen = false;
+		}
 		if (fileOpen && fileMenu && !fileMenu.contains(event.target as Node)) fileOpen = false;
 	}
 
@@ -243,7 +252,10 @@
 
 	function onkeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
-			if (fileOpen) fileOpen = false;
+			if (promptOptionsOpen) {
+				promptOptionsOpen = false;
+				promptOptionsToggle?.focus();
+			} else if (fileOpen) fileOpen = false;
 			else if (panel) panel = null;
 			else if (openPoint) openPoint = null;
 			return;
@@ -355,6 +367,7 @@
 
 	/** Copies a prompt that only has the agent check the formation and explain it. */
 	async function copyCheckOnly() {
+		promptOptionsOpen = false;
 		const built = await buildPrompt(document, 'check', inspection.diagnostics.length > 0);
 		const result = await copyText(built.text, navigator.clipboard);
 		toast(
@@ -580,25 +593,33 @@
 				<Icon name="article" size={16} /> In words
 			</button>
 
-			<CopyBar {prompt} {blocked} onfail={copyFailed} />
-
-			<p class="next">
-				Paste it into one coding agent. It saves the formation in the Locust on that computer as a
-				private draft and asks before publishing. Starting a goal comes later.
-				<button type="button" class="quiet" onclick={() => toggle('prompt')}>See the prompt</button>
-				<button type="button" class="quiet" onclick={copyCheckOnly}>
-					Copy a prompt that checks it and saves nothing
-				</button>
-				<a href="/start">Set up Locust</a>
-				<a href="/docs/next/formation-authoring">Manual</a>
-			</p>
+			<div class="prompt-actions">
+				<CopyBar {prompt} {blocked} onfail={copyFailed} />
+				<details class="prompt-options" bind:open={promptOptionsOpen} bind:this={promptOptions}>
+					<summary aria-label="Prompt options" bind:this={promptOptionsToggle}>
+						<span class="chevron" aria-hidden="true"></span>
+					</summary>
+					<div class="prompt-menu">
+						<p>
+							Paste it into one coding agent. It saves the formation in the Locust on that computer
+							as a private draft and asks before publishing. Starting a goal comes later.
+						</p>
+						<button type="button" onclick={() => toggle('prompt')}>See the prompt</button>
+						<button type="button" onclick={copyCheckOnly}
+							>Copy a prompt that checks it and saves nothing</button
+						>
+						<a href="/start">Set up Locust</a>
+						<a href="/docs/next/formation-authoring">Manual</a>
+					</div>
+				</details>
+			</div>
 
 			{#if toastText}
 				<p class="toast">{toastText}</p>
 			{/if}
 		</div>
 
-		<div class="body">
+		<div class="body" class:has-panel={panel !== null}>
 			<Lines
 				{document}
 				open={openPoint}
@@ -756,7 +777,7 @@
 		flex-wrap: wrap;
 		gap: 0.5rem 0.5rem;
 		align-items: center;
-		padding: 0.5rem 0.5rem 0.625rem 0.75rem;
+		padding: 0.75rem 0.75rem 0.75rem 1.25rem;
 		border-bottom: var(--border-hairline);
 	}
 
@@ -873,25 +894,76 @@
 		flex: 1;
 	}
 
-	.next {
+	.prompt-actions {
 		display: flex;
-		flex: 1 1 100%;
-		flex-wrap: wrap;
-		gap: 0.125rem 0.875rem;
-		justify-content: flex-end;
-		align-items: baseline;
+		align-items: stretch;
+		margin-left: auto;
+	}
+	.prompt-options {
+		position: relative;
+	}
+	.prompt-options summary {
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.5rem;
+		border: 1px solid var(--color-accent);
+		border-left-color: var(--color-bg);
+		background: var(--color-accent);
+		color: var(--color-bg);
+		cursor: pointer;
+		list-style: none;
+	}
+	.prompt-options summary::-webkit-details-marker {
+		display: none;
+	}
+	.prompt-options summary:hover {
+		border-color: var(--color-text);
+	}
+	.prompt-options summary:focus-visible {
+		outline: 1px solid var(--color-text);
+		outline-offset: 2px;
+	}
+	.chevron {
+		width: 0.375rem;
+		height: 0.375rem;
+		border-right: 1.5px solid currentColor;
+		border-bottom: 1.5px solid currentColor;
+		transform: translateY(-2px) rotate(45deg);
+	}
+	.prompt-menu {
+		position: absolute;
+		top: calc(100% + 0.25rem);
+		right: 0;
+		z-index: 35;
+		display: grid;
+		width: min(19rem, calc(100vw - 4.5rem));
+		border: var(--border-hairline);
+		background: var(--color-bg);
+		box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.9);
+	}
+	.prompt-menu p {
 		margin: 0;
+		padding: 0.875rem 1rem;
+		border-bottom: var(--border-hairline);
 		color: var(--color-text-subtle);
 		font: var(--text-label);
+		line-height: 1.6;
 	}
-
-	.next button,
-	.next a {
-		min-height: 0;
-		padding: 0;
+	.prompt-menu button,
+	.prompt-menu a {
+		padding: 0.625rem 1rem;
+		border: 0;
+		background: transparent;
 		color: var(--color-text-muted);
-		font: inherit;
-		text-decoration: underline;
+		font: var(--text-ui);
+		text-align: left;
+		text-decoration: none;
+	}
+	.prompt-menu button:hover,
+	.prompt-menu a:hover {
+		background: var(--color-surface);
+		color: var(--color-text);
 	}
 
 	/* At the foot of the window, so it never covers the questions. */
@@ -909,10 +981,14 @@
 
 	.body {
 		position: relative;
-		min-height: 24rem;
+	}
+
+	.body.has-panel {
+		min-height: 26rem;
 	}
 
 	.roles {
+		font-size: 0.75rem;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem 1rem;
@@ -959,6 +1035,7 @@
 	}
 
 	.chip.add {
+		border-style: dashed;
 		background: transparent;
 		color: var(--color-text-muted);
 	}
@@ -985,6 +1062,8 @@
 	}
 
 	.notes {
+		font: var(--text-label);
+		line-height: 1.6;
 		display: grid;
 		gap: 0.25rem;
 		padding: 0.875rem 1.25rem 1rem;
@@ -1043,12 +1122,25 @@
 			width: 100%;
 		}
 
-		.bar :global(.copy) {
+		.bar {
+			padding: 0.75rem;
+		}
+		.name {
+			min-width: 0;
+		}
+		.prompt-actions {
 			flex: 1 1 100%;
 		}
-
-		.next {
-			justify-content: flex-start;
+		.prompt-actions :global(.copy) {
+			flex: 1;
+		}
+		.status {
+			margin-left: auto;
+			padding-inline: 0.25rem;
+			font-size: 0.75rem;
+		}
+		.spacer {
+			display: none;
 		}
 	}
 </style>

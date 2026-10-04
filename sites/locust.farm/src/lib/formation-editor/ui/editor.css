@@ -125,12 +125,6 @@
 	stroke: var(--color-accent);
 }
 
-.formation-editor .diagram .d-label {
-	fill: var(--color-text-faint);
-	font: 400 8.5px var(--font-mono);
-	letter-spacing: 0.04em;
-}
-
 .formation-editor .diagram .d-dot.d-work {
 	fill: var(--color-text-subtle);
 }

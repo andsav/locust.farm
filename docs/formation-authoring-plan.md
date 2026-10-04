@@ -6,7 +6,8 @@ real agents or first-time users (section 8).** Baseline: Locust `74ec9fb`, after
 organization implementation landed (`809bbbe`) and the contract rename. The
 Polaris checkout read for the side panel is `dreamcolor10` at `01d8aa3c4`. The
 page was rebuilt later the same day around one line of four points (decisions 9
-to 13, section 3).
+to 13, section 3), then simplified into a compact rules matrix following the
+designer's standalone mock (decision 14).
 
 Related documents: the [accepted direction](formations.md), the
 [formation implementation plan](formations-implementation-plan.md),
@@ -44,8 +45,9 @@ the built editor:
 
 9. The rules are shown as one line of four points: who adds a task, who works
    on it, when a result counts, and whether one result is picked. Each point
-   has a picture drawn from the rules and a short answer, and a click shows its
-   choices. Steps and other kinds of task are shorter lines under it. This
+   has a short answer, and a click shows its choices. Steps and other kinds of
+   task are shorter lines under it. The original repeated pictures were removed
+   by decision 14. This
    replaces the rules rail, the More panel, the decorative drawing and the
    stage canvas.
 10. A stage has no runner. The goal's administrator, who is the member that
@@ -57,6 +59,12 @@ the built editor:
     are.
 13. An exclusive claim on a task is wanted but not built. Until it exists the
     page says "No lock" beside "Anyone".
+
+14. Apply the standalone Blueprint Builder mock as design direction only:
+    compact text rows below the six thumbnails, shared question headings,
+    secondary prompt actions in a dropdown, and quieter task and role controls.
+    Keep all existing presets, rule options, prompt behavior and file actions.
+    This does not adopt the mock's different coordination or selection rules.
 
 Decision 7 departs from the formation plan's O1.4 ("prevent handwritten copies
 in Polaris or the site") and from the accepted direction's "use the same
@@ -115,22 +123,24 @@ editor:
 - **Toolbar.** The formation's name and a save mark; Undo, Redo and a File
   menu (open, saved, copy a link, download, start over); a problems button and
   "In words", both with their word shown; and the ember "Copy prompt" button.
-  A line under it says what to do with the prompt and holds the links "See the
-  prompt", "Copy a prompt that checks it and saves nothing", "Set up Locust" and "Manual".
-- **The line for any task.** Four points, left to right, each with its
-  question, a picture and a short answer.
+  The adjacent "Prompt options" dropdown explains what the prompt does and
+  holds "See the prompt", "Copy a prompt that checks it and saves nothing", "Set up Locust" and
+  "Manual". Escape closes it and returns focus to its toggle.
+- **The row for any task.** Four answers, left to right, under shared question
+  headings. No second set of diagrams; each answer opens its existing options.
 - **Steps** and **other kinds of task**, when there are any: one row each, with
   the same four columns.
-- **Roles**, then one line of limits: "A member is one agent or one person.
-  Locust applies these rules to what members add and post. It does not start
-  agents or run checks."
+- **Task controls.** Step and Another kind of task, with their explanations in
+  a keyboard-accessible "About tasks" disclosure.
+- **Roles**, then one quieter line of limits: "A member is one agent or one person.
+  Locust applies these rules to what members add and post. It does not start agents or run checks."
 
 Nothing a person needs is only in hover text. Hover text names the icon
 buttons and repeats each card's sentence. One side panel slides over the right
 of the editor for a role's settings, problems, the formation in words, the
 prompt, and open and saved formations. There are no modal dialogs. On a phone
-the points stack two by two and a step is a short list; the side panel covers
-the screen.
+each row becomes a single-column list with its questions repeated beside the
+answers; the side panel covers the screen.
 
 The design context, shared with the impeccable design skills, is in
 [.impeccable.md](../.impeccable.md).
@@ -169,12 +179,11 @@ phrases, every field has a word, and the limit that belongs to a setting is
 printed beside it. Every list of roles ends with "New role", which asks for a
 name in place and adds the role and the rule as one change.
 
-The pictures are drawn from the answers, with the formation's own role names
-and numbers ([drawPoint](../sites/locust.farm/src/lib/formation-editor/ui/diagrams.ts)):
-the members and the task for Add, the mesh or the hub for Work, as many
-reviewer circles as approvals and a diamond for a check for Counts, and the
-picker's line to one result for Pick. The four share one clock and play in
-turn, left to right.
+The matrix keeps the complete answer text, including role names, approval
+counts and whether the author is excluded. Its layout is implemented in
+[Lines.svelte](../sites/locust.farm/src/lib/formation-editor/ui/Lines.svelte).
+The six preset thumbnails retain their animated pictures in
+[diagrams.ts](../sites/locust.farm/src/lib/formation-editor/ui/diagrams.ts).
 
 A rule the page does not offer, such as "any of these", is shown as a sentence
 and kept as it is until an option replaces it.
@@ -224,7 +233,7 @@ TypeScript port, which is what the agent will show.
 
 The ember "Copy prompt" button is the page's one primary action and is always
 in the toolbar. It copies the prompt that adds the formation as a private draft
-and asks before publishing. "Copy a prompt that checks it and saves nothing" is a link beside it:
+and asks before publishing. "Copy a prompt that checks it and saves nothing" is in the adjacent "Prompt options" dropdown:
 the agent checks the formation with Locust and explains it, and nothing is
 saved. After copying, the button says "Copied" and a note says "Copied. Paste
 it into your agent." A failed copy opens the prompt with the text selected.
