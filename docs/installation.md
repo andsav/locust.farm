@@ -97,3 +97,91 @@ real native install. Native package/service/client results must be recorded
 separately in the [release evidence ledger](release-evidence.md), with candidate
 and harness hashes. A configured CI job is not a completed Linux/macOS run;
 same-host installation is not the deferred physical-machine acceptance pass.
+
+## User-session services
+
+The [service renderer](../crates/locust/src/installation/service.rs) supports a
+macOS arm64 launchd GUI service, Linux x86_64 systemd user service, or explicit
+`none`. The label derives from the selected absolute daemon home. The unit uses
+the installed `current/locust`, the explicit daemon home, a private log directory,
+and HOME/XDG paths under the selected profile. It never invokes a shell.
+
+```sh
+/TRUSTED/locust --json service plan --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
+/TRUSTED/locust --json service apply --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust --expect-plan PLAN_SHA256
+/TRUSTED/locust --json service start --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
+/TRUSTED/locust --json service status --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
+/SOFTWARE/locust/current/locust --home /DATA/locust --owner --json doctor
+```
+
+On Linux select `--kind systemd` and the profile whose user manager owns the
+configuration. A missing GUI domain or user bus is unavailable, not a stopped
+service. `service start` starts an absent service or restarts an already loaded
+owned service. The reported manager state is separate from a successful daemon
+API roundtrip; run `doctor` with the appropriate scoped credential as well.
+`loaded` means launchd knows the job but does not currently report it running.
+
+The [ownership wrapper](../crates/locust/src/installation/service_install.rs)
+writes a private intent before creating a nonce-marked unit. It never adopts a
+pre-existing unit without that record, even if its bytes match. Retry can finish
+an interrupted owned write; edits or an unrelated label collision are refused.
+Start checks installed trust under the prefix lock, and control verifies the
+loaded unit definition before acting on its label. A failed start retains the
+unit and ownership record for inspection and retry.
+
+Use the same selection arguments with `service stop`, then `service remove-plan`
+and `service remove --expect-plan PLAN_SHA256`. Removal requires an unchanged
+owned unit and an observed stopped/absent service. It preserves daemon data and
+logs. No root daemon, system service or login account is created.
+
+## Client skill and MCP setup
+
+The [setup implementation](../crates/locust/src/installation/setup.rs) installs the
+signed operating skill and one `locust` stdio server into an explicitly selected
+client profile. Supported targets are Codex (`.codex/config.toml` and
+`.agents/skills/locust`), Claude Code (`.claude.json` and `.claude/skills/locust`),
+and Pi (`.pi/agent/mcp.json` and `.pi/agent/skills/locust`). Those are the clients'
+user-profile locations; project/ancestor collisions are checked for the selected
+workspace. Managed organization policy remains authoritative. See the official
+[Codex MCP](https://developers.openai.com/codex/mcp),
+[Codex skills](https://developers.openai.com/codex/skills),
+[Claude MCP](https://code.claude.com/docs/en/mcp),
+[Claude skills](https://code.claude.com/docs/en/skills),
+[Pi MCP](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/mcp.md)
+and [Pi skills](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md)
+documentation for the clients' discovery rules.
+
+Enroll a dedicated principal and create its explicit session through existing
+owner/session commands. Setup consumes their existing private 32-byte files;
+it does not silently enroll, grant execution permission, change client tool
+approval/sandbox policy, copy provider authentication or expose secret bytes in
+configuration. The MCP definition contains only protected-file paths. This is a
+fixed profile/session binding: use a dedicated profile for this session, and do
+not treat multiple native conversations sharing that profile as independently
+identified Locust sessions. [Managed launch](managed-clients.md) has separate
+native-session binding and lifecycle checks.
+
+Close clients that write the selected profile while applying or removing setup.
+Review the actual paths and generated Locust registration, then apply its digest:
+
+```sh
+/TRUSTED/locust --json setup plan --prefix /SOFTWARE/locust --client codex --profile-home /PROFILE --workspace /WORKSPACE --daemon-home /DATA/locust --credential-file /DATA/locust/agents/worker.credential --session-file /DATA/locust/sessions/worker.secret
+/TRUSTED/locust --json setup apply --prefix /SOFTWARE/locust --client codex --profile-home /PROFILE --workspace /WORKSPACE --daemon-home /DATA/locust --credential-file /DATA/locust/agents/worker.credential --session-file /DATA/locust/sessions/worker.secret --expect-plan PLAN_SHA256
+```
+
+Unowned name/skill collisions are refused. An interrupted write retains a private
+journal; a retry recognizes only the reviewed before/after states and refuses
+unrelated modifications. Reapplying can update owned content while preserving
+unrelated settings. `setup remove-plan` and `setup remove --expect-plan ...` use
+the same selection arguments. Removal restores the exact original configuration
+when the installed document is otherwise unchanged, or removes just the owned
+entry from a document with unrelated edits. A modified owned entry or skill is
+preserved and reported as a conflict. Removal remains available after software
+uninstall; credentials and session files remain.
+
+Restart the client so it discovers the registration and skill. Setup reports
+`reload_required`, with discovery and API readiness unobserved. Only the actual
+client can establish that its policy permits loading the bridge and calling it.
+Use `locust_status` in that client, then perform the intended task under the
+participant's selected permissions. A written configuration is not proof of
+client readiness, and a successful read is not execution authorization.

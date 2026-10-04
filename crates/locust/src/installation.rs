@@ -16,6 +16,10 @@ use std::{
     process::Command,
 };
 
+pub mod service;
+pub mod service_install;
+pub mod setup;
+
 const POLICY: &str = "trust-state.json";
 
 #[derive(Clone, Serialize, Deserialize)]

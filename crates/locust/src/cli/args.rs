@@ -288,6 +288,8 @@ pub(super) fn command() -> Command {
         .subcommand(super::client::commands())
         .subcommand(super::package::commands())
         .subcommand(super::install::commands())
+        .subcommand(super::service::commands())
+        .subcommand(super::setup::commands())
         .subcommand(group(
             "daemon",
             &[("run", "daemon.run"), ("stop", "daemon.stop")],

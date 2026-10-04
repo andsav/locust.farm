@@ -5,6 +5,8 @@ mod connection;
 mod doctor;
 mod install;
 mod package;
+mod service;
+mod setup;
 mod workspace;
 
 use crate::{daemon, failure::Failure, secret};
@@ -153,6 +155,12 @@ fn stdin_text() -> Result<String, Failure> {
 }
 fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let (operation, selected) = args::selected(matches);
+    if operation.starts_with("setup.") {
+        return setup::run(&operation, selected);
+    }
+    if operation.starts_with("service.") {
+        return service::run(&operation, selected);
+    }
     if operation.starts_with("install.") {
         return install::run(&operation, selected);
     }
@@ -471,4 +479,11 @@ fn stable_name(value: &impl serde::Serialize) -> String {
         .as_str()
         .expect("public enum uses a string tag")
         .to_owned()
+}
+
+// Exercise generated client registration against the real parser without
+// exposing CLI construction in production code.
+#[cfg(test)]
+pub(crate) fn command_for_test() -> clap::Command {
+    args::command()
 }
