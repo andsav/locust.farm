@@ -10,6 +10,7 @@
 	import { blueprintText, type EditorDocument } from '../model/document.ts';
 	import { applyWay, newDocument, removeStage, setName, stageOrder } from '../model/edit.ts';
 	import { record, redo, startHistory, undo, type History } from '../model/history.ts';
+	import { wayOfWorking } from '../model/presets.ts';
 	import { summarize } from '../model/words.ts';
 	import { openText } from '../prompt/open.ts';
 	import { blocks, draftId } from '../prompt/prompt.ts';
@@ -107,7 +108,7 @@
 		selected = null;
 		panelOpen = false;
 		announce(
-			`Loaded the ${id.replaceAll('-', ' ')} way of working. You can change anything below.`
+			`Loaded the ${wayOfWorking(id)?.title ?? id} way of working. You can change anything below.`
 		);
 	}
 
@@ -307,9 +308,9 @@
 				copy the prompt into your agent.
 			</p>
 			{#if document.way}
-				<button type="button" onclick={() => (pickerOpen = false)}
-					>Keep "{document.way.replaceAll('-', ' ')}" and continue</button
-				>
+				<button type="button" onclick={() => (pickerOpen = false)}>
+					Continue with {wayOfWorking(document.way)?.title ?? 'this way'}
+				</button>
 			{/if}
 		</section>
 	{/if}
@@ -375,7 +376,13 @@
 		</div>
 
 		<div class="right">
-			<Summary {lines} {problems} explanation={inspection.explanation} onshow={show} />
+			<Summary
+				{lines}
+				{problems}
+				explanation={inspection.explanation}
+				hasStages={order.length > 0}
+				onshow={show}
+			/>
 			<CopyPanel {document} hasErrors={inspection.diagnostics.length > 0} {blocked} />
 			{#if selected && Object.hasOwn(document.blueprint.flow, selected)}
 				<div class="panel-host" class:compact>

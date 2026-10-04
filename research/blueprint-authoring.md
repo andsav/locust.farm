@@ -61,6 +61,43 @@ to earlier drafts of the plan, kept in Git history; the current
 - The presentation record is opaque `data_json` with its own revision and is
   never part of a blueprint's identity.
 
+## Browser walkthrough of the built editor, 2026-10-04
+
+Method: the production build and the dev server, in a Chromium browser pane at
+1440×900 and 375×812, walking the first visit, the Pipeline way, adding and
+connecting stages, problems, copying and links as someone who has not seen
+Locust before. This is a review by the implementer, not a test with real
+people. [V for what was observed]
+
+Found and fixed:
+
+- The "changes from the way of working" count showed 4 changes on an untouched
+  Pipeline, because it compared objects whose keys were in a different order.
+- Arrow labels read "when is complete"; they now read "when complete", "when
+  published", "after a review" and "when one is picked".
+- The ways of working wrapped five to a row with one card alone; they are now
+  three, two or one per row.
+- The side panel covered most of the narrow map column, including the selected
+  stage; it now covers the right-hand column and the map stays visible.
+- Locust's preset role descriptions were protocol language ("One member's
+  daemon advances the configured stages…"); they are now plain, and the
+  independent-attempts role is "judge" rather than "chooser".
+- "Keep "open" and continue" showed an internal id; it reads "Continue with
+  Open". The sentence about stages and runners showed even without stages; it
+  now shows only when there are stages. "Nobody can close the goal" became
+  "Nobody can say the goal is finished", matching the question.
+
+Still to learn from real first-time users, for the owner to run with three to
+five people who do not know Locust:
+
+1. Open locust.farm/blueprints. Without help, set up "people try different
+   approaches and someone picks the best one", then copy the prompt.
+2. Change it so that two people must approve each result.
+3. Make work go from "draft" to "review" to "ship".
+4. Note the time to the first copy, every place they hesitate, the words they
+   ask about, and whether their description afterwards matches "What this
+   means".
+
 ## Question
 
 The owner asked for a plan, 2026-10-04: someone who has Locust authors a

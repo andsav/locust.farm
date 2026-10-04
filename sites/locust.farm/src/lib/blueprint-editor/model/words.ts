@@ -169,7 +169,7 @@ export function summarize(document: EditorDocument): SummaryLine[] {
 		area: 'decisions',
 		text: finish
 			? `${capital(decider(finish))} can say the whole goal is finished.`
-			: 'Nobody can close the goal. It stays open.'
+			: 'Nobody can say the goal is finished. It stays open.'
 	});
 	if (value.context.guidance.trim() !== '') {
 		lines.push({ area: 'advice', text: 'There is advice for everyone. It is advice, not a rule.' });

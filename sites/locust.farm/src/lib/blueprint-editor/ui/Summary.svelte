@@ -8,11 +8,13 @@
 		lines,
 		problems,
 		explanation,
+		hasStages,
 		onshow
 	}: {
 		lines: SummaryLine[];
 		problems: Problem[];
 		explanation: Explanation | null;
+		hasStages: boolean;
 		onshow: (place: Place) => void;
 	} = $props();
 
@@ -26,10 +28,12 @@
 			<li>{line.text}</li>
 		{/each}
 	</ul>
-	<p class="fixed">
-		When a step is ready, the Locust of the person who runs it creates the task and sends it out.
-		Locust never starts an agent.
-	</p>
+	{#if hasStages}
+		<p class="fixed">
+			When a stage is ready, the Locust of the person who runs it creates the task and sends it out.
+			Locust never starts an agent.
+		</p>
+	{/if}
 
 	<div class="problems" aria-live="polite">
 		{#if problems.length === 0}

@@ -160,7 +160,7 @@ test('the summary is plain', () => {
 		'Anyone in the goal can start working on a task. Several people may work on the same task.',
 		'A task is done when the person who did it says so.',
 		'Every result that is done is kept. Nobody picks a single final answer.',
-		'Nobody can close the goal. It stays open.'
+		'Nobody can say the goal is finished. It stays open.'
 	]);
 	for (const way of WAYS_OF_WORKING) {
 		for (const line of summarize(newDocument(way.id))) {
