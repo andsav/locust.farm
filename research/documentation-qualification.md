@@ -3,9 +3,24 @@
 Date: 2026-10-04. **Status: local development CLI/daemon evidence.** These checks
 exercise the exact executable Bash fences in the public manual against one
 identified binary on macOS arm64. They are not native-model, multi-machine,
-installation or public-release qualification.
+public-release qualification. The recipe checks are distinct from the separately
+observed disposable test-signed installation described below.
 
-## Checks and identity
+## Exact installed protocol 2 candidate
+
+All four current recipes passed against test-signed installed source commit
+`0a295cdabe6a878cc733c791ca73863933cfa45a`, binary SHA256
+`b577709eb981544b4bcf5bdcc5efd677a6133d24e474ab274a1fe500215450b3`.
+The fourth recipe, separate-goal export, proves explicit selected-context copying
+and isolated goal membership. The installed matching 40-source manual was read
+without checkout access. Exact recipe hashes and verdicts are retained in
+[the current native qualification](organization-native-qualification.md) and its
+[structured evidence](evidence/organization-native-qualification/results.json).
+This campaign used an explicit 300-second per-recipe watchdog; all four exited
+successfully. It remains a local scripted campaign, with no real model calls or
+physical multi-machine qualification.
+
+## Historical three-recipe checks and identity
 
 The [sanitized record](evidence/documentation-recipes-2026-10-04.json) identifies
 binary SHA-256, its reported build label, each exact recipe hash, exit status and
@@ -38,4 +53,4 @@ The site gates pass lint, Svelte checks with zero errors/warnings, 37 tests and
 production prerender validation of 88 routes, 18 raw articles and ten assets.
 A site build is not a deployed website. The active implementation audit and
 [status ledger](../docs/organization-blueprints-status.md) retain remaining
-composition, delivery, client, transport and release boundaries separately.
+client/provider, transport and release boundaries separately.

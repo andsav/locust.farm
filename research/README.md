@@ -149,3 +149,5 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Organization model verification evidence](evidence/tla/organization/README.md): all54 registered outcomes, full checker traces, bounded safety counts and precise verification limits.
 
 - [Current manual recipe qualification](documentation-qualification.md): exact executable Markdown journeys, binary/recipe hashes and local daemon/application evidence.
+
+- [Organization protocol 2 native package qualification](organization-native-qualification.md): exact native candidate installation, three supported persistent setups, four managed recovery clients, executable manual and installed offline discovery, with explicit unrun boundaries.
