@@ -64,7 +64,7 @@ passed without modifying candidate bytes.
 [Temporary-registration Droid T2](../scripts/check_t2_clients.py) passed
 configuration/handshake, scoped authentication, claim/progress, held wait,
 interruption/resume, bridge/daemon restart and receipt checks. Native Droid
-`Execute` terminated the authored Python workspace driver by `SIGKILL` about
+`Execute` reported that the authored Python workspace driver terminated by `SIGKILL` about
 66 ms after invocation. There was no workspace receipt; workspace execution and
 client execution failed, and contribution/selection/dirty-preservation assertions
 remain `not_run`. Scripted providers reported no errors. The exact command used
@@ -87,4 +87,5 @@ publication, multiple physical machines or sleep/wake qualification occurred.
 The [key-only local discovery limitation](organization-local-discovery.md)
 remains separate from these local loopback and explicit-route checks.
 Full four-client production workflow qualification remains partial because
-Droid's full contribution workflow and real model execution were not run.
+Droid's native workspace step failed before contribution, and real model
+execution was not run.

@@ -29,25 +29,45 @@
   "qualification": [
     {
       "platform": "macOS arm64",
-      "scope": "Current API 2/protocol 2 Rust workspace gates, persistent local CLI/daemon acceptance and executable manual recipes",
-      "limits": "No public release, external provider, native-model, physical-machine or packaged Polaris claim. Key-only local multicast discovery currently fails independently of the goal engine.",
+      "scope": "Current API 2/protocol 2 source gates, persistent local CLI/daemon acceptance, six blueprint exports, four executable manual recipes and three-process default-network collaboration and all six operational cases",
+      "limits": "No public release, real-provider or physical-machine claim. Same-host default networking passes while isolated key-only multicast discovery fails.",
       "evidence": [
         "docs/organization-blueprints-status.md",
         "docs/guide/collaboration.md",
         "docs/guide/blueprint-authoring.md",
         "docs/guide/apply.md",
-        "docs/guide/sharing.md"
+        "docs/guide/sharing.md",
+        "research/organization-local-discovery.md"
       ],
       "track": "current-organization-development"
     },
     {
       "platform": "macOS arm64",
-      "scope": "Polaris source integration at aaaf62ae3bbdd3f280eb7fd1db343b690ebb330e pins the Locust 1b81bef typed SDK with exact generated schema parity; focused native adapter, real local daemon and browser fixture checks pass",
-      "limits": "Packaged native UI remains unqualified. The remote dependency revision is not published; local Cargo verification used an explicitly seeded cache. Broader Merak gates have unresolved failures.",
+      "scope": "Exact source 0a295cd candidate: ten installation cases, three supported persistent client setup/workspace campaigns, all four baseline managed lifecycle/recovery campaigns, four installed tutorials and offline contracts",
+      "limits": "Scripted loopback providers and disposable test signing only. Droid full workflow failed at native Execute child SIGKILL; same guarded driver passed directly. Default-policy not_run cases, real-model use and human approval remain separate.",
+      "evidence": [
+        "research/organization-native-qualification.md",
+        "research/documentation-qualification.md"
+      ],
+      "track": "current-native-installed-candidate"
+    },
+    {
+      "platform": "macOS arm64",
+      "scope": "Polaris source aaaf62ae3 pins the Locust 1b81bef typed SDK with exact schema parity. An isolated Developer ID signed QA package passed native editing/publication/goal/readback/restart/revocation against immutable Locust candidate 0a295cd; the exact-byte native adapter test passed.",
+      "limits": "The package uses a separate QA identifier/product/title. Canonical installed release, notarization and public fetch remain unqualified. The SDK revision is unpublished and local Cargo verification used an explicitly seeded cache. Broader Merak gates retain failures.",
       "evidence": [
         "docs/guide/polaris.md"
       ],
-      "track": "current-polaris-source-integration"
+      "track": "current-isolated-polaris-native-package"
+    },
+    {
+      "platform": "Linux x86_64",
+      "scope": "Exact source 0a295cd release cross-compilation with pinned Rust and existing cargo-zigbuild/Zig; ELF architecture and archive/input hashes verified",
+      "limits": "Build only; binary never executed, no Linux installation/systemd/runtime or signed-install package qualification.",
+      "evidence": [
+        "research/linux-installation-qualification.md"
+      ],
+      "track": "current-linux-build-only"
     },
     {
       "platform": "macOS arm64",
@@ -63,19 +83,19 @@
   ],
   "clients": {
     "codex": {
-      "status": "local-onboarding-component-verified",
+      "status": "installed-native-scripted-provider-and-managed-lifecycle-verified",
       "publicRoute": false
     },
     "claude-code": {
-      "status": "local-onboarding-component-verified",
+      "status": "installed-native-scripted-provider-and-managed-lifecycle-verified",
       "publicRoute": false
     },
     "pi": {
-      "status": "configuration-component",
+      "status": "installed-native-scripted-provider-and-managed-lifecycle-verified",
       "publicRoute": false
     },
     "droid": {
-      "status": "managed-foreground-component",
+      "status": "native-managed-lifecycle-verified; full-workspace-execute-failed",
       "publicRoute": false
     },
     "other": {
@@ -83,5 +103,5 @@
       "publicRoute": false
     }
   },
-  "runtimeQualification": "deterministic-and-local-cli-daemon-verified; native-client-and-distributed-qualification-incomplete"
+  "runtimeQualification": "deterministic-local-daemon-installed-scripted-clients-and-isolated-polaris-verified; real-provider-physical-machine-and-release-gates-open"
 }

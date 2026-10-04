@@ -3,12 +3,19 @@
 **Current status: API 2 / protocol 2 is implemented and locally verified; release
 qualification remains open.** The
 [organization implementation ledger](organization-blueprints-status.md) tracks
-the current runtime, full manual, native integration and V01–V22 scenarios. Current
-formatting, strict workspace Clippy and Rust tests pass (624 tests, 12 explicit
-ignores); finite models, actual local daemon workflows and executable tutorial
-checks have their own retained evidence. Key-only local discovery currently
-fails. Physical-machine, independent-account, real-provider, immutable native
-package and public-download claims require their identified campaigns.
+the current runtime, full manual, native integration and V01–V22 scenarios.
+Formatting, strict workspace Clippy and 624 Rust tests pass (12 explicit
+ignores), as do 195 Python tests and all 54 finite-model cases. Exact candidate
+`0a295cd` has [native installation/client evidence](../research/organization-native-qualification.md),
+[all four installed manual recipes](../research/documentation-qualification.md),
+[same-host default-network collaboration/operations](../research/organization-local-discovery.md),
+[isolated signed Polaris native acceptance](guide/polaris.md) and
+[Linux build-only evidence](../research/linux-installation-qualification.md).
+
+Droid's native Execute child failed before its full workspace flow, key-only
+local mDNS still fails, and broader Merak gates remain unresolved. Physical
+machines, sleep/wake, independent accounts/real providers, production signing
+custody, canonical public artifacts and public-download acceptance remain open.
 
 The R1–R10 table and dated records below preserve the earlier implementation
 plan's evidence. **Pre-organization-cutover candidates do not qualify the current

@@ -58,3 +58,21 @@ observed outcome. Native child exit, remote request or notification does not
 assert every descendant stopped. Existing harness tool access is not a Locust
 sandbox. See [managed-client evidence](../managed-clients.md) and
 [recovery](recovery.md) for the current launcher limits.
+
+## Current native qualification
+
+The exact macOS arm64 candidate `0a295cd` passed supported installed setup,
+skill/MCP discovery and exercised workspace flows in Codex, Claude Code and Pi.
+All four baseline clients passed ordinary managed lifecycle and recovery checks
+against its production daemon. These runs used real native executables and
+scripted loopback providers; default-policy denials and untested interactive
+approval remain explicit. No real model or independent provider account was
+qualified by them.
+
+Droid's separate full workflow reached authenticated tools, claims, progress,
+wait and resume, but its native Execute child received SIGKILL before producing
+the workspace receipt. The same authored driver passed directly under the same
+network guard. Its full workspace route remains unqualified on this host; no
+client security setting was changed to make it pass. See the
+[exact native evidence](../../research/organization-native-qualification.md) for
+versions, artifact hashes, failures and cleanup scope.

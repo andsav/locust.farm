@@ -336,7 +336,10 @@
     "docs/organization-blueprints-semantics.md",
     "research/onboarding-qualification.md",
     "docs/organization-blueprints-status.md",
-    "docs/packaging.md"
+    "docs/packaging.md",
+    "research/organization-native-qualification.md",
+    "research/linux-installation-qualification.md",
+    "research/organization-local-discovery.md"
   ],
   "routes": [
     {

@@ -462,7 +462,7 @@ before editing consumers. No lane needs an old decoder or fallback runtime.
 ## Source-based replacement inventory
 
 The runtime cutover at `c88e3bc` replaced the pre-authoring implementation. The
-final source audit, including `4bc417d` and `c731e71`, found no remaining item in
+final source audit, including `4bc417d`, `c731e71`, `6c93b3f` and `19ced9e`, found no remaining item in
 this superseded-executable inventory. Existing filenames are sometimes retained
 for a reusable invariant; they contain the current implementation, not a second
 runtime. Current recovery and unsupported-format refusal are tested separately
@@ -488,6 +488,9 @@ CLI/MCP/generated schemas, dependency manifests and active guide claims.
 Refusal tests deliberately contain unsupported markers; historical research and
 [protocol-1 documentation](protocol-v1.md) retain their historical names. Neither
 is an executable compatibility path. The final combined cleanup checks passed
-formatting, strict workspace Clippy, 624 Rust tests (12 explicit ignores), 193
-Python tests and documentation checks. This inventory closes V21's source-removal
+formatting, strict workspace Clippy, 624 Rust tests (12 explicit ignores), 195
+Python tests and documentation checks. Native campaigns exposed and removed two
+stale Python expectations: canceled task state and integration after export.
+The corrected four-client lifecycle and six operational cases pass against the
+unchanged candidate. This inventory closes V21's source-removal
 boundary; it does not qualify physical networking, providers or public releases.

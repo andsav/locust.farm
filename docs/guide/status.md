@@ -25,25 +25,34 @@ unselected patch, catalog conflicts and restart. Four Markdown tutorials execute
 against the local binary through `scripts/check_documentation.py`; they do not
 launch models or contact external providers.
 
+The exact `0a295cd` macOS arm64 candidate passed ten installation cases, three
+supported installed client setups, four-client managed lifecycle and recovery,
+and all four installed tutorial recipes. These used actual native executables,
+private profiles and scripted providers. The [native record](../../research/organization-native-qualification.md)
+keeps policy denials and unrun real-model/human-approval cases separate. Droid's
+full contribution workflow failed when its native Execute child received
+SIGKILL; the same driver passed directly under the same network guard, so the
+cause remains unresolved.
+
+The [Polaris native package](polaris.md) passed editing, publication, goal
+creation, restart and revocation against those exact Locust bytes. It used an
+isolated QA identity; canonical installed-release and public-fetch claims remain
+open, as do broader Merak gates. The [current Linux cross-build](../../research/linux-installation-qualification.md)
+passed release compilation only. Linux execution, installation and systemd were
+not exercised.
+
 Key-only multicast peer discovery failed independently of the goal engine on the
-qualification host. Invitation-hint routes worked, but the three-process workflow
-could not form the worker-to-worker route after its administrator stopped. This
-is a current qualification failure, not proof of remote convergence. Native
-four-client, physical-machine and packaged Polaris evidence remain separately
-required. See the ledger for current updates.
+qualification host. A separate three-daemon run with normal lookup/relay defaults
+passed, including worker-to-worker relay exchange while the administrator was
+offline and convergence after restart. These are different transport paths;
+neither is two-physical-machine or sleep/wake evidence. The
+[discovery record](../../research/organization-local-discovery.md) preserves the
+local-only failure.
 
-
-Retained pre-organization-cutover macOS evidence covers identified signed candidates, local installation
-and launchd cases, and disposable Codex and Claude onboarding profiles with
-authenticated daemon readiness. This does not establish public distribution,
-physical-machine acceptance or real-model end-to-end tool and task behavior.
-It does not qualify the API 2/protocol 2 replacement. See the [installation evidence](../installation.md) and
-[onboarding qualification](../../research/onboarding-qualification.md).
-
-Linux service/configuration code, component tests and a configured CI job do not
-establish a completed native Linux acceptance pass. A client configuration test
-is not proof that an actual model saw the skill or called the tools. Pi, Droid
-and other harness claims must identify their own qualification scope.
+Earlier pre-organization-cutover records remain historical evidence. They do not
+qualify the replacement runtime. Current-source checks, native client behavior,
+real-model behavior, physical networking and publication require their own
+identified evidence.
 
 ## Four independent claims
 

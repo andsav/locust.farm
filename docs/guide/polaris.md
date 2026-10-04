@@ -1,14 +1,16 @@
 # Polaris authoring and observation
 
-**Status: implemented development slice; native package and release qualification
-remain open.** Polaris has a forms-first organization library/editor at
+**Status: implemented development slice with isolated native package
+qualification; public release remains open.** Polaris has a forms-first
+organization library/editor at
 `/organizations` and a typed Rust adapter to the local Locust daemon. The verified
 local source commit is
 [`aaaf62ae3bbdd3f280eb7fd1db343b690ebb330e`](https://github.com/33CCFF/dreamcolor10/commit/aaaf62ae3bbdd3f280eb7fd1db343b690ebb330e).
 It has not been pushed or published; the link identifies the configured repository
 and locally verified commit, not a publicly available build. Locust remains
-independently usable. This page does not establish a packaged Polaris visual
-editor, download, installed native UI, or Merak execution worker.
+independently usable. The native qualification uses a separately identified QA
+package and private state; it does not establish a public download, an installed
+canonical release or a Merak execution worker.
 
 ## Connect with separate credentials
 
@@ -93,19 +95,34 @@ Three focused native adapter/channel tests passed. A separate isolated test used
 a real local Locust daemon and typed native clients to exercise agent-authored
 source, person edits, stale-revision refusal, explanation, exact-source
 publication, separate agent goal creation, author goal-creation refusal,
-restart/readback and revocation. Its daemon identified itself as
-`0.1.0 (9d0487fae38b-dirty)`: this is local component evidence, not an installed
-immutable candidate. The agent in this fixture is an API caller, not an AI
-provider acceptance run.
+restart/readback and revocation. It passed against immutable Locust candidate
+`0a295cdabe6a878cc733c791ca73863933cfa45a`, binary SHA-256
+`b577709eb981544b4bcf5bdcc5efd677a6133d24e474ab274a1fe500215450b3`.
+The agent in this fixture is an API caller, not an AI provider acceptance run.
+
+The signed local Polaris package also passed an automated native UI journey
+against those exact daemon bytes: create a fresh draft, edit context through
+forms, save revision 2, explain, review and publish, create a goal through the
+separate agent, and read back its state. After daemon restart, the draft,
+publication and goal remained readable. Revoking the author caused the next
+library refresh to show the authoritative refusal. The actual packaged
+`tauri://localhost` window used the native adapter with private credentials;
+no synthetic IPC participated in that journey.
+
+The package used identifier `com.merak10.polaris.locust-o10-qa`, product name
+`PolarisLocustQA` and title `Polaris Locust QA` to avoid the existing app's
+single-instance lock. Production native channel guards remained enabled. The
+QA archive SHA-256 is
+`5341acf14bedf545dbe75f5e7bb007aa02eef8797d94657976bb34000b801dc7`.
+This verifies the isolated Developer ID signed local package. Canonical-identity
+installed release, notarization and public fetchability remain separate.
 
 Frontend type checking passed with zero errors/warnings, the production build
-passed, and eight focused organization tests passed. Browser checks of the real
-route used synthetic IPC and exercised library opening, form-to-source edits,
-dirty publication gating and explanation; they prove browser UI behavior only.
+passed, and eight focused organization tests passed. Additional browser checks
+used synthetic IPC for dirty edits, external revisions and scope invalidation.
 The broader frontend suite reported 132 failures outside the organization tests
 and has not been qualified against a clean baseline. Workspace-wide Rust gates
-also retain failures in unchanged files. See the Merak commit's
-[implementation and evidence record](https://github.com/33CCFF/dreamcolor10/blob/aaaf62ae3bbdd3f280eb7fd1db343b690ebb330e/docs/LOCUST_ORGANIZATION_AUTHORING_2026-10-04.md).
-
-Installed/package native visual acceptance, public artifact fetchability and
-release qualification remain required. No public deployment or release occurred.
+also retain failures in unchanged files; full lint ran out of heap. The current
+[implementation and native evidence record](https://github.com/33CCFF/dreamcolor10/blob/b0fb5d9d5/docs/LOCUST_ORGANIZATION_AUTHORING_2026-10-04.md)
+retains exact package identities and these unresolved broader gates. The commit
+is local and has not been pushed. No public deployment or release occurred.
