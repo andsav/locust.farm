@@ -1,0 +1,50 @@
+name: Release candidate build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  candidate:
+    name: Unsigned candidate (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Use pinned Rust toolchain
+        run: rustup show active-toolchain
+      - name: Check host target
+        run: rustc -vV | grep 'host: ${{ matrix.target }}'
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Rust tests
+        run: cargo test --locked --workspace
+      - name: Python helper tests
+        run: python3 -m unittest discover -s scripts/tests
+      - name: Documentation indexes and links
+        run: python3 scripts/check_docs.py
+      - name: Build candidate from identified source
+        run: python3 scripts/build_release.py
+      - name: Upload unsigned candidate for inspection
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: locust-unsigned-${{ matrix.target }}
+          path: output/release/*
+          if-no-files-found: error

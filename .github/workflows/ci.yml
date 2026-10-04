@@ -13,19 +13,32 @@ env:
 
 jobs:
   check:
-    name: Rust and documentation
-    runs-on: ubuntu-latest
+    name: Checks (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install pinned Rust toolchain
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Use pinned Rust toolchain
         run: rustup show active-toolchain
+      - name: Check host target
+        run: rustc -vV | grep 'host: ${{ matrix.target }}'
       - name: Check formatting
         run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Rust tests
         run: cargo test --locked --workspace
-      - name: Documentation checker tests
+      - name: Python helper tests
         run: python3 -m unittest discover -s scripts/tests
       - name: Documentation indexes and links
         run: python3 scripts/check_docs.py

@@ -135,3 +135,22 @@ not a generic trace importer or a mechanically proved refinement relation.
 
 Replication/retention/halt-proof delivery, storage durability and full model CI
 remain the later stages in the [implementation plan](../../docs/tla-verification-plan.md).
+
+## Upstream integration
+
+Merged upstream `e23df22d97e41fa2fc3eda0090f3f8d9730fe186` after the
+model checks, incorporating 28 commits. The evidence records identical Git
+objects for 14 modeled source areas: goal replay, session/claim authority,
+signing, commit handling and the relevant event/API/storage types. New content
+graph/key-cache and peer-clock behavior remains outside the assumptions above.
+The original TLC source hashes and baseline are preserved; this review does not
+relabel them as runs against the merged workspace.
+
+The merged workspace passed formatting and Clippy with warnings denied; Rust
+tests reported 571 passed and 11 ignored. Website lint, type checking, all 26
+tests and build passed. Documentation
+checks passed; the script suite ran 173 tests successfully with one skipped
+production-binary qualification test. The initial script run exposed a local
+Python/Expat mismatch; a command-scoped Homebrew Expat library path resolved it.
+Exact commands, counts, source identities and the initial failure are retained
+in the [version-1 evidence](../evidence/tla/version-1.json).

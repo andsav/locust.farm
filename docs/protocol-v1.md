@@ -143,6 +143,41 @@ An event names its payload with a `PayloadRef`: `hash` and `len` describe the st
 
 A workspace manifest ([`manifest.rs`](../crates/locust-proto/src/manifest.rs)) is the reviewed list of files that makes up a shared snapshot: entries of path, executable bit, plaintext size and the hash of the file's sealed object, strictly ascending by path, at most 100,000. Only regular files and an executable bit are expressible; symlinks, hard links, special files and submodules are not. `is_safe_path` refuses a path longer than 1,024 bytes, and a path with any component that is empty (so no absolute path), `.` or `..`, `.git` or its Windows short name `git~1` in any ASCII case, or longer than 255 bytes, or that contains a control character (the C1 range included), `\` or `:`, ends with a dot or a space, or contains an invisible formatting character. No path may be both a file and a directory. Case and Unicode folding depend on the destination filesystem, so the materializer creates every file with create-new semantics in a fresh destination and reports a collision instead of overwriting. Events name a manifest by the hash of its sealed object, like any content. `Manifest::plain_digest` is the BLAKE3 of the canonical plaintext encoding, the same in every goal and epoch, for comparing two snapshots; it is never what an event names, and comparing it with an event's reference never matches. A source Git commit is provenance only.
 
+### Typed workspace content
+
+The T2 [contribution format](../crates/locust-proto/src/contribution.rs) is
+independently versioned inert content: the `locust-contribution\0` tag followed
+by the canonical encoding of `version: u32 = 1`, sealed-object `base` and `head`
+manifest identifiers, and a sorted unique list of path changes. Each change has
+an optional before entry and optional after entry; they use the manifest entry
+shape. Base and head differ, unchanged entries are not changes, and the
+[workspace validator](../crates/locust-workspace/src/contribution.rs) requires
+the delta to equal the exact difference between the two manifests before
+review/application. The number of changes cannot exceed two manifests' combined
+entry limit; file contents, manifests and contribution plaintext must fit the
+sealed-object limit. This content addition changes no signed event, local API
+or sync-frame encoding.
+
+The daemon's [content graph](../crates/locust-core/src/node/content_graph.rs)
+follows explicit typed references: task inputs, submitted bases and accepted
+heads are manifests; submitted patches are contributions, which reference base
+and head manifests. A manifest entry is an opaque file leaf, even if its bytes
+could decode as another manifest. Payloads and artifacts are not guessed to be
+containers. Only a hash-verified, goal-authenticated container creates edges.
+The maximum sealed epoch along a reference path is the minimum of the signed
+root's permitted epoch and containing objects' epochs. A reader must also be
+entitled to the maximum container epoch on that path. Independent valid paths
+remain alternatives. Manifest sizes constrain file sealed lengths exactly.
+
+Missing descendants become transfer wants. Their receipt does not create an
+independent permanent publication record; withdrawal of an ancestor removes
+that path's authority, including after reopen. Explicit local `blob.put`
+associations remain opaque roots. The graph is rebuilt from committed history,
+keys and records on reopen and changes to those authorities; blob arrival
+expands the affected references and preserves ordered missing-object lookup.
+[Regression tests](../crates/locust-core/src/node/content_graph_tests.rs) enforce
+typed traversal, epoch/read entitlement, withdrawal and automatic reconciliation.
+
 ### Sealed object layout
 
 | Offset | Bytes | Field |

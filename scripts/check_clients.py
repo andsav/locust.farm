@@ -118,7 +118,7 @@ def invocation(client, binary, overlay, permissive=False, resume=None, profile=N
     if resume:
         argv += ["--session", resume]
     else:
-        argv += ["--session", str(profile.home / ".pi/agent/qualification-session.jsonl")]
+        argv += ["--session", str(profile.home / ".pi/agent/sessions/qualification-session.jsonl")]
     return [*argv, prompt]
 
 
@@ -129,7 +129,7 @@ def session_identifier(client, run, profile):
         if client in ("claude-code", "factory-droid") and event.get("session_id"):
             return event["session_id"]
     if client == "pi":
-        path = profile.home / ".pi/agent/qualification-session.jsonl"
+        path = profile.home / ".pi/agent/sessions/qualification-session.jsonl"
         if path.exists():
             return next((event.get("id") for event in records(path, strict=True) if event.get("type") == "session"), None)
     return None
@@ -146,6 +146,11 @@ def permission_denials(run):
     result = []
     for event in records(run["stdout"]):
         result.extend(event.get("permission_denials", []))
+        item = event.get("item", {})
+        if event.get("type") == "item.completed" and item.get("type") == "mcp_tool_call" and item.get("status") == "failed":
+            message = (item.get("error") or {}).get("message", "")
+            if message == "MCP tool call requires approval, but approval policy is never":
+                result.append({"tool_name": item.get("tool", ""), "reason": message})
         if event.get("type") == "tool_result" and event.get("isError") is True:
             message = event.get("error", {}).get("message", "")
             if "requires higher autonomy" in message:
@@ -297,7 +302,7 @@ def _qualify(name, binary, args, result, profile):
         stopped = lifecycle["natural_cleanup"] and lifecycle["cleanup_verified"] and not lifecycle["forced_cleanup"]
         checks["interruption"] = assertion("pass" if held and lifecycle["interrupted"] and stopped else ("fail" if held else "not_run"), "Held wait, leader-only SIGINT, and natural exit of the owned session and receipt-identified bridges required; forced cleanup cannot pass; unobserved fully detached descendants are outside this evidence")
         session = session_identifier(name, lifecycle, profile)
-        pi_path = profile.home / ".pi/agent/qualification-session.jsonl"
+        pi_path = profile.home / ".pi/agent/sessions/qualification-session.jsonl"
         pi_history = pi_path.read_bytes() if name == "pi" and pi_path.exists() else None
         fixture.hold = False
         fixture.release.set()

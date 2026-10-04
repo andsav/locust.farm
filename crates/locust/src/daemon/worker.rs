@@ -15,15 +15,16 @@ use std::thread::{self, JoinHandle};
 
 use crate::failure::Failure;
 use locust_proto::api::{
-    ApiError, ClientHello, ErrorCode, RequestFrame, ResponseFrame, ServerHello,
+    ApiError, ClientHello, ErrorCode, Request, RequestFrame, ResponseFrame, ServerHello,
 };
 use locust_proto::engine::{
-    ConnId, Engine, ExchangeId, Parked, PeerEngine, PeerInput, PeerOutput, Step,
+    ConnId, Engine, ExchangeId, Parked, PeerEngine, PeerInput, PeerOutput, PeerTime, Step,
 };
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch;
 
-/// The time passed into every engine call: Unix milliseconds.
+/// Wall time for local requests and peer diagnostics: Unix milliseconds.
+/// Peer scheduling also receives the worker's monotonic elapsed time.
 pub(crate) type Clock = fn() -> u64;
 
 /// What a connection task asks of the engine thread.
@@ -37,6 +38,8 @@ pub(crate) enum Job {
     },
     /// A request arrived on a welcomed connection.
     Request { conn: ConnId, frame: RequestFrame },
+    /// The network refreshed contact hints before creating an invitation.
+    InviteReady { conn: ConnId, frame: RequestFrame },
     /// The time of the connection's parked request `request_id` is up.
     Expire { conn: ConnId, request_id: u64 },
     /// A welcomed connection ended.
@@ -200,9 +203,10 @@ struct Attached {
 pub(crate) enum NetworkOutput {
     Action(PeerOutput),
     Processed(tokio::sync::oneshot::Sender<()>),
+    Invite { conn: ConnId, frame: RequestFrame },
 }
 
-type PeerHandler<E> = fn(&mut E, PeerInput, u64, &mut Vec<PeerOutput>);
+type PeerHandler<E> = fn(&mut E, PeerInput, PeerTime, &mut Vec<PeerOutput>);
 type PeerReader<E> = fn(&E, ExchangeId) -> bool;
 type PeerHooks<E> = (fn(&E) -> [u8; 32], PeerHandler<E>, PeerReader<E>);
 
@@ -213,6 +217,7 @@ struct Worker<E> {
     blocked: HashMap<ExchangeId, tokio::sync::oneshot::Sender<()>>,
     engine: E,
     clock: Clock,
+    started: std::time::Instant,
     stop: watch::Sender<bool>,
     stop_announced: bool,
     conns: BTreeMap<ConnId, Attached>,
@@ -237,6 +242,7 @@ impl<E: Engine> Worker<E> {
             frames: Vec::new(),
             blocked: HashMap::new(),
             clock,
+            started: std::time::Instant::now(),
             stop,
             stop_announced: false,
             conns: BTreeMap::new(),
@@ -253,7 +259,32 @@ impl<E: Engine> Worker<E> {
                     hello,
                     answers,
                 } => self.connect(conn, &hello, answers),
-                Job::Request { conn, frame } => {
+                Job::Request { conn, frame }
+                    if self.peer.is_some()
+                        && matches!(frame.request, Request::GoalInvite { .. }) =>
+                {
+                    let id = frame.id;
+                    if self
+                        .output
+                        .send(NetworkOutput::Invite { conn, frame })
+                        .is_err()
+                    {
+                        self.deliver(
+                            conn,
+                            Step::Reply(ResponseFrame {
+                                id,
+                                result: Err(ApiError::new(
+                                    ErrorCode::Unavailable,
+                                    "the peer transport is unavailable",
+                                )),
+                            }),
+                        );
+                    }
+                }
+                Job::Request { conn, frame } | Job::InviteReady { conn, frame } => {
+                    if !self.conns.contains_key(&conn) {
+                        continue;
+                    }
                     let step = self.engine.request(conn, frame, (self.clock)());
                     self.deliver(conn, step);
                     self.network(PeerInput::Poll);
@@ -293,7 +324,16 @@ impl<E: Engine> Worker<E> {
 
     fn network(&mut self, input: PeerInput) {
         if let Some((peer, _)) = self.peer {
-            peer(&mut self.engine, input, (self.clock)(), &mut self.frames);
+            peer(
+                &mut self.engine,
+                input,
+                PeerTime {
+                    unix_ms: (self.clock)(),
+                    elapsed_ms: u64::try_from(self.started.elapsed().as_millis())
+                        .unwrap_or(u64::MAX),
+                },
+                &mut self.frames,
+            );
             for output in self.frames.drain(..) {
                 if self.output.send(NetworkOutput::Action(output)).is_err() {
                     break;
@@ -421,10 +461,18 @@ mod tests {
     }
     impl Engine for Fixture {
         fn connect(&mut self, _: ConnId, _: &ClientHello, _: u64) -> ServerHello {
-            panic!("unused")
+            ServerHello::Welcome {
+                api_version: locust_proto::API_VERSION,
+                daemon_version: "fixture".into(),
+                caller: locust_proto::api::Caller::Owner,
+                max_blob_bytes: 1024,
+            }
         }
-        fn request(&mut self, _: ConnId, _: RequestFrame, _: u64) -> Step {
-            panic!("unused")
+        fn request(&mut self, _: ConnId, frame: RequestFrame, _: u64) -> Step {
+            Step::Reply(ResponseFrame {
+                id: frame.id,
+                result: Err(ApiError::new(ErrorCode::Invalid, "fixture answered")),
+            })
         }
         fn resume(&mut self, _: ConnId, _: &Parked, _: bool, _: u64) -> Step {
             panic!("unused")
@@ -445,7 +493,7 @@ mod tests {
         fn endpoint_secret(&self) -> [u8; 32] {
             [0; 32]
         }
-        fn peer(&mut self, input: PeerInput, _: u64, out: &mut Vec<PeerOutput>) {
+        fn peer(&mut self, input: PeerInput, _: PeerTime, out: &mut Vec<PeerOutput>) {
             let exchange = match input {
                 PeerInput::Frame { exchange, .. } => {
                     self.remaining = 2;
@@ -537,5 +585,104 @@ mod tests {
         thread.jobs.send(Job::Peer(PeerInput::Poll)).unwrap();
         let error = thread.shutdown().unwrap_err();
         assert_eq!(error.code, ErrorCode::Corrupted);
+    }
+    #[tokio::test]
+    async fn pending_invite_readiness_does_not_block_other_requests_or_peer_progress() {
+        use locust_proto::api::Credential;
+        let mut thread = EngineThread::start_networked(
+            || {
+                Ok(Fixture {
+                    remaining: 0,
+                    failed: false,
+                })
+            },
+            || 123,
+        )
+        .unwrap();
+        let mut output = thread.outgoing.take().unwrap();
+        let (answers, mut replies) = tokio::sync::mpsc::unbounded_channel();
+        thread
+            .jobs
+            .send(Job::Connect {
+                conn: ConnId(1),
+                hello: ClientHello {
+                    api_version: locust_proto::API_VERSION,
+                    credential: Credential([1; 32]),
+                    session: None,
+                },
+                answers,
+            })
+            .unwrap();
+        assert!(matches!(replies.recv().await, Some(Answer::Hello(_))));
+        let frame = |id, request| RequestFrame {
+            id,
+            idempotency: None,
+            on_behalf: None,
+            request,
+        };
+        thread
+            .jobs
+            .send(Job::Request {
+                conn: ConnId(1),
+                frame: frame(
+                    1,
+                    Request::GoalInvite {
+                        goal: GoalId([1; 32]),
+                        expires_ms: None,
+                    },
+                ),
+            })
+            .unwrap();
+        let Some(NetworkOutput::Invite {
+            conn,
+            frame: invite,
+        }) = output.recv().await
+        else {
+            panic!("invite readiness")
+        };
+        assert!(
+            replies.try_recv().is_err(),
+            "invite answered before refreshed hints"
+        );
+        thread
+            .jobs
+            .send(Job::Request {
+                conn,
+                frame: frame(2, Request::Status),
+            })
+            .unwrap();
+        let reply = tokio::time::timeout(std::time::Duration::from_secs(2), replies.recv())
+            .await
+            .unwrap();
+        assert!(matches!(
+            reply,
+            Some(Answer::Reply(ResponseFrame { id: 2, .. }))
+        ));
+        thread
+            .jobs
+            .send(Job::Peer(PeerInput::Frame {
+                exchange: ExchangeId::Accepted(1),
+                frame: SyncMessage::Frontier(Default::default()),
+            }))
+            .unwrap();
+        let action = tokio::time::timeout(std::time::Duration::from_secs(2), output.recv())
+            .await
+            .unwrap();
+        assert!(matches!(
+            action,
+            Some(NetworkOutput::Action(PeerOutput::Send { .. }))
+        ));
+        thread
+            .jobs
+            .send(Job::InviteReady {
+                conn,
+                frame: invite,
+            })
+            .unwrap();
+        assert!(matches!(
+            replies.recv().await,
+            Some(Answer::Reply(ResponseFrame { id: 1, .. }))
+        ));
+        thread.shutdown().unwrap();
     }
 }

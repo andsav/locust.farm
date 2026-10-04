@@ -159,7 +159,15 @@ impl Net {
         }
         let mut out = Vec::new();
         let Node { host, driver, .. } = &mut self.nodes[node];
-        driver.handle(host, input, self.now_ms, &mut out);
+        driver.handle(
+            host,
+            input,
+            locust_proto::engine::PeerTime {
+                unix_ms: self.now_ms,
+                elapsed_ms: self.now_ms,
+            },
+            &mut out,
+        );
         for output in out {
             self.output(node, output);
         }

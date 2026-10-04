@@ -20,6 +20,7 @@ pub struct Responder {
     goal: Option<GoalId>,
     admitted: bool,
     evidence: bool,
+    received: bool,
     ended: Option<Ended>,
     outbox: Outbox,
 }
@@ -32,6 +33,7 @@ impl Responder {
             goal: None,
             admitted: false,
             evidence: false,
+            received: false,
             ended: None,
             outbox: Outbox::default(),
         }
@@ -55,6 +57,11 @@ impl Responder {
 
     pub fn is_evidence(&self) -> bool {
         self.evidence
+    }
+
+    /// True once the peer pushed an event this daemon did not hold.
+    pub fn received(&self) -> bool {
+        self.received
     }
 
     /// True once the exchange is over: after `Done`, or after a refusal.
@@ -188,7 +195,7 @@ impl Responder {
                 next: 0,
             }),
             SyncMessage::Events(events) => {
-                replica.receive(events)?;
+                self.received |= replica.receive(events)? > 0;
             }
             SyncMessage::InventoryRequest { author, after } => {
                 self.outbox.task(Work::Inventory { author, after });

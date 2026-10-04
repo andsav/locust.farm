@@ -1,7 +1,7 @@
 //! Workspace snapshots.
 //!
 //! This crate runs inside the trusted CLI, never inside the daemon, and never
-//! talks to the daemon itself. It has two operations:
+//! talks to the daemon itself. Snapshot operations:
 //!
 //! - [`export()`] reads the files of one named Git commit under an export
 //!   root, leaves out credentials and private material, stores each file and
@@ -22,27 +22,40 @@
 //! Only regular files and the executable bit are carried; a symlink, a
 //! submodule or any other entry is an explicit error.
 //!
-//! Patches bound to a manifest are not implemented yet.
+//! [`create_committed`] and [`create_selected`] store inert, versioned
+//! contributions bound to exact base and head manifests. [`review_contribution`]
+//! reads the same blobs for review; [`apply_contribution`] applies only the
+//! reviewed changes, with expected-base checks and recoverable original files.
 //!
 //! Unix only (macOS and Linux): materialization sets modes through
-//! `std::os::unix`. Depends on `locust-proto` only. Owner: the workspace
+//! `std::os::unix`; contribution mutations use descriptor-relative `rustix`
+//! filesystem operations. Owner: the workspace
 //! stream; see `docs/workstreams.md`.
 //!
 //! [`Manifest`]: locust_proto::manifest::Manifest
 
 #![forbid(unsafe_code)]
 
+mod apply;
+mod capture;
+mod contribution;
 mod export;
 mod git;
 mod materialize;
+mod review;
+mod safe_fs;
 mod select;
 
 use std::io;
 
 use locust_proto::id::BlobHash;
 
+pub use apply::{ApplyReport, apply_contribution};
+pub use capture::{create_committed, create_selected};
+pub use contribution::{BlobStore, Change, Contribution, ContributionError, ContributionReport};
 pub use export::{ExportError, ExportReport, export};
 pub use materialize::{MaterializeError, materialize};
+pub use review::{ChangeReview, ContributionReview, FileSummary, review_contribution};
 
 /// Stores content objects for an export.
 pub trait BlobSink {

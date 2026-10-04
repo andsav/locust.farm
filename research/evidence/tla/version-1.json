@@ -7265,5 +7265,211 @@
     "Goal append and replay share transition algebra; source mapping is reviewed, not mechanically proved.",
     "Atomic storage; no retention quotas, invitations/read epochs, shutdown cleanup, transport or power-loss model.",
     "macOS Arm64 checked locally; Linux and remote CI unverified."
-  ]
+  ],
+  "upstream_integration": {
+    "date": "2026-10-04",
+    "local_parent": "b25197b2c1dcf03bee540f2a30c6ac78eefb08b0",
+    "upstream_parent": "e23df22d97e41fa2fc3eda0090f3f8d9730fe186",
+    "upstream_commit_count": 28,
+    "review": {
+      "baseline": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
+      "upstream": "e23df22d97e41fa2fc3eda0090f3f8d9730fe186",
+      "unchanged_modeled_seams": {
+        "crates/locust-core/src/goal": {
+          "baseline_blob_or_tree": "4a0b09ad492bbf0c8792a5105709980728279e95",
+          "upstream_blob_or_tree": "4a0b09ad492bbf0c8792a5105709980728279e95"
+        },
+        "crates/locust-core/src/node/sessions.rs": {
+          "baseline_blob_or_tree": "b61880664f292a702ffd30bd683e4d664a7bea46",
+          "upstream_blob_or_tree": "b61880664f292a702ffd30bd683e4d664a7bea46"
+        },
+        "crates/locust-core/src/node/access.rs": {
+          "baseline_blob_or_tree": "ea94e5c1a9a2dd39a891e62489fcbfac3a79c5ce",
+          "upstream_blob_or_tree": "ea94e5c1a9a2dd39a891e62489fcbfac3a79c5ce"
+        },
+        "crates/locust-core/src/node/authoring.rs": {
+          "baseline_blob_or_tree": "5843ef73dff01bd649bc6e7709b9dbde18913d60",
+          "upstream_blob_or_tree": "5843ef73dff01bd649bc6e7709b9dbde18913d60"
+        },
+        "crates/locust-core/src/node/commit.rs": {
+          "baseline_blob_or_tree": "f9fd2a0ee2932dd9f34ac9ab1ba7c699e1b1a540",
+          "upstream_blob_or_tree": "f9fd2a0ee2932dd9f34ac9ab1ba7c699e1b1a540"
+        },
+        "crates/locust-core/src/node/callers.rs": {
+          "baseline_blob_or_tree": "6dcddf6a51f347c21ee029c363a11fdcd31a5b46",
+          "upstream_blob_or_tree": "6dcddf6a51f347c21ee029c363a11fdcd31a5b46"
+        },
+        "crates/locust-core/src/node/entry.rs": {
+          "baseline_blob_or_tree": "3b787324778ece64f9d9427bf4f0cb7bd7f1f1b0",
+          "upstream_blob_or_tree": "3b787324778ece64f9d9427bf4f0cb7bd7f1f1b0"
+        },
+        "crates/locust-core/src/node/requests/claims.rs": {
+          "baseline_blob_or_tree": "e83732a3ce8e1c26a698165c959c052799b942f2",
+          "upstream_blob_or_tree": "e83732a3ce8e1c26a698165c959c052799b942f2"
+        },
+        "crates/locust-core/src/node/requests/mod.rs": {
+          "baseline_blob_or_tree": "f68d62610394db196448d70ee5d76216df880931",
+          "upstream_blob_or_tree": "f68d62610394db196448d70ee5d76216df880931"
+        },
+        "crates/locust-core/src/node/requests/goals.rs": {
+          "baseline_blob_or_tree": "93e9838cb4f9acd438d1009b82a2c53cd8124066",
+          "upstream_blob_or_tree": "93e9838cb4f9acd438d1009b82a2c53cd8124066"
+        },
+        "crates/locust-core/src/node/tests/formal.rs": {
+          "baseline_blob_or_tree": "120154ad568851b6ffe3414c31ed77d176c6533a",
+          "upstream_blob_or_tree": "120154ad568851b6ffe3414c31ed77d176c6533a"
+        },
+        "crates/locust-proto/src/event.rs": {
+          "baseline_blob_or_tree": "c56dadb86654d0745485c736191a59f3601f8b5e",
+          "upstream_blob_or_tree": "c56dadb86654d0745485c736191a59f3601f8b5e"
+        },
+        "crates/locust-proto/src/api.rs": {
+          "baseline_blob_or_tree": "e2dad0827b854e320b5937ff629e3889eab2b954",
+          "upstream_blob_or_tree": "e2dad0827b854e320b5937ff629e3889eab2b954"
+        },
+        "crates/locust-proto/src/store.rs": {
+          "baseline_blob_or_tree": "854803467da76a5eb39cfd0e99f0909cd613a819",
+          "upstream_blob_or_tree": "854803467da76a5eb39cfd0e99f0909cd613a819"
+        }
+      },
+      "assessment": "Goal replay, local claims, authority, signing and commit rules are unchanged. New content graph/key-cache handling and PeerTime affect the assumed content/peer environment; they remain outside the scoped Stage 1 models. Source-wide hashes differ and are not relabeled as a new TLC run."
+    },
+    "checked_index_tree_before_evidence_update": "b8a80833a2d261ecce828a639aab564c62de8cd8",
+    "checks": [
+      {
+        "command": "cargo fmt --all --check",
+        "exit_code": 0,
+        "elapsed_seconds": 0.855,
+        "log": "output/tla/integration/fmt.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "command": "cargo clippy --locked --workspace --all-targets -- -D warnings",
+        "exit_code": 0,
+        "elapsed_seconds": 52.847,
+        "log": "output/tla/integration/clippy.log",
+        "log_sha256": "79b602f6c557e8161568ae3d05c5323cfcb456e31140510adfa6fa2528da10ac"
+      },
+      {
+        "command": "cargo test --locked --workspace",
+        "exit_code": 0,
+        "elapsed_seconds": 99.151,
+        "log": "output/tla/integration/test.log",
+        "log_sha256": "6179464833126e38e6777e7fd4ac5952796090611dd592f7841b309826829c1f",
+        "test_summaries": [
+          "test result: ok. 111 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 9.65s",
+          "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.97s",
+          "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.15s",
+          "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s",
+          "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+          "test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+          "test result: ok. 130 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 7.05s",
+          "test result: ok. 26 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+          "test result: ok. 159 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s",
+          "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.62s",
+          "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.62s",
+          "test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s",
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s",
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "tests_passed": 571,
+        "tests_ignored": 11,
+        "ignored_tests": [
+          "test daemon::network::tests::receive_only_completed_frames_survive_production_idle_interval ... ignored, real Iroh one-way traffic runs beyond the production 30-second idle interval",
+          "test daemon::network::tests::send_only_completed_frames_survive_production_idle_interval ... ignored, real Iroh one-way traffic runs beyond the production 30-second idle interval",
+          "test claude_parses_equals_overlay_and_delivers_server_only_environment ... ignored, set LOCUST_CLAUDE_BIN to an absolute installed Claude executable; no login/model needed",
+          "test codex_parses_overlay_and_preserves_other_server_and_profile ... ignored, set LOCUST_CODEX_BIN to an absolute installed Codex executable; no login/model needed",
+          "test node::sim::tests::sim_many ... ignored, long: set LOCUST_SIM_SEEDS and run with --ignored",
+          "test node::sim::tests::sim_one ... ignored, replay: set LOCUST_SIM_SEED and run with --ignored --nocapture",
+          "test tests::mainline_finds_a_peer_by_key_without_contact_hints ... ignored, uses public Mainline DHT and n0 relays; run explicitly for T1 qualification",
+          "test tests::mdns_finds_a_peer_by_key_without_contact_hints ... ignored, requires local multicast networking; run explicitly for T1 qualification",
+          "test child_commits_until_stopped ... ignored, run by the crash tests as a child process",
+          "test recovery_child ... ignored, invoked by recovery_flushes as an owned subprocess",
+          "test recovery_flushes_before_exposure_and_refuses_a_failed_barrier ... ignored, requires the macOS verify-store flush interposer; see module documentation"
+        ]
+      },
+      {
+        "command": "npm run lint",
+        "working_directory": "sites/locust.farm",
+        "exit_code": 0,
+        "elapsed_seconds": 5.318,
+        "log": "output/tla/integration/site-lint.log",
+        "log_sha256": "fd9df0dbd7c99f3dc5b0b4ed328380f687b92acc6fe34363f3ad53b943b62321"
+      },
+      {
+        "command": "npm run check",
+        "working_directory": "sites/locust.farm",
+        "exit_code": 0,
+        "elapsed_seconds": 6.07,
+        "log": "output/tla/integration/site-check.log",
+        "log_sha256": "79db718ef0d6082d6a5c6c9b05cddef1f88afe657f86bc8c3a1fb403a5937267"
+      },
+      {
+        "command": "npm test",
+        "working_directory": "sites/locust.farm",
+        "exit_code": 0,
+        "elapsed_seconds": 0.69,
+        "log": "output/tla/integration/site-test.log",
+        "log_sha256": "7ca7c4c799563273e92eb3b7e3cea98a86f7c5f58e74a10ae7378d6e8bed3218",
+        "summary": "26 passed; 0 failed; 0 skipped",
+        "tests_passed": 26
+      },
+      {
+        "command": "npm run build",
+        "working_directory": "sites/locust.farm",
+        "exit_code": 0,
+        "elapsed_seconds": 5.169,
+        "log": "output/tla/integration/site-build.log",
+        "log_sha256": "cb390199308639a79b6637fbc5cf673b8de4e3f418a32afa6ee2607408ac821b"
+      },
+      {
+        "command": "python3 -m unittest discover -s scripts/tests -v",
+        "environment": {
+          "DYLD_LIBRARY_PATH": "/opt/homebrew/opt/expat/lib"
+        },
+        "exit_code": 0,
+        "elapsed_seconds": 36.134,
+        "log": "output/tla/integration/python-retry.log",
+        "log_sha256": "bee7eab9a4e47112eb20f05c5b4826bd58189282a61a07c6e7dc8a759437ef0a",
+        "tests_run": 173,
+        "tests_passed": 172,
+        "tests_skipped": 1,
+        "skipped_test": "test_actual_binary_persistent_sqlite_and_identity: compiled production binary and macOS guard required"
+      },
+      {
+        "command": "python3 scripts/check_docs.py",
+        "exit_code": 0,
+        "elapsed_seconds": 0.136,
+        "log": "output/tla/integration/docs.log",
+        "log_sha256": "ab1fbcf1c93cd55f385149bf1c995a2792e8b277a63057e99e56bdae540dc5e9"
+      }
+    ],
+    "initial_python_failure": {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "exit_code": 1,
+      "log": "..............fixture compilation failed\n......................................................................EE..............s......................................................\n======================================================================\nERROR: test_installation (unittest.loader._FailedTest.test_installation)\n----------------------------------------------------------------------\nImportError: Failed to import test module: test_installation\nTraceback (most recent call last):\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 426, in _find_test_path\n    module = self._get_module_from_name(name)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 367, in _get_module_from_name\n    __import__(name)\n    ~~~~~~~~~~^^^^^^\n  File \"/Users/andrei/Projects26/locust.farm/scripts/tests/test_installation.py\", line 18, in <module>\n    spec.loader.exec_module(installation)\n    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^\n  File \"/Users/andrei/Projects26/locust.farm/scripts/check_installation.py\", line 18, in <module>\n    import plistlib\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/plistlib.py\", line 70, in <module>\n    from xml.parsers.expat import ParserCreate\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/xml/parsers/expat.py\", line 4, in <module>\n    from pyexpat import *\nImportError: dlopen(/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/lib-dynload/pyexpat.cpython-314-darwin.so, 0x0002): Symbol not found: _XML_SetAllocTrackerActivationThreshold\n  Referenced from: <1AAB1AFF-0B6A-3B67-86F5-A72CB69F8B1B> /opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/lib-dynload/pyexpat.cpython-314-darwin.so\n  Expected in:     <4D62FA9D-D86A-3DD0-98F2-C6D0718849E8> /usr/lib/libexpat.1.dylib\n\n\n======================================================================\nERROR: test_installed_clients (unittest.loader._FailedTest.test_installed_clients)\n----------------------------------------------------------------------\nImportError: Failed to import test module: test_installed_clients\nTraceback (most recent call last):\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 426, in _find_test_path\n    module = self._get_module_from_name(name)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 367, in _get_module_from_name\n    __import__(name)\n    ~~~~~~~~~~^^^^^^\n  File \"/Users/andrei/Projects26/locust.farm/scripts/tests/test_installed_clients.py\", line 11, in <module>\n    import check_installed_clients as harness\n  File \"/Users/andrei/Projects26/locust.farm/scripts/check_installed_clients.py\", line 25, in <module>\n    from check_installation import copy_bundle\n  File \"/Users/andrei/Projects26/locust.farm/scripts/check_installation.py\", line 18, in <module>\n    import plistlib\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/plistlib.py\", line 70, in <module>\n    from xml.parsers.expat import ParserCreate\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/xml/parsers/expat.py\", line 4, in <module>\n    from pyexpat import *\nImportError: dlopen(/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/lib-dynload/pyexpat.cpython-314-darwin.so, 0x0002): Symbol not found: _XML_SetAllocTrackerActivationThreshold\n  Referenced from: <1AAB1AFF-0B6A-3B67-86F5-A72CB69F8B1B> /opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/lib-dynload/pyexpat.cpython-314-darwin.so\n  Expected in:     <4D62FA9D-D86A-3DD0-98F2-C6D0718849E8> /usr/lib/libexpat.1.dylib\n\n\n----------------------------------------------------------------------\nRan 155 tests in 32.866s\n\nFAILED (errors=2, skipped=1)\n",
+      "resolution": "The local Homebrew Python 3.14 loaded the system Expat, which lacks XML_SetAllocTrackerActivationThreshold. Retry with command-scoped DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib loaded Expat 2.8.1. No repository or global environment changes were needed."
+    },
+    "diff_check": {
+      "task_changes_and_nonpatch_merge_files": "passed",
+      "archived_upstream_patches": "git diff --cached --check reports whitespace in patch context lines. All four archived .patch files are byte-identical to upstream and retained unchanged."
+    },
+    "tlc_rerun_after_merge": false,
+    "evidence_boundary": "The 36 v1 checks retain their original frozen inputs and mapped Rust hashes. Fourteen modeled source areas are byte-identical through the upstream parent; integration tests validate the merged workspace but do not convert the earlier TLC runs into a full protocol conformance proof."
+  }
 }

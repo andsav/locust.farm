@@ -182,6 +182,16 @@ pub enum PeerOutput {
     Evidence(ExchangeId),
 }
 
+/// Clock samples for one peer-engine input. Elapsed time is monotonic within
+/// one engine lifetime and has an arbitrary origin; wall time may step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PeerTime {
+    /// Unix milliseconds, for invitation expiry and diagnostic timestamps.
+    pub unix_ms: u64,
+    /// Monotonic milliseconds, for retries and periodic reconciliation.
+    pub elapsed_ms: u64,
+}
+
 /// The state machine as the transport sees it.
 pub trait PeerEngine {
     /// The 32-byte secret the transport's endpoint identity is derived from.
@@ -198,5 +208,5 @@ pub trait PeerEngine {
     /// Handles one input and appends what the transport should do to `out`.
     /// The shell calls [`Engine::take_changed`] afterwards, because a frame
     /// from a peer can answer a parked wait.
-    fn peer(&mut self, input: PeerInput, now_ms: u64, out: &mut Vec<PeerOutput>);
+    fn peer(&mut self, input: PeerInput, time: PeerTime, out: &mut Vec<PeerOutput>);
 }

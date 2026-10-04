@@ -6,8 +6,8 @@ use std::collections::BTreeMap;
 use std::fs;
 
 use locust_proto::crypto::content_hash;
-use locust_proto::limits::MAX_BLOB_BYTES;
 use locust_proto::manifest::Manifest;
+use locust_proto::seal::MAX_PLAINTEXT_BYTES;
 use locust_workspace::{ExportError, export, materialize};
 use support::{File, MemBlobs, TestRepo, read_tree};
 
@@ -296,14 +296,14 @@ fn a_file_over_the_object_limit_fails_before_anything_is_stored() {
     let repo = TestRepo::new();
     repo.write("small.txt", b"small\n");
     repo.git(["add", "small.txt"]);
-    let big = repo.hash_object(&vec![0; MAX_BLOB_BYTES + 1]);
+    let big = repo.hash_object(&vec![0; MAX_PLAINTEXT_BYTES + 1]);
     repo.add_index_entry("100644", &big, b"big.bin");
     repo.commit();
 
     let mut store = MemBlobs::default();
     let error = export(repo.path(), "HEAD", &mut store).unwrap_err();
     assert!(
-        matches!(&error, ExportError::TooLarge { path, size } if path == "big.bin" && *size == MAX_BLOB_BYTES as u64 + 1),
+        matches!(&error, ExportError::TooLarge { path, size } if path == "big.bin" && *size == MAX_PLAINTEXT_BYTES as u64 + 1),
         "{error:?}"
     );
     assert!(store.objects.is_empty());

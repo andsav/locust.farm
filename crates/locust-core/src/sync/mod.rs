@@ -10,7 +10,8 @@
 //!   it does not know.
 //! - [`Initiator`] runs an exchange this daemon opened: `Hello`, its
 //!   `Frontier`, the answer, the pushes and requests the reconciliation rule
-//!   calls for, then the content objects and keys it lacks, then `Done`.
+//!   calls for, then founding content and keys, bulk content and remaining
+//!   keys, then `Done`.
 //! - [`Driver`] owns every exchange of the daemon: which to open, retries
 //!   with backoff, anti-entropy, admission and finishing. It turns
 //!   [`PeerInput`](locust_proto::engine::PeerInput) into
@@ -97,6 +98,12 @@ pub trait Replica {
     /// says whether it did. A key that cannot be checked yet is refused; a
     /// later exchange offers it again.
     fn offer_key(&mut self, epoch: u32, key: ContentKey) -> bool;
+
+    /// The missing founding payload, fetched before bulk history so its key
+    /// and goal title can become usable immediately. None when already held.
+    fn founding_blob(&self) -> Option<(BlobHash, u64)> {
+        None
+    }
 
     /// At most `limit` content objects the goal's held events name and this
     /// replica lacks, payloads of held events first, each with its staged

@@ -77,11 +77,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn blob_get(&self, actor: &Actor, goal: GoalId, hash: BlobHash) -> Plan {
         let entry = self.readable(actor, &goal)?;
         let record = blob_record(&self.store, &goal, &hash)?;
-        if !entry.names(&hash) && record.is_none() {
+        if !self.names_content(entry, &hash) && record.is_none() {
             return Err(not_found("nothing in this goal names that content"));
         }
         if record.is_some_and(|record| record.withdrawn) {
             return Err(unavailable("the content was withdrawn on this daemon"));
+        }
+        if !self.content_path_readable(entry, &hash, actor.principal.as_ref(), None) {
+            return Err(crate::node::access::denied(
+                "the content path is outside this principal's membership",
+            ));
         }
         let bytes = self
             .store
@@ -94,7 +99,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "the content does not match this goal's references",
             ));
         }
-        if !entry.may_read_epoch(actor.principal.as_ref(), epoch) {
+        if !self.content_path_readable(
+            entry,
+            &hash,
+            actor.principal.as_ref(),
+            Some((bytes.len() as u64, epoch)),
+        ) {
             return Err(crate::node::access::denied(
                 "the content epoch is outside this principal's membership",
             ));
@@ -125,10 +135,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         let entry = self.readable(actor, &goal)?;
         let record = blob_record(&self.store, &goal, &hash)?;
-        if !entry.names(&hash) && record.is_none() {
+        if !self.names_content(entry, &hash) && record.is_none() {
             return Ok(());
         }
-        if record.is_some_and(|record| record.withdrawn || record.wanted)
+        if !self.content_path_readable(entry, &hash, actor.principal.as_ref(), None)
+            || (!entry.names(&hash) && record.is_none() && self.blob_index.names(&goal, &hash))
+            || record.is_some_and(|record| record.withdrawn || record.wanted)
             || self.store.blob_len(&hash)?.is_some()
         {
             return Ok(());
@@ -160,7 +172,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
 
     pub(super) fn blob_withdraw(&self, actor: &Actor, goal: GoalId, hash: BlobHash) -> Plan {
         let (entry, _) = self.member(actor, &goal)?;
-        if !entry.names(&hash) && blob_record(&self.store, &goal, &hash)?.is_none() {
+        if !self.names_content(entry, &hash) && blob_record(&self.store, &goal, &hash)?.is_none() {
             return Err(not_found("nothing in this goal names that content"));
         }
         let mut tx = Tx::none();
@@ -187,15 +199,22 @@ impl<S: Store, E: Entropy> Node<S, E> {
         hash: &BlobHash,
         reader: Option<&locust_proto::id::PublicKey>,
     ) -> Result<BlobState, ApiError> {
-        if !entry.names(hash) && blob_record(&self.store, &entry.id(), hash)?.is_none() {
+        if !self.names_content(entry, hash)
+            && blob_record(&self.store, &entry.id(), hash)?.is_none()
+        {
             return Ok(BlobState::Unknown);
         }
-        if reader.is_some_and(|reader| entry.goal.read_epoch(reader).is_none()) {
+        if !self.content_path_readable(entry, hash, reader, None) {
             return Ok(BlobState::Unavailable);
         }
         if let Some(prefix) = self.store.blob_range(hash, 0, seal::OVERHEAD_BYTES)?
             && let Ok(epoch) = seal::epoch_of(&prefix)
-            && !entry.may_read_epoch(reader, epoch)
+            && !self.content_path_readable(
+                entry,
+                hash,
+                reader,
+                Some((self.store.blob_len(hash)?.unwrap_or(0), epoch)),
+            )
         {
             return Ok(BlobState::Unavailable);
         }
@@ -208,7 +227,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         hash: &BlobHash,
     ) -> Result<BlobState, ApiError> {
         let record = blob_record(&self.store, &entry.id(), hash)?;
-        if !entry.names(hash) && record.is_none() {
+        if !self.names_content(entry, hash) && record.is_none() {
             return Ok(BlobState::Unknown);
         }
         if record.is_some_and(|record| record.withdrawn) {

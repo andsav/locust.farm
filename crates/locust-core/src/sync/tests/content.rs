@@ -50,3 +50,57 @@ fn ciphertext_arrives_before_a_verifiable_key_and_corruption_is_retried() {
     assert!(left.holds_blob(&payload.hash));
     assert_eq!(left.key(0), Some(testkit::content_key(1)));
 }
+
+/// A peer that returns pushes its new event; the receiver, backed off from
+/// it for most of a minute, fetches the event's text and key at once
+/// instead of after its backoff runs out.
+#[test]
+fn a_returning_peers_push_is_followed_by_an_immediate_fetch() {
+    use crate::sync::Replica;
+    use locust_proto::testkit::{self, Author};
+    let founded = Founded::new();
+    let (payload, blob) = testkit::sealed_payload(&founded.goal, 0, b"written after waking");
+    let event =
+        Author::new(2).event_with(founded.goal, founded.anchor(), super::note(), Some(payload));
+    let mut right = founded.replica(std::slice::from_ref(&event));
+    right.add_blob(blob);
+    right.set_key(0, testkit::content_key(1));
+    let mut net = Net::new(vec![
+        host(1, founded.replica(&[]), &[1, 2]),
+        host(2, right, &[1, 2]),
+    ]);
+    // The first node keeps failing to reach the second until its wait has
+    // grown to a minute, with most of the last one still to run.
+    net.set_online(1, false);
+    for _ in 0..70 {
+        net.tick(1_000);
+    }
+    net.set_online(1, true);
+    net.poll(&[1]);
+    let left = net.host(0).replica_mut(&founded.goal);
+    assert!(left.ids().contains(&event.id()), "the event is pushed");
+    assert!(left.holds_blob(&payload.hash));
+    assert_eq!(left.key(0), Some(testkit::content_key(1)));
+}
+
+/// Two members that want an object neither holds do not answer each
+/// other's exchanges with new ones for ever: only an exchange that brought
+/// new events is followed by an immediate fetch.
+#[test]
+fn content_nobody_holds_does_not_start_a_fetch_loop() {
+    use locust_proto::sync::SyncMessage;
+    let founded = Founded::new();
+    let missing = BlobHash([7; 32]);
+    let mut left = founded.replica(&[]);
+    left.wants.insert(missing, 32);
+    let mut right = founded.replica(&[]);
+    right.wants.insert(missing, 32);
+    let mut net = Net::new(vec![host(1, left, &[1, 2]), host(2, right, &[1, 2])]);
+    net.poll(&[0]);
+    let requests = net
+        .log
+        .iter()
+        .filter(|(_, frame)| matches!(frame, SyncMessage::BlobRequest { .. }))
+        .count();
+    assert_eq!(requests, 1);
+}

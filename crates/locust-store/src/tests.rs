@@ -512,6 +512,78 @@ fn leftovers_in_the_object_directory_are_collected_on_open() {
     );
 }
 
+#[test]
+fn startup_collection_keeps_unreferenced_durable_content_and_interrupted_transfers() {
+    let (dir, mut store) = scratch();
+    let retained = object(INLINE_MAX_BYTES + 101);
+    let transfer = object(3 * BLOB_CHUNK_BYTES + 7);
+    let chunk = BLOB_CHUNK_BYTES;
+    // The store does not infer eviction from local policy metadata. Removing
+    // a pointer (or recording withdrawal/leave above this layer) cannot erase
+    // an acknowledged object or an independently durable transfer prefix.
+    store
+        .commit(&Commit {
+            blobs: vec![retained.clone()],
+            local: vec![put(Space::Blob, b"policy", retained.hash().as_bytes())],
+            ..Commit::default()
+        })
+        .unwrap();
+    store
+        .commit(&Commit {
+            local: vec![LocalWrite::Delete {
+                space: Space::Blob,
+                key: b"policy".to_vec(),
+            }],
+            ..Commit::default()
+        })
+        .unwrap();
+    store
+        .stage_blob(&transfer.hash(), 0, &transfer.bytes()[..chunk])
+        .unwrap();
+    drop(store);
+
+    let orphan = object(INLINE_MAX_BYTES + 102);
+    fs::write(
+        dir.path().join("blobs").join(orphan.hash().to_string()),
+        orphan.bytes(),
+    )
+    .unwrap();
+    let mut store = reopen(&dir);
+    assert_eq!(store.get(Space::Blob, b"policy").unwrap(), None);
+    assert_eq!(
+        store.blob(&retained.hash()).unwrap(),
+        Some(retained.bytes().to_vec())
+    );
+    assert_eq!(store.staged_len(&transfer.hash()).unwrap(), chunk as u64);
+    assert!(
+        !dir.path()
+            .join("blobs")
+            .join(orphan.hash().to_string())
+            .exists()
+    );
+    for start in (chunk..transfer.bytes().len()).step_by(chunk) {
+        let end = (start + chunk).min(transfer.bytes().len());
+        store
+            .stage_blob(
+                &transfer.hash(),
+                start as u64,
+                &transfer.bytes()[start..end],
+            )
+            .unwrap();
+    }
+    assert!(store.finish_blob(&transfer.hash()).unwrap());
+    drop(store);
+    let store = reopen(&dir);
+    assert_eq!(
+        store.blob(&retained.hash()).unwrap(),
+        Some(retained.bytes().to_vec())
+    );
+    assert_eq!(
+        store.blob(&transfer.hash()).unwrap(),
+        Some(transfer.bytes().to_vec())
+    );
+}
+
 /// The largest header the contract admits: every list at its limit and
 /// every integer at its widest encoding.
 fn largest_header(n: usize, prev: EventId) -> Header {

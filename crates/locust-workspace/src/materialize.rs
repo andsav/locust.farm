@@ -1,34 +1,33 @@
-//! Materialize: a manifest becomes files in a new directory.
-//!
-//! Files are written into a staging directory beside the destination, named
-//! `.<destination name>.locust-partial`, which is renamed into place only
-//! once every file is written and its size checked. A process that stops
-//! part way leaves only the staging directory, which the next run for the
-//! same destination removes; the destination itself never appears
-//! incomplete. One materialization per destination runs at a time.
-//!
-//! Every directory and file is created new inside the fresh staging
-//! directory, so nothing is followed: a name the filesystem already holds
-//! under another spelling (case folding, Unicode normalization) is reported
-//! as a collision. Files are not synced to disk one by one; the guarantee
-//! covers an interrupted process, not a power loss, matching what Git does
-//! for a checkout.
+//! Materialize exact manifest bytes into a new destination. Each invocation
+//! owns a private unique staging directory; it never removes another run's
+//! files. Received paths use descriptor-relative no-follow creation, and
+//! NOREPLACE publication prevents a concurrent destination from being replaced.
+//! Failed or interrupted staging directories are retained for explicit local
+//! inspection and cleanup, with their path included in ordinary error reports.
 
-use std::collections::HashSet;
 use std::ffi::OsString;
 use std::fmt;
-use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
-use std::os::unix::fs::OpenOptionsExt;
+use std::fs::File;
+use std::io;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use locust_proto::id::BlobHash;
 use locust_proto::manifest::{Manifest, ManifestError};
+use rustix::fs::{self, AtFlags, Mode};
 
-use crate::BlobSource;
+use crate::{BlobSource, ContributionError, safe_fs};
 
 #[derive(Debug)]
 pub enum MaterializeError {
+    /// No publication occurred; the invocation's own staging files remain.
+    Staging {
+        path: PathBuf,
+        error: Box<MaterializeError>,
+    },
+    /// Exact files were published, but syncing their directory failed.
+    Published { path: PathBuf, error: io::Error },
     /// The manifest fails the contract's checks. Nothing was written.
     Manifest(ManifestError),
     /// The destination has no final name, such as `/` or `..`.
@@ -55,6 +54,16 @@ pub enum MaterializeError {
 impl fmt::Display for MaterializeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Staging { path, error } => write!(
+                f,
+                "materialization incomplete; staged files retained at {}: {error}",
+                path.display()
+            ),
+            Self::Published { path, error } => write!(
+                f,
+                "files published at {}, but directory durability is unconfirmed: {error}",
+                path.display()
+            ),
             Self::Manifest(error) => write!(f, "invalid manifest: {error}"),
             Self::InvalidDestination(path) => {
                 write!(
@@ -88,6 +97,8 @@ impl fmt::Display for MaterializeError {
 impl std::error::Error for MaterializeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Staging { error, .. } => Some(error),
+            Self::Published { error, .. } => Some(error),
             Self::Manifest(error) => Some(error),
             Self::Source(error) | Self::Io { error, .. } => Some(error),
             _ => None,
@@ -102,77 +113,117 @@ fn io_error(path: &Path, error: io::Error) -> MaterializeError {
     }
 }
 
-/// Writes the files `manifest` names, read from `source`, into
-/// `destination`, which must not exist yet; its parent must.
-///
-/// On any error the destination does not exist afterwards.
+/// Writes the files `manifest` names into a new `destination` whose parent
+/// exists. Concurrent calls use independent stages; at most one can publish.
+/// Errors before publication retain only this call's stage, leaving an
+/// independently created destination untouched.
 pub fn materialize(
     manifest: &Manifest,
     source: &mut dyn BlobSource,
     destination: &Path,
 ) -> Result<(), MaterializeError> {
     manifest.check().map_err(MaterializeError::Manifest)?;
-    let staging = staging_path(destination)?;
-    ensure_absent(destination)?;
-    remove_leftover(&staging)?;
-    fs::create_dir(&staging).map_err(|error| io_error(&staging, error))?;
-
-    let result = write_files(manifest, source, &staging).and_then(|()| {
-        ensure_absent(destination)?;
-        fs::rename(&staging, destination).map_err(|error| io_error(destination, error))
-    });
-    if result.is_err() {
-        let _ = fs::remove_dir_all(&staging);
-    }
-    result
-}
-
-fn staging_path(destination: &Path) -> Result<PathBuf, MaterializeError> {
-    let name = destination
+    destination
         .file_name()
         .ok_or_else(|| MaterializeError::InvalidDestination(destination.to_path_buf()))?;
-    let mut staging = OsString::from(".");
-    staging.push(name);
-    staging.push(".locust-partial");
-    Ok(destination.with_file_name(staging))
+    let parent_path = destination
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let parent =
+        safe_fs::root(parent_path).map_err(|error| filesystem_error(parent_path, error))?;
+    let leaf = destination.file_name().expect("validated final name");
+    ensure_absent(&parent, leaf, destination)?;
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let (name, staging_path) = loop {
+        let name = OsString::from(format!(
+            ".locust-apply-materialize-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let path = parent_path.join(&name);
+        match fs::mkdirat(&parent, &name, Mode::from_raw_mode(0o700)) {
+            Ok(()) => break (name, path),
+            Err(error) if error == rustix::io::Errno::EXIST => continue,
+            Err(error) => return Err(io_error(&path, error.into())),
+        }
+    };
+    let result = (|| {
+        let staging = File::from(
+            fs::openat(
+                &parent,
+                &name,
+                fs::OFlags::RDONLY
+                    | fs::OFlags::DIRECTORY
+                    | fs::OFlags::NOFOLLOW
+                    | fs::OFlags::CLOEXEC,
+                Mode::empty(),
+            )
+            .map_err(|error| io_error(&staging_path, error.into()))?,
+        );
+        write_files(manifest, source, &staging, &staging_path)?;
+        let original = staging
+            .metadata()
+            .map_err(|error| io_error(&staging_path, error))?;
+        let current = fs::statat(&parent, &name, AtFlags::SYMLINK_NOFOLLOW)
+            .map_err(|error| io_error(&staging_path, error.into()))?;
+        if original.ino() != current.st_ino || original.dev() != current.st_dev as u64 {
+            return Err(io_error(
+                &staging_path,
+                io::Error::other("staging directory changed before publication"),
+            ));
+        }
+        fs::renameat_with(&parent, &name, &parent, leaf, fs::RenameFlags::NOREPLACE).map_err(
+            |error| {
+                if error == rustix::io::Errno::EXIST {
+                    MaterializeError::DestinationExists(destination.to_path_buf())
+                } else {
+                    io_error(destination, error.into())
+                }
+            },
+        )?;
+        Ok(())
+    })();
+    result.map_err(|error| MaterializeError::Staging {
+        path: staging_path,
+        error: Box::new(error),
+    })?;
+    parent
+        .sync_all()
+        .map_err(|error| MaterializeError::Published {
+            path: destination.to_path_buf(),
+            error,
+        })
 }
 
-fn ensure_absent(destination: &Path) -> Result<(), MaterializeError> {
-    match fs::symlink_metadata(destination) {
+fn ensure_absent(
+    parent: &File,
+    name: &std::ffi::OsStr,
+    destination: &Path,
+) -> Result<(), MaterializeError> {
+    match fs::statat(parent, name, AtFlags::SYMLINK_NOFOLLOW) {
         Ok(_) => Err(MaterializeError::DestinationExists(
             destination.to_path_buf(),
         )),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(io_error(destination, error)),
+        Err(error) if error == rustix::io::Errno::NOENT => Ok(()),
+        Err(error) => Err(io_error(destination, error.into())),
     }
 }
-
-/// Removes what an interrupted run left at the staging path. A symlink there
-/// is removed, never followed.
-fn remove_leftover(staging: &Path) -> Result<(), MaterializeError> {
-    let removed = match fs::symlink_metadata(staging) {
-        Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(staging),
-        Ok(_) => fs::remove_file(staging),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error),
-    };
-    removed.map_err(|error| io_error(staging, error))
+fn filesystem_error(path: &Path, error: ContributionError) -> MaterializeError {
+    match error {
+        ContributionError::Conflict { path, .. } | ContributionError::Unsupported { path, .. } => {
+            MaterializeError::Collision(path)
+        }
+        error => io_error(path, io::Error::other(error)),
+    }
 }
-
 fn write_files(
     manifest: &Manifest,
     source: &mut dyn BlobSource,
-    staging: &Path,
+    staging: &File,
+    label: &Path,
 ) -> Result<(), MaterializeError> {
-    let mut directories = HashSet::new();
     for entry in &manifest.entries {
-        for (end, _) in entry.path.match_indices('/') {
-            let directory = &entry.path[..end];
-            if directories.insert(directory) {
-                create(directory, staging, |path| fs::create_dir(path))?;
-            }
-        }
-
         let bytes = source
             .fetch(&entry.content)
             .map_err(MaterializeError::Source)?
@@ -187,42 +238,20 @@ fn write_files(
                 actual: bytes.len() as u64,
             });
         }
-
-        let mode = if entry.executable { 0o777 } else { 0o666 };
-        let mut file = create(&entry.path, staging, |path| {
-            OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .mode(mode)
-                .open(path)
+        let (parent, leaf) = safe_fs::parent(staging, &entry.path, true)
+            .map_err(|error| filesystem_error(&label.join(&entry.path), error))?;
+        safe_fs::write_new(&parent, &leaf, &bytes, entry.executable).map_err(|error| {
+            if matches!(&error, ContributionError::Io(error) if error.kind() == io::ErrorKind::AlreadyExists) { MaterializeError::Collision(entry.path.clone()) }
+            else { filesystem_error(&label.join(&entry.path), error) }
         })?;
-        file.write_all(&bytes)
-            .map_err(|error| io_error(&staging.join(&entry.path), error))?;
     }
     Ok(())
-}
-
-/// Creates the manifest path `relative` inside `staging` with `make`, which
-/// must fail if the name exists. An existing name is a collision, because
-/// this run has not created it under this spelling.
-fn create<T>(
-    relative: &str,
-    staging: &Path,
-    make: impl FnOnce(&Path) -> io::Result<T>,
-) -> Result<T, MaterializeError> {
-    let path = staging.join(relative);
-    make(&path).map_err(|error| {
-        if error.kind() == io::ErrorKind::AlreadyExists {
-            MaterializeError::Collision(relative.to_owned())
-        } else {
-            MaterializeError::Io { path, error }
-        }
-    })
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::fs;
 
     use locust_proto::crypto::content_hash;
     use locust_proto::manifest::Entry;
@@ -238,31 +267,27 @@ mod tests {
     }
 
     #[test]
-    fn the_staging_directory_sits_beside_the_destination() {
-        assert_eq!(
-            staging_path(Path::new("/work/out")).unwrap(),
-            Path::new("/work/.out.locust-partial")
-        );
-        assert_eq!(
-            staging_path(Path::new("out")).unwrap(),
-            Path::new(".out.locust-partial")
-        );
+    fn invalid_destination_names_are_rejected_before_creation() {
         for invalid in ["/", "..", "work/.."] {
             assert!(matches!(
-                staging_path(Path::new(invalid)),
+                materialize(
+                    &Manifest { entries: vec![] },
+                    &mut Objects(HashMap::new()),
+                    Path::new(invalid)
+                ),
                 Err(MaterializeError::InvalidDestination(_))
             ));
         }
     }
 
     #[test]
-    fn a_leftover_symlink_at_the_staging_path_is_removed_not_followed() {
+    fn a_legacy_leftover_symlink_is_preserved_and_never_followed() {
         let parent = tempfile::tempdir().unwrap();
         let elsewhere = parent.path().join("elsewhere");
         fs::create_dir(&elsewhere).unwrap();
         fs::write(elsewhere.join("keep.txt"), b"keep").unwrap();
         let destination = parent.path().join("out");
-        std::os::unix::fs::symlink(&elsewhere, staging_path(&destination).unwrap()).unwrap();
+        std::os::unix::fs::symlink(&elsewhere, parent.path().join(".out.locust-partial")).unwrap();
 
         let bytes = b"hello".to_vec();
         let manifest = Manifest {
@@ -276,6 +301,12 @@ mod tests {
         let mut source = Objects(HashMap::from([(content_hash(&bytes), bytes)]));
         materialize(&manifest, &mut source, &destination).unwrap();
 
+        assert!(
+            fs::symlink_metadata(parent.path().join(".out.locust-partial"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
         assert_eq!(fs::read(elsewhere.join("keep.txt")).unwrap(), b"keep");
         assert!(!elsewhere.join("a.txt").exists());
         assert!(fs::symlink_metadata(&destination).unwrap().is_dir());

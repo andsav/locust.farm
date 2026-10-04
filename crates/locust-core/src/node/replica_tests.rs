@@ -79,7 +79,10 @@ impl Peer {
                 endpoint,
                 hints: vec![],
             },
-            0,
+            locust_proto::engine::PeerTime {
+                unix_ms: 0,
+                elapsed_ms: 0,
+            },
             &mut vec![],
         );
         let Response::AgentEnrolled { agent } = request(
@@ -139,7 +142,14 @@ fn reconcile_from(
             continue;
         }
         let mut outputs = vec![];
-        peers[i].node.peer(input, now, &mut outputs);
+        peers[i].node.peer(
+            input,
+            locust_proto::engine::PeerTime {
+                unix_ms: now,
+                elapsed_ms: now,
+            },
+            &mut outputs,
+        );
         for output in outputs {
             match output {
                 PeerOutput::Open {
@@ -496,7 +506,10 @@ fn peer_connection_status_is_ephemeral_but_last_sync_is_durable() {
             endpoint: remote,
             connected: true,
         },
-        3000,
+        locust_proto::engine::PeerTime {
+            unix_ms: 3000,
+            elapsed_ms: 3000,
+        },
         &mut vec![],
     );
     assert!(peers[0].node.peer_view(&remote).connected);
@@ -506,7 +519,10 @@ fn peer_connection_status_is_ephemeral_but_last_sync_is_durable() {
             endpoint: remote,
             connected: false,
         },
-        3001,
+        locust_proto::engine::PeerTime {
+            unix_ms: 3001,
+            elapsed_ms: 3001,
+        },
         &mut vec![],
     );
     assert!(!peers[0].node.peer_view(&remote).connected);
@@ -972,4 +988,117 @@ fn coordinator_halt_reaches_a_historical_contact_without_history_or_key_admissio
         "duplicate proof must not wake waits or schedule another broadcast"
     );
     assert!(Host::take_changed(&mut peers[1].node).is_empty());
+}
+
+#[path = "content_graph_tests.rs"]
+mod content_graph;
+
+#[test]
+fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
+    use locust_proto::event::Body;
+    use locust_proto::sync::SyncMessage;
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        title: "early readable title".into(),
+    }) else {
+        panic!("create")
+    };
+    for index in 0..40 {
+        peers[0].call(Request::NoteAdd {
+            goal,
+            about: None,
+            supersedes: None,
+            text: format!("history {index}"),
+        });
+    }
+    let genesis = peers[0]
+        .store
+        .log(&goal, 0, usize::MAX)
+        .unwrap()
+        .into_iter()
+        .find_map(|(_, event)| {
+            matches!(event.header().body, Body::Genesis(_))
+                .then_some(event.header().payload.unwrap().hash)
+        })
+        .unwrap();
+    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        goal,
+        expires_ms: None,
+    }) else {
+        panic!("invite")
+    };
+    peers[1].call(Request::GoalJoin { ticket });
+    let sent = reconcile_from(&mut peers, 1000, &[1]);
+    let requests: Vec<_> = sent
+        .iter()
+        .filter(|frame| {
+            matches!(
+                frame,
+                SyncMessage::BlobRequest { .. } | SyncMessage::KeyRequest { .. }
+            )
+        })
+        .collect();
+    assert!(matches!(requests[0], SyncMessage::BlobRequest { hash, .. } if *hash == genesis));
+    assert!(matches!(requests[1], SyncMessage::KeyRequest { epoch: 0 }));
+    assert!(requests.len() > 40);
+    let Response::GoalStatus(status) = peers[1].call(Request::GoalStatus { goal }) else {
+        panic!("status")
+    };
+    assert_eq!(status.title.as_deref(), Some("early readable title"));
+}
+
+#[test]
+fn an_offline_removed_endpoint_is_refused_after_restart_without_learning_new_history() {
+    use crate::sync::Host;
+    use locust_proto::sync::{Refusal, SyncMessage};
+    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
+    let goal = found(&mut peers);
+    let removed = peers[2].principal;
+    let held_before = peers[2].store.log(&goal, 0, usize::MAX).unwrap().len();
+    peers[2].online = false;
+    peers[0].call(Request::MemberRemove {
+        goal,
+        member: removed,
+    });
+    peers[0].call(Request::NoteAdd {
+        goal,
+        about: None,
+        supersedes: None,
+        text: "only current members may read this".into(),
+    });
+    reconcile(&mut peers, 35_000);
+    for peer in &mut peers[..2] {
+        assert!(!peer.node.goals[&goal].is_member(&removed));
+        assert!(
+            Host::replica(&mut peer.node, &goal)
+                .unwrap()
+                .key(1)
+                .is_some()
+        );
+    }
+    peers[2].restart();
+    peers[2].online = true;
+    let frames = reconcile_from(&mut peers, 70_000, &[2]);
+    assert!(
+        frames
+            .iter()
+            .any(|frame| matches!(frame, SyncMessage::Refused(Refusal::NotAMember)))
+    );
+    assert_eq!(
+        peers[2].store.log(&goal, 0, usize::MAX).unwrap().len(),
+        held_before
+    );
+    assert!(
+        Host::replica(&mut peers[2].node, &goal)
+            .unwrap()
+            .key(1)
+            .is_none()
+    );
+    let Response::Notes(notes) = peers[2].call(Request::Notes { goal, about: None }) else {
+        panic!("notes")
+    };
+    assert!(notes.is_empty());
+    // Status describes held state. A transport refusal is not a signed
+    // removal decision and cannot rewrite the offline replica's projection.
+    assert!(peers[2].node.goals[&goal].is_member(&removed));
 }

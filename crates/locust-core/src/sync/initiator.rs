@@ -14,8 +14,10 @@ use super::{Ended, Replica, Staged};
 
 /// Runs one exchange this daemon opened about one goal: `Hello` (and `Join`
 /// when joining), its frontier, the answer and the pushes and requests the
-/// reconciliation rule calls for, then the objects it lacks one at a time,
-/// then the keys it lacks, then `Done`.
+/// reconciliation rule calls for, then the founding object and missing keys,
+/// remaining objects one at a time, another pass for still-missing keys, and
+/// `Done`. The early key pass makes the founding title readable before bulk
+/// content; the final pass can validate keys against newly fetched epoch proofs.
 ///
 /// Requests are pipelined: the responder answers in order, so the machine
 /// keeps a queue of the answers it expects, at most two per author
@@ -41,6 +43,8 @@ pub struct Initiator {
 enum Stage {
     Start,
     Reconcile,
+    Founding,
+    EarlyKeys,
     Blobs,
     Keys,
     Finished,
@@ -398,6 +402,17 @@ impl Initiator {
         Ok(())
     }
 
+    fn request_blob(&mut self, hash: BlobHash, offset: u64) {
+        self.outbox.push(SyncMessage::BlobRequest { hash, offset });
+        self.expect.push_back(Expect::Blob {
+            hash,
+            next: offset,
+            total: None,
+            keep: true,
+            retried: false,
+        });
+    }
+
     /// Moves to the next stage whenever every expected answer has arrived.
     fn advance(&mut self, replica: &dyn Replica) {
         while self.expect.is_empty() && !self.outbox.pending() {
@@ -408,20 +423,24 @@ impl Initiator {
                         self.ended = Some(Ended::Refused(Refusal::NotAMember));
                         return;
                     }
-                    self.stage = Stage::Blobs;
+                    self.stage = Stage::Founding;
+                    if let Some((hash, offset)) = replica.founding_blob() {
+                        self.request_blob(hash, offset);
+                    }
                 }
+                Stage::Founding => {
+                    self.stage = Stage::EarlyKeys;
+                    for epoch in replica.wanted_keys() {
+                        self.outbox.push(SyncMessage::KeyRequest { epoch });
+                        self.expect.push_back(Expect::Key(epoch));
+                    }
+                }
+                Stage::EarlyKeys => self.stage = Stage::Blobs,
                 // One object at a time: each answer runs to the object's end.
                 Stage::Blobs => match replica.next_wanted_blob(self.blob_cursor) {
                     Some((hash, offset)) => {
                         self.blob_cursor = Some(hash);
-                        self.outbox.push(SyncMessage::BlobRequest { hash, offset });
-                        self.expect.push_back(Expect::Blob {
-                            hash,
-                            next: offset,
-                            total: None,
-                            keep: true,
-                            retried: false,
-                        });
+                        self.request_blob(hash, offset);
                     }
                     None => {
                         self.stage = Stage::Keys;

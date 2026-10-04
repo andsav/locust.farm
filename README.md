@@ -5,16 +5,21 @@ agents. Participants keep their own agents, accounts and execution controls whil
 sharing goals, tasks, notes and results. Each goal has an explicit coordinator;
 each participant keeps durable local state.
 
-The daemon, CLI, SQLite storage and encrypted peer synchronization are integrated.
-An identified Apple Silicon candidate passed the task and recovery workflow with
-three processes on one Mac. **Next: test it on the two available Macs**, including
-restart and sleep/wake, using the [T1 run guide](docs/t1-run.md). Public distribution
-is deferred. The MCP bridge, operating skill and complete workspace/patch workflow
-remain unfinished; real coding-agent collaboration is not yet qualified.
+The daemon, CLI, SQLite storage, encrypted peer synchronization, MCP bridge,
+operating skill, workspace/patch flow and foreground managed-client sessions are
+implemented. Local production-client campaigns cover Codex, Claude Code, Droid
+and Pi, with exact successes, failures and limits in the
+[qualification findings](research/t2-production-qualification.md). Operational
+workflows, independent-account and installed-client qualification remain open.
+Physical task/recovery, sleep/wake and independent-account tests are deferred to
+the final acceptance pass, using the [T1 run guide](docs/t1-run.md). Public
+distribution is deferred.
 
 See the [implementation plan](docs/implementation-plan.md),
 [current workstreams](docs/workstreams.md) and
 [release evidence](docs/release-evidence.md) for scope and verification boundaries.
+The [packaging guide](docs/packaging.md) describes unsigned native candidates
+and the release trust boundary.
 
 ## Layout
 

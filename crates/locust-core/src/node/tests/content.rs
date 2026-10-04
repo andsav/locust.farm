@@ -9,6 +9,103 @@ use locust_proto::invite::Invitation;
 use locust_proto::store::{Space, Store};
 
 #[test]
+fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart() {
+    let (mut daemon, _, _, coordinator, goal) = setup();
+    let (_, member) = super::authorization::join_local(&mut daemon, coordinator, goal, 2);
+    let first = event(daemon.ok(
+        coordinator,
+        Request::DocRevise {
+            goal,
+            doc: Doc::Plan,
+            base: None,
+            text: "accepted plan".into(),
+        },
+    ));
+    let competing = event(daemon.ok(
+        member,
+        Request::DocRevise {
+            goal,
+            doc: Doc::Plan,
+            base: None,
+            text: "competing plan".into(),
+        },
+    ));
+    daemon.ok(
+        coordinator,
+        Request::DocAccept {
+            goal,
+            revision: first,
+        },
+    );
+    assert_eq!(
+        code(daemon.call(
+            coordinator,
+            Request::DocAccept {
+                goal,
+                revision: competing
+            }
+        )),
+        ErrorCode::Conflict
+    );
+    let competing_wire = daemon.store.event(&competing).unwrap().unwrap();
+    let hash = competing_wire.header().payload.unwrap().hash;
+    let sealed = daemon.store.blob(&hash).unwrap().unwrap();
+    daemon.ok(member, Request::BlobWithdraw { goal, hash });
+    daemon.ok(member, Request::GoalLeave { goal });
+    daemon.restart();
+    let coordinator = daemon.connect(credential(1), None);
+    let member = daemon.connect(credential(2), None);
+    assert_eq!(
+        daemon.store.event(&competing).unwrap(),
+        Some(competing_wire)
+    );
+    assert_eq!(daemon.store.blob(&hash).unwrap(), Some(sealed));
+    let Response::Event(detail) = daemon.ok(
+        coordinator,
+        Request::Event {
+            goal,
+            event: competing,
+        },
+    ) else {
+        panic!("expected retained competing revision");
+    };
+    assert_eq!(detail.text, None);
+    let Response::Doc(view) = daemon.ok(
+        coordinator,
+        Request::DocRead {
+            goal,
+            doc: Doc::Plan,
+        },
+    ) else {
+        panic!("expected accepted document");
+    };
+    assert_eq!(view.accepted, Some(first));
+    assert_eq!(view.text.as_deref(), Some("accepted plan"));
+    assert_eq!(
+        code(daemon.call(
+            member,
+            Request::DocRevise {
+                goal,
+                doc: Doc::Plan,
+                base: Some(first),
+                text: "left member".into(),
+            }
+        )),
+        ErrorCode::Denied
+    );
+    assert_eq!(
+        code(daemon.call(
+            coordinator,
+            Request::DocAccept {
+                goal,
+                revision: competing
+            }
+        )),
+        ErrorCode::Conflict
+    );
+}
+
+#[test]
 fn content_put_get_scope_withdrawal_and_reput_survive_restart() {
     let (mut daemon, _, _, agent, goal) = setup();
     let bytes = b"private local output".to_vec();
@@ -291,7 +388,10 @@ fn pending_join_cannot_relabel_the_coordinator() {
             endpoint: EndpointId([22; 32]),
             hints: vec![],
         },
-        0,
+        locust_proto::engine::PeerTime {
+            unix_ms: 0,
+            elapsed_ms: 0,
+        },
         &mut Vec::new(),
     );
     joining.enroll("joining", 2, true);

@@ -111,3 +111,16 @@ The [stdio fixture](../crates/locust-adapter/examples/stdio_probe.rs) now reads 
 **Next boundary:** the harness proves actual client/fixture interaction, not real-model coding, account authentication, interactive approvals, durable task ownership or pending-work delivery. Lane A's daemon/CLI remains the T1 dependency. Automatic wake remains Merak-only and unqualified. No installation route or release gate is declared complete.
 
 **T1 delivery correction:** lane A recorded the owner's first-time-user download requirement in `4f9fc2d` while these components were being finalized. Updated the [runbook](t1-build.md): prepare one local identified artifact, then provide a published pre-release and a fetch/verify/start path on each Mac. The latter work and publication are still open; copying a development binary is no longer the accepted T1 entry path. Publication needs the owner's instruction once a concrete candidate exists.
+
+
+## T2 implementation checkpoint — 2026-10-03
+
+`8a7d170` integrates production MCP, the operating-skill source and the
+snapshot/contribution flow, including typed descendant synchronization and
+separate acceptance/application. [T2 workflow](t2-workflow.md) records exact
+commands and proof boundaries; [integration findings](../research/t2-integration-review.md)
+preserve the independently reviewed materialization, authority and failure fixes.
+Formatting, strict workspace Clippy, 483 Rust tests (nine explicit ignores),
+documentation checks and skill validation passed. Live client and physical
+qualification are the owner's separate lane; managed launch/install remain after
+T2. No release build, push or publication was performed for this checkpoint.

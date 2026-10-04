@@ -1,6 +1,6 @@
 # T1 candidate remediation
 
-Date: 2026-10-03. **Status: implementation and regression verification complete; final integrated/artifact results are being recorded below.** This implements the accepted findings from the [independent review](t1-candidate-independent-review.md) and [assessment](t1-candidate-review-response.md). The scope includes all 36 IR findings plus the confirmed build-provenance and client-evidence defects identified during the follow-up audit. Publication remains deferred. Existing two-Mac processes, binaries and homes were not changed.
+Date: 2026-10-03. **Status: implementation, integrated checks and identified local-artifact verification complete.** This implements the accepted findings from the [independent review](t1-candidate-independent-review.md) and [assessment](t1-candidate-review-response.md). The scope includes all 36 IR findings plus the confirmed build-provenance and client-evidence defects identified during the follow-up audit. Publication remains deferred. Existing two-Mac processes, binaries and homes were not changed.
 
 ## Accepted protocol change
 
@@ -59,7 +59,7 @@ The retained independent store verifier now has its own matching [PROBE-variable
 
 ## Verification and limits
 
-Final integrated formatting and strict Clippy passed; the workspace ran **439 passed, zero failed, nine explicit ignores**. All **76 Python tests** passed. Identified artifact results are recorded below after the build. Focused source coverage includes all 103 core tests, 31 store unit tests plus two crash tests, 51 binary tests, 22 CLI tests, 156 protocol tests and 76 Python helper tests. The normal workspace run intentionally skips subprocess helpers, installed-client checks, optional external transport probes, the macOS interposer test and the two long one-way transport regressions; explicitly exercised exceptions are listed below.
+Final integrated formatting and strict Clippy passed; the workspace ran **439 passed, zero failed, nine explicit ignores**. All **76 Python tests** passed. The [retained verification record](evidence/t1-remediation-verification-2026-10-03.json) identifies commands, counts and artifact metadata. Focused source coverage includes all 103 core tests, 31 store unit tests plus two crash tests, 51 binary tests, 22 CLI tests, 156 protocol tests and 76 Python helper tests. The normal workspace run intentionally skips subprocess helpers, installed-client checks, optional external transport probes, the macOS interposer test and the two long one-way transport regressions; explicitly exercised exceptions are listed below.
 
 - Real Iroh send-only and receive-only regressions each deliver all 18 checked 1 KiB frames over more than 34 seconds and finish cleanly beyond the actual 30-second idle setting. Both passed concurrently in 34.09 seconds. They use the production exchange shell and a fake acknowledging engine; they are not a production large-object transfer.
 - The macOS recovery interposer regression verifies that a real WAL sync failure refuses open before GC and that successful recovery syncs before collection/state exposure. It passes on repaired source and fails as expected on archived candidate source. It is not physical power-loss evidence.
@@ -67,3 +67,7 @@ Final integrated formatting and strict Clippy passed; the workspace ran **439 pa
 - Read-only configuration audit found the pure adapter already rejects supplied occupied MCP names and exposes occupied-name input; discovering effective native profile names belongs to the unimplemented installer. The mandatory session path is an explicit fixture/configuration contract, not proof of production per-attempt lifecycle. Neither was silently presented as implemented integration.
 
 Physical two-Mac completion/restart/sleep-wake, real-account/model collaboration, production MCP/client lifecycle, packaged installation, signing/notarization and public distribution remain unqualified. Existing historical evidence is preserved; this pass does not waive release gates.
+
+## Identified candidate
+
+The pinned release build from `d253a07bf26cef2b59172df16297383fd286e369` reports `locust 0.1.0 (d253a07bf26c) api 1 protocol 1`, SHA-256 `4231754e08f1b4b5fb77ae4e56c6a92c4212e4968659f9b1cea94682d6834f25`. Independent checksum/version/Mach-O checks passed. The exact binary passed all 21 default-network three-process workflow checks in 24.69 seconds, including encrypted result acceptance, coordinator-offline peer exchange and sequential restarts. The [summary](evidence/t1-remediation-local-2026-10-03.json) and [transcript](evidence/t1-remediation-local-2026-10-03.jsonl) retain the observations. Further live qualification is being handled separately at the owner's direction.

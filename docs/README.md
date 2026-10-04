@@ -23,7 +23,9 @@ the repository root to check coverage and local link paths.
 - [Lane B implementation log](lane-b-implementation-log.md): product objective, implemented slices, verification boundaries and useful client/transport observations.
 - [T1 CLI run](t1-run.md): two-Mac command sequence, optional third-peer extension, network operators, restart/sleep evidence and the local three-process harness.
 - [T1 build](t1-build.md): identified Apple Silicon artifact for local transfer to the two Macs; publication and public-download qualification are deferred.
+- [Native release candidate packaging](packaging.md): unsigned macOS arm64 and Linux x86_64 candidate format, source identity, signature boundary and manual CI declarations.
 - [Client qualification harness](client-qualification.md): isolated four-client scripted-provider checks, policy distinctions and recovery evidence boundaries.
+- [Explicit managed client sessions](managed-clients.md): local launch, readiness, exact binding, native resume, pending work and conservative crash recovery.
 - [Transport probe](transport-probe.md): runnable direct, relay-only and automatic transport qualification, local process checks and two-machine instructions.
 - [Implementation plan review](implementation-plan-review.md): adversarial review of the proposed plan with prioritized objections, strengths and pre-implementation gates.
 - [Second review response](implementation-plan-review-response.md): adopted plan refinements, qualified simplifications and claims not adopted.
@@ -31,3 +33,7 @@ the repository root to check coverage and local link paths.
 - [First contact](first-contact.md): proposed first-session journey from one pasted prompt, harness routing, readiness and approval states, and the Polaris handoff; lists current status.
 - [Lane C log](lane-c-log.md): lane C's requests to lanes A and B and the Polaris work, and its source reviews.
 - [ecdsa.fail swarm demonstration proposal](ecdsa-fail-swarm-proposal.md): proposed roles, records, measurement stages and lanes for agents working the ecdsa.fail circuit benchmark as one goal; success levels, mapping to the current Locust commands, time-boxed run plan and owner decisions. Nothing built or run.
+- [T2 coding-agent workflow](t2-workflow.md): MCP, operating skill, snapshots and contribution review/application.
+
+- [Local verified installation](installation.md): explicit trust, withdrawal registry, reviewed activation and conservative software removal.
+- [Local installation prompt](install-prompt.md): pasteable template for explicit local trust, reviewed software/service/client setup and separately observed readiness.

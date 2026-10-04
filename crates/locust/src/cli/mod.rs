@@ -1,7 +1,13 @@
 //! Command-line client: explicit authority, one JSON envelope, typed API.
 mod args;
+mod client;
 mod connection;
 mod doctor;
+mod install;
+mod package;
+mod service;
+mod setup;
+mod workspace;
 
 use crate::{daemon, failure::Failure, secret};
 use clap::{ArgMatches, error::ErrorKind};
@@ -36,7 +42,8 @@ impl Output {
 
 pub(super) fn run() -> u8 {
     let arguments: Vec<_> = std::env::args_os().collect();
-    let json_mode = arguments.iter().any(|arg| arg == "--json");
+    let mcp_mode = mcp_invocation(&arguments);
+    let json_mode = !mcp_mode && arguments.iter().any(|arg| arg == "--json");
     let matches = match args::command().try_get_matches_from(arguments) {
         Ok(matches) => matches,
         Err(error)
@@ -45,7 +52,9 @@ pub(super) fn run() -> u8 {
                 ErrorKind::DisplayHelp | ErrorKind::DisplayVersion
             ) =>
         {
-            if json_mode {
+            if mcp_mode {
+                eprint!("{error}");
+            } else if json_mode {
                 let key = if error.kind() == ErrorKind::DisplayVersion {
                     "version"
                 } else {
@@ -62,6 +71,12 @@ pub(super) fn run() -> u8 {
         }
         Err(error) => return print_failure(Failure::usage(error.to_string()), json_mode),
     };
+    if let Some(("mcp", selected)) = matches.subcommand() {
+        return match run_mcp(&matches, selected) {
+            Ok(()) => 0,
+            Err(error) => print_failure(error, false),
+        };
+    }
     match execute(&matches) {
         Ok(output) => {
             if matches.get_flag("json") {
@@ -73,6 +88,52 @@ pub(super) fn run() -> u8 {
         }
         Err(error) => print_failure(error, matches.get_flag("json")),
     }
+}
+// Classify parse failures without confusing an option value or command body
+// named "mcp" with the transport subcommand. Successful parsing uses Clap's
+// actual selected subcommand for dispatch.
+fn mcp_invocation(arguments: &[std::ffi::OsString]) -> bool {
+    let mut arguments = arguments.iter().skip(1);
+    while let Some(argument) = arguments.next() {
+        let Some(argument) = argument.to_str() else {
+            return false;
+        };
+        if matches!(
+            argument,
+            "--home" | "--credential" | "--as" | "--session" | "--idempotency-key"
+        ) {
+            arguments.next();
+        } else if argument == "--" {
+            return arguments.next().is_some_and(|argument| argument == "mcp");
+        } else if !argument.starts_with('-') {
+            return argument == "mcp";
+        }
+    }
+    false
+}
+fn run_mcp(matches: &ArgMatches, selected: &ArgMatches) -> Result<(), Failure> {
+    if matches.get_flag("owner")
+        || matches.get_one::<String>("as").is_some()
+        || matches.get_flag("json")
+        || matches.get_one::<String>("idempotency-key").is_some()
+    {
+        return Err(Failure::usage(
+            "mcp does not accept --owner, --as, --json or --idempotency-key",
+        ));
+    }
+    let home = connection::home(matches)?;
+    let credential = connection::credential_path(matches, &home)?;
+    let session = connection::session_path(matches)?.ok_or_else(|| {
+        Failure::usage("mcp requires --session <absolute-path> or LOCUST_SESSION")
+    })?;
+    crate::mcp::run(crate::mcp::Config {
+        home,
+        credential,
+        session,
+        lifecycle_receipt: selected
+            .get_one::<String>("lifecycle-receipt")
+            .map(std::path::PathBuf::from),
+    })
 }
 fn print_failure(error: Failure, json_mode: bool) -> u8 {
     if json_mode {
@@ -94,6 +155,24 @@ fn stdin_text() -> Result<String, Failure> {
 }
 fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let (operation, selected) = args::selected(matches);
+    if operation.starts_with("setup.") {
+        return setup::run(&operation, selected);
+    }
+    if operation.starts_with("service.") {
+        return service::run(&operation, selected);
+    }
+    if operation.starts_with("install.") {
+        return install::run(&operation, selected);
+    }
+    if operation.starts_with("package.") {
+        return package::run(&operation, selected);
+    }
+    if operation.starts_with("workspace.") || operation.starts_with("patch.") {
+        return workspace::run(matches, &operation, selected);
+    }
+    if operation.starts_with("client.") {
+        return client::run(matches, &operation, selected);
+    }
     let named_enrollment = operation == "agent.enroll";
     let generic_call = operation == "call";
     if operation == "session.create" {
@@ -400,4 +479,11 @@ fn stable_name(value: &impl serde::Serialize) -> String {
         .as_str()
         .expect("public enum uses a string tag")
         .to_owned()
+}
+
+// Exercise generated client registration against the real parser without
+// exposing CLI construction in production code.
+#[cfg(test)]
+pub(crate) fn command_for_test() -> clap::Command {
+    args::command()
 }

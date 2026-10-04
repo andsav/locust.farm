@@ -26,7 +26,14 @@ const NAMES: &[&str] = &[
 
 /// File name prefixes: environment variants such as `.env.local`, and SSH
 /// keys such as `id_rsa` or `id_ed25519_work`.
-const PREFIXES: &[&str] = &[".env.", "id_dsa", "id_ecdsa", "id_ed25519", "id_rsa"];
+const PREFIXES: &[&str] = &[
+    ".env.",
+    "id_dsa",
+    "id_ecdsa",
+    "id_ed25519",
+    "id_rsa",
+    ".locust-apply-",
+];
 
 /// File name suffixes: private keys, keystores, password databases and
 /// infrastructure state.
@@ -59,9 +66,12 @@ pub(crate) fn is_denied(path: &str) -> bool {
 /// to the export root. Git paths may contain non-UTF-8 directory names.
 pub(crate) fn has_denied_directory(path: &[u8]) -> bool {
     path.split(|&byte| byte == b'/').any(|directory| {
-        DIRECTORIES
-            .iter()
-            .any(|denied| directory.eq_ignore_ascii_case(denied.as_bytes()))
+        directory
+            .get(..14)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b".locust-apply-"))
+            || DIRECTORIES
+                .iter()
+                .any(|denied| directory.eq_ignore_ascii_case(denied.as_bytes()))
     })
 }
 
@@ -84,6 +94,8 @@ mod tests {
             ".npmrc",
             "web/.netrc",
             ".aws/credentials",
+            ".locust-apply-123/original-0",
+            ".LOCUST-APPLY-123/original-0",
             "user/.ssh/config",
             ".gnupg/private-keys-v1.d/x.key",
             "infra/terraform.tfstate.backup",

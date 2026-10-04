@@ -653,6 +653,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
 dependencies = [
  "block-buffer",
+ "const-oid",
  "crypto-common 0.2.2",
 ]
 
@@ -1734,6 +1735,7 @@ name = "locust"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "ed25519-dalek",
  "getrandom 0.4.3",
  "locust-adapter",
  "locust-core",
@@ -1741,10 +1743,14 @@ dependencies = [
  "locust-proto",
  "locust-store",
  "locust-workspace",
+ "rustix",
+ "semver",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "tokio",
+ "toml_edit",
  "tracing",
 ]
 
@@ -1804,6 +1810,7 @@ name = "locust-workspace"
 version = "0.1.0"
 dependencies = [
  "locust-proto",
+ "rustix",
  "serde",
  "tempfile",
 ]
@@ -3507,6 +3514,7 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "toml_parser",
+ "toml_writer",
  "winnow",
 ]
 
@@ -3518,6 +3526,12 @@ checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
 dependencies = [
  "winnow",
 ]
+
+[[package]]
+name = "toml_writer"
+version = "1.1.2+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
 name = "tower"

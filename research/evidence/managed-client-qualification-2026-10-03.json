@@ -1,0 +1,3006 @@
+{
+  "artifacts": {
+    "candidate_3": {
+      "base_commit": "a47cd333c0025e68c9218c5fda33982b8e561413",
+      "identity_receipt_sha256": "839caa799ff9a9a5c2d274fb1786baff37c3d5a675c4799b599f30c77b48fae6",
+      "relationship_to_final_source": "Measured artifact precedes both repeated explicit local signal forwarding and direct-child exit despite descendant-retained pipes fixes. These later changes are component-qualified separately and not qualified by these actual-client measurements.",
+      "sha256": "a7550228752284a849d728f5fb89aebf8e54f1767da89c93d1c0e9b20984d3c6",
+      "source_hash_scope": "Listed hashes are measured source overrides relative to base_commit. Other captured source entries match that immutable Git base. source_manifest_sha256 covers the complete captured path-to-SHA256 map, canonical sorted compact JSON.",
+      "source_manifest_entry_count": 15,
+      "source_manifest_sha256": "41eab1dda2b4721c4dfee41d87c9173fc0d8967be194608c1df0a2e049185763",
+      "sources": {
+        "Cargo.toml": "6718d6bfdf9b77919322cbb9ba244c787e539553208afb439d8d0298e8ce160b",
+        "crates/locust-adapter/src/delivery.rs": "80bcaf5cf733e2c74ea1f00892d1525d00794e34af8513517edced323ea02205",
+        "crates/locust-adapter/src/lib.rs": "2b6826ed144297b6d408fb5f1d42e7ac19e1554605cfd58f2c9c3ada4bd4072f",
+        "crates/locust-adapter/src/managed.rs": "97f4bf581350f79607bb94e2a0fd9742884fb20158414540fffe55882808edbf",
+        "crates/locust-adapter/src/managed/tests.rs": "1c99d0e47843c9c53263ca9863f54bd9308475d4b54905fdff4234badde7a92e",
+        "crates/locust/src/cli/args.rs": "7386c8190e11d91b0724f4afc89be31bafc2d755ea4cb2d3e68820036a3708cd",
+        "crates/locust/src/cli/client.rs": "b466d77eca8f713b4a5888a04fb5e91019fd68bb8a8d38162d44b8b356251eeb",
+        "crates/locust/src/cli/client/profile.rs": "105aecc42f04cfef8a2e1a439908dabccb1f0737bf79bc1628806cd3778ff162",
+        "crates/locust/src/cli/client/signals.rs": "8ce662a7d4c564db72fc0ba34b1d0cf6e9c7dcb7110f68f65a27222c421948ae",
+        "crates/locust/src/cli/mod.rs": "6f2c085204156a5f70d1dcff44dd1063627a6ffe19772701a8c6592f969b64e1",
+        "crates/locust/src/mcp/schema.rs": "eb23b08d2b7d2b7e50171eefa24b12dc08f1d3526dac9a9dd4ac416785773d51"
+      },
+      "version": "locust 0.1.0 (a47cd333c002-dirty) api 1 protocol 1"
+    },
+    "candidate_4": {
+      "base_commit": "2ec3f13131dcef4f7676ec69101e5cc1632c4fdb",
+      "identity_receipt_sha256": "9ffde71920e25a4dec97a193387451002bb0fd5cc17c06e9827189a5a952660c",
+      "relationship_to_final_source": "Measured artifact precedes both repeated explicit local signal forwarding and direct-child exit despite descendant-retained pipes fixes. These later changes are component-qualified separately and not qualified by these actual-client measurements.",
+      "sha256": "49f5d9c8f79a227004e4697a942f16d9f1d0214612bf4970d6daa3b696d810ec",
+      "source_hash_scope": "Listed hashes are measured source overrides relative to base_commit. Other captured source entries match that immutable Git base. source_manifest_sha256 covers the complete captured path-to-SHA256 map, canonical sorted compact JSON.",
+      "source_manifest_entry_count": 172,
+      "source_manifest_sha256": "5e33588e651845908093660dad8556cb3c7ec3871fb4837fc61783cba1905238",
+      "sources": {
+        "Cargo.toml": "6718d6bfdf9b77919322cbb9ba244c787e539553208afb439d8d0298e8ce160b",
+        "crates/locust-adapter/src/delivery.rs": "80bcaf5cf733e2c74ea1f00892d1525d00794e34af8513517edced323ea02205",
+        "crates/locust-adapter/src/lib.rs": "2b6826ed144297b6d408fb5f1d42e7ac19e1554605cfd58f2c9c3ada4bd4072f",
+        "crates/locust-adapter/src/managed.rs": "97f4bf581350f79607bb94e2a0fd9742884fb20158414540fffe55882808edbf",
+        "crates/locust-adapter/src/managed/tests.rs": "1c99d0e47843c9c53263ca9863f54bd9308475d4b54905fdff4234badde7a92e",
+        "crates/locust/src/cli/args.rs": "7386c8190e11d91b0724f4afc89be31bafc2d755ea4cb2d3e68820036a3708cd",
+        "crates/locust/src/cli/client.rs": "c4c69719ee0e5d7297adaa81a996450308bfc5cc8d4e0987701a5ba4168a6f5d",
+        "crates/locust/src/cli/client/profile.rs": "105aecc42f04cfef8a2e1a439908dabccb1f0737bf79bc1628806cd3778ff162",
+        "crates/locust/src/cli/client/signals.rs": "8ce662a7d4c564db72fc0ba34b1d0cf6e9c7dcb7110f68f65a27222c421948ae",
+        "crates/locust/src/cli/mod.rs": "6f2c085204156a5f70d1dcff44dd1063627a6ffe19772701a8c6592f969b64e1",
+        "crates/locust/tests/managed.rs": "2a078214dd0826a151ecab5eb28724effbc65c6676c996221983ee3a0c974995",
+        "scripts/check_managed_clients.py": "bcd3e57c4254d601a7ede43d2bbc98b1fe9b4de415f42b15c1403efc23d58cee",
+        "scripts/client_qualification/observe_mcp.py": "5621a5cadcda8b81119d100c53207b085d2345e8436fd38ffb80fa93fcb4a75d",
+        "scripts/client_qualification/production.py": "28524d4f4bf0b73ff492351f51a6fc0dee5e6e296e1fd6fd3fff6ed76967150b",
+        "scripts/client_qualification/provider.py": "aafb268bdc21cf4f082565b21593dbd8551b5f269e93b0e3ab4adc5c6a64f7a2",
+        "scripts/client_qualification/real_models.py": "2a5a604fb92d6c54171e8ab40868c91fa9bc7b60825f50e67023a333481553a9"
+      },
+      "version": "locust 0.1.0 (2ec3f13131dc-dirty) api 1 protocol 1"
+    },
+    "candidate_5": {
+      "base_commit": "040da11877192b885c1812fa477d2682a4dbd575",
+      "identity_receipt_sha256": "dabdb711822948dc4a44ac2ba77f7a9bb953ccd261220a05c9a08ce3f26183eb",
+      "relationship_to_final_source": "Includes repeated explicit local signal forwarding and retained-descendant-pipe reader fixes. This exact artifact was measured in the final normal and recovery campaigns.",
+      "sha256": "205169864dc78dca8d7c51c484b7d44bafab1cb69b619816bc577344b5c38c51",
+      "source_hash_scope": "sources lists measured overrides relative to base_commit; all omitted entries match that commit. source_manifest_sha256 hashes the complete original sorted compact JSON map.",
+      "source_manifest_entry_count": 172,
+      "source_manifest_sha256": "9307de817f16f4d18436110ecc32736437cce17d961f5f801b97597d2905686b",
+      "sources": {
+        "Cargo.toml": "6718d6bfdf9b77919322cbb9ba244c787e539553208afb439d8d0298e8ce160b",
+        "crates/locust-adapter/src/delivery.rs": "80bcaf5cf733e2c74ea1f00892d1525d00794e34af8513517edced323ea02205",
+        "crates/locust-adapter/src/lib.rs": "2b6826ed144297b6d408fb5f1d42e7ac19e1554605cfd58f2c9c3ada4bd4072f",
+        "crates/locust-adapter/src/managed.rs": "97f4bf581350f79607bb94e2a0fd9742884fb20158414540fffe55882808edbf",
+        "crates/locust-adapter/src/managed/tests.rs": "1c99d0e47843c9c53263ca9863f54bd9308475d4b54905fdff4234badde7a92e",
+        "crates/locust/src/cli/args.rs": "7386c8190e11d91b0724f4afc89be31bafc2d755ea4cb2d3e68820036a3708cd",
+        "crates/locust/src/cli/client.rs": "09123291fe51beb2965a88ec0cc23e0ae00f47111beddad9ae81711edb02173d",
+        "crates/locust/src/cli/client/profile.rs": "105aecc42f04cfef8a2e1a439908dabccb1f0737bf79bc1628806cd3778ff162",
+        "crates/locust/src/cli/client/signals.rs": "8ce662a7d4c564db72fc0ba34b1d0cf6e9c7dcb7110f68f65a27222c421948ae",
+        "crates/locust/src/cli/mod.rs": "6f2c085204156a5f70d1dcff44dd1063627a6ffe19772701a8c6592f969b64e1",
+        "crates/locust/tests/managed.rs": "55f65b1047c4d19f8ae33b92104d5943764094901ed7af5d8950377d83ef5dc6"
+      },
+      "version": "locust 0.1.0 (040da1187719-dirty) api 1 protocol 1"
+    }
+  },
+  "boundaries": [
+    "One local macOS host; four exact client binaries and the identified uncommitted Locust artifacts. No packaged installation or cross-machine qualification.",
+    "Normal launch/resume uses deliberately permissive authored client settings. Default-policy blocking and intentional crash recovery are separate scenarios; final campaign uses candidate 5, with candidate 3 retained as historical evidence.",
+    "Ordinary scoped tools and explicit local resume are covered; active hooks, automatic wake, confinement and unattended activation are not qualified.",
+    "Notification and process exit do not acknowledge cancellation. Normal runs explicitly acknowledged an uncertain executor outcome through the authenticated API; result acceptance and integration were outside these runs.",
+    "Normal cleanup covers the owned managed process/session and bridges identified by protected receipts. Fully detached descendants lacking matching receipts are outside that evidence.",
+    "Fault recovery intentionally SIGKILLs the retained managed parent and later forces owned fault cleanup. This is not natural fault-cleanup evidence.",
+    "Private runtime paths, prompts, environment values, configuration contents, credential/session-secret bytes and native transcripts are omitted. Opaque transcript and report digests remain for correlation.",
+    "A later retained-output-pipe fix is also outside these artifacts: final source observes direct-child exit independently of descendant-held pipe EOF. These runs qualify the measured ordinary cleanup scenarios, not that new regression fix.",
+    "Candidate 4 corrected the candidate 3 Codex snapshot race. Historical candidate 3 recovery and candidate 4 normal runs precede repeated-signal and retained-pipe fixes; final candidate 5 campaigns include both fixes. Scripted client campaigns do not independently exercise every component regression."
+  ],
+  "capability_encoding": "Enabled capability names list exactly the true values from tools, active_delivery, idle_wake, manual_resume, recovery, confinement; omitted names are false.",
+  "date": "2026-10-03",
+  "default_and_fault_recovery": {
+    "artifact": "candidate_5",
+    "check_definitions": {
+      "crash_observed": "Owned managed parent SIGKILL observed; child cleanup intentionally deferred",
+      "default_blocked": "Structured policy denial and independently observed parent Blocked required; Pi default allowed writes do not prove blocking",
+      "duplicate_launch_refused": "Unknown launch rejects explicit retry with Conflict and unchanged launch identifier",
+      "fault_cleanup": "Intentional owned-session forced fault cleanup; no natural-cleanup claim",
+      "unknown_recovery": "Recovery preserves launch/process identity and explicitly neither spawns nor signals"
+    },
+    "clients": [
+      {
+        "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "binding": {
+          "assignment": null,
+          "goal": "0d46a255f2ffd1960ba0f4563f9d1e92f069354864fb08c70ec535564f729099",
+          "instance": "6789f8c658c8eb1a4f125766903157f4",
+          "principal": "ac38c947284eb032db3cea645853a93bc50baed107914d33184bc46c5897b09b"
+        },
+        "checks": {
+          "crash_observed": "pass",
+          "default_blocked": "pass",
+          "duplicate_launch_refused": "pass",
+          "fault_cleanup": "pass",
+          "unknown_recovery": "pass"
+        },
+        "client": "codex",
+        "default_binding": {
+          "goal": "0d46a255f2ffd1960ba0f4563f9d1e92f069354864fb08c70ec535564f729099",
+          "instance": "7579a9c5994814cb62bbe0764db7856b",
+          "principal": "ac38c947284eb032db3cea645853a93bc50baed107914d33184bc46c5897b09b"
+        },
+        "default_final_session": {
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "binding_reference": "default_binding",
+          "claim": null,
+          "enabled_capabilities": [],
+          "launch_id": "abf6c08fcf2457ee23b69f928d9458f47aa70f353644da01f8908b5fa221f234",
+          "native_initialized": true,
+          "native_session_id": "01a10576-8664-7e62-896c-f0258747ad6a",
+          "owned_process": {
+            "exit_code": 0,
+            "exited": true,
+            "pid": 61076,
+            "started_ms": 1791093016104,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "default_observed_states": [
+          "started",
+          "ready",
+          "blocked",
+          "exited"
+        ],
+        "default_runs": [
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 550,
+            "exit_code": 0,
+            "forced_cleanup": false,
+            "interrupted": false,
+            "natural_cleanup": true,
+            "observed_exit_before_cleanup": true,
+            "signal_scope": null,
+            "stderr_sha256": "e04c942d7135bda35a1f809ebde8d3276c0e8262618741f412474d0325d5ebce",
+            "stdout_sha256": "d204323d51824b08a6bdc068ea7663958267b506bab4b4f8002831aa9f8ff5ed",
+            "timed_out": false
+          }
+        ],
+        "default_session_snapshots_sha256": "99816ac159ad959406522e3c329eaf1857df21bbc463a254c92db29d1948f53d",
+        "fault_cleanup": {
+          "forced": true,
+          "verified": true
+        },
+        "fault_session_snapshots_sha256": "f6be96497df15fa27b1e1698f74c07ceff8d8397d5e70eae7c8b00da9fa32bfd",
+        "fault_sessions": {
+          "after": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "4a263c89422cfa03000f82755af90a304a70fc514e7571279f3ec80f647b8d9e",
+            "native_initialized": true,
+            "native_session_id": "01a10576-88c6-7541-9950-f3778d5a0162",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61204,
+              "started_ms": 1791093016742,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          },
+          "before": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [
+              "tools"
+            ],
+            "launch_id": "4a263c89422cfa03000f82755af90a304a70fc514e7571279f3ec80f647b8d9e",
+            "native_initialized": true,
+            "native_session_id": "01a10576-88c6-7541-9950-f3778d5a0162",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61204,
+              "started_ms": 1791093016742,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "ready"
+          },
+          "latest": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "4a263c89422cfa03000f82755af90a304a70fc514e7571279f3ec80f647b8d9e",
+            "native_initialized": true,
+            "native_session_id": "01a10576-88c6-7541-9950-f3778d5a0162",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61204,
+              "started_ms": 1791093016742,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          }
+        },
+        "provider_error_count": 0,
+        "provider_request_count": 4,
+        "recovery_action": {
+          "resolution": "unknown launch outcomes require explicit local reconciliation; historical PIDs are not process authority",
+          "schema": 1,
+          "signaled": false,
+          "spawned": false
+        },
+        "version": "codex-cli 0.153.4"
+      },
+      {
+        "binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+        "binding": {
+          "assignment": null,
+          "goal": "6485d2658f05d1f24fbd4117823f61a75b3bcd9c1060ee94b601a85bafbff50c",
+          "instance": "b1e3f380d181c9e17fed3f5fa6db2505",
+          "principal": "e2c5df968894b6318d19cd16399dde4851a6962eac998c7ca2ed38235c8a8aa7"
+        },
+        "checks": {
+          "crash_observed": "pass",
+          "default_blocked": "pass",
+          "duplicate_launch_refused": "pass",
+          "fault_cleanup": "pass",
+          "unknown_recovery": "pass"
+        },
+        "client": "claude-code",
+        "default_binding": {
+          "goal": "6485d2658f05d1f24fbd4117823f61a75b3bcd9c1060ee94b601a85bafbff50c",
+          "instance": "9a2ba01c68687e026b4a9b8b32a03ced",
+          "principal": "e2c5df968894b6318d19cd16399dde4851a6962eac998c7ca2ed38235c8a8aa7"
+        },
+        "default_final_session": {
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "binding_reference": "default_binding",
+          "claim": null,
+          "enabled_capabilities": [],
+          "launch_id": "f308021912bf3649440ab6332e03d7201fe9c67b28610608c59a6e3a32a3ecc4",
+          "native_initialized": true,
+          "native_session_id": "a1b0813b-5d00-4309-ad50-ac7c7a4c1561",
+          "owned_process": {
+            "exit_code": 0,
+            "exited": true,
+            "pid": 61263,
+            "started_ms": 1791093017847,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "default_observed_states": [
+          "started",
+          "ready",
+          "blocked",
+          "exited"
+        ],
+        "default_runs": [
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 672,
+            "exit_code": 0,
+            "forced_cleanup": false,
+            "interrupted": false,
+            "natural_cleanup": true,
+            "observed_exit_before_cleanup": true,
+            "signal_scope": null,
+            "stderr_sha256": "50f023d0e748a8dc87fb9bec915fff3a957393b0407d9b5708ded7e6f78bc9b7",
+            "stdout_sha256": "56bf322f537ce56e1183bd4448d9d924f2bf5d32e75ea8ea89fc6ad22e557358",
+            "timed_out": false
+          }
+        ],
+        "default_session_snapshots_sha256": "79e4f8a973dae47640b39a119a555318a1405c64b8c77e01856531db2e9d85ec",
+        "fault_cleanup": {
+          "forced": true,
+          "verified": true
+        },
+        "fault_session_snapshots_sha256": "4bf9d8eff3d2e6b7b4173cfd0bfd370e0b29301f5f5ab14a1e37218279e9aab8",
+        "fault_sessions": {
+          "after": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "f6ee9d8d38fa980af85af943f4aa3332d0ae54557bc62660926405eab3e30ebc",
+            "native_initialized": true,
+            "native_session_id": "e856d588-67e5-476e-90f3-c6755c556b5f",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61295,
+              "started_ms": 1791093018562,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          },
+          "before": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [
+              "tools"
+            ],
+            "launch_id": "f6ee9d8d38fa980af85af943f4aa3332d0ae54557bc62660926405eab3e30ebc",
+            "native_initialized": true,
+            "native_session_id": "e856d588-67e5-476e-90f3-c6755c556b5f",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61295,
+              "started_ms": 1791093018562,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "ready"
+          },
+          "latest": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "f6ee9d8d38fa980af85af943f4aa3332d0ae54557bc62660926405eab3e30ebc",
+            "native_initialized": true,
+            "native_session_id": "e856d588-67e5-476e-90f3-c6755c556b5f",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61295,
+              "started_ms": 1791093018562,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          }
+        },
+        "provider_error_count": 0,
+        "provider_request_count": 4,
+        "recovery_action": {
+          "resolution": "unknown launch outcomes require explicit local reconciliation; historical PIDs are not process authority",
+          "schema": 1,
+          "signaled": false,
+          "spawned": false
+        },
+        "version": "2.1.280 (Claude Code)"
+      },
+      {
+        "binary_sha256": "076c78e42f94dd21767f5094002259efb256cc294cce63d6552b6607bc714589",
+        "binding": {
+          "assignment": null,
+          "goal": "740dea7c778cace14592a246fccbdcba7666fe5f24ef44326661a43190b38232",
+          "instance": "f5e291ff9c4c483bd169b405b1a5620d",
+          "principal": "5d664de6470a8da919de005548081dfd0e6b973f24f3cc1ac9a9f1ac764fdc94"
+        },
+        "checks": {
+          "crash_observed": "pass",
+          "default_blocked": "pass",
+          "duplicate_launch_refused": "pass",
+          "fault_cleanup": "pass",
+          "unknown_recovery": "pass"
+        },
+        "client": "factory-droid",
+        "default_binding": {
+          "goal": "740dea7c778cace14592a246fccbdcba7666fe5f24ef44326661a43190b38232",
+          "instance": "e6009ef85b5193f3589201777b80ace3",
+          "principal": "5d664de6470a8da919de005548081dfd0e6b973f24f3cc1ac9a9f1ac764fdc94"
+        },
+        "default_final_session": {
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "binding_reference": "default_binding",
+          "claim": null,
+          "enabled_capabilities": [],
+          "launch_id": "dbf75af77f17bef35608a9bdfa69583dbccfefa55251a26932f8c348ea6ee06a",
+          "native_initialized": true,
+          "native_session_id": "709744c0-40b6-4cf0-ae9f-16c6b6382bb4",
+          "owned_process": {
+            "exit_code": 1,
+            "exited": true,
+            "pid": 61363,
+            "started_ms": 1791093019956,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "default_observed_states": [
+          "launching",
+          "started",
+          "ready",
+          "blocked",
+          "exited"
+        ],
+        "default_runs": [
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 7448,
+            "exit_code": 0,
+            "forced_cleanup": false,
+            "interrupted": false,
+            "natural_cleanup": true,
+            "observed_exit_before_cleanup": true,
+            "signal_scope": null,
+            "stderr_sha256": "210a5e210d77826500c380257b1ceee4b022dc2547d8d1ed5b09aa76e030fca7",
+            "stdout_sha256": "2b6c14c28872725476315e95378da8f93a2958061646238e4b32ca189ec07368",
+            "timed_out": false
+          }
+        ],
+        "default_session_snapshots_sha256": "c0b138862a2f82fac6082eca18e07993011039fd930108b52960bcc44c941d68",
+        "fault_cleanup": {
+          "forced": true,
+          "verified": true
+        },
+        "fault_session_snapshots_sha256": "f55f06f48ba252d1491fc1cdb9fe7e78e0cf69b986a1746204bb6689b470cced",
+        "fault_sessions": {
+          "after": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "f84c5bf14cb692a463fa278b59f466f955e5e164e61fc5b0ca34f0ae5b8b2782",
+            "native_initialized": true,
+            "native_session_id": "f9812293-f422-4c58-a180-3193c8bbf4bf",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61940,
+              "started_ms": 1791093027456,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          },
+          "before": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [
+              "tools"
+            ],
+            "launch_id": "f84c5bf14cb692a463fa278b59f466f955e5e164e61fc5b0ca34f0ae5b8b2782",
+            "native_initialized": true,
+            "native_session_id": "f9812293-f422-4c58-a180-3193c8bbf4bf",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61940,
+              "started_ms": 1791093027456,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "ready"
+          },
+          "latest": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "f84c5bf14cb692a463fa278b59f466f955e5e164e61fc5b0ca34f0ae5b8b2782",
+            "native_initialized": true,
+            "native_session_id": "f9812293-f422-4c58-a180-3193c8bbf4bf",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 61940,
+              "started_ms": 1791093027456,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          }
+        },
+        "provider_error_count": 0,
+        "provider_request_count": 5,
+        "recovery_action": {
+          "resolution": "unknown launch outcomes require explicit local reconciliation; historical PIDs are not process authority",
+          "schema": 1,
+          "signaled": false,
+          "spawned": false
+        },
+        "version": "0.218.1"
+      },
+      {
+        "binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+        "binding": {
+          "assignment": null,
+          "goal": "ede4aea7fa8b9c36c52a33c9c00274c1a7d6c24bd913beed4a2b6face8ad92dc",
+          "instance": "0a14e2c3f2b66583c2cfab07dab37350",
+          "principal": "7f63533b185222f94b8ebcc315fcdf1fe7ad978d40b0420d94f10f0ab6d6aaec"
+        },
+        "checks": {
+          "crash_observed": "pass",
+          "default_blocked": "not_run",
+          "duplicate_launch_refused": "pass",
+          "fault_cleanup": "pass",
+          "unknown_recovery": "pass"
+        },
+        "client": "pi",
+        "default_binding": {
+          "goal": "ede4aea7fa8b9c36c52a33c9c00274c1a7d6c24bd913beed4a2b6face8ad92dc",
+          "instance": "18092cb0b079886b360656304b12f2cd",
+          "principal": "7f63533b185222f94b8ebcc315fcdf1fe7ad978d40b0420d94f10f0ab6d6aaec"
+        },
+        "default_final_session": {
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "binding_reference": "default_binding",
+          "claim": null,
+          "enabled_capabilities": [],
+          "launch_id": "64f06833a5cde6364dc51b58bc52806da0dc2d570f9d95fbdf658fa813adbf45",
+          "native_initialized": true,
+          "native_session_id": "01a10576-b9f2-7615-94bd-ecadb9a92f15",
+          "owned_process": {
+            "exit_code": 0,
+            "exited": true,
+            "pid": 62002,
+            "started_ms": 1791093029207,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "default_observed_states": [
+          "started",
+          "ready",
+          "exited"
+        ],
+        "default_runs": [
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 786,
+            "exit_code": 0,
+            "forced_cleanup": false,
+            "interrupted": false,
+            "natural_cleanup": true,
+            "observed_exit_before_cleanup": true,
+            "signal_scope": null,
+            "stderr_sha256": "86eab24ab58ee06e47c399b41cc4e68364d057ab480a2b4f9cd09f6147158fb9",
+            "stdout_sha256": "c3d52088c9fd9ca62bd0044807646db05a8bc7cfa81a148ea8b0c475e92aead6",
+            "timed_out": false
+          }
+        ],
+        "default_session_snapshots_sha256": "1acb2d1911ac8480c5119e97eb4f967e443c5ca75f0bdb744bd0e3b55acfe3ef",
+        "fault_cleanup": {
+          "forced": false,
+          "verified": true
+        },
+        "fault_session_snapshots_sha256": "2a8bb596b6d8fa72a83a2a759b597c82b1c6d88d33f21aba8690f60f2e652260",
+        "fault_sessions": {
+          "after": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "b97792d0803452d9b9cae62dd50994feadebfa5df760bfa2fb9e032744ff1ec7",
+            "native_initialized": true,
+            "native_session_id": "01a10576-bd3e-751f-a5e5-231cf4e78f2e",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 62030,
+              "started_ms": 1791093030050,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          },
+          "before": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [
+              "tools"
+            ],
+            "launch_id": "b97792d0803452d9b9cae62dd50994feadebfa5df760bfa2fb9e032744ff1ec7",
+            "native_initialized": true,
+            "native_session_id": "01a10576-bd3e-751f-a5e5-231cf4e78f2e",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 62030,
+              "started_ms": 1791093030050,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "ready"
+          },
+          "latest": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "b97792d0803452d9b9cae62dd50994feadebfa5df760bfa2fb9e032744ff1ec7",
+            "native_initialized": true,
+            "native_session_id": "01a10576-bd3e-751f-a5e5-231cf4e78f2e",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 62030,
+              "started_ms": 1791093030050,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          }
+        },
+        "provider_error_count": 0,
+        "provider_request_count": 4,
+        "recovery_action": {
+          "resolution": "unknown launch outcomes require explicit local reconciliation; historical PIDs are not process authority",
+          "schema": 1,
+          "signaled": false,
+          "spawned": false
+        },
+        "version": "1.0.1"
+      }
+    ],
+    "created_at": "2026-10-04T05:50:15.640063+00:00",
+    "timeout_ms": 60000
+  },
+  "evidence_level": "actual-client/scripted-provider/production-daemon/private-profile",
+  "historical_default_and_fault_recovery_candidate_3": {
+    "artifact": "candidate_3",
+    "check_definitions": {
+      "crash_observed": "Owned managed parent SIGKILL observed; child cleanup intentionally deferred",
+      "default_blocked": "Structured policy denial and independently observed parent Blocked required; Pi default allowed writes do not prove blocking",
+      "duplicate_launch_refused": "Unknown launch rejects explicit retry with Conflict and unchanged launch identifier",
+      "fault_cleanup": "Intentional owned-session forced fault cleanup; no natural-cleanup claim",
+      "unknown_recovery": "Recovery preserves launch/process identity and explicitly neither spawns nor signals"
+    },
+    "clients": [
+      {
+        "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "checks": {
+          "crash_observed": "pass",
+          "default_blocked": "pass",
+          "duplicate_launch_refused": "pass",
+          "fault_cleanup": "pass",
+          "unknown_recovery": "pass"
+        },
+        "client": "codex",
+        "default_binding": {
+          "assignment": null,
+          "goal": "c6ec55a37e7207d56bf3a6e5494997aec82479b9d43283a70c60e5e79244955b",
+          "instance": "56f8061a9400e7cf117482d30285537a",
+          "principal": "17602548e6834bb446ebe60f34302e428cd5ad1b5423f705cf94d920ea7b3dfd"
+        },
+        "default_final_session": {
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "claim": null,
+          "enabled_capabilities": [],
+          "launch_id": "eb325fa8fe0173d2ea49baacce07cc8da5505e6c1ac969da3c05544f6dedcf84",
+          "native_initialized": true,
+          "native_session_id": "01a1056a-f7db-7421-b038-218dc5b2e0f5",
+          "owned_process": {
+            "exit_code": 0,
+            "exited": true,
+            "pid": 13480,
+            "started_ms": 1791092256729,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "default_observed_states": [
+          "launching",
+          "started",
+          "ready",
+          "blocked",
+          "exited"
+        ],
+        "default_runs": [
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 3282,
+            "exit_code": 0,
+            "forced_cleanup": false,
+            "interrupted": false,
+            "natural_cleanup": true,
+            "observed_exit_before_cleanup": true,
+            "signal_scope": null,
+            "stderr_sha256": "2ee1ffcdfb80199b80f978125b7aa1101de8060fb679c585b9a489002c64c540",
+            "stdout_sha256": "3c918b895d7230412c06cadbf58a9971a27fc438b2907250594a5ccde6bba1ea",
+            "timed_out": false
+          }
+        ],
+        "default_session_snapshots_sha256": "27dbf1677d44e5ce473929b1417967cb628264b31f82d0c3c73c28613870cc5f",
+        "fault_binding": {
+          "assignment": null,
+          "goal": "c6ec55a37e7207d56bf3a6e5494997aec82479b9d43283a70c60e5e79244955b",
+          "instance": "0629e455f279036ac4110b2a8da4006f",
+          "principal": "17602548e6834bb446ebe60f34302e428cd5ad1b5423f705cf94d920ea7b3dfd"
+        },
+        "fault_cleanup": {
+          "forced": true,
+          "verified": true
+        },
+        "fault_session_snapshots_sha256": "dc06875ab2b7e06fc5007cb640cb160700776e81ff6451c58c5ec69a607fcb7b",
+        "fault_sessions": {
+          "after": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "b9d0b635beb60e2af9f93753d7520141d948a432da897c9fe9f9ff66d057b8a9",
+            "native_initialized": true,
+            "native_session_id": "01a1056a-fe7a-76b2-b6bb-83b7780cc96b",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 14098,
+              "started_ms": 1791092260207,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          },
+          "before": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [
+              "tools"
+            ],
+            "launch_id": "b9d0b635beb60e2af9f93753d7520141d948a432da897c9fe9f9ff66d057b8a9",
+            "native_initialized": true,
+            "native_session_id": "01a1056a-fe7a-76b2-b6bb-83b7780cc96b",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 14098,
+              "started_ms": 1791092260207,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "ready"
+          },
+          "latest": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "b9d0b635beb60e2af9f93753d7520141d948a432da897c9fe9f9ff66d057b8a9",
+            "native_initialized": true,
+            "native_session_id": "01a1056a-fe7a-76b2-b6bb-83b7780cc96b",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 14098,
+              "started_ms": 1791092260207,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          }
+        },
+        "provider_error_count": 0,
+        "provider_request_count": 4,
+        "recovery_action": {
+          "schema": 1,
+          "signaled": false,
+          "spawned": false
+        },
+        "version": "codex-cli 0.153.4"
+      },
+      {
+        "binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+        "checks": {
+          "crash_observed": "pass",
+          "default_blocked": "pass",
+          "duplicate_launch_refused": "pass",
+          "fault_cleanup": "pass",
+          "unknown_recovery": "pass"
+        },
+        "client": "claude-code",
+        "default_binding": {
+          "assignment": null,
+          "goal": "f769d8edbff64a59d6d15862e26d7913cc0fbe933398d1b3ecaae5d63f793ff2",
+          "instance": "bb4ebf2a57eee421470b6b87a2e1553f",
+          "principal": "d3be298ab6c26ee387ce7a4046d4dfd42b3d0388dacbe18e4501f0294e1f4ff4"
+        },
+        "default_final_session": {
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "claim": null,
+          "enabled_capabilities": [],
+          "launch_id": "78f679f1e93cded7bc770c9d41614192503266b9136ce25a4aa8fad8b7e64f84",
+          "native_initialized": true,
+          "native_session_id": "d7586c5f-520b-4f22-b58e-096a697d6d76",
+          "owned_process": {
+            "exit_code": 0,
+            "exited": true,
+            "pid": 14566,
+            "started_ms": 1791092262785,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "default_observed_states": [
+          "started",
+          "ready",
+          "blocked",
+          "exited"
+        ],
+        "default_runs": [
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 1237,
+            "exit_code": 0,
+            "forced_cleanup": false,
+            "interrupted": false,
+            "natural_cleanup": true,
+            "observed_exit_before_cleanup": true,
+            "signal_scope": null,
+            "stderr_sha256": "a360d35befaccc1a4ec315e5c70768182cf405135eeb653614a36cffce5378c1",
+            "stdout_sha256": "94a628cdc8e9b0018962bfc8faccf03a87e0312a1fb10f9bfd3309b3f03464f4",
+            "timed_out": false
+          }
+        ],
+        "default_session_snapshots_sha256": "8c972dad788dc7d7ada6b37ce68bc949db5a0267fb466dd599f61ae2ad35fcab",
+        "fault_binding": {
+          "assignment": null,
+          "goal": "f769d8edbff64a59d6d15862e26d7913cc0fbe933398d1b3ecaae5d63f793ff2",
+          "instance": "a4450042eab3e3967313bf72479abef9",
+          "principal": "d3be298ab6c26ee387ce7a4046d4dfd42b3d0388dacbe18e4501f0294e1f4ff4"
+        },
+        "fault_cleanup": {
+          "forced": true,
+          "verified": true
+        },
+        "fault_session_snapshots_sha256": "3faf6682087bd7d86b866954486a4492f0994502aa3c59ed003be1df8dc78cfd",
+        "fault_sessions": {
+          "after": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "a7bcce47c0f2242d6dfdd2a545835ada89ab62ce3a3384288a5cfd49a0a51e67",
+            "native_initialized": true,
+            "native_session_id": "f5fb1286-ef72-44b9-b2d0-fedfff952805",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 14868,
+              "started_ms": 1791092264169,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          },
+          "before": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [
+              "tools"
+            ],
+            "launch_id": "a7bcce47c0f2242d6dfdd2a545835ada89ab62ce3a3384288a5cfd49a0a51e67",
+            "native_initialized": true,
+            "native_session_id": "f5fb1286-ef72-44b9-b2d0-fedfff952805",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 14868,
+              "started_ms": 1791092264169,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "ready"
+          },
+          "latest": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "a7bcce47c0f2242d6dfdd2a545835ada89ab62ce3a3384288a5cfd49a0a51e67",
+            "native_initialized": true,
+            "native_session_id": "f5fb1286-ef72-44b9-b2d0-fedfff952805",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 14868,
+              "started_ms": 1791092264169,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          }
+        },
+        "provider_error_count": 0,
+        "provider_request_count": 4,
+        "recovery_action": {
+          "schema": 1,
+          "signaled": false,
+          "spawned": false
+        },
+        "version": "2.1.280 (Claude Code)"
+      },
+      {
+        "binary_sha256": "076c78e42f94dd21767f5094002259efb256cc294cce63d6552b6607bc714589",
+        "checks": {
+          "crash_observed": "pass",
+          "default_blocked": "pass",
+          "duplicate_launch_refused": "pass",
+          "fault_cleanup": "pass",
+          "unknown_recovery": "pass"
+        },
+        "client": "factory-droid",
+        "default_binding": {
+          "assignment": null,
+          "goal": "91bf97caf2330cf4f588d381f4c95fe67b24c2e54e685cabb8a6bb2ba2a6a412",
+          "instance": "52eac863f38b5658be1e41e021fcb488",
+          "principal": "fdf2308b1761deaf92ef7f2852c9580151a5047ec4392ef2eed093b962411d08"
+        },
+        "default_final_session": {
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "claim": null,
+          "enabled_capabilities": [],
+          "launch_id": "a3a0128d38693bb755397949cf7bdf4865935abee9d6fa7528bff202bd675dd6",
+          "native_initialized": true,
+          "native_session_id": "6249833e-56e6-44ce-aa1c-281ef20fbc6b",
+          "owned_process": {
+            "exit_code": 1,
+            "exited": true,
+            "pid": 15316,
+            "started_ms": 1791092266681,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "default_observed_states": [
+          "launching",
+          "started",
+          "ready",
+          "blocked",
+          "exited"
+        ],
+        "default_runs": [
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 7633,
+            "exit_code": 0,
+            "forced_cleanup": false,
+            "interrupted": false,
+            "natural_cleanup": true,
+            "observed_exit_before_cleanup": true,
+            "signal_scope": null,
+            "stderr_sha256": "b4b15bf7ffbf500b544375540aff49d6c856237c70393e193b8523fe8bbd5266",
+            "stdout_sha256": "12e455639f88c7702dd7d36ece750f7a588604ecbd00c9ba9a7902ef37b2cc81",
+            "timed_out": false
+          }
+        ],
+        "default_session_snapshots_sha256": "3a0571ca60d5bec144654306aceb441ecc5ffb4131d8395b0e5d79260baafc9b",
+        "fault_binding": {
+          "assignment": null,
+          "goal": "91bf97caf2330cf4f588d381f4c95fe67b24c2e54e685cabb8a6bb2ba2a6a412",
+          "instance": "b23a6bf8a319bd952d53271ef33e2c74",
+          "principal": "fdf2308b1761deaf92ef7f2852c9580151a5047ec4392ef2eed093b962411d08"
+        },
+        "fault_cleanup": {
+          "forced": true,
+          "verified": true
+        },
+        "fault_session_snapshots_sha256": "3c95a9df43589f73af8c2b7409fe1ed4899b602a77053937261b766a159317fa",
+        "fault_sessions": {
+          "after": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "98ce5027775a4ecc9b4c5be6d4f544e89e27f9d94e79010883f6348b16589bad",
+            "native_initialized": true,
+            "native_session_id": "6fe738de-d8a0-44f7-9bf1-ec5ee70de99f",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 16978,
+              "started_ms": 1791092274417,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          },
+          "before": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [
+              "tools"
+            ],
+            "launch_id": "98ce5027775a4ecc9b4c5be6d4f544e89e27f9d94e79010883f6348b16589bad",
+            "native_initialized": true,
+            "native_session_id": "6fe738de-d8a0-44f7-9bf1-ec5ee70de99f",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 16978,
+              "started_ms": 1791092274417,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "ready"
+          },
+          "latest": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "98ce5027775a4ecc9b4c5be6d4f544e89e27f9d94e79010883f6348b16589bad",
+            "native_initialized": true,
+            "native_session_id": "6fe738de-d8a0-44f7-9bf1-ec5ee70de99f",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 16978,
+              "started_ms": 1791092274417,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          }
+        },
+        "provider_error_count": 0,
+        "provider_request_count": 4,
+        "recovery_action": {
+          "schema": 1,
+          "signaled": false,
+          "spawned": false
+        },
+        "version": "0.218.1"
+      },
+      {
+        "binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+        "checks": {
+          "crash_observed": "pass",
+          "default_blocked": "not_run",
+          "duplicate_launch_refused": "pass",
+          "fault_cleanup": "pass",
+          "unknown_recovery": "pass"
+        },
+        "client": "pi",
+        "default_binding": {
+          "assignment": null,
+          "goal": "209b95b1ed030b9acd29bee58f17e2e5648bd3886531fe4933217f295aa45625",
+          "instance": "9c658e8a07bfeb848e11378c3da020d9",
+          "principal": "16d045936374b2f9db44936d4c931bd258629b175b8b35ccedd94429ef395e4c"
+        },
+        "default_final_session": {
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "claim": null,
+          "enabled_capabilities": [],
+          "launch_id": "b2f8fa44640de9a04184edf26a68c7b1f78017b7b0eb72e9ac7a1ff2b9769598",
+          "native_initialized": true,
+          "native_session_id": "01a1056b-4275-7450-941a-8aa61bf5902b",
+          "owned_process": {
+            "exit_code": 0,
+            "exited": true,
+            "pid": 17477,
+            "started_ms": 1791092277692,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "default_observed_states": [
+          "launching",
+          "started",
+          "ready",
+          "exited"
+        ],
+        "default_runs": [
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 1274,
+            "exit_code": 0,
+            "forced_cleanup": false,
+            "interrupted": false,
+            "natural_cleanup": true,
+            "observed_exit_before_cleanup": true,
+            "signal_scope": null,
+            "stderr_sha256": "c521934969041a3e92f4c01d8a5131caa7be72642c439acf3960174393e9785e",
+            "stdout_sha256": "7e2336e661652429bfb90991bf6b424143235e1e0035be21485bb6d51fb9f7c7",
+            "timed_out": false
+          }
+        ],
+        "default_session_snapshots_sha256": "18e5279c064ba7bd5c7a643a5b7018c168d377cdcc2d44099eeb727bbc6536b4",
+        "fault_binding": {
+          "assignment": null,
+          "goal": "209b95b1ed030b9acd29bee58f17e2e5648bd3886531fe4933217f295aa45625",
+          "instance": "6004187db30d938f4e0ccb19885f17bb",
+          "principal": "16d045936374b2f9db44936d4c931bd258629b175b8b35ccedd94429ef395e4c"
+        },
+        "fault_cleanup": {
+          "forced": true,
+          "verified": true
+        },
+        "fault_session_snapshots_sha256": "a93ebc01c2f45af738b7c85f08b86909e9a32ce2da8522f550b3e705a0ffb51f",
+        "fault_sessions": {
+          "after": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "edafaa239a4a8ace3f1266f2348515359873f9acce07cfc7fd695893326ad097",
+            "native_initialized": true,
+            "native_session_id": "01a1056b-47e2-773f-a946-9f0c4353002a",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 17726,
+              "started_ms": 1791092279075,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          },
+          "before": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [
+              "tools"
+            ],
+            "launch_id": "edafaa239a4a8ace3f1266f2348515359873f9acce07cfc7fd695893326ad097",
+            "native_initialized": true,
+            "native_session_id": "01a1056b-47e2-773f-a946-9f0c4353002a",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 17726,
+              "started_ms": 1791092279075,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "ready"
+          },
+          "latest": {
+            "authenticated_tools_ready": true,
+            "binding_matches_reference": true,
+            "claim": null,
+            "enabled_capabilities": [],
+            "launch_id": "edafaa239a4a8ace3f1266f2348515359873f9acce07cfc7fd695893326ad097",
+            "native_initialized": true,
+            "native_session_id": "01a1056b-47e2-773f-a946-9f0c4353002a",
+            "owned_process": {
+              "exit_code": null,
+              "exited": false,
+              "pid": 17726,
+              "started_ms": 1791092279075,
+              "termination_signal": null
+            },
+            "session_claims": [],
+            "state": "unknown"
+          }
+        },
+        "provider_error_count": 0,
+        "provider_request_count": 5,
+        "recovery_action": {
+          "schema": 1,
+          "signaled": false,
+          "spawned": false
+        },
+        "version": "1.0.1"
+      }
+    ],
+    "created_at": "2026-10-04T05:37:35.867425+00:00",
+    "timeout_ms": 60000
+  },
+  "historical_normal_candidate_4": {
+    "artifact": "candidate_4",
+    "check_definitions": {
+      "automatic_wake": "Scenario not executed",
+      "binding": "Persisted exact principal/session/goal/task/assignment/attempt",
+      "blocked": "Scenario not executed",
+      "cancellation_acknowledged": "Actual model-client tool explicitly recorded uncertain executor outcome; notification alone did not acknowledge cancellation",
+      "cancellation_durable": "Cancellation requested while client exited remains pending after daemon restart",
+      "claim": "Managed metadata matches independently authenticated claim and generation",
+      "cleanup": "All owned sessions/receipt-identified bridges exited naturally; scripted provider reported no errors",
+      "daemon_restart": "SQLite retained exact exited managed record across restart",
+      "exited": "Owned child exit is recorded; task completion is not inferred",
+      "explicit_resume": "Explicit local resume observed the same native session with a fresh managed launch",
+      "held_wait": "Structured native wait invocation preceded leader-only interruption",
+      "interruption": "Managed parent forwarded the local interrupt and durably observed native exit without forced cleanup",
+      "ordinary_pending": "Read-only pending fallback retains claimed work after client exit",
+      "packaged_install": "Scenario not executed",
+      "profile_restored": "Selected profile MCP bytes restored after owned client exit",
+      "ready": "Durable Ready requires structured native identity and authenticated production MCP receipt",
+      "real_model": "Scenario not executed",
+      "uncertain_recovery": "Scenario not executed"
+    },
+    "clients": [
+      {
+        "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "binding": {
+          "assignment": "61973dd42c7d5c35cdd2dfc2f4e2e05b39c8a2a25e8398d4337ef5bcae7bf101",
+          "goal": "6dc2d25d9a0d8f3615d68493678cf4c17f820fae71ca48af8c643951f44c08d2",
+          "instance": "e912ad9a7dbb2a832531c84d6a3cee47",
+          "principal": "4b18615aa4fc5b8a4a623dc939de14c69b8c7a6d652576046f3dc43793013c9e",
+          "task": "be0dbeffca9f1f4338eae3446f56afb7316cc788a72212b141a0d18df7163387"
+        },
+        "checks": {
+          "automatic_wake": "not_run",
+          "binding": "pass",
+          "blocked": "not_run",
+          "cancellation_acknowledged": "pass",
+          "cancellation_durable": "pass",
+          "claim": "pass",
+          "cleanup": "pass",
+          "daemon_restart": "pass",
+          "exited": "pass",
+          "explicit_resume": "pass",
+          "held_wait": "pass",
+          "interruption": "pass",
+          "ordinary_pending": "pass",
+          "packaged_install": "not_run",
+          "profile_restored": "pass",
+          "ready": "pass",
+          "real_model": "not_run",
+          "uncertain_recovery": "not_run"
+        },
+        "client": "codex",
+        "private_runtime_profile_removed": true,
+        "provider_error_count": 0,
+        "provider_request_count": 6,
+        "reported_enabled_capabilities": [],
+        "runs": [
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 2844,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": {
+                "generation": 1
+              },
+              "enabled_capabilities": [],
+              "launch_id": "81b7d1c5a106d58d84b7f910513ce3aa1073081cd7722ac8c8d3343244beed9a",
+              "native_initialized": true,
+              "native_session_id": "01a1056e-86ed-7dc0-b7ca-ed6cdc4fdd03",
+              "owned_process": {
+                "exit_code": 1,
+                "exited": true,
+                "pid": 48570,
+                "started_ms": 1791092490526,
+                "termination_signal": null
+              },
+              "session_claims": [
+                {
+                  "generation": 1
+                }
+              ],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": true,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "01a1056e-86ed-7dc0-b7ca-ed6cdc4fdd03"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [
+              "item_3"
+            ],
+            "scenario": "launch",
+            "session_snapshots_sha256": "deb8f3745602f29ef3f16acaa171051b6c2dc086cd8e8bd2dd7309bd67372beb",
+            "signal_scope": "client_leader",
+            "states": [
+              "started",
+              "ready",
+              "exited"
+            ],
+            "stderr_sha256": "9f6d405d06dc7ab2d8f81e41c3070d15f18d1bbb1172133b1c23c2f806d1c5d7",
+            "stdout_sha256": "bcca8a54d2edce0d5e260ceb0576ab83744e5caa21f4323ecfde4f2b7266cbd0",
+            "timed_out": false
+          },
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 1129,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": null,
+              "enabled_capabilities": [
+                "manual_resume"
+              ],
+              "launch_id": "e4e515363c36afe6ba9ca9715e8139c6c3fe582882f0c87e5569550ed4e7f7a7",
+              "native_initialized": true,
+              "native_session_id": "01a1056e-86ed-7dc0-b7ca-ed6cdc4fdd03",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 49057,
+                "started_ms": 1791092493853,
+                "termination_signal": null
+              },
+              "session_claims": [],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": false,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "01a1056e-86ed-7dc0-b7ca-ed6cdc4fdd03"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "exited"
+              },
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "manual_resume",
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "manual_resume"
+                ],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [],
+            "scenario": "resume",
+            "session_snapshots_sha256": "10784ff83511a3bedf461bd98dd93ab14b7e273ae7b87c5dec1ebd95f2e9ba6d",
+            "signal_scope": null,
+            "states": [
+              "exited",
+              "started",
+              "ready"
+            ],
+            "stderr_sha256": "17b4299368d816db75020a6bb428f495bda543488a20aec74d90fdc0ce4bce73",
+            "stdout_sha256": "3486cbcf749d94b104d2bf130f55339fd928a21327dc555ab7c34c309978c3e0",
+            "timed_out": false
+          }
+        ],
+        "task_after_resume": {
+          "applied": false,
+          "attempt": 1,
+          "result": null,
+          "state": {
+            "cancelled": "uncertain"
+          }
+        },
+        "version": "codex-cli 0.153.4"
+      },
+      {
+        "binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+        "binding": {
+          "assignment": "d9e09be92035e9dcd25ecbf45bd78b794dc95f751dc753c2823387d81ce50756",
+          "goal": "35bc3a9f6c79967f8a7d7abc58c5e87c510693a517cc814c5cdad305584ce5b7",
+          "instance": "1f21ad32f609bf79335c6e29ef11b133",
+          "principal": "65458033c28418fdc14290f047294953b99b9f9bdb1437e1c70adfcc36e1d1fb",
+          "task": "353961e8528828d9abac7ca9ede226b6bfa72520bc2f369b8ff65a4e0c32df14"
+        },
+        "checks": {
+          "automatic_wake": "not_run",
+          "binding": "pass",
+          "blocked": "not_run",
+          "cancellation_acknowledged": "pass",
+          "cancellation_durable": "pass",
+          "claim": "pass",
+          "cleanup": "pass",
+          "daemon_restart": "pass",
+          "exited": "pass",
+          "explicit_resume": "pass",
+          "held_wait": "pass",
+          "interruption": "pass",
+          "ordinary_pending": "pass",
+          "packaged_install": "not_run",
+          "profile_restored": "pass",
+          "ready": "pass",
+          "real_model": "not_run",
+          "uncertain_recovery": "not_run"
+        },
+        "client": "claude-code",
+        "private_runtime_profile_removed": true,
+        "provider_error_count": 0,
+        "provider_request_count": 6,
+        "reported_enabled_capabilities": [],
+        "runs": [
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 1338,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": {
+                "generation": 1
+              },
+              "enabled_capabilities": [],
+              "launch_id": "4b278782964190fdab5915dd0311461573c78311aef0126ae56a3b76bbbc48c6",
+              "native_initialized": true,
+              "native_session_id": "35f176ac-ee40-4e11-a986-b909c16e2f0d",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 49569,
+                "started_ms": 1791092497168,
+                "termination_signal": null
+              },
+              "session_claims": [
+                {
+                  "generation": 1
+                }
+              ],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": true,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "35f176ac-ee40-4e11-a986-b909c16e2f0d"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "blocked"
+              },
+              {
+                "enabled": [],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [
+              "call_fixture_3"
+            ],
+            "scenario": "launch",
+            "session_snapshots_sha256": "20ce0438fbd12b2356ded9e2b53de205d9112e9a17b2285f4531921a544b3f17",
+            "signal_scope": "client_leader",
+            "states": [
+              "started",
+              "ready",
+              "blocked",
+              "exited"
+            ],
+            "stderr_sha256": "83f08d00539bcd427c6b7b9c059c9969635fd83e050a87dc65ac794602b440f4",
+            "stdout_sha256": "80f0f84c29daa3d36d08f3abe37fe5b950b3f935ff707728e9c2c57fce0287b6",
+            "timed_out": false
+          },
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 660,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": null,
+              "enabled_capabilities": [
+                "manual_resume"
+              ],
+              "launch_id": "d1f3fa383b2453d825270cef0017d6606bde0bdd35fba19207b4b3f7766f37ca",
+              "native_initialized": true,
+              "native_session_id": "35f176ac-ee40-4e11-a986-b909c16e2f0d",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 49868,
+                "started_ms": 1791092498892,
+                "termination_signal": null
+              },
+              "session_claims": [],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": false,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "35f176ac-ee40-4e11-a986-b909c16e2f0d"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "exited"
+              },
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "manual_resume",
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "manual_resume"
+                ],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [],
+            "scenario": "resume",
+            "session_snapshots_sha256": "0c6266c813c72d728fd13191e8daa6f8d4a2a2fe02381627edf50e884117360c",
+            "signal_scope": null,
+            "states": [
+              "exited",
+              "started",
+              "ready"
+            ],
+            "stderr_sha256": "074eb50a87b41f5378303718d6bdd0b66458ebd07ff03104884194d5437c0843",
+            "stdout_sha256": "43107cc28b26443baee36bf8ac200cd9e8f00c28d1e782f8916550e8c684b2c8",
+            "timed_out": false
+          }
+        ],
+        "task_after_resume": {
+          "applied": false,
+          "attempt": 1,
+          "result": null,
+          "state": {
+            "cancelled": "uncertain"
+          }
+        },
+        "version": "2.1.280 (Claude Code)"
+      },
+      {
+        "binary_sha256": "076c78e42f94dd21767f5094002259efb256cc294cce63d6552b6607bc714589",
+        "binding": {
+          "assignment": "0097bb1f9503f86553bd3c9b5c7c2c005759d5f1151e2426b97aab5b04a139a2",
+          "goal": "ca42f860136e6e037d225f8fc76bec47253b313375a35887558883afc28de758",
+          "instance": "ef6cbc56147bcd6fb0e9afa9fc93a65d",
+          "principal": "e899a423819dd05d65e601b676c40b8c35bd162695bdeb966fe77754c88cf5cc",
+          "task": "7cd7806ac12f47a47709247bb3c3528f26df857b15868529301e813071d68941"
+        },
+        "checks": {
+          "automatic_wake": "not_run",
+          "binding": "pass",
+          "blocked": "not_run",
+          "cancellation_acknowledged": "pass",
+          "cancellation_durable": "pass",
+          "claim": "pass",
+          "cleanup": "pass",
+          "daemon_restart": "pass",
+          "exited": "pass",
+          "explicit_resume": "pass",
+          "held_wait": "pass",
+          "interruption": "pass",
+          "ordinary_pending": "pass",
+          "packaged_install": "not_run",
+          "profile_restored": "pass",
+          "ready": "pass",
+          "real_model": "not_run",
+          "uncertain_recovery": "not_run"
+        },
+        "client": "factory-droid",
+        "private_runtime_profile_removed": true,
+        "provider_error_count": 0,
+        "provider_request_count": 10,
+        "reported_enabled_capabilities": [],
+        "runs": [
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 8243,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": {
+                "generation": 1
+              },
+              "enabled_capabilities": [],
+              "launch_id": "2d0a6fa45c5241ee1ae0e791d0bb5f0a218dc9de57c330eb970967fcd155d3be",
+              "native_initialized": true,
+              "native_session_id": "8fd42d82-ee35-4cf8-bba1-57ed31fddee7",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 50247,
+                "started_ms": 1791092501717,
+                "termination_signal": null
+              },
+              "session_claims": [
+                {
+                  "generation": 1
+                }
+              ],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": true,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "8fd42d82-ee35-4cf8-bba1-57ed31fddee7"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [
+              "call_fixture_6"
+            ],
+            "scenario": "launch",
+            "session_snapshots_sha256": "cf462db989eb6253938fa4ebf8f03a3f3eacb5a1964654e1887e2d6a3d6f1efc",
+            "signal_scope": "client_leader",
+            "states": [
+              "started",
+              "ready",
+              "exited"
+            ],
+            "stderr_sha256": "e391a9b31f384671a6c623e47de8f61b12d7a471328ae62245db8034fe83929c",
+            "stdout_sha256": "87a331253cafcf722361025949ffdec0fbc27359fa6a401e1c3c588a3ae6aa6c",
+            "timed_out": false
+          },
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 1989,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": null,
+              "enabled_capabilities": [
+                "manual_resume"
+              ],
+              "launch_id": "1f750fcf5f2062123b85a3cca4e066113711f681e9e03de0bc10e67f0e5f352a",
+              "native_initialized": true,
+              "native_session_id": "8fd42d82-ee35-4cf8-bba1-57ed31fddee7",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 51122,
+                "started_ms": 1791092510142,
+                "termination_signal": null
+              },
+              "session_claims": [],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": false,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "8fd42d82-ee35-4cf8-bba1-57ed31fddee7"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "exited"
+              },
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "manual_resume",
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "manual_resume"
+                ],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [],
+            "scenario": "resume",
+            "session_snapshots_sha256": "235ac8e85d85b3d9d2473200a08ed5ea0bde7072f4d9014a2f6668940651a8cc",
+            "signal_scope": null,
+            "states": [
+              "exited",
+              "started",
+              "ready"
+            ],
+            "stderr_sha256": "72b5edaa1a7ffada15b642bcd57030bd5989c091b00524822839f7c2fee52c62",
+            "stdout_sha256": "691ff2b52d2a4d26842fe110c0a23de215380452d2c3c21f6d179f383786a3e1",
+            "timed_out": false
+          }
+        ],
+        "task_after_resume": {
+          "applied": false,
+          "attempt": 1,
+          "result": null,
+          "state": {
+            "cancelled": "uncertain"
+          }
+        },
+        "version": "0.218.1"
+      },
+      {
+        "binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+        "binding": {
+          "assignment": "679b1f854e67e25580e80a863bfd98a3c3c7be9b2d780dd08150717b958245c6",
+          "goal": "780f6d2c1eeeb9ac540543fd0aebd0df04e5b73419328c5fd41ef8f646d8b9a6",
+          "instance": "90f0e8c6b490a7ef465a99061264eb69",
+          "principal": "7e4ee71d1dcd17a4efd204c86b39919b3641937667d3fb68217f4c87d002e499",
+          "task": "875be5ba6ad6ddd6147ad4cc0d661dd3c5acd3d493992fd69eba7770e38e7668"
+        },
+        "checks": {
+          "automatic_wake": "not_run",
+          "binding": "pass",
+          "blocked": "not_run",
+          "cancellation_acknowledged": "pass",
+          "cancellation_durable": "pass",
+          "claim": "pass",
+          "cleanup": "pass",
+          "daemon_restart": "pass",
+          "exited": "pass",
+          "explicit_resume": "pass",
+          "held_wait": "pass",
+          "interruption": "pass",
+          "ordinary_pending": "pass",
+          "packaged_install": "not_run",
+          "profile_restored": "pass",
+          "ready": "pass",
+          "real_model": "not_run",
+          "uncertain_recovery": "not_run"
+        },
+        "client": "pi",
+        "private_runtime_profile_removed": true,
+        "provider_error_count": 0,
+        "provider_request_count": 6,
+        "reported_enabled_capabilities": [],
+        "runs": [
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 1184,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": {
+                "generation": 1
+              },
+              "enabled_capabilities": [],
+              "launch_id": "abd6066ea7d3e784073dbdc23e9a583a76d0f8453f3ad99d81913ca052adb29a",
+              "native_initialized": true,
+              "native_session_id": "01a1056e-d9ff-721c-91e4-5be2b66f3b4c",
+              "owned_process": {
+                "exit_code": null,
+                "exited": true,
+                "pid": 51242,
+                "started_ms": 1791092513119,
+                "termination_signal": 2
+              },
+              "session_claims": [
+                {
+                  "generation": 1
+                }
+              ],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": true,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "01a1056e-d9ff-721c-91e4-5be2b66f3b4c"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [
+              "call_fixture_3",
+              "call_fixture_3/1"
+            ],
+            "scenario": "launch",
+            "session_snapshots_sha256": "a78aaf7ba8e2c366380d64ee1970fc66a332e7e72468f8449c6a1213fd40e785",
+            "signal_scope": "client_leader",
+            "states": [
+              "started",
+              "ready",
+              "exited"
+            ],
+            "stderr_sha256": "4594668d7b203b511666f5a3f4d28490cc9b452183614fd7a185cf364d9e6e56",
+            "stdout_sha256": "76b4e0639307c217216b34ba75ee68566ff1977fe3ed61ba6150c9efbf733e1f",
+            "timed_out": false
+          },
+          {
+            "cleanup_verified": true,
+            "elapsed_ms": 715,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": null,
+              "enabled_capabilities": [
+                "manual_resume"
+              ],
+              "launch_id": "2eb89afefdd12b9c0da63cbb8c3ffdc373a5f6b0677a9012e7b3aebb930f48a9",
+              "native_initialized": true,
+              "native_session_id": "01a1056e-d9ff-721c-91e4-5be2b66f3b4c",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 51290,
+                "started_ms": 1791092514547,
+                "termination_signal": null
+              },
+              "session_claims": [],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": false,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "01a1056e-d9ff-721c-91e4-5be2b66f3b4c"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "exited"
+              },
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "manual_resume",
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "manual_resume"
+                ],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [],
+            "scenario": "resume",
+            "session_snapshots_sha256": "5171fbc1d492b6a9a26cc78cbddab6cc84b1c8c6de690ffaaa69ddb0897943ea",
+            "signal_scope": null,
+            "states": [
+              "exited",
+              "started",
+              "ready"
+            ],
+            "stderr_sha256": "65eefba9a35e861a9ff90d4b17753911fbb0e4f38bbf56cb6db8ba391f355b45",
+            "stdout_sha256": "e52305524d7b85e0bb8598f7b3fa2c5860f5e87e89308a94564c8a0a9b540c36",
+            "timed_out": false
+          }
+        ],
+        "task_after_resume": {
+          "applied": false,
+          "attempt": 1,
+          "result": null,
+          "state": {
+            "cancelled": "uncertain"
+          }
+        },
+        "version": "1.0.1"
+      }
+    ],
+    "created_at": "2026-10-04T05:41:29.909172+00:00",
+    "timeout_ms": 60000
+  },
+  "inputs": {
+    "final_recovery_harness_sources": [
+      {
+        "sha256": "7fe8e98e1dca156be5f45b5065b02d2f13e4ae5f735f274b867e620a125fa4fe",
+        "source": "scripts/check_managed_recovery.py"
+      },
+      {
+        "sha256": "39f0dbe3f0bee34165d4efc38c95464519e6058db5858f33f535327697c82215",
+        "source": "scripts/check_clients.py"
+      },
+      {
+        "sha256": "bcd3e57c4254d601a7ede43d2bbc98b1fe9b4de415f42b15c1403efc23d58cee",
+        "source": "scripts/check_managed_clients.py"
+      }
+    ],
+    "historical_normal_report_sha256": "4ca0b76be396b984ffc03565fd674f15e032e8102ab5b5521ced3d085c408edf",
+    "historical_recovery_report_sha256": "47d90f06daeb6bce978f4fb4d8e029cad9dac77f20a1fa0682f80c46cda50f8b",
+    "normal_report_sha256": "13aad6e445c1c04cea6be273be95aaef5d6cb8b27566cb1eaabeec32f94a295b",
+    "prior_normal_report_sha256": "3d4228e63844003060bccd5d9586a8e2265371ce23cbc939a870eb560dcfde19",
+    "recovery_harness_sources": [
+      {
+        "sha256": "7fe8e98e1dca156be5f45b5065b02d2f13e4ae5f735f274b867e620a125fa4fe",
+        "source": "scripts/check_managed_recovery.py"
+      },
+      {
+        "sha256": "39f0dbe3f0bee34165d4efc38c95464519e6058db5858f33f535327697c82215",
+        "source": "scripts/check_clients.py"
+      },
+      {
+        "sha256": "bcd3e57c4254d601a7ede43d2bbc98b1fe9b4de415f42b15c1403efc23d58cee",
+        "source": "scripts/check_managed_clients.py"
+      }
+    ],
+    "recovery_report_sha256": "842526916fa4ec1846384ff9ef4f30589cbb7d6e3bdb3a00b09b292e5306b28f"
+  },
+  "normal": {
+    "artifact": "candidate_5",
+    "check_definitions": {
+      "automatic_wake": "Scenario not executed",
+      "binding": "Persisted exact principal/session/goal/task/assignment/attempt",
+      "blocked": "Scenario not executed",
+      "cancellation_acknowledged": "Actual model-client tool explicitly recorded uncertain executor outcome; notification alone did not acknowledge cancellation",
+      "cancellation_durable": "Cancellation requested while client exited remains pending after daemon restart",
+      "claim": "Managed metadata matches independently authenticated claim and generation",
+      "cleanup": "All owned sessions/receipt-identified bridges exited naturally; scripted provider reported no errors",
+      "daemon_restart": "SQLite retained exact exited managed record across restart",
+      "exited": "Owned child exit is recorded; task completion is not inferred",
+      "explicit_resume": "Explicit local resume observed the same native session with a fresh managed launch",
+      "held_wait": "Structured native wait invocation preceded leader-only interruption",
+      "interruption": "Managed parent forwarded the local interrupt and durably observed native exit without forced cleanup",
+      "ordinary_pending": "Read-only pending fallback retains claimed work after client exit",
+      "packaged_install": "Scenario not executed",
+      "profile_restored": "Selected profile MCP bytes restored after owned client exit",
+      "ready": "Durable Ready requires structured native identity and authenticated production MCP receipt",
+      "real_model": "Scenario not executed",
+      "uncertain_recovery": "Scenario not executed"
+    },
+    "clients": [
+      {
+        "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+        "binding": {
+          "assignment": "5211700f996f958bda2a5a7abb97abda4ae52ce72bce4cd5b6be7a57de31a742",
+          "goal": "c551c53c02547b53a7f6843ef7631ff9b36121c0c308e73210c73351d7c4ae23",
+          "instance": "20b169a1ffefec4287ce429847464d90",
+          "principal": "70e088671dd433d6cfdc27232567576ec0a7aa8cea5895b3a877386ca5cbf7a1",
+          "task": "242b562fc1a85936cf0afe39357a20d363f08465619abb7614a2c3f54a260c1e"
+        },
+        "checks": {
+          "automatic_wake": "not_run",
+          "binding": "pass",
+          "blocked": "not_run",
+          "cancellation_acknowledged": "pass",
+          "cancellation_durable": "pass",
+          "claim": "pass",
+          "cleanup": "pass",
+          "daemon_restart": "pass",
+          "exited": "pass",
+          "explicit_resume": "pass",
+          "held_wait": "pass",
+          "interruption": "pass",
+          "ordinary_pending": "pass",
+          "packaged_install": "not_run",
+          "profile_restored": "pass",
+          "ready": "pass",
+          "real_model": "not_run",
+          "uncertain_recovery": "not_run"
+        },
+        "client": "codex",
+        "private_runtime_profile_removed": true,
+        "provider_error_count": 0,
+        "provider_request_count": 6,
+        "reported_enabled_capabilities": [],
+        "runs": [
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 864,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": {
+                "generation": 1
+              },
+              "enabled_capabilities": [],
+              "launch_id": "9037f83620aec1c2c7edc2bc4275bbfbbe80dd0f23349289f1bcf991dca80d91",
+              "native_initialized": true,
+              "native_session_id": "01a10576-efc8-7452-91d7-989566626f28",
+              "owned_process": {
+                "exit_code": 1,
+                "exited": true,
+                "pid": 62400,
+                "started_ms": 1791093043089,
+                "termination_signal": null
+              },
+              "session_claims": [
+                {
+                  "generation": 1
+                }
+              ],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": true,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "01a10576-efc8-7452-91d7-989566626f28"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [
+              "item_3"
+            ],
+            "scenario": "launch",
+            "session_snapshots_sha256": "c7a4ca632c435036c9f5c397e6d3998f37edd48d8344e82d1af669f18fab1222",
+            "signal_scope": "client_leader",
+            "states": [
+              "ready",
+              "exited"
+            ],
+            "stderr_sha256": "ffc6683dc9f7d8e1108d0e832fdf709846355ea35531ddaa1b3420d204018e4f",
+            "stdout_sha256": "ba60726ce60f755bda71222fb23981e7fed13794d6bed37eb60d77dd66f183db",
+            "timed_out": false
+          },
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 493,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": null,
+              "enabled_capabilities": [
+                "manual_resume"
+              ],
+              "launch_id": "6bef39d5f4e999f2beb5f6662923e882caf400045b83bba6123e69841ede7483",
+              "native_initialized": true,
+              "native_session_id": "01a10576-efc8-7452-91d7-989566626f28",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 62457,
+                "started_ms": 1791093044186,
+                "termination_signal": null
+              },
+              "session_claims": [],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": false,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "01a10576-efc8-7452-91d7-989566626f28"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "exited"
+              },
+              {
+                "enabled": [
+                  "tools",
+                  "manual_resume"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "manual_resume"
+                ],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [],
+            "scenario": "resume",
+            "session_snapshots_sha256": "e7b8b81b9349cebafd5511693759c28343997e937e8653726df720f918835f54",
+            "signal_scope": null,
+            "states": [
+              "exited",
+              "ready"
+            ],
+            "stderr_sha256": "45d128f5907e05c34b1184cdfc3b185decfa09b1b6944d874c843e6d4578f836",
+            "stdout_sha256": "f98dd271e180523d0f34ebc647b7f9d015e4bfd91daa7c221c5ba62f7cc4ee33",
+            "timed_out": false
+          }
+        ],
+        "task_after_resume": {
+          "applied": false,
+          "assignee": "70e088671dd433d6cfdc27232567576ec0a7aa8cea5895b3a877386ca5cbf7a1",
+          "assignment": "5211700f996f958bda2a5a7abb97abda4ae52ce72bce4cd5b6be7a57de31a742",
+          "attempt": 1,
+          "proposer": "70e088671dd433d6cfdc27232567576ec0a7aa8cea5895b3a877386ca5cbf7a1",
+          "result": null,
+          "state": {
+            "cancelled": "uncertain"
+          },
+          "task": "242b562fc1a85936cf0afe39357a20d363f08465619abb7614a2c3f54a260c1e"
+        },
+        "version": "codex-cli 0.153.4"
+      },
+      {
+        "binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+        "binding": {
+          "assignment": "746c54b860de49dd86e3650bfc998ad4c32cc2f46fbf3dd19a178878a751f305",
+          "goal": "7af6c5128268c6bef008faf04f9a87f272c791ead1991b0daef85962708ec970",
+          "instance": "7977d97471aa48e29e749f6e700c986a",
+          "principal": "88d1ab3fdb5c2a3c10efdb4d8c0fb6f92b6c82cd117089d0b4ebf55aaba83610",
+          "task": "af742fbd0453e91d180b2853e2bfc0737994dac910b5b42ff9e5a7c268440f8b"
+        },
+        "checks": {
+          "automatic_wake": "not_run",
+          "binding": "pass",
+          "blocked": "not_run",
+          "cancellation_acknowledged": "pass",
+          "cancellation_durable": "pass",
+          "claim": "pass",
+          "cleanup": "pass",
+          "daemon_restart": "pass",
+          "exited": "pass",
+          "explicit_resume": "pass",
+          "held_wait": "pass",
+          "interruption": "pass",
+          "ordinary_pending": "pass",
+          "packaged_install": "not_run",
+          "profile_restored": "pass",
+          "ready": "pass",
+          "real_model": "not_run",
+          "uncertain_recovery": "not_run"
+        },
+        "client": "claude-code",
+        "private_runtime_profile_removed": true,
+        "provider_error_count": 0,
+        "provider_request_count": 6,
+        "reported_enabled_capabilities": [],
+        "runs": [
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 1007,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": {
+                "generation": 1
+              },
+              "enabled_capabilities": [],
+              "launch_id": "605c32aa0dd8686a34a0ac5bfda8c7b2c210bf06b932dae4da4f52cd470639c9",
+              "native_initialized": true,
+              "native_session_id": "2380eaa7-f323-4243-81f0-2a413ffcb94a",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 62525,
+                "started_ms": 1791093045296,
+                "termination_signal": null
+              },
+              "session_claims": [
+                {
+                  "generation": 1
+                }
+              ],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": true,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "2380eaa7-f323-4243-81f0-2a413ffcb94a"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "blocked"
+              },
+              {
+                "enabled": [],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [
+              "call_fixture_3"
+            ],
+            "scenario": "launch",
+            "session_snapshots_sha256": "ccd743da36af6f4835178be2c2eeae08d333315cdb60525760b33fd8978fe8ea",
+            "signal_scope": "client_leader",
+            "states": [
+              "started",
+              "ready",
+              "blocked",
+              "exited"
+            ],
+            "stderr_sha256": "5507f9312ff1a8271ea819e67fe19bf1e6142446f6010508ec28ba5dc93ae772",
+            "stdout_sha256": "b4f995e56236b0e6ca0eab887f4c3cfc86bef1b35ce19e905528bacfbb2b2c91",
+            "timed_out": false
+          },
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 704,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": null,
+              "enabled_capabilities": [
+                "manual_resume"
+              ],
+              "launch_id": "7c1e97c17b626c41c50bcd885badb93cb2e5e8723537f4a665938068dd51ef48",
+              "native_initialized": true,
+              "native_session_id": "2380eaa7-f323-4243-81f0-2a413ffcb94a",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 62569,
+                "started_ms": 1791093046529,
+                "termination_signal": null
+              },
+              "session_claims": [],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": false,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "2380eaa7-f323-4243-81f0-2a413ffcb94a"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "exited"
+              },
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools",
+                  "manual_resume"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "manual_resume"
+                ],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [],
+            "scenario": "resume",
+            "session_snapshots_sha256": "6ce1da1cf4eb9360b86ac4a4246d6b7ad507c0062e71ce372cc3928b7017d50d",
+            "signal_scope": null,
+            "states": [
+              "exited",
+              "started",
+              "ready"
+            ],
+            "stderr_sha256": "a62d69bbd73d506db0e9f85a8c60af9a2c3bf6a1dc9a4e8d34c6b2b0238d074b",
+            "stdout_sha256": "a4b26dd606f64f4bf90046e3c414515a6a2a2013800a2d8647d4477bda8582d0",
+            "timed_out": false
+          }
+        ],
+        "task_after_resume": {
+          "applied": false,
+          "assignee": "88d1ab3fdb5c2a3c10efdb4d8c0fb6f92b6c82cd117089d0b4ebf55aaba83610",
+          "assignment": "746c54b860de49dd86e3650bfc998ad4c32cc2f46fbf3dd19a178878a751f305",
+          "attempt": 1,
+          "proposer": "88d1ab3fdb5c2a3c10efdb4d8c0fb6f92b6c82cd117089d0b4ebf55aaba83610",
+          "result": null,
+          "state": {
+            "cancelled": "uncertain"
+          },
+          "task": "af742fbd0453e91d180b2853e2bfc0737994dac910b5b42ff9e5a7c268440f8b"
+        },
+        "version": "2.1.280 (Claude Code)"
+      },
+      {
+        "binary_sha256": "076c78e42f94dd21767f5094002259efb256cc294cce63d6552b6607bc714589",
+        "binding": {
+          "assignment": "00d96733ac195bdb94b6358cec838978e757f805f2973e8b789aed652e3f063b",
+          "goal": "56600b0151f4244e552e295c2357ac2be8473c59085e81731f8d0e978b860939",
+          "instance": "5d233e5d51783345ad9abc218a7c700d",
+          "principal": "add2e20941246d06ab1a9950c9bd53f21c7da3f1cb234612a80ad4334baa8512",
+          "task": "af91dc8d2f4512341405263064b3175c35d7d4157f032a29ff1e4c193c5648cd"
+        },
+        "checks": {
+          "automatic_wake": "not_run",
+          "binding": "pass",
+          "blocked": "not_run",
+          "cancellation_acknowledged": "pass",
+          "cancellation_durable": "pass",
+          "claim": "pass",
+          "cleanup": "pass",
+          "daemon_restart": "pass",
+          "exited": "pass",
+          "explicit_resume": "pass",
+          "held_wait": "pass",
+          "interruption": "pass",
+          "ordinary_pending": "pass",
+          "packaged_install": "not_run",
+          "profile_restored": "pass",
+          "ready": "pass",
+          "real_model": "not_run",
+          "uncertain_recovery": "not_run"
+        },
+        "client": "factory-droid",
+        "private_runtime_profile_removed": true,
+        "provider_error_count": 0,
+        "provider_request_count": 10,
+        "reported_enabled_capabilities": [],
+        "runs": [
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 7376,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": {
+                "generation": 1
+              },
+              "enabled_capabilities": [],
+              "launch_id": "66f5670132de2331aef1a87684ac98bd9cff0b1898323a78684dd146ba999b2d",
+              "native_initialized": true,
+              "native_session_id": "7d57c084-9f3f-4755-b57b-014357498102",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 62625,
+                "started_ms": 1791093048385,
+                "termination_signal": null
+              },
+              "session_claims": [
+                {
+                  "generation": 1
+                }
+              ],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": true,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "7d57c084-9f3f-4755-b57b-014357498102"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [
+              "call_fixture_6"
+            ],
+            "scenario": "launch",
+            "session_snapshots_sha256": "e0cb75508c611a07f86e94c498bc80a5f1b9f441223bce6ecb57aa89340febc0",
+            "signal_scope": "client_leader",
+            "states": [
+              "started",
+              "ready",
+              "exited"
+            ],
+            "stderr_sha256": "d66caca8c307b6da45a99120b761d808710f9369b4eebeb149978b2221b29ba9",
+            "stdout_sha256": "9da381a5ebc005ce2636e82c7f3d0ba402580a306d2713217dc15ad84e44599e",
+            "timed_out": false
+          },
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 1955,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": null,
+              "enabled_capabilities": [
+                "manual_resume"
+              ],
+              "launch_id": "5beb104192ff09d01939c272c8c4e8566734e353086520860a85c318ccaf0afa",
+              "native_initialized": true,
+              "native_session_id": "7d57c084-9f3f-4755-b57b-014357498102",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 62759,
+                "started_ms": 1791093055982,
+                "termination_signal": null
+              },
+              "session_claims": [],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": false,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "7d57c084-9f3f-4755-b57b-014357498102"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "exited"
+              },
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools",
+                  "manual_resume"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "manual_resume"
+                ],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [],
+            "scenario": "resume",
+            "session_snapshots_sha256": "e52d41f84f88794a3af3e71304bf9fe1fe7d46c6d6d58a72d1382d885b8f2b82",
+            "signal_scope": null,
+            "states": [
+              "exited",
+              "started",
+              "ready"
+            ],
+            "stderr_sha256": "753e6cb666b7727c11a17d920df55ae767eb5e826b00e253533e5f665d54827b",
+            "stdout_sha256": "b6a01097b9a16ca3a3c315060a8dff61ded20af9afe42d1d7376f699c6ca30c1",
+            "timed_out": false
+          }
+        ],
+        "task_after_resume": {
+          "applied": false,
+          "assignee": "add2e20941246d06ab1a9950c9bd53f21c7da3f1cb234612a80ad4334baa8512",
+          "assignment": "00d96733ac195bdb94b6358cec838978e757f805f2973e8b789aed652e3f063b",
+          "attempt": 1,
+          "proposer": "add2e20941246d06ab1a9950c9bd53f21c7da3f1cb234612a80ad4334baa8512",
+          "result": null,
+          "state": {
+            "cancelled": "uncertain"
+          },
+          "task": "af91dc8d2f4512341405263064b3175c35d7d4157f032a29ff1e4c193c5648cd"
+        },
+        "version": "0.218.1"
+      },
+      {
+        "binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+        "binding": {
+          "assignment": "79fa50efb2be4106900456d041f3951450f677970ec359aca0e19d1b6a3166e9",
+          "goal": "79caead3e6c3ebc9a038b4233d379384dfdc9ba764870277d404ed48c1b28073",
+          "instance": "7157b690e658bfa0e7fee1565dcf9c95",
+          "principal": "236ddf949a620c3f795a4709011e85653de145397fcfc807d6f090f1217c508d",
+          "task": "5e9238e41ab8ff7393de55472e0411a07c8dd2a625710e567dc031414fc5d3a3"
+        },
+        "checks": {
+          "automatic_wake": "not_run",
+          "binding": "pass",
+          "blocked": "not_run",
+          "cancellation_acknowledged": "pass",
+          "cancellation_durable": "pass",
+          "claim": "pass",
+          "cleanup": "pass",
+          "daemon_restart": "pass",
+          "exited": "pass",
+          "explicit_resume": "pass",
+          "held_wait": "pass",
+          "interruption": "pass",
+          "ordinary_pending": "pass",
+          "packaged_install": "not_run",
+          "profile_restored": "pass",
+          "ready": "pass",
+          "real_model": "not_run",
+          "uncertain_recovery": "not_run"
+        },
+        "client": "pi",
+        "private_runtime_profile_removed": true,
+        "provider_error_count": 0,
+        "provider_request_count": 6,
+        "reported_enabled_capabilities": [],
+        "runs": [
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 1146,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": {
+                "generation": 1
+              },
+              "enabled_capabilities": [],
+              "launch_id": "1de3964abff957b0ab7c0df0228cb9fa8780d6782a8cef42581538d88dfcd856",
+              "native_initialized": true,
+              "native_session_id": "01a10577-2cea-7157-be5e-23dc66318383",
+              "owned_process": {
+                "exit_code": null,
+                "exited": true,
+                "pid": 62823,
+                "started_ms": 1791093058649,
+                "termination_signal": 2
+              },
+              "session_claims": [
+                {
+                  "generation": 1
+                }
+              ],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": true,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "01a10577-2cea-7157-be5e-23dc66318383"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [
+              "call_fixture_3",
+              "call_fixture_3/1"
+            ],
+            "scenario": "launch",
+            "session_snapshots_sha256": "c3c8eb15f61d63dd39e3d12ecd8ffbb1b20cc84e4cf88aad9e852c4f21bd388a",
+            "signal_scope": "client_leader",
+            "states": [
+              "started",
+              "ready",
+              "exited"
+            ],
+            "stderr_sha256": "28b0c6ba2f18ab92657bc07c8522e58a9990b8b1dcbbee6447e5f2a65ec6d25c",
+            "stdout_sha256": "b6a31f3e8b38eb1dfa5e85abef546417c17ae990dc845ba0715c232fe0f6316b",
+            "timed_out": false
+          },
+          {
+            "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+            "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+            "cleanup_verified": true,
+            "elapsed_ms": 820,
+            "exit_code": 0,
+            "final_session": {
+              "attempt": 1,
+              "authenticated_tools_ready": true,
+              "binding_matches_reference": true,
+              "claim": null,
+              "enabled_capabilities": [
+                "manual_resume"
+              ],
+              "launch_id": "42342d02df7cbeef042c2985003cf415851aaf888bb87f2331129ff81795819f",
+              "native_initialized": true,
+              "native_session_id": "01a10577-2cea-7157-be5e-23dc66318383",
+              "owned_process": {
+                "exit_code": 0,
+                "exited": true,
+                "pid": 62859,
+                "started_ms": 1791093060009,
+                "termination_signal": null
+              },
+              "session_claims": [],
+              "state": "exited"
+            },
+            "forced_cleanup": false,
+            "interrupted": false,
+            "native_exit_expected": true,
+            "native_session_ids": [
+              "01a10577-2cea-7157-be5e-23dc66318383"
+            ],
+            "natural_cleanup": true,
+            "observed_capabilities": [
+              {
+                "enabled": [],
+                "state": "exited"
+              },
+              {
+                "enabled": [],
+                "state": "started"
+              },
+              {
+                "enabled": [
+                  "tools",
+                  "manual_resume"
+                ],
+                "state": "ready"
+              },
+              {
+                "enabled": [
+                  "manual_resume"
+                ],
+                "state": "exited"
+              }
+            ],
+            "observed_exit_before_cleanup": true,
+            "outstanding_wait_at_interrupt": [],
+            "scenario": "resume",
+            "session_snapshots_sha256": "e56d497d0e19c6d34e0a35f6d6a92ed0b69761ed3b23c96b95292d8bb07cbb52",
+            "signal_scope": null,
+            "states": [
+              "exited",
+              "started",
+              "ready"
+            ],
+            "stderr_sha256": "6498d0a21dc1c40cdadc308df28d7305118b51f0cda0e20a809feaf6096608a5",
+            "stdout_sha256": "e1d311078484907b5e80eb10238c4569b24113a742dd0eb5bad2aa11c457b47a",
+            "timed_out": false
+          }
+        ],
+        "task_after_resume": {
+          "applied": false,
+          "assignee": "236ddf949a620c3f795a4709011e85653de145397fcfc807d6f090f1217c508d",
+          "assignment": "79fa50efb2be4106900456d041f3951450f677970ec359aca0e19d1b6a3166e9",
+          "attempt": 1,
+          "proposer": "236ddf949a620c3f795a4709011e85653de145397fcfc807d6f090f1217c508d",
+          "result": null,
+          "state": {
+            "cancelled": "uncertain"
+          },
+          "task": "5e9238e41ab8ff7393de55472e0411a07c8dd2a625710e567dc031414fc5d3a3"
+        },
+        "version": "1.0.1"
+      }
+    ],
+    "created_at": "2026-10-04T05:50:42.622409+00:00",
+    "timeout_ms": 60000
+  },
+  "prior_codex_snapshot_race_failure": {
+    "artifact": "candidate_3",
+    "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+    "binding": {
+      "assignment": "559c83588be66b2ebd946e011c23abf9aa80daf458000a3f6347551e827a7e5c",
+      "goal": "d654916df63fecec55f2852427d2a325645792f6c7dc2c537806c14c5275b105",
+      "instance": "ec897d6534ced9fd94a089ff4e0c953d",
+      "principal": "3d015784b76bf8c3ec42c26820c7fa0dec362cbbf756e6da9d7427580025d42c",
+      "task": "674b95972720c8a14659d0cc17c8f9d6392b7643b570cffdaac365cf67fedc64"
+    },
+    "checks": {
+      "automatic_wake": "not_run",
+      "binding": "pass",
+      "blocked": "not_run",
+      "cancellation_acknowledged": "pass",
+      "cancellation_durable": "pass",
+      "claim": "pass",
+      "cleanup": "fail",
+      "daemon_restart": "pass",
+      "exited": "pass",
+      "explicit_resume": "fail",
+      "held_wait": "pass",
+      "interruption": "fail",
+      "ordinary_pending": "pass",
+      "packaged_install": "not_run",
+      "profile_restored": "pass",
+      "ready": "pass",
+      "real_model": "not_run",
+      "uncertain_recovery": "not_run"
+    },
+    "client": "codex",
+    "correction": "Candidate 4 retries delivery validation Superseded from independently read Session/Pending snapshots, and refreshes consistent claims and receipts before final Exited reporting. Real API errors remain failures.",
+    "runs": [
+      {
+        "cleanup_verified": true,
+        "cli_failure": {
+          "code": "superseded",
+          "message": "client exited; lifecycle observation/report needs reconciliation: session and pending claim snapshots differ"
+        },
+        "elapsed_ms": 872,
+        "exit_code": 7,
+        "final_session": {
+          "attempt": 1,
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "claim": {
+            "generation": 1
+          },
+          "enabled_capabilities": [],
+          "launch_id": "4b1bd03bc1a4c0561e34a190515007a1c253307b4304506f19391d87a1794144",
+          "native_initialized": true,
+          "native_session_id": "01a1056a-c12b-7f63-a710-76ae94c6b77b",
+          "owned_process": {
+            "exit_code": 1,
+            "exited": true,
+            "pid": 12060,
+            "started_ms": 1791092244705,
+            "termination_signal": null
+          },
+          "session_claims": [
+            {
+              "generation": 1
+            }
+          ],
+          "state": "exited"
+        },
+        "forced_cleanup": false,
+        "interrupted": true,
+        "native_exit_expected": true,
+        "native_session_ids": [
+          "01a1056a-c12b-7f63-a710-76ae94c6b77b"
+        ],
+        "natural_cleanup": true,
+        "observed_capabilities": [
+          {
+            "enabled": [
+              "tools"
+            ],
+            "state": "ready"
+          },
+          {
+            "enabled": [],
+            "state": "exited"
+          }
+        ],
+        "observed_exit_before_cleanup": true,
+        "outstanding_wait_at_interrupt": [
+          "item_3"
+        ],
+        "scenario": "launch",
+        "session_snapshots_sha256": "685bd059dcc7ce03201ddd25302b087686d566495744497571d3859d565ab5b9",
+        "signal_scope": "client_leader",
+        "states": [
+          "ready",
+          "exited"
+        ],
+        "stderr_sha256": "d67114fb3705559ef35bed341ab5c9dece69b31b388cf71eb15df845f0ec0ae0",
+        "stdout_sha256": "a319ee0e46f0d13c6f2246bec2242ef43d20da48b4c2a194458eb60c26d1d624",
+        "timed_out": false
+      },
+      {
+        "cleanup_verified": true,
+        "cli_failure": {
+          "code": "superseded",
+          "message": "client exited; lifecycle observation/report needs reconciliation: delivery claim is no longer current"
+        },
+        "elapsed_ms": 954,
+        "exit_code": 7,
+        "final_session": {
+          "attempt": 1,
+          "authenticated_tools_ready": true,
+          "binding_matches_reference": true,
+          "claim": null,
+          "enabled_capabilities": [
+            "manual_resume"
+          ],
+          "launch_id": "37c270fb5f8e16c7604666b200353726086ce7582f1e21bbda5ee61d0796ab4d",
+          "native_initialized": true,
+          "native_session_id": "01a1056a-c12b-7f63-a710-76ae94c6b77b",
+          "owned_process": {
+            "exit_code": 0,
+            "exited": true,
+            "pid": 12191,
+            "started_ms": 1791092246078,
+            "termination_signal": null
+          },
+          "session_claims": [],
+          "state": "exited"
+        },
+        "forced_cleanup": false,
+        "interrupted": false,
+        "native_exit_expected": true,
+        "native_session_ids": [
+          "01a1056a-c12b-7f63-a710-76ae94c6b77b"
+        ],
+        "natural_cleanup": true,
+        "observed_capabilities": [
+          {
+            "enabled": [],
+            "state": "exited"
+          },
+          {
+            "enabled": [],
+            "state": "started"
+          },
+          {
+            "enabled": [
+              "manual_resume",
+              "tools"
+            ],
+            "state": "ready"
+          },
+          {
+            "enabled": [
+              "manual_resume"
+            ],
+            "state": "exited"
+          }
+        ],
+        "observed_exit_before_cleanup": true,
+        "outstanding_wait_at_interrupt": [],
+        "scenario": "resume",
+        "session_snapshots_sha256": "4abf4416a9f95fe8bb3630a1f542cef0b7c5a4556f1eaf360029bba17c224a29",
+        "signal_scope": null,
+        "states": [
+          "exited",
+          "started",
+          "ready"
+        ],
+        "stderr_sha256": "cded0460d1ea18b938b40c6ed9d3d2a540c8299e60614a500fb9994caeab1513",
+        "stdout_sha256": "6f09ef75def591979ff0f6747f389c2874412b63568b5d729377bb44e04e9a37",
+        "timed_out": false
+      }
+    ],
+    "task_after_resume": {
+      "applied": false,
+      "attempt": 1,
+      "result": null,
+      "state": {
+        "cancelled": "uncertain"
+      }
+    },
+    "version": "codex-cli 0.153.4"
+  },
+  "schema": "locust-managed-client-qualification-evidence",
+  "schema_version": 1,
+  "source_verification": {
+    "python": {
+      "passed": 137,
+      "reported_by": "integration owner"
+    },
+    "rust": {
+      "build_jobs": 2,
+      "clippy": "pass",
+      "commands": [
+        "cargo fmt --all --check",
+        "cargo clippy --locked --workspace --all-targets -- -D warnings",
+        "cargo test --locked --workspace"
+      ],
+      "fmt": "pass",
+      "reported_by": "integration owner",
+      "test_log_sha256": "f91e4eca49a577b558c8480a4d5be2c6574183b085f98fb994b09ff7dd768711",
+      "tests": {
+        "failed": 0,
+        "ignored": 9,
+        "passed": 511
+      }
+    }
+  }
+}

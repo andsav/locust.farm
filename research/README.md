@@ -14,6 +14,10 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [T2 integration findings](t2-integration-review.md): nested-content replication, materialization races, CLI error/session boundaries and local verification scope.
+- [Production T2 qualification](t2-production-qualification.md): production daemon/client experiments, real-model and scripted-provider boundaries, managed sessions and discovered compatibility defects.
+- [Real-model T2 qualification](t2-real-model-qualification.md): all four mixed-client roles, skill and native workspace operations, exact Pi resume, Droid continuation failure and evidence hygiene.
+
 - [T1 remediation](t1-remediation.md): disposition of all 36 independent-review findings, protocol-1 decisions, additional build/client-evidence repairs and verification boundaries.
 
 ### TLA+ verification
@@ -24,6 +28,10 @@ repository root. Untracked drafts are excluded from the check.
 - [Property and implementation map](tla/property-map.md): rules mapped to code/tests, current versus desired semantics, assumptions and deferred findings.
 - [Upstream version-1 modeling impact](tla/upstream-impact-2026-10-04.md): merge assessment, changed rules, historical model boundaries and required rebaselining.
 - [Stages 0 and 1 evidence](evidence/tla/README.md): bounded result summaries, retained counterexamples/witnesses, Rust fixture correspondence, development failures and unverified CI qualification.
+
+### Simulating multi-machine tests — 2026-10-03
+
+- [Simulation on one computer](multi-machine-simulation.md): the in-process machine simulator and the multi-process scenario runner now in the repository, how to run them, what each can and cannot show, nine findings with their verdicts, and the fixes applied in `24ddd21`.
 
 ### Independent review of the T1 candidate — 2026-10-03
 
@@ -106,3 +114,10 @@ For Locust, the proposed direction is a small Rust daemon with explicit invitati
 MoltMesh findings target default branch `actor-model`, exact commit [`707c870e3188df243e5aea3c4662daa3253270bc`](https://github.com/sahilpohare/MoltMesh/commit/707c870e3188df243e5aea3c4662daa3253270bc), dated 2026-09-17 and inspected on 2026-10-03. Links into that repository are pinned to the reviewed commit. Landscape documentation and GitHub status observations are dated snapshots and should be refreshed before dependency selection.
 
 Documents distinguish implemented behavior, source-based findings, locally reproduced observations, inferred risks and proposed work. This research does not certify the protocol or claim a production penetration test, WAN validation, BFT proof, scale benchmark or language-model collaboration trial. Accepted decisions should be recorded separately in [`docs/`](../docs/README.md), with links back to this evidence.
+
+- [Final network hardening](network-hardening-final.md): retained founding proof recovery, monotonic retry time, asynchronous invite address discovery and offline removal boundaries.
+- [Operational qualification](operational-qualification.md): pinned three-daemon document, transfer, workspace, cancellation, withdrawal and rotation workflows.
+- [Operational qualification evidence](operational-qualification-evidence.json): retained structured results for the six operational cases.
+
+- [Local installation qualification](installation-qualification.md): trusted bootstrap, signed native install, upgrade, launchd lifecycle, failure/retry, data preservation and resource measurement harness.
+- [Installed-client qualification](installed-client-qualification.md): persistent skill/MCP discovery, native task/workspace execution, policy denials and cleanup through test-signed installed candidates.

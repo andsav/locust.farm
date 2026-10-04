@@ -11,9 +11,28 @@ import time
 from urllib.parse import urlsplit
 
 
+def planned_call(step):
+    """Resolve authored arguments at request time, after earlier daemon writes.
+
+    An emitted call is never proof of completion. The qualification driver must
+    independently inspect bridge receipts and durable daemon state.
+    """
+    if isinstance(step, str):
+        return step, {}
+    if not isinstance(step, dict) or set(step) != {"tool", "arguments"}:
+        raise ValueError("A scripted step requires tool and arguments")
+    name = step["tool"]
+    arguments = step["arguments"]() if callable(step["arguments"]) else step["arguments"]
+    if not isinstance(name, str) or not name or not isinstance(arguments, dict):
+        raise ValueError("Invalid scripted tool name or arguments")
+    # Copy a JSON value so a later fixture mutation cannot change an issued call.
+    return name, json.loads(json.dumps(arguments, allow_nan=False))
+
+
 class Provider:
-    def __init__(self, plan):
+    def __init__(self, plan, request_observer=None):
         self.plan = list(plan)
+        self.request_observer = request_observer
         self.index = 0
         self.requests = []
         self.backend_requests = []
@@ -69,12 +88,17 @@ class Provider:
                         self.backend("/<prefix>/count_tokens", 200, "scripted token count")
                         self.reply({"input_tokens": 32})
                         return
+                    # Optional qualification observer receives the request transiently.
+                    # It must retain only its own redacted/projection evidence, never
+                    # the complete prompt or model request body.
+                    if provider.request_observer is not None:
+                        provider.request_observer(body)
                     tools = body.get("tools", [])
                     names = [tool.get("name") or tool.get("function", {}).get("name") for tool in tools]
                     with provider.lock:
-                        requested = provider.plan[provider.index] if provider.index < len(provider.plan) else None
+                        requested, authored_args = planned_call(provider.plan[provider.index]) if provider.index < len(provider.plan) else (None, {})
                         actual = next((name for name in names if name and requested and name.endswith(requested)), None)
-                        args = {}
+                        args = authored_args
                         namespace = None
                         discovery = False
                         if requested and actual is None:
@@ -84,9 +108,9 @@ class Provider:
                                     if nested:
                                         actual, namespace = requested, tool["name"]
                                         break
-                        if requested and actual is None and "codemode" in names:
+                        if requested and requested.startswith("locust_") and actual is None and "codemode" in names:
                             actual = "codemode"
-                            args = {"code": f"text(await tools.mcp__locust__{requested}({{}}));"}
+                            args = {"code": f"text(await tools.mcp__locust__{requested}({json.dumps(authored_args)}));"}
                         if requested and actual is None and "ToolSearch" in names:
                             actual, discovery = "ToolSearch", True
                             args = {"query": "locust " + requested}
