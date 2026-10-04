@@ -89,5 +89,27 @@
     "passed": 0,
     "status": "failed"
   },
+  "isolated_mdns_current_source_rerun": {
+    "boundary": "Isolated source test binary; not the packaged candidate or physical-machine qualification.",
+    "command": "cargo test --locked -p locust-net tests::mdns_finds_a_peer_by_key_without_contact_hints -- --ignored --exact --nocapture",
+    "diagnostic": {
+      "advertising_enabled": true,
+      "conclusion": "No actionable Locust configuration omission found; the underlying discovery failure remains unexplained.",
+      "default_multicast_interface": "en0",
+      "multicast_loopback_enabled": true,
+      "outer_test_watchdog_seconds": 30,
+      "resolver": "iroh-mdns-address-lookup 0.6.0",
+      "resolver_lookup_seconds": 10
+    },
+    "duration_seconds": 10.03,
+    "error": "transport: Connect",
+    "exit_code": 101,
+    "failed": 1,
+    "passed": 0,
+    "source_commit": "0a295cdabe6a878cc733c791ca73863933cfa45a",
+    "status": "failed",
+    "test_binary": "target/debug/deps/locust_net-6b9ac02bb4fb6252",
+    "test_binary_sha256": "264c8b4e0c114700e1a9aab0ee4edbf6f0b3dd501244175cdb05a2be564d9544"
+  },
   "qualification": "One macOS arm64 host, local lookup and no relay; development binaries with dirty identity markers, not immutable release qualification."
 }

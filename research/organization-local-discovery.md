@@ -30,3 +30,21 @@ The relevant transport implementation and its isolated test are
 [network tests](../crates/locust-net/src/tests.rs). Protocol fixture tests with
 explicit known contact hints are separate evidence and cannot qualify multicast
 discovery, published builds, three physical machines or sleep/wake behavior.
+
+## Current committed-source rerun
+
+After the final runtime and greenfield cleanup, the isolated test was repeated
+at `0a295cdabe6a878cc733c791ca73863933cfa45a`. It again failed with `transport:
+Connect`, after 10.03 seconds (one failed test; process exit 101). The linked
+record identifies this source-test executable's SHA-256; it is distinct from
+the native release candidate built from the same commit.
+
+A read-only source/configuration audit found no actionable Locust configuration
+omission: local lookup is added after clearing default providers; relay-disabled
+endpoints still publish IP addresses; mDNS advertising, address admission and
+multicast loopback are enabled. The host's default multicast route selected
+`en0`. The pinned `iroh-mdns-address-lookup` 0.6.0 resolver sets
+`LOOKUP_DURATION` to ten seconds in its `src/lib.rs` (lines 95 and 427); the test's
+30-second outer watchdog did not expire. This explains the observed duration,
+not why discovery failed. The underlying host/discovery failure remains
+unproven, and no network setting or permission was changed.
