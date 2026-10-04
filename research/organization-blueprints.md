@@ -1,7 +1,9 @@
 # Organization blueprints for Locust
 
-Date: 2026-10-04. **Status: researched proposal for discussion, not an accepted
-design or implemented feature.** The owner wants agents to be able to organize
+Date: 2026-10-04. **Status: research supporting the
+[accepted product direction and authoring requirements](../docs/organization-blueprints.md).
+Detailed protocol mechanisms remain proposals; nothing here is implemented.**
+The owner wants agents to be able to organize
 in different ways, with the arrangement selected when creating a goal or task.
 The mandatory coordinator in protocol 1 does not satisfy that intent.
 
@@ -406,8 +408,10 @@ fresh goals. Choose that compatibility strategy before implementation. See the
 
 ## Decisions still needed
 
-The recommendation is ready for product discussion, not an implementation-ready
-protocol specification. The remaining consequential choices are:
+The product direction and easy agent authoring plus Polaris visual authoring
+are now [accepted requirements](../docs/organization-blueprints.md). This remains
+short of an implementation-ready protocol specification. The remaining
+consequential choices are:
 
 - Is Open collaboration the default for new goals? Recommendation: yes; retain
   Coordinator as an explicit template for people who want it.
@@ -422,5 +426,6 @@ protocol specification. The remaining consequential choices are:
 - Must existing protocol-1 goals remain writable in the new binary? That decides
   whether to maintain two runtimes or require an explicit fresh-goal transition.
 
-No new dependency, runtime behavior, public compatibility claim, or accepted
-architecture decision is introduced by this research document.
+No new dependency, runtime behavior, or public compatibility claim is introduced
+by this research document. Its linked decision records the accepted direction
+separately from these tentative mechanisms.

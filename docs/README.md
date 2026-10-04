@@ -13,6 +13,8 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
+- [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements over one declarative contract; exact schema and protocol changes remain unimplemented.
+
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
 - [Last-mile implementation plan](last-mile-implementation-plan.md): proposed work packages for distribution, recoverable setup, reliable task context, human permissions, a reviewed and applied change, two-person qualification and consented visualization; dependencies, decisions, tests and complete research coverage.
 - [Protocol contract, version 1](protocol-v1.md): current authority, deterministic fork selection, reconciliation, local API and recovery rules, with enforcing code/tests and explicit version-0 incompatibility.
