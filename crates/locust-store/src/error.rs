@@ -14,13 +14,12 @@ pub enum OpenError {
     /// Another open store holds the directory: a second daemon on the same
     /// state directory, or a second handle in this process.
     InUse(PathBuf),
-    /// The database was written by a newer Locust. This binary does not know
-    /// that schema and does not guess.
-    NewerSchema { found: i64, known: i64 },
+    /// The database is not this binary's current format. No conversion is performed.
+    UnsupportedSchema { found: i64, known: i64 },
     /// Persisted signed events use another protocol. Their bytes cannot be
     /// migrated in place without invalidating event identifiers/signatures.
     UnsupportedProtocolVersion { found: u8, known: u8 },
-    /// The directory or database could not be opened, migrated or checked.
+    /// The directory or database could not be opened, initialized or checked.
     Store(StoreError),
 }
 
@@ -32,10 +31,9 @@ impl fmt::Display for OpenError {
                 "state directory {} is in use by another Locust store; is another daemon running on it?",
                 dir.display()
             ),
-            Self::NewerSchema { found, known } => write!(
+            Self::UnsupportedSchema { found, known } => write!(
                 f,
-                "the database has schema version {found}, newer than version {known} that this \
-                 binary knows; run the Locust release that wrote it or a newer one"
+                "the database has unsupported schema version {found}; this binary supports only version {known}; initialize a fresh state directory; existing data was not converted"
             ),
             Self::UnsupportedProtocolVersion { found, known } => write!(
                 f,

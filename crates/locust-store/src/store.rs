@@ -33,21 +33,21 @@ pub struct SqliteStore {
 impl SqliteStore {
     /// Opens the state directory `dir`, durably creating it and its missing
     /// ancestors owner-only if needed,
-    /// with its database (created or migrated to this binary's schema) and
+    /// with its database (initialized directly in this binary's current schema) and
     /// its object directory, from which the leftovers of an interrupted
     /// commit are removed.
     ///
     /// Fails with [`OpenError::InUse`] while another store holds `dir`, and
-    /// with [`OpenError::NewerSchema`] for a database written by a newer
-    /// release. Signed events of another protocol are refused with
-    /// [`OpenError::UnsupportedProtocolVersion`] before migrations or garbage
-    /// collection. Opening may checkpoint recovered WAL pages first.
+    /// with [`OpenError::UnsupportedSchema`] for any unsupported database format. Signed events of another protocol are refused with
+    /// [`OpenError::UnsupportedProtocolVersion`] before initialization or garbage
+    /// collection. Unsupported formats are checked before configuring WAL or collecting files.
     pub fn open(dir: impl AsRef<Path>) -> Result<Self, OpenError> {
         let dir = dir.as_ref();
+        connection::preflight(&conventions::database_path(dir), dir)?;
         let files = Files::create(conventions::blobs_dir(dir))?;
         let mut conn = connection::open(&conventions::database_path(dir), dir)?;
         connection::check_protocol(&conn)?;
-        schema::migrate(&mut conn)?;
+        schema::initialize(&mut conn)?;
         files.recover_staging()?;
         objects::collect_garbage(&conn, &files)?;
         Ok(Self {

@@ -92,9 +92,10 @@
 //! longer hash to the stored identifier; that, a row indexed under another
 //! goal, author or position, and an object file that is missing or of the
 //! wrong length are reported as `StoreError::Corrupted`. Tables are `STRICT`.
-//! The schema version is `PRAGMA user_version`, migrated forward on open; a
-//! newer version than this binary knows is refused with
-//! [`OpenError::NewerSchema`].
+//! The current schema marker is `PRAGMA user_version = 2`. Empty unmarked
+//! databases initialize directly; every other nonzero marker and unmarked
+//! nonempty database is refused with [`OpenError::UnsupportedSchema`].
+//! No migration or old-format reader is provided.
 //!
 //! Unix only: object files use positional reads and owner-only modes.
 //! Depends on `locust-proto` only. Owner: the storage stream; see

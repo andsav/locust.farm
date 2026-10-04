@@ -135,21 +135,77 @@ fn the_database_is_opened_for_power_loss_durability_under_an_exclusive_lock() {
 }
 
 #[test]
-fn a_database_from_a_newer_schema_is_refused() {
-    let (dir, store) = scratch();
-    drop(store);
-    let raw = Connection::open(dir.path().join("locust.db")).unwrap();
-    raw.pragma_update(None, "user_version", 2).unwrap();
-    drop(raw);
+fn every_unsupported_schema_is_refused_without_mutating_state() {
+    for version in [-1, 0, 1, 3, 999] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("locust.db");
+        let raw = Connection::open(&path).unwrap();
+        raw.execute_batch(
+            "CREATE TABLE preserved(value TEXT); INSERT INTO preserved VALUES ('untouched');",
+        )
+        .unwrap();
+        raw.pragma_update(None, "user_version", version).unwrap();
+        drop(raw);
+        let before = fs::read(&path).unwrap();
+        assert_eq!(
+            SqliteStore::open(dir.path()).unwrap_err(),
+            OpenError::UnsupportedSchema {
+                found: version,
+                known: 2
+            }
+        );
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert_eq!(
+            fs::read_dir(dir.path()).unwrap().count(),
+            1,
+            "refusal created files for schema {version}"
+        );
+    }
+}
+
+#[test]
+fn fresh_initialization_is_atomic_and_current_state_reopens() {
+    let mut conn = Connection::open_in_memory().unwrap();
+    // Allow the schema root and first table, then exhaust the database pages.
+    // SQLite must roll back the earlier table and leave the marker uncommitted.
+    conn.pragma_update(None, "max_page_count", 2).unwrap();
+    assert!(crate::schema::initialize(&mut conn).is_err());
     assert_eq!(
-        SqliteStore::open(dir.path()).unwrap_err(),
-        OpenError::NewerSchema { found: 2, known: 1 }
+        conn.query_row("SELECT COUNT(*) FROM sqlite_schema", [], |row| row
+            .get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    conn.pragma_update(None, "max_page_count", 100).unwrap();
+    crate::schema::initialize(&mut conn).unwrap();
+    assert_eq!(
+        conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+            .unwrap(),
+        2
+    );
+    let (dir, mut store) = scratch();
+    store
+        .commit(&Commit {
+            local: vec![put(Space::Identity, b"persisted", b"current")],
+            ..Commit::default()
+        })
+        .unwrap();
+    drop(store);
+    let store = reopen(&dir);
+    assert_eq!(
+        store.get(Space::Identity, b"persisted").unwrap(),
+        Some(b"current".to_vec())
     );
 }
 
 #[test]
 fn the_schema_states_the_inline_limit_the_code_uses() {
-    assert!(crate::schema::V1.contains(&format!("len > {INLINE_MAX_BYTES} ")));
+    assert!(crate::schema::CURRENT.contains(&format!("len > {INLINE_MAX_BYTES} ")));
 }
 
 #[test]
