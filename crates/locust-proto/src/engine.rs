@@ -30,6 +30,9 @@ pub struct Parked {
 }
 
 /// What the engine did with one request.
+// A reply is the common case and is returned by value once per request;
+// boxing it would add an allocation to every answer.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Step {
     /// The answer, ready to send.
