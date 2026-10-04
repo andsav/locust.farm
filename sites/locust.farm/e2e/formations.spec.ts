@@ -49,6 +49,7 @@ test('a first visit is ready to copy with the Open way of working', async ({ pag
 	await expect(page.locator('.summary .lines')).toContainText(
 		'A result counts when its author says so.'
 	);
+	await page.getByLabel('Prompt options', { exact: true }).click();
 	await page.getByRole('button', { name: 'See the prompt' }).click();
 	await expect(page.locator('pre.prompt')).toContainText(
 		'Please add this Locust formation to my local Locust as a private draft.'
@@ -87,16 +88,39 @@ test('each way of working is a different answer at one or two points', async ({ 
 	await expect(point(page, 'pick')).toContainText('"judge" picks one result per task.');
 });
 
-test('the pictures are drawn from the rules, with their role names', async ({ page }) => {
+test('the compact matrix keeps role-specific answers and editable rules', async ({ page }) => {
 	await open(page);
-	const drawn = () => point(page, 'counts').locator('svg').innerHTML();
-	const before = await drawn();
+	await expect(page.locator('.line.main svg')).toHaveCount(0);
 	await way(page, 'Review panel').click();
-	await expect.poll(drawn).not.toBe(before);
-	await expect(point(page, 'counts').locator('svg')).toContainText('reviewer');
+	await expect(point(page, 'counts')).toContainText('reviewer');
+	await point(page, 'counts').click();
+	await expect(page.getByLabel('It has approvals')).toBeChecked();
+	await page.keyboard.press('Escape');
 	await way(page, 'Coordinator').click();
-	await expect(point(page, 'work').locator('svg')).toContainText('coordinator');
-	await expect(point(page, 'pick').locator('svg')).toContainText('coordinator');
+	await expect(point(page, 'work')).toContainText('coordinator');
+	await expect(point(page, 'pick')).toContainText('coordinator');
+});
+
+test('prompt utilities are available by keyboard and dismiss with Escape or an outside click', async ({
+	page
+}) => {
+	await open(page);
+	const options = page.getByLabel('Prompt options', { exact: true });
+	await expect(page.getByRole('button', { name: 'See the prompt' })).not.toBeVisible();
+	await options.focus();
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('link', { name: 'Set up Locust' })).toHaveAttribute('href', '/start');
+	await expect(page.getByRole('link', { name: 'Manual', exact: true })).toHaveAttribute(
+		'href',
+		'/docs/next/formation-authoring'
+	);
+	await page.keyboard.press('Escape');
+	await expect(options).toBeFocused();
+	await expect(page.getByRole('button', { name: 'See the prompt' })).not.toBeVisible();
+	await options.click();
+	await point(page, 'work').click();
+	await expect(page.getByRole('button', { name: 'See the prompt' })).not.toBeVisible();
+	await expect(page.locator('.box')).toBeVisible();
 });
 
 test('the lit card is the one the rules match, and none when no card shows them', async ({
@@ -155,6 +179,7 @@ test('a prompt that only checks can be copied without changing the main button',
 	page
 }) => {
 	await open(page);
+	await page.getByLabel('Prompt options', { exact: true }).click();
 	await page
 		.getByRole('button', { name: 'Copy a prompt that checks it and saves nothing' })
 		.click();

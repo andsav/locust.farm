@@ -1,8 +1,6 @@
 <!--
-	The rules as lines of four points: who adds a task, who works on it, when a
-	result counts and whether one result is picked. The first line is the rules
-	for any task, with a picture at each point. Steps and other kinds of task are
-	shorter lines under it that say only what differs.
+	A compact rules matrix. The questions share one header on wide screens and
+	repeat beside each answer on phones. Every cell opens the existing choices.
 -->
 <script lang="ts">
 	import type { EditorDocument } from '../model/document.ts';
@@ -15,22 +13,15 @@
 		usableName
 	} from '../model/edit.ts';
 	import {
-		addAnswer,
 		addKind,
 		addStep,
-		countsAnswer,
 		follows,
 		kinds,
-		lineRules,
 		MAIN,
-		noTasks,
-		pickAnswer,
-		workAnswer,
 		type LineRef,
 		type PointName
 	} from '../model/line.ts';
 	import { phrase, QUESTIONS } from '../model/words.ts';
-	import { drawLine, type PointPicture } from './diagrams.ts';
 	import Icon from './Icon.svelte';
 	import PointBox from './PointBox.svelte';
 	import { pointKey } from './problems.ts';
@@ -59,48 +50,6 @@
 	const steps = $derived(stageOrder(formation));
 	const otherKinds = $derived(kinds(formation));
 	const openKey = $derived(open ? pointKey(open.line, open.point) : null);
-
-	// The pictures follow the rules for any task.
-	const pictures = $derived.by((): PointPicture[] => {
-		const rules = lineRules(formation, MAIN);
-		const add = addAnswer(rules.work);
-		const work = workAnswer(rules.work);
-		const counts = countsAnswer(rules.decisions.completion);
-		const pick = pickAnswer(rules.decisions);
-		return [
-			{ point: 'add', kind: add.kind, role: add.kind === 'role' ? add.name : undefined },
-			{
-				point: 'work',
-				kind: noTasks(formation, MAIN) ? 'none' : work.kind,
-				role:
-					work.kind === 'role'
-						? work.name
-						: work.kind === 'asks' && work.by.kind === 'role'
-							? work.by.name
-							: undefined
-			},
-			counts.kind === 'list'
-				? {
-						point: 'counts',
-						approvals: counts.approvals?.count ?? 0,
-						reviewers: counts.approvals?.by.kind === 'role' ? counts.approvals.by.name : undefined,
-						check: counts.check?.name
-					}
-				: { point: 'counts', approvals: 0, own: true },
-			{
-				point: 'pick',
-				picks: rules.decisions.selection !== null,
-				role: pick.pick.kind === 'role' ? pick.pick.name : undefined
-			}
-		];
-	});
-	const drawn = $derived(JSON.stringify(pictures));
-	const svgs: SVGSVGElement[] = $state([]);
-
-	$effect(() => {
-		const list = JSON.parse(drawn) as PointPicture[];
-		if (svgs.length === POINTS.length && svgs.every(Boolean)) drawLine(svgs, list);
-	});
 
 	function toggle(line: LineRef, point: PointName) {
 		onopen(openKey === pointKey(line, point) ? null : { line, point });
@@ -215,12 +164,17 @@
 {/snippet}
 
 <div class="lines">
+	<div class="column-headings" aria-hidden="true">
+		<span></span>
+		{#each POINTS as point (point)}<span class="question">{QUESTIONS[point]}</span>{/each}
+		<span></span>
+	</div>
 	<section class="line main" aria-labelledby="any-task-title">
 		<div class="lead">
 			<h2 id="any-task-title">Any task</h2>
-			<p class="muted">The rules every task follows.</p>
+			<p class="row-label">Default rules</p>
 		</div>
-		{#each POINTS as point, index (point)}
+		{#each POINTS as point (point)}
 			{@const key = pointKey(MAIN, point)}
 			<button
 				type="button"
@@ -233,7 +187,6 @@
 				onclick={() => toggle(MAIN, point)}
 			>
 				<span class="question">{QUESTIONS[point]}</span>
-				<svg bind:this={svgs[index]} class="diagram" viewBox="0 0 240 120" aria-hidden="true"></svg>
 				<span class="answer">{phrase(formation, MAIN, point)}</span>
 				<span class="change">Change</span>
 			</button>
@@ -248,11 +201,6 @@
 		<section class="group" aria-labelledby="steps-title">
 			<header>
 				<h2 id="steps-title">Steps</h2>
-				<p class="muted">
-					Each step is one task that Locust adds, in order, for the whole goal. It is not a stage
-					that every task goes through. A step follows the rules for any task unless you change a
-					point.
-				</p>
 			</header>
 			{#each steps as name (name)}
 				{@render row({ kind: 'step', name })}
@@ -264,9 +212,6 @@
 		<section class="group" aria-labelledby="kinds-title">
 			<header>
 				<h2 id="kinds-title">Other kinds of task</h2>
-				<p class="muted">
-					A member can add a task as one of these kinds. It then follows these rules instead.
-				</p>
 			</header>
 			{#each otherKinds as name (name)}
 				{@render row({ kind: 'kind', name })}
@@ -275,71 +220,71 @@
 	{/if}
 
 	<div class="adders">
-		<button type="button" onclick={newStep}><Icon name="plus" size={14} /> Step</button>
-		<span class="muted">One task that Locust adds, after the step before it.</span>
-		<button type="button" onclick={newKind}>
+		<button type="button" onclick={newStep} aria-describedby="step-help"
+			><Icon name="plus" size={14} /> Step</button
+		>
+		<button type="button" onclick={newKind} aria-describedby="kind-help">
 			<Icon name="plus" size={14} /> Another kind of task
 		</button>
-		<span class="muted">Tasks that follow other rules.</span>
+		<details class="task-help">
+			<summary>About tasks</summary>
+			<div>
+				<p id="step-help">
+					<strong>Step.</strong> One task that Locust adds, after the step before it. Each step runs once
+					for the whole goal, not once per task. It follows the rules for any task unless you change a
+					point.
+				</p>
+				<p id="kind-help"><strong>Another kind of task.</strong> Tasks that follow other rules.</p>
+			</div>
+		</details>
 	</div>
 </div>
 
 <style>
 	.lines {
 		--columns: 10rem repeat(4, minmax(0, 1fr)) 2.75rem;
-
 		display: grid;
 	}
-
-	.line {
+	.line,
+	.column-headings {
 		display: grid;
 		grid-template-columns: var(--columns);
 		gap: 0;
 		border-bottom: var(--border-hairline);
 	}
-
+	.column-headings > span {
+		padding: 0.875rem 1rem;
+	}
+	.column-headings > span + span {
+		border-left: var(--border-hairline);
+	}
 	.group {
 		gap: 0;
 	}
-
-	/* A small arrowhead on the line between two points: a task moves left to right. */
-	.main .point + .point::before {
-		position: absolute;
-		top: 6.25rem;
-		left: -0.3125rem;
-		width: 0.5rem;
-		height: 0.5rem;
-		border-top: 1px solid var(--color-text-faint);
-		border-right: 1px solid var(--color-text-faint);
-		background: var(--color-bg);
-		content: '';
-		transform: rotate(45deg);
-	}
-
 	h2 {
 		color: var(--color-text);
 	}
-
 	.lead {
-		display: grid;
-		align-content: start;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
 		gap: 0.25rem;
-		padding: 1rem 0.75rem 1rem 1.25rem;
+		padding: 1rem 1.25rem;
 	}
-
-	.muted {
+	.row-label {
 		margin: 0;
 		color: var(--color-text-subtle);
+		font: var(--text-label);
 	}
-
 	.point,
 	.cell {
 		position: relative;
 		display: grid;
-		align-content: start;
+		align-content: center;
 		gap: 0.375rem;
-		min-height: 0;
-		padding: 0.875rem 1rem 1rem;
+		min-width: 0;
+		min-height: 5rem;
+		padding: 1rem;
 		border: 0;
 		border-left: var(--border-hairline);
 		background: transparent;
@@ -347,45 +292,39 @@
 		font: var(--text-ui);
 		text-align: left;
 	}
-
 	button.point,
 	button.cell {
 		cursor: pointer;
 	}
-
 	button.point:hover,
 	button.cell:hover {
 		background: color-mix(in srgb, var(--color-surface) 55%, var(--color-bg));
 	}
-
 	.point.open,
 	.cell.open {
 		background: var(--color-surface);
-		box-shadow: inset 0 -1px 0 var(--color-accent);
+		box-shadow: inset 0 -2px 0 var(--color-accent);
 	}
-
 	.point.problem,
 	.cell.problem {
 		box-shadow: inset 0 0 0 1px var(--color-accent);
 	}
-
 	.question {
 		color: var(--color-text-subtle);
 		font: var(--text-label);
 		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 	}
-
-	.diagram {
-		display: block;
-		width: 100%;
-		max-width: 20rem;
-		height: auto;
-		margin: 0 auto;
+	.line .question {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
-
 	.answer {
 		text-wrap: pretty;
+		overflow-wrap: anywhere;
 	}
 
 	.change {
@@ -405,55 +344,43 @@
 	.end {
 		border-left: var(--border-hairline);
 	}
-
 	.box-host {
 		grid-column: 1 / -1;
 	}
-
 	.group > header {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25rem 1rem;
-		align-items: baseline;
-		padding: 1rem 1.25rem 0.625rem;
+		padding: 0.5rem 1.25rem;
+		border-bottom: var(--border-hairline);
+		background: color-mix(in srgb, var(--color-surface) 25%, var(--color-bg));
 	}
-
+	.group > header h2 {
+		color: var(--color-text-subtle);
+		font: var(--text-label);
+	}
 	.row .name {
-		align-self: start;
+		align-self: center;
+		min-width: 0;
 		width: auto;
-		margin: 0.625rem 0.5rem 0.625rem 1rem;
+		margin: 0.625rem 0.75rem 0.625rem 1.25rem;
+		padding-inline: 0;
+		border: 0;
+		border-bottom: 1px dashed var(--color-border);
+		background: transparent;
 		font-weight: 500;
 	}
-
-	.row .cell {
-		padding-block: 0.75rem;
-	}
-
-	.row .question {
-		display: none;
-	}
-
 	.cell.same .answer {
-		color: var(--color-text-faint);
+		color: var(--color-text-subtle);
+		font-size: 0.75rem;
 	}
-
 	.cell.fixed {
 		margin: 0;
 		color: var(--color-text-muted);
 	}
-
 	.remove {
-		align-self: start;
-		margin: 0.625rem 0.25rem;
-		border-color: transparent;
-		border-left: var(--border-hairline);
+		align-self: center;
+		margin: 0.5rem 0.25rem;
+		border: 0;
 		background: transparent;
 	}
-
-	.row > .remove {
-		height: calc(100% - 1.25rem);
-	}
-
 	.adders {
 		display: flex;
 		flex-wrap: wrap;
@@ -462,70 +389,73 @@
 		padding: 0.875rem 1.25rem;
 		border-bottom: var(--border-hairline);
 	}
-
 	.adders button {
 		display: flex;
 		gap: 0.375rem;
 		align-items: center;
+		background: color-mix(in srgb, var(--color-surface) 45%, var(--color-bg));
+		font-size: 0.75rem;
 	}
-
-	.adders .muted {
-		margin-right: 1rem;
+	.task-help {
+		color: var(--color-text-subtle);
+		font-size: 0.75rem;
 	}
-
+	.task-help[open] {
+		flex-basis: 100%;
+	}
+	.task-help summary {
+		width: fit-content;
+		padding: 0.5rem 0;
+		cursor: pointer;
+	}
+	.task-help summary:focus-visible {
+		outline: 1px solid var(--color-accent);
+		outline-offset: 2px;
+	}
+	.task-help p {
+		margin: 0.375rem 0;
+	}
 	@media (max-width: 64rem) {
 		.lines {
 			--columns: 8rem repeat(4, minmax(0, 1fr)) 2.75rem;
 		}
 	}
-
-	/* On a phone the points stack two by two, and a step is a short list. */
 	@media (max-width: 48rem) {
-		.line.main {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-
-		.line.main .lead {
-			grid-column: 1 / -1;
-			padding-bottom: 0.5rem;
-		}
-
-		.line.main .point {
-			border-top: var(--border-hairline);
-		}
-
-		.line.main .point:nth-of-type(odd) {
-			border-left: 0;
-		}
-
-		.main .point + .point::before {
+		.column-headings {
 			display: none;
 		}
-
+		.line.main,
+		.line.row {
+			grid-template-columns: minmax(0, 1fr) 2.75rem;
+		}
+		.lead {
+			grid-column: 1 / -1;
+			padding: 1rem;
+			border-bottom: var(--border-hairline);
+		}
+		.line .point,
+		.row .cell {
+			grid-column: 1 / -1;
+			min-height: 0;
+			border-left: 0;
+			padding: 0.875rem 1rem;
+		}
+		.line .question {
+			position: static;
+			width: auto;
+			height: auto;
+			overflow: visible;
+			clip-path: none;
+		}
 		.end {
 			display: none;
 		}
-
-		.line.row {
-			grid-template-columns: minmax(0, 1fr) 2.75rem;
-			padding-bottom: 0.25rem;
-		}
-
-		.row .cell {
-			grid-column: 1 / -1;
-			border-left: 0;
-			padding: 0.5rem 1rem;
-		}
-
-		.row .question {
-			display: block;
-		}
-
 		.row > .remove {
 			grid-row: 1;
 			grid-column: 2;
-			height: auto;
-			border-left: 0;
+		}
+		.adders {
+			padding-inline: 1rem;
 		}
 	}
 </style>
