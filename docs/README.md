@@ -19,6 +19,8 @@ the repository root to check coverage and local link paths.
 - [Lane A log](lane-a-log.md): contract notices, answers to lane B and reviews of lane B's commits.
 - [Lane B log](lane-b-log.md): requests to lane A, reviews of lane A's commits and replies.
 - [Lane B implementation log](lane-b-implementation-log.md): product objective, implemented slices, verification boundaries and useful client/transport observations.
+- [T1 build](t1-build.md): produce one identified Apple Silicon binary and compare its hash on all three test Macs.
+- [Client qualification harness](client-qualification.md): isolated four-client scripted-provider checks, policy distinctions and recovery evidence boundaries.
 - [Transport probe](transport-probe.md): runnable direct, relay-only and automatic transport qualification, local process checks and two-machine instructions.
 - [Implementation plan review](implementation-plan-review.md): adversarial review of the proposed plan with prioritized objections, strengths and pre-implementation gates.
 - [Second review response](implementation-plan-review-response.md): adopted plan refinements, qualified simplifications and claims not adopted.

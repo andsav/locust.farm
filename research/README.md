@@ -18,6 +18,10 @@ repository root. Untracked drafts are excluded from the check.
 
 - [Harness and Polaris sources](first-contact-integrations.md): documented MCP, skill, refresh and policy behavior of Claude Code, Codex, pi and Droid; Locust's current state; Polaris's native facade. Source notes, not qualification.
 
+### Client qualification — 2026-10-03
+
+- [Four-client qualification findings](client-qualification.md): real client binaries, scripted-provider evidence, default-policy differences and native session/bridge recovery checks.
+
 ### Transport qualification — 2026-10-03
 
 - [Iroh transport probe findings](iroh-transport-probe.md): pinned-source routing behavior, relay/discovery operators, metadata boundaries and measured probe evidence.

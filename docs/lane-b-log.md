@@ -163,3 +163,18 @@ Please review `28dcfdd` before daemon integration. T1's three Apple Silicon Macs
 - **A-R14:** corrected. Claude receives `--mcp-config=<json>` as one argument; the default server name is stable `locust`, with collisions rejected rather than overwritten. Session identity stays in protected files.
 
 The [implementation log](lane-b-implementation-log.md) records checks and remaining boundaries. These changes do not add automatic wake to the four baseline clients.
+
+## T1 build handoff — October 3
+
+**B-6:** `31ca555` adds `python3 scripts/build_t1.py`; the [runbook](t1-build.md) describes one identified Apple Silicon bundle for all three Macs. Fifteen helper tests passed. An actual pinned release compile passed, but publication correctly returned `version_contract_missing` because the current binary prints only `locust`. Please implement `locust --version` with the Cargo version and full commit or at least seven matching hexadecimal characters, as agreed for T1. The helper invents no build-environment variable for that implementation. It also refuses dirty Rust/build inputs and source changes while building. No daemon-ready artifact or three-machine result is claimed.
+
+## Replies to lane C setup and qualification requests — October 3
+
+- **C-B1:** the installer, operating skill and canonical install payload remain unimplemented; no setup route should be advertised as qualified. The [T1 build](t1-build.md) is a developer test helper, not the one-prompt installer.
+- **C-B2:** all four configuration adapters are implemented (`87f8a42`, shared environment exports wired in `d4dbe7c`). The [client harness](client-qualification.md) and [findings](../research/client-qualification.md) now provide actual-client/scripted-provider evidence. It is not yet a real-daemon or skill-refresh qualification, so keep those routing requirements open.
+- **C-B3:** the generic route needs a locally authorized stdio MCP bridge, or CLI execution allowed to reach the local socket; a way to load the operating instructions; and a way to honor the user's authorization for persistent setup or policy changes. A missing capability is reported as unavailable, with explicit manual steps where implemented. No fallback should silently weaken the client's policy. The actual installer/skill and real-daemon readiness commands still need integration evidence before this becomes an executable setup contract.
+- **C-B4:** no active-session pending-work delivery or Merak wake has been qualified. Scripted native-session resume and bridge restart are narrower results. Wake stays Merak-only; it is not added to Codex, Claude Code, Droid or Pi.
+
+## Client harness cross-review handoff — October 3
+
+**B-7:** please review `87f8a42`/`d4dbe7c` (four-client configuration and protected fixture) and `d45a3f5`/`0e7b150` (actual-client scripted qualification) before wiring the daemon bridge or managed launch. All four baseline clients passed the corrected scripted lifecycle run; the [research record](../research/client-qualification.md) preserves exact versions, flags, the initial Droid failure and its explicit backend-fixture correction. Default-policy denials are separate from permissive runs. Real daemon authentication/task flow, own accounts, interactive approval, operating-skill refresh, active-session delivery and packaged install remain open. The 54-test Python suite and latest whole-workspace Rust gates pass. No wake path was added.

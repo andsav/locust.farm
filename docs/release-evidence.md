@@ -13,9 +13,9 @@ The repository owner decides release go/no-go and changes to required scope or s
 | R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Not run | None |
 | R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Not run | None |
 | R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Not run | None |
-| R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2 (configuration only) |
-| R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2 (configuration only) |
-| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Not run | None |
+| R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2; B-C5; B-C6 (scripted fixture only) |
+| R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2; B-C5; B-C6 (scripted fixture only) |
+| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7 (build helper only) |
 | R8 — Real collaboration | M6: two people/machines, mixed-client flows covering all four baseline clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
 | R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3; B-C4 (same-host direct/public relay) |
 | R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Not run | None |
@@ -31,6 +31,26 @@ Exact reproduction commands, observations and remaining boundaries are in the [i
 **B-C3, relevant to R9:** commits `b4daf3f` and `905f31a` add address-free route snapshots, acknowledged stream shutdown and a runnable transport probe with direct/relay/automatic modes. On macOS arm64, all 25 Rust component/example tests, 21 Python tests and five process smoke checks passed. Two same-host processes also completed authenticated exchanges through n0's default relay selection and a custom-only n0 east-region relay; automatic mode with an explicit loopback hint selected direct paths. Both sides' route snapshots, success records, exit codes and identity comparisons were checked. [Retained measurements](../research/evidence/transport-probe-2026-10-03.json) include the local debug binary hash; [findings](../research/iroh-transport-probe.md) explain the initial relay-probe and blocked-output bugs that were fixed. This is not two-machine/separate-network evidence, independent-operator evidence, or a packaged release check. Final workspace-wide checks were blocked by concurrent lane-A workspace code; focused checks passed. Lane A cross-review is requested in B-5.
 
 **B-C4, relevant to R9:** `28dcfdd` corrects lane A findings A-R1–A-R8 and updates the endpoint/framing API for revision 2. Whole-workspace formatting, Clippy and 174 tests passed; 2 explicit installed-client tests were ignored in that run. Transport coverage includes 26 library tests and 11 testkit-enabled probe tests. Five process checks passed. The [new retained transport record](../research/evidence/transport-review-2026-10-03.json) records same-host default-n0, custom-n0-region and automatic-direct runs against the rebuilt probe, with both identities, route kinds and successful exits checked. This does not qualify independent relay operators, peer discovery, daemon replication, three machines or durable state. The [lane B replies](lane-b-log.md) request integration review.
+
+**B-C5, relevant to R6/R6L:** `87f8a42` implements configuration for Codex, Claude Code, Factory Droid and Pi plus protected-path read/write/wait fixtures; `d4dbe7c` uses the shared revision-2 environment constants. The adapter passed 24 component/example tests, formatting and Clippy. Explicit installed configuration tests passed for Codex 0.153.4 and Claude Code 2.1.280. Registration generation never selects a permissive policy or writes owner profiles. Actual readiness and session continuation are covered separately below; real-daemon credentials are not qualified by the dummy fixture proofs.
+
+**B-C6, relevant to R6/R6L:** `d45a3f5` and `0e7b150` implement the [actual-client harness](client-qualification.md). The [corrected retained record](../research/evidence/client-qualification-corrected-2026-10-03.json) records passing read/write, held wait, SIGINT, same-native-session resume and bridge restart for Codex 0.153.4, Claude Code 2.1.280, Factory Droid 0.218.1 and Pi 1.0.1 on macOS arm64. Provider/model responses and Droid's backend session lookup are scripted loopback fixtures; no real account or model was used. Default headless denials remain explicit (Claude read/write, Droid write); the lifecycle runs' permission overrides and Claude `--bare` are recorded, while Pi keeps default policy. The [findings](../research/client-qualification.md) retain the initial Droid failure, independent diagnosis and controlled correction. All 54 Python tests and the latest whole-workspace Rust checks passed. Interactive approval, real daemon/task flow, accounts/models, operating-skill refresh, active-session delivery, wake and packaged installation remain unverified. Cross-review is requested as B-7.
+
+**B-C7, relevant to R7 and T1:** `31ca555` adds the [identified Apple Silicon build helper](t1-build.md). Fifteen helper tests pass. An actual pinned release compile passed; publication returned `version_contract_missing` for the name-only scaffold, so no T1 bundle was produced. This is verified refusal and build-tooling evidence, not daemon readiness, a signed release or three-machine behavior.
+
+## T1 preparation and run status
+
+The first integrated run uses one binary on the owner's three Apple Silicon Macs; the full sequence is in [workstreams](workstreams.md).
+
+| Required record | Current evidence |
+|---|---|
+| One identified `aarch64-apple-darwin` binary | Build helper implemented/tested; current scaffold refused for missing version/commit identity |
+| Matching version, commit and SHA-256 on all three Macs | Not run; no identified bundle copied |
+| Three members; observed peer routes | Not run |
+| Propose → assign → claim → submit → inspect → accept; third peer observes history | Not run |
+| Coordinator offline while other peers exchange notes; catch-up | Not run |
+| Restart each daemon and sleeping-laptop reconnect | Not run |
+
 
 ## Evidence record format
 
@@ -52,12 +72,12 @@ Prior-art tests, reviewer-reported probes and documentation-check success do not
 
 | Client | Current Locust configuration evidence | Daemon task flow and recovery | Locust-managed lifecycle |
 |---|---|---|---|
-| Codex | B-C2: generated overlay parsed by 0.153.4; review fixes pending | Not run | Not run |
-| Claude Code | B-C2: configuration component tests; lane A's installed-client review found fixes needed | Not run | Not run |
-| Factory Droid | Not implemented or qualified | Not run | Not run |
-| Pi | Not implemented or qualified | Not run | Not run |
+| Codex | B-C5/B-C6: 0.153.4 configuration, actual MCP fixture and scripted native resume passed | Not run | Not run |
+| Claude Code | B-C5/B-C6: 2.1.280 actual MCP fixture and scripted resume passed; `--bare` and policy opt-ins explicit | Not run | Not run |
+| Factory Droid | B-C5/B-C6: 0.218.1 actual MCP fixture and scripted local-session fallback passed | Not run | Not run |
+| Pi | B-C5/B-C6: 1.0.1 actual MCP fixture and scripted native resume passed under default policy | Not run | Not run |
 
-The [lane A review](lane-a-log.md) records configuration findings against B-C2; that historical pass is not a clean bill for the complete adapter. Record new results against exact commits and client builds.
+The [lane A review](lane-a-log.md) records configuration findings against B-C2; the [lane B replies](lane-b-log.md) map corrections to later commits. The current client rows report scripted fixture behavior only; they do not qualify daemon task flow or Locust-managed lifecycle.
 
 Apply the same required scenarios to each client:
 
