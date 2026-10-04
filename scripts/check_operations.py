@@ -27,6 +27,12 @@ def require(condition, message):
         raise CheckFailure(message)
 
 
+def require_unchanged_export_binding(before, after, base):
+    require(before.get("exported") == base and before.get("integrated") is None,
+            "export-only workspace binding did not identify the exported base without integration")
+    require(after == before, "conflicting apply changed workspace binding")
+
+
 class Operations(Qualification):
     def __init__(self, binary, timeout, artifact_dir, network="default"):
         super().__init__(binary, timeout, artifact_dir, network=network)
@@ -237,9 +243,10 @@ class Operations(Qualification):
         (source / "code.txt").write_text("uncommitted conflict\n")
         (source / "unrelated.txt").write_text("unrelated dirty work\n")
         before = {p.name: p.read_bytes() for p in source.iterdir() if p.is_file()}
+        binding_before = self.goal_status(lead, goal)["workspace"]
         self.expect_error(lead, apply, "conflict")
         require(before == {p.name: p.read_bytes() for p in source.iterdir() if p.is_file()}, "conflicting apply changed files")
-        require(self.goal_status(lead, goal)["workspace"]["integrated"] == base, "conflicting apply changed local integration")
+        require_unchanged_export_binding(binding_before, self.goal_status(lead, goal)["workspace"], base)
         (source / "code.txt").write_text("base\n")
         self.cli(lead, apply)
         require((source / "code.txt").read_text() == "worker 2\n", "wrong worker output integrated")

@@ -41,6 +41,19 @@ class OperationsTests(unittest.TestCase):
                                         reader=types.SimpleNamespace(join=lambda timeout: None))
         return check, machine, process
 
+    def test_conflicting_apply_preserves_entire_export_only_binding(self):
+        before = {"exported": "base", "integrated": None, "export_root": "/source",
+                  "source_commit": "commit", "destination": None}
+        operations.require_unchanged_export_binding(before, dict(before), "base")
+        for field in before:
+            with self.subTest(field=field):
+                after = {**before, field: "changed"}
+                with self.assertRaisesRegex(operations.CheckFailure, "changed workspace binding"):
+                    operations.require_unchanged_export_binding(before, after, "base")
+        for invalid in ({**before, "integrated": "base"}, {**before, "exported": "other"}):
+            with self.assertRaisesRegex(operations.CheckFailure, "export-only workspace binding"):
+                operations.require_unchanged_export_binding(invalid, dict(invalid), "base")
+
     def test_success_is_not_an_expected_error(self):
         with tempfile.TemporaryDirectory() as directory:
             check, machine, _ = self.fixture(Path(directory))
