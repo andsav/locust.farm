@@ -19,8 +19,9 @@ the linked plans and research.
 
 **Plan review, 2026-10-04:** the owner accepted the review's findings. O0 now
 ends in a written protocol contract. M1 delivers Open collaboration and
-Coordinator together. YAML, materialized flow effects and exclusive reservations
-leave the first delivery. Shared documents, a performance baseline and D3's
+Coordinator together. YAML and exclusive reservations leave the first delivery.
+The subsequent owner correction to D14 requires daemon-driven configured
+transitions and durable work delivery; agents need not request each transition. Shared documents, a performance baseline and D3's
 lifetime are covered. Commits may break `main` during the engine swap as long
 as each milestone lands clean with no dead code (D13). Use judgement over
 ritual: a gate in this plan exists to catch a real failure, not to be satisfied
@@ -76,9 +77,9 @@ scripted clients real-model evidence, or a built site publicly available.
 ### Non-goals and boundaries
 
 No arbitrary executable policy language, mandatory workflow DAG, required cloud
-coordinator, private-conversation harvesting, automatic closed-client wake,
-events the daemon signs on its own from rule evaluation (D14), or automatic
-widening of local permissions. Keep Merak optional as a local executor.
+coordinator, private-conversation harvesting, automatic closed-client wake, or
+automatic widening of local permissions. D14 does require the daemon to
+materialize authorized configured transitions and durably deliver ready work. Keep Merak optional as a local executor.
 Do not model remote participants as local Merak child runs.
 
 Multi-administrator Byzantine consensus, private topics inside one encrypted
@@ -138,7 +139,7 @@ settled and does not need another approval.
 | D11 — Anchoring, evidence and forks | Keep protocol 1's shape with a narrower chain. One administrator chain carries membership, goal-level role bindings, rule revisions and key epochs; every event names the chain position it was written against, and those values derive from that one reference. A scope needing a unique decision gets its own single-writer chain with the same succession and fork-halt rule. Everything else is grow-only evidence, evaluated as a function of the held set and counted once per principal. An author's log is usable up to its fork point; events past it count only when an administrator cutoff or a scoped decision pins their exact branch, and evidence resting on them returns to pending | O0 protocol contract |
 | D12 — Shared documents | A plan or summary revision is a contribution to a named document. An accepted revision exists only where the arrangement names a selection authority for that document, as Coordinator does; otherwise revisions coexist with provenance. Leave requests go to the administrator | O0 protocol contract |
 | D13 — Cutover (resolved) | Replace the engine in place on `main`. Commits inside the swap may fail workspace checks or leave harness scripts broken, and say so in their message. Each milestone is a clean point: all checks pass and nothing superseded remains. No parallel runtime, feature flag or scaffolding exists only to keep intermediate commits green | From O3 to M1, and any later swap |
-| D14 — Flow effects (accepted) | Flow is derived. Readiness, review requests and next-stage offers are views over held evidence. The daemon signs no event a participant did not request, so no effect keys or deduplication store exist. Participants create child tasks and handoff offers explicitly | Revisit only with evidence that derived flow is insufficient |
+| D14 — Daemon-driven flow (accepted correction) | The daemon evaluates configured transitions and an explicitly authorized materializer signs their effects without waiting for agent requests. Stable logical effect IDs, atomic event/outbox/dedup persistence and restart recovery prevent duplicate logical work. Delivery, recipient acknowledgment and local execution start are distinct; local permission gates still apply | O3/O6/O8 implementation |
 
 The owner selected one membership/rule administrator per goal and optional
 scope-specific reservation/selection authorities. Unavailability blocks only
@@ -214,8 +215,8 @@ plan's illustrative descriptions.
 - Composition: `all`, `any`, and explicit count thresholds over a defined set.
   Positive evidence should be monotonic within a pinned decision context.
 - Flow: explicitly named prerequisite evidence makes work or review ready as a
-  derived view (D14); a participant may create a child task with mapped inputs.
-  No automatic local process launch and no daemon-authored events.
+  daemon-driven transition (D14), including authorized child creation with mapped
+  inputs. Durable delivery is distinct from local execution and its permission gates.
 - Outcomes: ongoing scope, criteria satisfied, optional selected outputs, and
   explicit closure/reopen. No inference that an empty locally seen board is done.
 
@@ -291,10 +292,14 @@ acceptance. Cycles in static readiness dependencies are rejected with a path;
 intentional iterative work creates explicit new attempts/tasks or authored
 feedback semantics rather than an implicit recursive scheduler.
 
-Flow is derived (D14). Readiness, review requests and next-stage offers are views
-over held evidence, identical on every replica holding the same events, and
-they mint no events. Child tasks and handoff offers are events a participant
-authors on purpose.
+Readiness evaluation is deterministic over held evidence. Under D14, the daemon
+materializes configured child tasks, review requests and handoff offers through
+an explicitly authorized signer without waiting for an agent request. A stable
+logical effect ID binds the rule revision, trigger, scope and intended effect.
+The signed event, deduplication record and delivery outbox commit atomically;
+restart resumes unacknowledged deliveries using the same identity. Delivery,
+recipient acknowledgment and execution start remain separate facts. Existing
+local permission grants govern execution; a blueprint cannot create consent.
 
 ## 5. Work packages and dependency order
 
@@ -311,7 +316,7 @@ Package IDs identify the full deliverables below.
 | O3 | New governance references, admission, typed content and peer validation | O0/O1/O2 | Protocol/core/network |
 | O4 | Open contributions, tasks, independent attempts, local execution bindings | O3 | Core/clients |
 | O5 | Completion/reviews and scoped selections | O0/O4; D4 | Core/protocol |
-| O6 | Task variations, dependencies, handoff, derived flow | O4/O5; D6/D7/D14 | Core/integration |
+| O6 | Task variations, dependencies, handoff, daemon-driven durable flow | O4/O5; D6/D7/D14 | Core/integration |
 | O7 | Agent authoring and operating CLI/MCP/skill | O1/O2 early; O3–O6 integration | Agent experience |
 | O8 | Workspace, managed clients, installed packages, integration cleanup | O4–O7 | Runtime/release |
 | O9a | Documentation content/build/navigation infrastructure | O1 contracts; D9 | Site/docs |
@@ -547,18 +552,22 @@ Replay cost is measured again against the O0 baseline (V22).
    dependency metadata alone does not establish execution order.
 3. Add handoff offers with recipient acknowledgment, stage-specific criteria,
    parallel work and collection, and explicit mapping into child task definitions.
-4. Derive work and review requests from held evidence under D14. The same
-   events give the same requests on every replica; replay and reconnect mint
-   nothing.
+4. Evaluate configured work/review transitions under D14 and materialize them
+   through the authorized signer. Compute stable logical effect IDs and commit
+   signed effects, deduplication records and delivery outbox entries atomically.
+   Recover pending materialization/delivery after restart, retry delivery until
+   acknowledged, and distinguish delivery from acknowledgment and local start.
 5. Implement explicit future-default amendment and active-work revision/reopen
    paths where supported. Preserve historical rule identity and finalized records.
 6. Keep different-member subgoals separate, with deliberate exported inputs and
    returned outputs. Do not leak all parent context through nesting.
 
 **Exit:** mixed-mode goal scenario passes; child approvals cannot bypass parent
-selection; static dependency cycles give useful errors; reconnect/replay mints
-no flow events and shows each derived request once; an offline or unwilling recipient leaves an honest
-pending handoff rather than a falsely running task.
+selection; static dependency cycles give useful errors; crash/reconnect/replay
+creates each logical effect once and resumes durable delivery. No agent polling
+request is needed to drive configured transitions. An offline or unwilling
+recipient leaves an honest pending handoff rather than a falsely running task;
+local execution still passes its permission gates.
 
 ### O7 — Make authoring and operation easy for agents
 
@@ -784,8 +793,8 @@ cancellation and replacement must not allow two currently effective
 generations; reject writes using a stale generation. Disconnected peers may
 retain an old confirmation or keep executing, so this promises neither globally
 unique observed ownership nor physical execution. The authority's daemon answers
-requests on its own, which D14 otherwise excludes: state that dependency and its
-availability cost in the contract and the manual.
+requests under explicit authority, consistent with D14; state that dependency
+and its availability cost in the contract and the manual.
 
 **Exit:** V04 passes; unavailable and forked-authority states are explicit.
 
@@ -844,7 +853,7 @@ These are tests to implement/run, not results already established by this plan.
 | V06 | Two approved alternatives coexist; configured unique selection follows its authority stream; equivocation halts only the affected scope | O5 |
 | V07 | Administrator offline does not block authorized open work or non-exclusive completion with already available proofs | O3/O5 |
 | V08 | Removal/re-admission, binding changes, forks and missing proof closure obey specified cutoffs; local missing evidence is not invented permission | O3/O5 |
-| V09 | Child task variation cannot widen parent delegation; dependencies name exact evidence; replay and reconnect mint no flow events and each derived request appears once | O6 |
+| V09 | Child task variation cannot widen parent delegation; dependencies name exact evidence; the daemon advances configured transitions without agent requests; crash/reconnect/replay preserves one logical effect and resumes delivery without confusing acknowledgment or start | O6 |
 | V10 | Different-member subgroup receives only explicitly exported inputs; topic names do not imply read isolation | O3/O6 |
 | V11 | Replicated authority/effect rules agree through authoring, ingestion and replay; local consent/session guards remain local; crash/retry preserves event, receipt, feed and claim atomicity | O2–O8 |
 | V12 | Replaced local session cannot submit on its old generation; distributed reservation does not assert the old process physically stopped | O4/O8 |
