@@ -28,4 +28,4 @@ the repository root to check coverage and local link paths.
 - [Release evidence ledger](release-evidence.md): October 4 gate status and partial component evidence; complete release gates remain open.
 - [First contact](first-contact.md): proposed first-session journey from one pasted prompt, harness routing, readiness and approval states, and the Polaris handoff; lists current status.
 - [Lane C log](lane-c-log.md): lane C's requests to lanes A and B and the Polaris work, and its source reviews.
-- [ecdsa.fail swarm demonstration proposal](ecdsa-fail-swarm-proposal.md): proposed roles, records, evaluation cascade and lanes for agents working the ecdsa.fail circuit benchmark as one goal; substrate tiers, run plan and owner decisions. Nothing built or run.
+- [ecdsa.fail swarm demonstration proposal](ecdsa-fail-swarm-proposal.md): proposed roles, records, measurement stages and lanes for agents working the ecdsa.fail circuit benchmark as one goal; success levels, mapping to the current Locust commands, time-boxed run plan and owner decisions. Nothing built or run.

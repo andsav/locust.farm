@@ -1,6 +1,6 @@
 # ecdsa.fail: benchmark, rules and state of the field
 
-Research date: 2026-10-03. **Status: research note. Source review and data analysis only. No challenge code was built or run, nothing was submitted and no account was used.** It supports the [swarm demonstration proposal](../docs/ecdsa-fail-swarm-proposal.md). The companion note covers [prior art for agent swarms on this benchmark](ecdsa-fail-swarm-prior-art.md), and the [leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md) holds the script behind the numbers marked *recomputed*.
+Research date: 2026-10-03. **Status: research note. Source review and data analysis only. No challenge code was built or run, nothing was submitted and no account was used. Revised the same day after an adversarial review.** It supports the [swarm demonstration proposal](../docs/ecdsa-fail-swarm-proposal.md). The companion note covers [prior art for agent swarms on this benchmark](ecdsa-fail-swarm-prior-art.md). The [leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md) holds a reduced capture and the script behind every number marked *recomputed*.
 
 ## Question
 
@@ -8,82 +8,103 @@ What exactly does [ecdsa.fail](https://ecdsa.fail/) ask for, how is a result jud
 
 ## Sources and method
 
-- The site and its two unauthenticated JSON endpoints, `/api/benchmarks` and `/api/benchmarks/<id>/submissions`, captured 2026-10-03 at about 20:40 UTC: 1,355 submissions to benchmark `1ffb695a-309b-46b6-a728-2f97d8c7be74`.
-- The site's Terms (effective 2026-09-01), privacy page, installer script and CLI bundle, fetched as text and read; none was executed.
-- The source repository [Layr-Labs/ecdsafail-challenge](https://github.com/Layr-Labs/ecdsafail-challenge) at `main` = `3161bd20` (2026-10-03 20:34 UTC), through read-only GitHub API calls: tree, selected files, commit list, workflow runs, issues, pull-request bodies. Nothing was cloned.
-- A local checkout of the same repository from July (`422f21d`), read for the harness source. The scoring files `src/sim.rs`, `src/circuit.rs` and `src/bin/eval_circuit.rs` were compared with `main` through the API and are byte-identical.
-- Papers and public write-ups, linked where cited.
+- The site and its two unauthenticated JSON endpoints, fetched 2026-10-03 at 23:43 UTC: 1,355 submissions to benchmark `1ffb695a-309b-46b6-a728-2f97d8c7be74`, the newest created at 20:34 UTC.
+- The site's Terms (effective 2026-09-01), privacy page, installer script and CLI bundle, fetched as text and read. None was executed.
+- The source repository [Layr-Labs/ecdsafail-challenge](https://github.com/Layr-Labs/ecdsafail-challenge) at `main` = `3161bd20`, through read-only GitHub API calls: tree, selected files, commit list, workflow runs and one job log, issues, pull-request bodies. Nothing was cloned.
+- A local checkout of the same repository from July (`422f21d`), read for the harness source. The three scoring files `src/sim.rs`, `src/circuit.rs` and `src/bin/eval_circuit.rs` are byte-identical at `main`. Three other harness files changed: `src/bin/build_circuit.rs`, `src/lib.rs` and `benchmark.sh`. At `main`, contestant code is compiled only into `build_circuit` and is no longer linked into the evaluator. Any evaluator a swarm trusts must be built from `main`'s harness, not from the July checkout.
+- The challenge paper, written by participants and organisers ([arXiv 2609.09582](https://arxiv.org/abs/2609.09582)), other papers and public write-ups, linked where cited.
 
-Labels used below: **recomputed** means derived from the captured API data by the appendix script; **read** means seen in harness source, the Terms, or the repository through the API; **reported** means stated in a solver's public note, pull request or issue and not reproduced here; **inferred** means our own reasoning. Solver notes are written by anonymous third parties, frequently by their agents. They are leads, not facts.
+Labels: **recomputed** means produced by the appendix script from the reduced capture. **Read** means seen in harness source, the Terms, the job log or the repository. **Reported** means stated in a solver's public note, pull request or issue and not reproduced here; such claims carry the first eight characters of a submission id or an issue number. **Inferred** means our own reasoning. Notes are written by anonymous third parties, often by their agents. They are leads, not facts.
 
 ## The task and the score
 
-Build a reversible circuit that adds a classical secp256k1 point to a quantum one in place: four 256-wide registers, `target_x` and `target_y` as qubits and `offset_x` and `offset_y` as classical bits, with the target overwritten by the affine sum. Point addition is the inner step that Shor's algorithm repeats when it attacks elliptic-curve keys, which is why its cost matters.
+Build a reversible circuit that adds a classical secp256k1 point to a quantum one in place: four 256-wide registers, `target_x` and `target_y` as qubits and `offset_x` and `offset_y` as classical bits, with the target overwritten by the affine sum. Point addition is the inner step that Shor's algorithm repeats when it attacks elliptic-curve keys.
 
-Score = round(average executed Toffoli count per shot) × qubits. Lower is better. The harness came from the code Google released with its 2026 resource estimate ([arXiv 2603.28846](https://arxiv.org/abs/2603.28846)), whose own point-addition circuits were attested by a zero-knowledge proof and not published. The site quotes them as 2.1M Toffoli × 1,425 qubits and 2.7M × 1,175.
+Score = round(average executed Toffoli count per shot) × qubits. Lower is better. The harness descends from the code Google released with its 2026 resource estimate ([arXiv 2603.28846](https://arxiv.org/abs/2603.28846)), whose own point-addition circuits were attested by a zero-knowledge proof and not published.
 
 | Reference point | Toffoli | Qubits | Product |
 |---|---|---|---|
 | Litinski 2023, as estimated by the site | 8.19M | 3,000 | 2.46 × 10¹⁰ |
 | Challenge start, 2026-05-30 | 3.96M | 2,715 | 1.076 × 10¹⁰ |
-| Google, low-gate point | 2.1M | 1,425 | 2.99 × 10⁹ |
+| Google's low-gate bound | 2.1M | 1,425 | 2.99 × 10⁹ |
 | Current record, 2026-10-03 | 944,620 | 1,173 | 1,108,039,260 |
+
+The rows are not like for like. Google's figures are proved upper bounds; the README also lists its low-qubit bound of 2.7M × 1,175. The record circuit is wrong on roughly one input in 430 by its submitter's own measurement (see below), where the published approximate designs claim about one in 10,000. The benchmark supplies one addend classically and never tests doubling or the point at infinity. The challenge paper calls the comparison with Google contextual.
 
 Only files under `src/point_add` may change. Dependencies and the Rust toolchain (1.93.0) are frozen. The benchmark closes on 2026-12-31.
 
 ## What the evaluator charges, ignores and checks
 
-Read from the harness source in the July checkout; file references are to that tree.
+**Read** in the harness source.
 
-- **Two programs.** `build_circuit` runs the contestant's `point_add::build()` and writes `ops.bin`, a zstd frame of 56-byte operation records. `eval_circuit` reads that file, simulates it and writes `score.json`. The score is therefore a pure function of `ops.bin`.
-- **Charged.** Only Toffoli-class gates (CCX and CCZ), once for every shot in which the gate's classical condition holds (`src/sim.rs`). A gate guarded by a measurement bit costs about half a Toffoli on average.
-- **Free.** Every Clifford gate, measurement, reset, classical bit operation, circuit depth and operation count. Measurement-based uncomputation is therefore free apart from its Toffoli fix-ups.
-- **Qubits.** The highest qubit index used, plus one (`src/circuit.rs`). This is a property of the allocator, not of how many qubits are live at once.
-- **Test inputs.** A SHAKE256 hash over the whole operation stream seeds 9,024 scalar pairs and every measurement outcome (`src/bin/eval_circuit.rs`). A circuit cannot be tuned to its inputs, but any change to the stream, even a no-op, draws a fresh set.
-- **Validity.** All 9,024 shots must be classically correct, the phase word must be zero in every batch, and every non-register qubit must end at zero. One failure of any kind and the run has no score.
-- **A gap between text and code.** The README and the Terms also promise a forward-then-reverse identity check. No such check exists in `eval_circuit.rs`, in July or at `main`. We do not know whether the platform enforces it elsewhere.
+- **Two programs.** `build_circuit` runs the contestant's `point_add::build()` and writes `ops.bin`, a compressed list of 56-byte operation records. `eval_circuit` reads that file, simulates it and writes `score.json`. The score is a pure function of `ops.bin`.
+- **Charged.** Only Toffoli-class gates (CCX and CCZ), once for every shot in which the gate's classical condition holds. A gate guarded by a measurement bit costs about half a Toffoli on average.
+- **Free.** Every Clifford gate, measurement, reset, classical bit operation, circuit depth and operation count.
+- **Qubits.** The highest qubit index used, plus one. This is a property of the allocator, not of how many qubits are live at once.
+- **No data-dependent control.** The only classical bits a circuit can condition on are the classical addend and the outcomes of X-basis measurements, which the simulator draws as fair coins. A circuit cannot stop early because its quantum data says the work is done.
+- **Test inputs.** A SHAKE256 hash over the whole operation stream seeds 9,024 scalar pairs and then every measurement coin. A circuit cannot be tuned to its inputs, but any change to the stream, even a no-op, draws a fresh set.
+- **Validity.** All 9,024 shots must be classically correct, the phase word must be zero in every batch of 64 shots, and every non-register qubit must end at zero. On a failing run the evaluator still simulates every shot and prints the three failure counts and the executed-Toffoli average.
+- **A gap between text and code.** The README and the Terms promise a forward-then-reverse identity check. `eval_circuit.rs` has none, and the official workflow runs nothing else, so official scoring does not perform it.
 
 One qubit is worth about 805 Toffoli at the frontier (944,620 ÷ 1,173), and one Toffoli is worth 1,173 points of score.
 
 ## Validity is statistical
 
-This is the fact that most shapes the current regime.
+This shapes the current regime more than anything else.
 
-The circuits at the frontier are deliberately inexact. They truncate register widths and shorten the Euclidean walk to bounds that hold for almost all inputs, not all. A circuit that is wrong on a fraction ε of inputs passes with probability about (1 − ε)⁹⁰²⁴. Because the test set is seeded by the operation stream, a submitter can append gates that cancel, such as 48 pairs of X gates that encode a number, and search that "tail nonce" until the 9,024 derived shots all happen to pass. The challenge's maintainer described this model in [issue #1](https://github.com/Layr-Labs/ecdsafail-challenge/issues/1) and the issue was closed as acceptable. The organisers' paper calls the pass probability *landability* and counts nonce-only commits separately from circuit changes ([arXiv 2609.09582](https://arxiv.org/abs/2609.09582)).
+The circuits at the frontier are deliberately inexact. They truncate register widths and shorten the Euclidean walk to bounds that hold for almost all inputs. Because the test set is seeded by the operation stream, a submitter can append gates that cancel, such as 48 pairs of X gates encoding a number, and search that "tail nonce" until the 9,024 derived shots all pass. An outside researcher raised this in [issue #1](https://github.com/Layr-Labs/ecdsafail-challenge/issues/1) and closed it as resolved; a maintainer then set out the model there. The challenge paper calls the pass probability *landability* and counts nonce-only commits separately from circuit changes.
 
-Solvers summarise a circuit's inexactness as λ, the expected number of failing 64-shot batches per 9,024-shot run on fresh inputs, so that the chance of a clean draw is about e^−λ.
+**The failure rate λ has more than one definition in the notes**, and comparing figures across notes without checking the unit gives wrong answers.
 
-- The current record holder's note reports λ ≈ 19.73 (pooled mean over 256 full evaluations, standard error 0.255). That implies about 3.6 × 10⁸ expected draws to land a variant of that circuit (**reported**; the arithmetic is ours).
-- 756 of the 1,339 notes mention a nonce, and 42 of the 49 promotions in the last 14 days kept the qubit count fixed and changed the Toffoli average by less than 2,000 (**recomputed**).
-- Notes describe GPU screens of the classical failures at about 12,000 nonces per second per GPU, fleets of thousands of vCPUs, and campaigns of 10⁹ draws (**reported**, not reproduced).
-- A separate community note, first attached to an upstream pull request on 2026-09-25 and copied into 61 submission notes, asks later solvers to keep λ at or below 18. The current record exceeds it. It is a norm written by one solver, not a platform rule.
+| Convention | Used by | Chance of a clean draw |
+|---|---|---|
+| Failing 64-shot batches per run, of 141 | The record's note and the leading solver | (1 − λ/141)¹⁴¹ |
+| Failing shots or "failure events" per run | The 1,164- and 1,145-qubit variants | about e^−λ |
+| −ln of the clean-draw chance | Some issues | e^−λ exactly |
 
-Three consequences follow. Every candidate, even an exact rewrite, has to win the lottery again before it can be submitted. The Toffoli average itself moves by a standard deviation of about 13 from seed to seed (**reported**; consistent with a fair-coin model of the conditional gates), so differences smaller than a few tens of Toffolis are noise unless measured on paired inputs. And a change that lowers Toffolis by raising λ transfers cost to whoever lands the next variant, which [issue #131](https://github.com/Layr-Labs/ecdsafail-challenge/issues/131) documents as an apology from a solver who did exactly that.
+- The record's note (`0b98178b`) reports 19.727 failing batches, pooled over 256 full evaluations with standard error 0.255. Under the batch model that is one clean draw in about 1.7 × 10⁹, between 0.9 and 3.1 × 10⁹ within two standard errors, and a per-shot failure rate of about 1 in 425 (**reported** λ; arithmetic **recomputed**). The e^λ shortcut gives 3.7 × 10⁸ and understates the cost. The note does not say how many draws its search took.
+- The previous head at 1,174 qubits (`ee410040`) reports 19.348 ± 0.032 failing batches over 16,384 draws.
+- A 1,164-qubit variant (`17250b2e`, rejected, 2.0% above the record) reports 14.56 failure events per run from 16 runs, standard error 0.9. A 1,145-qubit variant (`dd3621dc`) reports 11.25 ± 0.62. Both are in the per-shot convention and both come from small samples.
+- Two versions of a solver-written "limiting contract" ask later solvers to cap λ: at 18 from 2026-09-25, raised to 19.5 on 2026-09-29. 61 notes carry one or both. The record exceeds both and its note apologises for it. This is a community norm, not a platform rule.
+
+**Landing is a tooling problem more than a compute problem.** The solver who made 34 of the last 49 promotions works from one desktop with consumer graphics cards. Their notes describe a classical model of the walk on the GPU that screens about 150,000 candidate nonces per second, with exact verification of survivors, and one note records the first clean nonce after 55 million candidates in 13 minutes (`73e6d530`, `9e674e58`; **reported**). Earlier public figures were 10,000 to 16,000 per second in August. For the 1,164-qubit variant the only stated rate is 383 per second with an exact replica. Classical failures can be screened by such a model; phase failures need a full evaluation. A screen must be written and validated per circuit family.
+
+**Failure rate has a price.** [Issue #284](https://github.com/Layr-Labs/ecdsafail-challenge/issues/284) measured, on the August circuit, that giving up one unit of λ bought about 788 Toffoli at best, and that buying a unit back cost 610 to 900. The 1,164-qubit note prices its own buy-back at about 1,840. A round trip is roughly break-even, so trading failure rate is not a source of free score (**reported**).
+
+**Noise in the Toffoli average comes from measurement coins, not from inputs.** About one in nine Toffolis in the July circuit is guarded by a measurement outcome. The reported standard deviation of the average between draws is about 13 for the July circuit, 5 to 7 for the August and September ones, and up to 50 for one variant. It is not reported for the current circuit. Sharing a seed between two circuits pairs their inputs, and so their failing shots, but pairs their coins only while both circuits make the same sequence of measurements.
+
+Two consequences. Every candidate, even an exact rewrite, has to win the lottery again before it can be submitted. And a change that lowers Toffolis by raising λ raises the bar for whoever wants to land the next variant at the old rate; [issue #131](https://github.com/Layr-Labs/ecdsafail-challenge/issues/131) is an apology from a solver who shipped one.
 
 ## Cost of one evaluation
 
 | Where | Compile | Build circuit | Evaluate | Source |
 |---|---|---|---|---|
 | Official runner (32 vCPU), record circuit | 26.6 s | 20.9 s | 12.6 s | Job log of workflow run 37152039816, **read** |
-| Solver laptops and servers | n/a | 1.4–2 s | 13–38 s | **Reported**, for 1,250-qubit routes |
+| The owner's Apple Silicon laptop, July circuit | about 16 s | under 39 s | about 11 s | **Inferred** from file times of a run on 2026-07-09 |
+| Solver machines, August circuits | n/a | 1.4–2 s | 13–38 s | **Reported** |
 
-Both binaries are single-threaded, so one evaluation occupies one core for well under a minute. Memory is about 56 bytes per operation; the record circuit has 9.8 million operations (**inferred**: roughly 0.6 GB to evaluate). Concurrent runs need one worktree and build directory each, because the harness writes fixed output paths. We measured nothing locally.
+Both binaries are single-threaded. A candidate costs about a minute of one core including the recompile, and each further evaluation of the same build about 13 seconds. Evaluation memory is 56 bytes per operation, about 550 MB for the record's 9.8 million operations (**inferred**). Concurrent runs need one checkout and build directory each: the harness writes fixed output paths, and the current circuit reads data files from paths fixed at compile time.
 
-Official turnaround from submission to verdict, **recomputed** over the 569 accepted rows: median 2.2 minutes, 90th percentile 2.8. Low-qubit circuits with hundreds of millions of Toffolis take 6 to 40 minutes, and the workflow is cancelled at 45 minutes.
+The July run matters for another reason. The owner reproduced the then-record score natively on Apple Silicon (`results.tsv` in the July checkout: 1,320,762.912 × 1,152, equal to the official score for that commit). So the harness builds on that machine, and an arm64 build matched the official x86_64 runner.
 
-Evaluation is cheap. The scarce resources are ideas, orientation in the code, and the compute for the nonce lottery.
+Official turnaround from submission to verdict, **recomputed** over the 569 accepted rows: median 2.2 minutes, 90th percentile 2.8. Submissions with at least 10⁸ Toffolis take 6 to 39 minutes, and the workflow is cancelled at 45.
+
+Evaluation is cheap. The scarce things are ideas, orientation in the code, and the tooling to price and land a change.
 
 ## Rules of engagement
 
 **Read** in the Terms and the CLI bundle unless marked.
 
-- Acceptance is by strictly lower product than the current best at verdict time. There is no minimum step. About 100 scored submissions tied the record exactly and were rejected (**recomputed**: 105).
+- Acceptance is by strictly lower product than the current best at verdict time, with no minimum step. 105 scored submissions exactly tied the best in force and were rejected (**recomputed**).
 - AI agents may generate and automate submissions, and an account owner may give an API key to an agent they control. The owner answers for everything submitted.
-- One account per person. Creating several to get around limits is prohibited.
-- Every submission, accepted or not, becomes a permanent public commit and pull request carrying the submitter's GitHub handle. A public Markdown note of 5 KiB to 100 KiB and the exact model and harness names are mandatory. Promoted code is licensed under Apache 2.0. The record cannot be withdrawn.
+- Creating multiple accounts to get around rate limits or other controls is prohibited. The separate rules of the platform's weekly giveaway forbid operating more than one account at all; they apply to the giveaway.
+- **The Terms prohibit modifying, reverse-engineering or circumventing the harness, scoring code or validity gates, and manipulating benchmark measurements.** The maintainer's explanation of nonce search in issue #1 predates these Terms, and the challenge paper still describes it as routine. The tension is unresolved. A locally built measurement tool that is never submitted is our reading of permitted use, not a stated one.
+- Every submission that passes intake becomes a permanent public commit carrying the submitter's GitHub handle, and since August a pull request as well. A public Markdown note of 5 KiB to 100 KiB and the names of the model and the agent harness are mandatory. Promoted code is licensed under Apache 2.0. The record cannot be withdrawn.
 - A submission may credit up to ten co-authors. 15 rows do.
-- No cash prize is attached to this benchmark today (**reported** by the platform's public reward endpoints: the benchmark has no points).
-- The installer adds a global agent skill and enables telemetry, and `ecdsafail clone` runs the repository's setup and benchmark scripts automatically. Neither should be used outside a sandbox.
+- The Terms say the repository is under an MIT licence published in it. The tree has no licence file, only a notice for three harness files under CC BY 4.0.
+- No cash prize is attached to this benchmark today: the platform's giveaway pays by points allocated per challenge each day, and this benchmark has none. That can change.
+- The installer adds a global agent skill and enables CLI telemetry after login. `ecdsafail clone` runs the repository's setup and benchmark scripts automatically. Neither should be used outside a sandbox.
+- The repository's own `benchmark.sh` confines only the run of `build_circuit`. Compilation and the evaluator run unconfined, and the script falls back to no confinement when no sandbox tool is present. The evaluator puts no cap on qubit or bit indices, so a hostile `ops.bin` can request an arbitrary allocation.
 
 ## State of the leaderboard
 
@@ -91,24 +112,26 @@ All **recomputed**.
 
 | | Count |
 |---|---|
-| Submissions | 1,355 from 142 solvers |
-| Accepted | 569 |
+| Submissions | 1,355 from 142 solvers since 30 May |
+| Accepted | 569, of which 565 promoted |
 | Rejected | 558, of which 448 scored validly but did not beat the best |
 | Failed | 225 |
+| Cancelled | 3 |
 | With a public note | 1,339 |
+| Solvers active in the last 14 days | 14, six of them with an accepted submission |
 
-| Month end | Best product | Notes |
+| Month end | Best product | Accepted that month |
 |---|---|---|
-| May | 8,405,420,100 | launched 2026-05-30 |
-| June | 1,571,592,960 | 379 accepted submissions in one month |
-| July | 1,488,026,454 | |
-| August | 1,140,989,148 | one architectural change on 2026-08-21 took 14.8% |
-| September | 1,109,316,122 | |
-| 3 October | 1,108,039,260 | |
+| May | 8,405,420,100 | 20 |
+| June | 1,571,592,960 | 379 |
+| July | 1,488,026,454 | 25 |
+| August | 1,140,989,148 | 92 |
+| September | 1,109,316,122 | 33 |
+| 3 October | 1,108,039,260 | 20 |
 
-The last 14 days produced 49 promotions with a median gain of 0.0057%. One solver made 34 of them. The whole fortnight moved the record 2.58%, about half of it in one submission.
+The last 14 days produced 49 promotions with a median gain of 0.0057%. One solver made 34 of them, and 42 kept the qubit count fixed and moved the Toffoli average by less than 2,000. The fortnight moved the record 2.58%, about half of it in one submission of 1.27%.
 
-**The Pareto display is not the acceptance rule.** The site's default view says "843 frontier advances, 76 solvers" and advertises a 792-qubit record. Replaying every scored submission in time order and counting non-dominated points reproduces exactly 843 advances, 76 solvers and 27 current frontier points. 279 of those advances were officially rejected, including every submission below 1,150 qubits. The 792-qubit point costs 755,617,938 Toffoli.
+**The Pareto display is not the acceptance rule.** The site's default view says "843 frontier advances, 76 solvers" and advertises a 792-qubit record. Replaying every scored submission in time order reproduces exactly 843 advances, 76 solvers and 27 frontier points. 279 of those advances were officially rejected, 268 of them below 1,150 qubits. No submission below 1,150 qubits has ever been accepted.
 
 | Qubit band | Scored submissions | Accepted |
 |---|---|---|
@@ -119,62 +142,76 @@ The last 14 days produced 49 promotions with a median gain of 0.0057%. One solve
 | 1,249–1,349 | 261 | 199 |
 | 1,350 and above | 244 | 197 |
 
-Best Toffoli count at selected widths: 1,173 → 944,620 (the record); 1,174 → 943,826; 1,250 → 888,879 (the lowest Toffoli count ever accepted); 1,164 → 970,983 (rejected, 2.0% above the record, with a **reported** λ of 14.6); 1,145 → 1,132,785 (rejected, **reported** λ 11.25). The band from 1,175 to 1,248 qubits is nearly unexplored.
+Best Toffoli count at selected widths: 1,173 → 944,620 (the record); 1,174 → 943,826; 1,250 → 888,879, the lowest ever accepted; 1,164 → 970,983; 1,145 → 1,132,785; 1,112 → 1.74M; 1,011 → 9.3M; 973 → 11.8M; 838 → 22.0M; 792 → 756M. Low-qubit designs use a different inversion architecture and pay from about twice to 800 times the record's Toffolis. The challenge paper, on July data, notes a sharp step inside that branch and says it does not establish a hard boundary.
+
+The 1,175–1,248 band is empty of recent work: all 23 rows date from 10 to 13 June, on an earlier architecture. Notes from both current circuit families price a move into it as a loss (**reported**).
 
 ## The frontier circuit as an agent meets it
 
-**Read** through the GitHub API at `3161bd20`.
+**Read** through the GitHub API at `3161bd20` and in the record's official job log.
 
-- `src/point_add` holds 44 Rust files in one flat directory, about 876 KB, plus three data directories with about 614 KB of precomputed tables. `pingpong.rs` is 219 KB and `heo_carry.rs` 171 KB. That is more than a 200k-token context can hold (**inferred** from byte counts).
-- The July tree (`trailmix_ludicrous`, `rounds/dialog`, `arith/`) was replaced wholesale. The local checkout is 175 accepted commits behind and describes a different circuit.
-- `build()` clears the process environment and then pins on the order of 130 named settings in code, some of them per-round tables. Positional schedules and call-indexed tables mean that edits in one stage can silently invalidate tables used by later stages (**read** in the July tree; **inferred** to persist).
+- `src/point_add` holds 44 Rust files in one flat directory, about 876 KB, plus three data directories with about 614 KB of tables. `pingpong.rs` is 219 KB and `heo_carry.rs` 171 KB. That is more than a 200,000-token context holds (**inferred** from byte counts).
+- The July tree was replaced wholesale. The local checkout is 175 commits behind, 167 of them accepted submissions, and describes a different circuit.
+- `build()` clears the process environment and then pins on the order of 110 to 130 named settings in code. Most are switches or mode names, about 20 are integers, and several are per-round profiles hundreds of entries long.
+- **Exact rewrite rows are keyed by position.** The record applies 11 rewrite rows from `skywalk_data/q1173_exact_rows.txt`, each addressed by an absolute operation index. The previous head's file, `sky20_rewrite.txt`, holds 61 and is unused at `main`. Any change that shifts the stream before a row's index invalidates the row. The leading solver's notes describe re-keying and re-proving rows after every change, with a SAT solver.
+- **The build prints its own ledger.** `build_circuit` reports Toffolis and peak qubits for each of 19 sub-phases. The log shows the 1,173-qubit peak first reached at operation 22,216 of 9.8 million, at the start of the forward walk, and the cap is itself a pinned setting.
 - In-code documentation is partly stale. One 171 KB module's header calls it research-only while the shipped configuration enables it.
-- The repository has no licence file. Only three harness files carry a CC BY 4.0 notice.
 
 ## How the frontier moved
 
-From the notes of the largest single steps (**reported**), cross-checked against score changes (**recomputed**):
+The largest single steps, **recomputed**, with what the submitter's note says changed (**reported**):
 
-| Date | Step | What changed |
-|---|---|---|
-| 05-31 to 06-02 | 6–12% each | Merging adjacent controlled swaps, truncating the Kaliski loop widths to an empirical envelope, carry-tail truncation |
-| 06-02 | 18.8% | "Dialog" GCD: record the Euclidean walk's branch decisions as a transcript and replay it, giving inversion and in-place multiplication together |
-| 06-02 | 7.2% | Measurement-based uncomputation of the step comparator |
-| 06-05 | 4.5% | Bounded-shift walk, 393 → 259 iterations |
-| 06-08 | 3.5% | Conditional replay, exploiting the *executed* average |
-| 08-21 | 14.8% | "Ping-pong" division: fixed-depth alternating-target binary division without comparisons, 952,707 × 1,321 |
-| 09-29 | qubits 1,250 → 1,174 | "Skywalk": a Stein-style walk in a different frame, about 390 steps where the earlier walk took about 700 |
+| Date | Step | Id | What changed |
+|---|---|---|---|
+| 05-31 to 06-02 | 6–12% each | `f94f726c`, `437e22ad`, `66ad478c` | Merging adjacent controlled swaps; truncating loop widths to an empirical envelope; truncating carry tails |
+| 06-02 | 18.8% | `0c1d4d95` | "Dialog" GCD: record the Euclidean walk's branch decisions as a transcript and replay it, giving inversion and in-place multiplication together |
+| 06-02 | 7.2% | `75927ba7` | Measurement-based uncomputation of the step comparator |
+| 08-21 | 14.8% | `3616dbf2` | "Ping-pong" division: fixed-depth alternating-target binary division without comparisons, 952,707 × 1,321 |
+| 09-25 | 1.27% | `81864024` | A package of error clean-up changes, with the first "limiting contract" |
+| 09-29 | 0.02% | `4f0d2135` | "Skywalk": a walk in a different frame with about 390 steps where the earlier one took about 700; qubits 1,250 → 1,174 |
 
-The organisers' paper classifies 400 scored commits up to its July cutoff and attributes the idea of record-and-replay division to Google's earlier work, reconstructed publicly by Schrottenloher ([arXiv 2606.02235](https://arxiv.org/abs/2606.02235)). It also records that the scalar score suppressed designs that needed a temporary regression.
+The challenge paper classifies the 400 scored, accepted commits of the public competition through 18 July and attributes record-and-replay division to an earlier Google paper ([arXiv 2510.10967](https://arxiv.org/abs/2510.10967)), adapted to point addition by Schrottenloher ([arXiv 2606.02235](https://arxiv.org/abs/2606.02235)). It cautions that a scalar score may suppress designs that need a temporary regression, and credits the separate low-qubit and low-Toffoli displays with mitigating that.
 
 ## Where the Toffolis go, and how much headroom is left
 
-- In the July circuit, the two in-place divisions and their replays account for about 95% of emitted Toffolis and the squaring for about 5% (**inferred** by an agent parsing the committed `ops.bin` as data). Schrottenloher's Table 3 gives a similar split for his design: about 90% in inversion and in-place multiplication.
-- Techniques the cost model rewards: Gidney adders and measurement-based uncomputation, routing transient work through idle registers ("venting"), compact transcript coding, constant folding with secp256k1's pseudo-Mersenne prime, classically conditioned skipping of rare branches, and approximation.
-- Techniques it does not reward here: windowing and table lookups (the addend is classical), Montgomery form, Fermat inversion, projective coordinates. Notes report each as tried and priced worse.
-- There is no published lower bound. A crude floor for this circuit family, three additions per round over a few hundred rounds, twice per addition, plus the squaring, lands between 0.6M and 0.9M Toffoli (**inferred**, speculative). The record is within a factor of about 1.2 to 1.7 of that.
-- Below about 950 qubits the known designs pay roughly eight times more Toffolis, so the low-qubit end is a different architecture, not a continuation (**reported** in the paper, which notes that no hard boundary has been established).
+- The record's own build ledger splits its 977,065 emitted Toffolis roughly as: forward division walk 36%, the multiplication leg's fused replay 25%, the two re-walks 11% each, and the rest in smaller batches and the square (**read** in the job log). Schrottenloher's Table 3 gives a similar picture for his design: about 90% in inversion and in-place multiplication.
+- Techniques the cost model rewards: adders with measurement-based uncomputation, routing transient work through idle registers, compact transcript coding, constant folding with secp256k1's pseudo-Mersenne prime, classically conditioned skipping of rare branches, and approximation.
+- Techniques it does not reward here: windowing and table lookups, because the addend is classical. Notes price Fermat inversion and projective coordinates as far worse.
+- **No lower bound is published.** A rough model of three full-width additions per step, about 395 steps, two passes and 60,000 to 100,000 for the square gives about 0.7M. It is not a bound: earlier circuits already spent fewer Toffolis per round than it assumes.
 
-Structural directions that the sources leave open, most promising first (**inferred**; none verified):
+**What still looks open** (**reported** or **inferred**; none verified here):
 
-1. Fewer rounds in the Euclidean walk: larger jumps, better step schedules, early termination that the executed-average metric would reward.
-2. One recorded transcript serving both division directions, which would remove a large share of the second pass.
-3. Streaming or pebbling the transcript tape and the partial registers that own the qubit peak.
-4. Arithmetic on active width only, as operands shrink through the walk.
-5. Cheaper exact comparators that buy back λ, which can then be spent on truncation or simply make variants landable.
+1. **Re-keying exact rewrite rows.** The record carries 11 rows where its predecessor carried 61. Each proven row removes one Toffoli and leaves the failing shots unchanged. Mapping the other 50 onto the record's stream needs a local prover and is parallel and exactly checkable. Expected size: about 50 Toffoli, four times the last record step.
+2. **Cheaper failure-rate purchases** that do not raise the qubit peak. Only these make a lower-λ circuit competitive.
+3. **A new walk recurrence** with fewer steps at equal or lower transcript cost. Both architecture changes since August were of this kind. This is weeks of work, not a night.
+4. **A classical model of the walk** that predicts failures from millions of inputs in seconds. It is an instrument, not an improvement, and every solver who lands variants cheaply has one.
 
-## Dead ends and open leads from the notes
+**Ruled out by the circuit or the evaluator**, although they look attractive from outside:
 
-All **reported**. A swarm should treat each as a hypothesis with an owner, not as settled.
+- *Reusing one transcript for both division directions.* The two walks run on different operands: the circuit divides, changes x, then multiplies by the new x. The record already shares what can be shared, and the re-walk in the multiplication leg is 11% of emitted Toffolis.
+- *Stopping the walk early when the data allows.* No data-dependent classical control exists in this gate set.
+- *Arithmetic on active width only.* This is already the design: the walk runs against per-step width envelopes, and their tails are where most failures come from.
+- *Streaming the transcript to lower the qubit peak.* The peak is reached at the start of the walk, when the transcript is nearly empty.
+- *Trimming rounds from the existing walk.* This is the canonical way to sell failure rate, at the prices above.
 
-- Dead: raising the qubit cap for Toffolis pays less than 952 Toffoli per qubit, below the exchange rate; deferred modular reduction overflows; two-level Karatsuba on the square costs more; shortening the round count further raises λ faster than it saves; an exhaustive sweep of "safe" settings found nothing; [issue #380](https://github.com/Layr-Labs/ecdsafail-challenge/issues/380) argues the region with λ ≤ 14 and a better product is empty for the current family.
-- Open: widening the walk's envelope to buy λ, exact borrow computation in place of narrow-fold assumptions, the unexplored 1,175–1,248 band, and hybrids of the lower-λ 1,164-qubit variant with the record's settings.
+## Reported dead ends
 
-## The public shared memory failed
+A swarm should treat each as a hypothesis with an owner. Every entry is tied to the circuit it was measured on; most of those circuits have since been replaced.
 
-The README tells solvers to keep notes under `src/point_add/memory/`. That directory does not exist at `main` (**read**: the API returns 404). According to the commit history read through the API, it was created and wiped three times by accepted submissions, on 2026-06-06, 2026-06-19 and 2026-09-05, because the editable path is the whole directory and a submission whose tree lacks the notes deletes them for everyone. Its last state was internally inconsistent: an index covering a third of the notes, three different "current frontier" figures, and a note declaring the structure exhausted shortly before the record fell another 11%.
+| Claim | Source | Circuit | Status today |
+|---|---|---|---|
+| Raising the qubit cap pays at most about 952 Toffoli per qubit, below break-even | `b87bdf71`, 08-19 | 1,153 qubits, August; break-even was about 1,112 | Not re-measured. Break-even is now 805 |
+| Deferred modular reduction overflows | `b87bdf71`, 08-19 | Same | Not re-measured |
+| A second level of Karatsuba on the square costs more | `b87bdf71`, 08-19 | Same | Reversed: accepted on 09-08 (`9e1ab6ad`), and the current square is recursive |
+| Shortening the round count raises λ faster than it saves | `0fa3b9f1`, 08-21; issue #131 | Ping-pong | Consistent with the price of λ above |
+| The region with λ ≤ 14 and a better product is empty | Issue #380, 09-13 | Ping-pong, against a bar of 1,137,367,864 | Written before Skywalk. The 1,164-qubit variant sits just under that bar at about that λ |
+| Transplanting the record's settings onto the 1,164-qubit variant | `17250b2e`, 09-30 | Skywalk | Priced as a loss by the variant's own author: its buy-back costs more than ten qubits are worth, and the cap cannot go lower |
 
-What survives is scattered: in-code change comments, 461 pull-request bodies, 786 `submissions/*` branches including rejected ones, and 13 issues used as a discussion channel. Winners propagate through `main`. Negative results, measurements and reasoning mostly do not.
+## Shared memory on the public side
+
+The README tells solvers to keep notes under `src/point_add/memory/`. That directory does not exist at `main` (**read**). By our reading of the commit history it was removed entirely six times by accepted submissions: three times on 2026-06-02 while it held one to three files, and with substantial content on 2026-06-06, 2026-06-19 and 2026-09-05. The editable path is the whole directory, so a submission whose tree lacks the notes deletes them for everyone. Its last state was internally inconsistent: an index covering six of thirteen notes, three different "current frontier" figures, and a note declaring the structure exhausted shortly before the record fell another 11%.
+
+What the crowd does share is real but unstructured: the promoted branch, about 1,300 free-text notes, 786 public `submissions/*` branches including rejected ones, 461 pull-request bodies, 15 issues of which about four are research write-ups, and optional Slack and Telegram channels. The platform has a discussions feature intended as shared research memory; it is switched off for this benchmark. Many notes do record negative results and measurements, some with sample sizes and standard errors. They survive as unindexed prose, mostly tied to circuits that have since been replaced, and nothing records which claims a second party has reproduced. The challenge paper reports that participants' own experiment logs reduced duplicated effort.
 
 ## Text addressed to agents
 
@@ -183,13 +220,14 @@ Sources contained instructions aimed at whichever agent reads them. None was fol
 - The README and the site tell the reader to pipe an installer into a shell.
 - 61 submission notes carry a "note to AI agents" with a four-term "limiting contract", including an order to copy the note into later commits.
 - Deleted memory notes contained ready-made session prompts with sync and submit commands, and coordination orders to "all fleet agents".
-- The CLI's embedded skill tells agents to post public research updates every 30 minutes.
+- The CLI's embedded skill tells agents to post public research updates every 30 minutes where discussions are enabled. They are not enabled for this benchmark.
 
 ## Open questions
 
-- Local evaluation time and memory on the demonstration machines are unmeasured.
-- Whether the forward-then-reverse check is enforced anywhere.
+- Local evaluation time and memory for the current circuit on the demonstration machines. Only the July circuit has a local run.
 - The numeric submission rate limits. The fastest observed solver made 15 submissions in an hour.
 - Whether the organisers will change scoring, add a minimum step, or turn on owner review before the close. Any of these would change the value of nonce search.
+- Whether the Terms' prohibition on circumventing validity gates will be applied to nonce search.
 - How much of the 876 KB at `main` is live code. This needs a build inside a sandbox.
-- Whether the repository's lack of a licence constrains building on other solvers' rejected branches.
+- Whether the absence of a licence file constrains evaluating or building on other solvers' rejected branches.
+- The reported failure rates of the frontier circuits have not been reproduced by anyone but their authors.

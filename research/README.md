@@ -25,9 +25,9 @@ repository root. Untracked drafts are excluded from the check.
 
 ### ecdsa.fail as a swarm demonstration — 2026-10-03
 
-- [Benchmark, rules and state of the field](ecdsa-fail-benchmark.md): scoring contract, statistical validity and nonce search, evaluation cost, leaderboard figures, the frontier circuit, technique lineage and open directions. Source review and data analysis; no challenge code run.
+- [Benchmark, rules and state of the field](ecdsa-fail-benchmark.md): scoring contract, statistical validity, failure-rate units and nonce search, evaluation cost, leaderboard figures, the frontier circuit, technique lineage, open and ruled-out directions. Source review and data analysis; no challenge code run.
 - [Prior art for an agent swarm](ecdsa-fail-swarm-prior-art.md): the July Merak attempt and its root cause, Merak's swarm doctrine, how public solvers organise agents, published multi-agent evidence and derived design rules.
-- [Leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md): the script and captured output behind the recomputed figures.
+- [Leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md): a reduced capture of the public submissions data, the script and its output behind the recomputed figures.
 
 ### First-contact integrations — 2026-10-03
 
