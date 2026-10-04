@@ -13,13 +13,13 @@
     "finish": null,
     "selection": {
       "kind": "role",
-      "name": "chooser"
+      "name": "judge"
     }
   },
   "flow": {},
   "roles": {
-    "chooser": {
-      "description": "One member selects among independently completed contributions."
+    "judge": {
+      "description": "Picks which finished attempt to use. One person."
     }
   },
   "schema_version": 1,

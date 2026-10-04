@@ -34,7 +34,7 @@ pub fn presets() -> Vec<Preset> {
     declare_role(
         &mut coordinator,
         "coordinator",
-        "One member offers work and decides completion, selection and when the goal is finished.",
+        "Hands out work, accepts results, picks the final answer and says when the goal is finished. One person.",
     );
     coordinator.work.starts = vec![StartRule::Offered {
         by: role("coordinator"),
@@ -60,17 +60,13 @@ pub fn presets() -> Vec<Preset> {
     let mut independent = Blueprint::default();
     declare_role(
         &mut independent,
-        "chooser",
-        "One member selects among independently completed contributions.",
+        "judge",
+        "Picks which finished attempt to use. One person.",
     );
-    independent.decisions.selection = Some(authority("chooser"));
+    independent.decisions.selection = Some(authority("judge"));
 
     let mut panel = Blueprint::default();
-    declare_role(
-        &mut panel,
-        "reviewer",
-        "Members eligible to review contributions by other authors.",
-    );
+    declare_role(&mut panel, "reviewer", "Reviews work done by other people.");
     panel.decisions.completion = CompletionRule::Reviews {
         by: role("reviewer"),
         count: 2,
@@ -96,7 +92,7 @@ pub fn presets() -> Vec<Preset> {
     declare_role(
         &mut pipeline,
         "runner",
-        "One member's daemon advances the configured stages and durably delivers ready work.",
+        "Their Locust hands out each stage's work when it is ready. One person.",
     );
     pipeline.flow.insert(
         "draft".into(),
@@ -138,7 +134,7 @@ pub fn presets() -> Vec<Preset> {
         ),
         preset(
             "independent-attempts",
-            "Authors complete independent attempts; a bound chooser selects contributions.",
+            "Authors complete independent attempts; a bound judge selects contributions.",
             independent,
         ),
         preset(

@@ -19,7 +19,7 @@
   "flow": {},
   "roles": {
     "reviewer": {
-      "description": "Members eligible to review contributions by other authors."
+      "description": "Reviews work done by other people."
     }
   },
   "schema_version": 1,

@@ -68,7 +68,7 @@
         "flow": {},
         "roles": {
           "coordinator": {
-            "description": "One member offers work and decides completion, selection and when the goal is finished."
+            "description": "Hands out work, accepts results, picks the final answer and says when the goal is finished. One person."
           }
         },
         "schema_version": 1,
@@ -155,13 +155,13 @@
           "finish": null,
           "selection": {
             "kind": "role",
-            "name": "chooser"
+            "name": "judge"
           }
         },
         "flow": {},
         "roles": {
-          "chooser": {
-            "description": "One member selects among independently completed contributions."
+          "judge": {
+            "description": "Picks which finished attempt to use. One person."
           }
         },
         "schema_version": 1,
@@ -183,7 +183,7 @@
           ]
         }
       },
-      "description": "Authors complete independent attempts; a bound chooser selects contributions.",
+      "description": "Authors complete independent attempts; a bound judge selects contributions.",
       "name": "independent-attempts"
     },
     {
@@ -208,7 +208,7 @@
         "flow": {},
         "roles": {
           "reviewer": {
-            "description": "Members eligible to review contributions by other authors."
+            "description": "Reviews work done by other people."
           }
         },
         "schema_version": 1,
@@ -280,7 +280,7 @@
         },
         "roles": {
           "runner": {
-            "description": "One member's daemon advances the configured stages and durably delivers ready work."
+            "description": "Their Locust hands out each stage's work when it is ready. One person."
           }
         },
         "schema_version": 1,

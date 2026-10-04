@@ -44,7 +44,7 @@
   },
   "roles": {
     "runner": {
-      "description": "One member's daemon advances the configured stages and durably delivers ready work."
+      "description": "Their Locust hands out each stage's work when it is ready. One person."
     }
   },
   "schema_version": 1,

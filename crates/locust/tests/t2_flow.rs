@@ -247,7 +247,7 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
         .find(|preset| preset.name == "independent-attempts")
         .unwrap()
         .blueprint;
-    let fields = json!({"title":"T2 real core", "blueprint_json":serde_json::to_string(&definition).unwrap(), "roles":{"chooser":[agent]}, "inputs":{}}).to_string();
+    let fields = json!({"title":"T2 real core", "blueprint_json":serde_json::to_string(&definition).unwrap(), "roles":{"judge":[agent]}, "inputs":{}}).to_string();
     let created = p.cli(&authority, &["call", "goal.create", &fields]);
     let goal = created["goal_created"]["goal"].as_str().unwrap();
     let root = tempfile::tempdir().unwrap();
