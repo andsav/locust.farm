@@ -194,6 +194,16 @@ emulated campaign was stopped and its container removed. Linux runtime,
 installation and systemd tests were explicitly omitted under the revised scope;
 compilation does not count as a runtime pass or close the other release gates.
 
+**Bound launcher follow-up, 2026-10-04:** `4030795` adds a setup-owned CLI
+launcher and points the installed skill to it. The exact committed macOS
+candidate passed the [fresh-profile Codex and Claude Code campaign](../research/bound-cli-launcher-qualification.md):
+22/21 assertions passed, 4/5 were explicitly not run, and none failed. Native
+workspace commands used only the generated launcher and `--json`, without a
+harness-supplied credential/session prefix. Snapshot through application,
+acceptance-before-integration, unrelated-work preservation, daemon restart,
+setup removal and cleanup passed. Providers were scripted; real-model selection,
+interactive approval and production trust remain unqualified. Pi was not rerun.
+
 ## T1 preparation and run status
 
 **Owner update, October 3:** start the physical run on the two available Apple Silicon Macs. Publication remains deferred; AirDrop or a shared folder can carry the executable bundle. Each Mac initializes independent state. The [T1 run guide](t1-run.md) defines the first pass and optional third-peer extension. The owner subsequently authorized a mixed-build smoke test when M2 lacked the original bundle and verified matching Rust/build inputs; identical-artifact qualification remains pending.
