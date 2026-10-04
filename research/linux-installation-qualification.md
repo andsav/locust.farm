@@ -1,12 +1,50 @@
 # Linux x86_64 build evidence and stopped emulation attempt
 
-Status on 2026-10-04: **Linux x86_64 release compilation passed in 92.032
-seconds**, using the host's native ARM compiler and existing Zig toolchain.
-The owner selected build-only Linux scope. No Linux execution, installation,
-service or runtime tests were performed for this artifact. The earlier emulated
+Status on 2026-10-04: the current organization-runtime candidate
+`0a295cdabe6a878cc733c791ca73863933cfa45a` passed **Linux x86_64 release
+compilation in 111.442 seconds** using the existing native ARM compiler and Zig
+toolchain. The owner selected build-only Linux scope. No Linux execution,
+installation, service or runtime tests were performed. The earlier emulated
 campaign was stopped and its task-owned container removed.
 
-## Completed cross-build
+## Current organization-runtime cross-build
+
+The [current build record](evidence/linux-cross-0a295cdabe6a/artifact-identity.json)
+retains the source, compiler, Cargo, cargo-zigbuild, Zig and artifact hashes.
+The [raw build log](evidence/linux-cross-0a295cdabe6a/build.log),
+[target standard-library hashes](evidence/linux-cross-0a295cdabe6a/target-stdlib-sha256.json)
+and [archived source file hashes](evidence/linux-cross-0a295cdabe6a/source-files-sha256.json)
+retain the exact inputs and observed build output.
+
+| Field | Recorded value |
+| --- | --- |
+| Source commit | `0a295cdabe6a878cc733c791ca73863933cfa45a` |
+| Source archive SHA-256 | `315c853a838de00c3752510ae2b7cd939ba05951dcc3863551ba85fbe45d8212` |
+| Host / target | `aarch64-apple-darwin` / `x86_64-unknown-linux-gnu`, glibc 2.28 |
+| Tools | Rust 1.96.1, cargo-zigbuild 0.23.0, Zig 0.16.0 |
+| Build | Release, offline, eight jobs, exit 0, 111.442 seconds |
+| Binary size | 21,969,912 bytes |
+| Binary SHA-256 | `e640170889f09da766df69fef5f5bd142d0737ddf2b5601b328976bc4d5f1640` |
+| Archive SHA-256 | `c036b9ab6ce30562bf08f23d297706fb4553f02c5877b70140660e77e5306b00` |
+| Build log SHA-256 | `101859bcf728566dec07ef5ca6c13ed8a83c3a6b8350988cb9e7f5566785ee84` |
+
+The build used a frozen Git archive, an isolated source/target/cache directory,
+the existing cached dependencies with `--locked --offline`, and
+`LOCUST_BUILD_COMMIT=0a295cdabe6a`. All 615 archived source files were checked
+against their extracted bytes, and 62 target standard-library files were hashed.
+No packages, toolchains, containers or emulators were installed.
+
+Static ELF header inspection and `file` identified a stripped ELF64 x86-64 PIE
+with interpreter `/lib64/ld-linux-x86-64.so.2`. The archive was reopened to verify
+its contents and executable hash. The executable was never run.
+
+The local artifact is
+`output/linux-cross-0a295cdabe6a/locust-x86_64-unknown-linux-gnu-0a295cdabe6a-build.tar.gz`,
+with a `.sha256` sidecar. It contains the executable, license, operating skill
+and build information. This unsigned cross-build archive does not use the native
+builder's signed-install manifest and was not published.
+
+## Earlier completed cross-build
 
 | Field | Recorded value |
 | --- | --- |
