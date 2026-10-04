@@ -78,6 +78,10 @@ A test checks that the prompt matches the contract word for word.
   failure it says so in a live status and selects the prompt for manual copying.
   Without JavaScript the button is not rendered and the prompt stays selectable.
 - Harness details are native `<details>` elements, so they work without JavaScript.
+- `/llms.txt` is a prerendered route built by [`llms.ts`](src/lib/onboarding/llms.ts)
+  from the same content: the site summary, its pages, the entry prompt, and the
+  instructions for agents and harness routes as plain Markdown. The agent steps live
+  in `guide.ts` so the page and the text file cannot drift apart.
 
 ## Swarm animation
 

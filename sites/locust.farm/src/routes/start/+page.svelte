@@ -3,9 +3,13 @@
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import SwarmCanvas from '#lib/components/SwarmCanvas.svelte';
 	import {
+		AGENT_INTRO,
+		AGENT_RULE,
+		AGENT_STEPS,
 		ENTRY_PROMPT,
 		GUIDE_URL,
 		HARNESS_ROUTES,
+		ROUTE_LABELS,
 		ROUTING_QUESTIONS,
 		SETUP_ARTIFACT
 	} from '#lib/onboarding/guide.ts';
@@ -68,14 +72,11 @@
 
 		<section aria-labelledby="agents">
 			<h2 id="agents">For agents</h2>
-			<p>A person pasted the entry prompt and sent you here. Do this, in order:</p>
+			<p>{AGENT_INTRO}</p>
 			<ol class="steps">
+				<li>{AGENT_STEPS.identify}</li>
 				<li>
-					Tell the person your harness, its version and its mode. Name the harness, not the model.
-					Say “unknown” when you cannot tell.
-				</li>
-				<li>
-					Answer three questions about this session:
+					{AGENT_STEPS.answer}
 					<dl>
 						{#each ROUTING_QUESTIONS as { name, question } (name)}
 							<dt>{name}</dt>
@@ -83,33 +84,27 @@
 						{/each}
 					</dl>
 				</li>
-				<li>Find your harness below. If it is not listed, use “Any other harness”.</li>
+				<li>{AGENT_STEPS.route}</li>
 				<li>
 					{#if SETUP_ARTIFACT}
-						Follow <a href={SETUP_ARTIFACT}>Locust’s setup</a> for your route. Show every change it would
-						make and wait for the person to approve.
+						Follow <a href={SETUP_ARTIFACT}>Locust’s setup</a> for your route. {AGENT_STEPS.approve}
 					{:else}
-						No setup is published and no route is qualified yet. Report your harness, your answers
-						and your route’s prerequisite, then stop. Do not install, download or run anything for
-						Locust.
+						{AGENT_STEPS.report}
 					{/if}
 				</li>
-				<li>
-					Never edit stored approvals, weaken a policy or work around a block. Tell the person what
-					was refused and let them decide.
-				</li>
 			</ol>
+			<p>{AGENT_RULE}</p>
 
 			<div class="routes">
 				{#each HARNESS_ROUTES as route (route.name)}
 					<details>
 						<summary>{route.name}</summary>
 						<dl>
-							<dt>The client documents</dt>
+							<dt>{ROUTE_LABELS.upstream}</dt>
 							<dd>{route.upstream}</dd>
-							<dt>Locust today</dt>
+							<dt>{ROUTE_LABELS.locust}</dt>
 							<dd>{route.locust}</dd>
-							<dt>Needed first</dt>
+							<dt>{ROUTE_LABELS.prerequisite}</dt>
 							<dd>{route.prerequisite}</dd>
 						</dl>
 					</details>
