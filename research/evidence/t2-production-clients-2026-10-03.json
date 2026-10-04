@@ -1,0 +1,856 @@
+{
+  "schema": "locust-reviewed-production-client-evidence",
+  "schema_version": 1,
+  "created_at": "2026-10-04T05:37:38.149875+00:00",
+  "operator_timeout_ms": 60000,
+  "platform": {
+    "os": "Darwin",
+    "release": "25.4.0",
+    "architecture": "arm64"
+  },
+  "evidence_level": "actual-client/scripted-provider/production-daemon/local-synthetic-workspace",
+  "scope": "One host, same principal in worker/coordinator roles; not real-model, independent-account, peer, managed-launch or installed-release qualification",
+  "artifact": {
+    "version": "locust 0.1.0 (e87f2af80b27-dirty) api 1 protocol 1",
+    "base_commit": "e87f2af80b270dbab384fb3c2e189ff3c8b71935",
+    "source_changes": "Working-tree build includes MCP schema numeric-annotation fix and in-progress managed client implementation; only unmanaged MCP/CLI path is qualified by real-model runs using this artifact.",
+    "schema_sha256": "00d51098b1980e71edd0c62bc28a78f88128c4f6e6ebcc870379fc807c4e3276"
+  },
+  "artifact_sha256": [
+    {
+      "path": "locust",
+      "sha256": "8903e2c8b1fc1705482f79721090c9f57513ad2b7236a0b826d691dfed4f7c6c"
+    },
+    {
+      "path": "config_probe",
+      "sha256": "edfd9fc8f686f655a7c42c2a2d5145039a807c257f77287606f4595399e406e7"
+    }
+  ],
+  "harness_sources": [
+    {
+      "path": "scripts/check_t2_clients.py",
+      "sha256": "b0fc9ae9dc9cc92d1e6ab04f5cbb4dbc0e873292e39a92a1f2fcbb2d2c8f9279"
+    },
+    {
+      "path": "scripts/check_clients.py",
+      "sha256": "39f0dbe3f0bee34165d4efc38c95464519e6058db5858f33f535327697c82215"
+    },
+    {
+      "path": "scripts/client_qualification/__init__.py",
+      "sha256": "955015b6706262e7044355144f24f2d1ec711becdd576c29161263b369891d99"
+    },
+    {
+      "path": "scripts/client_qualification/observe_mcp.py",
+      "sha256": "5621a5cadcda8b81119d100c53207b085d2345e8436fd38ffb80fa93fcb4a75d"
+    },
+    {
+      "path": "scripts/client_qualification/production.py",
+      "sha256": "28524d4f4bf0b73ff492351f51a6fc0dee5e6e296e1fd6fd3fff6ed76967150b"
+    },
+    {
+      "path": "scripts/client_qualification/provider.py",
+      "sha256": "aafb268bdc21cf4f082565b21593dbd8551b5f269e93b0e3ab4adc5c6a64f7a2"
+    },
+    {
+      "path": "scripts/client_qualification/real_models.py",
+      "sha256": "2a5a604fb92d6c54171e8ab40868c91fa9bc7b60825f50e67023a333481553a9"
+    },
+    {
+      "path": "scripts/client_qualification/runtime.py",
+      "sha256": "8bf4426562076ae0260f2be474f4d8febbb65c35b64f038bfbe9db371d51e8d4"
+    }
+  ],
+  "clients": [
+    {
+      "client": "codex",
+      "version": "codex-cli 0.153.4",
+      "client_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+      "permission_note": "Default headless and explicitly permissive scenarios are separate; Claude uses --bare",
+      "provider_mode": "scripted-loopback; no model service or real credentials",
+      "assertions": {
+        "configuration": {
+          "status": "pass",
+          "reason": "Actual generated registration must expose a valid production handshake and exact pinned API tool registry"
+        },
+        "network_isolation": {
+          "status": "pass",
+          "reason": "Client loopback allowed, external raw IP denied; production daemon has separate loopback/Unix-only guard"
+        },
+        "initialize": {
+          "status": "pass",
+          "reason": "Valid JSON-RPC response, supported negotiated version, Locust serverInfo and tool capability required"
+        },
+        "tools_list": {
+          "status": "pass",
+          "reason": "Exact pinned API tool names, structured object schemas and coherent schema digest required"
+        },
+        "default_read": {
+          "status": "pass",
+          "reason": "Actual production tool completed"
+        },
+        "default_write": {
+          "status": "not_run",
+          "reason": "Explicit default policy denial"
+        },
+        "scoped_daemon_authentication": {
+          "status": "pass",
+          "reason": "Production bridge checked the enrolled non-owner credential; observed goal authority matches independent daemon setup"
+        },
+        "claim": {
+          "status": "pass",
+          "reason": "Actual bridge returned exact assignment, session instance and generation"
+        },
+        "progress": {
+          "status": "pass",
+          "reason": "Independent event read must match client-authored progress and principal"
+        },
+        "workspace_native_tool": {
+          "status": "pass",
+          "reason": "Client native command must execute the authored driver; the harness does not materialize/edit/submit/apply on its behalf"
+        },
+        "contribution_flow": {
+          "status": "pass",
+          "reason": "Independent task/event/head/binding and file observations agree with actual client-produced contribution"
+        },
+        "accepted_before_integrated": {
+          "status": "pass",
+          "reason": "Client-executed driver observed accepted head while source remained unchanged and integration was null"
+        },
+        "dirty_work_preserved": {
+          "status": "pass",
+          "reason": "Independent file/HEAD checks preserve untracked local work and original commit"
+        },
+        "held_wait": {
+          "status": "pass",
+          "reason": "Actual client's production wait was observed outstanding before leader-only SIGINT"
+        },
+        "interruption": {
+          "status": "pass",
+          "reason": "Natural exit of client session and identified observer/bridge; no forced cleanup counts as success"
+        },
+        "explicit_resume": {
+          "status": "pass",
+          "reason": "Same native session plus fresh independently read production note after daemon restart"
+        },
+        "bridge_restart": {
+          "status": "pass",
+          "reason": "New observed production bridge PID and committed resumed operation"
+        },
+        "daemon_restart": {
+          "status": "pass",
+          "reason": "Independent goal, task/assignment, claims, known progress and endpoint persist across SQLite restart; contribution head is optional"
+        },
+        "receipt_integrity": {
+          "status": "pass",
+          "reason": "Re-evaluated: parsed JSON-RPC 2.0 receipts have valid IDs and matched response method/tool correlation; interrupted requests may remain outstanding"
+        },
+        "client_execution": {
+          "status": "pass",
+          "reason": "Provider errors, client exits, timeouts and natural owned-process cleanup checked"
+        },
+        "default_interactive_approval": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "real_model": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "skill_discovery": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "independent_accounts": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "packaged_install": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        }
+      },
+      "work": {
+        "commit": "5d5f391761564f5b82e384247a1b4f638e152727",
+        "base": "79c143cebe223ed4b8887ec5d7dbf92075cdd8328e35c78a06613bc9cd7fc9d9",
+        "task": "6af572b0e93c0442575ae6c9f1faaad596c420ad27f820fd6fe999e20aa6dd83",
+        "assignment": "fbfea59340de498bfc13a12a5196d64e3e2aee33c02ccef345884346cbfa7a17",
+        "goal": "e48343981070ab7f38d787cf94d71d7d6f4e90ef707cbd466eff24da8918addd",
+        "expected": "after-codex\n",
+        "principal": "5570a1ad081244b6434d70ac643520f118d955cebb34ce30c42034375fd0bbd4"
+      },
+      "private_runtime_profile_removed": true,
+      "harness_error": null,
+      "runs": [
+        {
+          "scenario": "default",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 3433
+        },
+        {
+          "scenario": "lifecycle",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [],
+          "exit_code": 1,
+          "timed_out": false,
+          "interrupted": true,
+          "signal_scope": "client_leader",
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 2649
+        },
+        {
+          "scenario": "resume",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 974,
+          "native_session_id_before": "01a1056b-0c38-7862-9aab-ca21c099db33",
+          "native_session_id_after": "01a1056b-0c38-7862-9aab-ca21c099db33"
+        }
+      ],
+      "tool_response_counts": {
+        "locust_goal_status": 3,
+        "locust_note_add": 1,
+        "locust_task_claim": 1,
+        "locust_task_progress": 1
+      },
+      "contribution": {
+        "patch": "9d81b44b34fa3620ae2a16fe67e8836fd5224fcf008be66678bdfa6aa7a1334c",
+        "head": "981fc3b9e0a942dde5a5493273ec59358402a617e5396ff3743a1db668f9668f",
+        "result": "bd3e0ec89a4e06800f2571a5e0d3551fb45217014e43c59ff73d66cdfbc76d01",
+        "generation": 1,
+        "accepted_before_integrated": true
+      }
+    },
+    {
+      "client": "claude-code",
+      "version": "2.1.280 (Claude Code)",
+      "client_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+      "permission_note": "Default headless and explicitly permissive scenarios are separate; Claude uses --bare",
+      "provider_mode": "scripted-loopback; no model service or real credentials",
+      "assertions": {
+        "configuration": {
+          "status": "pass",
+          "reason": "Actual generated registration must expose a valid production handshake and exact pinned API tool registry"
+        },
+        "network_isolation": {
+          "status": "pass",
+          "reason": "Client loopback allowed, external raw IP denied; production daemon has separate loopback/Unix-only guard"
+        },
+        "initialize": {
+          "status": "pass",
+          "reason": "Valid JSON-RPC response, supported negotiated version, Locust serverInfo and tool capability required"
+        },
+        "tools_list": {
+          "status": "pass",
+          "reason": "Exact pinned API tool names, structured object schemas and coherent schema digest required"
+        },
+        "default_read": {
+          "status": "not_run",
+          "reason": "Explicit default policy denial"
+        },
+        "default_write": {
+          "status": "not_run",
+          "reason": "Explicit default policy denial"
+        },
+        "scoped_daemon_authentication": {
+          "status": "pass",
+          "reason": "Production bridge checked the enrolled non-owner credential; observed goal authority matches independent daemon setup"
+        },
+        "claim": {
+          "status": "pass",
+          "reason": "Actual bridge returned exact assignment, session instance and generation"
+        },
+        "progress": {
+          "status": "pass",
+          "reason": "Independent event read must match client-authored progress and principal"
+        },
+        "workspace_native_tool": {
+          "status": "pass",
+          "reason": "Client native command must execute the authored driver; the harness does not materialize/edit/submit/apply on its behalf"
+        },
+        "contribution_flow": {
+          "status": "pass",
+          "reason": "Independent task/event/head/binding and file observations agree with actual client-produced contribution"
+        },
+        "accepted_before_integrated": {
+          "status": "pass",
+          "reason": "Client-executed driver observed accepted head while source remained unchanged and integration was null"
+        },
+        "dirty_work_preserved": {
+          "status": "pass",
+          "reason": "Independent file/HEAD checks preserve untracked local work and original commit"
+        },
+        "held_wait": {
+          "status": "pass",
+          "reason": "Actual client's production wait was observed outstanding before leader-only SIGINT"
+        },
+        "interruption": {
+          "status": "pass",
+          "reason": "Natural exit of client session and identified observer/bridge; no forced cleanup counts as success"
+        },
+        "explicit_resume": {
+          "status": "pass",
+          "reason": "Same native session plus fresh independently read production note after daemon restart"
+        },
+        "bridge_restart": {
+          "status": "pass",
+          "reason": "New observed production bridge PID and committed resumed operation"
+        },
+        "daemon_restart": {
+          "status": "pass",
+          "reason": "Independent goal, task/assignment, claims, known progress and endpoint persist across SQLite restart; contribution head is optional"
+        },
+        "receipt_integrity": {
+          "status": "pass",
+          "reason": "Re-evaluated: parsed JSON-RPC 2.0 receipts have valid IDs and matched response method/tool correlation; interrupted requests may remain outstanding"
+        },
+        "client_execution": {
+          "status": "pass",
+          "reason": "Provider errors, client exits, timeouts and natural owned-process cleanup checked"
+        },
+        "default_interactive_approval": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "real_model": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "skill_discovery": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "independent_accounts": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "packaged_install": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        }
+      },
+      "work": {
+        "commit": "e1570077f66b728e88d96a79a7cb3ebea36a6320",
+        "base": "4d1b516ac92c68e239d4057013c846a166a8d9e309197669677563d64bad58e9",
+        "task": "456e324cb0660db28192d008d65eeb56c32385eb86cd6075cf628def83cd93c8",
+        "assignment": "2f114228854f4e201ce5ac68a7c5b73ad10263fed62b6b5bf8f91f44753e168b",
+        "goal": "4d84f91818bc05d61eca9fc73c23ceed5c207e640bee30b16a7801796bace4cd",
+        "expected": "after-claude-code\n",
+        "principal": "3b32ee967347a2a95f2477d987a351840e8a68115d5d57cfca719428636ca232"
+      },
+      "private_runtime_profile_removed": true,
+      "harness_error": null,
+      "runs": [
+        {
+          "scenario": "default",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [
+            "--bare"
+          ],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 583
+        },
+        {
+          "scenario": "lifecycle",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [
+            "--bare"
+          ],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": true,
+          "signal_scope": "client_leader",
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 2809
+        },
+        {
+          "scenario": "resume",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [
+            "--bare"
+          ],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 636,
+          "native_session_id_before": "5697f1e8-59e4-4b11-8b69-d2bc2c58cd02",
+          "native_session_id_after": "5697f1e8-59e4-4b11-8b69-d2bc2c58cd02"
+        }
+      ],
+      "tool_response_counts": {
+        "locust_goal_status": 2,
+        "locust_note_add": 1,
+        "locust_task_claim": 1,
+        "locust_task_progress": 1
+      },
+      "contribution": {
+        "patch": "b6e77ad1071a13e184eb16a16f879b1709a2c24470ba9e1a14625cedca94ffd5",
+        "head": "6ab39df11c6e2082065a47c1abf1076bf8a50bf2896de70da09f575e000c9d4b",
+        "result": "f3605721e3dda4b8dd81eed4921a5f8c91d8049704b3a4f67907a4891b3d1948",
+        "generation": 1,
+        "accepted_before_integrated": true
+      }
+    },
+    {
+      "client": "factory-droid",
+      "version": "0.218.1",
+      "client_sha256": "076c78e42f94dd21767f5094002259efb256cc294cce63d6552b6607bc714589",
+      "permission_note": "Default headless and explicitly permissive scenarios are separate; Claude uses --bare",
+      "provider_mode": "scripted-loopback; no model service or real credentials",
+      "assertions": {
+        "configuration": {
+          "status": "pass",
+          "reason": "Actual generated registration must expose a valid production handshake and exact pinned API tool registry"
+        },
+        "network_isolation": {
+          "status": "pass",
+          "reason": "Client loopback allowed, external raw IP denied; production daemon has separate loopback/Unix-only guard"
+        },
+        "initialize": {
+          "status": "pass",
+          "reason": "Valid JSON-RPC response, supported negotiated version, Locust serverInfo and tool capability required"
+        },
+        "tools_list": {
+          "status": "pass",
+          "reason": "Exact pinned API tool names, structured object schemas and coherent schema digest required"
+        },
+        "default_read": {
+          "status": "pass",
+          "reason": "Actual production tool completed"
+        },
+        "default_write": {
+          "status": "not_run",
+          "reason": "Explicit default policy denial"
+        },
+        "scoped_daemon_authentication": {
+          "status": "pass",
+          "reason": "Production bridge checked the enrolled non-owner credential; observed goal authority matches independent daemon setup"
+        },
+        "claim": {
+          "status": "pass",
+          "reason": "Actual bridge returned exact assignment, session instance and generation"
+        },
+        "progress": {
+          "status": "pass",
+          "reason": "Independent event read must match client-authored progress and principal"
+        },
+        "workspace_native_tool": {
+          "status": "fail",
+          "reason": "Client native command must execute the authored driver; the harness does not materialize/edit/submit/apply on its behalf"
+        },
+        "contribution_flow": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "accepted_before_integrated": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "dirty_work_preserved": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "held_wait": {
+          "status": "pass",
+          "reason": "Actual client's production wait was observed outstanding before leader-only SIGINT"
+        },
+        "interruption": {
+          "status": "pass",
+          "reason": "Natural exit of client session and identified observer/bridge; no forced cleanup counts as success"
+        },
+        "explicit_resume": {
+          "status": "pass",
+          "reason": "Same native session plus fresh independently read production note after daemon restart"
+        },
+        "bridge_restart": {
+          "status": "pass",
+          "reason": "New observed production bridge PID and committed resumed operation"
+        },
+        "daemon_restart": {
+          "status": "pass",
+          "reason": "Independent goal, task/assignment, claims, known progress and endpoint persist across SQLite restart; contribution head is optional"
+        },
+        "receipt_integrity": {
+          "status": "pass",
+          "reason": "Re-evaluated: parsed JSON-RPC 2.0 receipts have valid IDs and matched response method/tool correlation; interrupted requests may remain outstanding"
+        },
+        "client_execution": {
+          "status": "pass",
+          "reason": "Provider errors, client exits, timeouts and natural owned-process cleanup checked"
+        },
+        "default_interactive_approval": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "real_model": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "skill_discovery": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "independent_accounts": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "packaged_install": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        }
+      },
+      "work": {
+        "commit": "65a69336ed5a1a834c61cfbf94b9a359bb3a6bd3",
+        "base": "fc599242d2f8316e72ed4c7190b9bf039e26634abd4686d9f9851cee6f397743",
+        "task": "7ddaacd4f15771fe5dd2722c51f6e4dd60d16b182ca2183c7a910393d57d96eb",
+        "assignment": "919e02bf9154d9d39eb9a90e24cb4f1f2bb2b5b544de8f2028b2f885e4050aa8",
+        "goal": "e9db266d8aca1cd2ed7cacf37c24e3482287bbddfb67ad5382e7c51d86dc5e15",
+        "expected": "after-factory-droid\n",
+        "principal": "3b17e0d57c663269f96d72c9421462d323f3296c25efefc260dd40979decfb32"
+      },
+      "private_runtime_profile_removed": true,
+      "harness_error": null,
+      "runs": [
+        {
+          "scenario": "default",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": 1,
+          "timed_out": false,
+          "interrupted": false,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 7833
+        },
+        {
+          "scenario": "lifecycle",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": true,
+          "signal_scope": "client_leader",
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 8444
+        },
+        {
+          "scenario": "resume",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 3432,
+          "native_session_id_before": "e10d5ef4-8c67-45b4-93bd-f892b1c57912",
+          "native_session_id_after": "e10d5ef4-8c67-45b4-93bd-f892b1c57912"
+        }
+      ],
+      "tool_response_counts": {
+        "locust_goal_status": 3,
+        "locust_note_add": 1,
+        "locust_task_claim": 1,
+        "locust_task_progress": 1
+      }
+    },
+    {
+      "client": "pi",
+      "version": "1.0.1",
+      "client_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+      "permission_note": "Default headless and explicitly permissive scenarios are separate; Claude uses --bare",
+      "provider_mode": "scripted-loopback; no model service or real credentials",
+      "assertions": {
+        "configuration": {
+          "status": "pass",
+          "reason": "Actual generated registration must expose a valid production handshake and exact pinned API tool registry"
+        },
+        "network_isolation": {
+          "status": "pass",
+          "reason": "Client loopback allowed, external raw IP denied; production daemon has separate loopback/Unix-only guard"
+        },
+        "initialize": {
+          "status": "pass",
+          "reason": "Valid JSON-RPC response, supported negotiated version, Locust serverInfo and tool capability required"
+        },
+        "tools_list": {
+          "status": "pass",
+          "reason": "Exact pinned API tool names, structured object schemas and coherent schema digest required"
+        },
+        "default_read": {
+          "status": "pass",
+          "reason": "Actual production tool completed"
+        },
+        "default_write": {
+          "status": "pass",
+          "reason": "Actual production tool completed"
+        },
+        "scoped_daemon_authentication": {
+          "status": "pass",
+          "reason": "Production bridge checked the enrolled non-owner credential; observed goal authority matches independent daemon setup"
+        },
+        "claim": {
+          "status": "pass",
+          "reason": "Actual bridge returned exact assignment, session instance and generation"
+        },
+        "progress": {
+          "status": "pass",
+          "reason": "Independent event read must match client-authored progress and principal"
+        },
+        "workspace_native_tool": {
+          "status": "pass",
+          "reason": "Client native command must execute the authored driver; the harness does not materialize/edit/submit/apply on its behalf"
+        },
+        "contribution_flow": {
+          "status": "pass",
+          "reason": "Independent task/event/head/binding and file observations agree with actual client-produced contribution"
+        },
+        "accepted_before_integrated": {
+          "status": "pass",
+          "reason": "Client-executed driver observed accepted head while source remained unchanged and integration was null"
+        },
+        "dirty_work_preserved": {
+          "status": "pass",
+          "reason": "Independent file/HEAD checks preserve untracked local work and original commit"
+        },
+        "held_wait": {
+          "status": "pass",
+          "reason": "Actual client's production wait was observed outstanding before leader-only SIGINT"
+        },
+        "interruption": {
+          "status": "pass",
+          "reason": "Natural exit of client session and identified observer/bridge; no forced cleanup counts as success"
+        },
+        "explicit_resume": {
+          "status": "pass",
+          "reason": "Same native session plus fresh independently read production note after daemon restart"
+        },
+        "bridge_restart": {
+          "status": "pass",
+          "reason": "New observed production bridge PID and committed resumed operation"
+        },
+        "daemon_restart": {
+          "status": "pass",
+          "reason": "Independent goal, task/assignment, claims, known progress and endpoint persist across SQLite restart; contribution head is optional"
+        },
+        "receipt_integrity": {
+          "status": "pass",
+          "reason": "Re-evaluated: parsed JSON-RPC 2.0 receipts have valid IDs and matched response method/tool correlation; interrupted requests may remain outstanding"
+        },
+        "client_execution": {
+          "status": "pass",
+          "reason": "Provider errors, client exits, timeouts and natural owned-process cleanup checked"
+        },
+        "default_interactive_approval": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "real_model": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "skill_discovery": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "independent_accounts": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        },
+        "packaged_install": {
+          "status": "not_run",
+          "reason": "Scenario not executed"
+        }
+      },
+      "work": {
+        "commit": "0b11bf364145ca7832f3c83d1f229440a5ad57a8",
+        "base": "61db5997cf70f6732b7be6b40ab4362c0b17c50f86be8dd4b3e880e5a9387b24",
+        "task": "cbda20916d6c9dde7ab5d48c5e720ed6d59be4e697584f499eac3b928b0e276a",
+        "assignment": "4b509b3399eb849ccf4ebb579beab1c0935fd461b4f4b7b12fa14f5beab2877a",
+        "goal": "382ef037a575413de4772d07c3d2464263e9f400017ea66619b7f851a204ec80",
+        "expected": "after-pi\n",
+        "principal": "3644437055443996ce0d2cafc00d79f199b5586e87395bc920da477e9db26883"
+      },
+      "private_runtime_profile_removed": true,
+      "harness_error": null,
+      "runs": [
+        {
+          "scenario": "default",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 1088
+        },
+        {
+          "scenario": "lifecycle",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": -2,
+          "timed_out": false,
+          "interrupted": true,
+          "signal_scope": "client_leader",
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 2136
+        },
+        {
+          "scenario": "resume",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "elapsed_ms": 708,
+          "native_session_id_before": "01a1056b-9fa4-7130-8fba-63df9f509a9a",
+          "native_session_id_after": "01a1056b-9fa4-7130-8fba-63df9f509a9a"
+        }
+      ],
+      "tool_response_counts": {
+        "locust_goal_status": 3,
+        "locust_note_add": 2,
+        "locust_task_claim": 1,
+        "locust_task_progress": 1
+      },
+      "contribution": {
+        "patch": "e95471722756a00a96f5f77636046232ffe7e619f9c65721e453175a56c9aaf4",
+        "head": "8da226baca39457d12e06b05adda160b2c92249fafdc017fe83738e20d4b6124",
+        "result": "291b2ce25bd609ef85a8a3228cf4096f6e5a289c0f87a82781b1facaf365950c",
+        "generation": 1,
+        "accepted_before_integrated": true
+      }
+    }
+  ],
+  "interpretation": "Droid native Execute failed under the scripted external-network guard. This does not erase passing MCP lifecycle evidence and does not contradict its separately measured real-model native-tool path. No interactive approval, real provider, independent account, packaged install or managed launch is claimed here.",
+  "predicate_re_evaluation": {
+    "method": "Read-only replay of retained observations; no new client execution",
+    "source_report_name": "t2-client-production-final",
+    "source_report_sha256": "b1d36d3f8180af426ef46c6dff138f27b8b10641c5b5cd5639e28fe5d85d6255",
+    "predicate_source_sha256": "a716a5a538da813e342b7c88e270dbb905918ee908a596b5724d91ee631fde6f",
+    "regression_tests_sha256": "b484d1a24ef72deccf7202c8bec310b93f19ebd0bacd153bfee7dcefae841e57",
+    "nonzero_default_denial_allowance": "Only measured Droid 0.218.1 default-headless exit 1 with exact locust___locust_note_add higher-autonomy denial; other positive exits fail",
+    "original_observation_harness_sources_preserved": true,
+    "clients": [
+      {
+        "client": "codex",
+        "receipt_integrity": "pass",
+        "client_execution": "pass",
+        "raw_mcp_receipt_sha256": [
+          {
+            "scenario": "default",
+            "sha256": "5b98b019383ac82d62bf6ee1c3c7b66b40402178ee8f4eaa2f14c1fbeba8da69"
+          },
+          {
+            "scenario": "lifecycle",
+            "sha256": "37f3c882f0904e550eddb650b3ae687456b1a719e390980894df785a2978c6bb"
+          },
+          {
+            "scenario": "resume",
+            "sha256": "4085512d560cc503a88c9f772fea41265179e4973905e44b8171b61e7c893f95"
+          }
+        ]
+      },
+      {
+        "client": "claude-code",
+        "receipt_integrity": "pass",
+        "client_execution": "pass",
+        "raw_mcp_receipt_sha256": [
+          {
+            "scenario": "default",
+            "sha256": "22e5cebbf04435dca70e5d1684023bb7c585e0c2c7e9b7aed117fbf351a5f61b"
+          },
+          {
+            "scenario": "lifecycle",
+            "sha256": "dc74cf20a4323d5fc7cf3379f9afb4989806a44751b7f1b25687a9cc5087da85"
+          },
+          {
+            "scenario": "resume",
+            "sha256": "6fa44cfc0f0215f0c1daa2bc927d1ce2e6c6ce8596907e7dc9bd612f74438682"
+          }
+        ]
+      },
+      {
+        "client": "factory-droid",
+        "receipt_integrity": "pass",
+        "client_execution": "pass",
+        "raw_mcp_receipt_sha256": [
+          {
+            "scenario": "default",
+            "sha256": "13e910050b708084cfce70fdcfdcc5332408e2f3bbbb3bb5f3381050f1761f52"
+          },
+          {
+            "scenario": "lifecycle",
+            "sha256": "44f7d277aeeef5b4de70bbed0f8539c3dea4c1d9e35be594cea14052a88e13db"
+          },
+          {
+            "scenario": "resume",
+            "sha256": "ac443c6be75cea840670d51109f0a82d97f0657f461da73e31b4974fc1ecbea1"
+          }
+        ]
+      },
+      {
+        "client": "pi",
+        "receipt_integrity": "pass",
+        "client_execution": "pass",
+        "raw_mcp_receipt_sha256": [
+          {
+            "scenario": "default",
+            "sha256": "4a15e84b99791b4dd37648113dea1f5b5d97c7726d2974c74ef531fb0920e399"
+          },
+          {
+            "scenario": "lifecycle",
+            "sha256": "b2c27e506469e79c26802e7978265c46d5bc081c6a4ee3136349c7578b535296"
+          },
+          {
+            "scenario": "resume",
+            "sha256": "04f541b105b123006fab173ce3d75ee4bf15dd397bc9d12dd8b9a1c3e545adf5"
+          }
+        ]
+      }
+    ]
+  }
+}

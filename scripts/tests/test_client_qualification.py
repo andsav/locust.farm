@@ -17,11 +17,47 @@ from urllib.error import HTTPError
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 import check_clients as harness
-from client_qualification.provider import Provider
+from client_qualification.provider import Provider, planned_call
 from client_qualification.runtime import Process, Profile, SocketFixture, records
 
 
 class QualificationTests(unittest.TestCase):
+    def test_codex_default_approval_denial_requires_structured_tool_failure(self):
+        with tempfile.TemporaryDirectory() as output:
+            path = Path(output) / "events.jsonl"
+            denial = {"type": "item.completed", "item": {"type": "mcp_tool_call", "status": "failed",
+                "tool": "locust_note_add", "error": {"message": "MCP tool call requires approval, but approval policy is never"}}}
+            path.write_text(json.dumps(denial) + "\n")
+            self.assertEqual(harness.permission_denials({"stdout": str(path)})[0]["tool_name"], "locust_note_add")
+            denial["item"]["type"] = "agent_message"
+            path.write_text(json.dumps(denial) + "\n")
+            self.assertEqual(harness.permission_denials({"stdout": str(path)}), [])
+
+    def test_production_arguments_are_resolved_for_each_call_and_copied(self):
+        state = {"goal": "g", "generation": 1}
+        step = {"tool": "locust_task_progress", "arguments": lambda: state}
+        name, first = planned_call(step)
+        state["generation"] = 2
+        self.assertEqual(name, "locust_task_progress")
+        self.assertEqual(first["generation"], 1)
+        self.assertEqual(planned_call(step)[1]["generation"], 2)
+        for invalid in ({"tool": "x"}, {"tool": "x", "arguments": []}, {"tool": "", "arguments": {}}):
+            with self.assertRaises(ValueError):
+                planned_call(invalid)
+
+    def test_production_arguments_survive_pi_codemode(self):
+        arguments = {"goal": "a" * 64, "text": 'A "quoted" note', "task": None}
+        with Provider([{"tool": "locust_note_add", "arguments": arguments}]) as provider:
+            request = Request(provider.url + "/v1/chat/completions", json.dumps({"model": "fixture", "tools": [{
+                "type": "function", "function": {"name": "codemode"}}]}).encode(),
+                {"Content-Type": "application/json"})
+            with urlopen(request) as response:
+                body = json.load(response)
+            call = body["choices"][0]["message"]["tool_calls"][0]["function"]
+            self.assertEqual(call["name"], "codemode")
+            self.assertEqual(json.loads(call["arguments"])["code"],
+                             "text(await tools.mcp__locust__locust_note_add(" + json.dumps(arguments) + "));" )
+
     def profile(self, output):
         profile = Profile(output, "test")
         self.addCleanup(profile.close)
@@ -84,7 +120,7 @@ class QualificationTests(unittest.TestCase):
     def test_pi_native_id_is_not_the_session_file_path(self):
         with tempfile.TemporaryDirectory() as output:
             profile = self.profile(output)
-            path = profile.home / ".pi/agent/qualification-session.jsonl"
+            path = profile.home / ".pi/agent/sessions/qualification-session.jsonl"
             path.parent.mkdir(parents=True)
             path.write_text('{"type":"session","id":"original"}\n')
             run = {"stdout": str(profile.logs / "missing.stdout")}
