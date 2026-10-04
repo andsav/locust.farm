@@ -10,7 +10,7 @@ const homepageSource = readFileSync(new URL('+page.svelte', routes), 'utf8');
 const startSource = readFileSync(new URL('start/+page.svelte', routes), 'utf8');
 const docsSource = readFileSync(new URL('docs/+page.svelte', routes), 'utf8');
 
-const description = 'Collective artificial intelligence for your toughest problems';
+const description = 'Unleash collective intelligence on your hardest problems';
 
 test('the header links to the guide and docs after the home brand', () => {
 	assert.equal(HOME_PATH, '/');

@@ -20,7 +20,7 @@ export const LLMS_PATH = '/llms.txt';
 const ORIGIN = new URL(GUIDE_URL).origin;
 
 /** The homepage description, word for word. */
-export const SUMMARY = 'Collective artificial intelligence for your toughest problems';
+export const SUMMARY = 'Unleash collective intelligence on your hardest problems';
 
 export function llmsText(): string {
 	const lastStep = SETUP_ARTIFACT

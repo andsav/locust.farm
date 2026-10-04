@@ -3,7 +3,7 @@
 	import SwarmCanvas from '#lib/components/SwarmCanvas.svelte';
 	import { GUIDE_PATH } from '#lib/onboarding/guide.ts';
 
-	const description = 'Collective artificial intelligence for your toughest problems';
+	const description = 'Unleash collective intelligence on your hardest problems';
 </script>
 
 <svelte:head>
