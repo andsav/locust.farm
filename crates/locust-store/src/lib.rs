@@ -50,8 +50,19 @@
 //!   `F_FULLFSYNC` on macOS as well.
 //!
 //! A commit therefore costs one full flush, plus, when it carries new large
-//! objects, one per object file and one for the directory. On an Apple SSD
-//! with APFS one flush takes about 4 ms.
+//! objects, one per object file and one for the directory. The flush, not
+//! the rows, is the cost, so batching is what makes ingest cheap. Measured
+//! with `examples/commit_latency.rs` (release build) on an Apple M5 Pro,
+//! internal SSD, APFS, macOS 26.4, on 2026-10-03:
+//!
+//! | Commit | Median | p90 |
+//! |---|---|---|
+//! | 1 event | 3.9 ms | 4.2 ms |
+//! | 256 events (notes) | 4.0 ms, 16 µs per event | 4.9 ms |
+//! | 256 of the largest headers the contract admits (4,380 bytes) | 10.7 ms | 15–17 ms |
+//!
+//! Replaying a goal of 5,321 events from position 1 in pages of 256 took
+//! about 3.5 ms (1.5 million events per second), event rebuilding included.
 //!
 //! # Positions
 //!
