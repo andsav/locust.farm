@@ -34,3 +34,5 @@ the repository root to check coverage and local link paths.
 - [Lane C log](lane-c-log.md): lane C's requests to lanes A and B and the Polaris work, and its source reviews.
 - [ecdsa.fail swarm demonstration proposal](ecdsa-fail-swarm-proposal.md): proposed roles, records, measurement stages and lanes for agents working the ecdsa.fail circuit benchmark as one goal; success levels, mapping to the current Locust commands, time-boxed run plan and owner decisions. Nothing built or run.
 - [T2 coding-agent workflow](t2-workflow.md): MCP, operating skill, snapshots and contribution review/application.
+
+- [Local verified installation](installation.md): explicit trust, withdrawal registry, reviewed activation and conservative software removal.

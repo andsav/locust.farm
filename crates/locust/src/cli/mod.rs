@@ -3,6 +3,8 @@ mod args;
 mod client;
 mod connection;
 mod doctor;
+mod install;
+mod package;
 mod workspace;
 
 use crate::{daemon, failure::Failure, secret};
@@ -151,6 +153,12 @@ fn stdin_text() -> Result<String, Failure> {
 }
 fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let (operation, selected) = args::selected(matches);
+    if operation.starts_with("install.") {
+        return install::run(&operation, selected);
+    }
+    if operation.starts_with("package.") {
+        return package::run(&operation, selected);
+    }
     if operation.starts_with("workspace.") || operation.starts_with("patch.") {
         return workspace::run(matches, &operation, selected);
     }

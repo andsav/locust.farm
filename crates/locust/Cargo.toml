@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 clap.workspace = true
+ed25519-dalek.workspace = true
 getrandom.workspace = true
 locust-adapter.workspace = true
 locust-core.workspace = true
@@ -17,7 +18,10 @@ locust-workspace.workspace = true
 rustix.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
+semver.workspace = true
 tokio.workspace = true
+toml_edit.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

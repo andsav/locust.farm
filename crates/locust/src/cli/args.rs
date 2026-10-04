@@ -286,6 +286,8 @@ pub(super) fn command() -> Command {
         )
         .subcommands(super::workspace::commands())
         .subcommand(super::client::commands())
+        .subcommand(super::package::commands())
+        .subcommand(super::install::commands())
         .subcommand(group(
             "daemon",
             &[("run", "daemon.run"), ("stop", "daemon.stop")],
