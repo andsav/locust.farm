@@ -63,7 +63,7 @@ def strings(value):
 
 def normalize_read(text):
     # Claude's native Read numbers lines before returning them to the model.
-    return "\n".join(re.sub(r"^\s*\d+[→|:]\s?", "", line) for line in text.replace("\r\n", "\n").splitlines()).strip()
+    return "\n".join(re.sub(r"^[ \t]*\d+(?:→|\t)", "", line) for line in text.replace("\r\n", "\n").splitlines()).strip()
 
 
 class SkillObserver:
@@ -81,13 +81,28 @@ class SkillObserver:
         wanted = normalize_read(self.contents)
         return any(wanted in normalize_read(text) for text in strings(value))
 
+    def read_projection(self, texts):
+        expected = normalize_read(self.contents).splitlines()
+        projected = []
+        for text in texts:
+            if "# Locust collaboration" not in text:
+                continue
+            actual = normalize_read(text).splitlines()
+            prefix = next((line.split("# Locust collaboration", 1)[0] for line in text.splitlines() if "# Locust collaboration" in line), "")
+            projected.append({"text_sha256":hashlib.sha256(text.encode()).hexdigest(),
+                "text_bytes":len(text.encode()), "normalized_line_count":len(actual),
+                "expected_line_count":len(expected),
+                "missing_expected_line_numbers":[i+1 for i,line in enumerate(expected) if line and line not in actual],
+                "header_prefix_codepoints":[ord(char) for char in prefix] if all(char.isspace() or char.isdigit() or not char.isalnum() for char in prefix) else None})
+        return projected
+
     def __call__(self, body):
         texts = list(strings(body))
         observation = {"skill_path": self.path, "skill_sha256": self.sha256,
                        "description_sha256": hashlib.sha256(self.description.encode()).hexdigest(),
                        "description_present": any(self.description in text for text in texts),
                        "path_present": any(self.path in text for text in texts),
-                       "body_present": self.body_match(body)}
+                       "body_present": self.body_match(body), "read_projection":self.read_projection(texts)}
         with self.lock:
             self.observations.append(observation)
 
@@ -188,14 +203,44 @@ def read_matches(receipts, daemon):
                for e in successful(receipts, workflow.READ))
 
 
-def persisted_note(receipts, daemon, text, tool=workflow.WRITE):
+def persisted_note(receipts, daemon, text, tool=workflow.WRITE, assignment=None):
+    if tool not in (workflow.WRITE, workflow.PROGRESS) or (tool == workflow.PROGRESS and assignment is None):
+        return False
+    expected_kind = "progress" if tool == workflow.PROGRESS else "note"
     for value in successful(receipts, tool):
         event = value["result"].get("recorded", {}).get("event")
         if event:
             observed = daemon.call(["event", "show", "--goal", daemon.goal, "--event", event])["event"]
-            if observed["text"] == text and observed["view"]["author"] == daemon.principal:
-                return True
+            view = observed.get("view", {})
+            if (observed.get("text") != text or view.get("author") != daemon.principal
+                    or view.get("kind") != expected_kind or view.get("event") != event):
+                continue
+            if tool == workflow.PROGRESS and observed.get("body", {}).get("progress", {}).get("assignment") != assignment:
+                continue
+            return True
     return False
+
+
+def registration_removed(client, config, skill, status):
+    """Check remaining client bytes independently of the ownership status API."""
+    if status.get("owned") is not False or status.get("pending") is not False or os.path.lexists(skill):
+        return False
+    if not os.path.lexists(config):
+        return True
+    if config.is_symlink() or not config.is_file():
+        return False
+    try:
+        if client == "codex":
+            import tomllib
+            document = tomllib.loads(config.read_text())
+        else:
+            document = json.loads(config.read_text())
+    except (ValueError, OSError):
+        return False
+    if not isinstance(document, dict):
+        return False
+    servers = document.get("mcp_servers" if client == "codex" else "mcpServers", {})
+    return isinstance(servers, dict) and "locust" not in servers
 
 
 def invocation(client, binary, profile, label, permissive):
@@ -385,7 +430,7 @@ def qualify(client, binary, args):
                 claim = any(c in independent_claims and c.get("assignment") == work["assignment"] and c.get("instance") == daemon.instance
                             for c in observed_claims if isinstance(c, dict))
                 checks["claim"] = fixture.assertion("pass" if claim else "fail", "Native claim matches fixed fixture instance and independently observed claim generation")
-                checks["progress"] = fixture.assertion("pass" if persisted_note(ae, daemon, "installed-progress-" + client, workflow.PROGRESS) else "fail", "Native progress event independently resolves to exact text and author")
+                checks["progress"] = fixture.assertion("pass" if persisted_note(ae, daemon, "installed-progress-" + client, workflow.PROGRESS, work["assignment"]) else "fail", "Native progress event independently resolves to exact event ID, progress kind, assignment, text and author")
                 workflow.validate_workspace(checks, daemon, profile, work, workspace_receipt)
                 before = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
                 endpoint = daemon.endpoint
@@ -407,7 +452,7 @@ def qualify(client, binary, args):
                 removed = setup(profile, daemon, prefix, installed, client, "remove", timeout, remove_plan["plan_sha256"])
                 result["removal"] = removed
                 removed_status = setup(profile, daemon, prefix, installed, client, "status", timeout)
-                checks["setup_removal"] = fixture.assertion("pass" if not removed_status["owned"] and not skill_path.exists() else "fail", "Reviewed removal deleted only owned MCP entry/skill")
+                checks["setup_removal"] = fixture.assertion("pass" if registration_removed(client, config, skill_path, removed_status) else "fail", "Independent config parse finds no Locust entry; skill, owner and pending journal are absent")
                 if client == "codex":
                     import tomllib
                     retained = tomllib.loads(config.read_text())

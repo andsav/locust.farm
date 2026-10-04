@@ -17,7 +17,7 @@ class InstalledClientTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "SKILL.md"
-        self.body = "---\nname: locust\ndescription: A unique full skill description.\n---\n\n# Private skill instructions\nDo this authored thing.\n"
+        self.body = "---\nname: locust\ndescription: A unique full skill description.\n---\n\n# Private skill instructions\nDo this authored thing.\n   Preserve this indentation.\n"
         self.path.write_text(self.body)
         self.observer = harness.SkillObserver(self.path)
 
@@ -31,6 +31,12 @@ class InstalledClientTests(unittest.TestCase):
         self.assertNotIn("Private skill instructions", serialized)
         self.assertNotIn("A unique full skill description", serialized)
         self.assertEqual(self.observer.observations[0]["skill_sha256"], harness.digest(self.path))
+
+    def test_numbered_read_preserves_original_indentation_for_both_native_formats(self):
+        for separator in ("→", "\t"):
+            numbered = "\n".join(str(index) + separator + line for index, line in enumerate(self.body.splitlines(), 1))
+            self.assertEqual(harness.normalize_read(numbered), harness.normalize_read(self.body))
+            self.assertTrue(self.observer.body_match(numbered))
 
     def test_provider_callback_observes_without_retaining_request(self):
         with Provider([], request_observer=self.observer) as provider:
@@ -85,11 +91,42 @@ class InstalledClientTests(unittest.TestCase):
         receipts = [{"success": True, "tool": harness.workflow.WRITE,
                      "locust": [{"ok": True, "result": {"recorded": {"event": "id"}}}]}]
         daemon = Mock(goal="goal", principal="principal")
-        daemon.call.return_value = {"event": {"text": "expected", "view": {"author": "principal"}}}
+        daemon.call.return_value = {"event": {"text": "expected", "view": {"author": "principal", "kind":"note", "event":"id"}}}
         self.assertTrue(harness.persisted_note(receipts, daemon, "expected"))
         daemon.call.return_value["event"]["text"] = "different"
         self.assertFalse(harness.persisted_note(receipts, daemon, "expected"))
         self.assertFalse(harness.persisted_note([], daemon, "expected"))
+
+    def test_note_and_progress_require_exact_kind_assignment_author_text_and_event(self):
+        import copy
+        for tool, kind, assignment in ((harness.workflow.WRITE, "note", None), (harness.workflow.PROGRESS, "progress", "assignment-one")):
+            receipts = [{"success":True,"tool":tool,"locust":[{"ok":True,"result":{"recorded":{"event":"event-one"}}}]}]
+            event = {"text":"expected","view":{"author":"principal","kind":kind,"event":"event-one"},"body":{"progress":{"assignment":assignment}}}
+            daemon = Mock(goal="goal",principal="principal")
+            daemon.call.return_value = {"event":event}
+            self.assertTrue(harness.persisted_note(receipts,daemon,"expected",tool,assignment))
+            mutations = [("view","kind","note" if kind=="progress" else "progress"), ("view","author","other"), ("view","event","other")]
+            for section, key, value in mutations:
+                wrong=copy.deepcopy(event);wrong[section][key]=value;daemon.call.return_value={"event":wrong}
+                self.assertFalse(harness.persisted_note(receipts,daemon,"expected",tool,assignment))
+            wrong=copy.deepcopy(event);wrong["text"]="other";daemon.call.return_value={"event":wrong}
+            self.assertFalse(harness.persisted_note(receipts,daemon,"expected",tool,assignment))
+            if tool==harness.workflow.PROGRESS:
+                wrong=copy.deepcopy(event);wrong["body"]["progress"]["assignment"]="another-assignment";daemon.call.return_value={"event":wrong}
+                self.assertFalse(harness.persisted_note(receipts,daemon,"expected",tool,assignment))
+                self.assertFalse(harness.persisted_note(receipts,daemon,"expected",tool))
+
+    def test_removed_ownership_cannot_hide_leftover_registration_or_journal(self):
+        config=Path(self.temp.name)/"config";skill=Path(self.temp.name)/"removed-skill"
+        status={"owned":False,"configured":False,"pending":False}
+        for client in harness.CLIENTS:
+            config.write_text('[mcp_servers.locust]\ncommand="leftover"\n' if client=="codex" else json.dumps({"mcpServers":{"locust":{"command":"leftover"}}}))
+            self.assertFalse(harness.registration_removed(client,config,skill,status))
+            config.write_text('model="keep"\n' if client=="codex" else json.dumps({"unrelated":"keep"}))
+            self.assertTrue(harness.registration_removed(client,config,skill,status))
+            self.assertFalse(harness.registration_removed(client,config,skill,dict(status,pending=True)))
+            skill.symlink_to("missing-target")
+            self.assertFalse(harness.registration_removed(client,config,skill,status));skill.unlink()
 
     def test_persistent_invocations_do_not_override_registration_or_disable_skills(self):
         profile = Mock(home=Path(self.temp.name))
