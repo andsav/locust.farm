@@ -1,6 +1,6 @@
 # T1: one binary for three Apple Silicon Macs
 
-Date: 2026-10-03. **Status: build helper implemented; the daemon's identified release binary and three-machine run are not yet qualified.** The accepted [T1 sequence](workstreams.md) comes before real-client integration. All three machines use the same `aarch64-apple-darwin` executable; network routes are observations of the run.
+Date: 2026-10-03. **Status: build helper implemented; the daemon's identified release binary and three-machine run are not yet qualified.** The accepted [T1 sequence](workstreams.md) comes before real-client integration. The owner now requires each machine to download the same published `aarch64-apple-darwin` build through a first-time-user path. This helper prepares the local artifact; it does not publish a release or implement that fetch/verify/start path. Network routes are observations of the run.
 
 ## Build identity
 
@@ -14,9 +14,11 @@ The [helper](../scripts/build_t1.py) requires committed Rust/build inputs, uses 
 
 After building and checking identity, the helper writes `output/t1/<full-commit>/locust`, `SHA256SUMS` and `metadata.json`. It hashes the copied bytes, records compiler/target/version/commit and checks source identity again. Existing identical bundles can be reused; differing or incomplete output is refused. The metadata explicitly says `qualification: not_run`: build identity does not establish daemon behavior, signing, notarization or a successful installation.
 
-## Copy and compare
+## Publish, download and compare
 
-Copy the completed bundle using the owner's chosen `scp` or `rsync` destinations. Machine addresses and destination paths are supplied by the owner; the helper does not discover or access machines. On each Mac, from the copied bundle directory:
+The owner's [updated T1 direction](workstreams.md) requires a published pre-release and a first-run command or entry prompt that downloads, verifies and starts it on each Mac. Publishing requires the owner's explicit instruction. The download location and fetch/verify/start implementation are still pending; a local bundle or a file copied between Macs does not satisfy this first-contact test.
+
+Once that path is implemented and the release is published, compare the downloaded artifact on each Mac:
 
 ```sh
 shasum -a 256 -c SHA256SUMS
@@ -35,4 +37,4 @@ The helper's tests cover dirty/untracked input rejection, allowed unrelated edit
 python3 -m unittest discover -s scripts/tests -p test_build_t1.py
 ```
 
-Actual packaging waits for committed daemon/CLI code with the version contract. T1 membership, task/result inspection/acceptance, offline peers, restart and sleeping-laptop recovery remain unverified until the binary is run on all three Macs.
+Actual packaging waits for committed daemon/CLI code with the version contract; publication and the first-run download path are additional T1 requirements. T1 membership, task/result inspection/acceptance, offline peers, restart and sleeping-laptop recovery remain unverified until the binary is run on all three Macs.

@@ -45,7 +45,8 @@ The first integrated run uses one binary on the owner's three Apple Silicon Macs
 | Required record | Current evidence |
 |---|---|
 | One identified `aarch64-apple-darwin` binary | Build helper implemented/tested; current scaffold refused for missing version/commit identity |
-| Matching version, commit and SHA-256 on all three Macs | Not run; no identified bundle copied |
+| Published pre-release and first-run fetch/verify/start path | Not implemented or published; owner must instruct publication |
+| Matching downloaded version, commit and SHA-256 on all three Macs | Not run; no identified download candidate |
 | Three members; observed peer routes | Not run |
 | Propose → assign → claim → submit → inspect → accept; third peer observes history | Not run |
 | Coordinator offline while other peers exchange notes; catch-up | Not run |

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build one identified Apple Silicon binary for copying to the T1 machines.
+"""Build one identified Apple Silicon artifact for the T1 machines.
 
 This records build identity only. It does not qualify daemon behavior, deploy,
 install, sign, notarize or transfer the binary. Run from committed Rust/build
