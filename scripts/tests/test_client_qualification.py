@@ -1,8 +1,10 @@
 """Truth, profile isolation, provider protocol and process cleanup regressions."""
 
 import json
+from http.client import HTTPConnection
 import os
 from pathlib import Path
+import signal
 import socket
 import subprocess
 import sys
@@ -141,6 +143,32 @@ class QualificationTests(unittest.TestCase):
                                                         "status": 404, "purpose": "scripted local-session fallback"}])
             self.assertNotIn("private-session-id", json.dumps(provider.backend_requests))
 
+    def test_provider_records_redacted_backend_requests_and_rejections(self):
+        with Provider([]) as provider:
+            connection = HTTPConnection("127.0.0.1", provider.server.server_port)
+            for method, path, body, status in (
+                    ("GET", "/private-value?token=secret", None, 404),
+                    ("POST", "/private-value", "secret", 403),
+                    ("CONNECT", "private-value:443", None, 403),
+                    ("DELETE", "/private-value", None, 403),
+                    ("TRACE", "/private-value", None, 403),
+                    ("CUSTOM", "/private-value", None, 403),
+                    ("GET", "/private-value/models", None, 200),
+                    ("POST", "/private-value/count_tokens", "{}", 200),
+                    ("POST", "/v1/messages", "secret", 400),
+                    ("POST", "/private-value/messages", json.dumps({"messages": [{"role": "user", "content": "prompt-secret"}]}), 200)):
+                connection.request(method, path, body, {"Authorization": "Bearer provider-secret"})
+                response = connection.getresponse()
+                self.assertEqual(response.status, status)
+                response.read()
+            connection.close()
+            self.assertEqual(len(provider.backend_requests), 9)
+            self.assertEqual([r["status"] for r in provider.backend_requests], [404, 403, 403, 403, 403, 403, 200, 200, 400])
+            self.assertEqual(provider.requests[0]["path"], "/messages")
+            retained = json.dumps(provider.backend_requests + provider.errors + provider.requests)
+            self.assertNotIn("private-value", retained)
+            self.assertNotIn("secret", retained)
+
     def test_droid_model_and_backend_urls_are_all_loopback_fixture(self):
         with tempfile.TemporaryDirectory() as output:
             profile = self.profile(output)
@@ -209,6 +237,54 @@ class QualificationTests(unittest.TestCase):
             run = process.wait()
             self.assertTrue(run["timed_out"])
             self.assertIsNotNone(process.process.returncode)
+
+    @unittest.skipUnless(os.name == "posix", "Owned process groups require Unix")
+    def test_interruption_requires_natural_descendant_cleanup(self):
+        for reap_child, new_group in ((False, False), (False, True), (True, True)):
+            with self.subTest(reap_child=reap_child, new_group=new_group), tempfile.TemporaryDirectory() as output:
+                profile = self.profile(output)
+                ready = profile.workspace / "ready"
+                code = "\n".join([
+                    "import os, pathlib, signal, subprocess, sys, time",
+                    "child = subprocess.Popen(['/bin/sleep', '60'], preexec_fn=os.setpgrp)" if new_group else
+                    "child = subprocess.Popen(['/bin/sleep', '60'])",
+                    "def stop(*args):",
+                    "    child.terminate(); child.wait()" if reap_child else "    pass",
+                    "    sys.exit(0)",
+                    "signal.signal(signal.SIGINT, stop)",
+                    "pathlib.Path(sys.argv[1]).write_text(str(child.pid))",
+                    "while True: time.sleep(0.01)",
+                ])
+                process = Process([sys.executable, "-c", code, str(ready)], profile.environment(sys.executable),
+                                  profile.workspace, profile.logs, "interrupt", 1, guarded=False)
+                run = process.wait(condition=ready.exists)
+                self.assertTrue(run["interrupted"])
+                self.assertEqual(run["signal_scope"], "client_leader")
+                self.assertTrue(run["observed_exit_before_cleanup"])
+                self.assertEqual(run["natural_cleanup"], reap_child)
+                self.assertEqual(run["forced_cleanup"], not reap_child)
+                self.assertTrue(run["cleanup_verified"])
+                self.assertEqual(run["cleanup_scope"], "owned_session_and_receipt_identified_bridges")
+                self.assertIn("Fully detached", run["cleanup_limitation"])
+                child_status = subprocess.run(["/bin/ps", "-p", ready.read_text(), "-o", "stat="],
+                                              capture_output=True, text=True, check=False).stdout.strip()
+                self.assertTrue(not child_status or child_status.startswith("Z"), child_status)
+
+    @unittest.skipUnless(os.name == "posix", "Owned process sessions require Unix")
+    def test_stale_membership_does_not_authorize_signaling_another_session(self):
+        with tempfile.TemporaryDirectory() as output:
+            profile = self.profile(output)
+            unrelated = subprocess.Popen(["/bin/sleep", "60"], start_new_session=True)
+            process = Process(["/bin/sleep", "60"], profile.environment("/bin/sleep"),
+                              profile.workspace, profile.logs, "session-identity", 0.2, guarded=False)
+            try:
+                with patch.object(process, "live_owned_members", return_value=[unrelated.pid]):
+                    process.signal_owned(signal.SIGKILL)
+                self.assertIsNone(unrelated.poll())
+            finally:
+                process.close()
+                unrelated.terminate()
+                unrelated.wait()
 
     def test_relative_binary_path_rejected(self):
         with self.assertRaises(ValueError):

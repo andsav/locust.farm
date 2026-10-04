@@ -95,12 +95,6 @@ class Process:
                                             stdout=out, stderr=err, start_new_session=True)
         self.pgid = self.process.pid
 
-    def signal(self, sig):
-        try:
-            os.killpg(self.pgid, sig)
-        except ProcessLookupError:
-            pass
-
     def wait(self, condition=None, observe=None):
         deadline = self.started + self.timeout
         while self.process.poll() is None:
@@ -108,15 +102,21 @@ class Process:
                 observe(self)
             if condition and condition():
                 self.interrupted = True
-                self.signal(signal.SIGINT)
+                try:
+                    self.process.send_signal(signal.SIGINT)
+                except ProcessLookupError:
+                    pass
                 break
             if time.monotonic() >= deadline:
                 self.timed_out = True
                 break
             time.sleep(0.02)
-        if self.process.poll() is None:
-            grace = time.monotonic() + (self.timeout if self.interrupted else 0)
-            while self.process.poll() is None and time.monotonic() < grace:
+        if self.interrupted:
+            grace = time.monotonic() + self.timeout
+            while time.monotonic() < grace:
+                if self.process.poll() is not None and not self.live_owned_members() and not any(
+                        self.owned_child_alive(pid) for pid in self.children):
+                    break
                 if observe:
                     observe(self)
                 time.sleep(0.02)
@@ -125,37 +125,41 @@ class Process:
         self.observed_exit = self.process.poll() is not None
         self.close()
         return {"argv": self.argv, "exit_code": self.process.returncode, "timed_out": self.timed_out,
-                "interrupted": self.interrupted, "elapsed_ms": round((time.monotonic() - self.started) * 1000),
+                "interrupted": self.interrupted, "signal_scope": "client_leader" if self.interrupted else None,
+                "natural_cleanup": self.observed_exit and not self.forced_cleanup, "elapsed_ms": round((time.monotonic() - self.started) * 1000),
                 "observed_exit_before_cleanup": self.observed_exit, "forced_cleanup": self.forced_cleanup,
-                "cleanup_verified": not self.live_group_members() and not any(self.owned_child_alive(pid) for pid in self.children),
+                "cleanup_verified": not self.live_owned_members() and not any(self.owned_child_alive(pid) for pid in self.children),
+                "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+                "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
                 "stdout": str(self.stdout_path), "stderr": str(self.stderr_path)}
 
     def close(self):
         if self.closed:
             return
         self.closed = True
-        self.forced_cleanup = (self.process.poll() is None or bool(self.live_group_members()) or
+        self.forced_cleanup = (self.process.poll() is None or bool(self.live_owned_members()) or
                                any(self.owned_child_alive(pid) for pid in self.children))
-        # Kill the entire owned group even when the group leader already exited.
-        self.signal(signal.SIGTERM)
+        # A helper may create another process group while remaining in the
+        # client's session. Clean every live member of that owned session.
+        self.signal_owned(signal.SIGTERM)
         if self.process.poll() is None:
             try:
                 self.process.wait(timeout=self.timeout)
             except subprocess.TimeoutExpired:
                 pass
-        if self.live_group_members():
-            self.signal(signal.SIGKILL)
+        if self.live_owned_members():
+            self.signal_owned(signal.SIGKILL)
         self.process.wait()
         for pid in self.children:
             if self.owned_child_alive(pid):
-                os.kill(pid, signal.SIGTERM)
+                self.signal_child(pid, signal.SIGTERM)
                 deadline = time.monotonic() + self.timeout
                 while self.owned_child_alive(pid) and time.monotonic() < deadline:
                     time.sleep(0.02)
                 if self.owned_child_alive(pid):
-                    os.kill(pid, signal.SIGKILL)
+                    self.signal_child(pid, signal.SIGKILL)
         deadline = time.monotonic() + self.timeout
-        while (self.live_group_members() or any(self.owned_child_alive(pid) for pid in self.children)) and time.monotonic() < deadline:
+        while (self.live_owned_members() or any(self.owned_child_alive(pid) for pid in self.children)) and time.monotonic() < deadline:
             time.sleep(0.02)
 
     def register_child(self, pid, executable, events_file):
@@ -172,11 +176,42 @@ class Process:
         return bool(text and not text.startswith("Z") and
                     all(expected in text for expected in self.children[pid]))
 
-    def live_group_members(self):
-        listing = subprocess.run(["/bin/ps", "-axo", "pid=,pgid=,stat="], capture_output=True,
+    def signal_owned(self, sig):
+        for pid in self.live_owned_members():
+            try:
+                # Revalidate the private session immediately before signaling;
+                # a stale process listing alone never authorizes a signal.
+                if os.getsid(pid) == self.pgid:
+                    os.kill(pid, sig)
+            except ProcessLookupError:
+                pass
+
+    def signal_child(self, pid, sig):
+        if self.owned_child_alive(pid):
+            try:
+                os.kill(pid, sig)
+            except ProcessLookupError:
+                pass
+
+    def live_owned_members(self):
+        # start_new_session gives this invocation a private session. Helpers
+        # may change their process group without leaving it. A fully detached
+        # bridge remains observable through its unique receipt-path identity;
+        # other descendants that create a new session are outside this proof.
+        listing = subprocess.run(["/bin/ps", "-axo", "pid=,stat="], capture_output=True,
                                  text=True, env={}, check=True).stdout
-        return [int(fields[0]) for line in listing.splitlines() if len(fields := line.split()) == 3
-                and fields[1] == str(self.pgid) and not fields[2].startswith("Z")]
+        members = []
+        for line in listing.splitlines():
+            fields = line.split()
+            if len(fields) != 2 or fields[1].startswith("Z"):
+                continue
+            pid = int(fields[0])
+            try:
+                if os.getsid(pid) == self.pgid:
+                    members.append(pid)
+            except ProcessLookupError:
+                pass
+        return members
 
 
 class SocketFixture:

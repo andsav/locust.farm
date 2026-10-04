@@ -294,8 +294,8 @@ def _qualify(name, binary, args, result, profile):
             checks["permissive_" + operation] = assertion("pass" if passed else "fail", ("Default isolated Pi policy, no permission extension or bypass installed; " if name == "pi" else "Deliberately permissive policy; ") + "actual protocol + authenticated fixture receipts required", lifecycle["mcp_events"])
         held = fixture.wait_started.is_set() and any(event.get("tool") == WAIT and event.get("phase") == "start" for event in events)
         checks["held_wait"] = assertion("pass" if held else "fail", "Harness-held Unix socket wait reached by actual client MCP call")
-        stopped = lifecycle["observed_exit_before_cleanup"] and lifecycle["cleanup_verified"]
-        checks["interruption"] = assertion("pass" if held and lifecycle["interrupted"] and stopped else ("fail" if held else "not_run"), "Held wait, SIGINT, observed client exit, and no live owned processes required; cleanup metadata records forced outcomes")
+        stopped = lifecycle["natural_cleanup"] and lifecycle["cleanup_verified"] and not lifecycle["forced_cleanup"]
+        checks["interruption"] = assertion("pass" if held and lifecycle["interrupted"] and stopped else ("fail" if held else "not_run"), "Held wait, leader-only SIGINT, and natural exit of the owned session and receipt-identified bridges required; forced cleanup cannot pass; unobserved fully detached descendants are outside this evidence")
         session = session_identifier(name, lifecycle, profile)
         pi_path = profile.home / ".pi/agent/qualification-session.jsonl"
         pi_history = pi_path.read_bytes() if name == "pi" and pi_path.exists() else None
@@ -326,7 +326,7 @@ def _qualify(name, binary, args, result, profile):
         result["provider_errors"] = provider.errors
         good_execution = not provider.errors and all(not run["timed_out"] and run["cleanup_verified"] and
                             (run["exit_code"] == 0 or run["interrupted"] or bool(run.get("observed_policy_denials"))) for run in result["runs"])
-        checks["client_execution"] = assertion("pass" if good_execution else "fail", "Provider errors, timeout, exit code and cleanup outcomes checked separately from individual tool receipts")
+        checks["client_execution"] = assertion("pass" if good_execution else "fail", "Provider errors, timeout, exit code and cleanup of the owned session and receipt-identified bridges checked separately from individual tool receipts; unobserved fully detached descendants are outside this evidence")
         checks["receipt_integrity"] = assertion("pass", "Completed MCP logs parsed strictly; no malformed records ignored")
         private_write(profile.logs / "fixture-receipts.json", json.dumps(fixture.receipts, indent=2) + "\n")
     return result
