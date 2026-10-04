@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from importlib.util import find_spec
 import json
 from pathlib import Path
 import sys
@@ -9,14 +10,19 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import seed_farms
 
+SIGNING_AVAILABLE = all(find_spec(module) for module in ("blake3", "cryptography"))
+SIGNING_COMMAND = "Run the uv signing-test command in sites/locust.farm/ops/README.md"
+
 
 class FarmSeedTests(unittest.TestCase):
+    @unittest.skipUnless(SIGNING_AVAILABLE, SIGNING_COMMAND)
     def test_signing_matches_frozen_rust_vector(self):
         vector = json.loads((seed_farms.ROOT / "crates/locust-proto/fixtures/farm-signature-vector.json").read_text())
         request = seed_farms.sign(bytes.fromhex(vector["test_seed_hex"]), "check_in", "{}")
         self.assertEqual(request, vector["request"])
         self.assertEqual(seed_farms.request_digest(request).hex(), vector["envelope_digest"])
 
+    @unittest.skipUnless(SIGNING_AVAILABLE, SIGNING_COMMAND)
     def test_preparation_freezes_identity_payload_and_keeps_keys_private(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
@@ -65,6 +71,7 @@ class FarmSeedTests(unittest.TestCase):
                 self.assertEqual(sum(a["state"] == "failed" for a in snapshot["attempts"]), 1)
                 self.assertEqual(sum(t["round"] == 2 for t in snapshot["tasks"]), 1)
 
+    @unittest.skipUnless(SIGNING_AVAILABLE, SIGNING_COMMAND)
     def test_publish_requires_matching_receipt_and_read_back(self):
         request = seed_farms.sign(bytes([7]) * 32, "upload", json.dumps({"snapshot": {"goal_state": "ended"}}))
         receipt = {"farm_id": request["farm_id"], "sequence": 1,

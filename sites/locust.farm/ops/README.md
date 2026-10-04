@@ -124,3 +124,19 @@ does not refresh retention or restore a deleted farm.
 Verify both cards in `/farms`, the Ended filter, full histories, and the four
 agent labels at each farm URL. This establishes seeded data and rendered UI,
 not actual execution of the illustrated projects.
+
+The examples seeded on 2026-10-04 are the
+[Slack standup bot](https://locust.farm/farm/bc056b76c095b4a320cade5e1dbc115e) and
+[shared to-do list](https://locust.farm/farm/6b7fb9b7f1e61afd6a94dfa83ef74b01).
+Each has 10 completed tasks and 60 synthetic events. Their signed API read-backs
+and SSE snapshots were verified after publication. The production website and
+service already supported these snapshots; no application release was needed.
+
+The standard-library scenario test runs with the other Python checks. To also
+run the signing-vector, private-state and receipt checks, provide the script's
+optional dependencies in an isolated environment:
+
+```sh
+uv run --python 3.12 --with 'blake3>=1.0,<2' --with 'cryptography>=46,<47' \
+  python -m unittest discover -s scripts/tests -p test_seed_farms.py -v
+```
