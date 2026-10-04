@@ -60,7 +60,10 @@ impl Participant {
                 endpoint: locust_proto::id::EndpointId([21; 32]),
                 hints: vec![],
             },
-            0,
+            locust_proto::engine::PeerTime {
+                unix_ms: 0,
+                elapsed_ms: 0,
+            },
             &mut vec![],
         );
         let listener = UnixListener::bind(home.path().join("daemon.sock")).unwrap();

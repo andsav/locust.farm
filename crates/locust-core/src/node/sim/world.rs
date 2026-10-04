@@ -187,7 +187,14 @@ impl World {
         self.note(m, tag, || format!("<- {}", super::trace::brief(&input)));
         let mut out = Vec::new();
         let node = self.machines[m].node.as_mut().expect("a running machine");
-        node.peer(input, now_ms, &mut out);
+        node.peer(
+            input,
+            locust_proto::engine::PeerTime {
+                unix_ms: now_ms,
+                elapsed_ms: self.now / MS,
+            },
+            &mut out,
+        );
         Engine::take_changed(node);
         for output in out {
             match output {

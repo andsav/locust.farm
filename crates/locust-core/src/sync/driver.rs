@@ -3,7 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use locust_proto::engine::{ExchangeId, PeerInput, PeerOutput};
+use locust_proto::engine::{ExchangeId, PeerInput, PeerOutput, PeerTime};
 use locust_proto::event::WireEvent;
 use locust_proto::id::{EndpointId, GoalId, PublicKey};
 use locust_proto::invite::JoinRequest;
@@ -150,6 +150,8 @@ pub struct Driver {
     /// Frames of the exchange being handled, reused across calls.
     frames: Vec<SyncMessage>,
     finishing_accepted: HashSet<u64>,
+    /// Monotonic sample from the current input, never a persisted timestamp.
+    elapsed_ms: u64,
 }
 
 #[derive(Debug)]
@@ -203,9 +205,11 @@ impl Driver {
         &mut self,
         host: &mut dyn Host,
         input: PeerInput,
-        now_ms: u64,
+        time: PeerTime,
         out: &mut Vec<PeerOutput>,
     ) {
+        self.elapsed_ms = time.elapsed_ms;
+        let now_ms = time.unix_ms;
         match input {
             PeerInput::Poll => self.poll(host, now_ms, out),
             PeerInput::Writable(ExchangeId::Dialed(number)) => {
@@ -271,7 +275,7 @@ impl Driver {
     /// Marks changed goals due and opens every exchange that is due: changed,
     /// failed earlier, or not reconciled for [`ANTI_ENTROPY_MS`]. Joins take
     /// the place of the ordinary exchange for their (goal, endpoint).
-    fn poll(&mut self, host: &mut dyn Host, now_ms: u64, out: &mut Vec<PeerOutput>) {
+    fn poll(&mut self, host: &mut dyn Host, _now_ms: u64, out: &mut Vec<PeerOutput>) {
         let mut changed = host.take_changed();
         changed.sort_unstable();
         let joins = host.joins();
@@ -294,11 +298,11 @@ impl Driver {
             link.due |= changed.binary_search(&pair.0).is_ok()
                 || link
                     .last_open_ms
-                    .is_none_or(|last| now_ms.saturating_sub(last) >= ANTI_ENTROPY_MS);
+                    .is_none_or(|last| self.elapsed_ms.saturating_sub(last) >= ANTI_ENTROPY_MS);
             let ready = self
                 .backoff
                 .get(&pair.1)
-                .is_none_or(|backoff| now_ms >= backoff.retry_at_ms);
+                .is_none_or(|backoff| self.elapsed_ms >= backoff.retry_at_ms);
             if !link.due || link.in_flight.is_some() || !ready {
                 continue;
             }
@@ -306,7 +310,7 @@ impl Driver {
             self.next_dialed += 1;
             link.due = false;
             link.in_flight = Some(number);
-            link.last_open_ms = Some(now_ms);
+            link.last_open_ms = Some(self.elapsed_ms);
             let (initiator, hints) = match join {
                 Some(join) => (Initiator::joining(join.request.clone()), join.hints.clone()),
                 None => (Initiator::new(pair.0), host.hints(&pair.1)),
@@ -416,12 +420,12 @@ impl Driver {
                 retry_at_ms: 0,
             });
             // Exchanges opened before the last failure do not double it.
-            if now_ms >= backoff.retry_at_ms {
+            if self.elapsed_ms >= backoff.retry_at_ms {
                 backoff.delay_ms = (backoff.delay_ms * 2).clamp(MIN_BACKOFF_MS, MAX_BACKOFF_MS);
                 // Both ends of a failed exchange back off; jitter keeps them
                 // from retrying in the same order again and again.
                 let jitter = host.random() % (backoff.delay_ms / 2);
-                backoff.retry_at_ms = now_ms + backoff.delay_ms - jitter;
+                backoff.retry_at_ms = self.elapsed_ms.saturating_add(backoff.delay_ms - jitter);
             }
         }
         host.exchange_ended(Report {

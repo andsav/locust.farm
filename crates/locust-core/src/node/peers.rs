@@ -1,6 +1,6 @@
 //! The transport's side of the node, including durable invitation redemption.
 use locust_proto::api::PeerView;
-use locust_proto::engine::{Entropy, PeerEngine, PeerInput, PeerOutput};
+use locust_proto::engine::{Entropy, PeerEngine, PeerInput, PeerOutput, PeerTime};
 use locust_proto::event::Body;
 use locust_proto::id::{EndpointId, GoalId};
 use locust_proto::invite::JoinRequest;
@@ -54,7 +54,7 @@ impl<S: Store, E: Entropy> PeerEngine for Node<S, E> {
     fn endpoint_secret(&self) -> [u8; 32] {
         self.identity.endpoint_secret
     }
-    fn peer(&mut self, input: PeerInput, now_ms: u64, out: &mut Vec<PeerOutput>) {
+    fn peer(&mut self, input: PeerInput, time: PeerTime, out: &mut Vec<PeerOutput>) {
         if self.failed {
             return;
         }
@@ -80,7 +80,7 @@ impl<S: Store, E: Entropy> PeerEngine for Node<S, E> {
             return;
         }
         let mut driver = std::mem::take(&mut self.peer_driver);
-        driver.handle(self, input, now_ms, out);
+        driver.handle(self, input, time, out);
         self.peer_driver = driver;
         self.replica_goal = None;
     }

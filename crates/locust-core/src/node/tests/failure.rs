@@ -137,7 +137,10 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
                 endpoint: EndpointId([31; 32]),
                 hints: vec![],
             },
-            0,
+            locust_proto::engine::PeerTime {
+                unix_ms: 0,
+                elapsed_ms: 0,
+            },
             &mut Vec::new(),
         );
         let hello = ClientHello {

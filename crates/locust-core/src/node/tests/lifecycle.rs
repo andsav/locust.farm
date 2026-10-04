@@ -13,7 +13,10 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
             endpoint: EndpointId([21; 32]),
             hints: vec![],
         },
-        0,
+        locust_proto::engine::PeerTime {
+            unix_ms: 0,
+            elapsed_ms: 0,
+        },
         &mut Vec::new(),
     );
     let principal = daemon.enroll("coordinator", 1, true);

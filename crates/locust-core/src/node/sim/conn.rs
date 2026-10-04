@@ -2,7 +2,7 @@
 //! to both when a machine stops, sleeps or wakes.
 //!
 //! Each end of a connection has its own belief about whether it is alive.
-//! A shell opens exchanges over the first connection it believes alive, so
+//! A shell opens exchanges over the newest connection it believes alive, so
 //! after the other end vanished without a word an exchange opens, carries
 //! nothing, and ends at the shell's idle deadline. That is how the daemon
 //! behaves over QUIC, and it is where most recovery time goes.
@@ -43,10 +43,10 @@ impl Conn {
 }
 
 impl World {
-    /// The first connection from `m` to `to` that `m`'s shell believes alive.
+    /// The newest connection from `m` to `to` that `m`'s shell believes alive.
     pub(super) fn believed_conn(&self, m: usize, to: usize) -> Option<usize> {
         let boot = self.machines[m].boot;
-        self.net.conns.iter().position(|conn| {
+        self.net.conns.iter().rposition(|conn| {
             let end = conn.end_of(m);
             conn.ends[end] == m
                 && conn.ends[1 - end] == to
@@ -106,6 +106,23 @@ impl World {
             let input = PeerInput::OpenFailed(exchange);
             return self.schedule(deadline, Ev::Local { m, boot, input });
         };
+        // A newly authenticated connection replaces old connections, while
+        // preserving simultaneous dials younger than the production grace.
+        for (local, remote) in [(m, to), (to, m)] {
+            let boot = self.machines[local].boot;
+            for index in 0..self.net.conns.len() {
+                let conn = &self.net.conns[index];
+                let end = conn.end_of(local);
+                if conn.ends[end] == local
+                    && conn.ends[1 - end] == remote
+                    && conn.boots[end] == boot
+                    && conn.alive[end]
+                    && self.now - conn.created >= super::REPLACED_AFTER_MS * MS
+                {
+                    self.close_conn(index, end);
+                }
+            }
+        }
         // A shell keeps at most two connections to a peer, which is what
         // two simultaneous dials need, and closes any further one.
         if self.believed_conns(m, to) >= 2 {
@@ -384,5 +401,35 @@ impl World {
                 self.release_held();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn simulated_shell_reuses_newest_and_expires_dead_connections_after_fifteen_seconds() {
+        let mut world = World::new(1, 2);
+        world.start(0);
+        world.start(1);
+        for _ in 0..2 {
+            world.net.conns.push(Conn {
+                ends: [0, 1],
+                boots: [1, 1],
+                alive: [true, true],
+                last_ok: [0; 2],
+                admitted: [true; 2],
+                created: 0,
+            });
+        }
+        assert_eq!(world.believed_conn(0, 1), Some(1));
+        world.stop(1, false);
+        world.now = 14_999 * MS;
+        world.shell_timers(0);
+        assert_eq!(world.believed_conn(0, 1), Some(1));
+        world.now = 15_000 * MS;
+        world.shell_timers(0);
+        assert_eq!(world.believed_conn(0, 1), None);
     }
 }

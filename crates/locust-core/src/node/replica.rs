@@ -205,6 +205,33 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
         }
         self.land(tx).is_ok()
     }
+    fn founding_blob(&self) -> Option<(BlobHash, u64)> {
+        let goal = self.replica_id();
+        let entry = &self.goals[&goal];
+        let wanted = self.blob_index.wanted(&goal)?;
+        entry
+            .goal
+            .authors()
+            .flat_map(|author| entry.goal.points(author))
+            .find_map(|point| {
+                let event = entry.goal.event(&point.id)?;
+                if !matches!(event.header().body, Body::Genesis(_))
+                    || entry.goal.standing(&point.id) != Some(crate::goal::Standing::Effective)
+                {
+                    return None;
+                }
+                let hash = event.header().payload?.hash;
+                wanted
+                    .contains(&hash)
+                    .then(|| {
+                        self.store
+                            .staged_len(&hash)
+                            .ok()
+                            .map(|offset| (hash, offset))
+                    })
+                    .flatten()
+            })
+    }
     fn wanted_blobs(&self, limit: usize) -> Vec<(BlobHash, u64)> {
         let mut result = Vec::new();
         let mut after = None;

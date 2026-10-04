@@ -1,0 +1,105 @@
+{
+  "architecture": "arm64",
+  "binary": {
+    "api_version": 1,
+    "embedded_commit": "c74e4511f120c57a6440ffc6cfa99ff749faed04",
+    "protocol_version": 1,
+    "sha256": "38a34d798e73d2e1b00eae03af9a45355c3f2b424bf84e9eb79865a71b0bda33",
+    "version": "0.1.0",
+    "version_line": "locust 0.1.0 (c74e4511f120c57a6440ffc6cfa99ff749faed04) api 1 protocol 1"
+  },
+  "cases": {
+    "competing_patches": {
+      "base": "7e54e08dac8f7bb9ae181d74a412484789ef70be6b2400440a26b0c7a19e4bbe",
+      "dirty_apply": "conflict",
+      "patch_interruption": {
+        "durable_prefix_bytes": 1048576,
+        "hash": "b1cde7f3ce3921c312fb42b7d1e45031c478da5e8c288525d6daa28c5f37bb32",
+        "prefix_bytes": 1048576,
+        "prefix_sha256": "362d608600a6212517a814e2f9817d15085a9292a4d0ce9753bf63800b7fceb6"
+      },
+      "patches": [
+        "031e082b795609c600fbd25d50fa29cc9609b8f1e00b46523adfef728e7c19a1",
+        "9674806000e62008db8fc820d5e88e42f71183448490d2778a3ceec8f98f115f"
+      ],
+      "results": [
+        "85d92443a3ab4ce24a79f26c0e26b8c97f91d59f3c9ba6e3f830b287b640faea",
+        "c58839f1508c9a678f73cba8ac1abedd1fb45ef0922b02c3d2ac464baf69f037"
+      ],
+      "stale_acceptance": "conflict",
+      "status": "passed"
+    },
+    "conflicting_documents": {
+      "accepted": "87a53206c194408ed72d1d3c65298415d627790a9e798b3d3a598c8397ccbc76",
+      "retained_stale": "ce9b55f6c0dea7da9c1734c88989fe10dafdde15d8f1bdcd8cd7d98989b8e243",
+      "status": "passed"
+    },
+    "offline_cancellation": {
+      "acknowledgment": "5f38a43807db374993477ad4b9ec8bb12585a33c5e36e146581462b7f157d47a",
+      "assignment": "256519bffb7b7a977bbfd175fe609562b4a565d48d736d93c156ac7bd40c1c74",
+      "cancellation": "6838065a5df48cf665af23aa665902ebe431b7a229ef504101c0853f7fbcebe9",
+      "status": "passed"
+    },
+    "offline_member_rotation": {
+      "current_member_recovered_key": true,
+      "future": "edf29bac3c5e8ee1a752f730f869b9669431bf6641509149902b41f0223c0d31",
+      "goal": "8bf7cac97915600af9f2aef0dcd2c34b0edf65b0d88fc7e404294771c6b17225",
+      "removal": "7401cc7cc0ac1abdd98d1d52a807d08cc7b0c1c4e4fc9fcd9a63dac9ac596261",
+      "removal_body": {
+        "member_removed": {
+          "last_accepted": null,
+          "member": "bd34ddbc656328bcbb5dd27cfd09ca6ae2de0e573f54ee0b08ec157812aec82b"
+        }
+      },
+      "removed_local_view": "may remain stale; protocol refuses ordinary sync before notification",
+      "status": "passed",
+      "unreplicated_offline_event": "00725cd83e5adbe8dad7e5e4d020328a5c18ddee7c0697e59e6683badde8305a"
+    },
+    "snapshot_resume_retained_replica": {
+      "bytes": 12582912,
+      "interruption": {
+        "durable_prefix_bytes": 1048576,
+        "hash": "38bf4992cb1bc7b8678cc314835005e298867b285f18349ce6f2848a7c0d1c64",
+        "prefix_bytes": 1048576,
+        "prefix_sha256": "b6bf55d7bbfa30532168eabf45042aa41215c60ac73081799d539f12633f7afd"
+      },
+      "original_source_offline": true,
+      "sha256": "8b54debaa89f78212f6afb00c7ebb2780f3604c4caa8c97c395576a50d5d6a6a",
+      "status": "passed"
+    },
+    "withdrawal_leave": {
+      "metadata_event": "8968f53fd0b1ff9b3a43e3aefeac2231904646b9e7e3a2df65e124b9d119a43c",
+      "payload": "35e27d2d0fc68b0131f01e7513a4ce9c8e2ca901d7c573666fd2507ca10ddefe",
+      "retained_other_replica": true,
+      "status": "passed"
+    }
+  },
+  "evidence_level": "three production daemon processes on one macOS host; synthetic files and principals",
+  "finished_at": "2026-10-04T06:33:27.360071+00:00",
+  "harness_sha256": "a1d6ab4a4e42af18f73627f9d0206552b5790365a1f08235f4fa010dc096e3d5",
+  "not_qualified": [
+    "physical machines",
+    "OS sleep/wake",
+    "independent people/accounts",
+    "installed clients",
+    "public release",
+    "later changed binaries",
+    "local-discovery-only profile"
+  ],
+  "observed_selected_routes": [
+    "direct",
+    "relay"
+  ],
+  "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+  "raw_summary_sha256": "53b7133993d639a512905b15d1e7ccde7620b1ba52d5f135c0e02fc42ac86389",
+  "redacted_transcript_sha256": "cca9b0ff1394fef59817aa4a1dbb75682fc2c298d3b7fb16103b36e77c5a7abf",
+  "run_id": "20261004T063215Z-2b2b564c",
+  "started_at": "2026-10-04T06:32:15.727320+00:00",
+  "status": "passed",
+  "transport": {
+    "LOCUST_LOOKUP": "all",
+    "LOCUST_RELAY": "n0",
+    "configuration": "daemon defaults; inherited overrides removed",
+    "mode": "default"
+  }
+}

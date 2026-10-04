@@ -21,7 +21,8 @@
 //!   per exchange reset by a frame in either direction, the same deadline
 //!   on connects and on admitting a connection, a paused reader while the
 //!   engine owes answers, at most two connections per peer, and reuse of
-//!   the first one believed alive, as in
+//!   the newest one believed alive, replacing connections at least two
+//!   seconds old when another arrives, as in
 //!   `crates/locust/src/daemon/network.rs`.
 //! - **The network** ([`net`], [`stream`]): per ordered pair of machines,
 //!   packets pass or not. An exchange is an ordered stream; streams are
@@ -68,9 +69,11 @@ const POLL_MS: u64 = 1_000;
 const IO_IDLE_MS: u64 = 30_000;
 
 /// How long a connection survives without hearing from its other end: the
-/// transport's idle timeout. Assumed, not read from the product, which
-/// leaves it at the transport's default.
-const CONN_IDLE_MS: u64 = 30_000;
+/// transport's idle timeout (`locust_net::CONNECTION_IDLE`).
+const CONN_IDLE_MS: u64 = 15_000;
+
+/// Mirrors the daemon shell's `REPLACED_AFTER` simultaneous-dial grace.
+const REPLACED_AFTER_MS: u64 = 2_000;
 
 /// The frame limit the shell grants for one fork proof
 /// (`EVIDENCE_FRAME_BYTES` in the network shell).

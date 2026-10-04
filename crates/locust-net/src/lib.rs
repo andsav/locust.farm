@@ -207,7 +207,7 @@ impl fmt::Display for TransportError {
 impl std::error::Error for TransportError {}
 
 #[derive(Debug, Clone)]
-pub struct Endpoint(iroh::Endpoint);
+pub struct Endpoint(iroh::Endpoint, bool);
 
 impl Endpoint {
     pub async fn bind(config: EndpointConfig) -> Result<Self, TransportError> {
@@ -218,6 +218,7 @@ impl Endpoint {
         {
             return Err(TransportError::InvalidBudget);
         }
+        let relays_enabled = !matches!(config.relays, RelayConfig::Disabled);
         let relays = match config.relays {
             RelayConfig::Disabled => iroh::RelayMode::Disabled,
             RelayConfig::N0 => iroh::RelayMode::Default,
@@ -275,7 +276,7 @@ impl Endpoint {
         builder
             .bind()
             .await
-            .map(Self)
+            .map(|endpoint| Self(endpoint, relays_enabled))
             .map_err(|_| TransportError::Bind)
     }
 
@@ -306,6 +307,11 @@ impl Endpoint {
                 value = watcher.updated() => { value.ok()?; }
             }
         }
+    }
+
+    /// Whether this endpoint was configured to use a relay.
+    pub fn relays_enabled(&self) -> bool {
+        self.1
     }
 
     /// Relay readiness only. Without relays this waits until canceled.

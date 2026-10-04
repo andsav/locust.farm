@@ -162,6 +162,21 @@ pub(crate) async fn serve(
             () = stopping(&mut stop) => break,
             Some(action) = output.recv() => match action {
                 NetworkOutput::Processed(done) => { let _ = done.send(()); }
+                NetworkOutput::Invite { conn, frame } => {
+                    let endpoint = endpoint.clone();
+                    let jobs = jobs.clone();
+                    tasks.spawn(async move {
+                        // Readiness belongs to this invitation, never startup or the engine thread.
+                        // At the existing transport deadline keep useful direct hints even offline.
+                        if endpoint.relays_enabled() {
+                            let _ = tokio::time::timeout(IO_IDLE, endpoint.online()).await;
+                        }
+                        let _ = jobs.send(Job::Peer(PeerInput::Endpoint {
+                            endpoint: endpoint.id(), hints: endpoint.hints(),
+                        }));
+                        let _ = jobs.send(Job::InviteReady { conn, frame });
+                    });
+                }
                 NetworkOutput::Action(action) => match action {
                     PeerOutput::Open { exchange, endpoint: peer, hints } => {
                         // The newest connection: an older one may be to a process that is gone.

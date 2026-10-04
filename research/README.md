@@ -112,3 +112,7 @@ For Locust, the proposed direction is a small Rust daemon with explicit invitati
 MoltMesh findings target default branch `actor-model`, exact commit [`707c870e3188df243e5aea3c4662daa3253270bc`](https://github.com/sahilpohare/MoltMesh/commit/707c870e3188df243e5aea3c4662daa3253270bc), dated 2026-09-17 and inspected on 2026-10-03. Links into that repository are pinned to the reviewed commit. Landscape documentation and GitHub status observations are dated snapshots and should be refreshed before dependency selection.
 
 Documents distinguish implemented behavior, source-based findings, locally reproduced observations, inferred risks and proposed work. This research does not certify the protocol or claim a production penetration test, WAN validation, BFT proof, scale benchmark or language-model collaboration trial. Accepted decisions should be recorded separately in [`docs/`](../docs/README.md), with links back to this evidence.
+
+- [Final network hardening](network-hardening-final.md): retained founding proof recovery, monotonic retry time, asynchronous invite address discovery and offline removal boundaries.
+- [Operational qualification](operational-qualification.md): pinned three-daemon document, transfer, workspace, cancellation, withdrawal and rotation workflows.
+- [Operational qualification evidence](operational-qualification-evidence.json): retained structured results for the six operational cases.
