@@ -239,9 +239,9 @@ specifies, with names provisional until O1 freezes them.
   chord exists. xyflow itself has no keyboard edge creation. [V]
 - Licensing: Locust is Apache-2.0; dreamcolor10 has no LICENSE file and only
   `license = "MIT"` in Cargo metadata; all relevant commits are the owner's;
-  Phosphor icons are MIT but no notice ships with them. A fork into Locust
-  therefore needs the owner's statement that the code is contributed under
-  Apache-2.0, and copies no Polaris icons. [V; I]
+  Phosphor icons are MIT but no notice ships with them. The owner confirmed on
+  2026-10-04 that they own the code and licensing needs no step; the fork
+  copies no Polaris icons. [V; owner]
 - `@33ccff/galaxy` is a repository-map visualization, not a design system; no
   canvas file imports it. It was the precedent for a Git dependency pinned to a
   full SHA, considered for a shared package before the owner chose a fork. [V]
@@ -593,8 +593,7 @@ Parts of findings not adopted, with the verified reason:
 10. Which getrandom remedy does lane A accept for the WebAssembly crate: a
     target-specific `wasm_js` feature, or a crate or feature boundary around the
     pure contract?
-11. The owner's statement that the forked Polaris code is contributed under
-    Apache-2.0 (plan WD1); whether a binary export may live in Git (WD5).
+11. Whether a binary export may live in Git (WD5).
 12. Will the availability record carry capability and blueprint-format entries
     (WR13)?
 13. Which style policy does xyflow's inline styling need under the site's
