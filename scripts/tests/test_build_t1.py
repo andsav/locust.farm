@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from build_t1 import (
@@ -17,6 +18,7 @@ from build_t1 import (
     run_command,
     verify_artifact,
     verify_version,
+    reject_cargo_configs,
 )
 
 
@@ -24,6 +26,7 @@ class FakeBuilder:
     def __init__(self, repo):
         self.repo = repo
         self.commands = []
+        self.environments = []
         self.body = b"identified test executable"
         self.version_output = None
         self.installed = TARGET
@@ -31,36 +34,60 @@ class FakeBuilder:
         self.build_hook = None
         self.build_failure = False
         self.wrong_target = False
+        self.build_source = None
+        self.compiled_main = None
+        self.tools = repo / "test-tools"
+        self.tools.mkdir()
+        for tool in ("rustup", "cargo", "rustc", "clang", "clang++", "ar"):
+            path = self.tools / tool
+            path.write_text(f"fixture {tool}\n")
+            path.chmod(0o755)
 
-    def __call__(self, argv, *, cwd):
+    def __call__(self, argv, *, cwd, env=None):
         self.commands.append(argv)
+        self.environments.append((argv, cwd, dict(env or {})))
         if argv[0] == "git":
-            return run_command(argv, cwd=cwd)
+            return run_command(argv, cwd=cwd, env=env)
         output = ""
-        if argv[0] == "cargo" and "--version" in argv:
+        tool = Path(argv[0]).name
+        if tool == "cargo" and "--version" in argv:
             output = "cargo 1.96.1 (test)\n"
-        elif argv[0] == "rustc":
+        elif tool == "rustc":
             output = "rustc 1.96.1 (test)\n" + self.compiler + "\n"
-        elif argv[0] == "rustup":
-            output = self.installed + "\n"
-        elif argv[0] == "cargo" and "build" in argv:
+        elif tool == "rustup":
+            output = str(self.tools / argv[-1]) + "\n" if "which" in argv else self.installed + "\n"
+        elif tool == "xcode-select":
+            output = str(self.repo / "test-developer") + "\n"
+        elif tool == "xcrun":
+            if "--find" in argv:
+                output = str(self.tools / argv[-1]) + "\n"
+            elif "--show-sdk-path" in argv:
+                output = str(self.repo / "test-sdk") + "\n"
+            else:
+                output = "26.4\n"
+        elif tool == "clang" and "--version" in argv:
+            output = "Apple clang fixture\n"
+        elif tool == "cargo" and "build" in argv:
+            self.build_source = cwd
+            self.compiled_main = (cwd / "crates/locust/src/main.rs").read_bytes()
             if self.build_failure:
                 return subprocess.CompletedProcess(argv, 1, "", "fixture compilation failed\n")
-            binary = cwd / "target/lane-b-t1" / TARGET / "release/locust"
+            binary = Path(argv[argv.index("--target-dir") + 1]) / TARGET / "release/locust"
             binary.parent.mkdir(parents=True, exist_ok=True)
             header = struct.pack("<8I", 0xFEEDFACF, 0x0100000C, 0, 2, 0, 0, 0, 0)
             binary.write_bytes((b"not arm64" if self.wrong_target else header) + self.body)
             binary.chmod(0o755)
             if self.build_hook:
                 self.build_hook()
-        elif Path(argv[0]).name == "locust" and argv[1:] == ["--version"]:
-            commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=cwd, text=True).strip()
+        elif tool == "locust" and argv[1:] == ["--version"]:
+            commit = env["LOCUST_BUILD_COMMIT"]
             output = self.version_output if self.version_output is not None else f"locust 0.1.0 ({commit})\n"
         else:
             raise AssertionError(f"Unexpected command: {argv}")
         return subprocess.CompletedProcess(argv, 0, output, "")
 
 
+@unittest.skipIf(sys.version_info < (3, 11), "build helper requires Python 3.11+")
 class T1BuildTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
@@ -83,6 +110,9 @@ class T1BuildTests(unittest.TestCase):
         self.git("commit", "-qm", "fixture source")
         self.commit = self.git("rev-parse", "HEAD").strip()
         self.runner = FakeBuilder(self.repo)
+        which = patch("build_t1.shutil.which", return_value=str(self.runner.tools / "rustup"))
+        which.start()
+        self.addCleanup(which.stop)
 
     def git(self, *arguments):
         return subprocess.check_output(["git", *arguments], cwd=self.repo, text=True)
@@ -113,7 +143,14 @@ class T1BuildTests(unittest.TestCase):
         self.assertEqual(metadata["sha256"], result["sha256"])
         self.assertEqual(Path(result["sha256_file"]).read_text(), f'{result["sha256"]}  locust\n')
         command = next(command for command in self.runner.commands if "build" in command)
-        self.assertEqual(command[:4], ["cargo", "+1.96.1", "build", "--locked"])
+        self.assertEqual(command[:3], [str(self.runner.tools / "cargo"), "build", "--locked"])
+        self.assertEqual(result["source_snapshot"]["method"], "verified_git_archive")
+        self.assertFalse(result["source_snapshot"]["checkout_bytes_used"])
+        self.assertFalse(result["build_environment"]["hermetic"])
+        self.assertEqual(result["build_environment"]["reproducibility"], "not_verified")
+        self.assertEqual(result["build_environment"]["cargo_arguments"][:3], ["build", "--locked", "--release"])
+        self.assertNotEqual(self.runner.build_source, self.repo)
+        self.assertFalse(self.runner.build_source.exists(), "private source snapshot is removed")
         self.assertIn("--release", command)
         self.assertEqual(command[command.index("--target") + 1], TARGET)
         self.assertEqual(command[command.index("--bin") + 1], "locust")
@@ -250,6 +287,100 @@ class T1BuildTests(unittest.TestCase):
         with self.assertRaises(BuildError) as error:
             verify_artifact(directory, metadata)
         self.assertEqual(error.exception.state, "artifact_collision")
+
+    def test_hidden_index_edits_cannot_enter_the_committed_snapshot(self):
+        path = "crates/locust/src/main.rs"
+        original = (self.repo / path).read_bytes()
+        for flag in ("skip-worktree", "assume-unchanged"):
+            with self.subTest(flag=flag):
+                self.git("update-index", f"--{flag}", path)
+                self.write(path, "hidden source that must never compile\n")
+                result = build(self.repo, self.runner)
+                self.assertEqual(result["commit"], self.commit)
+                self.assertEqual(self.runner.compiled_main, original)
+                self.assertNotEqual(self.runner.compiled_main, (self.repo / path).read_bytes())
+                self.git("update-index", f"--no-{flag}", path)
+                (self.repo / path).write_bytes(original)
+
+    def test_checkout_race_never_changes_the_snapshot_bytes(self):
+        path = "crates/locust/src/main.rs"
+        original = (self.repo / path).read_bytes()
+        def mutate_checkout():
+            self.write(path, "raced checkout edit\n")
+            self.assertEqual((self.runner.build_source / path).read_bytes(), original)
+        self.runner.build_hook = mutate_checkout
+        self.assert_state("dirty_build_inputs")
+        self.assertEqual(self.runner.compiled_main, original)
+
+    def test_local_export_attributes_cannot_change_the_snapshot(self):
+        self.write(".git/info/attributes", "Cargo.toml export-ignore\n")
+        self.assert_state("archive_mismatch")
+        self.assertIsNone(self.runner.build_source)
+
+    def test_symlinks_are_rejected_before_extraction(self):
+        (self.repo / "crates/locust/escape").symlink_to("/tmp")
+        self.git("add", "crates/locust/escape")
+        self.git("commit", "-qm", "fixture link")
+        self.assert_state("unsupported_source_entry")
+
+    def test_committed_cargo_config_cannot_install_a_wrapper(self):
+        self.write(".cargo/config.toml", '[build]\nrustc-wrapper = "/not-the-compiler"\n')
+        self.git("add", ".cargo/config.toml")
+        self.git("commit", "-qm", "fixture config")
+        self.assert_state("unsupported_cargo_config")
+        self.assertIsNone(self.runner.build_source)
+
+    def test_ancestor_cargo_configuration_is_also_refused(self):
+        parent = self.repo / "private-parent"
+        source = parent / "scratch/source"
+        source.mkdir(parents=True)
+        config = parent / ".cargo/config.toml"
+        config.parent.mkdir()
+        config.write_text('[build]\nrustc-wrapper = "/not-the-compiler"\n')
+        with self.assertRaises(BuildError) as error:
+            reject_cargo_configs(source, parent / "cargo-home")
+        self.assertEqual(error.exception.state, "unsupported_cargo_config")
+
+    def test_compiler_environment_is_controlled_and_recorded(self):
+        poison = {key: "/injected/value" for key in (
+            "PATH", "RUSTC", "RUSTDOC", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER",
+            "RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CARGO_HOME", "RUSTUP_HOME",
+            "CARGO_BUILD_RUSTC", "CARGO_BUILD_RUSTC_WRAPPER", "CARGO_TARGET_DIR",
+            "SDKROOT", "DEVELOPER_DIR", "CC", "CFLAGS", "LDFLAGS",
+            "DYLD_INSERT_LIBRARIES", "GIT_DIR", "GIT_CONFIG_COUNT",
+        )}
+        with patch.dict(os.environ, poison):
+            result = build(self.repo, self.runner)
+        argv, cwd, environment = next(item for item in self.runner.environments if "build" in item[0])
+        self.assertEqual(environment["RUSTC"], str(self.runner.tools / "rustc"))
+        self.assertEqual(argv[0], str(self.runner.tools / "cargo"))
+        self.assertEqual(environment["LOCUST_BUILD_COMMIT"], self.commit[:12])
+        self.assertNotEqual(environment["HOME"], str(Path.home()))
+        self.assertNotEqual(environment["CARGO_HOME"], str(Path.home() / ".cargo"))
+        self.assertTrue(environment["CARGO_ENCODED_RUSTFLAGS"].startswith("--remap-path-prefix="))
+        for key in ("RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER", "RUSTFLAGS", "DYLD_INSERT_LIBRARIES", "CFLAGS", "LDFLAGS"):
+            self.assertNotIn(key, environment)
+        for _, _, env in self.runner.environments:
+            self.assertNotIn("/injected/value", env.values())
+        recorded = result["build_environment"]
+        self.assertEqual(recorded["variables"]["HOME"], "<build>/home")
+        self.assertEqual(recorded["tools"]["rustc"]["sha256"], hashlib.sha256((self.runner.tools / "rustc").read_bytes()).hexdigest())
+
+    def test_ds_store_metadata_does_not_block_an_archive_build(self):
+        self.write("crates/locust/.DS_Store", "Finder metadata\n")
+        result = build(self.repo, self.runner)
+        self.assertEqual(result["status"], "built")
+
+    def test_compiler_replaced_during_build_is_not_misreported(self):
+        self.runner.build_hook = lambda: (self.runner.tools / "rustc").write_text("changed compiler bytes")
+        self.assert_state("tool_changed")
+        self.assertFalse((self.repo / "output/t1" / self.commit).exists())
+
+    def test_old_python_has_an_actionable_structured_error(self):
+        with patch("build_t1.sys.version_info", (3, 10, 0)):
+            error = self.assert_state("python_version_unsupported")
+        self.assertIn("Python 3.11", error.detail)
+        self.assertEqual(self.runner.commands, [])
 
 
 if __name__ == "__main__":
