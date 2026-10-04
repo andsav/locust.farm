@@ -51,10 +51,6 @@ mod tests;
 #[cfg(test)]
 pub(crate) struct EngineInit {
     /// The state directory, already created and locked for this daemon.
-    #[expect(
-        dead_code,
-        reason = "read by the engine that keeps its store there; the stand-in keeps nothing"
-    )]
     pub(crate) home: PathBuf,
     /// Digest of the owner's credential, which the engine recognizes the
     /// owner's hello by.

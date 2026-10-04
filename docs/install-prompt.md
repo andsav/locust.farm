@@ -6,6 +6,57 @@ There is no public release origin or production signing identity in this templat
 The [qualification records](release-evidence.md) determine which client and
 platform behavior has actually been exercised.
 
+## New client through `up`
+
+For a fresh selected profile, the implemented [onboarding route](onboarding.md)
+creates and preserves the enrolled credential and fixed session. It begins only
+after verified software activation; no existing credential/session input is
+needed. Native installed qualification of this new route is pending.
+
+```text
+Install this local Locust candidate, then onboard only my selected client:
+
+Trusted bootstrap executable: [absolute path]
+Extracted signed candidate directory: [absolute path]
+Independent public trust key: [absolute path]
+Signed withdrawal registry: [absolute path]
+Software prefix: [absolute path]
+Daemon data home: [absolute path]
+Client: [codex, claude, or pi]
+Client profile home: [absolute path]
+Workspace: [absolute path]
+Service: [launchd, systemd, or none]
+Service profile home: [absolute path]
+Private log directory: [absolute path]
+
+Read docs/installation.md and docs/onboarding.md in this source checkout.
+Verify with the trusted bootstrap and independent key/registry before executing
+the candidate. Review install plan and apply its unchanged digest. Use the
+installed current/locust --home [daemon data home] up with the explicit --client,
+--profile-home, --workspace, --service, --service-profile-home and --log-dir inputs
+above. Run --plan first and show the destinations. My authorization covers this
+verified software, selected service and client, its enrollment, protected session,
+operating skill, bound launcher and scoped MCP registration. Use --yes to apply
+these selected changes without a terminal prompt. If inputs exceed these
+destinations or permissions, stop for my decision.
+
+With service none, require an existing daemon. Otherwise wait for authenticated
+API readiness or interruption; use an explicit --wait-ms only if I request a
+maximum wait. If interrupted or setup is declined, preserve its journal and
+retry the same selections without recreating its identity. Do not change client
+approval/provider settings, expose secrets, grant work permission or create/join
+a goal. Start a fresh client chat and report configuration, daemon API readiness
+and actual client discovery separately. Report the installed source/manifest,
+profile and launcher paths, preserved identity, and exact stop/remove commands.
+```
+
+The selected profile has one fixed Locust session shared by its native chats.
+Software removal retains its onboarding journal and protected identity files.
+For an already-running daemon, `agent add CLIENT` supports the same explicit
+profile/workspace review without managing its service.
+
+## Existing explicit credential and session
+
 Replace every bracketed input before pasting. A credential and session belong to
 one dedicated client profile; obtain them through the daemon's explicit owner
 enrollment/session commands. Do not paste their contents into a conversation.

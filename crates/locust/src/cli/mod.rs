@@ -4,6 +4,7 @@ mod client;
 mod connection;
 mod doctor;
 mod install;
+mod onboarding;
 mod package;
 mod service;
 mod setup;
@@ -155,6 +156,9 @@ fn stdin_text() -> Result<String, Failure> {
 }
 fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let (operation, selected) = args::selected(matches);
+    if operation == "up" || operation == "agent.add" {
+        return onboarding::run(matches, &operation, selected);
+    }
     if operation.starts_with("setup.") {
         return setup::run(&operation, selected);
     }

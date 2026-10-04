@@ -16,6 +16,7 @@ use std::{
     process::Command,
 };
 
+pub mod onboarding;
 pub mod service;
 pub mod service_install;
 pub mod setup;

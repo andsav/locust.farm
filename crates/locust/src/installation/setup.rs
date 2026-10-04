@@ -113,17 +113,24 @@ fn normalize(spec: &SetupSpec) -> Result<SetupSpec, Failure> {
     }
     Ok(s)
 }
-fn paths(s: &SetupSpec) -> Result<Paths, Failure> {
-    let (config, skill) = match s.client {
+/// Standard client config, Locust skill and bound launcher paths in a selected profile.
+pub fn profile_paths(client: Client, profile_home: &Path) -> (PathBuf, PathBuf, PathBuf) {
+    let (config, skill) = match client {
         Client::Codex => (".codex/config.toml", ".agents/skills/locust/SKILL.md"),
         Client::Claude => (".claude.json", ".claude/skills/locust/SKILL.md"),
         Client::Pi => (".pi/agent/mcp.json", ".pi/agent/skills/locust/SKILL.md"),
     };
+    let skill = profile_home.join(skill);
+    let launcher = skill.with_file_name("locust-cli");
+    (profile_home.join(config), skill, launcher)
+}
+fn paths(s: &SetupSpec) -> Result<Paths, Failure> {
+    let (config, skill, launcher) = profile_paths(s.client, &s.profile_home);
     let id = package::sha256(&encode(&(s.client, &s.profile_home))?);
     Ok(Paths {
-        config: s.profile_home.join(config),
-        skill: s.profile_home.join(skill),
-        launcher: s.profile_home.join(skill).with_file_name("locust-cli"),
+        config,
+        skill,
+        launcher,
         record: s.prefix.join("setup").join(format!("{id}.json")),
         intent: s.prefix.join("setup").join(format!("{id}.intent.json")),
     })
@@ -718,6 +725,32 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
 }
 pub fn plan(spec: &SetupSpec, remove: bool) -> Result<SetupPlan, Failure> {
     Ok(prepare(&normalize(spec)?, remove)?.plan)
+}
+/// Read-only preflight before onboarding creates an identity. Existing setup
+/// belongs to its original binding and must not be silently adopted or rebound.
+pub fn preflight_new(spec: &SetupSpec) -> Result<Value, Failure> {
+    let s = normalize(spec)?;
+    private_dir(&s.prefix, false)?;
+    private_dir(&s.prefix.join("setup"), false)?;
+    let p = paths(&s)?;
+    for path in [&p.config, &p.skill, &p.launcher] {
+        dirs(&s.profile_home, path.parent().expect("file parent"), false)?;
+    }
+    let config = snapshot(&p.config)?;
+    if exists(&p.record)?
+        || exists(&p.intent)?
+        || exists(&p.skill)?
+        || exists(&p.launcher)?
+        || entry(s.client, &config)?.is_some()
+    {
+        return Err(conflict(
+            "this client profile already has Locust setup; preserve its binding and use setup status/remove before onboarding a different identity",
+        ));
+    }
+    Ok(
+        json!({"config":p.config,"config_file":config.summary(),"skill":p.skill,
+        "launcher":p.launcher,"collision_inputs":collisions(&s, &p, &config)?}),
+    )
 }
 fn write_change(s: &SetupSpec, change: &Change) -> Result<(), Failure> {
     let parent = change.path.parent().expect("file parent");

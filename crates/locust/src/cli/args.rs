@@ -290,6 +290,7 @@ pub(super) fn command() -> Command {
         .subcommand(super::install::commands())
         .subcommand(super::service::commands())
         .subcommand(super::setup::commands())
+        .subcommand(super::onboarding::up_command())
         .subcommand(group(
             "daemon",
             &[("run", "daemon.run"), ("stop", "daemon.stop")],
@@ -311,6 +312,7 @@ pub(super) fn command() -> Command {
             Command::new("agent")
                 .about(group_help("agent"))
                 .subcommand_required(true)
+                .subcommand(super::onboarding::add_command())
                 .subcommand(
                     Command::new("enroll")
                         .about(

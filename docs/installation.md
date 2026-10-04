@@ -11,6 +11,10 @@ an untrusted candidate does not establish its authenticity.
 
 The [local installation prompt](install-prompt.md) composes these commands for
 an explicitly selected candidate, service and dedicated client profile.
+After software activation, [resumable onboarding](onboarding.md) provides `up`
+and `agent add` to compose service readiness, protected enrollment/session files
+and reviewed client setup. The lower-level commands below remain available for
+existing explicit bindings.
 
 ## Trust and software activation
 
