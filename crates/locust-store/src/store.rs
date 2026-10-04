@@ -7,17 +7,13 @@ use std::slice;
 
 use locust_proto::event::{AuthorPoint, Event};
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
+use locust_proto::local as conventions;
 use locust_proto::store::{Blob, Commit, LocalRecord, Space, Store, StoreError};
 use rusqlite::{Connection, Transaction};
 
 use crate::error::{OpenError, sql};
 use crate::files::{Files, Staged};
 use crate::{connection, events, local, objects, schema};
-
-/// The database file in the state directory.
-const DATABASE: &str = "locust.db";
-/// The directory of large content objects in the state directory.
-const OBJECTS: &str = "blobs";
 
 const BROKEN: &str = "an earlier commit failed while it was being made durable, so its outcome \
      is unknown; reopen the store to read it back";
@@ -46,8 +42,8 @@ impl SqliteStore {
     /// release.
     pub fn open(dir: impl AsRef<Path>) -> Result<Self, OpenError> {
         let dir = dir.as_ref();
-        let files = Files::create(dir.join(OBJECTS))?;
-        let mut conn = connection::open(&dir.join(DATABASE), dir)?;
+        let files = Files::create(conventions::blobs_dir(dir))?;
+        let mut conn = connection::open(&conventions::database_path(dir), dir)?;
         schema::migrate(&mut conn)?;
         objects::collect_garbage(&conn, &files)?;
         Ok(Self {
