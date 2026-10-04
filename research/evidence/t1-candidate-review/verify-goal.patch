@@ -1,0 +1,586 @@
+--- a/crates/locust-core/src/goal/mod.rs
++++ b/crates/locust-core/src/goal/mod.rs
+@@ -256,3 +256,6 @@
+ 
+ #[cfg(test)]
+ mod tests;
++
++#[cfg(test)]
++mod vprobe;
+--- a/crates/locust-core/src/goal/vprobe.rs
++++ b/crates/locust-core/src/goal/vprobe.rs
+@@ -0,0 +1,478 @@
++//! Independent probes of reported findings (verify-goal).
++use super::{Goal, Standing, TaskState, Waiting};
++use locust_proto::event::{Body, Event};
++use locust_proto::id::{BlobHash, EndpointId};
++use locust_proto::limits::MAX_EVENTS_PER_BATCH;
++use locust_proto::testkit::Author;
++
++fn note() -> Body {
++    Body::Note {
++        about: None,
++        supersedes: None,
++    }
++}
++
++fn propose() -> Body {
++    Body::TaskProposed {
++        input: None,
++        depends_on: vec![],
++        deadline_ms: None,
++        max_attempts: None,
++    }
++}
++
++/// A second, different event at the position of `event`.
++fn variant(author: &Author, event: &Event, bump: u64) -> Event {
++    let mut header = event.header().clone();
++    header.at_ms += 1_000_000 + bump;
++    Event::sign(header, &author.key).unwrap()
++}
++
++/// Screens and applies `events` in frames of 256, as received. Returns the
++/// number kept.
++fn deliver(goal: &mut Goal, events: &[Event]) -> usize {
++    let mut kept = 0;
++    for frame in events.chunks(MAX_EVENTS_PER_BATCH) {
++        let screened = goal.screen(frame.to_vec());
++        kept += screened.len();
++        goal.apply(&screened);
++    }
++    kept
++}
++
++/// One exchange where `from` serves `to`: for each author ascending, every
++/// event `to` lacks in ascending (seq, id), in frames of 256.
++fn serve(from: &Goal, to: &mut Goal) -> usize {
++    let authors: Vec<_> = from.authors().copied().collect();
++    let mut kept = 0;
++    for author in authors {
++        let missing: Vec<Event> = from
++            .points(&author)
++            .iter()
++            .filter(|point| !to.holds(&point.id))
++            .map(|point| from.event(&point.id).unwrap().clone())
++            .collect();
++        kept += deliver(to, &missing);
++    }
++    kept
++}
++
++fn settle(from: &Goal, to: &mut Goal) -> usize {
++    let mut passes = 0;
++    while serve(from, to) > 0 {
++        passes += 1;
++        assert!(passes < 100);
++    }
++    passes
++}
++
++fn all_events(goal: &Goal) -> Vec<Event> {
++    let authors: Vec<_> = goal.authors().copied().collect();
++    authors
++        .iter()
++        .flat_map(|author| goal.points(author).to_vec())
++        .map(|point| goal.event(&point.id).unwrap().clone())
++        .collect()
++}
++
++#[test]
++fn v_waiting_bound_stalls_a_late_replica_served_by_an_honest_one() {
++    let mut c = Author::new(1);
++    let mut m = Author::new(2);
++    let j = Author::new(3);
++    let (genesis, own) = c.found_goal(EndpointId([1; 32]));
++    let id = genesis.header().goal;
++    let admit_m = c.event(
++        id,
++        Some(own.id()),
++        Body::MemberAdmitted {
++            member: m.key.public(),
++            endpoint: EndpointId([2; 32]),
++        },
++    );
++    let mut m_log: Vec<Event> = (0..1400)
++        .map(|_| m.event(id, Some(admit_m.id()), note()))
++        .collect();
++    let x = m.event(id, Some(admit_m.id()), propose());
++    assert_eq!(x.header().seq, 1400);
++    m_log.push(x.clone());
++    let assign = c.event(
++        id,
++        Some(admit_m.id()),
++        Body::TaskAssigned {
++            task: x.id(),
++            assignee: m.key.public(),
++            attempt: 1,
++        },
++    );
++    let admit_j = c.event(
++        id,
++        Some(assign.id()),
++        Body::MemberAdmitted {
++            member: j.key.public(),
++            endpoint: EndpointId([3; 32]),
++        },
++    );
++    // A: the coordinator's daemon, receiving everything as it happens.
++    let mut a = Goal::new(id);
++    deliver(&mut a, &[genesis.clone(), own.clone(), admit_m.clone()]);
++    deliver(&mut a, &m_log);
++    deliver(&mut a, &[assign.clone(), admit_j.clone()]);
++    assert_eq!(a.state().head, Some(admit_j.id()));
++    assert!(a.state().is_member(&j.key.public()));
++    assert_eq!(a.standing(&assign.id()), Some(Standing::Effective));
++    // M forks at its position 5.
++    let fork = variant(&m, &m_log[5], 0);
++    assert_eq!(deliver(&mut a, std::slice::from_ref(&fork)), 1);
++    println!(
++        "A after fork: head_is_admit_j {} assign {:?} x {:?} j member {} halt {:?}",
++        a.state().head == Some(admit_j.id()),
++        a.standing(&assign.id()),
++        a.standing(&x.id()),
++        a.state().is_member(&j.key.public()),
++        a.halt()
++    );
++    // B: a fresh replica served by A only.
++    let mut b = Goal::new(id);
++    let passes = settle(&a, &mut b);
++    let m_held = b.points(&m.key.public()).len();
++    println!(
++        "B: passes {passes} holds {} of {} m_held {m_held} holds x {} head_is_admit_m {} assign {:?} j member {}",
++        b.len(),
++        a.len(),
++        b.holds(&x.id()),
++        b.state().head == Some(admit_m.id()),
++        b.standing(&assign.id()),
++        b.state().is_member(&j.key.public())
++    );
++    println!("B rescreen of all of A: {}", b.screen(all_events(&a)).len());
++    // Would B, served the awaited event alone, keep it?
++    println!(
++        "B screen of x alone: {}",
++        b.screen(vec![x.clone()]).len()
++    );
++    assert!(!b.holds(&x.id()));
++    assert_eq!(
++        b.standing(&assign.id()),
++        Some(Standing::Pending(Waiting::Reference))
++    );
++    assert!(!b.state().is_member(&j.key.public()));
++    assert_ne!(a.state(), b.state());
++}
++
++#[test]
++fn v_variant_bound() {
++    let mut c = Author::new(1);
++    let mut m = Author::new(2);
++    let j = Author::new(3);
++    let (genesis, own) = c.found_goal(EndpointId([1; 32]));
++    let id = genesis.header().goal;
++    let admit_m = c.event(
++        id,
++        Some(own.id()),
++        Body::MemberAdmitted {
++            member: m.key.public(),
++            endpoint: EndpointId([2; 32]),
++        },
++    );
++    let x = m.event(id, Some(admit_m.id()), propose());
++    let assign = c.event(
++        id,
++        Some(admit_m.id()),
++        Body::TaskAssigned {
++            task: x.id(),
++            assignee: m.key.public(),
++            attempt: 1,
++        },
++    );
++    let admit_j = c.event(
++        id,
++        Some(assign.id()),
++        Body::MemberAdmitted {
++            member: j.key.public(),
++            endpoint: EndpointId([3; 32]),
++        },
++    );
++    let c_log = vec![genesis.clone(), own.clone(), admit_m.clone(), assign.clone(), admit_j.clone()];
++    let mut others = Vec::new();
++    let mut below = 0;
++    let mut bump = 0;
++    while below < 16 {
++        let other = variant(&m, &x, bump);
++        bump += 1;
++        if other.id() < x.id() {
++            below += 1;
++        }
++        others.push(other);
++    }
++    others.sort_by_key(|event| event.id());
++    println!("signed {} variants, {} below x", others.len(), below);
++
++    // A held X beforehand, then received every variant ascending.
++    let mut a = Goal::new(id);
++    deliver(&mut a, &c_log[..3]);
++    deliver(&mut a, std::slice::from_ref(&x));
++    deliver(&mut a, &c_log[3..]);
++    deliver(&mut a, &others);
++    println!(
++        "A: m variants held {} head_is_admit_j {} assign {:?} j member {}",
++        a.points(&m.key.public()).len(),
++        a.state().head == Some(admit_j.id()),
++        a.standing(&assign.id()),
++        a.state().is_member(&j.key.public())
++    );
++
++    // B1: fresh, served by A only (an honest replica holds at most 16).
++    let mut b1 = Goal::new(id);
++    settle(&a, &mut b1);
++    println!(
++        "B1 (served by A): holds x {} head_is_admit_j {} assign {:?} j member {}",
++        b1.holds(&x.id()),
++        b1.state().head == Some(admit_j.id()),
++        b1.standing(&assign.id()),
++        b1.state().is_member(&j.key.public())
++    );
++
++    // B2: gets the coordinator's log first, then M itself pushes 16
++    // variants that are not X, then A serves.
++    let mut b2 = Goal::new(id);
++    deliver(&mut b2, &c_log);
++    let pushed: Vec<Event> = others.iter().take(16).cloned().collect();
++    println!("B2 kept of M's push: {}", deliver(&mut b2, &pushed));
++    settle(&a, &mut b2);
++    println!(
++        "B2 (M pushed first): holds x {} head_is_admit_m {} assign {:?} j member {}",
++        b2.holds(&x.id()),
++        b2.state().head == Some(admit_m.id()),
++        b2.standing(&assign.id()),
++        b2.state().is_member(&j.key.public())
++    );
++
++    // B3: the reported model, offered every variant ascending.
++    let mut every: Vec<Event> = others.clone();
++    every.push(x.clone());
++    every.sort_by_key(|event| event.id());
++    let mut b3 = Goal::new(id);
++    deliver(&mut b3, &c_log);
++    deliver(&mut b3, &every);
++    settle(&a, &mut b3);
++    println!(
++        "B3 (all variants ascending): holds x {} assign {:?} j member {}",
++        b3.holds(&x.id()),
++        b3.standing(&assign.id()),
++        b3.state().is_member(&j.key.public())
++    );
++}
++
++#[test]
++fn v_member_fork_voids_other_members_accepted_results() {
++    let mut c = Author::new(1);
++    let mut n = Author::new(2);
++    let mut m = Author::new(3);
++    let (genesis, own) = c.found_goal(EndpointId([1; 32]));
++    let id = genesis.header().goal;
++    let admit_n = c.event(
++        id,
++        Some(own.id()),
++        Body::MemberAdmitted {
++            member: n.key.public(),
++            endpoint: EndpointId([2; 32]),
++        },
++    );
++    let admit_m = c.event(
++        id,
++        Some(admit_n.id()),
++        Body::MemberAdmitted {
++            member: m.key.public(),
++            endpoint: EndpointId([3; 32]),
++        },
++    );
++    let mut events = vec![genesis, own, admit_n, admit_m.clone()];
++    let mut anchor = admit_m.id();
++    let mut base = None;
++    let mut t1 = None;
++    for (index, head) in [100u8, 101, 102].into_iter().enumerate() {
++        let task = if index == 1 {
++            let task = m.event(id, Some(anchor), propose());
++            t1 = Some(task.clone());
++            task
++        } else {
++            c.event(id, Some(anchor), propose())
++        };
++        let assign = c.event(
++            id,
++            Some(anchor),
++            Body::TaskAssigned {
++                task: task.id(),
++                assignee: n.key.public(),
++                attempt: 1,
++            },
++        );
++        let take = n.event(
++            id,
++            Some(assign.id()),
++            Body::AssignmentAccepted {
++                assignment: assign.id(),
++            },
++        );
++        let result = n.event(
++            id,
++            Some(assign.id()),
++            Body::ResultSubmitted {
++                assignment: assign.id(),
++                base,
++                patch: None,
++                artifacts: vec![],
++            },
++        );
++        let accept = c.event(
++            id,
++            Some(assign.id()),
++            Body::ResultAccepted {
++                result: result.id(),
++                head: Some(BlobHash([head; 32])),
++            },
++        );
++        anchor = accept.id();
++        base = Some(BlobHash([head; 32]));
++        events.extend([task, assign, take, result, accept]);
++    }
++    let mut goal = Goal::new(id);
++    goal.apply(&events);
++    let states = |goal: &Goal| -> Vec<TaskState> { goal.state().tasks.iter().map(|t| t.state).collect() };
++    let heads = |goal: &Goal| -> Vec<u8> {
++        goal.state().accepted_heads.iter().map(|h| h.head.0[0]).collect()
++    };
++    println!("before fork: tasks {:?} heads {:?}", states(&goal), heads(&goal));
++    assert_eq!(heads(&goal), vec![100, 101, 102]);
++    let t1 = t1.unwrap();
++    let fork = variant(&m, &t1, 0);
++    let screened = goal.screen(vec![fork]);
++    assert_eq!(screened.len(), 1);
++    goal.apply(&screened);
++    println!("after M forks: tasks {:?} heads {:?} halt {:?}", states(&goal), heads(&goal), goal.halt());
++    for event in &events[4..] {
++        println!(
++            "  {:>20} by {} -> {:?}",
++            event.header().body.kind(),
++            if event.header().author == c.key.public() { "C" } else if event.header().author == n.key.public() { "N" } else { "M" },
++            goal.standing(&event.id())
++        );
++    }
++}
++
++#[test]
++fn v_result_after_acceptance_replaces_the_tasks_result() {
++    let mut c = Author::new(1);
++    let mut w = Author::new(2);
++    let (genesis, own) = c.found_goal(EndpointId([1; 32]));
++    let id = genesis.header().goal;
++    let admit = c.event(
++        id,
++        Some(own.id()),
++        Body::MemberAdmitted {
++            member: w.key.public(),
++            endpoint: EndpointId([2; 32]),
++        },
++    );
++    let task = c.event(id, Some(admit.id()), propose());
++    let assign = c.event(
++        id,
++        Some(admit.id()),
++        Body::TaskAssigned {
++            task: task.id(),
++            assignee: w.key.public(),
++            attempt: 1,
++        },
++    );
++    let take = w.event(
++        id,
++        Some(assign.id()),
++        Body::AssignmentAccepted {
++            assignment: assign.id(),
++        },
++    );
++    let result = w.event(
++        id,
++        Some(assign.id()),
++        Body::ResultSubmitted {
++            assignment: assign.id(),
++            base: None,
++            patch: None,
++            artifacts: vec![],
++        },
++    );
++    let accept = c.event(
++        id,
++        Some(assign.id()),
++        Body::ResultAccepted {
++            result: result.id(),
++            head: None,
++        },
++    );
++    let late = w.event(
++        id,
++        Some(accept.id()),
++        Body::ResultSubmitted {
++            assignment: assign.id(),
++            base: None,
++            patch: None,
++            artifacts: vec![],
++        },
++    );
++    let mut goal = Goal::new(id);
++    goal.apply(&[genesis, own, admit, task, assign, take, result.clone(), accept]);
++    goal.apply(&[late.clone()]);
++    let t = &goal.state().tasks[0];
++    println!(
++        "late standing {:?}; task state {:?}; result is accepted one {}; result is late one {}; accepted is original {}",
++        goal.standing(&late.id()),
++        t.state,
++        t.result == Some(result.id()),
++        t.result == Some(late.id()),
++        t.accepted == Some(result.id())
++    );
++}
++
++#[test]
++fn v_coordinator_fork_below_an_admission() {
++    let mut c = Author::new(1);
++    let m2 = Author::new(2);
++    let m3 = Author::new(3);
++    let (genesis, own) = c.found_goal(EndpointId([1; 32]));
++    let id = genesis.header().goal;
++    let admit2 = c.event(
++        id,
++        Some(own.id()),
++        Body::MemberAdmitted {
++            member: m2.key.public(),
++            endpoint: EndpointId([2; 32]),
++        },
++    );
++    let n = c.event(id, Some(admit2.id()), note());
++    let admit3 = c.event(
++        id,
++        Some(admit2.id()),
++        Body::MemberAdmitted {
++            member: m3.key.public(),
++            endpoint: EndpointId([3; 32]),
++        },
++    );
++    let fork = variant(&c, &n, 0);
++    let mut goal = Goal::new(id);
++    goal.apply(&[genesis, own, admit2, n, admit3.clone()]);
++    println!(
++        "before: endpoints {:?} m3 member {}",
++        goal.state().endpoints.keys().map(|e| e.0[0]).collect::<Vec<_>>(),
++        goal.state().is_member(&m3.key.public())
++    );
++    let kept = goal.screen(vec![fork]);
++    goal.apply(&kept);
++    println!(
++        "after: halt {} endpoints {:?} m3 member {} admit3 {:?}",
++        goal.halt().is_some(),
++        goal.state().endpoints.keys().map(|e| e.0[0]).collect::<Vec<_>>(),
++        goal.state().is_member(&m3.key.public()),
++        goal.standing(&admit3.id())
++    );
++}
+--- a/crates/locust-core/src/node/tests/mod.rs
++++ b/crates/locust-core/src/node/tests/mod.rs
+@@ -229,3 +229,5 @@
+ mod failure;
+ 
+ mod content;
++
++mod vprobe;
+--- a/crates/locust-core/src/node/tests/vprobe.rs
++++ b/crates/locust-core/src/node/tests/vprobe.rs
+@@ -0,0 +1,85 @@
++//! Independent probe (verify-goal): the coordinator removes itself.
++use super::lifecycle::{event, setup};
++use super::*;
++
++#[test]
++fn v_coordinator_self_removal() {
++    let (mut daemon, principal, owner, agent, goal) = setup();
++    let task = event(daemon.ok(
++        agent,
++        Request::TaskPropose {
++            goal,
++            text: "A task".into(),
++            input: None,
++            depends_on: vec![],
++            deadline_ms: None,
++            max_attempts: None,
++        },
++    ));
++    let removed = daemon.call(
++        agent,
++        Request::MemberRemove {
++            goal,
++            member: principal,
++        },
++    );
++    println!("self-removal: {:?}", removed.as_ref().map(|_| "Recorded"));
++    let assign = daemon.call(
++        agent,
++        Request::TaskAssign {
++            goal,
++            task,
++            assignee: principal,
++        },
++    );
++    println!("task.assign after: {:?}", assign.map_err(|e| (e.code, e.message)));
++    let invite = daemon.call(
++        agent,
++        Request::GoalInvite {
++            goal,
++            expires_ms: None,
++        },
++    );
++    println!("goal.invite after: {:?}", invite.map_err(|e| (e.code, e.message)).map(|_| "ok"));
++    let invite_owner = daemon.on_behalf(
++        owner,
++        principal,
++        Request::GoalInvite {
++            goal,
++            expires_ms: None,
++        },
++    );
++    println!(
++        "goal.invite by owner on behalf: {:?}",
++        invite_owner.map_err(|e| (e.code, e.message)).map(|_| "ok")
++    );
++    let status = daemon.call(agent, Request::GoalStatus { goal });
++    match status {
++        Ok(Response::GoalStatus(status)) => println!(
++            "goal.status: members {} halted {:?}",
++            status.members.len(),
++            status.halted
++        ),
++        other => println!("goal.status: {other:?}"),
++    }
++    let status = daemon.on_behalf(owner, principal, Request::GoalStatus { goal });
++    match status {
++        Ok(Response::GoalStatus(status)) => println!(
++            "goal.status (owner on behalf): members {} halted {:?}",
++            status.members.len(),
++            status.halted
++        ),
++        other => println!("goal.status (owner on behalf): {other:?}"),
++    }
++    daemon.restart();
++    let agent = daemon.connect(credential(1), Some(session(2)));
++    let assign = daemon.call(
++        agent,
++        Request::TaskAssign {
++            goal,
++            task,
++            assignee: principal,
++        },
++    );
++    println!("task.assign after restart: {:?}", assign.map_err(|e| (e.code, e.message)));
++}

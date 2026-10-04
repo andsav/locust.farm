@@ -1,0 +1,368 @@
+--- a/crates/locust-core/src/node/replica_tests.rs
++++ b/crates/locust-core/src/node/replica_tests.rs
+@@ -740,3 +740,175 @@
+     );
+     assert!(peers[1].store.blob_len(&hash).unwrap().is_none());
+ }
++
++#[test]
++fn verify_inflated_total_wedges_the_object() {
++    use crate::sync::{Host, Initiator};
++    use locust_proto::event::Body;
++    use locust_proto::limits::BLOB_CHUNK_BYTES;
++    use locust_proto::sync::SyncMessage;
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let goal = found(&mut peers);
++    peers[0].call(Request::NoteAdd {
++        goal,
++        about: None,
++        supersedes: None,
++        text: "wedge".into(),
++    });
++    let event = peers[0]
++        .store
++        .log(&goal, 0, usize::MAX)
++        .unwrap()
++        .into_iter()
++        .map(|(_, event)| event)
++        .filter(|event| matches!(event.header().body, Body::Note { .. }))
++        .last()
++        .unwrap();
++    let payload = event.header().payload.unwrap();
++    let hash = payload.hash;
++    // Peer 1 receives the event but not the object.
++    Host::replica(&mut peers[1].node, &goal)
++        .unwrap()
++        .receive(vec![event.to_wire()])
++        .unwrap();
++    // Peer 1's initiator against a faulty responder.
++    let mut init = Initiator::new(goal);
++    let mut out = Vec::new();
++    init.start(Host::replica(&mut peers[1].node, &goal).unwrap(), &mut out);
++    let drain = |init: &mut Initiator, peers: &mut [Peer], out: &mut Vec<SyncMessage>| loop {
++        let before = out.len();
++        init.writable(Host::replica(&mut peers[1].node, &goal).unwrap(), out);
++        if out.len() == before {
++            break;
++        }
++    };
++    drain(&mut init, &mut peers, &mut out);
++    let frontier = Host::replica(&mut peers[1].node, &goal).unwrap().frontier();
++    init.receive(
++        Host::replica(&mut peers[1].node, &goal).unwrap(),
++        SyncMessage::Frontier(frontier),
++        &mut out,
++    );
++    drain(&mut init, &mut peers, &mut out);
++    assert!(out.iter().any(|frame| matches!(frame, SyncMessage::BlobRequest { hash: asked, offset: 0 } if *asked == hash)), "{out:?}");
++    let chunk = SyncMessage::BlobChunk {
++        hash,
++        offset: 0,
++        total: 4 << 20,
++        bytes: vec![0; BLOB_CHUNK_BYTES],
++    };
++    let wire = locust_proto::codec::encode(&chunk).unwrap();
++    assert!(SyncMessage::decode(&wire).is_ok(), "the chunk passes decode");
++    init.receive(Host::replica(&mut peers[1].node, &goal).unwrap(), chunk, &mut out);
++    drop(init); // the link drops
++    let staged = peers[1].store.staged_len(&hash).unwrap();
++    eprintln!("PROBE payload len {} ; staged after faulty chunk {staged}", payload.len);
++    let mut offsets = Vec::new();
++    let mut unavailable = 0;
++    for round in 0..6u64 {
++        if round == 3 {
++            peers[1].restart();
++        }
++        let sent = reconcile(&mut peers, 100_000 + round * 40_000);
++        for frame in &sent {
++            match frame {
++                SyncMessage::BlobRequest { hash: asked, offset } if *asked == hash => offsets.push(*offset),
++                SyncMessage::BlobUnavailable(given) if *given == hash => unavailable += 1,
++                _ => {}
++            }
++        }
++    }
++    let notes = |peer: &mut Peer| {
++        let Response::Notes(notes) = peer.call(Request::Notes { goal, about: None }) else {
++            panic!("notes");
++        };
++        notes
++            .into_iter()
++            .find(|note| note.note == event.id())
++            .map(|note| note.text)
++    };
++    eprintln!(
++        "PROBE offsets requested {offsets:?}; BlobUnavailable {unavailable}; peer1 holds {:?}; peer1 staged {}; peer2 holds {:?}; peer1 note text {:?}; peer2 note text {:?}",
++        peers[1].store.blob_len(&hash).unwrap(),
++        peers[1].store.staged_len(&hash).unwrap(),
++        peers[2].store.blob_len(&hash).unwrap(),
++        notes(&mut peers[1]),
++        notes(&mut peers[2]),
++    );
++}
++
++#[test]
++fn verify_control_without_faulty_chunk() {
++    use crate::sync::Host;
++    use locust_proto::event::Body;
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let goal = found(&mut peers);
++    peers[0].call(Request::NoteAdd {
++        goal,
++        about: None,
++        supersedes: None,
++        text: "wedge".into(),
++    });
++    let event = peers[0]
++        .store
++        .log(&goal, 0, usize::MAX)
++        .unwrap()
++        .into_iter()
++        .map(|(_, event)| event)
++        .filter(|event| matches!(event.header().body, Body::Note { .. }))
++        .last()
++        .unwrap();
++    let hash = event.header().payload.unwrap().hash;
++    Host::replica(&mut peers[1].node, &goal)
++        .unwrap()
++        .receive(vec![event.to_wire()])
++        .unwrap();
++    reconcile(&mut peers, 100_000);
++    eprintln!("PROBE control: peer1 holds {:?}", peers[1].store.blob_len(&hash).unwrap());
++}
++
++#[test]
++fn verify_next_wanted_blob_cost() {
++    use crate::sync::Host;
++    use locust_proto::event::Body;
++    for n in [250usize, 500, 1000, 2000] {
++        let mut peers = [Peer::new(1), Peer::new(2)];
++        let goal = found(&mut peers);
++        for k in 0..n {
++            peers[0].call(Request::NoteAdd {
++                goal,
++                about: None,
++                supersedes: None,
++                text: format!("note {k}"),
++            });
++        }
++        let events: Vec<_> = peers[0]
++            .store
++            .log(&goal, 0, usize::MAX)
++            .unwrap()
++            .into_iter()
++            .map(|(_, event)| event)
++            .filter(|event| matches!(event.header().body, Body::Note { .. }))
++            .collect();
++        for batch in events.chunks(200) {
++            Host::replica(&mut peers[1].node, &goal)
++                .unwrap()
++                .receive(batch.iter().map(|e| e.to_wire()).collect())
++                .unwrap();
++        }
++        let replica = Host::replica(&mut peers[1].node, &goal).unwrap();
++        let start = std::time::Instant::now();
++        let first = replica.next_wanted_blob(None);
++        let one = start.elapsed();
++        let start = std::time::Instant::now();
++        let mut cursor = None;
++        let mut calls = 0;
++        while let Some((hash, _)) = replica.next_wanted_blob(cursor) {
++            cursor = Some(hash);
++            calls += 1;
++        }
++        let all = start.elapsed();
++        assert!(first.is_some());
++        eprintln!("PROBE next_wanted_blob n={n}: one call {one:?}; {calls} successive calls {all:?}");
++    }
++}
+--- a/crates/locust-core/src/sync/outbox.rs
++++ b/crates/locust-core/src/sync/outbox.rs
+@@ -67,6 +67,22 @@
+             });
+         }
+     }
++    #[cfg(test)]
++    pub fn built_frames(&self) -> (usize, usize, usize) {
++        let mut frames = 0;
++        let mut bytes = 0;
++        let mut lazy = 0;
++        for work in &self.work {
++            match work {
++                Work::Frame(frame) => {
++                    frames += 1;
++                    bytes += locust_proto::codec::encode(frame).unwrap().len();
++                }
++                _ => lazy += 1,
++            }
++        }
++        (frames, bytes, lazy)
++    }
+     pub fn pump_frame(&mut self, out: &mut Vec<SyncMessage>) {
+         if !self.waiting
+             && matches!(self.work.front(), Some(Work::Frame(_)))
+--- a/crates/locust-core/src/sync/responder.rs
++++ b/crates/locust-core/src/sync/responder.rs
+@@ -101,6 +101,11 @@
+         self.pump(host, out);
+     }
+ 
++    #[cfg(test)]
++    pub fn built_frames(&self) -> (usize, usize, usize) {
++        self.outbox.built_frames()
++    }
++
+     pub fn writable(&mut self, host: &mut dyn Host, out: &mut Vec<SyncMessage>) {
+         self.outbox.writable();
+         self.pump(host, out);
+--- a/crates/locust-core/src/sync/tests/mod.rs
++++ b/crates/locust-core/src/sync/tests/mod.rs
+@@ -9,6 +9,7 @@
+ mod machines;
+ mod net;
+ mod replica;
++mod verify;
+ 
+ use locust_proto::event::{Body, Event};
+ use locust_proto::id::{EndpointId, EventId, GoalId};
+--- a/crates/locust-core/src/sync/tests/verify.rs
++++ b/crates/locust-core/src/sync/tests/verify.rs
+@@ -0,0 +1,138 @@
++//! verify-sync probes.
++
++use locust_proto::PROTOCOL_VERSION;
++use locust_proto::codec;
++use locust_proto::id::{EventId, GoalId};
++use locust_proto::sync::{AuthorFrontier, Frontier, SyncMessage};
++use locust_proto::testkit::Author;
++
++use super::net::Net;
++use super::{Founded, endpoint, host};
++use crate::sync::Responder;
++
++fn hello(goal: GoalId) -> SyncMessage {
++    SyncMessage::Hello {
++        version: PROTOCOL_VERSION,
++        goal,
++    }
++}
++
++#[test]
++fn verify_pipelined_inventory_requests_are_materialized() {
++    let founded = Founded::new();
++    let mut author = Author::new(2);
++    let notes = founded.notes(&mut author, 4106);
++    let mut host = host(1, founded.replica(&notes), &[1, 2]);
++    let mut responder = Responder::new(endpoint(2));
++    let mut out = Vec::new();
++    responder.receive(&mut host, hello(founded.goal), 0, &mut out);
++    let request = SyncMessage::InventoryRequest {
++        author: author.key.public(),
++        after: None,
++    };
++    let request_len = codec::encode(&request).unwrap().len();
++    for _ in 0..200 {
++        responder.receive(&mut host, request.clone(), 0, &mut out);
++    }
++    let (frames, bytes, lazy) = responder.built_frames();
++    eprintln!(
++        "PROBE inventory: request {request_len} bytes x200 = {}; emitted {}; built frames held {frames}, {bytes} bytes; lazy cursors {lazy}; amplification {:.0}x",
++        request_len * 200,
++        out.len(),
++        bytes as f64 / (request_len * 200) as f64
++    );
++    assert_eq!(out.len(), 1);
++    assert_eq!(frames, 199);
++}
++
++#[test]
++fn verify_frontier_answers_materialize_inventories() {
++    let founded = Founded::new();
++    let mut authors: Vec<Author> = (2..6).map(Author::new).collect();
++    let mut all = Vec::new();
++    for author in &mut authors {
++        all.extend(founded.notes(author, 2000));
++    }
++    let mut host = host(1, founded.replica(&all), &[1, 2]);
++    let mut theirs = Frontier::default();
++    let mut keys: Vec<_> = authors.iter().map(|a| a.key.public()).collect();
++    keys.sort();
++    for key in keys {
++        theirs.authors.push(AuthorFrontier {
++            author: key,
++            next_seq: 1,
++            digest: [7; 32],
++        });
++    }
++    let frame = SyncMessage::Frontier(theirs);
++    let frame_len = codec::encode(&frame).unwrap().len();
++    let mut responder = Responder::new(endpoint(2));
++    let mut out = Vec::new();
++    responder.receive(&mut host, hello(founded.goal), 0, &mut out);
++    for _ in 0..50 {
++        responder.receive(&mut host, frame.clone(), 0, &mut out);
++    }
++    let (frames, bytes, lazy) = responder.built_frames();
++    eprintln!(
++        "PROBE frontier: {frame_len} bytes x50; emitted {}; built frames held {frames}, {bytes} bytes; lazy {lazy}",
++        out.len()
++    );
++}
++
++#[test]
++fn verify_empty_event_request_frame_count() {
++    let founded = Founded::new();
++    let notes = founded.notes(&mut Author::new(2), 3);
++    let mut host = host(1, founded.replica(&notes), &[1, 2]);
++    for count in [0usize, 1, 256, 257] {
++        let ids: Vec<EventId> = (0..count).map(|_| notes[0].id()).collect();
++        let mut responder = Responder::new(endpoint(2));
++        let mut out = Vec::new();
++        responder.receive(&mut host, hello(founded.goal), 0, &mut out);
++        responder.receive(&mut host, SyncMessage::EventRequest(ids), 0, &mut out);
++        loop {
++            let before = out.len();
++            responder.writable(&mut host, &mut out);
++            if out.len() == before {
++                break;
++            }
++        }
++        eprintln!("PROBE event request of {count} ids answered with {} frames: {:?}", out.len(),
++            out.iter().map(|f| match f { SyncMessage::Events(e) => e.len(), _ => usize::MAX }).collect::<Vec<_>>());
++    }
++}
++
++#[test]
++fn verify_push_one_event_cost() {
++    for n in [10usize, 1000, 10000] {
++        let founded = Founded::new();
++        let mut author = Author::new(2);
++        let notes = founded.notes(&mut author, n + 1);
++        let mut net = Net::new(vec![
++            host(1, founded.replica(&notes), &[1, 2]),
++            host(2, founded.replica(&notes[..n]), &[1, 2]),
++        ]);
++        net.poll(&[0]);
++        let mut inv_frames = 0;
++        let mut inv_points = 0;
++        let mut inv_bytes = 0;
++        let mut inv_requests = 0;
++        let mut pushed = 0;
++        for (to, frame) in &net.log {
++            match frame {
++                SyncMessage::Inventory { points, .. } if *to == 0 => {
++                    inv_frames += 1;
++                    inv_points += points.len();
++                    inv_bytes += codec::encode(frame).unwrap().len();
++                }
++                SyncMessage::InventoryRequest { .. } if *to == 1 => inv_requests += 1,
++                SyncMessage::Events(events) if *to == 1 => pushed += events.len(),
++                _ => {}
++            }
++        }
++        assert_eq!(net.host(1).ids(&founded.goal).len(), n + 2);
++        eprintln!(
++            "PROBE push n={n}: events pushed {pushed}; inventory frames {inv_frames}, points {inv_points}, bytes {inv_bytes}; inventory requests {inv_requests}"
++        );
++    }
++}

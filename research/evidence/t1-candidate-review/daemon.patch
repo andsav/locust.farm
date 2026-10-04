@@ -1,0 +1,358 @@
+--- a/crates/locust/src/daemon/network.rs
++++ b/crates/locust/src/daemon/network.rs
+@@ -426,3 +426,7 @@
+         }
+     }
+ }
++
++#[cfg(test)]
++#[path = "probe_tests.rs"]
++mod probe_tests;
+--- a/crates/locust/src/daemon/probe_tests.rs
++++ b/crates/locust/src/daemon/probe_tests.rs
+@@ -0,0 +1,149 @@
++//! Review probes (not part of locust): one exchange whose traffic flows in
++//! only one direction for longer than IO_IDLE.
++use std::time::Instant;
++
++use locust_proto::id::GoalId;
++
++use super::super::durable_tests::local_endpoint;
++use super::*;
++
++fn hello() -> SyncMessage {
++    SyncMessage::Hello {
++        version: 0,
++        goal: GoalId([9; 32]),
++    }
++}
++
++async fn linked() -> (Endpoint, Endpoint, PeerConnection, PeerConnection) {
++    let a = local_endpoint([1; 32]).await.unwrap();
++    let b = local_endpoint([2; 32]).await.unwrap();
++    let accept = tokio::spawn({
++        let a = a.clone();
++        async move { a.accept().await.unwrap().accept().await.unwrap() }
++    });
++    let b_conn = b.connect(a.id(), &a.hints()).await.unwrap();
++    let a_conn = accept.await.unwrap();
++    (a, b, a_conn, b_conn)
++}
++
++/// The fake engine acknowledges every frame and records how the exchange ended.
++fn fake_engine(
++    jobs: std::sync::mpsc::Receiver<Job>,
++    start: Instant,
++) -> std::thread::JoinHandle<(usize, Option<(&'static str, Duration)>)> {
++    std::thread::spawn(move || {
++        let mut frames = 0;
++        while let Ok(job) = jobs.recv() {
++            match job {
++                Job::PeerFrame { processed, .. } => {
++                    frames += 1;
++                    let _ = processed.send(());
++                }
++                Job::Peer(PeerInput::Closed(_)) => return (frames, Some(("closed", start.elapsed()))),
++                Job::Peer(PeerInput::Finished(_)) => {
++                    return (frames, Some(("finished", start.elapsed())));
++                }
++                _ => {}
++            }
++        }
++        (frames, None)
++    })
++}
++
++/// The peer streams one frame every 2 s for 50 s; this side has nothing to
++/// send (as an initiator receiving BlobChunk frames after its BlobRequest).
++#[tokio::test(flavor = "multi_thread")]
++async fn probe_inbound_stream_with_quiet_writer() {
++    let (_a, _b, a_conn, b_conn) = linked().await;
++    let mut b_link = b_conn.open_link(FrameLimits::peer()).await.unwrap();
++    b_link.send(&hello()).await.unwrap();
++    let a_link = a_conn.accept_link(FrameLimits::peer()).await.unwrap();
++    let start = Instant::now();
++    let (jobs, inbox) = std::sync::mpsc::channel();
++    let engine = fake_engine(inbox, start);
++    let (commands, receiver) = mpsc::unbounded_channel();
++    let (_admitted, admission) = watch::channel(true);
++    let (events, _events) = mpsc::unbounded_channel();
++    let (_stop, stop) = watch::channel(false);
++    let task = tokio::spawn(exchange_task(
++        a_link,
++        a_conn.clone(),
++        ExchangeId::Accepted(1),
++        receiver,
++        admission,
++        jobs,
++        events,
++        stop,
++    ));
++    let mut sent = 1;
++    let mut failure = None;
++    for _ in 0..25 {
++        tokio::time::sleep(Duration::from_secs(2)).await;
++        match b_link.send(&hello()).await {
++            Ok(()) => sent += 1,
++            Err(error) => {
++                failure = Some((format!("{error}"), start.elapsed()));
++                break;
++            }
++        }
++    }
++    task.await.unwrap();
++    let (frames, ended) = engine.join().unwrap();
++    println!(
++        "PROBE inbound: peer sent {sent} frames, engine got {frames}, exchange ended {ended:?}, peer send failure {failure:?}"
++    );
++    drop(commands);
++}
++
++/// This side streams one frame every 2 s for 50 s; the peer reads and sends
++/// nothing (as a responder serving BlobChunk frames).
++#[tokio::test(flavor = "multi_thread")]
++async fn probe_outbound_stream_with_quiet_reader() {
++    let (_a, _b, a_conn, b_conn) = linked().await;
++    let mut b_link = b_conn.open_link(FrameLimits::peer()).await.unwrap();
++    b_link.send(&hello()).await.unwrap();
++    let a_link = a_conn.accept_link(FrameLimits::peer()).await.unwrap();
++    let start = Instant::now();
++    let (jobs, inbox) = std::sync::mpsc::channel();
++    let engine = fake_engine(inbox, start);
++    let (commands, receiver) = mpsc::unbounded_channel();
++    let (_admitted, admission) = watch::channel(true);
++    let (events, _events) = mpsc::unbounded_channel();
++    let (_stop, stop) = watch::channel(false);
++    let task = tokio::spawn(exchange_task(
++        a_link,
++        a_conn.clone(),
++        ExchangeId::Accepted(1),
++        receiver,
++        admission,
++        jobs,
++        events,
++        stop,
++    ));
++    let reader = tokio::spawn(async move {
++        let mut got = 0;
++        loop {
++            match b_link.recv().await {
++                Ok(Some(_)) => got += 1,
++                other => return (got, format!("{other:?}"), start.elapsed()),
++            }
++        }
++    });
++    let mut queued = 0;
++    for _ in 0..25 {
++        tokio::time::sleep(Duration::from_secs(2)).await;
++        if commands.send(Command::Send(hello())).is_err() {
++            break;
++        }
++        queued += 1;
++        if task.is_finished() {
++            break;
++        }
++    }
++    task.await.unwrap();
++    let (frames, ended) = engine.join().unwrap();
++    let read = reader.await.unwrap();
++    println!(
++        "PROBE outbound: queued {queued} sends, engine got {frames} inbound frames, exchange ended {ended:?}, peer read {read:?}"
++    );
++}
+--- a/crates/probe/Cargo.toml
++++ b/crates/probe/Cargo.toml
+@@ -0,0 +1,11 @@
++[package]
++name = "probe"
++version.workspace = true
++edition.workspace = true
++publish.workspace = true
++
++[dependencies]
++iroh.workspace = true
++locust-proto.workspace = true
++tokio = { workspace = true, features = ["rt-multi-thread"] }
++getrandom.workspace = true
+--- a/crates/probe/src/main.rs
++++ b/crates/probe/src/main.rs
+@@ -0,0 +1,179 @@
++//! Peer-side probes against a running locust daemon. Not part of locust.
++use std::net::SocketAddr;
++use std::time::{Duration, Instant};
++
++use iroh::endpoint::{presets, Connection};
++use iroh::{EndpointAddr, EndpointId, SecretKey};
++use locust_proto::codec;
++use locust_proto::id::GoalId;
++use locust_proto::sync::SyncMessage;
++
++const ALPN: &[u8] = b"locust/sync/0";
++
++async fn endpoint() -> iroh::Endpoint {
++    let mut key = [0u8; 32];
++    getrandom::fill(&mut key).unwrap();
++    iroh::Endpoint::builder(presets::Minimal)
++        .secret_key(SecretKey::from_bytes(&key))
++        .relay_mode(iroh::RelayMode::Disabled)
++        .clear_address_lookup()
++        .clear_ip_transports()
++        .bind_addr("127.0.0.1:0".parse::<SocketAddr>().unwrap())
++        .unwrap()
++        .bind()
++        .await
++        .unwrap()
++}
++
++async fn dial(ep: &iroh::Endpoint, target: &str, addr: &str) -> Connection {
++    let id: EndpointId = target.parse().unwrap();
++    let addr = EndpointAddr::new(id).with_ip_addr(addr.parse().unwrap());
++    ep.connect(addr, ALPN).await.unwrap()
++}
++
++fn frame(message: &SyncMessage) -> Vec<u8> {
++    let mut out = Vec::new();
++    codec::encode_frame(message, &mut out).unwrap();
++    out
++}
++
++/// Reads until the stream ends or errors; returns what happened and when.
++async fn drain(recv: &mut iroh::endpoint::RecvStream, start: Instant) -> String {
++    let mut got = Vec::new();
++    let mut buf = [0u8; 4096];
++    loop {
++        match recv.read(&mut buf).await {
++            Ok(Some(n)) => got.extend_from_slice(&buf[..n]),
++            Ok(None) => return format!("fin after {:?}, {} bytes {:?}", start.elapsed(), got.len(), decode_all(&got)),
++            Err(e) => return format!("error {e} after {:?}, {} bytes {:?}", start.elapsed(), got.len(), decode_all(&got)),
++        }
++    }
++}
++
++fn decode_all(mut bytes: &[u8]) -> Vec<String> {
++    let mut out = Vec::new();
++    while bytes.len() >= 4 {
++        let len = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;
++        if bytes.len() < 4 + len {
++            out.push(format!("partial({len})"));
++            break;
++        }
++        match SyncMessage::decode(&bytes[4..4 + len]) {
++            Ok(m) => out.push(format!("{m:?}")),
++            Err(e) => out.push(format!("undecodable {e:?}")),
++        }
++        bytes = &bytes[4 + len..];
++    }
++    out
++}
++
++#[tokio::main]
++async fn main() {
++    let args: Vec<String> = std::env::args().collect();
++    let target = args[2].clone();
++    let addr = args[3].clone();
++    match args[1].as_str() {
++        // N fresh identities connect and hold the connection, opening nothing.
++        "strangers" => {
++            let count: usize = args[4].parse().unwrap();
++            let hold: u64 = args[5].parse().unwrap();
++            let mut held = Vec::new();
++            for i in 0..count {
++                let ep = endpoint().await;
++                match tokio::time::timeout(Duration::from_secs(10), async {
++                    let id: EndpointId = target.parse().unwrap();
++                    ep.connect(EndpointAddr::new(id).with_ip_addr(addr.parse().unwrap()), ALPN).await
++                })
++                .await
++                {
++                    Ok(Ok(c)) => held.push((ep, c)),
++                    other => eprintln!("connect {i} failed: {:?}", other.map(|r| r.map(|_| ()))),
++                }
++            }
++            println!("connected {}", held.len());
++            tokio::time::sleep(Duration::from_secs(hold)).await;
++            let open = held.iter().filter(|(_, c)| c.close_reason().is_none()).count();
++            println!("after {hold}s still open {open} of {}", held.len());
++            if let Some((_, c)) = held.iter().find(|(_, c)| c.close_reason().is_some()) {
++                println!("example close reason {:?}", c.close_reason());
++            }
++        }
++        // Opens one exchange, sends part of a frame, then stalls.
++        "partial" => {
++            let ep = endpoint().await;
++            let conn = dial(&ep, &target, &addr).await;
++            let (mut send, mut recv) = conn.open_bi().await.unwrap();
++            let mut bytes = 100u32.to_le_bytes().to_vec();
++            bytes.extend_from_slice(&[0u8; 10]);
++            send.write_all(&bytes).await.unwrap();
++            let start = Instant::now();
++            println!("partial frame sent; {}", drain(&mut recv, start).await);
++            println!("connection close reason {:?}", conn.close_reason());
++        }
++        // Sends only one byte of a prefix.
++        "prefix1" => {
++            let ep = endpoint().await;
++            let conn = dial(&ep, &target, &addr).await;
++            let (mut send, mut recv) = conn.open_bi().await.unwrap();
++            send.write_all(&[5u8]).await.unwrap();
++            let start = Instant::now();
++            println!("one prefix byte sent; {}", drain(&mut recv, start).await);
++        }
++        // A non-member Hello for a random goal, then never finishes or reads.
++        "hello" => {
++            let ep = endpoint().await;
++            let conn = dial(&ep, &target, &addr).await;
++            let (mut send, mut recv) = conn.open_bi().await.unwrap();
++            let goal = if args.len() > 4 { args[4].parse().unwrap() } else { GoalId([9; 32]) };
++            send.write_all(&frame(&SyncMessage::Hello { version: 0, goal })).await.unwrap();
++            let start = Instant::now();
++            println!("hello sent; {}", drain(&mut recv, start).await);
++        }
++        // Oversized prefix on a hello-limited exchange.
++        "bigprefix" => {
++            let ep = endpoint().await;
++            let conn = dial(&ep, &target, &addr).await;
++            let (mut send, mut recv) = conn.open_bi().await.unwrap();
++            send.write_all(&(1_000_000u32).to_le_bytes()).await.unwrap();
++            let start = Instant::now();
++            println!("big prefix sent; {}", drain(&mut recv, start).await);
++        }
++        // Undecodable frame within the hello limit.
++        "garbage" => {
++            let ep = endpoint().await;
++            let conn = dial(&ep, &target, &addr).await;
++            let (mut send, mut recv) = conn.open_bi().await.unwrap();
++            let mut bytes = 8u32.to_le_bytes().to_vec();
++            bytes.extend_from_slice(&[0xff; 8]);
++            send.write_all(&bytes).await.unwrap();
++            let start = Instant::now();
++            println!("garbage sent; {}", drain(&mut recv, start).await);
++        }
++        // Many partial exchanges on one connection: how many are served at once.
++        "streams" => {
++            let n: usize = args[4].parse().unwrap();
++            let ep = endpoint().await;
++            let conn = dial(&ep, &target, &addr).await;
++            let start = Instant::now();
++            let mut tasks = Vec::new();
++            for i in 0..n {
++                let conn = conn.clone();
++                tasks.push(tokio::spawn(async move {
++                    let opened = tokio::time::timeout(Duration::from_secs(5), conn.open_bi()).await;
++                    match opened {
++                        Ok(Ok((mut send, mut recv))) => {
++                            send.write_all(&[1u8]).await.ok();
++                            let r = drain(&mut recv, start).await;
++                            format!("stream {i} opened at {:?}: {r}", start.elapsed())
++                        }
++                        _ => format!("stream {i} not opened within 5s"),
++                    }
++                }));
++            }
++            for t in tasks {
++                println!("{}", t.await.unwrap());
++            }
++        }
++        other => panic!("unknown probe {other}"),
++    }
++}

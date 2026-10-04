@@ -1,0 +1,1528 @@
+--- a/crates/locust-core/src/node/replica_tests.rs
++++ b/crates/locust-core/src/node/replica_tests.rs
+@@ -740,3 +740,537 @@
+     );
+     assert!(peers[1].store.blob_len(&hash).unwrap().is_none());
+ }
++
++// ---------------------------------------------------------------- probes
++
++fn as_agent(node: &mut Node<MemStore, Random>, conn: u64, seed: u8, operation: Request) -> Result<Response, locust_proto::api::ApiError> {
++    let hello = ClientHello {
++        api_version: locust_proto::API_VERSION,
++        credential: Credential([seed; 32]),
++        session: None,
++    };
++    assert!(matches!(node.connect(ConnId(conn), &hello, 0), ServerHello::Welcome { .. }));
++    match node.request(
++        ConnId(conn),
++        RequestFrame { id: 1, idempotency: None, on_behalf: None, request: operation },
++        10,
++    ) {
++        Step::Reply(reply) => reply.result,
++        Step::Park(_) => panic!("unexpected wait"),
++    }
++}
++
++fn try_request(
++    node: &mut Node<MemStore, Random>,
++    principal: Option<PublicKey>,
++    operation: Request,
++) -> Result<Response, locust_proto::api::ApiError> {
++    match node.request(
++        ConnId(1),
++        RequestFrame { id: 1, idempotency: None, on_behalf: principal, request: operation },
++        10,
++    ) {
++        Step::Reply(reply) => reply.result,
++        Step::Park(_) => panic!("unexpected wait"),
++    }
++}
++
++/// H2: two principals on daemon B are members; the coordinator on A removes
++/// one. B still speaks for the other, so B gets the new epoch's key. What
++/// does the removed principal read on B?
++#[test]
++fn probe_r1_removed_cohosted_principal_reads_new_epoch() {
++    let mut peers = [Peer::new(1), Peer::new(2)];
++    let Response::AgentEnrolled { agent: second } = request(
++        &mut peers[1].node,
++        None,
++        Request::AgentEnroll {
++            name: "second".into(),
++            grants: Grants { manage_goals: true },
++            credential: Credential([5; 32]).digest(),
++        },
++    ) else {
++        panic!("enroll");
++    };
++    let first = peers[1].principal;
++    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate { title: "epochs".into() }) else {
++        panic!()
++    };
++    for member in [first, second] {
++        let Response::Invited { ticket } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else {
++            panic!()
++        };
++        request(&mut peers[1].node, Some(member), Request::GoalJoin { ticket });
++        reconcile(&mut peers, 1000);
++        reconcile(&mut peers, 40000);
++    }
++    reconcile(&mut peers, 80000);
++    assert!(peers[1].node.goals[&goal].is_member(&first));
++    assert!(peers[1].node.goals[&goal].is_member(&second));
++    peers[0].call(Request::NoteAdd { goal, about: None, supersedes: None, text: "before removal".into() });
++    peers[0].call(Request::MemberRemove { goal, member: first });
++    peers[0].call(Request::NoteAdd { goal, about: None, supersedes: None, text: "after removal, new epoch".into() });
++    reconcile(&mut peers, 120000);
++    reconcile(&mut peers, 160000);
++    reconcile(&mut peers, 200000);
++    let status = as_agent(&mut peers[1].node, 7, 2, Request::Status);
++    println!("R1 removed principal status: {status:?}");
++    let notes = as_agent(&mut peers[1].node, 8, 2, Request::Notes { goal, about: None });
++    println!("R1 removed principal notes: {notes:?}");
++    let write = as_agent(
++        &mut peers[1].node,
++        9,
++        2,
++        Request::NoteAdd { goal, about: None, supersedes: None, text: "x".into() },
++    );
++    println!("R1 removed principal note.add: {write:?}");
++    let pending = as_agent(&mut peers[1].node, 10, 2, Request::Pending { goal });
++    println!("R1 removed principal pending: {pending:?}");
++}
++
++/// Halt: fork the coordinator's log, then try every signing path.
++#[test]
++fn probe_r2_nothing_is_signed_for_a_halted_goal() {
++    use crate::sync::Host;
++    use locust_proto::event::Body;
++    use locust_proto::invite::{Invitation, JoinRequest};
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate { title: "halting".into() }) else {
++        panic!()
++    };
++    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else {
++        panic!()
++    };
++    peers[1].call(Request::GoalJoin { ticket });
++    reconcile(&mut peers, 1000);
++    reconcile(&mut peers, 40000);
++    // An outstanding invitation for peer 3.
++    let Response::Invited { ticket: later } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else {
++        panic!()
++    };
++    // A task assigned to peer 2, unclaimed.
++    let Response::Recorded { event: task } = peers[0].call(Request::TaskPropose {
++        goal, text: "t".into(), input: None, depends_on: vec![], deadline_ms: None, max_attempts: None,
++    }) else { panic!() };
++    let assignee = peers[1].principal;
++    let Response::Recorded { event: assignment } = peers[0].call(Request::TaskAssign { goal, task, assignee }) else {
++        panic!()
++    };
++    reconcile(&mut peers, 80000);
++    // The coordinator's key signs a second, different decision at its next position.
++    let fork = reference_event(&peers[0], goal, None, Body::CancelRequested { assignment });
++    let Response::Recorded { .. } = peers[0].call(Request::TaskAssign { goal, task, assignee }) else {
++        panic!()
++    };
++    for index in [0, 1] {
++        let replica = Host::replica(&mut peers[index].node, &goal).unwrap();
++        println!("R2 fork received by {index}: {:?}", replica.receive(vec![fork.to_wire()]));
++        peers[index].node.replica_goal = None;
++    }
++    reconcile(&mut peers, 120000);
++    reconcile(&mut peers, 160000);
++    for index in [0, 1] {
++        println!("R2 peer {index} halt: {:?}", peers[index].node.goals[&goal].goal.halt().is_some());
++    }
++    let count = |peer: &Peer| peer.store.log(&goal, 0, usize::MAX).unwrap().len();
++    let before = [count(&peers[0]), count(&peers[1])];
++    let coordinator = peers[0].principal;
++    let member = peers[1].principal;
++    let attempts: Vec<(usize, PublicKey, Request)> = vec![
++        (0, coordinator, Request::NoteAdd { goal, about: None, supersedes: None, text: "x".into() }),
++        (0, coordinator, Request::GoalInvite { goal, expires_ms: None }),
++        (0, coordinator, Request::TaskAssign { goal, task, assignee: member }),
++        (0, coordinator, Request::MemberRemove { goal, member }),
++        (0, coordinator, Request::GoalLeave { goal }),
++        (1, member, Request::NoteAdd { goal, about: None, supersedes: None, text: "x".into() }),
++        (1, member, Request::TaskDecline { goal, assignment }),
++        (1, member, Request::GoalLeave { goal }),
++        (1, member, Request::TaskPropose { goal, text: "t".into(), input: None, depends_on: vec![], deadline_ms: None, max_attempts: None }),
++        (1, member, Request::DocRevise { goal, doc: locust_proto::event::Doc::Plan, base: None, text: "p".into() }),
++        (1, member, Request::BlobPut { goal, bytes: b"abc".to_vec() }),
++    ];
++    for (index, principal, operation) in attempts {
++        let name = operation.name();
++        let answer = try_request(&mut peers[index].node, Some(principal), operation);
++        println!("R2 {name} on peer {index}: {:?}", answer.map(|_| "ok"));
++    }
++    // A join for the outstanding invitation.
++    let invite = Invitation::from_ticket(later.as_str()).unwrap();
++    let join = JoinRequest::sign(
++        goal,
++        peers[2].endpoint,
++        invite.secret,
++        peers[2].node.signer(&peers[2].principal).unwrap(),
++    );
++    let endpoint = peers[2].endpoint;
++    println!("R2 join while halted: {:?}", Host::join(&mut peers[0].node, &endpoint, &join, 170000));
++    println!("R2 events before {before:?} after {:?}", [count(&peers[0]), count(&peers[1])]);
++    let Response::Status(status) = peers[1].call(Request::Status) else { panic!() };
++    println!("R2 status on peer 1: {:?}", status.goals);
++}
++
++/// A refused join: what the joiner sees afterwards, and whether the same
++/// principal can redeem a fresh ticket.
++#[test]
++fn probe_r3_refused_join_and_retry() {
++    let mut peers = [Peer::new(1), Peer::new(2)];
++    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate { title: "retry".into() }) else {
++        panic!()
++    };
++    let Response::Invited { ticket: expired } = peers[0].call(Request::GoalInvite { goal, expires_ms: Some(100) }) else {
++        panic!()
++    };
++    let principal = peers[1].principal;
++    peers[1].call(Request::GoalJoin { ticket: expired.clone() });
++    reconcile(&mut peers, 1000);
++    println!("R3 same ticket again: {:?}", try_request(&mut peers[1].node, Some(principal), Request::GoalJoin { ticket: expired }));
++    let Response::Status(status) = peers[1].call(Request::Status) else { panic!() };
++    println!("R3 status after refusal: {:?}", status.goals);
++    println!("R3 goal.status after refusal: {:?}", try_request(&mut peers[1].node, Some(principal), Request::GoalStatus { goal }));
++    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else {
++        panic!()
++    };
++    println!("R3 fresh ticket: {:?}", try_request(&mut peers[1].node, Some(principal), Request::GoalJoin { ticket }));
++    reconcile(&mut peers, 40000);
++    reconcile(&mut peers, 80000);
++    let Response::Status(status) = peers[1].call(Request::Status) else { panic!() };
++    println!("R3 status after fresh ticket: {:?}", status.goals);
++}
++
++/// The coordinator leaves its own goal.
++#[test]
++fn probe_r4_coordinator_leave_and_unleave() {
++    let mut peers = [Peer::new(1), Peer::new(2)];
++    let goal = found(&mut peers);
++    let coordinator = peers[0].principal;
++    let member = peers[1].principal;
++    println!("R4 leave: {:?}", try_request(&mut peers[0].node, Some(coordinator), Request::GoalLeave { goal }).map(|_| "ok"));
++    println!("R4 remove after leave: {:?}", try_request(&mut peers[0].node, Some(coordinator), Request::MemberRemove { goal, member }).map(|_| "ok"));
++    println!("R4 invite after leave: {:?}", try_request(&mut peers[0].node, Some(coordinator), Request::GoalInvite { goal, expires_ms: None }).map(|_| "ok"));
++    // A made-up ticket un-leaves.
++    let ticket = locust_proto::invite::Invitation {
++        version: locust_proto::PROTOCOL_VERSION,
++        goal,
++        coordinator,
++        endpoint: EndpointId([77; 32]),
++        hints: vec![],
++        secret: locust_proto::invite::InviteSecret([5; 32]),
++        expires_ms: None,
++    }
++    .to_ticket()
++    .unwrap();
++    println!("R4 join with made-up ticket: {:?}", try_request(&mut peers[0].node, Some(coordinator), Request::GoalJoin { ticket }));
++    peers[1].call(Request::NoteAdd { goal, about: None, supersedes: None, text: "tick".into() });
++    reconcile(&mut peers, 40000);
++    let Response::Status(status) = peers[0].call(Request::Status) else { panic!() };
++    println!("R4 status after: {:?}", status.goals);
++    println!("R4 invite after unleave: {:?}", try_request(&mut peers[0].node, Some(coordinator), Request::GoalInvite { goal, expires_ms: None }).map(|_| "ok"));
++}
++
++// ------------------------------------------------------- probes, second run
++
++fn note_req(goal: GoalId, text: &str) -> Request {
++    Request::NoteAdd { goal, about: None, supersedes: None, text: text.into() }
++}
++
++fn enroll_second(peer: &mut Peer, name: &str, seed: u8) -> PublicKey {
++    let Response::AgentEnrolled { agent } = request(
++        &mut peer.node,
++        None,
++        Request::AgentEnroll {
++            name: name.into(),
++            grants: Grants { manage_goals: true },
++            credential: Credential([seed; 32]).digest(),
++        },
++    ) else {
++        panic!("enroll");
++    };
++    agent
++}
++
++/// N1: on a daemon that holds a goal for one principal, a second local
++/// principal that was never admitted reads the goal's text (a) with a real
++/// ticket the inviter refuses as expired, (b) by replaying the ticket the
++/// first principal already redeemed.
++#[test]
++fn probe_n1_never_admitted_cohosted_principal_reads_text() {
++    use locust_proto::api::Membership;
++    for replay in [false, true] {
++        let mut peers = [Peer::new(1), Peer::new(2)];
++        let intruder = enroll_second(&mut peers[1], "intruder", 5);
++        let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate { title: "private".into() }) else { panic!() };
++        let Response::Invited { ticket: expired } = peers[0].call(Request::GoalInvite { goal, expires_ms: Some(100) }) else { panic!() };
++        let Response::Invited { ticket: valid } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else { panic!() };
++        // The invited principal joins and is admitted.
++        peers[1].call(Request::GoalJoin { ticket: valid.clone() });
++        reconcile(&mut peers, 1000);
++        reconcile(&mut peers, 40000);
++        peers[0].call(note_req(goal, "members only"));
++        let Response::Recorded { event: task } = peers[0].call(Request::TaskPropose {
++            goal, text: "secret task".into(), input: None, depends_on: vec![], deadline_ms: None, max_attempts: None,
++        }) else { panic!() };
++        reconcile(&mut peers, 80000);
++        reconcile(&mut peers, 120000);
++        assert!(peers[1].node.goals[&goal].is_member(&peers[1].principal));
++        // Before: the goal does not exist for the other local principal.
++        let before = as_agent(&mut peers[1].node, 20, 5, Request::Notes { goal, about: None });
++        println!("N1 replay={replay} before: {:?}", before.as_ref().map(|_| "ok"));
++        assert_eq!(before.unwrap_err().code, locust_proto::api::ErrorCode::NotFound);
++        // It redeems a ticket the inviter will refuse.
++        let ticket = if replay { valid } else { expired };
++        let joined = as_agent(&mut peers[1].node, 21, 5, Request::GoalJoin { ticket: ticket.clone() });
++        println!("N1 replay={replay} join: {joined:?}");
++        let notes = as_agent(&mut peers[1].node, 22, 5, Request::Notes { goal, about: None });
++        println!("N1 replay={replay} notes right after goal.join: {notes:?}");
++        reconcile(&mut peers, 160000);
++        reconcile(&mut peers, 200000);
++        reconcile(&mut peers, 240000);
++        let join = &peers[1].node.goals[&goal].local.joins[&intruder];
++        println!(
++            "N1 replay={replay} inviter refused: {} member on inviter: {} member here: {}",
++            join.refused,
++            peers[0].node.goals[&goal].is_member(&intruder),
++            peers[1].node.goals[&goal].is_member(&intruder)
++        );
++        assert!(join.refused);
++        assert!(!peers[0].node.goals[&goal].is_member(&intruder));
++        println!("N1 replay={replay} membership: {:?}", peers[1].node.goals[&goal].membership(&intruder));
++        assert_eq!(peers[1].node.goals[&goal].membership(&intruder), Some(Membership::Joining));
++        let again = as_agent(&mut peers[1].node, 23, 5, Request::GoalJoin { ticket });
++        println!("N1 replay={replay} goal.join again: {again:?}");
++        // New content written after the refusal.
++        peers[0].call(note_req(goal, "written after the refusal"));
++        reconcile(&mut peers, 280000);
++        reconcile(&mut peers, 320000);
++        let notes = as_agent(&mut peers[1].node, 24, 5, Request::Notes { goal, about: None });
++        println!("N1 replay={replay} notes after refusal: {notes:?}");
++        let shown = as_agent(&mut peers[1].node, 25, 5, Request::Task { goal, task });
++        println!("N1 replay={replay} task.show after refusal: {:?}", shown.map(|r| match r { Response::Task(t) => t.text, _ => None }));
++        let status = as_agent(&mut peers[1].node, 26, 5, Request::GoalStatus { goal });
++        println!("N1 replay={replay} goal.status: {:?}", status.map(|_| "ok"));
++        // Survives a restart.
++        peers[1].restart();
++        let notes = as_agent(&mut peers[1].node, 27, 5, Request::Notes { goal, about: None });
++        println!("N1 replay={replay} notes after restart: {:?}", notes.map(|r| match r { Response::Notes(n) => n.into_iter().map(|n| n.text).collect::<Vec<_>>(), _ => vec![] }));
++    }
++}
++
++/// N2: a daemon whose only principal is removed: what it knows and does.
++#[test]
++fn probe_n2_sole_removed_member() {
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let goal = found(&mut peers);
++    reconcile(&mut peers, 40000);
++    let removed = peers[2].principal;
++    peers[0].call(Request::MemberRemove { goal, member: removed });
++    peers[0].call(note_req(goal, "after removal"));
++    for round in 0..6 {
++        reconcile(&mut peers, 80000 + round * 40000);
++    }
++    let Response::Status(status) = peers[2].call(Request::Status) else { panic!() };
++    println!("N2 removed daemon status: {:?}", status.goals);
++    let write = try_request(&mut peers[2].node, Some(removed), note_req(goal, "from the removed member"));
++    println!("N2 removed daemon note.add: {write:?}");
++    for round in 0..6 {
++        reconcile(&mut peers, 400000 + round * 40000);
++    }
++    let Response::Notes(notes) = peers[2].call(Request::Notes { goal, about: None }) else { panic!() };
++    println!("N2 removed daemon notes: {:?}", notes.iter().map(|n| n.text.clone()).collect::<Vec<_>>());
++    let Response::Notes(notes) = peers[1].call(Request::Notes { goal, about: None }) else { panic!() };
++    println!("N2 remaining member notes: {:?}", notes.iter().map(|n| n.text.clone()).collect::<Vec<_>>());
++    println!(
++        "N2 events: coordinator {} member {} removed {}",
++        peers[0].store.log(&goal, 0, usize::MAX).unwrap().len(),
++        peers[1].store.log(&goal, 0, usize::MAX).unwrap().len(),
++        peers[2].store.log(&goal, 0, usize::MAX).unwrap().len()
++    );
++}
++
++/// N3: revocation and what the daemon still signs for the revoked principal.
++#[test]
++fn probe_n3_revoked_principal_join_and_invites() {
++    // (a) A pending join of a principal revoked before the inviter was reached.
++    let mut peers = [Peer::new(1), Peer::new(2)];
++    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate { title: "revocation".into() }) else { panic!() };
++    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else { panic!() };
++    peers[1].call(Request::GoalJoin { ticket });
++    let joiner = peers[1].principal;
++    request(&mut peers[1].node, None, Request::AgentRevoke { agent: joiner });
++    reconcile(&mut peers, 1000);
++    reconcile(&mut peers, 40000);
++    println!(
++        "N3a revoked joiner admitted on inviter: {} here: {}",
++        peers[0].node.goals[&goal].is_member(&joiner),
++        peers[1].node.goals.get(&goal).is_some_and(|entry| entry.is_member(&joiner))
++    );
++    // (b) Tickets issued before the coordinator lost every authorization.
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate { title: "grants".into() }) else { panic!() };
++    let Response::Invited { ticket: one } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else { panic!() };
++    let Response::Invited { ticket: two } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else { panic!() };
++    let coordinator = peers[0].principal;
++    // The owner takes away decide and manage_goals.
++    request(&mut peers[0].node, None, Request::GoalGrant { goal, agent: coordinator, grants: Default::default() });
++    request(&mut peers[0].node, None, Request::AgentGrant { agent: coordinator, grants: Grants { manage_goals: false } });
++    let fresh = as_agent(&mut peers[0].node, 30, 1, Request::GoalInvite { goal, expires_ms: None });
++    println!("N3b invite without grants: {:?}", fresh.map(|_| "ticket"));
++    peers[1].call(Request::GoalJoin { ticket: one });
++    reconcile(&mut peers, 1000);
++    reconcile(&mut peers, 40000);
++    println!("N3b join after grants were removed admitted: {}", peers[0].node.goals[&goal].is_member(&peers[1].principal));
++    // Then the owner revokes the coordinator.
++    request(&mut peers[0].node, None, Request::AgentRevoke { agent: coordinator });
++    let events = peers[0].store.log(&goal, 0, usize::MAX).unwrap().len();
++    peers[2].call(Request::GoalJoin { ticket: two });
++    reconcile(&mut peers, 80000);
++    reconcile(&mut peers, 120000);
++    reconcile(&mut peers, 160000);
++    println!(
++        "N3b join after revocation admitted: {} (events {} -> {}), key 0 on the new member: {}",
++        peers[0].node.goals[&goal].is_member(&peers[2].principal),
++        events,
++        peers[0].store.log(&goal, 0, usize::MAX).unwrap().len(),
++        peers[2].node.goals[&goal].keys.contains_key(&0)
++    );
++    let Response::GoalStatus(status) = peers[2].call(Request::GoalStatus { goal }) else { panic!() };
++    println!("N3b new member reads title: {:?}", status.title);
++    // What the owner can do about it on the coordinator's daemon.
++    let remove = try_request(&mut peers[0].node, Some(coordinator), Request::MemberRemove { goal, member: peers[2].principal });
++    println!("N3b owner on behalf of the revoked coordinator: {:?}", remove.map(|_| "ok"));
++}
++
++/// N4: a coordinator leaves its own goal.
++#[test]
++fn probe_n4_coordinator_leaves() {
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate { title: "leave".into() }) else { panic!() };
++    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else { panic!() };
++    peers[1].call(Request::GoalJoin { ticket });
++    reconcile(&mut peers, 1000);
++    reconcile(&mut peers, 40000);
++    let Response::Invited { ticket: outstanding } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else { panic!() };
++    let Response::Recorded { event: task } = peers[0].call(Request::TaskPropose {
++        goal, text: "t".into(), input: None, depends_on: vec![], deadline_ms: None, max_attempts: None,
++    }) else { panic!() };
++    let coordinator = peers[0].principal;
++    let member = peers[1].principal;
++    println!("N4 leave: {:?}", try_request(&mut peers[0].node, Some(coordinator), Request::GoalLeave { goal }).map(|_| "ok"));
++    for (name, operation) in [
++        ("task.assign", Request::TaskAssign { goal, task, assignee: member }),
++        ("member.remove", Request::MemberRemove { goal, member }),
++        ("goal.invite", Request::GoalInvite { goal, expires_ms: None }),
++        ("note.add", note_req(goal, "x")),
++        ("goal.leave", Request::GoalLeave { goal }),
++    ] {
++        println!("N4 {name} after leave: {:?}", try_request(&mut peers[0].node, Some(coordinator), operation).map(|_| "ok"));
++    }
++    let Response::Status(status) = peers[0].call(Request::Status) else { panic!() };
++    println!("N4 status: {:?}", status.goals);
++    let events = peers[0].store.log(&goal, 0, usize::MAX).unwrap().len();
++    peers[2].call(Request::GoalJoin { ticket: outstanding });
++    reconcile(&mut peers, 80000);
++    reconcile(&mut peers, 120000);
++    println!(
++        "N4 outstanding ticket after leave admitted: {} (events {} -> {})",
++        peers[0].node.goals[&goal].is_member(&peers[2].principal),
++        events,
++        peers[0].store.log(&goal, 0, usize::MAX).unwrap().len()
++    );
++    peers[0].restart();
++    println!("N4 task.assign after restart: {:?}", try_request(&mut peers[0].node, Some(coordinator), Request::TaskAssign { goal, task, assignee: member }).map(|_| "ok"));
++}
++
++/// N7: a parked wait is answered by a change that arrives from a peer, and
++/// by a key or text arriving later.
++#[test]
++fn probe_n7_wait_sees_peer_changes() {
++    use locust_proto::api::WaitOutcome;
++    let mut peers = [Peer::new(1), Peer::new(2)];
++    let goal = found(&mut peers);
++    reconcile(&mut peers, 40000);
++    let member = peers[1].principal;
++    let Response::Pending(work) = peers[1].call(Request::Pending { goal }) else { panic!() };
++    let _ = peers[1].node.take_changed();
++    let frame = RequestFrame { id: 77, idempotency: None, on_behalf: Some(member), request: Request::Wait { goal, seen: work.revision, timeout_ms: 5000 } };
++    let Step::Park(parked) = peers[1].node.request(ConnId(1), frame, 50000) else { panic!("not parked") };
++    peers[0].call(note_req(goal, "wake up"));
++    reconcile(&mut peers, 80000);
++    let changed = Engine::take_changed(&mut peers[1].node);
++    println!("N7 changed after peer event: {}", changed.contains(&goal));
++    assert!(changed.contains(&goal));
++    let Step::Reply(reply) = peers[1].node.resume(ConnId(1), &parked, false, 80001) else { panic!("still parked") };
++    let Response::Waited(WaitOutcome::Work(work2)) = reply.result.unwrap() else { panic!() };
++    println!("N7 revision {} -> {}", work.revision, work2.revision);
++    assert!(work2.revision > work.revision);
++    // Nothing changed: a resume without timeout parks again, with timeout answers.
++    let frame = RequestFrame { id: 78, idempotency: None, on_behalf: Some(member), request: Request::Wait { goal, seen: work2.revision, timeout_ms: 5000 } };
++    let step = peers[1].node.request(ConnId(1), frame, 90000);
++    let Step::Park(parked) = step else {
++        // later exchanges may have moved the revision (keys, content)
++        println!("N7 second wait answered at once: {step:?}");
++        return;
++    };
++    assert!(matches!(peers[1].node.resume(ConnId(1), &parked, false, 90001), Step::Park(_)));
++    let Step::Reply(reply) = peers[1].node.resume(ConnId(1), &parked, true, 95001) else { panic!() };
++    println!("N7 timed out: {:?}", reply.result);
++}
++
++/// G3: keys and roles across daemons.
++#[test]
++fn probe_g3_keys_and_roles() {
++    use crate::sync::{Host, Replica};
++    use locust_proto::api::ErrorCode;
++    use locust_proto::crypto::ContentKey;
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate { title: "keys".into() }) else { panic!() };
++    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else { panic!() };
++    // A joiner writes nothing before admission.
++    peers[1].call(Request::GoalJoin { ticket });
++    let member = peers[1].principal;
++    let early = try_request(&mut peers[1].node, Some(member), note_req(goal, "too early"));
++    assert_eq!(early.unwrap_err().code, ErrorCode::Unavailable);
++    reconcile(&mut peers, 1000);
++    reconcile(&mut peers, 40000);
++    // A member that does not coordinate: Denied, not AuthorizationRequired, also with decide granted locally.
++    let Response::Recorded { event: task } = peers[1].call(Request::TaskPropose { goal, text: "t".into(), input: None, depends_on: vec![], deadline_ms: None, max_attempts: None }) else { panic!() };
++    request(&mut peers[1].node, None, Request::GoalGrant { goal, agent: member, grants: locust_proto::api::GoalGrants { execute: true, decide: true, takeover: true } });
++    for operation in [
++        Request::TaskAssign { goal, task, assignee: member },
++        Request::MemberRemove { goal, member: peers[0].principal },
++        Request::GoalInvite { goal, expires_ms: None },
++    ] {
++        let name = operation.name();
++        let answer = as_agent(&mut peers[1].node, 40, 2, operation);
++        println!("G3 member's {name}: {:?}", answer.as_ref().map(|_| "ok"));
++        assert_eq!(answer.unwrap_err().code, ErrorCode::Denied);
++    }
++    // The third daemon is not a member: the coordinator's daemon does not speak to it.
++    let stranger = peers[2].endpoint;
++    assert!(!Host::speaks_for_member(&peers[0].node, &goal, &stranger));
++    assert!(Host::speaks_for_member(&peers[0].node, &goal, &peers[1].endpoint));
++    // Removal starts epoch 1; the remaining member accepts only the key that opens the removal's payload.
++    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite { goal, expires_ms: None }) else { panic!() };
++    peers[2].call(Request::GoalJoin { ticket });
++    reconcile(&mut peers, 80000);
++    reconcile(&mut peers, 120000);
++    peers[0].call(Request::MemberRemove { goal, member: peers[2].principal });
++    // Events travel first; stop before the key is fetched by dropping it afterwards.
++    reconcile(&mut peers, 160000);
++    reconcile(&mut peers, 200000);
++    let right = Host::replica(&mut peers[0].node, &goal).unwrap().key(1).unwrap();
++    peers[1].node.replica_goal = None;
++    peers[0].node.replica_goal = None;
++    // A fresh member daemon state without key 1: use peer 1 after forgetting is not possible, so check the rule directly.
++    let replica = Host::replica(&mut peers[1].node, &goal).unwrap();
++    println!("G3 member holds key 1 after exchanges: {}", replica.key(1).is_some());
++    assert!(!replica.offer_key(1, ContentKey([7; 32])), "a wrong key was accepted");
++    assert!(!replica.offer_key(2, right), "a key for an epoch with no proof was accepted");
++    assert!(!replica.offer_key(0, right), "the epoch-1 key was accepted for epoch 0");
++    assert_eq!(replica.key(1).map(|key| key.0), Some(right.0));
++    peers[1].node.replica_goal = None;
++    // The removed daemon is no longer spoken to and holds no key 1.
++    assert!(!Host::speaks_for_member(&peers[0].node, &goal, &stranger));
++    assert!(!Host::speaks_for_member(&peers[1].node, &goal, &stranger));
++    assert!(!peers[2].node.goals[&goal].keys.contains_key(&1));
++    println!("G3 ok");
++}
+--- a/crates/locust-core/src/node/tests/failure.rs
++++ b/crates/locust-core/src/node/tests/failure.rs
+@@ -210,3 +210,131 @@
+         assert_eq!(reopened.goals[&goal].state().members.len(), 1);
+     }
+ }
++
++#[test]
++fn probe_f1_failed_commit_on_claim_and_local_records() {
++    use locust_proto::api::SessionSecret;
++    for after in [false, true] {
++        let store = MemStore::new();
++        let fail = Rc::new(Cell::new(None));
++        let mut node = Node::open(
++            Failing { inner: store.reopen(), fail: fail.clone() },
++            Counting::new(41),
++            OWNER.digest(),
++            "test".into(),
++            0,
++        )
++        .unwrap();
++        node.peer(PeerInput::Endpoint { endpoint: EndpointId([41; 32]), hints: vec![] }, 0, &mut Vec::new());
++        let owner_hello = ClientHello { api_version: API_VERSION, credential: OWNER, session: Some(SessionSecret([3; 32])) };
++        node.connect(ConnId(1), &owner_hello, 0);
++        let Response::AgentEnrolled { agent } = call(
++            &mut node, ConnId(1), None,
++            Request::AgentEnroll { name: "creator".into(), grants: Grants { manage_goals: true }, credential: credential(1).digest() },
++            None,
++        ).unwrap() else { panic!() };
++        let Response::GoalCreated { goal } = call(&mut node, ConnId(1), Some(agent), Request::GoalCreate { title: "t".into() }, None).unwrap() else { panic!() };
++        let Response::Recorded { event: task } = call(&mut node, ConnId(1), Some(agent), Request::TaskPropose { goal, text: "x".into(), input: None, depends_on: vec![], deadline_ms: None, max_attempts: None }, None).unwrap() else { panic!() };
++        let Response::Recorded { event: assignment } = call(&mut node, ConnId(1), Some(agent), Request::TaskAssign { goal, task, assignee: agent }, None).unwrap() else { panic!() };
++        node.take_changed();
++        let revision = node.goals[&goal].local.revision;
++        let events = node.goals[&goal].goal.len();
++        fail.set(Some(after));
++        let claim = Request::TaskClaim { goal, assignment };
++        let answer = call(&mut node, ConnId(1), Some(agent), claim.clone(), Some(IdempotencyKey([2; 16])));
++        println!("F1 after={after} claim: {answer:?}");
++        let changed = node.take_changed();
++        println!(
++            "F1 after={after} memory: claims={} revision {}->{} events {}->{} session bound={} changed={:?} feed={}",
++            node.goals[&goal].claims.len(),
++            revision,
++            node.goals[&goal].local.revision,
++            events,
++            node.goals[&goal].goal.len(),
++            node.sessions.get(&SessionSecret([3; 32]).instance()).is_some(),
++            changed,
++            node.goals[&goal].feed.len(),
++        );
++        // Everything is refused afterwards, stop included; a new hello is still welcomed.
++        println!("F1 after={after} status: {:?}", call(&mut node, ConnId(1), None, Request::Status, None).map(|_| "ok"));
++        println!("F1 after={after} board: {:?}", call(&mut node, ConnId(1), None, Request::Board { goal }, None).map(|_| "ok"));
++        println!("F1 after={after} stop: {:?} stop_requested={}", call(&mut node, ConnId(1), None, Request::Shutdown, None).map(|_| "ok"), node.stop_requested());
++        let again = node.connect(ConnId(2), &owner_hello, 0);
++        println!("F1 after={after} new hello welcomed: {}", matches!(again, ServerHello::Welcome { .. }));
++        let mut out = Vec::new();
++        node.peer(PeerInput::Poll, 100_000, &mut out);
++        println!("F1 after={after} peer poll outputs: {}", out.len());
++        // Reopen: the keyed retry resolves the outcome.
++        let mut reopened = Node::open(store.reopen(), Counting::new(42), OWNER.digest(), "test".into(), 0).unwrap();
++        reopened.connect(ConnId(1), &owner_hello, 0);
++        println!(
++            "F1 after={after} reopened: claims={} events={} feed={} revision={}",
++            reopened.goals[&goal].claims.len(),
++            reopened.goals[&goal].goal.len(),
++            reopened.goals[&goal].feed.len(),
++            reopened.goals[&goal].local.revision,
++        );
++        let retry = call(&mut reopened, ConnId(1), Some(agent), claim, Some(IdempotencyKey([2; 16])));
++        println!("F1 after={after} retry: {retry:?}; claims={} events={}", reopened.goals[&goal].claims.len(), reopened.goals[&goal].goal.len());
++    }
++}
++
++#[test]
++fn probe_g2_failed_commit_on_local_only_requests_leaves_memory_unchanged() {
++    use locust_proto::api::{GoalGrants, SessionSecret};
++    for (name, after) in [("before", false), ("after", true)] {
++        for case in ["goal.grant", "task.authorize", "takeover", "agent.revoke"] {
++            let store = MemStore::new();
++            let fail = Rc::new(Cell::new(None));
++            let mut node = Node::open(
++                Failing { inner: store.reopen(), fail: fail.clone() },
++                Counting::new(51),
++                OWNER.digest(),
++                "test".into(),
++                0,
++            )
++            .unwrap();
++            node.peer(PeerInput::Endpoint { endpoint: EndpointId([51; 32]), hints: vec![] }, 0, &mut Vec::new());
++            let hello = |secret: u8| ClientHello { api_version: API_VERSION, credential: OWNER, session: Some(SessionSecret([secret; 32])) };
++            node.connect(ConnId(1), &hello(3), 0);
++            node.connect(ConnId(2), &hello(4), 0);
++            let Response::AgentEnrolled { agent } = call(&mut node, ConnId(1), None,
++                Request::AgentEnroll { name: "creator".into(), grants: Grants { manage_goals: true }, credential: credential(1).digest() }, None).unwrap() else { panic!() };
++            let Response::GoalCreated { goal } = call(&mut node, ConnId(1), Some(agent), Request::GoalCreate { title: "t".into() }, None).unwrap() else { panic!() };
++            let Response::Recorded { event: task } = call(&mut node, ConnId(1), Some(agent), Request::TaskPropose { goal, text: "x".into(), input: None, depends_on: vec![], deadline_ms: None, max_attempts: None }, None).unwrap() else { panic!() };
++            let Response::Recorded { event: assignment } = call(&mut node, ConnId(1), Some(agent), Request::TaskAssign { goal, task, assignee: agent }, None).unwrap() else { panic!() };
++            call(&mut node, ConnId(1), Some(agent), Request::TaskClaim { goal, assignment }, None).unwrap();
++            node.take_changed();
++            let revision = node.goals[&goal].local.revision;
++            let snapshot = |node: &Node<Failing, Counting>| {
++                (
++                    node.goals[&goal].local.grants(&agent),
++                    node.goals[&goal].local.authorized.len(),
++                    node.goals[&goal].claims[&assignment].generation,
++                    node.principals.active(&agent).is_some(),
++                    node.goals[&goal].local.revision,
++                )
++            };
++            let before = snapshot(&node);
++            fail.set(Some(after));
++            let (conn, on_behalf, request) = match case {
++                "goal.grant" => (1, None, Request::GoalGrant { goal, agent, grants: GoalGrants { execute: true, decide: true, takeover: true } }),
++                "task.authorize" => (1, None, Request::TaskAuthorize { goal, assignment, takeover: true }),
++                "takeover" => (2, Some(agent), Request::TaskTakeover { goal, assignment }),
++                _ => (1, None, Request::AgentRevoke { agent }),
++            };
++            let answer = call(&mut node, ConnId(conn), on_behalf, request, Some(IdempotencyKey([9; 16])));
++            assert_eq!(code(answer), ErrorCode::Internal);
++            assert_eq!(snapshot(&node), before, "{case} {name}");
++            assert!(node.take_changed().is_empty());
++            assert_eq!(code(call(&mut node, ConnId(1), None, Request::Status, None)), ErrorCode::Internal);
++            let reopened = Node::open(store.reopen(), Counting::new(52), OWNER.digest(), "test".into(), 0).unwrap();
++            println!(
++                "G2 {case} failed {name} the commit: memory unchanged, revision {} ; reopened revision {} idempotency rows {}",
++                revision,
++                reopened.goals[&goal].local.revision,
++                store.scan(Space::Idempotency, &[]).unwrap().len()
++            );
++        }
++    }
++}
+--- a/crates/locust-core/src/node/tests/mod.rs
++++ b/crates/locust-core/src/node/tests/mod.rs
+@@ -229,3 +229,5 @@
+ mod failure;
+ 
+ mod content;
++
++mod probe;
+--- a/crates/locust-core/src/node/tests/probe.rs
++++ b/crates/locust-core/src/node/tests/probe.rs
+@@ -0,0 +1,843 @@
++//! Reviewer probes (scratch copy only).
++use super::lifecycle::{event, setup};
++use super::*;
++use locust_proto::api::{Membership, PendingWork, WaitOutcome};
++use locust_proto::engine::{ExchangeId, PeerEngine, PeerInput, PeerOutput};
++use locust_proto::event::Doc;
++use locust_proto::id::{EndpointId, EventId, GoalId};
++use locust_proto::invite::{Invitation, InviteSecret};
++use locust_proto::store::{Space, Store};
++use locust_proto::sync::{Frontier, SyncMessage};
++
++fn pending(daemon: &mut Daemon, conn: ConnId, goal: GoalId) -> PendingWork {
++    let Response::Pending(work) = daemon.ok(conn, Request::Pending { goal }) else {
++        panic!()
++    };
++    work
++}
++
++fn note(goal: GoalId, text: &str) -> Request {
++    Request::NoteAdd {
++        goal,
++        about: None,
++        supersedes: None,
++        text: text.into(),
++    }
++}
++
++fn assigned(daemon: &mut Daemon, agent: ConnId, goal: GoalId, to: PublicKey) -> (EventId, EventId) {
++    let task = event(daemon.ok(
++        agent,
++        Request::TaskPropose {
++            goal,
++            text: "Secret task text\nmore".into(),
++            input: None,
++            depends_on: vec![],
++            deadline_ms: None,
++            max_attempts: None,
++        },
++    ));
++    let assignment = event(daemon.ok(
++        agent,
++        Request::TaskAssign {
++            goal,
++            task,
++            assignee: to,
++        },
++    ));
++    (task, assignment)
++}
++
++/// H1: a co-hosted principal that never was a member redeems a ticket it
++/// made up for a goal another local principal is in, and reads its text.
++#[test]
++fn probe_h1_fabricated_join_reads_another_principals_goal() {
++    let (mut daemon, coordinator, _owner, agent, goal) = setup();
++    daemon.ok(agent, note(goal, "coordinator private finding"));
++    let (task, _) = assigned(&mut daemon, agent, goal, coordinator);
++    let revision = event(daemon.ok(
++        agent,
++        Request::DocRevise {
++            goal,
++            doc: Doc::Plan,
++            base: None,
++            text: "The private plan".into(),
++        },
++    ));
++    daemon.ok(agent, Request::DocAccept { goal, revision });
++    let Response::BlobStored { hash } = daemon.ok(
++        agent,
++        Request::BlobPut {
++            goal,
++            bytes: b"private file bytes".to_vec(),
++        },
++    ) else {
++        panic!()
++    };
++
++    let _other = daemon.enroll("other", 2, true);
++    let other = daemon.connect(credential(2), None);
++    // Before: the goal does not exist for it.
++    assert_eq!(
++        code(daemon.call(other, Request::Board { goal })),
++        ErrorCode::NotFound
++    );
++    assert_eq!(
++        code(daemon.call(other, Request::Notes { goal, about: None })),
++        ErrorCode::NotFound
++    );
++    // It makes up a ticket: any secret, any endpoint.
++    let ticket = Invitation {
++        version: locust_proto::PROTOCOL_VERSION,
++        goal,
++        coordinator,
++        endpoint: EndpointId([77; 32]),
++        hints: vec![],
++        secret: InviteSecret([5; 32]),
++        expires_ms: None,
++    }
++    .to_ticket()
++    .unwrap();
++    let joined = daemon.call(other, Request::GoalJoin { ticket });
++    println!("H1 join answer: {joined:?}");
++    let Ok(Response::Joined { membership, .. }) = joined else {
++        panic!("join refused")
++    };
++    assert_eq!(membership, Membership::Joining);
++
++    let notes = daemon.call(other, Request::Notes { goal, about: None });
++    println!("H1 notes: {notes:?}");
++    let shown = daemon.call(other, Request::Task { goal, task });
++    println!("H1 task.show: {shown:?}");
++    let doc = daemon.call(
++        other,
++        Request::DocRead {
++            goal,
++            doc: Doc::Plan,
++        },
++    );
++    println!("H1 doc.read: {doc:?}");
++    let blob = daemon.call(other, Request::BlobGet { goal, hash });
++    println!("H1 blob.get: {blob:?}");
++    let status = daemon.call(other, Request::GoalStatus { goal });
++    println!("H1 goal.status: {status:?}");
++    let board = daemon.call(other, Request::Board { goal });
++    println!("H1 board: {board:?}");
++    let ws = daemon.call(
++        other,
++        Request::WorkspaceSet {
++            goal,
++            binding: Default::default(),
++        },
++    );
++    println!("H1 workspace.set: {ws:?}");
++    let write = daemon.call(other, note(goal, "intruder"));
++    println!("H1 note.add: {write:?}");
++
++    // And the daemon dials the made-up endpoint with a signed join.
++    let mut out = Vec::new();
++    daemon.node.peer(PeerInput::Poll, 5_000, &mut out);
++    println!("H1 poll outputs: {out:?}");
++    let exchange = out
++        .iter()
++        .find_map(|output| match output {
++            PeerOutput::Open {
++                exchange, endpoint, ..
++            } if *endpoint == EndpointId([77; 32]) => Some(*exchange),
++            _ => None,
++        })
++        .expect("dials the ticket endpoint");
++    let mut frames = Vec::new();
++    let mut feed = |daemon: &mut Daemon, input: PeerInput, frames: &mut Vec<SyncMessage>| {
++        let mut queue = vec![input];
++        while let Some(input) = queue.pop() {
++            let mut out = Vec::new();
++            daemon.node.peer(input, 5_001, &mut out);
++            for output in out {
++                if let PeerOutput::Send { exchange, frame } = output {
++                    frames.push(frame);
++                    queue.push(PeerInput::Writable(exchange));
++                }
++            }
++        }
++    };
++    feed(&mut daemon, PeerInput::Opened(exchange), &mut frames);
++    // The attacker's endpoint answers the join with an empty frontier, and
++    // the frontier exchange with an empty frontier again.
++    let empty = Frontier { authors: vec![] };
++    feed(
++        &mut daemon,
++        PeerInput::Frame {
++            exchange,
++            frame: SyncMessage::Frontier(empty.clone()),
++        },
++        &mut frames,
++    );
++    feed(
++        &mut daemon,
++        PeerInput::Frame {
++            exchange,
++            frame: SyncMessage::Frontier(empty),
++        },
++        &mut frames,
++    );
++    let _ = ExchangeId::Dialed(0);
++    for frame in &frames {
++        match frame {
++            SyncMessage::Events(events) => println!("H1 sent Events x{}", events.len()),
++            other => println!("H1 sent {}", format!("{other:?}").chars().take(80).collect::<String>()),
++        }
++    }
++}
++
++/// H3: what a revoked principal's daemon-held key still signs.
++#[test]
++fn probe_h3_revoked_principal() {
++    let (mut daemon, principal, owner, agent, goal) = setup();
++    let Response::Invited { ticket } = daemon.ok(
++        agent,
++        Request::GoalInvite {
++            goal,
++            expires_ms: None,
++        },
++    ) else {
++        panic!()
++    };
++    daemon.ok(owner, Request::AgentRevoke { agent: principal });
++    assert_eq!(
++        code(daemon.call(agent, note(goal, "x"))),
++        ErrorCode::Denied
++    );
++    assert_eq!(
++        code(daemon.on_behalf(owner, principal, note(goal, "x"))),
++        ErrorCode::NotFound
++    );
++    // Hello with the revoked credential.
++    assert!(caller_of(&daemon.hello(credential(1), None).1).is_none());
++    // Re-enroll same name and digest.
++    let again = daemon.call(
++        owner,
++        Request::AgentEnroll {
++            name: "coordinator".into(),
++            grants: Grants { manage_goals: true },
++            credential: credential(1).digest(),
++        },
++    );
++    println!("H3 re-enroll of revoked: {again:?}");
++    // A join that arrives for the revoked coordinator's invitation.
++    use crate::sync::Host;
++    use locust_proto::crypto::Keypair;
++    use locust_proto::invite::JoinRequest;
++    let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
++    let joiner = Keypair::from_seed([9; 32]);
++    let remote = EndpointId([88; 32]);
++    let request = JoinRequest::sign(goal, remote, invitation.secret, &joiner);
++    let count = daemon.store.log(&goal, 0, 1000).unwrap().len();
++    let outcome = Host::join(&mut daemon.node, &remote, &request, 2_000);
++    println!(
++        "H3 join for revoked coordinator's invite: {outcome:?}; events {} -> {}",
++        count,
++        daemon.store.log(&goal, 0, 1000).unwrap().len()
++    );
++}
++
++/// H6: idempotency.
++#[test]
++fn probe_h6_idempotency() {
++    let (mut daemon, principal, owner, agent, goal) = setup();
++    let (_, assignment) = assigned(&mut daemon, agent, goal, principal);
++    // A failed request leaves nothing behind.
++    let claim = Request::TaskClaim { goal, assignment };
++    assert_eq!(
++        code(daemon.keyed(agent, 7, claim.clone())),
++        ErrorCode::AuthorizationRequired
++    );
++    assert!(daemon.store.scan(Space::Idempotency, &[]).unwrap().is_empty());
++    daemon.ok(
++        owner,
++        Request::TaskAuthorize {
++            goal,
++            assignment,
++            takeover: true,
++        },
++    );
++    let first = daemon.keyed(agent, 7, claim.clone()).unwrap();
++    assert_eq!(daemon.keyed(agent, 7, claim.clone()).unwrap(), first);
++    // Same key, another request.
++    assert_eq!(
++        code(daemon.keyed(agent, 7, note(goal, "x"))),
++        ErrorCode::IdempotencyMismatch
++    );
++    // B takes over; A replays the keyed claim.
++    let b = daemon.connect(credential(1), Some(session(2)));
++    daemon.ok(b, Request::TaskTakeover { goal, assignment });
++    let replay = daemon.keyed(agent, 7, claim.clone());
++    println!("H6 replayed claim after takeover: {replay:?}");
++    let live = daemon.call(agent, claim.clone());
++    println!("H6 unkeyed claim after takeover: {live:?}");
++    // Another session of the same principal replays A's key.
++    let replay_b = daemon.keyed(b, 7, claim.clone());
++    println!("H6 session B replays session A's keyed claim: {replay_b:?}");
++    // The owner's scope is separate from the agent's.
++    let owner_keyed = {
++        let mut frame = daemon.frame(note(goal, "by owner"));
++        frame.idempotency = Some(IdempotencyKey([7; 16]));
++        frame.on_behalf = Some(principal);
++        daemon.send(owner, frame)
++    };
++    println!("H6 owner same key on behalf: {owner_keyed:?}");
++    // Invite under a key: what the cache keeps.
++    let invite = Request::GoalInvite {
++        goal,
++        expires_ms: None,
++    };
++    let Response::Invited { ticket } = daemon.keyed(agent, 8, invite.clone()).unwrap() else {
++        panic!()
++    };
++    let secret = Invitation::from_ticket(ticket.as_str()).unwrap().secret;
++    let holds = |rows: Vec<(Vec<u8>, Vec<u8>)>| {
++        rows.iter()
++            .any(|(_, value)| value.windows(32).any(|part| part == secret.0))
++    };
++    println!(
++        "H6 invite secret in Idempotency: {}, in Invite: {}",
++        holds(daemon.store.scan(Space::Idempotency, &[]).unwrap()),
++        holds(daemon.store.scan(Space::Invite, &[]).unwrap())
++    );
++    // A viewer of the principal replays the invite key.
++    daemon.ok(
++        owner,
++        Request::ViewerEnroll {
++            agent: principal,
++            credential: credential(9).digest(),
++        },
++    );
++    let viewer = daemon.connect(credential(9), None);
++    println!(
++        "H6 viewer replays invite key: {:?}",
++        daemon.keyed(viewer, 8, invite.clone())
++    );
++    // The agent loses manage_goals and replays.
++    daemon.ok(
++        owner,
++        Request::AgentGrant {
++            agent: principal,
++            grants: Grants {
++                manage_goals: false,
++            },
++        },
++    );
++    println!(
++        "H6 replay invite after grant removed: {:?}; fresh: {:?}",
++        daemon.keyed(agent, 8, invite.clone()).map(|_| "ticket"),
++        daemon.call(agent, invite).map(|_| "ticket")
++    );
++    // A keyed stop is replayed without stopping after a restart.
++    let stop = daemon.keyed(owner, 9, Request::Shutdown);
++    println!("H6 keyed stop: {stop:?} stop_requested={}", daemon.node.stop_requested());
++    daemon.restart();
++    let owner = daemon.owner();
++    let stop = daemon.keyed(owner, 9, Request::Shutdown);
++    println!(
++        "H6 keyed stop replay after restart: {stop:?} stop_requested={}",
++        daemon.node.stop_requested()
++    );
++}
++
++/// H7: waits and revisions for every local record that feeds pending work.
++#[test]
++fn probe_h7_revision_moves_for_each_pending_input() {
++    let (mut daemon, principal, owner, agent, goal) = setup();
++    let rev = |daemon: &mut Daemon| pending(daemon, agent, goal).revision;
++    let mut last = rev(&mut daemon);
++    let mut check = |daemon: &mut Daemon, what: &str, last: &mut u64| {
++        let now = pending(daemon, agent, goal).revision;
++        println!("H7 {what}: revision {last} -> {now}");
++        assert!(now > *last, "{what} did not move the revision");
++        *last = now;
++    };
++    let (_, assignment) = assigned(&mut daemon, agent, goal, principal);
++    check(&mut daemon, "propose+assign", &mut last);
++    daemon.ok(
++        owner,
++        Request::TaskAuthorize {
++            goal,
++            assignment,
++            takeover: false,
++        },
++    );
++    check(&mut daemon, "authorize", &mut last);
++    daemon.ok(agent, Request::TaskClaim { goal, assignment });
++    check(&mut daemon, "claim", &mut last);
++    daemon.ok(
++        owner,
++        Request::GoalGrant {
++            goal,
++            agent: principal,
++            grants: locust_proto::api::GoalGrants {
++                execute: true,
++                decide: true,
++                takeover: true,
++            },
++        },
++    );
++    check(&mut daemon, "goal.grant", &mut last);
++    let b = daemon.connect(credential(1), Some(session(2)));
++    daemon.ok(b, Request::TaskTakeover { goal, assignment });
++    check(&mut daemon, "takeover", &mut last);
++
++    // A wait parked with the current revision is answered by a takeover.
++    let frame = daemon.frame(Request::Wait {
++        goal,
++        seen: last,
++        timeout_ms: 1000,
++    });
++    let Step::Park(parked) = daemon.step(b, frame, 100) else {
++        panic!()
++    };
++    daemon.ok(agent, Request::TaskTakeover { goal, assignment });
++    assert!(daemon.node.take_changed().contains(&goal));
++    let Step::Reply(reply) = daemon.node.resume(b, &parked, false, 101) else {
++        panic!("still parked after a takeover")
++    };
++    let Response::Waited(WaitOutcome::Work(work)) = reply.result.unwrap() else {
++        panic!()
++    };
++    println!("H7 wait after takeover: {work:?}");
++    assert_eq!(work.held_elsewhere.len(), 1);
++    // seen: 0 answers at once.
++    let frame = daemon.frame(Request::Wait {
++        goal,
++        seen: 0,
++        timeout_ms: 1000,
++    });
++    assert!(matches!(daemon.step(b, frame, 100), Step::Reply(_)));
++    // A wait on a goal the caller is not in.
++    daemon.enroll("other", 2, true);
++    let other = daemon.connect(credential(2), None);
++    let frame = daemon.frame(Request::Wait {
++        goal,
++        seen: 0,
++        timeout_ms: 1000,
++    });
++    let Step::Reply(reply) = daemon.step(other, frame, 100) else {
++        panic!()
++    };
++    assert_eq!(code(reply.result), ErrorCode::NotFound);
++}
++
++/// H4/H5: sessions, claims, cancellation ownership.
++#[test]
++fn probe_h5_sessions_claims_and_cancel() {
++    use locust_proto::event::CancelOutcome;
++    let (mut daemon, principal, owner, a, goal) = setup();
++    let worker = daemon.enroll("worker", 2, true);
++    // Without a session.
++    let (_, assignment) = assigned(&mut daemon, a, goal, principal);
++    let bare = daemon.connect(credential(1), None);
++    assert_eq!(
++        code(daemon.call(bare, Request::TaskClaim { goal, assignment })),
++        ErrorCode::Invalid
++    );
++    // Owner on behalf with no session is Invalid, grants not consulted with one.
++    assert_eq!(
++        code(daemon.on_behalf(owner, principal, Request::TaskClaim { goal, assignment })),
++        ErrorCode::Invalid
++    );
++    let owner_s = daemon.connect(OWNER, Some(session(5)));
++    let Response::Claimed(claim) = daemon
++        .on_behalf(owner_s, principal, Request::TaskClaim { goal, assignment })
++        .unwrap()
++    else {
++        panic!()
++    };
++    assert_eq!(claim.generation, 1);
++    // The owner's session is now bound to `principal`: using it as another is Denied.
++    let record = locust_proto::api::SessionRecord {
++        client: "x".into(),
++        state: locust_proto::api::SessionState::Ready,
++        client_session: None,
++        capabilities: Default::default(),
++        detail: vec![],
++    };
++    assert_eq!(
++        code(daemon.on_behalf(
++            owner_s,
++            worker,
++            Request::SessionReport {
++                record: record.clone()
++            }
++        )),
++        ErrorCode::Denied
++    );
++    // The agent's own session cannot write under the claim, nor claim it.
++    assert_eq!(
++        code(daemon.call(a, Request::TaskClaim { goal, assignment })),
++        ErrorCode::ClaimHeld
++    );
++    assert_eq!(
++        code(daemon.call(
++            a,
++            Request::TaskProgress {
++                goal,
++                assignment,
++                generation: 1,
++                text: "x".into()
++            }
++        )),
++        ErrorCode::Superseded
++    );
++    // Takeover without a grant.
++    assert_eq!(
++        code(daemon.call(a, Request::TaskTakeover { goal, assignment })),
++        ErrorCode::AuthorizationRequired
++    );
++    // execute is not enough.
++    daemon.ok(
++        owner,
++        Request::GoalGrant {
++            goal,
++            agent: principal,
++            grants: locust_proto::api::GoalGrants {
++                execute: true,
++                decide: true,
++                takeover: false,
++            },
++        },
++    );
++    assert_eq!(
++        code(daemon.call(a, Request::TaskTakeover { goal, assignment })),
++        ErrorCode::AuthorizationRequired
++    );
++    // Cancel: only the holder answers.
++    let cancel = event(daemon.ok(a, Request::TaskCancel { goal, assignment }));
++    for generation in [None, Some(1), Some(2)] {
++        assert_eq!(
++            code(daemon.call(
++                a,
++                Request::CancelAcknowledge {
++                    goal,
++                    cancel,
++                    generation,
++                    outcome: CancelOutcome::Stopped
++                }
++            )),
++            ErrorCode::Superseded
++        );
++    }
++    assert!(pending(&mut daemon, a, goal).to_acknowledge.is_empty());
++    // The holder at a wrong generation.
++    assert_eq!(
++        code(daemon.on_behalf(
++            owner_s,
++            principal,
++            Request::CancelAcknowledge {
++                goal,
++                cancel,
++                generation: None,
++                outcome: CancelOutcome::Stopped
++            }
++        )),
++        ErrorCode::Superseded
++    );
++    // Another principal's session cannot answer either.
++    let w = daemon.connect(credential(2), Some(session(5)));
++    println!(
++        "H5 other principal with the holder's secret acks: {:?}",
++        daemon.call(
++            w,
++            Request::CancelAcknowledge {
++                goal,
++                cancel,
++                generation: Some(1),
++                outcome: CancelOutcome::Stopped
++            }
++        )
++    );
++    println!(
++        "H5 other principal with the holder's secret session.show: {:?}",
++        daemon.call(w, Request::Session { instance: None })
++    );
++    println!(
++        "H5 other principal with the holder's secret sessions: {:?}",
++        daemon.call(w, Request::Sessions)
++    );
++    daemon
++        .on_behalf(
++            owner_s,
++            principal,
++            Request::CancelAcknowledge {
++                goal,
++                cancel,
++                generation: Some(1),
++                outcome: CancelOutcome::Stopped,
++            },
++        )
++        .unwrap();
++    // After the answer, a second answer conflicts.
++    assert_eq!(
++        code(daemon.on_behalf(
++            owner_s,
++            principal,
++            Request::CancelAcknowledge {
++                goal,
++                cancel,
++                generation: Some(1),
++                outcome: CancelOutcome::Stopped
++            }
++        )),
++        ErrorCode::Conflict
++    );
++}
++
++/// Owner-direct reads and what the owner may not do directly.
++#[test]
++fn probe_owner_direct_and_viewer_rules() {
++    let (mut daemon, principal, owner, agent, goal) = setup();
++    daemon.ok(agent, note(goal, "hello"));
++    // Owner direct: reads allowed, writes Invalid.
++    assert!(daemon.call(owner, Request::Notes { goal, about: None }).is_ok());
++    assert_eq!(code(daemon.call(owner, note(goal, "x"))), ErrorCode::Invalid);
++    assert_eq!(
++        code(daemon.call(
++            owner,
++            Request::WorkspaceSet {
++                goal,
++                binding: Default::default()
++            }
++        )),
++        ErrorCode::Invalid
++    );
++    // on_behalf on owner-only.
++    assert_eq!(
++        code(daemon.on_behalf(
++            owner,
++            principal,
++            Request::GoalGrant {
++                goal,
++                agent: principal,
++                grants: Default::default()
++            }
++        )),
++        ErrorCode::Invalid
++    );
++    // Viewer.
++    daemon.ok(
++        owner,
++        Request::ViewerEnroll {
++            agent: principal,
++            credential: credential(9).digest(),
++        },
++    );
++    let viewer = daemon.connect(credential(9), None);
++    for request in [
++        Request::WorkspaceSet {
++            goal,
++            binding: Default::default(),
++        },
++        Request::SessionDrop {
++            instance: session(1).instance(),
++        },
++        note(goal, "x"),
++        Request::Shutdown,
++        Request::GoalCreate { title: "t".into() },
++    ] {
++        assert_eq!(code(daemon.call(viewer, request)), ErrorCode::Denied);
++    }
++    let mut frame = daemon.frame(Request::Board { goal });
++    frame.on_behalf = Some(principal);
++    assert_eq!(code(daemon.send(viewer, frame)), ErrorCode::Denied);
++    // Viewer digest collisions.
++    assert_eq!(
++        code(daemon.call(
++            owner,
++            Request::ViewerEnroll {
++                agent: principal,
++                credential: OWNER.digest()
++            }
++        )),
++        ErrorCode::Conflict
++    );
++    assert_eq!(
++        code(daemon.call(
++            owner,
++            Request::AgentEnroll {
++                name: "x".into(),
++                grants: Default::default(),
++                credential: credential(9).digest()
++            }
++        )),
++        ErrorCode::Conflict
++    );
++    // A viewer's wait.
++    let frame = daemon.frame(Request::Wait {
++        goal,
++        seen: 0,
++        timeout_ms: 10,
++    });
++    assert!(matches!(daemon.step(viewer, frame, 1), Step::Reply(_)));
++    // Revoking the principal revokes the viewer, also at hello and after restart.
++    daemon.ok(owner, Request::AgentRevoke { agent: principal });
++    assert!(caller_of(&daemon.hello(credential(9), None).1).is_none());
++    daemon.restart();
++    assert!(caller_of(&daemon.hello(credential(9), None).1).is_none());
++    assert!(caller_of(&daemon.hello(credential(1), None).1).is_none());
++    let owner = daemon.owner();
++    assert_eq!(
++        code(daemon.call(
++            owner,
++            Request::ViewerEnroll {
++                agent: principal,
++                credential: credential(10).digest()
++            }
++        )),
++        ErrorCode::NotFound
++    );
++}
++
++/// G1: goal grants and authorizations are per goal and per assignment.
++#[test]
++fn probe_g1_grants_are_per_goal_and_per_assignment() {
++    use locust_proto::api::GoalGrants;
++    let (mut daemon, principal, owner, agent, g1) = setup();
++    let Response::GoalCreated { goal: g2 } = daemon.ok(agent, Request::GoalCreate { title: "second".into() }) else { panic!() };
++    daemon.ok(owner, Request::GoalGrant { goal: g1, agent: principal, grants: GoalGrants { execute: true, decide: true, takeover: true } });
++    let (task2, x) = assigned(&mut daemon, agent, g2, principal);
++    // execute in g1 does not cover g2.
++    assert_eq!(code(daemon.call(agent, Request::TaskClaim { goal: g2, assignment: x })), ErrorCode::AuthorizationRequired);
++    let work = pending(&mut daemon, agent, g2);
++    assert_eq!((work.to_authorize.len(), work.to_claim.len()), (1, 0));
++    // The owner sees it too, directly.
++    assert_eq!(pending(&mut daemon, owner, g2).to_authorize.len(), 1);
++    // An authorization names one assignment of one goal.
++    assert_eq!(code(daemon.call(owner, Request::TaskAuthorize { goal: g1, assignment: x, takeover: false })), ErrorCode::NotFound);
++    daemon.ok(owner, Request::TaskAuthorize { goal: g2, assignment: x, takeover: false });
++    let Response::Claimed(claim) = daemon.ok(agent, Request::TaskClaim { goal: g2, assignment: x }) else { panic!() };
++    assert_eq!(claim.generation, 1);
++    // takeover in g1 does not cover g2, and the authorization had no takeover.
++    let b = daemon.connect(credential(1), Some(session(2)));
++    assert_eq!(code(daemon.call(b, Request::TaskTakeover { goal: g2, assignment: x })), ErrorCode::AuthorizationRequired);
++    // A reassignment is a new assignment: the authorization does not follow.
++    let y = event(daemon.ok(agent, Request::TaskAssign { goal: g2, task: task2, assignee: principal }));
++    assert_eq!(code(daemon.call(agent, Request::TaskClaim { goal: g2, assignment: y })), ErrorCode::AuthorizationRequired);
++    // The old one is superseded, for its holder too.
++    assert_eq!(code(daemon.call(agent, Request::TaskClaim { goal: g2, assignment: x })), ErrorCode::Superseded);
++    assert_eq!(
++        code(daemon.call(agent, Request::TaskProgress { goal: g2, assignment: x, generation: 1, text: "late".into() })),
++        ErrorCode::Superseded
++    );
++    // decide removed in g2 only.
++    daemon.ok(owner, Request::GoalGrant { goal: g2, agent: principal, grants: GoalGrants::default() });
++    assert_eq!(
++        code(daemon.call(agent, Request::TaskAssign { goal: g2, task: task2, assignee: principal })),
++        ErrorCode::AuthorizationRequired
++    );
++    let (_, z) = assigned(&mut daemon, agent, g1, principal);
++    daemon.ok(agent, Request::TaskClaim { goal: g1, assignment: z });
++    // The owner's act stands in for decide in g2.
++    daemon.on_behalf(owner, principal, Request::TaskAssign { goal: g2, task: task2, assignee: principal }).unwrap();
++    // One owner key, two principals: a different request.
++    let other = daemon.enroll("other", 2, true);
++    let mut first = daemon.frame(Request::GoalCreate { title: "k".into() });
++    first.idempotency = Some(IdempotencyKey([3; 16]));
++    first.on_behalf = Some(principal);
++    let mut second = first.clone();
++    second.on_behalf = Some(other);
++    let created = daemon.send(owner, first.clone()).unwrap();
++    assert_eq!(daemon.send(owner, first).unwrap(), created);
++    assert_eq!(code(daemon.send(owner, second)), ErrorCode::IdempotencyMismatch);
++    println!("G1 ok");
++}
++
++/// G4: to a principal that never took part, and to its viewer, a goal held
++/// for another local principal does not exist, whatever the operation.
++#[test]
++fn probe_g4_other_goals_do_not_exist() {
++    use locust_proto::event::CancelOutcome;
++    let (mut daemon, principal, owner, agent, goal) = setup();
++    daemon.ok(agent, note(goal, "private"));
++    let (task, assignment) = assigned(&mut daemon, agent, goal, principal);
++    let Response::BlobStored { hash } = daemon.ok(agent, Request::BlobPut { goal, bytes: b"x".to_vec() }) else { panic!() };
++    let other = daemon.enroll("other", 2, true);
++    daemon.ok(owner, Request::ViewerEnroll { agent: other, credential: credential(8).digest() });
++    let outsider = daemon.connect(credential(2), Some(session(7)));
++    let viewer = daemon.connect(credential(8), None);
++    let reads = |goal| {
++        vec![
++            Request::GoalStatus { goal },
++            Request::Board { goal },
++            Request::Task { goal, task },
++            Request::Event { goal, event: task },
++            Request::Pending { goal },
++            Request::Events { goal, after: None, limit: 10 },
++            Request::Events { goal, after: Some(0), limit: 10 },
++            Request::Notes { goal, about: None },
++            Request::DocRead { goal, doc: Doc::Plan },
++            Request::BlobGet { goal, hash },
++            Request::BlobStat { goal, hashes: vec![hash] },
++            Request::Wait { goal, seen: 0, timeout_ms: 0 },
++        ]
++    };
++    let writes = vec![
++        Request::GoalInvite { goal, expires_ms: None },
++        Request::GoalLeave { goal },
++        Request::MemberRemove { goal, member: principal },
++        Request::WorkspaceSet { goal, binding: Default::default() },
++        Request::TaskPropose { goal, text: "x".into(), input: None, depends_on: vec![], deadline_ms: None, max_attempts: None },
++        Request::TaskAssign { goal, task, assignee: other },
++        Request::TaskCancel { goal, assignment },
++        Request::TaskClaim { goal, assignment },
++        Request::TaskTakeover { goal, assignment },
++        Request::TaskDecline { goal, assignment },
++        Request::TaskProgress { goal, assignment, generation: 1, text: "x".into() },
++        Request::TaskFail { goal, assignment, generation: 1, reason: "x".into() },
++        Request::CancelAcknowledge { goal, cancel: assignment, generation: None, outcome: CancelOutcome::Stopped },
++        Request::ResultAccept { goal, result: task, head: None },
++        Request::ResultReject { goal, result: task, reason: "x".into() },
++        note(goal, "x"),
++        Request::DocRevise { goal, doc: Doc::Plan, base: None, text: "x".into() },
++        Request::DocAccept { goal, revision: task },
++        Request::BlobPut { goal, bytes: b"y".to_vec() },
++        Request::BlobWithdraw { goal, hash },
++    ];
++    let events_before = daemon.store.log(&goal, 0, 1000).unwrap().len();
++    let cursors_before = daemon.store.scan(Space::Cursor, &[]).unwrap().len();
++    let blobs_before = daemon.store.scan(Space::Blob, &[]).unwrap().len();
++    for request in reads(goal) {
++        let name = request.name();
++        for conn in [outsider, viewer] {
++            let frame = daemon.frame(request.clone());
++            let Step::Reply(reply) = daemon.step(conn, frame, 10) else { panic!("{name} parked") };
++            assert_eq!(code(reply.result), ErrorCode::NotFound, "{name}");
++        }
++    }
++    for request in writes {
++        let name = request.name();
++        assert_eq!(code(daemon.call(outsider, request.clone())), ErrorCode::NotFound, "{name}");
++        assert_eq!(code(daemon.call(viewer, request)), ErrorCode::Denied, "{name}");
++    }
++    assert_eq!(daemon.store.log(&goal, 0, 1000).unwrap().len(), events_before);
++    assert_eq!(daemon.store.scan(Space::Cursor, &[]).unwrap().len(), cursors_before);
++    assert_eq!(daemon.store.scan(Space::Blob, &[]).unwrap().len(), blobs_before);
++    // status lists nothing of it, sessions of the other principal are invisible.
++    let Response::Status(status) = daemon.ok(outsider, Request::Status) else { panic!() };
++    assert!(status.goals.is_empty() && status.agents.len() == 1);
++    let Response::Sessions(sessions) = daemon.ok(outsider, Request::Sessions) else { panic!() };
++    assert!(sessions.is_empty());
++    assert_eq!(
++        code(daemon.call(outsider, Request::Session { instance: Some(session(1).instance()) })),
++        ErrorCode::NotFound
++    );
++    assert_eq!(
++        code(daemon.call(outsider, Request::SessionDrop { instance: session(1).instance() })),
++        ErrorCode::Denied
++    );
++    // The owner, directly, reads it; a viewer of the member reads it and stores nothing.
++    for request in reads(goal) {
++        let name = request.name();
++        let frame = daemon.frame(request);
++        let Step::Reply(reply) = daemon.step(owner, frame, 10) else { panic!("{name} parked") };
++        assert!(reply.result.is_ok(), "{name}: {:?}", reply.result);
++    }
++    println!("G4 ok");
++}
