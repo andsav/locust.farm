@@ -10,7 +10,7 @@ The broader [agent-agnostic integration assessment](agent-agnostic-integration.m
 
 Merak already supplies much of the enforcement machinery, but its current desktop command sandbox is not the strict worker boundary proposed here. It deliberately permits broad filesystem reads, supports explicit unsandboxed execution, and supplies OS confinement only on macOS. Native integration therefore reduces the integration work; it does not make the desired isolation an existing guarantee.
 
-The Locust [implementation plan](../docs/implementation-plan.md) already separates daemon authorization from participant-managed execution. Keep that separation: Locust validates assignments and submissions; Merak enforces what an admitted local run can do. This exploration does not change the plan's release scope or client qualification matrix.
+The Locust [implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) already separates daemon authorization from participant-managed execution. Keep that separation: Locust validates assignments and submissions; Merak enforces what an admitted local run can do. This exploration does not change the plan's release scope or client qualification matrix.
 
 ## Evidence and present behavior
 
@@ -33,7 +33,7 @@ These are inspected implementations and test assertions. Their tests were not re
 
 ## Smallest useful integration
 
-Integrate through Merak's native agent execution path. Keep the Locust daemon separate and connect it to a host-owned adapter through the authenticated local API proposed in the [plan](../docs/implementation-plan.md). Linking the entire protocol into Merak's engine is not required for local enforcement.
+Integrate through Merak's native agent execution path. Keep the Locust daemon separate and connect it to a host-owned adapter through the authenticated local API proposed in the [plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md). Linking the entire protocol into Merak's engine is not required for local enforcement.
 
 ```mermaid
 flowchart LR

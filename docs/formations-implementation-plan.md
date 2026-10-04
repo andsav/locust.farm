@@ -38,10 +38,10 @@ site implementation, verification, and publication gates. It is a required
 workstream of this plan, not a post-release cleanup task.
 
 This plan supersedes the universal-coordinator target in the older
-[implementation plan](implementation-plan.md). Writing it changes no behavior;
+[implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md). Writing it changes no behavior;
 implementing it replaces protocol 1 under D3, and historical evidence stays as a
 labeled record. It also supersedes the
-[last-mile plan](last-mile-implementation-plan.md): do not start that plan's
+[last-mile plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/last-mile-implementation-plan.md): do not start that plan's
 unbuilt packages against protocol 1. Its requirements are revisited once this
 plan's contract exists. Publishing software/site content, paid
 campaigns, and changing platform qualification scope remain separate actions.
@@ -374,7 +374,7 @@ ported; Open proves the coordinator is no longer universal.
    the exact signed semantics under accepted D2/D4/D5 and the D6 revision rules;
    D3 is resolved; D11 and D12 are recommendations to settle here. Write the
    result as `docs/protocol-v2.md`, in the form of the
-   [version 1 contract](protocol-v1.md): event set, header and anchoring,
+   [version 1 contract](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v1.md): event set, header and anchoring,
    genesis, the authority rule per event, the fork rule, evidence and proof
    identity, and the golden vectors O3 must produce. Mark old contracts as
    historical evidence, with no obligation to keep their runtime.
@@ -648,7 +648,7 @@ Source owners: [workspace CLI](../crates/locust/src/cli/workspace.rs),
    files to the current strict package format, update builder, manifest/signature,
    verifier, activation, repeat installation and removal together. Prove discovery after
    installation without a checkout or development environment.
-7. Revisit the superseded [last-mile plan](last-mile-implementation-plan.md)
+7. Revisit the superseded [last-mile plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/last-mile-implementation-plan.md)
    against this model. Carry over the requirements that still apply (reliable
    context, consent, naming, explicit application) without reinstating a
    mandatory coordinator; drop the rest.

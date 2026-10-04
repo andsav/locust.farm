@@ -57,7 +57,7 @@ Screening (`crates/locust-core/src/goal/screen.rs`) rejects a fork variant when
 1,024 events already wait beyond a gap. Hold genesis and self-admission, omit
 sequence 2, retain sequences 3–1026, then deliver another validly signed event at
 sequence 1: the conflicting event is dropped and the chain remains unhalted.
-The [contract](../docs/protocol-v0.md) requires retaining both variants and halting
+The [contract](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v0.md) requires retaining both variants and halting
 conflicting decisions. Repeated reconciliation cannot fix this while the waiting
 set remains full.
 
@@ -71,7 +71,7 @@ removal cutoff; the coordinator removes it and subsequently accepts that result.
 Removal (`crates/locust-core/src/goal/transition.rs`) deletes membership, while
 result decision eligibility checks cancellation/current assignment but no
 revocation. The resulting task is accepted even though the member is removed.
-The [contract](../docs/protocol-v0.md) explicitly prevents removed members' open
+The [contract](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v0.md) explicitly prevents removed members' open
 assignments from finalizing.
 
 Preserve historical submissions while invalidating finalization for affected
@@ -226,10 +226,10 @@ changed or that the current writers were stopped:
    restart and failed commit. Use Node with SqliteStore rather than stand-ins.
 4. Wire production Host/Replica and the real transport shell; resolve completion,
    incremental output and fair content fetching. Lane B also owns the outstanding
-   address-lookup dependency raised as **A-R15** in [Lane A's log](../docs/lane-a-log.md):
+   address-lookup dependency raised as **A-R15** in [Lane A's log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-a-log.md):
    key-only dialing must work for non-coordinator peers and after port changes.
 5. Connect CLI and client adapters to that real daemon, then run three independent
-   local processes before the [published-build, three-Mac T1 run](../docs/t1-build.md).
+   local processes before the [published-build, three-Mac T1 run](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t1-build.md).
    T1 still needs a first-user fetch/verify/start path and an identified published
    artifact. Publication and separate-machine evidence have not happened here.
 

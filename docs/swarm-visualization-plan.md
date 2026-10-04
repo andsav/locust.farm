@@ -41,7 +41,7 @@ are documented in the [farm guide](guide/farm-publication.md):
 | Configured stages and prerequisite evidence | [Formation types](../crates/locust-proto/src/organization.rs) and [flow evaluator](../crates/locust-core/src/goal/flow.rs); the administrator materializes stages, subject to its local grants |
 | Revision waits and a durable event feed | [API](../crates/locust-proto/src/api.rs) and [feed](../crates/locust-core/src/node/feed.rs); feed positions include standing changes and retractions, not just new events |
 | Local client/session information | [Session API](../crates/locust-proto/src/api.rs) and [managed clients](managed-clients.md); names, claims and client records are not remote presence |
-| Snapshots, signed contributions and explicit application | [Coding workflow](t2-workflow.md) and [application guide](guide/apply.md); each worker can use a separate workspace |
+| Snapshots, signed contributions and explicit application | [Coding workflow](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t2-workflow.md) and [application guide](guide/apply.md); each worker can use a separate workspace |
 
 The [local demo](demo.md) and its [qualification](../research/demo-qualification.md)
 provide setup and scripted-client evidence. They do not establish a complete
@@ -58,7 +58,7 @@ remote tool use, prompts, tokens, costs or process liveness from work events.
 ## Changes to earlier proposals
 
 This replaces the static export/no-hosted-publisher/no-motion parts of the
-historical [last-mile plan](last-mile-implementation-plan.md) and its
+historical [last-mile plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/last-mile-implementation-plan.md) and its
 [research](../research/last-mile-experience.md). The owner chose locust.farm for
 the farm page, gallery and service, rather than a separate origin. Motion follows
 observed changes only.

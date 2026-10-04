@@ -6,7 +6,7 @@ catalog and agent operations. The [implementation plan](formations-implementatio
 remains the frozen delivery scope. The separate
 [execution ledger](formations-status.md) records completed checks
 and remaining formal, native/client, transport and publication boundaries. The
-historical [protocol-1 coordinator behavior](protocol-v1.md) has been replaced;
+historical [protocol-1 coordinator behavior](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v1.md) has been replaced;
 it is not available as a fallback.
 
 The installed `locust formation contract` command exports the schema, command

@@ -404,7 +404,7 @@ signed authority semantics, and dependent author histories; an old reader cannot
 safely ignore unknown events or reinterpret them. Preserve existing goals with a
 deliberate legacy runtime/reader path, or explicitly export selected artifacts to
 fresh goals. Choose that compatibility strategy before implementation. See the
-[current version contract](../docs/protocol-v1.md).
+[current version contract](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v1.md).
 
 ## Decisions still needed
 

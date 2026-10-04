@@ -2,7 +2,7 @@
 
 Date: 2026-10-03. **Status: enforcing component regressions and all six integrated
 three-daemon workflow cases passed on the identified source-pinned candidate.** This record covers step 4 of the
-[remaining sequence](../docs/implementation-plan.md). All files and principals
+[remaining sequence](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md). All files and principals
 are synthetic. Same-host daemon evidence does not qualify physical machines,
 OS sleep/wake, independent people, installed clients or public artifacts.
 

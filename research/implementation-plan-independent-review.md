@@ -1,6 +1,6 @@
 # Independent review of the implementation plan, with client probes and prior art
 
-Date: 2026-10-03. **Status: review findings and recommendations; nothing here is an accepted decision or implemented behavior.** Reviewer: Claude (agent), at the request of the repository owner. It concerns the [implementation plan](../docs/implementation-plan.md) as of commit `c8103b0` (the October 4 revision) and complements the earlier [adversarial review](../docs/implementation-plan-review.md). Product naming and marketing copy are out of scope at the owner's request.
+Date: 2026-10-03. **Status: review findings and recommendations; nothing here is an accepted decision or implemented behavior.** Reviewer: Claude (agent), at the request of the repository owner. It concerns the [implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) as of commit `c8103b0` (the October 4 revision) and complements the earlier [adversarial review](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan-review.md). Product naming and marketing copy are out of scope at the owner's request.
 
 ## Method and evidence boundary
 

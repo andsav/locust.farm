@@ -73,7 +73,7 @@ and ask it to inspect current shared context before implementing. The demo shoul
 show the finding being read and acknowledged, its influence on the patch, and its
 signed source attribution. Do not relay the finding manually into Codex's chat.
 
-Use explicit [snapshot and materialization](t2-workflow.md) operations so the
+Use explicit [snapshot and materialization](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t2-workflow.md) operations so the
 worker changes its own workspace and the original checkout retains unrelated
 work. Ask Codex to publish the task-backed patch before reporting its attempt
 completed. Ask Claude to inspect that exact contribution's diff and independently

@@ -2,11 +2,11 @@
 
 Date: 2026-10-03. **Status: source-backed research and local characterization. The original runtime-adoption recommendation below was superseded by the owner's decision to implement the ideas independently in Rust. No hcom code, dependency or runtime integration has been added to Locust.**
 
-Reviewed [aannoo/hcom](https://github.com/aannoo/hcom) at commit [`132250bca22d7f25ac6e1fe3ac04710a6bfd5283`](https://github.com/aannoo/hcom/commit/132250bca22d7f25ac6e1fe3ac04710a6bfd5283), package version **0.7.27**. All source links below pin that revision. Compare the [Locust implementation plan](../docs/implementation-plan.md), [agent-agnostic integration](agent-agnostic-integration.md) and [second independent review](implementation-plan-independent-review.md).
+Reviewed [aannoo/hcom](https://github.com/aannoo/hcom) at commit [`132250bca22d7f25ac6e1fe3ac04710a6bfd5283`](https://github.com/aannoo/hcom/commit/132250bca22d7f25ac6e1fe3ac04710a6bfd5283), package version **0.7.27**. All source links below pin that revision. Compare the [Locust implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md), [agent-agnostic integration](agent-agnostic-integration.md) and [second independent review](implementation-plan-independent-review.md).
 
 ## Accepted direction after review
 
-Implement Locust-owned Rust client adapters using hcom's launch, per-run configuration, hooks, session binding, readiness, wake and recovery patterns as design references. Do not bundle its executable, maintain a fork or transplant source/test fixtures. The [implementation plan](../docs/implementation-plan.md) records this decision, component boundaries, implementation workstream and qualification gates. Locust retains one daemon/API/task authority and the common CLI/MCP/manual-resume path. The original reuse proposal is preserved below as an assessed alternative, not the selected implementation direction.
+Implement Locust-owned Rust client adapters using hcom's launch, per-run configuration, hooks, session binding, readiness, wake and recovery patterns as design references. Do not bundle its executable, maintain a fork or transplant source/test fixtures. The [implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) records this decision, component boundaries, implementation workstream and qualification gates. Locust retains one daemon/API/task authority and the common CLI/MCP/manual-resume path. The original reuse proposal is preserved below as an assessed alternative, not the selected implementation direction.
 
 ## Original recommendation (superseded)
 
@@ -181,4 +181,4 @@ Before adopting that backend, prove caller policy is preserved, no unrelated con
 4. Treat client configuration as scoped generated data and verify preservation of caller policy. Do not inherit hcom's launch allowances or peer-text hook elevation.
 5. Retain direct Pi extension adaptation and transcript normalization as smaller alternatives where they meet the need. Keep the hcom runtime separate from the Locust protocol modules.
 
-The owner subsequently chose independent Rust implementation. The [implementation plan](../docs/implementation-plan.md) incorporates the client-integration ideas, qualification approach and failure cases; the runtime/fork/transplant recommendations above are not adopted.
+The owner subsequently chose independent Rust implementation. The [implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) incorporates the client-integration ideas, qualification approach and failure cases; the runtime/fork/transplant recommendations above are not adopted.
