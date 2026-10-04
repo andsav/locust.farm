@@ -149,7 +149,6 @@ const DRAWINGS: Record<
 			w.forEach((p) => edge(svg, c, p));
 			w.forEach((p) => node(svg, p));
 			node(svg, c, 11, true);
-			label(svg, c, 'coordinator', 26);
 			w.forEach((p, i) => {
 				const out = 0.03 + i * 0.07;
 				const back = out + 0.32;
@@ -186,7 +185,6 @@ const DRAWINGS: Record<
 				dot(svg, cycle, bent(n[reviewer], n[author], 0.12), t + 0.22, t + 0.34, 'decision', 2.4);
 				pulse(svg, cycle, n[author], t + 0.34);
 			}
-			label(svg, P(160, 172), 'never reviewed by its own author', 0);
 		}
 	},
 	'review-panel': {
@@ -198,8 +196,6 @@ const DRAWINGS: Record<
 			r.forEach((p) => edge(svg, a, p, 0.06));
 			r.forEach((p) => node(svg, p));
 			node(svg, a, 9);
-			label(svg, a, 'author', 24);
-			label(svg, P(244, 90), 'reviewers', 3, 'middle');
 			r.forEach((p) => dot(svg, cycle, bent(a, p, 0.06), 0.04, 0.2, 'result'));
 			r.forEach((p, i) => glow(svg, cycle, p, 10, 0.2, [0.36, 0.5][i]));
 			dot(svg, cycle, bent(r[0], a, 0.06), 0.36, 0.5, 'decision', 2.4);
@@ -219,10 +215,8 @@ const DRAWINGS: Record<
 				edge(svg, p, judge);
 			});
 			node(svg, task, 8);
-			label(svg, task, 'task', 4, 'start').setAttribute('x', '174');
 			w.forEach((p) => node(svg, p));
 			node(svg, judge, 9, true);
-			label(svg, judge, 'judge', 4, 'start').setAttribute('x', '176');
 			w.forEach((p) => dot(svg, cycle, bent(task, p, 0), 0.03, 0.14));
 			const attempts: [number, number][] = [
 				[0, 0.3],
@@ -254,16 +248,9 @@ const DRAWINGS: Record<
 			const H = 52;
 			const rest = 100;
 			const xs = [48, 188];
-			const boxes = ['draft', 'ship'].map((name, i) => {
-				el(svg, 'rect', { x: xs[i], y: Y, width: W, height: H, class: 'd-stage' });
-				const t = el(svg, 'text', {
-					x: xs[i] + W / 2,
-					y: Y + 20,
-					'text-anchor': 'middle',
-					class: 'd-stage-label'
-				});
-				t.textContent = name;
-				return P(xs[i] + W / 2, rest);
+			const boxes = xs.map((x) => {
+				el(svg, 'rect', { x, y: Y, width: W, height: H, class: 'd-stage' });
+				return P(x + W / 2, rest);
 			});
 			const x1 = xs[0] + W + 6;
 			const x2 = xs[1] - 6;

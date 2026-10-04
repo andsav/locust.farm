@@ -34,6 +34,15 @@ test('a first visit is ready to copy with the Open way of working', async ({ pag
 	await open(page);
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('How does your team work?');
 	await expect(page.locator('.ways .way')).toHaveCount(6);
+	await expect(page.locator('.ways .diagram text')).toHaveCount(0);
+	await expect(page.locator('.ways .title')).toHaveText([
+		'Open',
+		'Coordinator',
+		'Peer review',
+		'Review panel',
+		'Independent attempts',
+		'Pipeline'
+	]);
 	await expect(way(page, 'Open')).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.getByRole('button', { name: 'No problems' })).toBeVisible();
 	await page.getByRole('button', { name: 'In words' }).click();

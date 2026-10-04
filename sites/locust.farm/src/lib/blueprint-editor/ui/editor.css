@@ -131,11 +131,6 @@
 	letter-spacing: 0.04em;
 }
 
-.blueprint-editor .diagram .d-stage-label {
-	fill: var(--color-text-muted);
-	font: 400 9px var(--font-mono);
-}
-
 .blueprint-editor .diagram .d-dot.d-work {
 	fill: var(--color-text-subtle);
 }
