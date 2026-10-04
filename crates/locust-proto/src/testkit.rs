@@ -133,7 +133,7 @@ pub fn every_body() -> Vec<Body> {
     let task = TaskId::Authored(id);
     let task_binding = TaskBinding {
         rules: id,
-        variation: None,
+        task_type: None,
         inputs: BTreeMap::new(),
         parent: None,
         stage: None,

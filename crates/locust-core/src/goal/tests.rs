@@ -110,7 +110,7 @@ impl Fixture {
             Body::TaskOpened {
                 binding: TaskBinding {
                     rules: self.rules,
-                    variation: None,
+                    task_type: None,
                     inputs: BTreeMap::new(),
                     parent: None,
                     stage: None,
@@ -463,7 +463,7 @@ fn active_round_revision_never_reinterprets_old_evidence() {
         expected_round: old.round,
         binding: TaskBinding {
             rules: f.rules,
-            variation: None,
+            task_type: None,
             inputs: BTreeMap::new(),
             parent: None,
             stage: None,
@@ -484,27 +484,27 @@ fn active_round_revision_never_reinterprets_old_evidence() {
 
 fn pipeline() -> Blueprint {
     let mut blueprint = Blueprint::default();
-    let materializer = Authority::Participant {
+    let runner = Authority::Participant {
         key: testkit::keypair(1).public().to_string(),
     };
     blueprint.flow.insert(
         "research".into(),
         Stage {
-            variation: None,
+            task_type: None,
             requires: Vec::new(),
-            materializer: materializer.clone(),
+            runner: runner.clone(),
             recipients: Selector::Members,
         },
     );
     blueprint.flow.insert(
         "build".into(),
         Stage {
-            variation: None,
+            task_type: None,
             requires: vec![Prerequisite {
                 stage: "research".into(),
                 evidence: EvidenceKind::Completion,
             }],
-            materializer,
+            runner,
             recipients: Selector::Members,
         },
     );
@@ -562,7 +562,7 @@ fn ordinary_publication_automatically_requires_review_delivery_by_its_author() {
     assert!(
         pending
             .iter()
-            .all(|effect| effect.materializer == f.workers[0].key.public())
+            .all(|effect| effect.runner == f.workers[0].key.public())
     );
     let desired = pending[0].clone();
     let wrong = f.admin(Body::EffectMaterialized {
@@ -906,7 +906,7 @@ fn accepted_fork_branch_is_readable_only_in_its_selected_scope() {
 
 #[test]
 fn nested_tasks_inherit_parent_authority_and_reject_widening() {
-    use locust_proto::organization::{DecisionRules, TaskVariation, WorkRules};
+    use locust_proto::organization::{DecisionRules, TaskType, WorkRules};
     let owner = Author::new(2).key.public();
     let restricted = WorkRules {
         propose: Selector::Participant {
@@ -920,9 +920,9 @@ fn nested_tasks_inherit_parent_authority_and_reject_widening() {
         }],
     };
     let mut blueprint = Blueprint::default();
-    blueprint.variations.insert(
+    blueprint.task_types.insert(
         "restricted".into(),
-        TaskVariation {
+        TaskType {
             work: Some(restricted),
             decisions: Some(DecisionRules {
                 completion: CompletionRule::Reviews {
@@ -934,24 +934,24 @@ fn nested_tasks_inherit_parent_authority_and_reject_widening() {
             }),
         },
     );
-    blueprint.variations.insert(
+    blueprint.task_types.insert(
         "wide".into(),
-        TaskVariation {
+        TaskType {
             work: Some(WorkRules::default()),
             decisions: Some(DecisionRules::default()),
         },
     );
-    blueprint.variations.insert(
+    blueprint.task_types.insert(
         "weak".into(),
-        TaskVariation {
+        TaskType {
             work: None,
             decisions: Some(DecisionRules::default()),
         },
     );
     let mut f = Fixture::new(blueprint);
-    let binding = |variation: Option<&str>, parent| TaskBinding {
+    let binding = |task_type: Option<&str>, parent| TaskBinding {
         rules: f.rules,
-        variation: variation.map(str::to_owned),
+        task_type: task_type.map(str::to_owned),
         inputs: BTreeMap::new(),
         parent,
         stage: None,
@@ -967,9 +967,9 @@ fn nested_tasks_inherit_parent_authority_and_reject_widening() {
         scope: Scope::Task(TaskId::Authored(parent_id)),
         round: parent_id,
     };
-    let binding = |variation: Option<&str>| TaskBinding {
+    let binding = |task_type: Option<&str>| TaskBinding {
         rules: f.rules,
-        variation: variation.map(str::to_owned),
+        task_type: task_type.map(str::to_owned),
         inputs: BTreeMap::new(),
         parent: Some(parent),
         stage: None,
@@ -1030,7 +1030,7 @@ fn nested_task_keeps_parent_rules_after_future_defaults_change() {
         Body::TaskOpened {
             binding: TaskBinding {
                 rules: old_rules,
-                variation: None,
+                task_type: None,
                 inputs: BTreeMap::new(),
                 parent: Some(parent),
                 stage: None,
@@ -1043,7 +1043,7 @@ fn nested_task_keeps_parent_rules_after_future_defaults_change() {
 #[test]
 fn starts_bind_causal_closure_without_rejecting_concurrent_offline_work() {
     let mut blueprint = Blueprint::default();
-    blueprint.decisions.closure = Some(Authority::Participant {
+    blueprint.decisions.finish = Some(Authority::Participant {
         key: Author::new(1).key.public().to_string(),
     });
     let mut f = Fixture::new(blueprint);
@@ -1153,7 +1153,7 @@ fn start_cannot_use_another_scope_or_selection_as_closure_position() {
     let authority = Authority::Participant {
         key: Author::new(1).key.public().to_string(),
     };
-    blueprint.decisions.closure = Some(authority.clone());
+    blueprint.decisions.finish = Some(authority.clone());
     blueprint.decisions.selection = Some(authority);
     blueprint.decisions.completion = CompletionRule::Contribution {
         by: Selector::Members,
@@ -1211,7 +1211,7 @@ fn new_child_cannot_reuse_parent_round_superseded_at_its_anchor() {
         expected_round: parent.round,
         binding: TaskBinding {
             rules: f.rules,
-            variation: None,
+            task_type: None,
             inputs: BTreeMap::new(),
             parent: None,
             stage: None,
@@ -1222,7 +1222,7 @@ fn new_child_cannot_reuse_parent_round_superseded_at_its_anchor() {
         Body::TaskOpened {
             binding: TaskBinding {
                 rules: f.rules,
-                variation: None,
+                task_type: None,
                 inputs: BTreeMap::new(),
                 parent: Some(parent),
                 stage: None,
@@ -1234,7 +1234,7 @@ fn new_child_cannot_reuse_parent_round_superseded_at_its_anchor() {
         Body::TaskOpened {
             binding: TaskBinding {
                 rules: f.rules,
-                variation: None,
+                task_type: None,
                 inputs: BTreeMap::new(),
                 parent: Some(Context {
                     round: revised,

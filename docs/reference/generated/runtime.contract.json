@@ -3492,19 +3492,19 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": null,
-                "name": "text",
-                "positional": true,
-                "required": true,
+                "long": "task-type",
+                "name": "task_type",
+                "positional": false,
+                "required": false,
                 "short": null
               },
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "variation",
-                "name": "variation",
-                "positional": false,
-                "required": false,
+                "long": null,
+                "name": "text",
+                "positional": true,
+                "required": true,
                 "short": null
               }
             ],
@@ -3544,8 +3544,8 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "variation",
-                "name": "variation",
+                "long": "task-type",
+                "name": "task_type",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -4334,7 +4334,7 @@
               "null"
             ]
           },
-          "variation": {
+          "task_type": {
             "type": [
               "string",
               "null"
@@ -6385,14 +6385,14 @@
                   }
                 ]
               },
-              "text": {
-                "type": "string"
-              },
-              "variation": {
+              "task_type": {
                 "type": [
                   "string",
                   "null"
                 ]
+              },
+              "text": {
+                "type": "string"
               }
             },
             "required": [
@@ -6423,7 +6423,7 @@
               "task": {
                 "$ref": "#/$defs/TaskId"
               },
-              "variation": {
+              "task_type": {
                 "type": [
                   "string",
                   "null"
@@ -9581,7 +9581,7 @@
               "null"
             ]
           },
-          "variation": {
+          "task_type": {
             "type": [
               "string",
               "null"
@@ -9615,13 +9615,13 @@
               }
             ]
           },
-          "text": {
+          "task_type": {
             "type": [
               "string",
               "null"
             ]
           },
-          "variation": {
+          "text": {
             "type": [
               "string",
               "null"

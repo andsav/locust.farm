@@ -1,7 +1,7 @@
 //! Bundled examples of the offline authoring contract.
 use super::{
     Authority, Blueprint, CompletionRule, DecisionRules, EvidenceKind, Prerequisite, Preset, Role,
-    Selector, Stage, StartRule, TaskVariation,
+    Selector, Stage, StartRule, TaskType,
 };
 
 fn role(name: &str) -> Selector {
@@ -34,7 +34,7 @@ pub fn presets() -> Vec<Preset> {
     declare_role(
         &mut coordinator,
         "coordinator",
-        "One member offers work and decides completion, selection and closure.",
+        "One member offers work and decides completion, selection and when the goal is finished.",
     );
     coordinator.work.starts = vec![StartRule::Offered {
         by: role("coordinator"),
@@ -47,7 +47,7 @@ pub fn presets() -> Vec<Preset> {
             exclude_author: false,
         },
         selection: Some(authority("coordinator")),
-        closure: Some(authority("coordinator")),
+        finish: Some(authority("coordinator")),
     };
 
     let mut peer_review = Blueprint::default();
@@ -78,9 +78,9 @@ pub fn presets() -> Vec<Preset> {
     };
 
     let mut pipeline = Blueprint::default();
-    pipeline.variations.insert(
+    pipeline.task_types.insert(
         "reviewed".into(),
-        TaskVariation {
+        TaskType {
             work: None,
             decisions: Some(DecisionRules {
                 completion: CompletionRule::Reviews {
@@ -89,30 +89,30 @@ pub fn presets() -> Vec<Preset> {
                     exclude_author: true,
                 },
                 selection: None,
-                closure: None,
+                finish: None,
             }),
         },
     );
     declare_role(
         &mut pipeline,
-        "materializer",
+        "runner",
         "One member's daemon advances the configured stages and durably delivers ready work.",
     );
     pipeline.flow.insert(
         "draft".into(),
         Stage {
-            materializer: authority("materializer"),
+            runner: authority("runner"),
             recipients: Selector::Members,
-            variation: None,
+            task_type: None,
             requires: Vec::new(),
         },
     );
     pipeline.flow.insert(
         "review".into(),
         Stage {
-            materializer: authority("materializer"),
+            runner: authority("runner"),
             recipients: Selector::Members,
-            variation: Some("reviewed".into()),
+            task_type: Some("reviewed".into()),
             requires: vec![Prerequisite {
                 stage: "draft".into(),
                 evidence: EvidenceKind::Completion,
@@ -148,7 +148,7 @@ pub fn presets() -> Vec<Preset> {
         ),
         preset(
             "pipeline",
-            "A review stage requires completed draft evidence and uses a named peer-review variation.",
+            "A review stage requires completed draft evidence and uses a named peer-review task_type.",
             pipeline,
         ),
     ]

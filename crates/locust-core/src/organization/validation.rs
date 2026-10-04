@@ -166,8 +166,8 @@ impl Validator<'_> {
         if let Some(authority) = &decisions.selection {
             self.authority(authority, &format!("{path}/selection"));
         }
-        if let Some(authority) = &decisions.closure {
-            self.authority(authority, &format!("{path}/closure"));
+        if let Some(authority) = &decisions.finish {
+            self.authority(authority, &format!("{path}/finish"));
         }
     }
     fn run(&mut self) {
@@ -179,13 +179,13 @@ impl Validator<'_> {
         }
         self.work(&self.blueprint.work, "/work");
         self.decisions(&self.blueprint.decisions, "/decisions");
-        for (name, variation) in &self.blueprint.variations {
-            let path = format!("/variations/{}", escape(name));
+        for (name, task_type) in &self.blueprint.task_types {
+            let path = format!("/task_types/{}", escape(name));
             self.name(name, &path);
-            if let Some(work) = &variation.work {
+            if let Some(work) = &task_type.work {
                 self.work(work, &format!("{path}/work"));
             }
-            if let Some(decisions) = &variation.decisions {
+            if let Some(decisions) = &task_type.decisions {
                 self.decisions(decisions, &format!("{path}/decisions"));
             }
         }
@@ -193,21 +193,21 @@ impl Validator<'_> {
         for (name, stage) in &self.blueprint.flow {
             let path = format!("/flow/{}", escape(name));
             self.name(name, &path);
-            self.authority(&stage.materializer, &format!("{path}/materializer"));
+            self.authority(&stage.runner, &format!("{path}/runner"));
             self.selector(
                 &stage.recipients,
                 &format!("{path}/recipients"),
                 false,
                 false,
             );
-            if let Some(variation) = &stage.variation
-                && !self.blueprint.variations.contains_key(variation)
+            if let Some(task_type) = &stage.task_type
+                && !self.blueprint.task_types.contains_key(task_type)
             {
                 self.error(
-                    "unknown_variation",
-                    &format!("{path}/variation"),
-                    format!("Variation {variation:?} is not declared"),
-                    "Declare the variation or remove the reference to inherit the default rules.",
+                    "unknown_task_type",
+                    &format!("{path}/task_type"),
+                    format!("Task type {task_type:?} is not declared"),
+                    "Declare the task_type or remove the reference to inherit the default rules.",
                 );
             }
             let mut required = BTreeSet::new();
@@ -216,10 +216,10 @@ impl Validator<'_> {
                 if let Some(upstream) = self.blueprint.flow.get(&requirement.stage) {
                     required.insert(requirement.stage.clone());
                     let decisions = upstream
-                        .variation
+                        .task_type
                         .as_ref()
-                        .and_then(|name| self.blueprint.variations.get(name))
-                        .and_then(|variation| variation.decisions.as_ref())
+                        .and_then(|name| self.blueprint.task_types.get(name))
+                        .and_then(|task_type| task_type.decisions.as_ref())
                         .unwrap_or(&self.blueprint.decisions);
                     if requirement.evidence == EvidenceKind::Selection
                         && decisions.selection.is_none()

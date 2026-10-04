@@ -149,7 +149,7 @@ fn propose(client: &mut LocalClient, goal: GoalId, text: String) -> TaskId {
             .call(Request::TaskOpen {
                 goal,
                 text,
-                variation: None,
+                task_type: None,
                 inputs: Default::default(),
                 parent: None,
             })

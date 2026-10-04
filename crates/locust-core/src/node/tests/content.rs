@@ -209,7 +209,7 @@ fn missing_content_read_records_want_only_for_nonviewers() {
         Request::TaskOpen {
             goal,
             text: "needs input".into(),
-            variation: None,
+            task_type: None,
             parent: None,
             inputs: std::collections::BTreeMap::from([("workspace".into(), hash)]),
         },
@@ -273,7 +273,7 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
         Request::TaskOpen {
             goal,
             text: text.clone(),
-            variation: None,
+            task_type: None,
             parent: None,
             inputs: Default::default(),
         },
@@ -577,7 +577,7 @@ fn held_content_requires_matching_references_and_each_text_view_checks_its_own_r
         Body::TaskOpened {
             binding: TaskBinding {
                 rules: EventId([0; 32]),
-                variation: None,
+                task_type: None,
                 inputs: Default::default(),
                 parent: None,
                 stage: None,
@@ -748,7 +748,7 @@ fn selected_contribution_stays_readable_in_its_scope_after_author_fork() {
         Request::TaskOpen {
             goal,
             text: "selected output".into(),
-            variation: None,
+            task_type: None,
             inputs: Default::default(),
             parent: None,
         },

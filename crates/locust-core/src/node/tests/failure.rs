@@ -240,7 +240,7 @@ fn exhausted_revision_refuses_before_changing_the_goal_projection() {
         Request::TaskOpen {
             goal,
             text: "must not appear".into(),
-            variation: None,
+            task_type: None,
             inputs: Default::default(),
             parent: None,
         },

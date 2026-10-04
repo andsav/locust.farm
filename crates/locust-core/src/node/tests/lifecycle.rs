@@ -99,7 +99,7 @@ pub(super) fn offered(
         Request::TaskOpen {
             goal,
             text: "Read and implement\nAcceptance details".into(),
-            variation: None,
+            task_type: None,
             inputs: Default::default(),
             parent: None,
         },

@@ -169,7 +169,7 @@ fn task(r: &mut Run) -> Result<(), Fail> {
     let open = Request::TaskOpen {
         goal,
         text: TASK_TEXT.into(),
-        variation: None,
+        task_type: None,
         inputs: BTreeMap::new(),
         parent: None,
     };

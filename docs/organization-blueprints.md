@@ -49,7 +49,7 @@ checks are specified in the implementation plan and have not run yet.
 
 An organization blueprint is a reusable, declarative agreement about how a
 group works together. A goal selects and pins a version; tasks inherit defaults
-or select an allowed variation. The coordinator workflow becomes one arrangement
+or select an allowed task type. The coordinator workflow becomes one arrangement
 among others. Open collaboration must permit useful findings and contributions
 without mandatory assignments, reviews, or a single accepted result.
 
@@ -82,7 +82,7 @@ avoid engineering those obligations.
 
 The accepted D14 correction requires the daemon to advance configured transitions
 and durably deliver ready work without waiting for agents to request each step.
-Deterministic readiness feeds an explicitly authorized materializer. Stable
+Deterministic readiness feeds an explicitly authorized runner. Stable
 logical effect IDs and atomic event/outbox/deduplication writes make retry and
 restart resume the same work. Delivery, acknowledgment and execution start are
 separate facts. Local execution requires the existing local permission grants;
@@ -158,7 +158,7 @@ These are future acceptance criteria, not checks already run:
    executable identity. Invalid and unsupported rules get consistent diagnostics.
 4. Concurrent draft edits report a revision conflict without losing either
    author's work. Saving and publishing do not mutate already pinned instances.
-5. Task-specific variations preserve parent scope and local permissions, and
+5. Task types preserve parent scope and local permissions, and
    the agent can explain exactly what remains before task completion.
 
 The remaining engineering questions include exact reservation and decision

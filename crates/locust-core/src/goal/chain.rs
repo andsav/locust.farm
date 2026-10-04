@@ -465,17 +465,17 @@ fn validate_binding<D: DefinitionLookup + ?Sized>(
     };
     let decisions = std::iter::once(&definition.decisions).chain(
         definition
-            .variations
+            .task_types
             .values()
-            .filter_map(|variation| variation.decisions.as_ref()),
+            .filter_map(|task_type| task_type.decisions.as_ref()),
     );
     if decisions
-        .flat_map(|rules| rules.selection.iter().chain(rules.closure.iter()))
+        .flat_map(|rules| rules.selection.iter().chain(rules.finish.iter()))
         .any(|authority| !authority_ok(authority))
         || definition
             .flow
             .values()
-            .any(|stage| !authority_ok(&stage.materializer))
+            .any(|stage| !authority_ok(&stage.runner))
     {
         return Standing::Excluded(Exclusion::Precondition(
             "an authority must bind exactly one admitted principal",

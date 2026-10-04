@@ -196,7 +196,7 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
             goal,
             expected,
             blueprint_json: serde_json::to_string(&blueprint).unwrap(),
-            roles: BTreeMap::from([("materializer".into(), vec![source])]),
+            roles: BTreeMap::from([("runner".into(), vec![source])]),
             inputs: BTreeMap::new(),
         },
     );

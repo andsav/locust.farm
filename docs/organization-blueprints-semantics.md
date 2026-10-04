@@ -34,7 +34,7 @@ not make private subgroups.
 D14 requires configured transitions to advance and ready work to be durably
 delivered by the daemon without an agent requesting each step. Readiness is a
 pure projection; materialization is an authorized signed mutation. A configured
-materializer signs child-task, review-request and handoff effects. The logical
+runner signs child-task, review-request and handoff effects. The logical
 effect ID binds the current rule revision, trigger, scope and intended action.
 The event, effect deduplication record and delivery outbox are committed together.
 Restart resumes pending work and retries unacknowledged deliveries with the same
@@ -153,7 +153,7 @@ Every scoped work event names `Context { scope, round }`. `TaskId` explicitly
 distinguishes `Authored(EventId)` from `Derived(EffectId)`; there is no ambiguous
 byte-string namespace. The initial task-open event is the first round identity; taskless contributions use
 the goal definition/binding revision as their round. The referenced round pins
-its definition, role bindings, creator, inputs and effective task variation.
+its definition, role bindings, creator, inputs and effective task type.
 These values are not inferred from the latest definition. Membership, removal
 cutoffs and key epoch derive from governance; pinned roles alone cannot make a
 removed principal a current member. A review names both exact contribution and
@@ -161,7 +161,7 @@ round. Concrete authority roles must resolve to exactly one authenticated key.
 
 Governance retains one serial stream for admission, removal, role bindings,
 future-default changes, explicit task-round changes and key rotation. A task
-creator may select an already delegated variation at creation; changing active
+creator may select an already delegated task type at creation; changing active
 rules requires an administrator-authored new round naming its expected previous
 round. Changing future defaults affects only new scopes. No old signature is
 reinterpreted as an action in a later round.
@@ -178,8 +178,8 @@ not enum declaration order.
 | `MemberAdmitted` | Member, endpoint, new admission event identity | Administrator; opens a distinct tenure |
 | `MemberRemoved` | Member, exact admission ID, optional last accepted `AuthorPoint` | Administrator; closes that tenure and rotates content epoch |
 | `RulesBound` | Definition/object, authenticated role map, input map, expected rules revision | Administrator; changes future defaults; initial binding is committed at creation |
-| `TaskRevised` | Task, expected round, new definition/variation and bindings | Administrator; creates a new round without reinterpreting prior evidence |
-| `TaskOpened` | Pinned goal rules revision, variation, inputs, criteria payload, optional parent | Selector authorized to propose; creates a task and initial round |
+| `TaskRevised` | Task, expected round, new definition/task type and bindings | Administrator; creates a new round without reinterpreting prior evidence |
+| `TaskOpened` | Pinned goal rules revision, task type, inputs, criteria payload, optional parent | Selector authorized to propose; creates a task and initial round |
 | `WorkOffered` | Task/round, recipient, optional predecessor offer | Selector authorized to offer; makes directed work available |
 | `AttemptStarted` | Task/round, optional accepted offer, optional exact closure-stream position, participant | Eligible independent starter or offered recipient; creates an attempt only at a causally open position |
 | `AttemptReported` | Attempt, progress/completed/failed/abandoned/uncertain status | Attempt author; reports facts without proving process liveness |
@@ -190,7 +190,7 @@ not enum declaration order.
 | `ReviewRecorded` / `CheckAttested` | Exact candidate, round, verdict/check name | Eligible reviewer/check selector; immutable evidence |
 | `ScopeDecided` | Scope/round, decision predecessor, action, exact evidence roots | Named selection/closure authority; selects output or closes/reopens under its rule |
 | `DocumentRevised` | Document name, optional exact base revision, new content reference | Authorized publisher; revisions coexist unless a document selection scope chooses one |
-| `EffectMaterialized` | Logical effect ID, rule transition, trigger, explicit action and witnesses | Configured materializer; daemon-created child, review request or offer |
+| `EffectMaterialized` | Logical effect ID, rule transition, trigger, explicit action and witnesses | Configured runner; daemon-created child, review request or offer |
 | `DeliveryAcknowledged` | Exact logical effect and recipient | Recipient; explicit agent acknowledgment, distinct from the daemon transport receipt and execution start |
 | `LeaveRequested` | Requester's admission tenure | Member; routes to administrator, grants no self-authored membership mutation |
 
@@ -311,13 +311,13 @@ lookup. Missing definition bytes yield pending-definition status, never guessed
 defaults. This replaces the existing assumption that headers alone contain every
 rule needed to authorize work.
 
-### Effect identity, materializer and durable delivery
+### Effect identity, runner and durable delivery
 
-A goal/round binding identifies one materializer principal for each configured
+A goal/round binding identifies one runner principal for each configured
 transition plus its target recipients. This is an explicit role of that scope,
 not a default universal coordinator. Its daemon must hold the signing key and
 an appropriate standing local grant. Other replicas derive the same desired
-effect and can show that the authorized materializer is unavailable. They cannot
+effect and can show that the authorized runner is unavailable. They cannot
 impersonate it. Availability blocks only this transition's materialization.
 
 Compute `EffectId = H(domain, goal, source_scope, source_round, transition_id,
@@ -374,7 +374,7 @@ these records share [one commit](../crates/locust-core/src/node/commit.rs).
 committed currently available entries, checks the authenticated recipient endpoint,
 and commits positive receipts before retiring retries. Missing proof or content
 returns a negative receipt for later anti-entropy. All replicas may relay an
-already verified signed effect; only the named materializer signs it. A recipient
+already verified signed effect; only the named runner signs it. A recipient
 local to the same daemon receives its inbox record in the materialization commit.
 
 [Encoded driver tests](../crates/locust-core/src/node/tests/delivery.rs) exercise
@@ -424,7 +424,7 @@ impl Goal {
 
 `DefinitionHash` and `EffectId` are separate 32-byte identifiers. `Dependency`
 distinguishes missing event, definition and content proof. `DesiredEffect`
-contains logical ID, scope/round, transition/trigger, resolved action, materializer,
+contains logical ID, scope/round, transition/trigger, resolved action, runner,
 recipients and exact witness roots. It contains no signing key or local grant.
 `Changes` must report all changed standings, including formerly effective facts
 that become pending/disputed, so a durable feed and delivery outbox cannot miss

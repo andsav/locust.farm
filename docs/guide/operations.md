@@ -48,7 +48,7 @@ daemon or silently fall back. Preserve the rejected state for inspection.
 ## Advance configured transitions
 
 The accepted D14 loop derives readiness as a pure projection. An explicitly
-configured materializer with a signing key and applicable local grant signs the
+configured runner with a signing key and applicable local grant signs the
 child-task, review-request or handoff effect. The daemon drives this loop after
 replay/ingestion/local action without asking an agent for every next step.
 
@@ -74,7 +74,7 @@ outbox entries. Work offers, local attempt claims and managed-session process
 observations are separate records. Neither transport receipt nor agent
 acknowledgment proves that a remote process started.
 
-An unavailable materializer blocks its configured transition; other replicas do
+An unavailable runner blocks its configured transition; other replicas do
 not impersonate it. A recipient without local permission retains ready work
 instead of automatically executing it. A newly disputed proof stops affected
 undelivered offers and reports the change; it cannot silently undo a filesystem

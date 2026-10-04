@@ -264,7 +264,7 @@ pub struct RulesBinding {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TaskBinding {
     pub rules: EventId,
-    pub variation: Option<String>,
+    pub task_type: Option<String>,
     pub inputs: BTreeMap<String, BlobHash>,
     pub parent: Option<Context>,
     /// Only configured materialization may set this stage identity.

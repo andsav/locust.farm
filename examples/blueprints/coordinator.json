@@ -4,10 +4,6 @@
     "inputs": {}
   },
   "decisions": {
-    "closure": {
-      "kind": "role",
-      "name": "coordinator"
-    },
     "completion": {
       "by": {
         "kind": "role",
@@ -17,6 +13,10 @@
       "exclude_author": false,
       "kind": "reviews"
     },
+    "finish": {
+      "kind": "role",
+      "name": "coordinator"
+    },
     "selection": {
       "kind": "role",
       "name": "coordinator"
@@ -25,11 +25,11 @@
   "flow": {},
   "roles": {
     "coordinator": {
-      "description": "One member offers work and decides completion, selection and closure."
+      "description": "One member offers work and decides completion, selection and when the goal is finished."
     }
   },
   "schema_version": 1,
-  "variations": {},
+  "task_types": {},
   "work": {
     "propose": {
       "kind": "members"

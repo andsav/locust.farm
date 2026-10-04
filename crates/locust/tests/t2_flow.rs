@@ -278,7 +278,7 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
     p.cli(&["--owner"], &["call", "goal.grant", &grants]);
     let opened = mcp.tool(
         "locust_task_open",
-        json!({"goal":goal,"text":"change code.txt","variation":null,"inputs":{},"parent":null}),
+        json!({"goal":goal,"text":"change code.txt","task_type":null,"inputs":{},"parent":null}),
     );
     let task = format!("task:{}", opened["recorded"]["event"].as_str().unwrap());
     let authorize = json!({"goal":goal,"task":task,"agent":agent,"takeover":false}).to_string();

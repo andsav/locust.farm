@@ -789,7 +789,7 @@ fn bare_object_reference_refuses_an_epoch_after_its_event() {
         Body::TaskOpened {
             binding: locust_proto::event::TaskBinding {
                 rules: locust_proto::id::EventId([0; 32]),
-                variation: None,
+                task_type: None,
                 inputs: BTreeMap::from([("snapshot".into(), hash)]),
                 parent: None,
                 stage: None,

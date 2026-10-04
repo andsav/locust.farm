@@ -104,15 +104,15 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
     } else {
         (definition.work.clone(), definition.decisions.clone())
     };
-    if let Some(name) = task.as_ref().and_then(|task| task.variation.as_ref()) {
-        let variation = definition
-            .variations
+    if let Some(name) = task.as_ref().and_then(|task| task.task_type.as_ref()) {
+        let task_type = definition
+            .task_types
             .get(name)
-            .ok_or(invalid("task variation is not delegated by the definition"))?;
-        if let Some(value) = &variation.work {
+            .ok_or(invalid("task task_type is not delegated by the definition"))?;
+        if let Some(value) = &task_type.work {
             work = value.clone();
         }
-        if let Some(value) = &variation.decisions {
+        if let Some(value) = &task_type.decisions {
             decisions = value.clone();
         }
     }

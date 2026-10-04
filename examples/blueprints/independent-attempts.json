@@ -4,13 +4,13 @@
     "inputs": {}
   },
   "decisions": {
-    "closure": null,
     "completion": {
       "by": {
         "kind": "contribution_author"
       },
       "kind": "declaration"
     },
+    "finish": null,
     "selection": {
       "kind": "role",
       "name": "chooser"
@@ -23,7 +23,7 @@
     }
   },
   "schema_version": 1,
-  "variations": {},
+  "task_types": {},
   "work": {
     "propose": {
       "kind": "members"

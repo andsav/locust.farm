@@ -462,7 +462,7 @@ pub enum Request {
     TaskOpen {
         goal: GoalId,
         text: String,
-        variation: Option<String>,
+        task_type: Option<String>,
         inputs: BTreeMap<String, BlobHash>,
         parent: Option<TaskId>,
     },
@@ -471,7 +471,7 @@ pub enum Request {
         goal: GoalId,
         task: TaskId,
         expected_round: EventId,
-        variation: Option<String>,
+        task_type: Option<String>,
     },
     #[serde(rename = "work.offer")]
     WorkOffer {
@@ -1270,7 +1270,7 @@ pub struct TaskDetail {
     pub text: Option<String>,
     pub inputs: BTreeMap<String, BlobHash>,
     pub parent: Option<TaskId>,
-    pub variation: Option<String>,
+    pub task_type: Option<String>,
     pub effective_rules_json: String,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

@@ -36,11 +36,11 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             .flow
             .get(name)
             .ok_or(invalid("unknown configured flow stage"))?;
-        let materializer = rules::authority(&stage.materializer, &resolved.effective)
-            .ok_or(invalid("stage materializer is not uniquely bound"))?;
+        let runner = rules::authority(&stage.runner, &resolved.effective)
+            .ok_or(invalid("stage runner is not uniquely bound"))?;
         let binding = TaskBinding {
             rules,
-            variation: stage.variation.clone(),
+            task_type: stage.task_type.clone(),
             inputs: resolved.binding.inputs.clone(),
             parent: Some(context),
             stage: Some(name.to_owned()),
@@ -50,7 +50,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             self.definitions,
             rules,
             Some(binding.clone()),
-            Some(materializer),
+            Some(runner),
         )?
         .effective;
         let snapshot = self
@@ -66,7 +66,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         .into_iter()
         .collect();
         Ok((
-            materializer,
+            runner,
             Effect {
                 context,
                 transition: format!("stage:{name}"),
@@ -191,7 +191,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             return Err(invalid("review trigger is not a contribution"));
         };
         let resolved = self.resolve(context)?;
-        let materializer =
+        let runner =
             if let Some(stage) = resolved.task.as_ref().and_then(|task| task.stage.as_ref()) {
                 let definition = self
                     .definitions
@@ -201,8 +201,8 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                     .flow
                     .get(stage)
                     .ok_or(invalid("task names an unknown stage"))?;
-                rules::authority(&configured.materializer, &resolved.effective)
-                    .ok_or(invalid("review materializer is not uniquely bound"))?
+                rules::authority(&configured.runner, &resolved.effective)
+                    .ok_or(invalid("review runner is not uniquely bound"))?
             } else {
                 event.header().author
             };
@@ -223,7 +223,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             })
             .map(|recipient| {
                 (
-                    materializer,
+                    runner,
                     Effect {
                         context,
                         transition: "review".into(),
@@ -246,7 +246,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         name: &str,
         proof: Option<EventId>,
     ) -> Result<Vec<(PublicKey, Effect)>, Standing> {
-        let (materializer, template) = self.stage_template(rules, name)?;
+        let (runner, template) = self.stage_template(rules, name)?;
         let EffectAction::OpenTask { recipients, .. } = template.action else {
             unreachable!()
         };
@@ -256,8 +256,8 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             round,
         };
         let resolved = self.resolve(context)?;
-        Ok(recipients.into_iter().filter(|recipient|resolved.effective.work.starts.iter().any(|rule|matches!(rule,StartRule::Offered{by,to} if rules::matches(by,materializer,&resolved.effective,None)&&rules::matches(to,*recipient,&resolved.effective,None)))).map(|recipient|{
-            (materializer,Effect{context,transition:format!("stage:{name}:offer"),trigger:Trigger::Stage{rules,stage:name.to_owned()},target_slot:recipient.to_string(),action:EffectAction::Offer{context,recipient},evidence:vec![round]})
+        Ok(recipients.into_iter().filter(|recipient|resolved.effective.work.starts.iter().any(|rule|matches!(rule,StartRule::Offered{by,to} if rules::matches(by,runner,&resolved.effective,None)&&rules::matches(to,*recipient,&resolved.effective,None)))).map(|recipient|{
+            (runner,Effect{context,transition:format!("stage:{name}:offer"),trigger:Trigger::Stage{rules,stage:name.to_owned()},target_slot:recipient.to_string(),action:EffectAction::Offer{context,recipient},evidence:vec![round]})
         }).collect())
     }
     pub(super) fn validate_effect(
@@ -266,7 +266,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         effect: &Effect,
         proof: Option<EventId>,
     ) -> Result<(), Standing> {
-        let (materializer, expected) = match &effect.action {
+        let (runner, expected) = match &effect.action {
             EffectAction::OpenTask { binding, .. } => {
                 let Trigger::Stage { rules, stage } = &effect.trigger else {
                     return Err(invalid(
@@ -276,7 +276,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 if binding.rules != *rules {
                     return Err(invalid("stage binding uses different rules"));
                 }
-                let (materializer, expected) = self.stage_template(*rules, stage)?;
+                let (runner, expected) = self.stage_template(*rules, stage)?;
                 let allowed = effect.evidence.iter().copied().collect();
                 if self
                     .stage_ready(*rules, stage, proof, Some(&allowed))?
@@ -284,7 +284,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 {
                     return Err(Standing::Pending(Waiting::Evidence));
                 }
-                (materializer, expected)
+                (runner, expected)
             }
             EffectAction::RequestReview { subject, .. } => self
                 .review_templates(*subject)?
@@ -301,8 +301,8 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                     .ok_or(invalid("automatic offer is not authorized"))?
             }
         };
-        if materializer != event.header().author {
-            return Err(invalid("effect signer is not its configured materializer"));
+        if runner != event.header().author {
+            return Err(invalid("effect signer is not its configured runner"));
         }
         if expected.context != effect.context
             || expected.transition != effect.transition
@@ -319,14 +319,14 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         let Some(goal) = self.history.events.first().map(|event| event.header().goal) else {
             return desired;
         };
-        let mut insert = |materializer: PublicKey, effect: Effect| {
+        let mut insert = |runner: PublicKey, effect: Effect| {
             let id = effect.id(goal);
             if self.history.events.iter().any(|event|matches!(&event.header().body,Body::EffectMaterialized{effect:held} if held.id(goal)==id)&&self.status(event.id(),None)==Standing::Effective){return;}
             desired.insert(
                 id,
                 DesiredEffect {
                     id,
-                    materializer,
+                    runner,
                     recipients: self.effect_recipients(&effect),
                     effect,
                 },
@@ -345,23 +345,22 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                     };
                     for name in definition.flow.keys() {
                         if let Ok(Some(witness)) = self.stage_ready(event.id(), name, None, None)
-                            && let Ok((materializer, mut effect)) =
-                                self.stage_template(event.id(), name)
+                            && let Ok((runner, mut effect)) = self.stage_template(event.id(), name)
                         {
                             effect.evidence = witness.into_iter().collect();
-                            insert(materializer, effect);
+                            insert(runner, effect);
                         }
                         if let Ok(offers) = self.offer_templates(event.id(), name, None) {
-                            for (materializer, effect) in offers {
-                                insert(materializer, effect);
+                            for (runner, effect) in offers {
+                                insert(runner, effect);
                             }
                         }
                     }
                 }
                 Body::ContributionPublished { .. } | Body::DocumentRevised { .. } => {
                     if let Ok(reviews) = self.review_templates(event.id()) {
-                        for (materializer, effect) in reviews {
-                            insert(materializer, effect);
+                        for (runner, effect) in reviews {
+                            insert(runner, effect);
                         }
                     }
                 }

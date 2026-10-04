@@ -175,16 +175,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::TaskOpen {
                 goal,
                 text,
-                variation,
+                task_type,
                 inputs,
                 parent,
-            } => self.task_open(actor, goal, text, variation, inputs, parent, now),
+            } => self.task_open(actor, goal, text, task_type, inputs, parent, now),
             Request::TaskRevise {
                 goal,
                 task,
                 expected_round,
-                variation,
-            } => self.task_revise(actor, goal, task, expected_round, variation, now),
+                task_type,
+            } => self.task_revise(actor, goal, task, expected_round, task_type, now),
             Request::WorkOffer {
                 goal,
                 task,

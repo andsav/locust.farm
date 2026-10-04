@@ -4,32 +4,28 @@
     "inputs": {}
   },
   "decisions": {
-    "closure": null,
     "completion": {
       "by": {
         "kind": "contribution_author"
       },
       "kind": "declaration"
     },
+    "finish": null,
     "selection": null
   },
   "flow": {
     "draft": {
-      "materializer": {
-        "kind": "role",
-        "name": "materializer"
-      },
       "recipients": {
         "kind": "members"
       },
       "requires": [],
-      "variation": null
+      "runner": {
+        "kind": "role",
+        "name": "runner"
+      },
+      "task_type": null
     },
     "review": {
-      "materializer": {
-        "kind": "role",
-        "name": "materializer"
-      },
       "recipients": {
         "kind": "members"
       },
@@ -39,19 +35,22 @@
           "stage": "draft"
         }
       ],
-      "variation": "reviewed"
+      "runner": {
+        "kind": "role",
+        "name": "runner"
+      },
+      "task_type": "reviewed"
     }
   },
   "roles": {
-    "materializer": {
+    "runner": {
       "description": "One member's daemon advances the configured stages and durably delivers ready work."
     }
   },
   "schema_version": 1,
-  "variations": {
+  "task_types": {
     "reviewed": {
       "decisions": {
-        "closure": null,
         "completion": {
           "by": {
             "kind": "members"
@@ -60,6 +59,7 @@
           "exclude_author": true,
           "kind": "reviews"
         },
+        "finish": null,
         "selection": null
       },
       "work": null

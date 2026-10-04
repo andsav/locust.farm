@@ -156,7 +156,7 @@ impl Harness {
             Request::TaskOpen {
                 goal,
                 text: "Work".into(),
-                variation: None,
+                task_type: None,
                 inputs: BTreeMap::new(),
                 parent: None,
             },
@@ -527,7 +527,7 @@ fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
     };
     let mut h = Harness::new();
     let mut blueprint = Blueprint::default();
-    blueprint.decisions.closure = Some(Authority::Participant {
+    blueprint.decisions.finish = Some(Authority::Participant {
         key: h.principal.to_string(),
     });
     let Response::GoalCreated { goal } = h.ok(
@@ -621,7 +621,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
         Request::TaskOpen {
             goal,
             text: "Nested".into(),
-            variation: None,
+            task_type: None,
             inputs: BTreeMap::new(),
             parent: Some(parent),
         },
@@ -647,7 +647,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
         Request::TaskOpen {
             goal,
             text: "Next nested".into(),
-            variation: None,
+            task_type: None,
             inputs: BTreeMap::new(),
             parent: Some(parent),
         },
@@ -658,7 +658,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
             goal,
             task: TaskId::Authored(child),
             expected_round: child,
-            variation: None,
+            task_type: None,
         },
     ));
     for id in [next_child, revised] {

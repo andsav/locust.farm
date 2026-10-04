@@ -4,7 +4,6 @@
     "inputs": {}
   },
   "decisions": {
-    "closure": null,
     "completion": {
       "by": {
         "kind": "members"
@@ -13,12 +12,13 @@
       "exclude_author": true,
       "kind": "reviews"
     },
+    "finish": null,
     "selection": null
   },
   "flow": {},
   "roles": {},
   "schema_version": 1,
-  "variations": {},
+  "task_types": {},
   "work": {
     "propose": {
       "kind": "members"

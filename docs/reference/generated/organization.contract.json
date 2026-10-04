@@ -7,19 +7,19 @@
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "contribution_author"
             },
             "kind": "declaration"
           },
+          "finish": null,
           "selection": null
         },
         "flow": {},
         "roles": {},
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -47,10 +47,6 @@
           "inputs": {}
         },
         "decisions": {
-          "closure": {
-            "kind": "role",
-            "name": "coordinator"
-          },
           "completion": {
             "by": {
               "kind": "role",
@@ -60,6 +56,10 @@
             "exclude_author": false,
             "kind": "reviews"
           },
+          "finish": {
+            "kind": "role",
+            "name": "coordinator"
+          },
           "selection": {
             "kind": "role",
             "name": "coordinator"
@@ -68,11 +68,11 @@
         "flow": {},
         "roles": {
           "coordinator": {
-            "description": "One member offers work and decides completion, selection and closure."
+            "description": "One member offers work and decides completion, selection and when the goal is finished."
           }
         },
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -104,7 +104,6 @@
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "members"
@@ -113,12 +112,13 @@
             "exclude_author": true,
             "kind": "reviews"
           },
+          "finish": null,
           "selection": null
         },
         "flow": {},
         "roles": {},
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -146,13 +146,13 @@
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "contribution_author"
             },
             "kind": "declaration"
           },
+          "finish": null,
           "selection": {
             "kind": "role",
             "name": "chooser"
@@ -165,7 +165,7 @@
           }
         },
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -193,7 +193,6 @@
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "role",
@@ -203,6 +202,7 @@
             "exclude_author": true,
             "kind": "reviews"
           },
+          "finish": null,
           "selection": null
         },
         "flow": {},
@@ -212,7 +212,7 @@
           }
         },
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -240,32 +240,28 @@
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "contribution_author"
             },
             "kind": "declaration"
           },
+          "finish": null,
           "selection": null
         },
         "flow": {
           "draft": {
-            "materializer": {
-              "kind": "role",
-              "name": "materializer"
-            },
             "recipients": {
               "kind": "members"
             },
             "requires": [],
-            "variation": null
+            "runner": {
+              "kind": "role",
+              "name": "runner"
+            },
+            "task_type": null
           },
           "review": {
-            "materializer": {
-              "kind": "role",
-              "name": "materializer"
-            },
             "recipients": {
               "kind": "members"
             },
@@ -275,19 +271,22 @@
                 "stage": "draft"
               }
             ],
-            "variation": "reviewed"
+            "runner": {
+              "kind": "role",
+              "name": "runner"
+            },
+            "task_type": "reviewed"
           }
         },
         "roles": {
-          "materializer": {
+          "runner": {
             "description": "One member's daemon advances the configured stages and durably delivers ready work."
           }
         },
         "schema_version": 1,
-        "variations": {
+        "task_types": {
           "reviewed": {
             "decisions": {
-              "closure": null,
               "completion": {
                 "by": {
                   "kind": "members"
@@ -296,6 +295,7 @@
                 "exclude_author": true,
                 "kind": "reviews"
               },
+              "finish": null,
               "selection": null
             },
             "work": null
@@ -318,7 +318,7 @@
           ]
         }
       },
-      "description": "A review stage requires completed draft evidence and uses a named peer-review variation.",
+      "description": "A review stage requires completed draft evidence and uses a named peer-review task_type.",
       "name": "pipeline"
     }
   ],
@@ -561,7 +561,16 @@
       "DecisionRules": {
         "additionalProperties": false,
         "properties": {
-          "closure": {
+          "completion": {
+            "$ref": "#/$defs/CompletionRule",
+            "default": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            }
+          },
+          "finish": {
             "anyOf": [
               {
                 "$ref": "#/$defs/Authority"
@@ -571,16 +580,7 @@
               }
             ],
             "default": null,
-            "description": "An optional explicit closure decision; an empty board is not closure."
-          },
-          "completion": {
-            "$ref": "#/$defs/CompletionRule",
-            "default": {
-              "by": {
-                "kind": "contribution_author"
-              },
-              "kind": "declaration"
-            }
+            "description": "An optional single decider who may declare the scope finished; an empty board is not finished."
           },
           "selection": {
             "anyOf": [
@@ -770,10 +770,6 @@
       "Stage": {
         "additionalProperties": false,
         "properties": {
-          "materializer": {
-            "$ref": "#/$defs/Authority",
-            "description": "One explicitly bound principal whose daemon materializes this stage."
-          },
           "recipients": {
             "$ref": "#/$defs/Selector",
             "default": {
@@ -788,7 +784,11 @@
             },
             "type": "array"
           },
-          "variation": {
+          "runner": {
+            "$ref": "#/$defs/Authority",
+            "description": "One explicitly bound principal whose daemon runs this stage."
+          },
+          "task_type": {
             "default": null,
             "type": [
               "string",
@@ -797,7 +797,7 @@
           }
         },
         "required": [
-          "materializer"
+          "runner"
         ],
         "type": "object"
       },
@@ -844,7 +844,7 @@
           }
         ]
       },
-      "TaskVariation": {
+      "TaskType": {
         "additionalProperties": false,
         "properties": {
           "decisions": {
@@ -922,13 +922,13 @@
       "decisions": {
         "$ref": "#/$defs/DecisionRules",
         "default": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "contribution_author"
             },
             "kind": "declaration"
           },
+          "finish": null,
           "selection": null
         }
       },
@@ -953,9 +953,9 @@
         "minimum": 1,
         "type": "integer"
       },
-      "variations": {
+      "task_types": {
         "additionalProperties": {
-          "$ref": "#/$defs/TaskVariation"
+          "$ref": "#/$defs/TaskType"
         },
         "default": {},
         "description": "Explicitly delegated alternatives to the default task rules.",

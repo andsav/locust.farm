@@ -86,9 +86,14 @@ fn decisions(value: &DecisionRules, prefix: &str, lines: &mut Vec<String>) {
             format!("{prefix}: qualifying contributions coexist; no single output is selected.")
         }
     });
-    lines.push(match &value.closure {
-        Some(value) => format!("{prefix}: {} may explicitly close the scope.", authority(value)),
-        None => format!("{prefix}: no authoritative closure is configured; an empty task list is not completion."),
+    lines.push(match &value.finish {
+        Some(value) => format!(
+            "{prefix}: {} may declare the scope finished.",
+            authority(value)
+        ),
+        None => format!(
+            "{prefix}: no one may declare it finished; an empty task list is not completion."
+        ),
     });
 }
 pub(super) fn explain(value: &Blueprint) -> Explanation {
@@ -98,21 +103,21 @@ pub(super) fn explain(value: &Blueprint) -> Explanation {
     ];
     work(&value.work, "Default rules", &mut summary);
     decisions(&value.decisions, "Default rules", &mut summary);
-    for (name, variation) in &value.variations {
-        let prefix = format!("Variation {name:?}");
+    for (name, task_type) in &value.task_types {
+        let prefix = format!("Task type {name:?}");
         work(
-            variation.work.as_ref().unwrap_or(&value.work),
+            task_type.work.as_ref().unwrap_or(&value.work),
             &prefix,
             &mut summary,
         );
         decisions(
-            variation.decisions.as_ref().unwrap_or(&value.decisions),
+            task_type.decisions.as_ref().unwrap_or(&value.decisions),
             &prefix,
             &mut summary,
         );
     }
     for (name, stage) in &value.flow {
-        summary.push(format!("Stage {name:?}: {} materializes the configured task and durably delivers ready work to {}.", authority(&stage.materializer), selector(&stage.recipients)));
+        summary.push(format!("Stage {name:?}: {} runs this stage: it creates the configured task and durably delivers ready work to {}.", authority(&stage.runner), selector(&stage.recipients)));
         let needs = if stage.requires.is_empty() {
             "no upstream evidence".into()
         } else {
@@ -136,9 +141,9 @@ pub(super) fn explain(value: &Blueprint) -> Explanation {
         };
         summary.push(format!(
             "Stage {name:?} requires {needs} and uses {}.",
-            stage.variation.as_ref().map_or_else(
+            stage.task_type.as_ref().map_or_else(
                 || "default rules".into(),
-                |name| format!("variation {name:?}")
+                |name| format!("task_type {name:?}")
             )
         ));
     }

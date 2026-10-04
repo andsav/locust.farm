@@ -53,7 +53,7 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
             Body::TaskOpened {
                 binding: TaskBinding {
                     rules: anchor,
-                    variation: None,
+                    task_type: None,
                     inputs: BTreeMap::new(),
                     parent: None,
                     stage: None,

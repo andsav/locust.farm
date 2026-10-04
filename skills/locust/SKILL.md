@@ -51,7 +51,7 @@ identity. Offline validation does not require binding reusable role slots.
 ## Start authorized work
 
 Task input names must match the pinned definition. Open work through
-`locust_task_open`, using named `inputs`, an allowed `variation`, and an optional
+`locust_task_open`, using named `inputs`, an allowed `task_type`, and an optional
 parent task. Use `locust_work_offer` only where the pinned rules allow offers.
 An offer is not an executing attempt. The local participant authorizes execution
 for the task and agent. Start with `locust_attempt_start`, retaining the exact

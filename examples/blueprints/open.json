@@ -4,19 +4,19 @@
     "inputs": {}
   },
   "decisions": {
-    "closure": null,
     "completion": {
       "by": {
         "kind": "contribution_author"
       },
       "kind": "declaration"
     },
+    "finish": null,
     "selection": null
   },
   "flow": {},
   "roles": {},
   "schema_version": 1,
-  "variations": {},
+  "task_types": {},
   "work": {
     "propose": {
       "kind": "members"

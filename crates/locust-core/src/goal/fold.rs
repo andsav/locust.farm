@@ -437,7 +437,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 && !super::delegation::narrows(&resolved.effective, &parent.effective)
             {
                 return Err(invalid(
-                    "child variation does not prove narrower parent authority and completion",
+                    "child task_type does not prove narrower parent authority and completion",
                 ));
             }
         }
@@ -575,7 +575,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         let resolved = self.resolve(*context)?;
         let authority = match action.purpose() {
             DecisionPurpose::Selection => resolved.effective.decisions.selection.as_ref(),
-            DecisionPurpose::Closure => resolved.effective.decisions.closure.as_ref(),
+            DecisionPurpose::Closure => resolved.effective.decisions.finish.as_ref(),
         }
         .and_then(|authority| rules::authority(authority, &resolved.effective));
         if authority != Some(event.header().author) {
