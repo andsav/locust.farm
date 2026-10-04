@@ -111,5 +111,5 @@
     "test_binary": "target/debug/deps/locust_net-6b9ac02bb4fb6252",
     "test_binary_sha256": "264c8b4e0c114700e1a9aab0ee4edbf6f0b3dd501244175cdb05a2be564d9544"
   },
-  "qualification": "One macOS arm64 host, local lookup and no relay; development binaries with dirty identity markers, not immutable release qualification."
+  "qualification": "One macOS arm64 host with local lookup and no relay. Earlier daemon campaigns use dirty source identity markers; the current isolated test identifies its committed source and exact test executable. None is immutable release or physical-machine qualification."
 }
