@@ -1,6 +1,28 @@
 # October 4 release evidence ledger
 
-**Status: production-client campaigns and managed-session implementation have local evidence; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is deferred by the owner. Operational workflows have retained local results; native macOS packaging and prioritized local installed-client campaigns have passed and precede the final two-Mac, sleep/wake and independent-account acceptance pass, deferred until the owner is available. Droid follow-up is lower priority. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace detailed M0–M6 exit evidence or the conformance matrix.
+**Current status: API 2 / protocol 2 is implemented and locally verified; release
+qualification remains open.** The
+[organization implementation ledger](organization-blueprints-status.md) tracks
+the current runtime, full manual, native integration and V01–V22 scenarios.
+Formatting, strict workspace Clippy and 624 Rust tests pass (12 explicit
+ignores), as do 195 Python tests and all 54 finite-model cases. Exact candidate
+`0a295cd` has [native installation/client evidence](../research/organization-native-qualification.md),
+[all four installed manual recipes](../research/documentation-qualification.md),
+[same-host default-network collaboration/operations](../research/organization-local-discovery.md),
+[isolated signed Polaris native acceptance](guide/polaris.md) and
+[Linux build-only evidence](../research/linux-installation-qualification.md).
+
+Droid's native Execute child failed before its full workspace flow, key-only
+local mDNS still fails, and broader Merak gates remain unresolved. Physical
+machines, sleep/wake, independent accounts/real providers, production signing
+custody, canonical public artifacts and public-download acceptance remain open.
+
+The R1–R10 table and dated records below preserve the earlier implementation
+plan's evidence. **Pre-organization-cutover candidates do not qualify the current
+API 2 / protocol 2 runtime.** Their historical version/hash, old operation names
+and format descriptions are retained as evidence rather than current operating
+instructions. Public release remains deferred by the owner; no complete release
+gate is recorded as passed.
 
 The repository owner decides release go/no-go and changes to required scope or support claims. Agents record failures and remediate them; they cannot waive requirements. The [review response](implementation-plan-review-response.md) explains the changes that introduced this register.
 
@@ -15,7 +37,7 @@ The repository owner decides release go/no-go and changes to required scope or s
 | R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Partial; gate open | A-C1; A-C5/B-C9; A-C6/B-C10 (four real-model mixed-client pairs, preserved dirty work and separately observed acceptance/application); A-C8/B-C12 (resumable patches and conflicting workers) |
 | R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2; B-C5; B-C8; A-C5/B-C9; A-C6/B-C10 (earlier real-model production flows); A-C10/B-C14 (installed Codex/Claude/Pi discovery and task flow; Droid installed/resume, interactive approval and independent accounts remain open) |
 | R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2; B-C5; B-C8; A-C7/B-C11 (four earlier scripted clients); A-C10/B-C14 (three clients refreshed on installed native artifact) |
-| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7; A-C2; A-C4 (identified protocol-1 T1 candidate); A-C9/B-C13 (ten native macOS install/upgrade/launchd cases); A-C10/B-C14 (installed client setup/removal) |
+| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, current-format recovery, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7; A-C2; A-C4 (identified protocol-1 T1 candidate); A-C9/B-C13 (ten native macOS install/upgrade/launchd cases); A-C10/B-C14 (installed client setup/removal) |
 | R8 — Real collaboration | M6: two people/machines, mixed-client flows covering all four baseline clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
 | R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3; B-C4; A-C1; A-C2; A-C3/A-C4 (same-host component/artifact evidence); M1 observation and T1-M2-S1/S2 (mixed-build two-Mac join, note and assignment); A-C8/B-C12 (clock and same-host operational hardening) |
 | R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Partial; gate open | A-C2; A-C4; A-C9/B-C13 (explicit test trust and signed withdrawal implementation; production custody/public distribution open) |

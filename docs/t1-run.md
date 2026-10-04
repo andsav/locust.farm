@@ -1,5 +1,11 @@
 # T1 CLI run: protocol 1 on two Apple Silicon Macs
 
+> **Historical pre-organization document.** Its protocol-1 commands, source
+> snapshots and qualification claims do not apply to API 2 / protocol 2. Read
+> [the current manual](guide/overview.md) and
+> [implementation status](organization-blueprints-status.md) for current behavior.
+> No legacy reader, migration or old-runtime support is provided.
+
 Date: 2026-10-03. **Status: current commands target the remediated API-1/protocol-1 build. Physical qualification of that build remains pending.** The historical protocol-0 run on two Macs recorded joining, a decrypted note and assignment readiness; it stopped before claim/submission. Its [worker findings](../research/t1-m2-smoke-2026-10-03.md) and [release ledger](release-evidence.md) remain historical evidence. Publication is deferred. The [build guide](t1-build.md) and [remediation record](../research/t1-remediation.md) identify current source and verification. These commands use the production CLI, local API, SQLite store and encrypted Iroh synchronization; they do not require a coding client or MCP.
 
 Version 1 refuses version-0 peers, tickets and stored events. Preserve the previous binaries and `~/.locust-t1` homes. This sequence uses a fresh `~/.locust-t1-v1` on each Mac; it does not migrate the earlier goal.

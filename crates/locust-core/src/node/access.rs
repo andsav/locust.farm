@@ -70,29 +70,45 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Some(Membership::Member) => Ok((entry, principal)),
             Some(Membership::Joining) => Err(ApiError::new(
                 ErrorCode::Unavailable,
-                "the coordinator's admission has not arrived yet",
+                "the administrator's admission has not arrived yet",
             )),
             _ => Err(denied("the principal is not a current member of the goal")),
         }
     }
 
     /// The goal and the principal `actor` acts as, which must coordinate it
-    /// and hold the `decide` grant.
-    pub(super) fn coordinator(
+    /// and hold the `administer` grant.
+    pub(super) fn administrator(
         &self,
         actor: &Actor,
         goal: &GoalId,
     ) -> Result<(&Entry, PublicKey), ApiError> {
         let (entry, principal) = self.member(actor, goal)?;
-        if entry.state().coordinator != Some(principal) {
-            return Err(denied("only the goal's coordinator makes this request"));
+        if entry.state().administrator != Some(principal) {
+            return Err(denied("only the goal's administrator makes this request"));
         }
-        if !actor.owner_act && !entry.local.grants(&principal).decide {
+        if !actor.owner_act && !entry.local.grants(&principal).administer {
             return Err(authorization_required(
                 "the principal has no grant to decide in this goal",
             ));
         }
         Ok((entry, principal))
+    }
+
+    pub(super) fn require_grant(
+        &self,
+        actor: &Actor,
+        entry: &Entry,
+        allowed: bool,
+    ) -> Result<(), ApiError> {
+        let _ = entry;
+        if actor.owner_act || allowed {
+            Ok(())
+        } else {
+            Err(authorization_required(
+                "this operation requires a local grant",
+            ))
+        }
     }
 
     /// Requires the daemon-wide `manage_goals` grant of the acting

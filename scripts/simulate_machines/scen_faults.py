@@ -40,26 +40,26 @@ def sleep(c):
             writer = others[i % 2]
             text = f"round {round_number} note {i} by M{writer.number} while M{victim.number} is stopped"
             t = time.monotonic()
-            written[flows.add_note(c, writer, goal, text)] = text
+            written[flows.add_finding(c, writer, goal, text)] = text
             latencies.append(round(time.monotonic() - t, 2))
             i += 1
             time.sleep(min(10, max(0, seconds - (time.monotonic() - began))))
         entry["notes_written_while_stopped"] = len(written)
         entry["max_write_latency_on_others_s"] = max(latencies)
-        flows.notes_everywhere(c, others, goal, written,
+        flows.findings_everywhere(c, others, goal, written,
                                f"{role} {seconds}s: the others exchange while M{victim.number} is stopped", 60)
         c.resume(victim)
         resumed = time.monotonic()
-        flows.notes_everywhere(c, [victim], goal, written,
+        flows.findings_everywhere(c, [victim], goal, written,
                                f"{role} {seconds}s: M{victim.number} catches up after SIGCONT", CATCHUP)
         entry["catch_up_seconds"] = round(time.monotonic() - resumed, 1)
         text = f"round {round_number}: M{victim.number} writes after waking"
-        own = {flows.add_note(c, victim, goal, text): text}
-        flows.notes_everywhere(c, others, goal, own,
+        own = {flows.add_finding(c, victim, goal, text): text}
+        flows.findings_everywhere(c, others, goal, own,
                                f"{role} {seconds}s: M{victim.number}'s new note reaches the others", CATCHUP)
         entry["own_write_spread_seconds"] = round(time.monotonic() - resumed - entry["catch_up_seconds"], 1)
         if role == "coordinator":
-            task = c.recorded(m1, ["task", "propose", "--goal", goal, f"Task after wake {round_number}"])
+            task = "task:" + c.recorded(m1, ["task", "open", "--goal", goal, f"Task after wake {round_number}"])
             c.wait(f"{role} {seconds}s: a decision after waking reaches M2 and M3", lambda: all(
                 any(item.get("task") == task for item in c.cli(m, ["board", "--goal", goal])["board"])
                 for m in (m2, m3)), CATCHUP)
@@ -69,14 +69,14 @@ def sleep(c):
 
 
 def burst(c, machine, goal, threads=4, kill_after=12, per_thread=40):
-    """Concurrent `note add` calls on one daemon; kill -9 it mid-burst.
+    """Concurrent `contribution publish` calls on one daemon; kill -9 it mid-burst.
     Returns (acknowledged {event: text}, error codes seen)."""
     acked, errors, lock, killed = {}, [], threading.Lock(), threading.Event()
 
     def writer(index):
         for n in range(per_thread):
             text = f"burst on M{machine.number} thread {index} write {n}"
-            result = c.cli(machine, ["note", "add", "--goal", goal, text], tolerate=True, timeout=30)
+            result = c.cli(machine, ["contribution", "publish", "--goal", goal, text], tolerate=True, timeout=30)
             if isinstance(result, tuple):
                 with lock:
                     errors.append(result[1])
@@ -115,10 +115,10 @@ def crash(c):
     def rejoined(victim, label):
         flows.not_halted(c, everyone, goal)
         text = f"{label}: M{victim.number} writes after restart"
-        own = {flows.add_note(c, victim, goal, text): text}
+        own = {flows.add_finding(c, victim, goal, text): text}
         acked.update(own)
         began = time.monotonic()
-        flows.notes_everywhere(c, everyone, goal, acked, f"{label}: every acknowledged note everywhere", CATCHUP)
+        flows.findings_everywhere(c, everyone, goal, acked, f"{label}: every acknowledged note everywhere", CATCHUP)
         # Readable text everywhere, not just the event: see the restart-latency probe.
         c.summary.setdefault("readable_everywhere_seconds", {})[label] = round(time.monotonic() - began, 1)
         others = [m for m in everyone if m is not victim]
@@ -137,8 +137,8 @@ def crash(c):
         ack, errors = burst(c, victim, goal)
         acked.update(ack)
         c.relaunch(victim)
-        if not c.notes_contain(victim, goal, ack):
-            missing = [e for e in ack if e not in c.note_ids(victim, goal)]
+        if not c.contributions_contain(victim, goal, ack):
+            missing = [e for e in ack if e not in c.finding_ids(victim, goal)]
             raise CheckFailure(f"{label}: {len(missing)} acknowledged notes lost by the killed daemon")
         rejoined(victim, label)
         results.append({"case": label, "machine": victim.number, "acknowledged": len(ack),

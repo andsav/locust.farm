@@ -78,11 +78,11 @@ pub trait Host {
     fn halt_proofs(&self) -> Vec<(GoalId, EndpointId, [WireEvent; 2])> {
         Vec::new()
     }
-    /// Whether this authenticated endpoint may deliver coordinator fork evidence.
+    /// Whether this authenticated endpoint may deliver author fork evidence.
     fn accepts_halt_proof(&self, _goal: &GoalId, _remote: &EndpointId) -> bool {
         false
     }
-    /// Validates and durably holds exactly one coordinator equivocation proof.
+    /// Validates and durably holds exactly one author equivocation proof.
     fn receive_halt_proof(
         &mut self,
         _goal: &GoalId,
@@ -311,10 +311,11 @@ impl Driver {
             link.due = false;
             link.in_flight = Some(number);
             link.last_open_ms = Some(self.elapsed_ms);
-            let (initiator, hints) = match join {
+            let (mut initiator, hints) = match join {
                 Some(join) => (Initiator::joining(join.request.clone()), join.hints.clone()),
                 None => (Initiator::new(pair.0), host.hints(&pair.1)),
             };
+            initiator.set_remote(pair.1);
             self.dialed.insert(
                 number,
                 Dialed {

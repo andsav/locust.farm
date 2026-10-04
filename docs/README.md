@@ -13,16 +13,18 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-- [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements over one declarative contract; exact schema and protocol changes remain unimplemented.
-- [Organization blueprints implementation plan](organization-blueprints-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; proposed work with explicit verification gates.
+- [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements; API 2/protocol 2 runtime and authoring are implemented; current qualification is tracked separately.
+- [Organization blueprint implementation status](organization-blueprints-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
+- [Organization blueprints implementation plan](organization-blueprints-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
+- [Organization blueprint semantics and removal inventory](organization-blueprints-semantics.md): accepted administration and scoped-authority model, concrete scenario expectations, outstanding signed-proof obligations and source-based replacement inventory.
 - [Public documentation implementation plan](public-documentation-plan.md): complete locust.farm manual inventory, versioned human/agent references, site architecture, checked examples, CI and live publication gates; required organization-blueprint delivery workstream.
 - [Blueprint authoring on locust.farm plan](blueprint-authoring-plan.md): proposed `/blueprints` editor that starts finished, with questions, a map on a canvas forked from Polaris's xyflow surface, and a list, over one definition; Locust's validator/explainer in WebAssembly behind a measured gate; a copy-prompt contract with intents and approval ladder; decisions WD1–WD14, packages W0–W11 and scenarios WV01–WV26; nothing implemented.
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
 - [Last-mile implementation plan](last-mile-implementation-plan.md): proposed work packages for distribution, recoverable setup, reliable task context, human permissions, a reviewed and applied change, two-person qualification and consented visualization; dependencies, decisions, tests and complete research coverage.
-- [Protocol contract, version 1](protocol-v1.md): current authority, deterministic fork selection, reconciliation, local API and recovery rules, with enforcing code/tests and explicit version-0 incompatibility.
+- [Archived protocol contract, version 1](protocol-v1.md): historical authority, encoding and local API rules; superseded by protocol 2 without an old reader.
 - [Archived protocol contract, version 0](protocol-v0.md): historical encoding, event, invitation, synchronization and local API rules for interpreting version-0 artifacts.
-- [TLA+ formal verification implementation plan](tla-verification-plan.md): Stages 0 and 1 implemented with historical version-0 and bounded version-1 models; replication, durability, full model CI and optional safety proofs remain proposed.
+- [TLA+ formal verification implementation plan](tla-verification-plan.md): current organization, attempt/session and durable-effect models; bounded checks, witnesses, mutation evidence and explicit proof limits.
 - [Crates and workstreams](workstreams.md): accepted crate split, lane responsibilities and current shared A/B ownership, cross-review, and the rules for sharing one checkout.
 - [Lane A log](lane-a-log.md): contract notices, answers to lane B and reviews of lane B's commits.
 - [Lane B log](lane-b-log.md): requests to lane A, reviews of lane A's commits and replies.
@@ -44,3 +46,25 @@ the repository root to check coverage and local link paths.
 - [Local verified installation](installation.md): explicit trust, withdrawal registry, reviewed activation and conservative software removal.
 - [Resumable client onboarding](onboarding.md): implemented owner-driven `up` and `agent add`, explicit profile selection, protected identity recovery and separate readiness/permission boundaries.
 - [Local installation prompt](install-prompt.md): pasteable template for explicit local trust, reviewed software/service/client setup and separately observed readiness.
+
+## Public reader guides
+
+- [Reader guide index](guide/README.md): canonical public articles and publication boundaries.
+- [Locust overview](guide/overview.md): Current source capabilities, public availability and the organization direction.
+- [Goals and organizations](guide/concepts.md): The current goal, organization, participant and authority model.
+- [Blueprint authoring](guide/blueprint-authoring.md): Offline checks, private publication and contextual runtime readiness.
+- [Architecture and local boundaries](guide/architecture.md): Daemon, harness, transport and optional Polaris responsibilities.
+- [Availability and evidence](guide/status.md): Publication, platform qualification and development capability boundaries.
+- [Local installation and onboarding](guide/installation.md): Review trusted local candidates, profile/service choices and separate readiness observations.
+- [First collaboration journeys](guide/collaboration.md): Concrete two-participant, invitation, snapshot and contribution journeys under the accepted model.
+- [Apply a chosen patch](guide/apply.md): Separate review and selection from deliberate local application and observed checkout results.
+- [Completion, review and selection](guide/completion.md): Exact candidate evidence, multiple qualifying outputs and explicitly scoped decision authority.
+- [Presets, composition and lifecycle](guide/organization.md): Choose an arrangement and distinguish immutable definitions, contextual bindings and explicit revisions.
+- [Harnesses and managed sessions](guide/agents.md): Client discovery, profile/session identity, approvals and lifecycle evidence.
+- [Visibility, membership and trust](guide/sharing.md): Goal read boundaries, explicit exports, exact artifacts and removal/retention limits.
+- [Services, fresh state and durable flow](guide/operations.md): Separate service readiness, current-format state and daemon-driven materialization/delivery.
+- [Offline recovery and conflicts](guide/recovery.md): Interpret missing proof, uncertain outcomes, forks, revisions and cancellation without unsafe inference.
+- [Polaris authoring and observation](guide/polaris.md): Optional visual editing, semantic/layout identity and native verification boundaries.
+- [Troubleshooting, FAQ and glossary](guide/help.md): Symptom-specific next actions and exact collaboration terminology.
+- [Authoring schema and command reference](guide/schema-reference.md): generated fields, offline operations and exact example downloads.
+- [Local API, MCP and event reference boundaries](guide/runtime-reference.md): transport, effects, proof and generation boundaries.

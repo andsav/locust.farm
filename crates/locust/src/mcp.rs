@@ -41,18 +41,21 @@ const VERSIONS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26"];
 pub(crate) struct Config {
     pub home: PathBuf,
     pub credential: PathBuf,
-    pub session: PathBuf,
+    pub session: Option<PathBuf>,
     pub lifecycle_receipt: Option<PathBuf>,
 }
 
 struct Authentication {
     socket: PathBuf,
     credential: Credential,
-    session: SessionSecret,
+    session: Option<SessionSecret>,
 }
 impl Config {
     fn prepare(self) -> Result<(Arc<Authentication>, Option<File>), Failure> {
-        for path in [&self.home, &self.credential, &self.session] {
+        for path in [&self.home, &self.credential]
+            .into_iter()
+            .chain(self.session.iter())
+        {
             if !path.is_absolute() {
                 return Err(Failure::usage(
                     "MCP home, credential and session paths must be absolute",
@@ -69,8 +72,17 @@ impl Config {
         let authentication = Authentication {
             socket: local::socket_path(&self.home)?,
             credential: Credential(connection::read_secret(&self.credential)?),
-            session: SessionSecret(connection::read_secret(&self.session)?),
+            session: self
+                .session
+                .as_ref()
+                .map(|path| connection::read_secret(path).map(SessionSecret))
+                .transpose()?,
         };
+        if self.lifecycle_receipt.is_some() && authentication.session.is_none() {
+            return Err(Failure::usage(
+                "MCP lifecycle receipts require an execution session",
+            ));
+        }
         let receipt = self
             .lifecycle_receipt
             .map(|path| {
@@ -222,10 +234,10 @@ async fn invoke(
             if cancellation.is_cancelled() {
                 return Err(Failure::unavailable("MCP request was cancelled"));
             }
-            let mut client = Client::open(stream, auth.credential, Some(auth.session))
+            let mut client = Client::open(stream, auth.credential, auth.session)
                 .map_err(|error| connection::client_error(error, &auth.socket))?;
             if client.caller() == Caller::Owner {
-                return Err(Failure::new(ErrorCode::Denied, "MCP requires an enrolled agent credential; owner authority is not exposed to models"));
+                return Err(Failure::new(ErrorCode::Denied, "MCP requires an enrolled agent or author credential; owner authority is not exposed to models"));
             }
             if cancellation.is_cancelled() { return Err(Failure::unavailable("MCP request was cancelled")); }
             client.call_with(call.request, call.idempotency, None)
@@ -327,7 +339,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                     enqueue(&mut outgoing, response(id, json!({
                         "protocolVersion": version, "capabilities": {"tools": {"listChanged": false}},
                         "serverInfo": {"name": "locust", "version": env!("CARGO_PKG_VERSION")},
-                        "instructions": "Locust coordinates shared goals through your enrolled principal and execution session. Claim assigned work before reporting progress or submitting. Submission is not acceptance; accepted state does not apply files. Cancelling an MCP call does not cancel a Locust assignment or undo a committed write. Use the same idempotency_key to retry the same write after an uncertain reply."
+                        "instructions": "Inspect the goal rules, allowed actions and pending work. Shared eligibility is separate from local execution authorization. Independent work begins with an attempt; publishing a contribution does not select it or apply files. Durable deliveries remain pending until acknowledged. Cancellation of an MCP call does not undo committed work. Retry uncertain writes with the same idempotency_key."
                     })), false);
                     continue;
                 }
@@ -378,7 +390,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                         if frame.written == frame.bytes.len() {
                             let frame = outgoing.take().unwrap();
                             if frame.receipt && let Some(file) = receipt.as_mut() {
-                                let record = json!({"schema": 1, "event": "tools_ready", "instance": authentication.session.instance().to_string(), "pid": std::process::id()});
+                                let record = json!({"schema": 1, "event": "tools_ready", "instance": authentication.session.expect("receipt requires session").instance().to_string(), "pid": std::process::id()});
                                 if let Err(error) = serde_json::to_writer(&mut *file, &record).map_err(io::Error::other)
                                     .and_then(|()| file.write_all(b"\n")).and_then(|()| file.flush()) {
                                     break Err(io_failure(error));
@@ -464,19 +476,6 @@ fn parse_call(params: &Value) -> Result<Call, CallError> {
         Some(Value::Object(arguments)) => arguments.clone(),
         _ => return Err(CallError::Protocol("Tool arguments must be an object")),
     };
-    if operation.name == "workspace.set"
-        && let Some(binding) = arguments.get("binding").and_then(Value::as_object)
-        && binding.keys().any(|key| {
-            !matches!(
-                key.as_str(),
-                "export_root" | "source_commit" | "exported" | "destination" | "integrated"
-            )
-        })
-    {
-        return Err(CallError::Arguments(Failure::invalid(
-            "Unknown workspace binding field",
-        )));
-    }
     let idempotency = arguments
         .remove("idempotency_key")
         .map(serde_json::from_value::<Option<IdempotencyKey>>)
@@ -487,8 +486,10 @@ fn parse_call(params: &Value) -> Result<Call, CallError> {
             ))
         })?
         .flatten();
-    let value = if operation.name == "status" && arguments.is_empty() {
-        json!("status")
+    let value = if arguments.is_empty()
+        && serde_json::from_value::<Request>(json!(operation.name)).is_ok()
+    {
+        json!(operation.name)
     } else {
         json!({operation.name: arguments})
     };
@@ -507,7 +508,7 @@ fn parse_call(params: &Value) -> Result<Call, CallError> {
     })
 }
 fn failure_value(failure: Failure) -> Value {
-    json!({"code": failure.code.as_str(), "message": failure.message})
+    json!({"code": failure.code.as_str(), "message": failure.message,"details":failure.details_json.as_deref().and_then(|text|serde_json::from_str::<Value>(text).ok())})
 }
 fn tool_result(result: Result<Response, Failure>, version: &str) -> Value {
     let (value, failed) = match result {

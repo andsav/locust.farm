@@ -32,6 +32,20 @@ CHECKS = ("ready", "binding", "claim", "ordinary_pending", "held_wait", "interru
           "uncertain_recovery", "automatic_wake", "real_model", "packaged_install")
 
 
+def cancellation_acknowledged(cancel_detail, ack_detail, pending, *, cancel, attempt, task, principal):
+    """Exact effective protocol-2 acknowledgment plus removed local obligation."""
+    return (cancel_detail.get("view", {}).get("event") == cancel
+        and cancel_detail.get("view", {}).get("standing") == "effective"
+        and cancel_detail.get("body") == {"cancel_requested": {"attempt": attempt}}
+        and cancel_detail.get("task") == task
+        and ack_detail.get("view", {}).get("kind") == "cancel_acknowledged"
+        and ack_detail.get("view", {}).get("standing") == "effective"
+        and ack_detail.get("view", {}).get("author") == principal
+        and ack_detail.get("body") == {"cancel_acknowledged": {"cancel": cancel, "outcome": "uncertain"}}
+        and ack_detail.get("task") == task
+        and not any(item.get("cancel") == cancel for item in pending.get("to_acknowledge", [])))
+
+
 def metadata(view):
     detail = view.get("record", view).get("detail", [])
     return json.loads(bytes(detail)) if detail else {}
@@ -157,11 +171,13 @@ def qualify(client, binary, args):
             result["locust_artifact"] = daemon.binary_metadata
             result["daemon_receipts"] = str(daemon.events)
             env.update(fixture.provider_settings(client, profile, provider.url))
-            task = daemon.call(["task", "propose", "--goal", daemon.goal, "Managed synthetic task"])["recorded"]["event"]
-            assignment = daemon.call(["task", "assign", "--goal", daemon.goal, "--task", task,
-                                      "--assignee", daemon.principal])["recorded"]["event"]
-            daemon.call(["task", "authorize", "--goal", daemon.goal, "--assignment", assignment], owner=True)
-            result["binding"] = {"goal": daemon.goal, "task": task, "assignment": assignment,
+            task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "Managed synthetic task"])["recorded"]["event"]
+            offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
+                "--recipient", daemon.principal])["recorded"]["event"]
+            daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
+            claim = daemon.call(["attempt", "start", "--goal", daemon.goal, "--task", task, "--offer", offer])["claimed"]
+            attempt = claim["attempt"]
+            result["binding"] = {"goal": daemon.goal, "task": task, "attempt": attempt,
                                  "instance": daemon.instance, "principal": daemon.principal}
             pi_file = profile.home / ".pi/agent/sessions/managed-session.jsonl"
             if client == "pi":
@@ -192,7 +208,7 @@ def qualify(client, binary, args):
                 global_args, client_args = flags(client, True)
                 command = daemon.command(["client", "run", "--client", client, "--executable", binary,
                     "--workspace", profile.workspace, "--profile", profile.home, "--client-version", result["version"],
-                    "--goal", daemon.goal, "--assignment", assignment,
+                    "--goal", daemon.goal, "--attempt", attempt,
                     "--prompt", "Perform the scripted Locust managed-session qualification in this private synthetic task."])
                 command += ["--global-arg=" + value for value in global_args]
                 command += ["--arg=" + value for value in client_args]
@@ -259,24 +275,24 @@ def qualify(client, binary, args):
                 return {"goal": daemon.goal, "seen": pending["revision"], "timeout_ms": args.timeout_ms}
 
             first, views, exited = run("launch", [step("locust_pending", {"goal": daemon.goal}),
-                step("locust_task_claim", {"goal": daemon.goal, "assignment": assignment}),
+                step("locust_attempt_start", {"goal": daemon.goal, "task": task, "offer": offer}),
                 step("locust_wait", wait_args)], interrupt=True)
             detail = metadata(exited)
             ready_views = [v for v in views if v["record"]["state"] == "ready"]
             checks["ready"] = fixture.assertion("pass" if ready_views and all(ready_evidence(v, first["stderr"]) for v in ready_views) else "fail", "Durable Ready requires structured native identity and authenticated production MCP receipt")
             bound = detail.get("binding", {})
             exact = (bound.get("instance") == daemon.instance and bound.get("principal") == daemon.principal and
-                     bound.get("goal") == daemon.goal and bound.get("assignment") == {"task": task, "assignment": assignment, "attempt": 1})
+                     bound.get("goal") == daemon.goal and bound.get("attempt") == {"task": task, "attempt": attempt})
             checks["binding"] = fixture.assertion("pass" if exact else "fail", "Persisted exact principal/session/goal/task/assignment/attempt")
             pending_before = daemon.call(["pending", "--goal", daemon.goal])["pending"]
-            claim = next((c for c in pending_before["claimed"] if c["assignment"] == assignment), None)
+            claim = next((c for c in pending_before["claimed"] if c["attempt"] == attempt), None)
             checks["claim"] = fixture.assertion("pass" if claim and bound.get("claim") == claim and claim["generation"] > 0 else "fail", "Managed metadata matches independently authenticated claim and generation")
             notice = daemon.call(["client", "pending"])
             checks["ordinary_pending"] = fixture.assertion("pass" if claim and claim in notice["notice"]["pending"]["claimed"] and notice["task_ownership_changed"] is False and notice["cancellation_acknowledged"] is False else "fail", "Read-only pending fallback retains claimed work after client exit")
             checks["held_wait"] = fixture.assertion("pass" if first["interrupted"] and bool(first["outstanding_wait_at_interrupt"]) else "fail", "Structured native wait invocation preceded leader-only interruption")
             checks["interruption"] = fixture.assertion("pass" if first["interrupted"] and clean_run(first) and first["native_exit_expected"] else "fail", "Managed parent forwarded the local interrupt and durably observed native exit without forced cleanup")
             checks["exited"] = fixture.assertion("pass" if exited["record"]["state"] == "exited" and detail.get("process", {}).get("exited") else "fail", "Owned child exit is recorded; task completion is not inferred")
-            cancel = daemon.call(["task", "cancel", "--goal", daemon.goal, "--assignment", assignment])["recorded"]["event"]
+            cancel = daemon.call(["attempt", "cancel", "--goal", daemon.goal, "--attempt", attempt])["recorded"]["event"]
             daemon.restart()
             restarted = daemon.call(["client", "status"])["session"]
             waiting = daemon.call(["client", "pending"])["notice"]["pending"]
@@ -292,7 +308,21 @@ def qualify(client, binary, args):
                 task_view = daemon.call(["task", "show", "--goal", daemon.goal, "--task", task])["task"]["view"]
                 after = daemon.call(["pending", "--goal", daemon.goal])["pending"]
                 result["task_after_resume"] = task_view
-                checks["cancellation_acknowledged"] = fixture.assertion("pass" if not any(c["cancel"] == cancel for c in after["to_acknowledge"]) and task_view["state"] == {"cancelled": "uncertain"} else "fail", "Actual model-client tool explicitly recorded uncertain executor outcome; notification alone did not acknowledge cancellation")
+                cancel_detail = daemon.call(["event", "show", "--goal", daemon.goal, "--event", cancel])["event"]
+                ack_details = []
+                cursor = 0
+                while True:
+                    entries = daemon.call(["events", "--goal", daemon.goal, "--after", str(cursor), "--limit", "256"])["events"]
+                    if not entries:
+                        break
+                    for entry in entries:
+                        if entry["kind"] == "cancel_acknowledged":
+                            ack_details.append(daemon.call(["event", "show", "--goal", daemon.goal, "--event", entry["event"]])["event"])
+                    cursor = entries[-1]["position"]
+                result["cancellation_evidence"] = {"requested": cancel_detail, "acknowledgments": ack_details}
+                acknowledged = any(cancellation_acknowledged(cancel_detail, detail, after,
+                    cancel=cancel, attempt=claim["attempt"], task=task, principal=daemon.principal) for detail in ack_details)
+                checks["cancellation_acknowledged"] = fixture.assertion("pass" if acknowledged else "fail", "Actual model-client tool explicitly recorded uncertain executor outcome; notification alone did not acknowledge cancellation")
             restored = not config_file.exists() if baseline is None else config_file.read_bytes() == baseline
             checks["profile_restored"] = fixture.assertion("pass" if restored else "fail", "Selected profile MCP bytes restored after owned client exit")
             clean = all(clean_run(r) and r["native_exit_expected"] for r in result["runs"])

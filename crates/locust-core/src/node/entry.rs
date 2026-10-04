@@ -22,12 +22,14 @@ const KEY: u8 = b'k';
 /// A goal held or being joined.
 pub(super) struct Entry {
     pub goal: Goal,
+    pub definitions: super::definitions::Definitions,
     pub local: Local,
     /// Content keys by epoch.
     pub keys: BTreeMap<u32, ContentKey>,
     /// Claims by assignment.
     pub claims: BTreeMap<EventId, ClaimRecord>,
     pub feed: Feed,
+    pub deliveries: BTreeMap<(locust_proto::id::EffectId, PublicKey), super::delivery::Delivery>,
     /// Every content object a held event names.
     named: HashSet<BlobHash>,
 }
@@ -52,26 +54,14 @@ impl Entry {
     pub fn new(goal: Goal) -> Self {
         Self {
             goal,
+            definitions: super::definitions::Definitions::default(),
             local: Local::default(),
             keys: BTreeMap::new(),
             claims: BTreeMap::new(),
             feed: Feed::default(),
+            deliveries: BTreeMap::new(),
             named: HashSet::new(),
         }
-    }
-
-    /// An entry around a goal rebuilt from the store.
-    pub fn loaded(goal: Goal) -> Self {
-        let mut entry = Self::new(goal);
-        let authors: Vec<PublicKey> = entry.goal.authors().copied().collect();
-        for author in &authors {
-            for point in entry.goal.points(author) {
-                if let Some(event) = entry.goal.event(&point.id) {
-                    entry.named.extend(event.header().blobs());
-                }
-            }
-        }
-        entry
     }
 
     /// Notes the content objects that newly held events name.

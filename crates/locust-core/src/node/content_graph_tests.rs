@@ -30,13 +30,12 @@ fn manifest(peer: &mut Peer, goal: GoalId, entries: Vec<Entry>) -> BlobHash {
     put(peer, goal, &Manifest { entries }.encode().unwrap())
 }
 fn propose(peer: &mut Peer, goal: GoalId, input: BlobHash) {
-    peer.call(Request::TaskPropose {
+    peer.call(Request::TaskOpen {
         goal,
         text: "snapshot".into(),
-        input: Some(input),
-        depends_on: vec![],
-        deadline_ms: None,
-        max_attempts: None,
+        variation: None,
+        inputs: BTreeMap::from([("snapshot".into(), input)]),
+        parent: None,
     });
 }
 fn rounds(peers: &mut [Peer]) -> Vec<SyncMessage> {
@@ -74,11 +73,14 @@ fn publish(peers: &mut [Peer], goal: GoalId, body: Body) {
     }
 }
 fn root(input: BlobHash) -> Body {
-    Body::TaskProposed {
-        input: Some(input),
-        depends_on: vec![],
-        deadline_ms: None,
-        max_attempts: None,
+    Body::TaskOpened {
+        binding: locust_proto::event::TaskBinding {
+            rules: EventId([0; 32]),
+            variation: None,
+            inputs: BTreeMap::from([("snapshot".into(), input)]),
+            parent: None,
+            stage: None,
+        },
     }
 }
 fn stage(peer: &mut Peer, goal: GoalId, blob: &Blob) -> Staged {
@@ -199,13 +201,16 @@ fn contribution_follows_only_base_and_head_and_artifacts_stay_opaque() {
         .encode()
         .unwrap(),
     );
-    // A retained signed result is a content root even if its assignment is
-    // missing; validating the review against manifests is a separate concern.
+    // A retained signed contribution is a content root without any attempt; validating the review against manifests is a separate concern.
     publish(
         &mut peers,
         goal,
-        Body::ResultSubmitted {
-            assignment: EventId([88; 32]),
+        Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0; 32]),
+            },
+            attempt: None,
             base: None,
             patch: Some(patch),
             artifacts: vec![artifact],
@@ -503,7 +508,7 @@ fn descendant_epoch_is_bounded_by_container_not_only_event_epoch() {
 }
 
 #[test]
-fn result_base_and_accepted_head_are_independent_manifest_roots() {
+fn independent_contribution_bases_are_manifest_roots() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
     let first = put(&mut peers[0], goal, b"base");
@@ -513,8 +518,12 @@ fn result_base_and_accepted_head_are_independent_manifest_roots() {
     publish(
         &mut peers,
         goal,
-        Body::ResultSubmitted {
-            assignment: EventId([88; 32]),
+        Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0; 32]),
+            },
+            attempt: None,
             base: Some(base),
             patch: None,
             artifacts: vec![],
@@ -523,9 +532,15 @@ fn result_base_and_accepted_head_are_independent_manifest_roots() {
     publish(
         &mut peers,
         goal,
-        Body::ResultAccepted {
-            result: EventId([89; 32]),
-            head: Some(head),
+        Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0; 32]),
+            },
+            attempt: None,
+            base: Some(head),
+            patch: None,
+            artifacts: vec![],
         },
     );
     rounds(&mut peers);
@@ -556,8 +571,12 @@ fn noncanonical_contribution_cannot_authorize_its_manifests() {
     publish(
         &mut peers,
         goal,
-        Body::ResultSubmitted {
-            assignment: EventId([88; 32]),
+        Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0; 32]),
+            },
+            attempt: None,
             base: None,
             patch: Some(patch),
             artifacts: vec![],

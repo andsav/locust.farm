@@ -8,7 +8,8 @@
 //! so a run fails when the system stops making progress, not because a
 //! laptop slept for an hour.
 
-use locust_proto::api::{ApiError, NoteView, Request, Response, TaskView};
+use locust_proto::api::{ApiError, ContributionView, Request, Response, TaskView};
+use locust_proto::event::TaskId;
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 
 use super::machine::{Power, Who};
@@ -45,9 +46,9 @@ pub struct Run {
     pub goal: Option<GoalId>,
     pub acked: Vec<Acked>,
     /// Notes acknowledged, with the text each must show everywhere.
-    pub notes: Vec<(EventId, String)>,
-    pub task: Option<EventId>,
-    pub assignment: Option<EventId>,
+    pub findings: Vec<(EventId, String)>,
+    pub task: Option<TaskId>,
+    pub attempt: Option<EventId>,
     pub result: Option<EventId>,
     /// The generation the session that submitted was given.
     pub generation: Option<u32>,
@@ -71,9 +72,9 @@ impl Run {
             principals: Vec::new(),
             goal: None,
             acked: Vec::new(),
-            notes: Vec::new(),
+            findings: Vec::new(),
             task: None,
-            assignment: None,
+            attempt: None,
             result: None,
             generation: None,
             artifact: None,
@@ -204,20 +205,25 @@ impl Run {
         }
     }
 
-    pub fn note_views(&mut self, m: usize) -> Option<Vec<NoteView>> {
+    pub fn finding_views(&mut self, m: usize) -> Option<Vec<ContributionView>> {
         let goal = self.goal();
-        match self.read(m, Request::Notes { goal, about: None })? {
-            Response::Notes(notes) => Some(notes),
+        match self.read(m, Request::Contributions { goal, task: None })? {
+            Response::Contributions(findings) => Some(
+                findings
+                    .into_iter()
+                    .filter(|view| view.attempt.is_none())
+                    .collect(),
+            ),
             _ => None,
         }
     }
 
-    /// True when machine `m` shows `note` with its text.
-    pub fn shows_note(&mut self, m: usize, note: EventId, text: &str) -> bool {
-        self.note_views(m).is_some_and(|notes| {
-            notes
+    /// True when machine `m` shows `finding` with its text.
+    pub fn shows_finding(&mut self, m: usize, finding: EventId, text: &str) -> bool {
+        self.finding_views(m).is_some_and(|findings| {
+            findings
                 .iter()
-                .any(|view| view.note == note && view.text.as_deref() == Some(text))
+                .any(|view| view.contribution == finding && view.text.as_deref() == Some(text))
         })
     }
 

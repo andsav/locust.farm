@@ -962,6 +962,9 @@ mod tests {
         let key = joiner.enroll(tag);
         let Ok(Response::GoalCreated { goal }) = inviter.call(Request::GoalCreate {
             title: title.into(),
+            blueprint_json: None,
+            roles: Default::default(),
+            inputs: Default::default(),
         }) else {
             panic!("goal not created")
         };
@@ -997,7 +1000,7 @@ mod tests {
         use locust_proto::api::{Credential, Request};
         let (first, second, third) = (short_dir(), short_dir(), short_dir());
         let inviter = Running::start(first.path());
-        inviter.enroll(1);
+        let principal = inviter.enroll(1);
         let mut c = inviter.client(Credential([1; 32]), None);
         let away = Running::start(second.path());
         let mut goals = Vec::new();
@@ -1017,11 +1020,27 @@ mod tests {
         // A change in every goal makes the inviter dial the offline member
         // once per goal.
         for goal in goals {
-            c.call(Request::NoteAdd {
+            inviter
+                .owner()
+                .call(Request::GoalGrant {
+                    goal,
+                    agent: principal,
+                    grants: locust_proto::api::GoalGrants {
+                        administer: true,
+                        contribute: true,
+                        ..Default::default()
+                    },
+                })
+                .unwrap();
+            c.call(Request::ContributionPublish {
                 goal,
-                about: None,
-                supersedes: None,
-                text: "while the member is away".into(),
+                task: None,
+                attempt: None,
+                generation: None,
+                base: None,
+                patch: None,
+                artifacts: vec![],
+                summary: "while the member is away".into(),
             })
             .unwrap();
         }

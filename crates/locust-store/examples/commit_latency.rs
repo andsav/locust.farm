@@ -35,15 +35,22 @@ fn main() {
     let mut owner = Author::new(1);
     let genesis = owner.genesis();
     let goal = genesis.header().goal;
-    let anchor = Some(genesis.id());
+    let round = genesis.id();
+    let anchor = Some(round);
     commit(&mut store, vec![genesis]);
     let mut note = || {
         owner.event(
             goal,
             anchor,
-            Body::Note {
-                about: None,
-                supersedes: None,
+            Body::ContributionPublished {
+                context: locust_proto::event::Context {
+                    scope: locust_proto::event::Scope::Goal,
+                    round,
+                },
+                attempt: None,
+                base: None,
+                patch: None,
+                artifacts: vec![],
             },
         )
     };
@@ -146,8 +153,12 @@ impl Largest {
                 len: MAX_PAYLOAD_BYTES as u32,
                 key_epoch: u32::MAX,
             }),
-            body: Body::ResultSubmitted {
-                assignment: EventId([0xcc; 32]),
+            body: Body::ContributionPublished {
+                context: locust_proto::event::Context {
+                    scope: locust_proto::event::Scope::Goal,
+                    round: EventId([0xaa; 32]),
+                },
+                attempt: Some(EventId([0xcc; 32])),
                 base: Some(BlobHash([0xdd; 32])),
                 patch: Some(BlobHash([0xee; 32])),
                 artifacts: (0..MAX_ARTIFACTS)

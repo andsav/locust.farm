@@ -1,11 +1,11 @@
 # Native release candidate packaging
 
-Date: 2026-10-03. **Status: native candidate builder and CI declarations implemented; one identified macOS arm64 candidate has passed local installation, upgrade and launchd qualification with disposable test signing.** Production signing and publication remain open. This extends the narrower [T1 identified build](t1-build.md); the [release evidence ledger](release-evidence.md) keeps platform, client and physical-machine checks separate.
+Date: 2026-10-04. Status: the native builder emits the current strict release-v2 package with a matching manual snapshot. Current-model native installation and client qualification are separate gates in the [release evidence ledger](release-evidence.md). Production signing and publication remain open.
 
-## Current local macOS candidate
+## Historical protocol-1 local macOS candidate
 
 The [retained identity record](../research/evidence/local-candidate-5bb254d-2026-10-03.json)
-identifies the exact native candidate used by the
+identifies the earlier protocol-1 candidate used by the
 [installation campaign](../research/installation-qualification.md). It includes
 T2 and the installed service/profile commands. This is a local candidate, not a
 published release or a completed release gate.
@@ -39,20 +39,48 @@ The owner selected build-only Linux scope on 2026-10-04. A native ARM-host
 The [build record](../research/linux-installation-qualification.md) retains
 compiler versions, ELF checks, binary/archive hashes and the exact command.
 The archive contains the binary, Apache-2.0 license, skill and build metadata;
-it is separate from the native builder's three-file installer format below.
+it is separate from the current native builder's four-entry installer archive below.
 No Linux execution, runtime or installation qualification was performed.
 
 ## Build and source identity
 
-Run [`python3 scripts/build_release.py`](../scripts/build_release.py) on macOS arm64 or Linux x86_64. It uses the exact Rust version in `rust-toolchain.toml` and builds only the native target (`aarch64-apple-darwin` or `x86_64-unknown-linux-gnu`) with `cargo build --locked --release`. The helper builds a verified archive of the captured Git `HEAD`, reusing the committed-blob check in [`build_t1.py`](../scripts/build_t1.py), and refuses dirty Rust/build and packaging inputs. Unrelated checkout changes are excluded from the archive. It checks the resulting Mach-O or ELF architecture, executable bit, exact `locust --version` output, embedded source commit, and source protocol/API constants. The archived operating skill is included. The helper uses isolated home, Cargo home and target directories, a pinned absolute compiler, and two build jobs. It does not claim an independently reproducible binary: host SDK, native libraries, build scripts, and dependency resolution remain relevant.
+Run [`python3 scripts/build_release.py`](../scripts/build_release.py) on macOS arm64 or Linux x86_64. It uses the exact Rust version in `rust-toolchain.toml` and builds only the native target (`aarch64-apple-darwin` or `x86_64-unknown-linux-gnu`) with `cargo build --locked --release`. The helper builds a verified archive of the captured Git `HEAD`, reusing the committed-blob check in [`build_t1.py`](../scripts/build_t1.py), and refuses dirty Rust/build and packaging inputs. Unrelated checkout changes are excluded from the archive. It checks the resulting Mach-O or ELF architecture, executable bit, exact `locust --version` output, embedded source commit, and source protocol/API constants. The archived operating skill and matching manual are included. Selected manual inputs and the repository license must also be committed. The helper uses isolated home, Cargo home and target directories, a pinned absolute compiler, and two build jobs. It does not claim an independently reproducible binary: host SDK, native libraries, build scripts, and dependency resolution remain relevant.
 
-The output is `output/release/locust-<target>-<12-character-commit>-unsigned.tar.gz`, with a sibling `.sha256` checksum file. The archive has exactly three regular file entries, all at flat relative paths: `locust`, `skills/locust/SKILL.md`, and `manifest.json`. Tar ownership and timestamps, gzip timestamp, entry order, and permissions are fixed. No symlink or absolute path is included. Rebuilding the same committed source can only reuse an existing output name when the candidate bytes match; a different binary under the same name is reported as a collision. `output/` is ignored and disposable.
+The output is `output/release/locust-<target>-<12-character-commit>-unsigned.tar.gz`, with a sibling `.sha256` checksum file. The archive has exactly four regular file entries at fixed relative paths: `locust`, `skills/locust/SKILL.md`, `manual.tar` and `manifest.json`. Tar ownership and timestamps, gzip timestamp, entry order, and permissions are fixed. No symlink or absolute path is included. Rebuilding the same committed source can only reuse an existing output name when the candidate bytes match; a different binary under the same name is reported as a collision. `output/` is ignored and disposable.
 
 ## Candidate manifest and trust boundary
 
-`manifest.json` is UTF-8 JSON with sorted keys, compact separators, and one trailing newline. The format marker is `locust-release-v1`. Its fields are `format`, full `source_commit`, package `version`, Rust `target`, `machine_format` (`mach-o-arm64` or `elf-x86_64`), pinned `toolchain`, numeric `protocol_version` and `api_version`, and `files`. `files` lists `locust` then `skills/locust/SKILL.md`, each with relative `path`, SHA-256 hex `sha256`, byte `size`, and integer permission `mode` (493 for executable `0755`, 420 for skill `0644`). The archive checksum is separate; the manifest identifies its contained files.
+`manifest.json` is UTF-8 JSON with sorted keys, compact separators, and one trailing newline. The format marker is `locust-release-v2`. Its fields are `format`, full `source_commit`, package `version`, Rust `target`, `machine_format` (`mach-o-arm64` or `elf-x86_64`), pinned `toolchain`, numeric `protocol_version` and `api_version`, and `files`. `files` lists exactly `locust`, `skills/locust/SKILL.md` and `manual.tar`, each with relative `path`, SHA-256 hex `sha256`, byte `size`, and integer permission `mode` (493 for executable `0755`, 420 for skill and manual `0644`). The archive checksum is separate; the manifest identifies its contained files.
 
 This builder emits **no signing key or signature**. A signed candidate requires a detached `manifest.sig` containing a raw 64-byte Ed25519 signature over the **exact `manifest.json` bytes**, with a separately supplied, explicit 32-byte public trust root. The installer must verify that signature before trusting the manifest or installing any bytes, then check the target, format, paths, sizes, modes, and file hashes. The signed manifest hash is the candidate content identity; package version alone is not an upgrade order. A `.sha256` sidecar checks transport integrity, not release authenticity. The unsigned archive is for inspection and signing; it is not install-trusted. Apache-2.0 is selected; key custody and release publication remain owner decisions.
+
+## Matching offline manual
+
+`manual.tar` is a deterministic regular-file archive. It contains the exact
+repository `LICENSE`, `docs/site.json`, and the pages, artifacts and source links
+selected by that manifest, including generated schemas, contracts, example
+blueprints and availability metadata. Its canonical `manual.json` records the
+full source commit, manual versions and each member's SHA-256, size and mode.
+API and protocol versions must match the binary's source constants. The signed
+release manifest authenticates the complete manual payload.
+
+Installation retains it at `current/manual.tar`; it can be listed and read
+without a checkout or extraction:
+
+```sh
+tar -tf /SOFTWARE/current/manual.tar
+tar -xOf /SOFTWARE/current/manual.tar manual.json
+tar -xOf /SOFTWARE/current/manual.tar docs/guide/overview.md
+tar -xOf /SOFTWARE/current/manual.tar LICENSE
+```
+
+Verification and install require the current three-payload set; old release
+formats are refused. Uninstall removes the manual with its verified release,
+while retaining modified or unknown files. The
+[builder tests](../scripts/tests/test_build_release.py) cover deterministic
+contents, source/version mismatch and tampering; the
+[installation check](../scripts/check_installation.py) checks installed manual
+reads and rejects changed manual bytes.
 
 ## CI and qualification
 

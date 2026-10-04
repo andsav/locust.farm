@@ -49,9 +49,15 @@ fn recovery_child() {
         let note = author.event(
             goal,
             Some(genesis.id()),
-            Body::Note {
-                about: None,
-                supersedes: None,
+            Body::ContributionPublished {
+                context: locust_proto::event::Context {
+                    scope: locust_proto::event::Scope::Goal,
+                    round: genesis.id(),
+                },
+                attempt: None,
+                base: None,
+                patch: None,
+                artifacts: vec![],
             },
         );
         fs::write(&arm, b"armed").unwrap();

@@ -1,0 +1,615 @@
+{
+  "$defs": {
+    "Authority": {
+      "description": "One scope-specific authority. A role used here must bind exactly one member.\nThis is separate from membership administration and from local execution.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "role",
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "participant",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "CompletionRule": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "by": {
+              "$ref": "#/$defs/Selector"
+            },
+            "kind": {
+              "const": "contribution",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "by"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "by": {
+              "$ref": "#/$defs/Selector"
+            },
+            "kind": {
+              "const": "declaration",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "by"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "by": {
+              "$ref": "#/$defs/Selector"
+            },
+            "count": {
+              "format": "uint32",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "exclude_author": {
+              "default": true,
+              "type": "boolean"
+            },
+            "kind": {
+              "const": "reviews",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "by",
+            "count"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A named attestor reports a check on the exact candidate. A label does\nnot prove the check ran independently or that a local command is allowed.",
+          "properties": {
+            "by": {
+              "$ref": "#/$defs/Selector"
+            },
+            "kind": {
+              "const": "check",
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "name",
+            "by"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "all",
+              "type": "string"
+            },
+            "rules": {
+              "items": {
+                "$ref": "#/$defs/CompletionRule"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "rules"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "any",
+              "type": "string"
+            },
+            "rules": {
+              "items": {
+                "$ref": "#/$defs/CompletionRule"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "rules"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Context": {
+      "additionalProperties": false,
+      "properties": {
+        "guidance": {
+          "default": "",
+          "description": "Advisory instructions, versioned with the agreement. Never permissions.",
+          "type": "string"
+        },
+        "inputs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Input"
+          },
+          "default": {},
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "DecisionRules": {
+      "additionalProperties": false,
+      "properties": {
+        "closure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Authority"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "An optional explicit closure decision; an empty board is not closure."
+        },
+        "completion": {
+          "$ref": "#/$defs/CompletionRule",
+          "default": {
+            "by": {
+              "kind": "contribution_author"
+            },
+            "kind": "declaration"
+          }
+        },
+        "selection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Authority"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Approval alone never chooses one winner among qualifying contributions."
+        }
+      },
+      "type": "object"
+    },
+    "EvidenceKind": {
+      "enum": [
+        "publication",
+        "review",
+        "completion",
+        "selection"
+      ],
+      "type": "string"
+    },
+    "Input": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/InputKind"
+        },
+        "required": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "InputKind": {
+      "enum": [
+        "text",
+        "artifact"
+      ],
+      "type": "string"
+    },
+    "Prerequisite": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/EvidenceKind"
+        },
+        "stage": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "evidence"
+      ],
+      "type": "object"
+    },
+    "Role": {
+      "additionalProperties": false,
+      "description": "A reusable role slot. Actual members are bound when creating an instance.",
+      "properties": {
+        "description": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Selector": {
+      "description": "Eligibility within the pinned instance context, not a local tool grant.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "members",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "role",
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "participant",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "task_creator",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "contribution_author",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "any",
+              "type": "string"
+            },
+            "selectors": {
+              "items": {
+                "$ref": "#/$defs/Selector"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "selectors"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "nobody",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Stage": {
+      "additionalProperties": false,
+      "properties": {
+        "materializer": {
+          "$ref": "#/$defs/Authority",
+          "description": "One explicitly bound principal whose daemon materializes this stage."
+        },
+        "recipients": {
+          "$ref": "#/$defs/Selector",
+          "default": {
+            "kind": "members"
+          },
+          "description": "Eligible recipients of durable ready-work delivery, resolved at binding."
+        },
+        "requires": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Prerequisite"
+          },
+          "type": "array"
+        },
+        "variation": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "materializer"
+      ],
+      "type": "object"
+    },
+    "StartRule": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "by": {
+              "$ref": "#/$defs/Selector"
+            },
+            "kind": {
+              "const": "independent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "by"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An offer needs the recipient's acknowledgment; it does not launch work.",
+          "properties": {
+            "by": {
+              "$ref": "#/$defs/Selector"
+            },
+            "kind": {
+              "const": "offered",
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/$defs/Selector"
+            }
+          },
+          "required": [
+            "kind",
+            "by",
+            "to"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TaskVariation": {
+      "additionalProperties": false,
+      "properties": {
+        "decisions": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DecisionRules"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "work": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkRules"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Omitted groups inherit the goal definition's full corresponding group."
+        }
+      },
+      "type": "object"
+    },
+    "WorkRules": {
+      "additionalProperties": false,
+      "properties": {
+        "propose": {
+          "$ref": "#/$defs/Selector",
+          "default": {
+            "kind": "members"
+          }
+        },
+        "publish": {
+          "$ref": "#/$defs/Selector",
+          "default": {
+            "kind": "members"
+          },
+          "description": "Publishing unattached findings does not require a task or attempt."
+        },
+        "starts": {
+          "default": [
+            {
+              "by": {
+                "kind": "members"
+              },
+              "kind": "independent"
+            }
+          ],
+          "description": "An empty list allows contributions but no new task attempts.",
+          "items": {
+            "$ref": "#/$defs/StartRule"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An agreement about work organization, independent of local execution.\nMembership and organization-rule administration belong to one separately\nauthenticated goal administrator. Roles never grant that authority themselves.",
+  "properties": {
+    "context": {
+      "$ref": "#/$defs/Context",
+      "default": {
+        "guidance": "",
+        "inputs": {}
+      }
+    },
+    "decisions": {
+      "$ref": "#/$defs/DecisionRules",
+      "default": {
+        "closure": null,
+        "completion": {
+          "by": {
+            "kind": "contribution_author"
+          },
+          "kind": "declaration"
+        },
+        "selection": null
+      }
+    },
+    "flow": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Stage"
+      },
+      "default": {},
+      "description": "Optional named stages and their prerequisite evidence.",
+      "type": "object"
+    },
+    "roles": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Role"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "schema_version": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "variations": {
+      "additionalProperties": {
+        "$ref": "#/$defs/TaskVariation"
+      },
+      "default": {},
+      "description": "Explicitly delegated alternatives to the default task rules.",
+      "type": "object"
+    },
+    "work": {
+      "$ref": "#/$defs/WorkRules",
+      "default": {
+        "propose": {
+          "kind": "members"
+        },
+        "publish": {
+          "kind": "members"
+        },
+        "starts": [
+          {
+            "by": {
+              "kind": "members"
+            },
+            "kind": "independent"
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version"
+  ],
+  "title": "Blueprint",
+  "type": "object"
+}

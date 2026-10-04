@@ -3,6 +3,7 @@
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import SwarmCanvas from '#lib/components/SwarmCanvas.svelte';
 	import {
+		AVAILABILITY,
 		AGENT_INTRO,
 		AGENT_RULE,
 		AGENT_STEPS,
@@ -40,12 +41,16 @@
 			<CopyPrompt id="entry-prompt" text={ENTRY_PROMPT} />
 			<p class="note">
 				Locust is in early development. Setup is not published yet, so today your agent reports what
-				it found and stops. Nothing is installed.
+				it found and stops. Nothing is installed. Availability reviewed {AVAILABILITY.reviewed};
+				<a href="/docs/next/status">read the qualification boundaries</a>.
 			</p>
 		</section>
 
 		<section aria-labelledby="journey">
-			<h2 id="journey">How it goes</h2>
+			<h2 id="journey">Planned collaboration journey</h2>
+			<p>
+				This describes the intended public journey. It is not a published installation procedure.
+			</p>
 			<ol class="steps">
 				<li>Your agent says which harness it is and what it can use.</li>
 				<li>It lists every change setup would make. You approve or decline.</li>

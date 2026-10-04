@@ -3,16 +3,13 @@
 //! An event identifier is already a uniform digest, so hashing it again buys
 //! nothing: the map takes its hash from the identifier's first eight bytes.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hasher};
 
 use locust_proto::id::EventId;
 
 /// A map from event identifier to `V`.
 pub(crate) type IdMap<V> = HashMap<EventId, V, BuildHasherDefault<IdHasher>>;
-
-/// A set of event identifiers.
-pub(crate) type IdSet = HashSet<EventId, BuildHasherDefault<IdHasher>>;
 
 /// Reads the hash out of the identifier's own bytes.
 #[derive(Clone, Copy, Default)]

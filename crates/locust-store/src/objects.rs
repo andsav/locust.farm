@@ -26,7 +26,7 @@ use crate::files::{Files, Kind};
 /// manifests, patches and artifacts go to files, where a range read touches
 /// only the bytes it returns and the WAL does not carry them twice. An
 /// inline object is read whole even for a range, which this bound keeps
-/// small. Changing it needs a schema migration (see `schema::V1`).
+/// small. Changing it requires a distinct current schema (see `schema::CURRENT`).
 pub const INLINE_MAX_BYTES: usize = 256 * 1024;
 
 const HELD: &str = "SELECT 1 FROM blobs WHERE hash = ?1";

@@ -1,5 +1,6 @@
 //! Command-line client: explicit authority, one JSON envelope, typed API.
 mod args;
+mod blueprint;
 mod client;
 mod connection;
 mod doctor;
@@ -124,9 +125,7 @@ fn run_mcp(matches: &ArgMatches, selected: &ArgMatches) -> Result<(), Failure> {
     }
     let home = connection::home(matches)?;
     let credential = connection::credential_path(matches, &home)?;
-    let session = connection::session_path(matches)?.ok_or_else(|| {
-        Failure::usage("mcp requires --session <absolute-path> or LOCUST_SESSION")
-    })?;
+    let session = connection::session_path(matches)?;
     crate::mcp::run(crate::mcp::Config {
         home,
         credential,
@@ -140,7 +139,7 @@ fn print_failure(error: Failure, json_mode: bool) -> u8 {
     if json_mode {
         println!(
             "{}",
-            json!({"ok": false, "error": {"code": error.code.as_str(), "message": error.message}})
+            json!({"ok": false, "error": {"code": error.code.as_str(), "message": error.message, "details": error.details_json.as_deref().and_then(|text| serde_json::from_str::<Value>(text).ok())}})
         );
     } else {
         eprintln!("locust: {error}");
@@ -156,6 +155,26 @@ fn stdin_text() -> Result<String, Failure> {
 }
 fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let (operation, selected) = args::selected(matches);
+    if operation == "contract" {
+        let mut contract = locust_proto::api::contract();
+        contract["cli"] = args::contract();
+        let human = serde_json::to_string_pretty(&contract)
+            .map_err(|error| Failure::internal(format!("cannot render contract: {error}")))?;
+        return Ok(Output::success(contract, human));
+    }
+    if matches!(
+        operation.as_str(),
+        "blueprint.contract"
+            | "blueprint.schema"
+            | "blueprint.examples"
+            | "blueprint.example"
+            | "blueprint.validate"
+            | "blueprint.explain"
+            | "blueprint.normalize"
+            | "blueprint.diff"
+    ) {
+        return blueprint::run(&operation, selected);
+    }
     if operation == "up" || operation == "agent.add" {
         return onboarding::run(matches, &operation, selected);
     }
@@ -177,7 +196,8 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     if operation.starts_with("client.") {
         return client::run(matches, &operation, selected);
     }
-    let named_enrollment = operation == "agent.enroll";
+    let named_enrollment = matches!(operation.as_str(), "agent.enroll" | "author.enroll");
+    let author_enrollment = operation == "author.enroll";
     let generic_call = operation == "call";
     if operation == "session.create" {
         return create_session(selected.get_one::<String>("path").expect("required path"));
@@ -254,14 +274,23 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         .transpose()?;
     let credential_path = if named_enrollment {
         let name = selected.get_one::<String>("name").expect("required name");
-        let path = local::agent_credential_path(&home, name)?;
+        if !locust_proto::api::is_agent_name(name) {
+            return Err(Failure::usage(
+                "principal name must contain 1 to 32 a-z, 0-9 or - characters",
+            ));
+        }
+        let path = if author_enrollment {
+            home.join("authors").join(format!("{name}.credential"))
+        } else {
+            local::agent_credential_path(&home, name)?
+        };
         secret::create_private_dir(path.parent().expect("agent parent"))
             .map_err(|error| Failure::invalid(format!("credential directory: {error}")))?;
         let credential = Credential(secret::read_or_create(&path).map_err(|error| {
             Failure::invalid(format!("agent credential {}: {error}", path.display()))
         })?);
         connection::read_secret(&path)?;
-        fields = json!({"name": name, "grants": Grants { manage_goals: selected.get_flag("manage-goals") }, "credential": credential.digest()}).as_object().unwrap().clone();
+        fields = if author_enrollment { json!({"name":name,"credential":credential.digest()}) } else { json!({"name": name, "grants": Grants { manage_goals: selected.get_flag("manage-goals") }, "credential": credential.digest()}) }.as_object().unwrap().clone();
         Some(path)
     } else {
         None
@@ -274,11 +303,13 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     request.check().map_err(Failure::from)?;
     if matches!(
         request,
-        Request::TaskClaim { .. }
-            | Request::TaskTakeover { .. }
-            | Request::TaskSubmit { .. }
-            | Request::TaskProgress { .. }
-            | Request::TaskFail { .. }
+        Request::AttemptStart { .. }
+            | Request::AttemptTakeover { .. }
+            | Request::ContributionPublish {
+                attempt: Some(_),
+                ..
+            }
+            | Request::AttemptReport { .. }
     ) && connection::session_path(matches)?.is_none()
     {
         return Err(Failure::invalid(
@@ -297,7 +328,12 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let mut result =
         serde_json::to_value(&response).map_err(|error| Failure::internal(error.to_string()))?;
     if let Some(path) = credential_path {
-        result["agent_enrolled"]["credential_path"] = json!(path);
+        let tag = if author_enrollment {
+            "author_enrolled"
+        } else {
+            "agent_enrolled"
+        };
+        result[tag]["credential_path"] = json!(path);
     }
     Ok(Output {
         result,
@@ -428,22 +464,24 @@ fn human(response: &Response, credential_path: Option<&Path>) -> String {
         Response::Done => "done".to_owned(),
         Response::Recorded { event } => event.to_string(),
         Response::GoalCreated { goal } => goal.to_string(),
-        Response::AgentEnrolled { agent } => match credential_path {
-            Some(path) => format!("{agent}\n{}", path.display()),
-            None => agent.to_string(),
-        },
+        Response::AgentEnrolled { agent } | Response::AuthorEnrolled { author: agent } => {
+            match credential_path {
+                Some(path) => format!("{agent}\n{}", path.display()),
+                None => agent.to_string(),
+            }
+        }
         Response::Invited { ticket } => ticket.as_str().to_owned(),
         Response::Joined {
             goal,
-            coordinator,
+            administrator,
             membership,
         } => format!(
-            "goal {goal}\ncoordinator {coordinator}\nmembership {}",
+            "goal {goal}\nadministrator {administrator}\nmembership {}",
             stable_name(membership)
         ),
         Response::Claimed(claim) => format!(
-            "assignment {}\ngeneration {}\ninstance {}",
-            claim.assignment, claim.generation, claim.instance
+            "attempt {}\ngeneration {}\ninstance {}",
+            claim.attempt, claim.generation, claim.instance
         ),
         Response::Status(status) => {
             let mut lines = vec![format!("daemon {}", status.daemon_version)];

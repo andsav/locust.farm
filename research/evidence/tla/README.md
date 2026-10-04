@@ -1,6 +1,11 @@
 # TLA+ Stages 0 and 1 evidence
 
-**Version-1 revision:** see the [current mapping](../../tla/version-1.md) and
+**Organization cutover:** current protocol/API-2 checks are in the
+[organization verification record](organization/README.md). Executable protocol-0/1
+models and configurations were removed; records below remain historical and their
+model maps link to pinned pre-cutover source. They do not qualify protocol 2.
+
+**Historical version-1 revision:** see the [historical mapping](../../tla/version-1.md) and
 [verification record](version-1.json). The original records below remain
 historical version-0 evidence.
 

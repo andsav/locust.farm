@@ -63,7 +63,7 @@ class ModelWorkflowTests(unittest.TestCase):
         call = {"tool": "Bash", "arguments": {"command": "/pinned/locust --json patch submit --goal g"}, "success": True}
         self.assertTrue(harness.native_operation([call], "patch submit", "/pinned/locust"))
         self.assertFalse(harness.native_operation([{**call, "success": False}], "patch submit", "/pinned/locust"))
-        self.assertFalse(harness.native_operation([{**call, "tool": "mcp__locust__locust_note_add"}], "patch submit", "/pinned/locust"))
+        self.assertFalse(harness.native_operation([{**call, "tool": "mcp__locust__locust_contribution_publish"}], "patch submit", "/pinned/locust"))
         self.assertFalse(harness.native_operation([call], "patch apply", "/pinned/locust"))
 
     def test_original_boundary_includes_tests_unrelated_work_and_exact_git_head(self):

@@ -1,0 +1,43 @@
+{
+  "context": {
+    "guidance": "",
+    "inputs": {}
+  },
+  "decisions": {
+    "closure": null,
+    "completion": {
+      "by": {
+        "kind": "role",
+        "name": "reviewer"
+      },
+      "count": 2,
+      "exclude_author": true,
+      "kind": "reviews"
+    },
+    "selection": null
+  },
+  "flow": {},
+  "roles": {
+    "reviewer": {
+      "description": "Members eligible to review contributions by other authors."
+    }
+  },
+  "schema_version": 1,
+  "variations": {},
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "by": {
+          "kind": "members"
+        },
+        "kind": "independent"
+      }
+    ]
+  }
+}

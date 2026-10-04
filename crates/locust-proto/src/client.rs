@@ -475,9 +475,9 @@ mod tests {
             reply
         });
         let mut client = Client::open(stream, CREDENTIAL, None).unwrap();
-        let request = Request::TaskDecline {
+        let request = Request::WorkDecline {
             goal: goal(),
-            assignment: EventId([3; 32]),
+            offer: EventId([3; 32]),
         };
         let key = IdempotencyKey([4; 16]);
         let principal = PublicKey([5; 32]);
@@ -511,9 +511,10 @@ mod tests {
             }
         });
         let mut client = Client::open(stream, CREDENTIAL, Some(SESSION)).unwrap();
-        let claim = Request::TaskClaim {
+        let claim = Request::AttemptStart {
             goal: goal(),
-            assignment: EventId([3; 32]),
+            task: crate::event::TaskId::Authored(EventId([3; 32])),
+            offer: None,
         };
         let Err(ClientError::Api(error)) = client.call(claim) else {
             panic!("expected the daemon's error");

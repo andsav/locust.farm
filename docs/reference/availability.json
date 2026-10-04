@@ -1,0 +1,107 @@
+{
+  "format": "locust-availability-v1",
+  "reviewed": "2026-10-04",
+  "publication": {
+    "software": "unpublished",
+    "installerUrl": null,
+    "website": "local-build-only",
+    "releasedManual": null
+  },
+  "sourceCapabilities": [
+    "daemon",
+    "cli",
+    "stdio-mcp",
+    "candidate-installation",
+    "resumable-onboarding",
+    "offline-blueprint-authoring",
+    "private-blueprint-catalog",
+    "organization-rules",
+    "taskless-contributions",
+    "independent-attempts",
+    "scoped-completion-and-selection",
+    "durable-logical-flow",
+    "explicit-local-patch-choice",
+    "durable-flow-inboxes-and-receipts",
+    "packaged-offline-manual",
+    "polaris-native-organization-authoring"
+  ],
+  "organizationRuntime": "implemented-development-api-2-protocol-2",
+  "qualification": [
+    {
+      "platform": "macOS arm64",
+      "scope": "Current API 2/protocol 2 source gates, persistent local CLI/daemon acceptance, six blueprint exports, four executable manual recipes and three-process default-network collaboration and all six operational cases",
+      "limits": "No public release, real-provider or physical-machine claim. Same-host default networking passes while isolated key-only multicast discovery fails.",
+      "evidence": [
+        "docs/organization-blueprints-status.md",
+        "docs/guide/collaboration.md",
+        "docs/guide/blueprint-authoring.md",
+        "docs/guide/apply.md",
+        "docs/guide/sharing.md",
+        "research/organization-local-discovery.md"
+      ],
+      "track": "current-organization-development"
+    },
+    {
+      "platform": "macOS arm64",
+      "scope": "Exact source 0a295cd candidate: ten installation cases, three supported persistent client setup/workspace campaigns, all four baseline managed lifecycle/recovery campaigns, four installed tutorials and offline contracts",
+      "limits": "Scripted loopback providers and disposable test signing only. Droid full workflow failed at native Execute child SIGKILL; same guarded driver passed directly. Default-policy not_run cases, real-model use and human approval remain separate.",
+      "evidence": [
+        "research/organization-native-qualification.md",
+        "research/documentation-qualification.md"
+      ],
+      "track": "current-native-installed-candidate"
+    },
+    {
+      "platform": "macOS arm64",
+      "scope": "Polaris source aaaf62ae3 pins the Locust 1b81bef typed SDK with exact schema parity. An isolated Developer ID signed QA package passed native editing/publication/goal/readback/restart/revocation against immutable Locust candidate 0a295cd; the exact-byte native adapter test passed.",
+      "limits": "The package uses a separate QA identifier/product/title. Canonical installed release, notarization and public fetch remain unqualified. The SDK revision is unpublished and local Cargo verification used an explicitly seeded cache. Broader Merak gates retain failures.",
+      "evidence": [
+        "docs/guide/polaris.md"
+      ],
+      "track": "current-isolated-polaris-native-package"
+    },
+    {
+      "platform": "Linux x86_64",
+      "scope": "Exact source 0a295cd release cross-compilation with pinned Rust and existing cargo-zigbuild/Zig; ELF architecture and archive/input hashes verified",
+      "limits": "Build only; binary never executed, no Linux installation/systemd/runtime or signed-install package qualification.",
+      "evidence": [
+        "research/linux-installation-qualification.md"
+      ],
+      "track": "current-linux-build-only"
+    },
+    {
+      "platform": "macOS arm64",
+      "scope": "Local signed candidate installation and launchd cases; disposable Codex and Claude onboarding profiles and authenticated daemon readiness",
+      "limits": "Not public distribution, physical-machine acceptance or native real-model end-to-end qualification; this earlier candidate evidence does not qualify the API 2/protocol 2 replacement",
+      "evidence": [
+        "docs/installation.md",
+        "docs/onboarding.md",
+        "research/onboarding-qualification.md"
+      ],
+      "track": "historical-pre-organization-cutover-local-candidate"
+    }
+  ],
+  "clients": {
+    "codex": {
+      "status": "installed-native-scripted-provider-and-managed-lifecycle-verified",
+      "publicRoute": false
+    },
+    "claude-code": {
+      "status": "installed-native-scripted-provider-and-managed-lifecycle-verified",
+      "publicRoute": false
+    },
+    "pi": {
+      "status": "installed-native-scripted-provider-and-managed-lifecycle-verified",
+      "publicRoute": false
+    },
+    "droid": {
+      "status": "native-managed-lifecycle-verified; full-workspace-execute-failed",
+      "publicRoute": false
+    },
+    "other": {
+      "status": "capability-review-required",
+      "publicRoute": false
+    }
+  },
+  "runtimeQualification": "deterministic-local-daemon-installed-scripted-clients-and-isolated-polaris-verified; real-provider-physical-machine-and-release-gates-open"
+}

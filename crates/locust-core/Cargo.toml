@@ -9,6 +9,8 @@ publish.workspace = true
 [dependencies]
 locust-proto.workspace = true
 serde.workspace = true
+serde_json.workspace = true
+serde_path_to_error.workspace = true
 
 [dev-dependencies]
 locust-proto = { workspace = true, features = ["testkit"] }

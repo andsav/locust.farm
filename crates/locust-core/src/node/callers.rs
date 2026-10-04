@@ -103,6 +103,13 @@ pub(super) fn resolve(
                         "no enrolled principal has that key",
                     ));
                 }
+                if principals
+                    .active(&principal)
+                    .is_some_and(|p| p.record.author_only)
+                    && operation.audience != Audience::Author
+                {
+                    return Err(denied("an authoring principal cannot act in goals"));
+                }
                 Ok(actor(Some(principal), true))
             }
             (_, None) => {
@@ -130,6 +137,20 @@ pub(super) fn resolve(
             }
             Ok(actor(Some(principal), false))
         }
+        Caller::Author(principal) => {
+            if frame.on_behalf.is_some()
+                || session.is_some()
+                || operation.audience != Audience::Author
+            {
+                return Err(denied(
+                    "this credential only accesses its private blueprint catalog",
+                ));
+            }
+            if principals.active(&principal).is_none() {
+                return Err(denied("the credential was revoked"));
+            }
+            Ok(actor(Some(principal), false))
+        }
         Caller::Viewer(principal) => {
             if frame.on_behalf.is_some() {
                 return Err(denied("a viewer acts on behalf of nobody"));
@@ -137,7 +158,7 @@ pub(super) fn resolve(
             if principals.active(&principal).is_none() {
                 return Err(denied("the credential was revoked"));
             }
-            if !operation.read_only {
+            if !operation.read_only || operation.audience == Audience::Author {
                 return Err(denied("a viewer makes read-only requests only"));
             }
             Ok(actor(Some(principal), false))

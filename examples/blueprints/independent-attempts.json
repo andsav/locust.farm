@@ -1,0 +1,43 @@
+{
+  "context": {
+    "guidance": "",
+    "inputs": {}
+  },
+  "decisions": {
+    "closure": null,
+    "completion": {
+      "by": {
+        "kind": "contribution_author"
+      },
+      "kind": "declaration"
+    },
+    "selection": {
+      "kind": "role",
+      "name": "chooser"
+    }
+  },
+  "flow": {},
+  "roles": {
+    "chooser": {
+      "description": "One member selects among independently completed contributions."
+    }
+  },
+  "schema_version": 1,
+  "variations": {},
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "by": {
+          "kind": "members"
+        },
+        "kind": "independent"
+      }
+    ]
+  }
+}

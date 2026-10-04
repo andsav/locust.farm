@@ -93,7 +93,7 @@ fn actual_stdio_pipes_negotiate_ping_and_exit_cleanly_on_eof() {
     assert_eq!(BufReader::new(stderr).lines().count(), 0);
 }
 #[test]
-fn invalid_mcp_options_and_missing_session_never_write_cli_json_to_stdout() {
+fn invalid_mcp_options_and_receipt_without_session_never_write_cli_json_to_stdout() {
     let home = scratch();
     for args in [
         vec!["mcp", "--json"],
@@ -110,11 +110,13 @@ fn invalid_mcp_options_and_missing_session_never_write_cli_json_to_stdout() {
         .arg("--credential")
         .arg(home.path().join("credential"))
         .arg("mcp")
+        .arg("--lifecycle-receipt")
+        .arg(home.path().join("session"))
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("--session"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("execution session"));
 }
 
 #[test]
@@ -122,7 +124,14 @@ fn ordinary_cli_values_named_mcp_do_not_select_transport_output() {
     let home = scratch();
     for args in [
         vec!["--json", "--credential", "mcp", "status"],
-        vec!["--json", "note", "add", "--goal", "invalid", "mcp"],
+        vec![
+            "--json",
+            "contribution",
+            "publish",
+            "--goal",
+            "invalid",
+            "mcp",
+        ],
         vec!["--json", "call", "status", "mcp"],
     ] {
         let output = command(home.path()).args(args).output().unwrap();

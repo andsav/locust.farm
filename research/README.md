@@ -14,6 +14,12 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [Separate-goal subgroup acceptance](subgroup-qualification.md): authenticated Engine tests for explicit selected-context export, membership isolation and fresh parent review of returned findings.
+
+- [Organization local and default-network qualification](organization-local-discovery.md): exact-candidate T1 and six operations cases pass with production defaults; relay-free mDNS failure remains separate.
+
+- [Protocol-1 replay and ingestion baseline](organization-protocol1-performance.md): measured healthy and pinned-member-fork histories before the organization engine replacement; exact harness, results and measurement limits.
+
 - [Installed onboarding qualification](onboarding-qualification.md): committed macOS candidate, launchd and existing-daemon onboarding, identity/grant preservation and verified cleanup.
 - [Organization blueprints](organization-blueprints.md): research behind the accepted organization and authoring direction, with Merak comparison, primary sources, open collaboration and review/pool examples; detailed protocol mechanisms and migration remain proposals.
 - [Blueprint authoring on locust.farm](blueprint-authoring.md): research for the web editor plan: contract targets, Polaris canvas audit and the owner's fork decision, site and copy-prompt constraints, agent/daemon hand-off, xyflow/SvelteKit 3/paste-limit/share-link/validator measurements, three compared UX concepts and the adversarial review record; probes listed with method, nothing implemented.
@@ -26,16 +32,18 @@ repository root. Untracked drafts are excluded from the check.
 
 ### Last-mile experience — 2026-10-04
 
+- [First-user journey after organization blueprints](first-user-journey-review.md): current API-2 source and local-browser review separating completed setup/authoring work from remaining first-goal, human-view, shared-context, invitation and natural-language qualification gaps.
+
 - [Bound CLI launcher qualification](bound-cli-launcher-qualification.md): committed candidate, fresh Codex and Claude Code profiles, native workspace commands through setup's launcher, and explicit scripted-provider limits.
 
 - [What people and agents meet, and what to change](last-mile-experience.md): whether agents are prompted to communicate, what the log enforces, identity at joining, local and public views of a swarm, the first ten minutes for a person and for an agent; a measured hands-on run and real-model tool tally, proposals reviewed by seven critics and a follow-up source review, revised acceptance and sequencing, and a linked implementation plan. Most recommendations remain proposals; the licence decision and X3 bound-launcher implementation are separately recorded.
 
 ### TLA+ verification
 
-- [Version-1 bounded models](tla/version-1.md): canonical branch selection, accepted display, local departure, current source mapping and verification limits.
+- [Historical version-1 bounded models](tla/version-1.md): retained canonical branch, accepted-display and local-departure evidence with pinned superseded source links.
 
 - [Model and runner guide](tla/README.md): pinned tools, reproducible bounded checks, input snapshots, result classification and evidence limits.
-- [Property and implementation map](tla/property-map.md): rules mapped to code/tests, current versus desired semantics, assumptions and deferred findings.
+- [Historical property and implementation map](tla/property-map.md): protocol-0 rules, original findings and pinned superseded source links.
 - [Upstream version-1 modeling impact](tla/upstream-impact-2026-10-04.md): merge assessment, changed rules, historical model boundaries and required rebaselining.
 - [Stages 0 and 1 evidence](evidence/tla/README.md): bounded result summaries, retained counterexamples/witnesses, Rust fixture correspondence, development failures and unverified CI qualification.
 
@@ -135,4 +143,14 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Local installation qualification evidence](installation-qualification-evidence.json): exact native candidate, ten passing installation/upgrade/launchd cases and sampled resource observations.
 - [Installed managed-client artifact binding](evidence/installed-client-artifact-bindings.json): unchanged managed-run hashes correlated with the verified installation, manifest, executable and subsequent uninstall.
 - [Installed-client qualification verdicts](evidence/installed-client-qualification-2026-10-04.json): final native-client verdicts, public task/session/event identifiers, artifact identities and cleanup observations without retained skill bodies or provider payloads.
-- [Linux installation qualification](linux-installation-qualification.md): exact Debian/QEMU environment, completed static checks, incomplete workspace tests and the observed process-spawn blocker; native artifact and installation outcomes recorded separately.
+- [Linux build-only qualification](linux-installation-qualification.md): current organization-runtime and earlier Linux x86_64 cross-build identities, static artifact checks, and the stopped emulation attempt; no Linux runtime or service qualification.
+
+- [Organization runtime performance comparison](organization-protocol2-performance.md): paired task/selection replay and ingestion measurements, exact proof indexing, and the remaining regression.
+
+- [Organization formal models](tla/organization.md): current governance, completion, scoped proof, local attempt and daemon-effect safety/mutation checks with explicit finite limits.
+
+- [Organization model verification evidence](evidence/tla/organization/README.md): all54 registered outcomes, full checker traces, bounded safety counts and precise verification limits.
+
+- [Current manual recipe qualification](documentation-qualification.md): exact executable Markdown journeys, binary/recipe hashes and local daemon/application evidence.
+
+- [Organization protocol 2 native package qualification](organization-native-qualification.md): exact native candidate installation, three supported persistent setups, four managed recovery clients, executable manual and installed offline discovery, with explicit unrun boundaries.

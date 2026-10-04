@@ -345,14 +345,14 @@ These are inspected source facts, not new test results.
 | Goal creator is the coordinator and owner | [Goal creation](../crates/locust-core/src/node/requests/goals.rs), [Genesis and header validation](../crates/locust-proto/src/event.rs) | New genesis pins organization definition and administration authority separately |
 | All decisions belong to one coordinator chain | [Decision chain](../crates/locust-core/src/goal/chain.rs), [event classification](../crates/locust-proto/src/event.rs), [fold](../crates/locust-core/src/goal/fold.rs) | Separate membership/key control from work and outcome authority |
 | Only coordinator assigns, cancels, accepts/rejects | [Task requests](../crates/locust-core/src/node/requests/tasks.rs), [access checks](../crates/locust-core/src/node/access.rs) | Validate typed actions against scope and pinned rules at authoring and replay |
-| One current assignment and result per task | [State](../crates/locust-core/src/goal/state.rs), [transitions](../crates/locust-core/src/goal/transition.rs) | Multiple attempts/contributions; optional approved set and selected output |
+| One current assignment and result per task | [State](../crates/locust-core/src/goal/state.rs), [transitions](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/goal/transition.rs) | Multiple attempts/contributions; optional approved set and selected output |
 | Claim fences sessions on one daemon | [Claim handling](../crates/locust-core/src/node/requests/claims.rs), [sessions](../crates/locust-core/src/node/sessions.rs) | Preserve local fencing; add distinct distributed reservation semantics when requested |
 | Review work goes to coordinator | [Pending views](../crates/locust-core/src/node/views.rs) | Compute pending actions for eligible roles and rule conditions |
 | Dependencies are retained but not checked by task state | [Task fields](../crates/locust-core/src/goal/state.rs) | Implement readiness before claiming a Pipeline preset works |
 | Canonical coordinator decisions pin contribution ancestry through member forks | [Commitments](../crates/locust-core/src/goal/commitments.rs), [screening](../crates/locust-core/src/goal/screen.rs) | Valid authority/decision certificates must preserve exact evidence and fork semantics |
 
 Notes and proposed document revisions already allow member authorship:
-[notes requests](../crates/locust-core/src/node/requests/notes.rs). Existing tests
+[notes requests](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/node/requests/notes.rs). Existing tests
 include peer note exchange with the coordinator offline:
 [replica tests](../crates/locust-core/src/node/replica_tests.rs). That supports reuse
 of transport; it does not prove the proposed organization modes.

@@ -1,5 +1,11 @@
 # Last-mile implementation plan
 
+> **Historical pre-organization document.** Its protocol-1 commands, source
+> snapshots and qualification claims do not apply to API 2 / protocol 2. Read
+> [the current manual](guide/overview.md) and
+> [implementation status](organization-blueprints-status.md) for current behavior.
+> No legacy reader, migration or old-runtime support is provided.
+
 **Organization model update, 2026-10-04:** the
 [organization blueprints plan](organization-blueprints-implementation-plan.md)
 supersedes a universal coordinator as the future product target and adds agent
@@ -36,13 +42,13 @@ Source review baseline: `1a4f9ff`. Historical measurements remain those in the [
 | Area | Existing seam | Consequence for the work |
 |---|---|---|
 | Local API and operation policy | [api.rs](../crates/locust-proto/src/api.rs), [version constants](../crates/locust-proto/src/lib.rs) | API 1 has typed requests, authorization categories and tool flags. Wire-shape changes need an explicit API revision, not just a CLI edit |
-| Notes and task reads | [notes.rs](../crates/locust-core/src/node/requests/notes.rs), [reading.rs](../crates/locust-core/src/node/requests/reading.rs), [views.rs](../crates/locust-core/src/node/views.rs) | Notes currently collect all matching text. Filtering after that read does not protect the daemon |
+| Notes and task reads | [notes.rs](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/node/requests/notes.rs), [reading.rs](../crates/locust-core/src/node/requests/reading.rs), [views.rs](../crates/locust-core/src/node/views.rs) | Notes currently collect all matching text. Filtering after that read does not protect the daemon |
 | Feed and acknowledgment | [feed.rs](../crates/locust-core/src/node/feed.rs), [reading.rs](../crates/locust-core/src/node/requests/reading.rs) | Feed order is local arrival order and persisted. An explicit `events.after` writes the principal/owner cursor; viewers do not. It must not be reused as an invisible acknowledgment side effect |
 | Grants, claims and acting as a principal | [access.rs](../crates/locust-core/src/node/access.rs), [claims.rs](../crates/locust-core/src/node/requests/claims.rs), [API](../crates/locust-proto/src/api.rs) | Owner `on_behalf` exists. Execute, decide and takeover are distinct. `GoalGrants` has no expiry field |
 | Session records | [sessions.rs](../crates/locust-core/src/node/requests/sessions.rs), [adapter delivery](../crates/locust-adapter/src/delivery.rs) | `session.report` replaces a record without compare-and-swap. An MCP initializer must not race a managed runner and overwrite its state |
 | MCP and skill | [mcp.rs](../crates/locust/src/mcp.rs), [schema.rs](../crates/locust/src/mcp/schema.rs), [skill](../skills/locust/SKILL.md) | One-to-one operation tools, duplicated text/structured serialization and a workspace-heavy skill are current behavior |
 | Setup and service | [setup.rs](../crates/locust/src/installation/setup.rs), [service ownership](../crates/locust/src/installation/service_install.rs), [installation.rs](../crates/locust/src/installation.rs) | Setup fingerprints existing credential/session files and journals owned edits. `up` needs staged recovery around these operations |
-| Persistent formats | [record encoding](../crates/locust-core/src/node/records.rs), [SQLite schema](../crates/locust-store/src/schema.rs) | SQLite has a schema version and transactional migrations; individual postcard local records have no version envelope. These are separate compatibility concerns |
+| Persistent formats | [record encoding](../crates/locust-core/src/node/records.rs), [SQLite schema](../crates/locust-store/src/schema.rs) | SQLite now initializes schema 2 directly and refuses unsupported formats without conversion; individual postcard local records still require the replacement runtime contract |
 | Invitations | [invite.rs](../crates/locust-proto/src/invite.rs), [invitation requests](../crates/locust-core/src/node/requests/invitations.rs) | A ticket is a secret single-use capability. Inspection can be local; new signed metadata/admission semantics need an explicit current-contract design |
 | Release and site | [packaging](packaging.md), [release ledger](release-evidence.md), [builder](../scripts/build_release.py), [guide](../sites/locust.farm/src/lib/onboarding/guide.ts) | Licence selected; package inclusion, public origin, production trust and public artifact verification remain work. The guide has no setup artifact |
 
@@ -122,7 +128,7 @@ Code areas: [release builder](../scripts/build_release.py), [package verificatio
 
 ### W2. Local read contract, acknowledgment and current-state recovery
 
-Code areas: [API](../crates/locust-proto/src/api.rs), [request dispatch](../crates/locust-core/src/node/requests/mod.rs), [reading](../crates/locust-core/src/node/requests/reading.rs), [notes](../crates/locust-core/src/node/requests/notes.rs), [views](../crates/locust-core/src/node/views.rs), [feed](../crates/locust-core/src/node/feed.rs), [local records](../crates/locust-core/src/node/records.rs), [store schema](../crates/locust-store/src/schema.rs).
+Code areas: [API](../crates/locust-proto/src/api.rs), [request dispatch](../crates/locust-core/src/node/requests/mod.rs), [reading](../crates/locust-core/src/node/requests/reading.rs), [notes](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/node/requests/notes.rs), [views](../crates/locust-core/src/node/views.rs), [feed](../crates/locust-core/src/node/feed.rs), [local records](../crates/locust-core/src/node/records.rs), [store schema](../crates/locust-store/src/schema.rs).
 
 **W2.1 — Freeze a small contract before wiring callers.** Define typed operations for note pages, a task thread, a goal snapshot, explicit acknowledgment and read-only identifier resolution. Names are provisional until this contract is reviewed. Update operation authorization, request/response matching, serialization fixtures and version reporting together. Use the organization-blueprint contract and remove the protocol-1 fold when its replacement lands; no compatibility branch.
 

@@ -1,1066 +1,1250 @@
-//! Regressions over the public held-event interface.
-use super::{Exclusion, Goal, Halt, Standing, TaskState};
-use locust_proto::event::{AuthorPoint, Body, Event};
-use locust_proto::id::{BlobHash, EndpointId};
+use std::collections::BTreeMap;
+
+use locust_proto::event::*;
+use locust_proto::id::{DefinitionHash, EndpointId, EventId, GoalId};
+use locust_proto::organization::{
+    Authority, Blueprint, CompletionRule, EvidenceKind, Prerequisite, Selector, Stage,
+};
 use locust_proto::store::{Commit, MemStore, Store};
-use locust_proto::testkit::Author;
+use locust_proto::testkit::{self, Author};
 
-fn transcript() -> (Author, Author, Vec<Event>) {
-    transcript_with_budget(None)
+use crate::goal::{Goal, Standing, Waiting};
+
+struct Fixture {
+    admin: Author,
+    workers: Vec<Author>,
+    events: Vec<Event>,
+    definitions: BTreeMap<DefinitionHash, Blueprint>,
+    id: GoalId,
+    anchor: EventId,
+    rules: EventId,
+    admissions: Vec<EventId>,
 }
-
-fn transcript_with_budget(max_attempts: Option<u32>) -> (Author, Author, Vec<Event>) {
-    let mut coordinator = Author::new(1);
-    let mut worker = Author::new(2);
-    let (genesis, own) = coordinator.found_goal(EndpointId([1; 32]));
-    let goal = genesis.header().goal;
-    let admission = coordinator.event(
-        goal,
-        Some(own.id()),
-        Body::MemberAdmitted {
-            member: worker.key.public(),
-            endpoint: EndpointId([2; 32]),
-        },
-    );
-    let proposal = coordinator.event(
-        goal,
-        Some(admission.id()),
-        Body::TaskProposed {
-            input: None,
-            depends_on: vec![],
-            deadline_ms: None,
-            max_attempts,
-        },
-    );
-    let assignment = coordinator.event(
-        goal,
-        Some(admission.id()),
-        Body::TaskAssigned {
-            task: proposal.id(),
-            assignee: worker.key.public(),
-            attempt: 1,
-        },
-    );
-    let take = worker.event(
-        goal,
-        Some(assignment.id()),
-        Body::AssignmentAccepted {
-            assignment: assignment.id(),
-        },
-    );
-    let result = worker.event(
-        goal,
-        Some(assignment.id()),
-        Body::ResultSubmitted {
-            assignment: assignment.id(),
-            base: None,
-            patch: None,
-            artifacts: vec![],
-        },
-    );
-    (
-        coordinator,
-        worker,
-        vec![genesis, own, admission, proposal, assignment, take, result],
-    )
-}
-
-fn held(events: &[Event]) -> Goal {
-    let mut goal = Goal::new(events[0].header().goal);
-    goal.apply(events);
-    goal
-}
-
-fn assert_same(a: &Goal, b: &Goal, events: &[Event]) {
-    assert_eq!(a.state(), b.state());
-    assert_eq!(a.halt(), b.halt());
-    assert_eq!(a.frontier(), b.frontier());
-    for event in events {
-        assert_eq!(
-            a.standing(&event.id()),
-            b.standing(&event.id()),
-            "{}",
-            event.header().body.kind()
+impl Fixture {
+    fn new(blueprint: Blueprint) -> Self {
+        let inspected = crate::organization::inspect(&serde_json::to_string(&blueprint).unwrap());
+        assert!(inspected.valid, "{:?}", inspected.diagnostics);
+        let blueprint = inspected.normalized.unwrap();
+        let mut admin = Author::new(1);
+        let workers: Vec<_> = (2..=4).map(Author::new).collect();
+        let genesis = admin.genesis_with(&blueprint);
+        let id = genesis.header().goal;
+        let mut anchor = genesis.id();
+        let mut events = vec![genesis];
+        let mut admissions = Vec::new();
+        for principal in std::iter::once(admin.key.public())
+            .chain(workers.iter().map(|worker| worker.key.public()))
+        {
+            let event = admin.event(
+                id,
+                Some(anchor),
+                Body::MemberAdmitted {
+                    member: principal,
+                    endpoint: EndpointId(principal.0),
+                },
+            );
+            anchor = event.id();
+            admissions.push(event.id());
+            events.push(event);
+        }
+        let roles = blueprint
+            .roles
+            .keys()
+            .map(|name| {
+                let mut principals = match name.as_str() {
+                    "reviewer" => vec![workers[1].key.public(), workers[2].key.public()],
+                    _ => vec![admin.key.public()],
+                };
+                principals.sort();
+                (name.clone(), principals)
+            })
+            .collect();
+        let (binding, _) = testkit::rules_binding(&id, 0, &blueprint, roles);
+        let bound = admin.event(
+            id,
+            Some(anchor),
+            Body::RulesBound {
+                expected: None,
+                binding,
+            },
         );
+        anchor = bound.id();
+        let rules = bound.id();
+        events.push(bound);
+        Self {
+            admin,
+            workers,
+            events,
+            definitions: BTreeMap::from([(testkit::definition_hash(&blueprint), blueprint)]),
+            id,
+            anchor,
+            rules,
+            admissions,
+        }
     }
+    fn admin(&mut self, body: Body) -> EventId {
+        let governance = body.is_governance();
+        let event = self.admin.event(self.id, Some(self.anchor), body);
+        let id = event.id();
+        if governance {
+            self.anchor = id;
+        }
+        self.events.push(event);
+        id
+    }
+    fn worker(&mut self, index: usize, body: Body) -> EventId {
+        let event = self.workers[index].event(self.id, Some(self.anchor), body);
+        let id = event.id();
+        self.events.push(event);
+        id
+    }
+    fn context(&self) -> Context {
+        Context {
+            scope: Scope::Goal,
+            round: self.rules,
+        }
+    }
+    fn task(&mut self) -> Context {
+        let id = self.worker(
+            0,
+            Body::TaskOpened {
+                binding: TaskBinding {
+                    rules: self.rules,
+                    variation: None,
+                    inputs: BTreeMap::new(),
+                    parent: None,
+                    stage: None,
+                },
+            },
+        );
+        Context {
+            scope: Scope::Task(TaskId::Authored(id)),
+            round: id,
+        }
+    }
+    fn publish(&mut self, index: usize, context: Context) -> EventId {
+        self.worker(
+            index,
+            Body::ContributionPublished {
+                context,
+                attempt: None,
+                base: None,
+                patch: None,
+                artifacts: Vec::new(),
+            },
+        )
+    }
+    fn review(&mut self, index: usize, context: Context, subject: EventId) -> EventId {
+        self.worker(
+            index,
+            Body::ReviewRecorded {
+                context,
+                subject,
+                verdict: ReviewVerdict::Approve,
+            },
+        )
+    }
+    fn goal(&self) -> Goal {
+        let mut goal = Goal::new(self.id);
+        goal.apply(&self.events, &self.definitions);
+        goal
+    }
+    fn event(&self, id: EventId) -> &Event {
+        self.events.iter().find(|event| event.id() == id).unwrap()
+    }
+    fn fork(&mut self, id: EventId, key: u8) -> EventId {
+        let mut header = self.event(id).header().clone();
+        header.at_ms += 10_000;
+        let event = Event::sign(header, &testkit::keypair(key)).unwrap();
+        let id = event.id();
+        self.events.push(event);
+        id
+    }
+}
+fn review_blueprint(count: u32) -> Blueprint {
+    let mut blueprint = Blueprint::default();
+    blueprint.decisions.completion = CompletionRule::Reviews {
+        by: Selector::Members,
+        count,
+        exclude_author: true,
+    };
+    blueprint.decisions.selection = Some(Authority::Participant {
+        key: testkit::keypair(1).public().to_string(),
+    });
+    blueprint
 }
 
 #[test]
-fn duplicate_admission_cannot_rebind_an_active_member() {
-    let (mut author, _, mut events) = transcript();
-    let goal = events[0].header().goal;
-    let duplicate = author.event(
-        goal,
-        Some(events[4].id()),
-        Body::MemberAdmitted {
-            member: author.key.public(),
-            endpoint: EndpointId([9; 32]),
+fn open_taskless_work_needs_no_administrator_decision() {
+    let mut f = Fixture::new(Blueprint::default());
+    let context = f.context();
+    let first = f.publish(0, context);
+    let second = f.publish(1, context);
+    let goal = f.goal();
+    assert_eq!(goal.standing(&first), Some(Standing::Effective));
+    assert_eq!(goal.standing(&second), Some(Standing::Effective));
+    assert_eq!(goal.state().contributions.len(), 2);
+    assert!(goal.state().tasks.is_empty());
+    assert!(goal.state().decisions.is_empty());
+    assert_eq!(goal.state().head, Some(f.rules));
+}
+
+#[test]
+fn unknown_definition_waits_and_refresh_uses_exact_hash() {
+    let mut f = Fixture::new(Blueprint::default());
+    let subject = f.publish(0, f.context());
+    let mut goal = Goal::new(f.id);
+    goal.apply(&f.events, &BTreeMap::new());
+    assert!(goal.standing(&subject).unwrap().is_pending());
+    let changes = goal.refresh(&f.definitions);
+    assert!(changes.judged.contains(&subject));
+    assert_eq!(goal.standing(&subject), Some(Standing::Effective));
+    let hash = *f.definitions.keys().next().unwrap();
+    let mut wrong = Blueprint::default();
+    wrong.context.guidance = "not the pinned definition".into();
+    goal.refresh(&BTreeMap::from([(hash, wrong)]));
+    assert!(!goal.standing(&subject).unwrap().is_effective());
+}
+
+#[test]
+fn independent_attempts_and_contributions_survive_reverse_arrival_and_restart() {
+    let mut f = Fixture::new(Blueprint::default());
+    let context = f.task();
+    let a = f.worker(
+        0,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: None,
         },
     );
-    events.push(duplicate.clone());
-    let goal = held(&events);
-    assert_eq!(
-        goal.state().members[&author.key.public()],
-        EndpointId([1; 32])
+    let b = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: None,
+        },
     );
+    f.publish(0, context);
+    f.publish(1, context);
+    let expected = f.goal();
+    assert_eq!(expected.state().attempts.len(), 2);
+    let mut reversed = Goal::new(f.id);
+    for event in f.events.iter().rev() {
+        reversed.apply(std::slice::from_ref(event), &f.definitions);
+    }
+    assert_eq!(reversed.evaluation(), expected.evaluation());
+    assert!(reversed.standing(&a).unwrap().is_effective());
+    assert!(reversed.standing(&b).unwrap().is_effective());
+    let mut store = MemStore::new();
+    store
+        .commit(&Commit {
+            events: f.events.clone(),
+            ..Commit::default()
+        })
+        .unwrap();
+    assert_eq!(
+        Goal::load(&store.reopen(), f.id, &f.definitions)
+            .unwrap()
+            .evaluation(),
+        expected.evaluation()
+    );
+}
+
+#[test]
+fn threshold_counts_distinct_non_author_principals_on_the_exact_subject() {
+    let mut f = Fixture::new(review_blueprint(2));
+    let context = f.task();
+    let first = f.publish(0, context);
+    let second = f.publish(0, context);
+    let self_review = f.review(0, context, first);
+    f.review(1, context, first);
+    f.review(1, context, first);
+    let goal = f.goal();
+    assert!(!goal.state().contributions[&first].approved);
     assert!(matches!(
-        goal.standing(&duplicate.id()),
+        goal.standing(&self_review),
+        Some(Standing::Excluded(_))
+    ));
+    f.review(2, context, first);
+    let goal = f.goal();
+    assert!(goal.state().contributions[&first].approved);
+    assert!(!goal.state().contributions[&second].approved);
+}
+
+#[test]
+fn member_fork_retracts_unpinned_approval_but_scoped_decision_retains_exact_proof() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let review = f.review(1, context, subject);
+    let mut before = f.goal();
+    assert!(before.state().contributions[&subject].approved);
+    let decision = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    f.fork(review, 3);
+    let changes = before.apply(&f.events, &f.definitions);
+    assert!(changes.judged.contains(&review));
+    assert_eq!(
+        before.standing(&review),
+        Some(Standing::Pending(Waiting::ForkProof))
+    );
+    assert!(!before.state().contributions[&subject].approved);
+    assert_eq!(before.standing(&decision), Some(Standing::Effective));
+    assert_eq!(
+        before.state().task_round(context).unwrap().selected,
+        Some(subject)
+    );
+    assert!(before.evaluation().retained.contains(&review));
+}
+
+#[test]
+fn a_scoped_decision_waits_for_its_exact_missing_review() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let review = f.review(1, context, subject);
+    let decision = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    let mut goal = Goal::new(f.id);
+    let without: Vec<_> = f
+        .events
+        .iter()
+        .filter(|event| event.id() != review)
+        .cloned()
+        .collect();
+    goal.apply(&without, &f.definitions);
+    assert!(goal.standing(&decision).unwrap().is_pending());
+    goal.apply(std::slice::from_ref(f.event(review)), &f.definitions);
+    assert_eq!(goal.standing(&decision), Some(Standing::Effective));
+}
+
+#[test]
+fn scope_equivocation_halts_only_that_stream_and_keeps_other_work() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let a = f.publish(0, context);
+    let b = f.publish(0, context);
+    let ar = f.review(1, context, a);
+    let br = f.review(1, context, b);
+    let first = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject: a },
+        evidence: vec![ar],
+    });
+    let second = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject: b },
+        evidence: vec![br],
+    });
+    let open = f.publish(2, f.context());
+    let goal = f.goal();
+    assert_eq!(goal.standing(&first), Some(Standing::Disputed));
+    assert_eq!(goal.standing(&second), Some(Standing::Disputed));
+    assert_eq!(goal.evaluation().scope_halts.len(), 1);
+    assert!(goal.evaluation().admin_halt.is_none());
+    assert_eq!(goal.standing(&open), Some(Standing::Effective));
+}
+
+#[test]
+fn a_selection_cannot_substitute_another_task_or_count_unlisted_reviews() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let other = f.task();
+    let candidate = f.publish(0, other);
+    let review = f.review(1, other, candidate);
+    let wrong = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject: candidate },
+        evidence: vec![review],
+    });
+    assert!(!f.goal().standing(&wrong).unwrap().is_effective());
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let candidate = f.publish(0, context);
+    f.review(1, context, candidate);
+    let incomplete = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject: candidate },
+        evidence: vec![],
+    });
+    assert_eq!(
+        f.goal().standing(&incomplete),
+        Some(Standing::Pending(Waiting::Evidence))
+    );
+}
+
+#[test]
+fn removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate() {
+    let mut f = Fixture::new(Blueprint::default());
+    let context = f.context();
+    let first = f.publish(0, context);
+    let last = f.publish(0, context);
+    let after = f.publish(0, context);
+    let fork = f.fork(first, 2);
+    let point = AuthorPoint {
+        seq: f.event(last).header().seq,
+        id: last,
+    };
+    f.admin(Body::MemberRemoved {
+        member: f.workers[0].key.public(),
+        admission: f.admissions[1],
+        last_accepted: Some(point),
+    });
+    let goal = f.goal();
+    assert_eq!(goal.standing(&first), Some(Standing::Effective));
+    assert_eq!(goal.standing(&last), Some(Standing::Effective));
+    assert!(matches!(goal.standing(&fork), Some(Standing::Excluded(_))));
+    assert!(matches!(goal.standing(&after), Some(Standing::Excluded(_))));
+    assert!(!goal.state().is_member(&f.workers[0].key.public()));
+    f.admin(Body::MemberAdmitted {
+        member: f.workers[0].key.public(),
+        endpoint: EndpointId([2; 32]),
+    });
+    let goal = f.goal();
+    assert!(goal.state().is_member(&f.workers[0].key.public()));
+    assert!(matches!(goal.standing(&after), Some(Standing::Excluded(_))));
+}
+
+#[test]
+fn missing_or_invalid_retention_cutoff_does_not_reopen_membership() {
+    let mut f = Fixture::new(Blueprint::default());
+    let subject = f.publish(0, f.context());
+    f.admin(Body::MemberRemoved {
+        member: f.workers[0].key.public(),
+        admission: f.admissions[1],
+        last_accepted: Some(AuthorPoint {
+            seq: 0,
+            id: EventId([9; 32]),
+        }),
+    });
+    let goal = f.goal();
+    assert!(!goal.state().is_member(&f.workers[0].key.public()));
+    assert!(goal.standing(&subject).unwrap().is_pending());
+    let mut f = Fixture::new(Blueprint::default());
+    let subject = f.publish(0, f.context());
+    let wrong = f.publish(1, f.context());
+    f.admin(Body::MemberRemoved {
+        member: f.workers[0].key.public(),
+        admission: f.admissions[1],
+        last_accepted: Some(AuthorPoint { seq: 0, id: wrong }),
+    });
+    let goal = f.goal();
+    assert!(!goal.state().is_member(&f.workers[0].key.public()));
+    assert!(matches!(
+        goal.standing(&subject),
         Some(Standing::Excluded(_))
     ));
 }
 
 #[test]
-fn removal_permanently_fences_open_assignment_even_after_readmission() {
-    let (mut author, worker, mut events) = transcript();
-    let goal_id = events[0].header().goal;
-    let result = events[6].clone();
-    let remove = author.event(
-        goal_id,
-        Some(events[4].id()),
-        Body::MemberRemoved {
-            member: worker.key.public(),
-            last_accepted: Some(AuthorPoint {
-                seq: result.header().seq,
-                id: result.id(),
+fn active_round_revision_never_reinterprets_old_evidence() {
+    let mut f = Fixture::new(Blueprint::default());
+    let old = f.task();
+    let first = f.publish(0, old);
+    let Scope::Task(task) = old.scope else {
+        unreachable!()
+    };
+    let revised = f.admin(Body::TaskRevised {
+        task,
+        expected_round: old.round,
+        binding: TaskBinding {
+            rules: f.rules,
+            variation: None,
+            inputs: BTreeMap::new(),
+            parent: None,
+            stage: None,
+        },
+    });
+    let stale = f.publish(0, old);
+    let current = Context {
+        scope: old.scope,
+        round: revised,
+    };
+    let fresh = f.publish(0, current);
+    let goal = f.goal();
+    assert_eq!(goal.standing(&first), Some(Standing::Effective));
+    assert!(matches!(goal.standing(&stale), Some(Standing::Excluded(_))));
+    assert_eq!(goal.standing(&fresh), Some(Standing::Effective));
+    assert_eq!(goal.current_context(old.scope), Some(current));
+}
+
+fn pipeline() -> Blueprint {
+    let mut blueprint = Blueprint::default();
+    let materializer = Authority::Participant {
+        key: testkit::keypair(1).public().to_string(),
+    };
+    blueprint.flow.insert(
+        "research".into(),
+        Stage {
+            variation: None,
+            requires: Vec::new(),
+            materializer: materializer.clone(),
+            recipients: Selector::Members,
+        },
+    );
+    blueprint.flow.insert(
+        "build".into(),
+        Stage {
+            variation: None,
+            requires: vec![Prerequisite {
+                stage: "research".into(),
+                evidence: EvidenceKind::Completion,
+            }],
+            materializer,
+            recipients: Selector::Members,
+        },
+    );
+    blueprint
+}
+
+#[test]
+fn daemon_effects_advance_configured_stages_and_deduplicate_logical_work() {
+    let mut f = Fixture::new(pipeline());
+    let initial = f.goal();
+    assert_eq!(initial.evaluation().desired_effects.len(), 1);
+    let first = initial
+        .evaluation()
+        .desired_effects
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    let created = f.admin(Body::EffectMaterialized {
+        effect: first.effect.clone(),
+    });
+    // A duplicated authored materialization is still one logical task.
+    f.admin(Body::EffectMaterialized {
+        effect: first.effect,
+    });
+    let goal = f.goal();
+    assert_eq!(goal.state().effects.len(), 1);
+    assert_eq!(goal.state().tasks.len(), 1);
+    assert!(goal.evaluation().desired_effects.is_empty());
+    let context = Context {
+        scope: Scope::Task(TaskId::Derived(first.id)),
+        round: created,
+    };
+    let subject = f.publish(0, context);
+    f.worker(0, Body::CompletionDeclared { context, subject });
+    let goal = f.goal();
+    assert_eq!(goal.evaluation().desired_effects.len(), 1);
+    let next = goal.evaluation().desired_effects.values().next().unwrap();
+    assert_eq!(next.effect.transition, "stage:build");
+    let mut reverse = Goal::new(f.id);
+    let mut events = f.events.clone();
+    events.reverse();
+    reverse.apply(&events, &f.definitions);
+    assert_eq!(reverse.evaluation(), goal.evaluation());
+}
+
+#[test]
+fn ordinary_publication_automatically_requires_review_delivery_by_its_author() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let goal = f.goal();
+    let pending: Vec<_> = goal.evaluation().desired_effects.values().collect();
+    assert_eq!(pending.len(), 3);
+    assert!(
+        pending
+            .iter()
+            .all(|effect| effect.materializer == f.workers[0].key.public())
+    );
+    let desired = pending[0].clone();
+    let wrong = f.admin(Body::EffectMaterialized {
+        effect: desired.effect.clone(),
+    });
+    assert!(matches!(
+        f.goal().standing(&wrong),
+        Some(Standing::Excluded(_))
+    ));
+    let materialized = f.worker(
+        0,
+        Body::EffectMaterialized {
+            effect: desired.effect.clone(),
+        },
+    );
+    assert_eq!(f.goal().standing(&materialized), Some(Standing::Effective));
+    assert!(matches!(desired.effect.trigger,Trigger::Contribution(id) if id==subject));
+}
+
+#[test]
+fn effect_cannot_change_recipients_and_fork_retraction_removes_outbox_projection() {
+    let mut f = Fixture::new(pipeline());
+    let mut effect = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .next()
+        .unwrap()
+        .effect
+        .clone();
+    let EffectAction::OpenTask { recipients, .. } = &mut effect.action else {
+        unreachable!()
+    };
+    recipients.clear();
+    let wrong = f.admin(Body::EffectMaterialized { effect });
+    assert!(matches!(
+        f.goal().standing(&wrong),
+        Some(Standing::Excluded(_))
+    ));
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let desired = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    let event = f.worker(
+        0,
+        Body::EffectMaterialized {
+            effect: desired.effect,
+        },
+    );
+    let mut goal = f.goal();
+    assert!(goal.state().effects.contains_key(&desired.id));
+    f.fork(subject, 2);
+    let changes = goal.apply(&f.events, &f.definitions);
+    assert!(changes.judged.contains(&event));
+    assert!(goal.state().effects.is_empty());
+}
+
+#[test]
+fn shared_document_selection_requires_the_same_exact_review_evidence() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = Context {
+        scope: Scope::Document(Doc::Plan),
+        round: f.rules,
+    };
+    let revision = f.worker(
+        0,
+        Body::DocumentRevised {
+            context,
+            doc: Doc::Plan,
+            base: None,
+        },
+    );
+    let goal = f.goal();
+    assert!(!goal.state().revisions[&revision].approved);
+    assert!(!goal.evaluation().desired_effects.is_empty());
+    let review = f.review(1, context, revision);
+    let decision = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject: revision },
+        evidence: vec![review],
+    });
+    let goal = f.goal();
+    assert!(goal.state().revisions[&revision].approved);
+    assert_eq!(goal.standing(&decision), Some(Standing::Effective));
+    assert_eq!(goal.state().documents[&Doc::Plan].selected, Some(revision));
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = Context {
+        scope: Scope::Document(Doc::Summary),
+        round: f.rules,
+    };
+    let revision = f.worker(
+        0,
+        Body::DocumentRevised {
+            context,
+            doc: Doc::Summary,
+            base: None,
+        },
+    );
+    let decision = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject: revision },
+        evidence: vec![],
+    });
+    assert_eq!(
+        f.goal().standing(&decision),
+        Some(Standing::Pending(Waiting::Evidence))
+    );
+}
+
+#[test]
+fn same_slot_scope_authority_equivocation_is_explicitly_disputed() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let review = f.review(1, context, subject);
+    let decision = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    let fork = f.fork(decision, 1);
+    let goal = f.goal();
+    assert_eq!(goal.standing(&decision), Some(Standing::Disputed));
+    assert_eq!(goal.standing(&fork), Some(Standing::Disputed));
+    assert_eq!(goal.evaluation().scope_halts.len(), 1);
+    assert_eq!(goal.standing(&subject), Some(Standing::Effective));
+}
+
+#[test]
+fn removal_payload_uses_rotated_epoch_and_rejects_old_epoch() {
+    for epoch in [0, 1] {
+        let mut f = Fixture::new(Blueprint::default());
+        let removal = f.admin(Body::MemberRemoved {
+            member: f.workers[0].key.public(),
+            admission: f.admissions[1],
+            last_accepted: None,
+        });
+        let mut header = f.event(removal).header().clone();
+        header.payload = Some(PayloadRef {
+            hash: locust_proto::id::BlobHash([42; 32]),
+            len: locust_proto::seal::OVERHEAD_BYTES as u32,
+            key_epoch: epoch,
+        });
+        f.events.pop();
+        let signed = Event::sign(header, &f.admin.key).unwrap();
+        let id = signed.id();
+        f.events.push(signed);
+        let goal = f.goal();
+        if epoch == 1 {
+            assert_eq!(goal.standing(&id), Some(Standing::Effective));
+            assert_eq!(goal.state().epoch, 1);
+            assert!(!goal.state().is_member(&f.workers[0].key.public()));
+        } else {
+            assert_eq!(
+                goal.standing(&id),
+                Some(Standing::Excluded(crate::goal::Exclusion::BadEpoch))
+            );
+            assert_eq!(goal.state().epoch, 0);
+        }
+    }
+}
+
+#[test]
+fn only_delivery_recipients_can_acknowledge_and_ack_does_not_start_work() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    f.publish(0, context);
+    let goal = f.goal();
+    let desired = goal
+        .evaluation()
+        .desired_effects
+        .values()
+        .find(|effect| effect.recipients.contains(&f.workers[1].key.public()))
+        .unwrap()
+        .clone();
+    f.worker(
+        0,
+        Body::EffectMaterialized {
+            effect: desired.effect,
+        },
+    );
+    let unauthorized = f.worker(0, Body::DeliveryAcknowledged { effect: desired.id });
+    let authorized = f.worker(1, Body::DeliveryAcknowledged { effect: desired.id });
+    let goal = f.goal();
+    assert!(matches!(
+        goal.standing(&unauthorized),
+        Some(Standing::Excluded(_))
+    ));
+    assert_eq!(goal.standing(&authorized), Some(Standing::Effective));
+    assert_eq!(goal.state().effects[&desired.id].acknowledged.len(), 1);
+    assert!(goal.state().attempts.is_empty());
+}
+
+#[test]
+fn incompatible_proof_branches_dispute_only_their_scope() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let review = f.review(1, context, subject);
+    let sibling = f.fork(review, 3);
+    let decision = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review, sibling],
+    });
+    let goal = f.goal();
+    assert_eq!(goal.standing(&decision), Some(Standing::Disputed));
+    assert_eq!(goal.evaluation().scope_halts.len(), 1);
+    assert_eq!(goal.standing(&subject), Some(Standing::Effective));
+}
+
+#[test]
+fn scope_proof_cannot_retain_evidence_past_the_administrator_cutoff() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let review = f.review(1, context, subject);
+    f.admin(Body::MemberRemoved {
+        member: f.workers[1].key.public(),
+        admission: f.admissions[2],
+        last_accepted: None,
+    });
+    let decision = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    let goal = f.goal();
+    assert!(matches!(
+        goal.standing(&review),
+        Some(Standing::Excluded(_))
+    ));
+    assert!(matches!(
+        goal.standing(&decision),
+        Some(Standing::Excluded(_))
+    ));
+    assert!(goal.state().decisions.is_empty());
+}
+
+#[test]
+fn selection_predecessor_cannot_cross_task_scopes() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let first = f.task();
+    let subject = f.publish(0, first);
+    let review = f.review(1, first, subject);
+    let previous = f.admin(Body::ScopeDecided {
+        context: first,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    let second = f.task();
+    let subject = f.publish(0, second);
+    let review = f.review(1, second, subject);
+    let wrong = f.admin(Body::ScopeDecided {
+        context: second,
+        previous: Some(previous),
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    let goal = f.goal();
+    assert_eq!(goal.standing(&previous), Some(Standing::Effective));
+    assert!(matches!(goal.standing(&wrong), Some(Standing::Excluded(_))));
+}
+
+#[test]
+fn accepted_fork_branch_is_readable_only_in_its_selected_scope() {
+    let mut f = Fixture::new(review_blueprint(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let review = f.review(1, context, subject);
+    let selection = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    let unrelated = f.publish(0, f.context());
+    f.fork(context.round, 2);
+    let goal = f.goal();
+    assert_eq!(goal.standing(&selection), Some(Standing::Effective));
+    assert_eq!(
+        goal.standing(&subject),
+        Some(Standing::Pending(Waiting::ForkProof))
+    );
+    assert_eq!(
+        goal.standing(&unrelated),
+        Some(Standing::Pending(Waiting::ForkProof))
+    );
+    assert!(!goal.state().contributions.contains_key(&subject));
+    assert!(goal.state().tasks.is_empty());
+    let key = ScopeKey {
+        context,
+        purpose: DecisionPurpose::Selection,
+    };
+    let accepted = goal.selection(&key).unwrap();
+    assert_eq!(accepted.decision, selection);
+    assert_eq!(accepted.subject.id(), subject);
+    assert_eq!(accepted.task.as_ref().unwrap().selected, Some(subject));
+    assert_eq!(accepted.task.as_ref().unwrap().binding.rules, f.rules);
+    assert_eq!(goal.state().selections.len(), 1);
+    let Scope::Task(task) = context.scope else {
+        unreachable!()
+    };
+    assert_eq!(
+        goal.selected_task(task).unwrap().current_round,
+        context.round
+    );
+    assert_eq!(
+        goal.selected_rules(context, &f.definitions).unwrap().rules,
+        f.rules
+    );
+    assert!(goal.effective_rules(context, &f.definitions).is_none());
+    assert!(!goal.can_start(context, f.workers[0].key.public(), None, &f.definitions));
+    for shift in 0..f.events.len() {
+        let mut incoming = f.events.clone();
+        incoming.rotate_left(shift);
+        if shift % 2 == 1 {
+            incoming.reverse();
+        }
+        let mut replica = Goal::new(f.id);
+        for chunk in incoming.chunks(3) {
+            replica.apply(chunk, &f.definitions);
+        }
+        assert_eq!(replica.evaluation(), goal.evaluation());
+    }
+}
+
+#[test]
+fn nested_tasks_inherit_parent_authority_and_reject_widening() {
+    use locust_proto::organization::{DecisionRules, TaskVariation, WorkRules};
+    let owner = Author::new(2).key.public();
+    let restricted = WorkRules {
+        propose: Selector::Participant {
+            key: owner.to_string(),
+        },
+        publish: Selector::Participant {
+            key: owner.to_string(),
+        },
+        starts: vec![locust_proto::organization::StartRule::Independent {
+            by: Selector::TaskCreator,
+        }],
+    };
+    let mut blueprint = Blueprint::default();
+    blueprint.variations.insert(
+        "restricted".into(),
+        TaskVariation {
+            work: Some(restricted),
+            decisions: Some(DecisionRules {
+                completion: CompletionRule::Reviews {
+                    by: Selector::Members,
+                    count: 2,
+                    exclude_author: true,
+                },
+                ..Default::default()
             }),
         },
     );
-    let accept = author.event(
-        goal_id,
-        Some(remove.id()),
-        Body::ResultAccepted {
-            result: result.id(),
-            head: None,
+    blueprint.variations.insert(
+        "wide".into(),
+        TaskVariation {
+            work: Some(WorkRules::default()),
+            decisions: Some(DecisionRules::default()),
         },
     );
-    events.extend([remove, accept.clone()]);
-    let goal = held(&events);
-    assert!(goal.state().assignment(&events[4].id()).unwrap().revoked);
-    assert_eq!(goal.state().tasks[0].accepted, None);
-    assert_eq!(goal.standing(&result.id()), Some(Standing::Effective));
-    assert!(matches!(
-        goal.standing(&accept.id()),
-        Some(Standing::Excluded(_))
-    ));
-    let readmit = author.event(
-        goal_id,
-        Some(accept.id()),
-        Body::MemberAdmitted {
-            member: worker.key.public(),
-            endpoint: EndpointId([3; 32]),
+    blueprint.variations.insert(
+        "weak".into(),
+        TaskVariation {
+            work: None,
+            decisions: Some(DecisionRules::default()),
         },
     );
-    let resurrect = author.event(
-        goal_id,
-        Some(readmit.id()),
-        Body::ResultAccepted {
-            result: result.id(),
-            head: None,
+    let mut f = Fixture::new(blueprint);
+    let binding = |variation: Option<&str>, parent| TaskBinding {
+        rules: f.rules,
+        variation: variation.map(str::to_owned),
+        inputs: BTreeMap::new(),
+        parent,
+        stage: None,
+    };
+    let parent_binding = binding(Some("restricted"), None);
+    let parent_id = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: parent_binding,
         },
     );
-    events.extend([readmit, resurrect.clone()]);
-    let goal = held(&events);
-    assert!(goal.state().is_member(&worker.key.public()));
-    assert_eq!(goal.state().tasks[0].accepted, None);
-    assert!(matches!(
-        goal.standing(&resurrect.id()),
-        Some(Standing::Excluded(_))
-    ));
-}
-
-#[test]
-fn progress_after_submission_keeps_work_submitted() {
-    let (_, mut worker, mut events) = transcript();
-    let progress = worker.event(
-        events[0].header().goal,
-        Some(events[4].id()),
-        Body::Progress {
-            assignment: events[4].id(),
+    let parent = Context {
+        scope: Scope::Task(TaskId::Authored(parent_id)),
+        round: parent_id,
+    };
+    let binding = |variation: Option<&str>| TaskBinding {
+        rules: f.rules,
+        variation: variation.map(str::to_owned),
+        inputs: BTreeMap::new(),
+        parent: Some(parent),
+        stage: None,
+    };
+    let inherited = binding(None);
+    let wide = binding(Some("wide"));
+    let weak = binding(Some("weak"));
+    let child = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: inherited.clone(),
         },
     );
-    events.push(progress);
-    let goal = held(&events);
-    assert_eq!(goal.state().tasks[0].state, TaskState::Submitted);
-    assert_eq!(goal.state().tasks[0].result, Some(events[6].id()));
-}
-
-#[test]
-fn first_fork_evidence_survives_a_full_waiting_set_in_both_orders() {
-    for fork_first in [false, true] {
-        let mut author = Author::new(1);
-        let (genesis, admission) = author.found_goal(EndpointId([1; 32]));
-        let id = genesis.header().goal;
-        let mut header = admission.header().clone();
-        header.at_ms += 99;
-        let fork = Event::sign(header, &author.key).unwrap();
-        let mut goal = held(&[
-            genesis,
-            if fork_first {
-                fork.clone()
-            } else {
-                admission.clone()
+    let outsider = f.worker(1, Body::TaskOpened { binding: inherited });
+    let wide = f.worker(0, Body::TaskOpened { binding: wide });
+    let weak = f.worker(0, Body::TaskOpened { binding: weak });
+    let goal = f.goal();
+    assert_eq!(goal.standing(&child), Some(Standing::Effective));
+    for rejected in [outsider, wide, weak] {
+        assert!(matches!(
+            goal.standing(&rejected),
+            Some(Standing::Excluded(_))
+        ));
+    }
+    let effective = goal
+        .effective_rules(
+            Context {
+                scope: Scope::Task(TaskId::Authored(child)),
+                round: child,
             },
-        ]);
-        let _missing = author.event(
-            id,
-            Some(admission.id()),
-            Body::Note {
-                about: None,
-                supersedes: None,
+            &f.definitions,
+        )
+        .unwrap();
+    assert_eq!(
+        effective.work.propose,
+        Selector::Participant {
+            key: owner.to_string()
+        }
+    );
+    assert!(matches!(
+        effective.decisions.completion,
+        CompletionRule::Reviews { count: 2, .. }
+    ));
+}
+
+#[test]
+fn nested_task_keeps_parent_rules_after_future_defaults_change() {
+    let mut f = Fixture::new(Blueprint::default());
+    let parent = f.task();
+    let old_rules = f.rules;
+    let (binding, _) = testkit::rules_binding(&f.id, 0, &Blueprint::default(), BTreeMap::new());
+    f.admin(Body::RulesBound {
+        expected: Some(old_rules),
+        binding,
+    });
+    let child = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: TaskBinding {
+                rules: old_rules,
+                variation: None,
+                inputs: BTreeMap::new(),
+                parent: Some(parent),
+                stage: None,
             },
-        );
-        let backlog = (0..super::MAX_WAITING_PER_AUTHOR)
-            .map(|_| {
-                author.event(
-                    id,
-                    Some(admission.id()),
-                    Body::Note {
-                        about: None,
-                        supersedes: None,
-                    },
-                )
-            })
-            .collect();
-        let kept = goal.screen(backlog);
-        assert_eq!(kept.len(), super::MAX_WAITING_PER_AUTHOR);
-        goal.apply(&kept);
-        let kept = goal.screen(vec![if fork_first { admission } else { fork }]);
-        assert_eq!(kept.len(), 1);
-        goal.apply(&kept);
-        assert!(matches!(goal.halt(), Some(Halt::Fork { seq:1, events }) if events.len() == 2));
-    }
+        },
+    );
+    assert_eq!(f.goal().standing(&child), Some(Standing::Effective));
 }
 
 #[test]
-fn arrival_permutations_append_and_restart_match_full_replay() {
-    let (mut coordinator, _, mut events) = transcript();
-    let accept = coordinator.event(
-        events[0].header().goal,
-        Some(events[4].id()),
-        Body::ResultAccepted {
-            result: events[6].id(),
-            head: None,
+fn starts_bind_causal_closure_without_rejecting_concurrent_offline_work() {
+    let mut blueprint = Blueprint::default();
+    blueprint.decisions.closure = Some(Authority::Participant {
+        key: Author::new(1).key.public().to_string(),
+    });
+    let mut f = Fixture::new(blueprint);
+    let context = f.task();
+    let close = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Close,
+        evidence: vec![],
+    });
+    // This worker's signed ancestry has not observed the concurrent close.
+    let concurrent = f.worker(
+        0,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: None,
         },
     );
-    events.push(accept);
-    let expected = held(&events);
-    let id = expected.id();
-    let mut append = Goal::new(id);
-    for event in &events {
-        append.apply(std::slice::from_ref(event));
-        let fresh = super::fold::fold(&append.history).0;
-        assert_eq!(append.folded, fresh);
+    let observed_close = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(close),
+        },
+    );
+    let omitted_close = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: None,
+        },
+    );
+    let reopen = f.admin(Body::ScopeDecided {
+        context,
+        previous: Some(close),
+        action: DecisionAction::Reopen,
+        evidence: vec![],
+    });
+    let reopened = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(reopen),
+        },
+    );
+    let regressed = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(close),
+        },
+    );
+    let goal = f.goal();
+    for accepted in [concurrent, reopened] {
+        assert_eq!(goal.standing(&accepted), Some(Standing::Effective));
     }
-    assert_same(&expected, &append, &events);
-    for seed in 0..32u64 {
-        let mut order = events.clone();
-        let mut random = seed + 1;
-        for i in (1..order.len()).rev() {
-            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
-            order.swap(i, random as usize % (i + 1));
-        }
-        let mut actual = Goal::new(id);
-        let mut store = MemStore::new();
-        for event in order {
-            store
-                .commit(&Commit {
-                    events: vec![event.clone()],
-                    ..Commit::default()
-                })
-                .unwrap();
-            actual.apply(&[event]);
-            assert_eq!(actual.folded, super::fold::fold(&actual.history).0);
-        }
-        assert_same(&expected, &actual, &events);
-        assert_same(
-            &expected,
-            &Goal::load(&store.reopen(), id).unwrap(),
-            &events,
-        );
+    for rejected in [observed_close, omitted_close, regressed] {
+        assert!(matches!(
+            goal.standing(&rejected),
+            Some(Standing::Excluded(_))
+        ));
     }
-}
-
-#[test]
-fn missing_referenced_contribution_stalls_then_unblocks_decisions() {
-    let (_, _, events) = transcript();
-    let mut goal = held(&events[..3]);
-    goal.apply(&events[4..]);
-    assert_eq!(goal.state().head, Some(events[2].id()));
-    assert!(goal.next(&events[0].header().author).is_none());
-    let changes = goal.apply(&events[3..4]);
-    assert!(changes.refolded);
-    assert_eq!(goal.state().tasks[0].state, TaskState::Submitted);
-    assert!(changes.judged.contains(&events[4].id()));
-}
-
-#[test]
-fn removal_readmission_and_fork_replay_are_independent_of_arrival_order() {
-    let (mut author, mut worker, mut events) = transcript();
-    let id = events[0].header().goal;
-    let remove = author.event(
-        id,
-        Some(events[4].id()),
-        Body::MemberRemoved {
-            member: worker.key.public(),
-            last_accepted: None,
-        },
-    );
-    let readmit = author.event(
-        id,
-        Some(remove.id()),
-        Body::MemberAdmitted {
-            member: worker.key.public(),
-            endpoint: EndpointId([4; 32]),
-        },
-    );
-    let assign = author.event(
-        id,
-        Some(readmit.id()),
-        Body::TaskAssigned {
-            task: events[3].id(),
-            assignee: worker.key.public(),
-            attempt: 2,
-        },
-    );
-    let take = worker.event(
-        id,
-        Some(assign.id()),
-        Body::AssignmentAccepted {
-            assignment: assign.id(),
-        },
-    );
-    let submit = worker.event(
-        id,
-        Some(assign.id()),
-        Body::ResultSubmitted {
-            assignment: assign.id(),
-            base: None,
-            patch: None,
-            artifacts: vec![],
-        },
-    );
-    let accept = author.event(
-        id,
-        Some(assign.id()),
-        Body::ResultAccepted {
-            result: submit.id(),
-            head: None,
-        },
-    );
-    events.extend([remove, readmit, assign, take, submit, accept]);
-    for with_fork in [false, true] {
-        let mut events = events.clone();
-        if with_fork {
-            let mut header = events[2].header().clone();
-            header.at_ms += 100;
-            events.push(Event::sign(header, &author.key).unwrap());
-        }
-        let expected = held(&events);
-        if !with_fork {
-            assert_eq!(expected.state().tasks[0].state, TaskState::Accepted);
-        }
-        for seed in 1..65u64 {
-            let mut order = events.clone();
-            let mut random = seed;
-            for i in (1..order.len()).rev() {
-                random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
-                order.swap(i, random as usize % (i + 1));
-            }
-            let mut actual = Goal::new(id);
-            for event in order {
-                actual.apply(&[event]);
-                assert_eq!(actual.folded, super::fold::fold(&actual.history).0);
-            }
-            assert_same(&expected, &actual, &events);
-        }
-    }
-}
-
-/// Reuse the historical version-0 GoalLog IR12 events 1..9 against version 1.
-/// Signed peer contributions enter through the held-event seam; the corrected
-/// runtime keeps the accepted display while retaining the late result as
-/// evidence. This does not establish conformance with the old model outcome.
-#[test]
-fn tla_ir12_later_submission_preserves_the_accepted_display() {
-    let (mut coordinator, mut worker, mut events) = transcript_with_budget(Some(2));
-    let goal_id = events[0].header().goal;
-    let task = events[3].id();
-    let assignment = events[4].id();
-    let accepted_result = events[6].id();
-    let accept = coordinator.event(
-        goal_id,
-        Some(assignment),
-        Body::ResultAccepted {
-            result: accepted_result,
-            head: Some(BlobHash([8; 32])),
-        },
-    );
-    events.push(accept.clone());
-    let mut chronological = held(&events);
-    assert_eq!(
-        chronological.state().task(&task).unwrap().result,
-        Some(accepted_result)
-    );
-    let later = worker.event(
-        goal_id,
-        Some(accept.id()),
-        Body::ResultSubmitted {
-            assignment,
-            base: None,
-            patch: None,
-            artifacts: vec![],
-        },
-    );
-    events.push(later.clone());
-    chronological.apply(std::slice::from_ref(&later));
-    let view = chronological.state().task(&task).unwrap();
-    assert_eq!(view.state, TaskState::Accepted);
-    assert_eq!(view.accepted, Some(accepted_result));
-    assert_eq!(view.result, Some(accepted_result));
-    assert_eq!(
-        chronological
-            .state()
-            .assignment(&assignment)
-            .unwrap()
-            .result,
-        Some(later.id())
-    );
-    assert!(
-        chronological
-            .state()
-            .results
+    let mut missing = Goal::new(f.id);
+    missing.apply(
+        &f.events
             .iter()
-            .any(|result| result.id == later.id())
+            .filter(|event| event.id() != reopen)
+            .cloned()
+            .collect::<Vec<_>>(),
+        &f.definitions,
     );
-    assert_eq!(view.accepted_head, Some(BlobHash([8; 32])));
-    assert_eq!(
-        chronological.standing(&later.id()),
-        Some(Standing::Effective)
-    );
-
-    // Acceptance and the later submission arrive before their prerequisites;
-    // duplicates are harmless, and the incremental view agrees at every prefix.
-    let mut scrambled = Goal::new(goal_id);
-    let mut store = MemStore::new();
-    for index in [7, 8, 6, 4, 8, 3, 5, 2, 1, 0, 7] {
-        let event = events[index].clone();
+    assert!(matches!(
+        missing.standing(&reopened),
+        Some(Standing::Pending(_))
+    ));
+    missing.apply(&[f.event(reopen).clone()], &f.definitions);
+    assert_eq!(missing.evaluation(), goal.evaluation());
+    for reverse in [false, true] {
+        let mut events = f.events.clone();
+        if reverse {
+            events.reverse();
+        }
+        let mut store = MemStore::new();
         store
             .commit(&Commit {
-                events: vec![event.clone()],
+                events,
                 ..Commit::default()
             })
             .unwrap();
-        scrambled.apply(&[event]);
-        assert_eq!(scrambled.folded, super::fold::fold(&scrambled.history).0);
-    }
-    assert_same(&chronological, &scrambled, &events);
-    assert_same(
-        &chronological,
-        &Goal::load(&store.reopen(), goal_id).unwrap(),
-        &events,
-    );
-}
-
-/// Reuse the historical version-0 GoalLog IR5 events 1..21 against version 1.
-/// The canonical decisions select M's original proposal and preserve all three
-/// accepted heads across its later fork. The final explicit empty removal
-/// cutoff is a separate coordinator action, not the old member-fork outcome.
-#[test]
-fn tla_ir5_member_fork_preserves_the_committed_accepted_heads() {
-    let mut coordinator = Author::new(1);
-    let mut worker = Author::new(2);
-    let mut proposer = Author::new(3);
-    let (genesis, own) = coordinator.found_goal(EndpointId([1; 32]));
-    let goal_id = genesis.header().goal;
-    let worker_admission = coordinator.event(
-        goal_id,
-        Some(own.id()),
-        Body::MemberAdmitted {
-            member: worker.key.public(),
-            endpoint: EndpointId([2; 32]),
-        },
-    );
-    let proposer_admission = coordinator.event(
-        goal_id,
-        Some(worker_admission.id()),
-        Body::MemberAdmitted {
-            member: proposer.key.public(),
-            endpoint: EndpointId([3; 32]),
-        },
-    );
-    let mut anchor = proposer_admission.id();
-    let mut base = None;
-    let mut tasks = Vec::new();
-    let mut results = Vec::new();
-    let mut acceptances = Vec::new();
-    let mut events = vec![genesis, own, worker_admission, proposer_admission];
-    for (index, head) in [BlobHash([9; 32]), BlobHash([14; 32]), BlobHash([19; 32])]
-        .into_iter()
-        .enumerate()
-    {
-        let author = if index == 1 {
-            &mut proposer
-        } else {
-            &mut coordinator
-        };
-        let proposal = author.event(
-            goal_id,
-            Some(anchor),
-            Body::TaskProposed {
-                input: None,
-                depends_on: tasks.last().copied().into_iter().collect(),
-                deadline_ms: None,
-                max_attempts: Some(2),
-            },
-        );
-        let assignment = coordinator.event(
-            goal_id,
-            Some(anchor),
-            Body::TaskAssigned {
-                task: proposal.id(),
-                assignee: worker.key.public(),
-                attempt: 1,
-            },
-        );
-        let take = worker.event(
-            goal_id,
-            Some(assignment.id()),
-            Body::AssignmentAccepted {
-                assignment: assignment.id(),
-            },
-        );
-        let result = worker.event(
-            goal_id,
-            Some(assignment.id()),
-            Body::ResultSubmitted {
-                assignment: assignment.id(),
-                base,
-                patch: None,
-                artifacts: vec![],
-            },
-        );
-        let accept = coordinator.event(
-            goal_id,
-            Some(assignment.id()),
-            Body::ResultAccepted {
-                result: result.id(),
-                head: Some(head),
-            },
-        );
-        tasks.push(proposal.id());
-        results.push(result.id());
-        acceptances.push(accept.id());
-        anchor = accept.id();
-        base = Some(head);
-        events.extend([proposal, assignment, take, result, accept]);
-    }
-    let mut chronological = held(&events);
-    assert_eq!(chronological.state().accepted_heads.len(), 3);
-    for task in &tasks {
         assert_eq!(
-            chronological.state().task(task).unwrap().state,
-            TaskState::Accepted
+            Goal::load(&store.reopen(), f.id, &f.definitions)
+                .unwrap()
+                .evaluation(),
+            goal.evaluation()
         );
     }
+}
 
-    let mut conflicting = events[9].header().clone();
-    conflicting.body = Body::Note {
-        about: None,
-        supersedes: None,
+#[test]
+fn start_cannot_use_another_scope_or_selection_as_closure_position() {
+    let mut blueprint = Blueprint::default();
+    let authority = Authority::Participant {
+        key: Author::new(1).key.public().to_string(),
     };
-    let fork = Event::sign(conflicting, &proposer.key).unwrap();
-    events.push(fork.clone());
-    chronological.apply(&[fork]);
-    assert_eq!(chronological.halt(), None);
-    assert_eq!(
-        chronological.standing(&events[9].id()),
-        Some(Standing::Effective)
-    );
-    assert_eq!(
-        chronological.standing(&events[19].id()),
-        Some(Standing::Excluded(Exclusion::Forked))
-    );
-    assert_eq!(chronological.state().accepted_heads.len(), 3);
-    assert_eq!(
-        chronological.state().accepted_head(),
-        Some(BlobHash([19; 32]))
-    );
-    for (task, result) in tasks.iter().zip(&results) {
-        let task = chronological.state().task(task).unwrap();
-        assert_eq!(task.state, TaskState::Accepted);
-        assert_eq!(task.accepted, Some(*result));
-    }
-    for accept in &acceptances {
-        assert_eq!(chronological.standing(accept), Some(Standing::Effective));
-    }
-
-    // Preserve historical event 21: last_accepted=None intentionally fences
-    // every contribution of M's tenure. That explicit coordinator cutoff
-    // can withdraw the proposal on which later acceptances depend; branch
-    // commitments do not bypass membership-removal policy.
-
-    let removal = coordinator.event(
-        goal_id,
-        Some(anchor),
-        Body::MemberRemoved {
-            member: proposer.key.public(),
-            last_accepted: None,
+    blueprint.decisions.closure = Some(authority.clone());
+    blueprint.decisions.selection = Some(authority);
+    blueprint.decisions.completion = CompletionRule::Contribution {
+        by: Selector::Members,
+    };
+    let mut f = Fixture::new(blueprint);
+    let context = f.task();
+    let another = f.task();
+    let close = f.admin(Body::ScopeDecided {
+        context: another,
+        previous: None,
+        action: DecisionAction::Close,
+        evidence: vec![],
+    });
+    let subject = f.publish(0, context);
+    let select = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![subject],
+    });
+    let wrong_scope = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(close),
         },
     );
-    events.push(removal.clone());
-    chronological.apply(&[removal]);
-    assert!(!chronological.state().is_member(&proposer.key.public()));
-    assert_eq!(chronological.state().accepted_heads.len(), 1);
-    assert_eq!(
-        chronological.state().task(&tasks[2]).unwrap().state,
-        TaskState::Submitted
-    );
-
-    let mut scrambled = Goal::new(goal_id);
-    for event in events.iter().rev() {
-        scrambled.apply(std::slice::from_ref(event));
-        assert_eq!(scrambled.folded, super::fold::fold(&scrambled.history).0);
-    }
-    assert_same(&chronological, &scrambled, &events);
-}
-
-#[test]
-fn canonical_acceptance_pins_transitive_author_ancestry_across_arrivals_and_reopen() {
-    use locust_proto::id::BlobHash;
-    let (mut coordinator, mut worker, mut events) = transcript();
-    let id = events[0].header().goal;
-    let accepted = coordinator.event(
-        id,
-        Some(events[4].id()),
-        Body::ResultAccepted {
-            result: events[6].id(),
-            head: Some(BlobHash([42; 32])),
+    let wrong_purpose = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(select),
         },
     );
-    let mut fork_header = events[5].header().clone();
-    fork_header.at_ms += 42;
-    let fork = Event::sign(fork_header, &worker.key).unwrap();
-    let suffix = worker.event(
-        id,
-        Some(accepted.id()),
-        Body::Note {
-            about: None,
-            supersedes: None,
-        },
-    );
-    events.extend([accepted, fork.clone(), suffix.clone()]);
-    let expected = held(&events);
-    assert_eq!(expected.state().accepted_head(), Some(BlobHash([42; 32])));
-    assert_eq!(
-        expected.standing(&events[5].id()),
-        Some(Standing::Effective)
-    );
-    assert_eq!(
-        expected.standing(&events[6].id()),
-        Some(Standing::Effective)
-    );
-    assert!(matches!(
-        expected.standing(&fork.id()),
-        Some(Standing::Excluded(super::Exclusion::Forked))
-    ));
-    assert!(matches!(
-        expected.standing(&suffix.id()),
-        Some(Standing::Excluded(super::Exclusion::Forked))
-    ));
-    for seed in 1..65u64 {
-        let mut order = events.clone();
-        let mut random = seed;
-        for i in (1..order.len()).rev() {
-            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
-            order.swap(i, random as usize % (i + 1));
-        }
-        let mut goal = Goal::new(id);
-        let mut store = MemStore::new();
-        for event in order {
-            store
-                .commit(&Commit {
-                    events: vec![event.clone()],
-                    ..Commit::default()
-                })
-                .unwrap();
-            goal.apply(&[event]);
-            assert_eq!(goal.folded, super::fold::fold(&goal.history).0);
-        }
-        assert_same(&expected, &goal, &events);
-        assert_same(&expected, &Goal::load(&store, id).unwrap(), &events);
-    }
-}
-
-#[test]
-fn late_submission_is_evidence_without_replacing_the_accepted_task_result() {
-    let (mut coordinator, mut worker, mut events) = transcript();
-    let id = events[0].header().goal;
-    let accepted = coordinator.event(
-        id,
-        Some(events[4].id()),
-        Body::ResultAccepted {
-            result: events[6].id(),
-            head: None,
-        },
-    );
-    let late = worker.event(
-        id,
-        Some(accepted.id()),
-        Body::ResultSubmitted {
-            assignment: events[4].id(),
-            base: None,
-            patch: None,
-            artifacts: vec![],
-        },
-    );
-    events.extend([accepted, late.clone()]);
-    let goal = held(&events);
-    assert_eq!(goal.state().tasks[0].result, Some(events[6].id()));
-    assert_eq!(goal.state().tasks[0].accepted, Some(events[6].id()));
-    assert_eq!(goal.standing(&late.id()), Some(Standing::Effective));
-    assert!(
-        goal.state()
-            .results
-            .iter()
-            .any(|result| result.id == late.id())
-    );
-}
-
-#[test]
-fn canonical_dependencies_survive_variant_and_waiting_quotas_in_the_same_batch() {
-    for waiting in [false, true] {
-        let (mut coordinator, worker, events) = transcript();
-        let id = events[0].header().goal;
-        let mut goal = held(&events[..5]);
-        let count = if waiting {
-            super::MAX_WAITING_PER_AUTHOR
-        } else {
-            super::MAX_FORK_VARIANTS
-        };
-        let mut fill = Vec::new();
-        for i in 0..count {
-            let mut header = events[5].header().clone();
-            header.at_ms += 100 + i as u64;
-            if waiting {
-                header.seq = 100 + i as u64;
-                header.prev = Some(events[5].id());
-            }
-            fill.push(Event::sign(header, &worker.key).unwrap());
-        }
-        let fill = goal.screen(fill);
-        assert_eq!(fill.len(), count);
-        goal.apply(&fill);
-        let accepted = coordinator.event(
-            id,
-            Some(events[4].id()),
-            Body::ResultAccepted {
-                result: events[6].id(),
-                head: None,
-            },
-        );
-        let batch = goal.screen(vec![events[6].clone(), events[5].clone(), accepted.clone()]);
-        assert!(batch.iter().any(|event| event.id() == events[5].id()));
-        assert!(batch.iter().any(|event| event.id() == events[6].id()));
-        goal.apply(&batch);
-        assert_eq!(goal.state().tasks[0].accepted, Some(events[6].id()));
-        assert_eq!(goal.state().head, Some(accepted.id()));
-    }
-}
-
-#[test]
-fn broken_chain_or_unauthorized_decision_cannot_pin_a_member_branch() {
-    for unauthorized in [false, true] {
-        let (mut coordinator, worker, mut events) = transcript();
-        let id = events[0].header().goal;
-        let mut fork_header = events[5].header().clone();
-        fork_header.at_ms += 1;
-        events.push(Event::sign(fork_header, &worker.key).unwrap());
-        let decision = if unauthorized {
-            let mut outsider = Author::new(44);
-            outsider.event(
-                id,
-                Some(events[4].id()),
-                Body::ResultAccepted {
-                    result: events[6].id(),
-                    head: None,
-                },
-            )
-        } else {
-            coordinator.event(
-                id,
-                Some(events[2].id()),
-                Body::ResultAccepted {
-                    result: events[6].id(),
-                    head: None,
-                },
-            )
-        };
-        events.push(decision);
-        let goal = held(&events);
+    let goal = f.goal();
+    for rejected in [wrong_scope, wrong_purpose] {
         assert!(matches!(
-            goal.standing(&events[5].id()),
-            Some(Standing::Excluded(super::Exclusion::Forked))
+            goal.standing(&rejected),
+            Some(Standing::Excluded(_))
         ));
-        assert!(matches!(
-            goal.standing(&events[6].id()),
-            Some(Standing::Excluded(super::Exclusion::Forked))
-        ));
-        assert_eq!(goal.state().tasks[0].accepted, None);
     }
 }
 
 #[test]
-fn noncanonical_claimed_decisions_do_not_bypass_dependency_retention_quotas() {
-    for unauthorized in [false, true] {
-        let (mut coordinator, worker, events) = transcript();
-        let id = events[0].header().goal;
-        let mut goal = held(&events[..5]);
-        let fill: Vec<_> = (0..super::MAX_FORK_VARIANTS)
-            .map(|i| {
-                let mut header = events[5].header().clone();
-                header.at_ms += 100 + i as u64;
-                Event::sign(header, &worker.key).unwrap()
-            })
-            .collect();
-        goal.apply(&goal.screen(fill));
-        let decision = if unauthorized {
-            let mut outsider = Author::new(88);
-            outsider.event(
-                id,
-                Some(events[4].id()),
-                Body::ResultAccepted {
-                    result: events[6].id(),
-                    head: None,
-                },
-            )
-        } else {
-            coordinator.event(
-                id,
-                Some(events[2].id()),
-                Body::ResultAccepted {
-                    result: events[6].id(),
-                    head: None,
-                },
-            )
-        };
-        let kept = goal.screen(vec![decision, events[6].clone(), events[5].clone()]);
-        assert!(!kept.iter().any(|event| event.id() == events[5].id()));
-    }
-}
-
-#[test]
-fn invalid_canonical_reference_does_not_resurrect_a_forked_branch() {
-    use locust_proto::id::EventId;
-    let (mut coordinator, worker, mut events) = transcript();
-    let id = events[0].header().goal;
-    let mut fork_header = events[5].header().clone();
-    fork_header.at_ms += 1;
-    let fork = Event::sign(fork_header, &worker.key).unwrap();
-    let mut bad_header = events.pop().unwrap().header().clone();
-    bad_header.body = Body::ResultSubmitted {
-        assignment: EventId([99; 32]),
-        base: None,
-        patch: None,
-        artifacts: vec![],
-    };
-    let invalid = Event::sign(bad_header, &worker.key).unwrap();
-    let decision = coordinator.event(
-        id,
-        Some(events[4].id()),
-        Body::ResultAccepted {
-            result: invalid.id(),
-            head: None,
+fn new_child_cannot_reuse_parent_round_superseded_at_its_anchor() {
+    let mut f = Fixture::new(Blueprint::default());
+    let parent = f.task();
+    let revised = f.admin(Body::TaskRevised {
+        task: match parent.scope {
+            Scope::Task(task) => task,
+            _ => unreachable!(),
         },
-    );
-    events.extend([fork, invalid, decision.clone()]);
-    let expected = held(&events);
-    assert_eq!(
-        expected.standing(&events[5].id()),
-        Some(Standing::Excluded(super::Exclusion::Forked))
-    );
-    assert!(matches!(
-        expected.standing(&decision.id()),
-        Some(Standing::Excluded(_))
-    ));
-    for seed in 1..65u64 {
-        let mut order = events.clone();
-        let mut random = seed;
-        for i in (1..order.len()).rev() {
-            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
-            order.swap(i, random as usize % (i + 1));
-        }
-        let mut goal = Goal::new(id);
-        let mut store = MemStore::new();
-        for event in order {
-            store
-                .commit(&Commit {
-                    events: vec![event.clone()],
-                    ..Commit::default()
-                })
-                .unwrap();
-            goal.apply(&[event]);
-            assert_eq!(goal.folded, super::fold::fold(&goal.history).0);
-        }
-        assert_same(&expected, &goal, &events);
-        assert_same(
-            &expected,
-            &Goal::load(&store.reopen(), id).unwrap(),
-            &events,
-        );
-    }
-}
-
-#[test]
-fn wrong_kind_reference_retains_its_header_without_exempting_ancestry() {
-    let (mut coordinator, mut worker, events) = transcript();
-    let id = events[0].header().goal;
-    let mut goal = held(&events);
-    let mut fork_header = events[5].header().clone();
-    fork_header.at_ms += 1;
-    goal.apply(&[Event::sign(fork_header, &worker.key).unwrap()]);
-    let mut suffix = Vec::new();
-    for _ in 0..(super::MAX_WAITING_PER_AUTHOR * 2) {
-        suffix.push(worker.event(
-            id,
-            Some(events[4].id()),
-            Body::Note {
-                about: None,
-                supersedes: None,
+        expected_round: parent.round,
+        binding: TaskBinding {
+            rules: f.rules,
+            variation: None,
+            inputs: BTreeMap::new(),
+            parent: None,
+            stage: None,
+        },
+    });
+    let child = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: TaskBinding {
+                rules: f.rules,
+                variation: None,
+                inputs: BTreeMap::new(),
+                parent: Some(parent),
+                stage: None,
             },
-        ));
-    }
-    let target = suffix.last().unwrap().id();
-    let decision = coordinator.event(
-        id,
-        Some(events[4].id()),
-        Body::RevisionAccepted { revision: target },
-    );
-    suffix.push(decision.clone());
-    for reversed in [false, true] {
-        let mut batch = suffix.clone();
-        if reversed {
-            batch.reverse();
-        }
-        let kept = goal.screen(batch);
-        assert!(kept.iter().any(|event| event.id() == target));
-        assert!(kept.len() <= super::MAX_WAITING_PER_AUTHOR + 2);
-        let mut projected = super::history::History::default();
-        for event in goal.history.events.iter().chain(&kept) {
-            projected.insert(event);
-        }
-        let selection = super::commitments::Commitments::build(
-            &projected,
-            &super::chain::Chain::build(&projected),
-        );
-        assert!(
-            !selection
-                .pins
-                .keys()
-                .any(|(author, _)| *author == worker.key.public())
-        );
-        assert_eq!(selection.required.len(), 2); // Coordinator task and the invalid direct target.
-    }
-}
-
-#[test]
-fn wrong_kind_reference_with_missing_ancestry_is_refused_without_stalling() {
-    use locust_proto::id::EventId;
-    let (mut coordinator, worker, mut events) = transcript();
-    let id = events[0].header().goal;
-    let mut header = events[6].header().clone();
-    header.seq = 100;
-    header.prev = Some(EventId([99; 32]));
-    header.body = Body::Note {
-        about: None,
-        supersedes: None,
-    };
-    let target = Event::sign(header, &worker.key).unwrap();
-    let decision = coordinator.event(
-        id,
-        Some(events[4].id()),
-        Body::ResultAccepted {
-            result: target.id(),
-            head: None,
         },
     );
-    let next = coordinator.event(
-        id,
-        Some(decision.id()),
-        Body::MemberAdmitted {
-            member: Author::new(44).key.public(),
-            endpoint: EndpointId([44; 32]),
+    let current = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: TaskBinding {
+                rules: f.rules,
+                variation: None,
+                inputs: BTreeMap::new(),
+                parent: Some(Context {
+                    round: revised,
+                    ..parent
+                }),
+                stage: None,
+            },
         },
     );
-    events.extend([target, decision.clone(), next.clone()]);
-    let goal = held(&events);
-    assert!(matches!(
-        goal.standing(&decision.id()),
-        Some(Standing::Excluded(_))
-    ));
-    assert_eq!(goal.standing(&next.id()), Some(Standing::Effective));
-    assert_eq!(goal.state().head, Some(next.id()));
-    let mut store = MemStore::new();
-    store
-        .commit(&Commit {
-            events: events.clone(),
-            ..Commit::default()
-        })
-        .unwrap();
-    assert_same(&goal, &Goal::load(&store.reopen(), id).unwrap(), &events);
-}
-
-#[test]
-fn incomplete_canonical_branch_waits_then_recovers_through_a_full_variant_quota() {
-    let (mut coordinator, worker, events) = transcript();
-    let id = events[0].header().goal;
-    let mut goal = held(&events[..5]);
-    let variants: Vec<_> = (0..super::MAX_FORK_VARIANTS)
-        .map(|i| {
-            let mut header = events[5].header().clone();
-            header.at_ms += 100 + i as u64;
-            Event::sign(header, &worker.key).unwrap()
-        })
-        .collect();
-    goal.apply(&goal.screen(variants));
-    let accepted = coordinator.event(
-        id,
-        Some(events[4].id()),
-        Body::ResultAccepted {
-            result: events[6].id(),
-            head: None,
-        },
-    );
-    let after = coordinator.event(
-        id,
-        Some(accepted.id()),
-        Body::MemberAdmitted {
-            member: Author::new(44).key.public(),
-            endpoint: EndpointId([44; 32]),
-        },
-    );
-    goal.apply(&[events[6].clone(), accepted.clone(), after.clone()]);
-    assert_eq!(
-        goal.standing(&accepted.id()),
-        Some(Standing::Pending(super::Waiting::Reference))
-    );
-    assert!(matches!(
-        goal.standing(&after.id()),
-        Some(Standing::Pending(_))
-    ));
-    assert_eq!(goal.state().head, Some(events[4].id()));
-    let kept = goal.screen(vec![events[5].clone()]);
-    assert_eq!(kept.len(), 1);
-    goal.apply(&kept);
-    assert_eq!(goal.standing(&accepted.id()), Some(Standing::Effective));
-    assert_eq!(goal.standing(&after.id()), Some(Standing::Effective));
-    assert_eq!(goal.state().tasks[0].accepted, Some(events[6].id()));
-    let all = goal.history.events.clone();
-    let mut store = MemStore::new();
-    store
-        .commit(&Commit {
-            events: all.clone(),
-            ..Commit::default()
-        })
-        .unwrap();
-    assert_same(&goal, &Goal::load(&store.reopen(), id).unwrap(), &all);
+    let goal = f.goal();
+    assert!(matches!(goal.standing(&child), Some(Standing::Excluded(_))));
+    assert_eq!(goal.standing(&current), Some(Standing::Effective));
 }

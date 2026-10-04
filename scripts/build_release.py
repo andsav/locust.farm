@@ -37,6 +37,7 @@ TARGETS = {
 RELEASE_INPUTS = {"scripts/build_release.py", "skills/locust/SKILL.md"}
 SKILL_PATH = "skills/locust/SKILL.md"
 MANIFEST_PATH = "manifest.json"
+MANUAL_PATH = "manual.tar"
 
 
 def canonical_json(value: dict) -> bytes:
@@ -90,6 +91,7 @@ def verify_release_inputs(repo: Path, runner: build_t1.Runner) -> None:
     result = runner(["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"], cwd=repo)
     if result.returncode:
         raise BuildError("git_status_failed", "Cannot inspect release inputs")
+    inputs = RELEASE_INPUTS | set(manual_paths(repo))
     records = iter(result.stdout.split("\0"))
     dirty = []
     for record in records:
@@ -100,34 +102,97 @@ def verify_release_inputs(repo: Path, runner: build_t1.Runner) -> None:
         paths = [record[3:]]
         if "R" in record[:2] or "C" in record[:2]:
             paths.append(next(records, ""))
-        dirty.extend(path for path in paths if path in RELEASE_INPUTS)
-    missing = [path for path in RELEASE_INPUTS if not (repo / path).is_file()]
+        dirty.extend(path for path in paths if path in inputs)
+    missing = [path for path in inputs if not (repo / path).is_file()]
     if dirty or missing:
-        raise BuildError("dirty_release_inputs", "Commit release helper and skill first: " + ", ".join(sorted(set(dirty + missing))))
+        raise BuildError("dirty_release_inputs", "Commit release helper, skill and manual sources first: " + ", ".join(sorted(set(dirty + missing))))
 
 
 def file_record(path: str, content: bytes, mode: int) -> dict:
     return {"path": path, "sha256": hashlib.sha256(content).hexdigest(), "size": len(content), "mode": mode}
 
 
-def make_manifest(*, binary: bytes, skill: bytes, commit: str, version: str, target: str,
+def manual_paths(repo: Path) -> list[str]:
+    site = json.loads((repo / "docs/site.json").read_bytes())
+    paths = {"LICENSE", "docs/site.json", *site["sourceLinks"]}
+    paths.update(item["source"] for item in site["pages"] + site["artifacts"])
+    for name in paths:
+        path = Path(name)
+        if path.is_absolute() or ".." in path.parts or name != path.as_posix():
+            raise BuildError("invalid_manual_path", f"Unsafe manual source: {name}")
+        if (not (repo / path).is_file() or (repo / path).is_symlink()
+                or not (repo / path).resolve().is_relative_to(repo.resolve())):
+            raise BuildError("invalid_manual_path", f"Missing or linked manual source: {name}")
+    return sorted(paths)
+
+
+def make_manual(repo: Path, commit: str, protocol: int, api: int) -> bytes:
+    paths = manual_paths(repo)
+    site = json.loads((repo / "docs/site.json").read_bytes())
+    if site["versions"]["api"] != api or site["versions"]["protocol"] != protocol:
+        raise BuildError("manual_version_mismatch", "Manual and binary API/protocol versions differ")
+    contents = {name: (repo / name).read_bytes() for name in paths}
+    identity = canonical_json({"format": "locust-manual-v1", "source_commit": commit,
+                               "versions": site["versions"],
+                               "files": [file_record(name, data, 0o644) for name, data in contents.items()]})
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w", format=tarfile.USTAR_FORMAT) as archive:
+        for name, data in [("manual.json", identity), *contents.items()]:
+            entry = tarfile.TarInfo(name)
+            entry.size, entry.mode = len(data), 0o644
+            entry.uid = entry.gid = entry.mtime = 0
+            entry.uname = entry.gname = ""
+            archive.addfile(entry, io.BytesIO(data))
+    return buffer.getvalue()
+
+
+def verify_manual(data: bytes, commit: str, protocol: int, api: int) -> dict:
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:") as archive:
+        members = archive.getmembers()
+        if not members or members[0].name != "manual.json":
+            raise BuildError("manual_mismatch", "Manual identity is missing")
+        contents = {}
+        for member in members:
+            path = Path(member.name)
+            if (not member.isfile() or path.is_absolute() or ".." in path.parts
+                    or member.name in contents or member.mode != 0o644
+                    or member.uid or member.gid or member.mtime or member.uname or member.gname):
+                raise BuildError("manual_mismatch", "Unsafe or duplicate manual member")
+            contents[member.name] = archive.extractfile(member).read()
+    identity_bytes = contents.pop("manual.json")
+    identity = json.loads(identity_bytes)
+    if canonical_json(identity) != identity_bytes:
+        raise BuildError("manual_mismatch", "Manual identity is not canonical")
+    if (identity["format"] != "locust-manual-v1" or identity["source_commit"] != commit
+            or identity["versions"]["api"] != api or identity["versions"]["protocol"] != protocol
+            or identity["files"] != [file_record(name, value, 0o644) for name, value in contents.items()]):
+        raise BuildError("manual_mismatch", "Manual identity or file records differ")
+    site = json.loads(contents["docs/site.json"])
+    required = {"LICENSE", "docs/site.json", *site["sourceLinks"]}
+    required.update(item["source"] for item in site["pages"] + site["artifacts"])
+    if set(contents) != required or identity["versions"] != site["versions"]:
+        raise BuildError("manual_mismatch", "Manual differs from its documentation manifest")
+    return identity
+
+
+def make_manifest(*, binary: bytes, skill: bytes, manual: bytes, commit: str, version: str, target: str,
                   machine_format: str, toolchain: str, protocol: int, api: int) -> bytes:
     manifest = {
-        "format": "locust-release-v1", "source_commit": commit, "version": version,
+        "format": "locust-release-v2", "source_commit": commit, "version": version,
         "target": target, "machine_format": machine_format, "toolchain": toolchain,
         "protocol_version": protocol, "api_version": api,
-        "files": [file_record("locust", binary, 0o755), file_record(SKILL_PATH, skill, 0o644)],
+        "files": [file_record("locust", binary, 0o755), file_record(SKILL_PATH, skill, 0o644), file_record(MANUAL_PATH, manual, 0o644)],
     }
     return canonical_json(manifest)
 
 
-def candidate_archive(binary: bytes, skill: bytes, manifest: bytes) -> bytes:
+def candidate_archive(binary: bytes, skill: bytes, manual: bytes, manifest: bytes) -> bytes:
     """Create a flat tar.gz with fixed metadata; no path extraction is needed."""
     buffer = io.BytesIO()
     with gzip.GzipFile(fileobj=buffer, mode="wb", filename="", mtime=0, compresslevel=9) as zipped:
         with tarfile.open(fileobj=zipped, mode="w", format=tarfile.USTAR_FORMAT) as archive:
             for name, content, mode in (("locust", binary, 0o755), (SKILL_PATH, skill, 0o644),
-                                        (MANIFEST_PATH, manifest, 0o644)):
+                                        (MANUAL_PATH, manual, 0o644), (MANIFEST_PATH, manifest, 0o644)):
                 entry = tarfile.TarInfo(name)
                 entry.size, entry.mode = len(content), mode
                 entry.uid = entry.gid = entry.mtime = 0
@@ -136,8 +201,8 @@ def candidate_archive(binary: bytes, skill: bytes, manifest: bytes) -> bytes:
     return buffer.getvalue()
 
 
-def verify_candidate(data: bytes, manifest: bytes, binary: bytes, skill: bytes) -> None:
-    expected = {"locust": (binary, 0o755), SKILL_PATH: (skill, 0o644), MANIFEST_PATH: (manifest, 0o644)}
+def verify_candidate(data: bytes, manifest: bytes, binary: bytes, skill: bytes, manual: bytes) -> None:
+    expected = {"locust": (binary, 0o755), SKILL_PATH: (skill, 0o644), MANUAL_PATH: (manual, 0o644), MANIFEST_PATH: (manifest, 0o644)}
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
         members = archive.getmembers()
         if [member.name for member in members] != list(expected):
@@ -150,6 +215,7 @@ def verify_candidate(data: bytes, manifest: bytes, binary: bytes, skill: bytes) 
                     or stream.read() != content):
                 raise BuildError("candidate_mismatch", f"Candidate archive entry differs: {member.name}")
     decoded = json.loads(manifest)
+    verify_manual(manual, decoded["source_commit"], decoded["protocol_version"], decoded["api_version"])
     if canonical_json(decoded) != manifest:
         raise BuildError("candidate_mismatch", "Manifest bytes are not canonical")
     records = [file_record(name, content, mode) for name, (content, mode) in expected.items()
@@ -180,6 +246,7 @@ def build(repo: Path, runner: build_t1.Runner = build_t1.run_command) -> dict:
         version = build_t1.package_version(source)
         protocol, api = protocol_versions(source)
         skill = (source / SKILL_PATH).read_bytes()
+        manual = make_manual(source, commit, protocol, api)
         rustup_path = shutil.which("rustup", path=str(Path.home() / ".cargo/bin") + os.pathsep + build_t1.SYSTEM_PATH)
         if rustup_path is None:
             raise BuildError("tool_unavailable", "Install rustup and the pinned toolchain before building")
@@ -235,11 +302,11 @@ def build(repo: Path, runner: build_t1.Runner = build_t1.run_command) -> dict:
             raise BuildError("source_changed", "Source changed during build")
         verify_release_inputs(repo, git_runner)
         binary = binary_path.read_bytes()
-        manifest = make_manifest(binary=binary, skill=skill, commit=commit, version=version,
+        manifest = make_manifest(binary=binary, skill=skill, manual=manual, commit=commit, version=version,
                                  target=target, machine_format=machine_format, toolchain=toolchain,
                                  protocol=protocol, api=api)
-        candidate = candidate_archive(binary, skill, manifest)
-        verify_candidate(candidate, manifest, binary, skill)
+        candidate = candidate_archive(binary, skill, manual, manifest)
+        verify_candidate(candidate, manifest, binary, skill, manual)
         output = repo / "output/release"
         output.mkdir(parents=True, exist_ok=True)
         name = f"locust-{target}-{commit[:12]}-unsigned.tar.gz"

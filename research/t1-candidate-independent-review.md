@@ -97,7 +97,7 @@ Described above under the guide. `goal status` shows no members and no title, wh
 | ID | Area | Finding and where | Suggested fix |
 |---|---|---|---|
 | IR-11 | Goal | `member.remove` accepts the coordinator's own key. Afterwards no decision can be signed, including readmission, and no halt is reported ([goals](../crates/locust-core/src/node/requests/goals.rs)) | Refuse it, or let a coordinator that is not a member admit itself |
-| IR-12 | Goal | A result signed after acceptance becomes the task's displayed result, on a task still shown as accepted ([transition](../crates/locust-core/src/goal/transition.rs)) | Do not move the task's result once one is accepted |
+| IR-12 | Goal | A result signed after acceptance becomes the task's displayed result, on a task still shown as accepted ([transition](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/goal/transition.rs)) | Do not move the task's result once one is accepted |
 | IR-13 | Goal, sync | After a coordinator fork, members admitted at or after the fork position are dropped from the endpoint map, so nobody dials them and they never receive the evidence of the halt ([peers](../crates/locust-core/src/node/peers.rs)) | For a halted goal, reconcile with every key a held admission names |
 | IR-14 | Node, confidentiality | A removed principal keeps reading text sealed after its removal when its daemon still speaks for another member, because payloads are opened with any key the daemon holds ([entry](../crates/locust-core/src/node/entry.rs)) | Record the principal's last epoch and report later text as absent |
 | IR-15 | Node | `goal.leave` by the goal's own coordinator is accepted and disables every decision for good | Refuse it until coordination can be handed over |

@@ -48,7 +48,7 @@ class InstalledClientTests(unittest.TestCase):
         self.assertNotIn("Private skill instructions", json.dumps(provider.requests))
 
     def test_only_completed_native_mcp_receipts_can_pass(self):
-        envelope = {"ok": True, "result": {"goal_status": {"goal": "goal", "coordinator": "principal"}}}
+        envelope = {"ok": True, "result": {"goal_status": {"goal": "goal", "administrator": "principal"}}}
         result = {"content": [{"type": "text", "text": json.dumps(envelope)}]}
         event = {"type": "item.completed", "item": {"type": "mcp_tool_call", "id": "one", "server": "locust",
                  "tool": harness.workflow.READ, "status": "completed", "error": None, "result": result}}
@@ -68,8 +68,8 @@ class InstalledClientTests(unittest.TestCase):
                                                           "content": json.dumps(envelope)}]}}
         issued = [{"requested_tool": harness.workflow.WRITE, "selected_tool": "ToolSearch", "discovery": True}]
         self.assertEqual(harness.native_receipts("claude-code", [event], issued, self.observer), [])
-        issued[0].update(selected_tool="mcp__locust__locust_note_add", discovery=False)
-        call = {"type":"assistant", "message":{"content":[{"type":"tool_use","id":"call_fixture_1","name":"mcp__locust__locust_note_add","input":{}}]}}
+        issued[0].update(selected_tool="mcp__locust__locust_contribution_publish", discovery=False)
+        call = {"type":"assistant", "message":{"content":[{"type":"tool_use","id":"call_fixture_1","name":"mcp__locust__locust_contribution_publish","input":{}}]}}
         receipts = harness.native_receipts("claude-code", [call, event], issued, self.observer)
         self.assertEqual(len(harness.successful(receipts, harness.workflow.WRITE)), 1)
         self.assertFalse(harness.successful(harness.native_receipts("claude-code", [event], issued, self.observer), harness.workflow.WRITE))
@@ -91,30 +91,30 @@ class InstalledClientTests(unittest.TestCase):
         receipts = [{"success": True, "tool": harness.workflow.WRITE,
                      "locust": [{"ok": True, "result": {"recorded": {"event": "id"}}}]}]
         daemon = Mock(goal="goal", principal="principal")
-        daemon.call.return_value = {"event": {"text": "expected", "view": {"author": "principal", "kind":"note", "event":"id"}}}
-        self.assertTrue(harness.persisted_note(receipts, daemon, "expected"))
+        daemon.call.return_value = {"event": {"text": "expected", "view": {"author": "principal", "kind":"contribution_published", "event":"id"}}}
+        self.assertTrue(harness.persisted_contribution(receipts, daemon, "expected"))
         daemon.call.return_value["event"]["text"] = "different"
-        self.assertFalse(harness.persisted_note(receipts, daemon, "expected"))
-        self.assertFalse(harness.persisted_note([], daemon, "expected"))
+        self.assertFalse(harness.persisted_contribution(receipts, daemon, "expected"))
+        self.assertFalse(harness.persisted_contribution([], daemon, "expected"))
 
-    def test_note_and_progress_require_exact_kind_assignment_author_text_and_event(self):
+    def test_note_and_progress_require_exact_kind_attempt_author_text_and_event(self):
         import copy
-        for tool, kind, assignment in ((harness.workflow.WRITE, "note", None), (harness.workflow.PROGRESS, "progress", "assignment-one")):
+        for tool, kind, attempt in ((harness.workflow.WRITE, "contribution_published", None), (harness.workflow.PROGRESS, "attempt_reported", "attempt-one")):
             receipts = [{"success":True,"tool":tool,"locust":[{"ok":True,"result":{"recorded":{"event":"event-one"}}}]}]
-            event = {"text":"expected","view":{"author":"principal","kind":kind,"event":"event-one"},"body":{"progress":{"assignment":assignment}}}
+            event = {"text":"expected","view":{"author":"principal","kind":kind,"event":"event-one"},"body":{"attempt_reported":{"attempt":attempt}}}
             daemon = Mock(goal="goal",principal="principal")
             daemon.call.return_value = {"event":event}
-            self.assertTrue(harness.persisted_note(receipts,daemon,"expected",tool,assignment))
+            self.assertTrue(harness.persisted_contribution(receipts,daemon,"expected",tool,attempt))
             mutations = [("view","kind","note" if kind=="progress" else "progress"), ("view","author","other"), ("view","event","other")]
             for section, key, value in mutations:
                 wrong=copy.deepcopy(event);wrong[section][key]=value;daemon.call.return_value={"event":wrong}
-                self.assertFalse(harness.persisted_note(receipts,daemon,"expected",tool,assignment))
+                self.assertFalse(harness.persisted_contribution(receipts,daemon,"expected",tool,attempt))
             wrong=copy.deepcopy(event);wrong["text"]="other";daemon.call.return_value={"event":wrong}
-            self.assertFalse(harness.persisted_note(receipts,daemon,"expected",tool,assignment))
+            self.assertFalse(harness.persisted_contribution(receipts,daemon,"expected",tool,attempt))
             if tool==harness.workflow.PROGRESS:
-                wrong=copy.deepcopy(event);wrong["body"]["progress"]["assignment"]="another-assignment";daemon.call.return_value={"event":wrong}
-                self.assertFalse(harness.persisted_note(receipts,daemon,"expected",tool,assignment))
-                self.assertFalse(harness.persisted_note(receipts,daemon,"expected",tool))
+                wrong=copy.deepcopy(event);wrong["body"]["attempt_reported"]["attempt"]="another-assignment";daemon.call.return_value={"event":wrong}
+                self.assertFalse(harness.persisted_contribution(receipts,daemon,"expected",tool,attempt))
+                self.assertFalse(harness.persisted_contribution(receipts,daemon,"expected",tool))
 
     def test_removed_ownership_cannot_hide_leftover_registration_or_journal(self):
         config=Path(self.temp.name)/"config";skill=Path(self.temp.name)/"removed-skill"

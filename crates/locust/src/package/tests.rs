@@ -2,11 +2,14 @@ use super::*;
 
 #[test]
 fn package_format_cannot_accept_arbitrary_paths_or_duplicate_payloads() {
-    let value = serde_json::json!({"format":"locust-release-v1","source_commit":"a".repeat(40),"version":"0.1.0",
-        "target":"aarch64-apple-darwin","machine_format":"mach-o-arm64","api_version":1,"protocol_version":1,
+    let value = serde_json::json!({"format":"locust-release-v2","source_commit":"a".repeat(40),"version":"0.1.0",
+        "target":"aarch64-apple-darwin","machine_format":"mach-o-arm64","api_version":locust_proto::API_VERSION,"protocol_version":locust_proto::PROTOCOL_VERSION,
         "toolchain":"1.96.1","files":[{"path":"locust","sha256":"b".repeat(64),"size":64,"mode":493},
-        {"path":"skills/locust/SKILL.md","sha256":"c".repeat(64),"size":1,"mode":420}]});
+        {"path":"skills/locust/SKILL.md","sha256":"c".repeat(64),"size":1,"mode":420},{"path":"manual.tar","sha256":"d".repeat(64),"size":6,"mode":420}]});
     assert!(validate_manifest(&serde_json::to_vec(&value).unwrap()).is_ok());
+    let mut missing_manual = value.clone();
+    missing_manual["files"].as_array_mut().unwrap().pop();
+    assert!(validate_manifest(&serde_json::to_vec(&missing_manual).unwrap()).is_err());
     for path in [
         "../locust",
         "/tmp/locust",
@@ -64,16 +67,23 @@ impl Bundle {
         let skill = b"# Locust fixture\n";
         create_file(&root.join(BINARY), &binary, 0o755).unwrap();
         create_file(&root.join(SKILL), skill, 0o644).unwrap();
+        create_file(&root.join(MANUAL), b"manual", 0o644).unwrap();
         let manifest = Manifest {
-            format: "locust-release-v1".into(),
+            format: "locust-release-v2".into(),
             source_commit: "a".repeat(40),
             version: "0.1.0".into(),
             target: "aarch64-apple-darwin".into(),
             machine_format: "mach-o-arm64".into(),
-            api_version: 1,
-            protocol_version: 1,
+            api_version: u32::from(locust_proto::API_VERSION),
+            protocol_version: u32::from(locust_proto::PROTOCOL_VERSION),
             toolchain: "1.96.1".into(),
             files: vec![
+                Payload {
+                    path: MANUAL.into(),
+                    sha256: sha256(b"manual"),
+                    size: 6,
+                    mode: 0o644,
+                },
                 Payload {
                     path: BINARY.into(),
                     sha256: sha256(&binary),
@@ -154,6 +164,7 @@ fn full_verification_preserves_exact_signed_bytes_and_rejects_tampering() {
     for mutation in [
         "manifest",
         "payload",
+        "manual",
         "length",
         "mode",
         "key",
@@ -173,6 +184,9 @@ fn full_verification_preserves_exact_signed_bytes_and_rejects_tampering() {
                 let mut bytes = fs::read(&path).unwrap();
                 bytes[63] ^= 1;
                 fs::write(path, bytes).unwrap();
+            }
+            "manual" => {
+                fs::write(bundle.root.join(MANUAL), b"edited").unwrap();
             }
             "length" => {
                 fs::write(bundle.root.join(SKILL), b"short").unwrap();
@@ -221,6 +235,7 @@ fn package_metadata_and_payloads_reject_symlinks_and_hardlinks() {
             "signature",
             "binary",
             "skill",
+            "manual",
             "trust",
             "registry",
             "registry-signature",
@@ -231,6 +246,7 @@ fn package_metadata_and_payloads_reject_symlinks_and_hardlinks() {
                 "signature" => bundle.root.join(SIGNATURE),
                 "binary" => bundle.root.join(BINARY),
                 "skill" => bundle.root.join(SKILL),
+                "manual" => bundle.root.join(MANUAL),
                 "trust" => bundle.trust.clone(),
                 "registry" => bundle.registry.clone(),
                 "registry-signature" => signature_path(&bundle.registry),

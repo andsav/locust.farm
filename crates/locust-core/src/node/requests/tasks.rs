@@ -1,22 +1,20 @@
-//! Tasks as their proposer, the coordinator and the owner act on them:
-//! proposing, assigning, cancelling, authorizing, and deciding on results.
-
-use locust_proto::api::{ApiError, ErrorCode, Response};
-use locust_proto::engine::Entropy;
-use locust_proto::event::Body;
-use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
-use locust_proto::store::Store;
-
+//! Task bindings, work offers, and scoped decisions. Eligibility is evaluated
+//! by the same goal evaluator used for replicated events.
 use super::{Plan, Planned};
-use crate::goal::Submission;
-use crate::node::Node;
 use crate::node::access::{conflict, not_found};
 use crate::node::callers::Actor;
 use crate::node::commit::Tx;
 use crate::node::entry::Entry;
-use crate::node::local::{self, Authorization};
+use crate::node::{Node, local};
+use locust_proto::api::{ApiError, Response};
+use locust_proto::engine::Entropy;
+use locust_proto::event::{
+    Body, Context, DecisionAction, ReviewVerdict, Scope, TaskBinding, TaskId,
+};
+use locust_proto::id::{BlobHash, EffectId, EventId, GoalId, PublicKey};
+use locust_proto::store::Store;
+use std::collections::BTreeMap;
 
-/// The answer of a request that signed `event`.
 pub(super) fn recorded(event: EventId, tx: Tx) -> Plan {
     Ok(Planned {
         response: Response::Recorded { event },
@@ -24,202 +22,393 @@ pub(super) fn recorded(event: EventId, tx: Tx) -> Plan {
     })
 }
 
-/// A result the coordinator may still decide on: the latest one of its
-/// task's current assignment, not cancelled and not yet accepted.
-fn undecided<'a>(entry: &'a Entry, result: &EventId) -> Result<&'a Submission, ApiError> {
-    let state = entry.state();
-    let submission = state
-        .result(result)
-        .ok_or_else(|| not_found("no such result"))?;
-    let task = state
-        .task(&submission.task)
+pub(super) fn task_context(entry: &Entry, task: TaskId) -> Result<Context, ApiError> {
+    let task = entry
+        .state()
+        .tasks
+        .get(&task)
         .ok_or_else(|| not_found("no such task"))?;
-    let assignment = state
-        .assignment(&submission.assignment)
-        .ok_or_else(|| not_found("no such assignment"))?;
-    if submission.verdict.is_some() {
-        return Err(conflict("the result was already decided"));
-    }
-    if assignment.revoked {
-        return Err(conflict("the assignment was revoked"));
-    }
-    if task.accepted.is_some() {
-        return Err(conflict("the task already has an accepted result"));
-    }
-    if task.assignment != Some(assignment.id) {
-        return Err(conflict("the result's assignment was superseded"));
-    }
-    if assignment.result != Some(*result) {
-        return Err(conflict("a later result replaced this one"));
-    }
-    if assignment.cancel.is_some() {
-        return Err(conflict("the result's assignment was cancelled"));
-    }
-    Ok(submission)
+    Ok(Context {
+        scope: Scope::Task(task.id),
+        round: task.current_round,
+    })
+}
+pub(super) fn subject_context(entry: &Entry, subject: EventId) -> Result<Context, ApiError> {
+    entry
+        .state()
+        .contributions
+        .get(&subject)
+        .map(|c| c.context)
+        .or_else(|| entry.state().revisions.get(&subject).map(|r| r.context))
+        .ok_or_else(|| not_found("no such contribution or document revision"))
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn task_propose(
+    #[allow(clippy::too_many_arguments)] // Mirrors the typed API request fields.
+    pub(super) fn task_open(
         &self,
         actor: &Actor,
         goal: GoalId,
         text: String,
-        input: Option<BlobHash>,
-        depends_on: Vec<EventId>,
-        deadline_ms: Option<u64>,
-        max_attempts: Option<u32>,
-        now_ms: u64,
+        variation: Option<String>,
+        inputs: BTreeMap<String, BlobHash>,
+        parent: Option<TaskId>,
+        now: u64,
     ) -> Plan {
-        let (entry, proposer) = self.member(actor, &goal)?;
-        let body = Body::TaskProposed {
-            input,
-            depends_on,
-            deadline_ms,
-            max_attempts,
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
+        let parent = parent.map(|task| task_context(entry, task)).transpose()?;
+        let rules = if let Some(context) = parent {
+            entry
+                .state()
+                .task_round(context)
+                .ok_or_else(|| not_found("no such parent round"))?
+                .binding
+                .rules
+        } else {
+            entry
+                .state()
+                .current_rules
+                .ok_or_else(|| conflict("no current rules binding"))?
+        };
+        let binding = TaskBinding {
+            rules,
+            variation,
+            inputs,
+            parent,
+            stage: None,
         };
         let mut tx = Tx::none();
-        let event = self.author(entry, &proposer, body, Some(&text), now_ms, &mut tx)?;
+        let event = self.author(
+            entry,
+            &principal,
+            Body::TaskOpened { binding },
+            Some(&text),
+            now,
+            &mut tx,
+        )?;
         recorded(event, tx)
     }
-
-    pub(super) fn task_assign(
+    pub(super) fn task_revise(
         &self,
         actor: &Actor,
         goal: GoalId,
-        task: EventId,
-        assignee: PublicKey,
-        now_ms: u64,
+        task: TaskId,
+        expected_round: EventId,
+        variation: Option<String>,
+        now: u64,
     ) -> Plan {
-        let (entry, coordinator) = self.coordinator(actor, &goal)?;
-        let found = entry
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
+        let context = task_context(entry, task)?;
+        if context.round != expected_round {
+            return Err(conflict("the task round changed"));
+        }
+        let mut binding = entry
             .state()
-            .task(&task)
-            .ok_or_else(|| not_found("no such task"))?;
-        if !entry.is_member(&assignee) {
-            return Err(conflict("the assignee is not a member of the goal"));
+            .task_round(context)
+            .expect("task context")
+            .binding
+            .clone();
+        if binding.parent.is_none() {
+            binding.rules = entry
+                .state()
+                .current_rules
+                .ok_or_else(|| conflict("no current rules binding"))?;
         }
-        if found.accepted.is_some() {
-            return Err(conflict("the task already has an accepted result"));
-        }
-        let attempt = found
-            .attempt
-            .checked_add(1)
-            .ok_or_else(|| conflict("the attempt number is exhausted"))?;
-        if found.max_attempts.is_some_and(|budget| attempt > budget) {
-            return Err(conflict("the task's attempt budget is used up"));
-        }
-        let body = Body::TaskAssigned {
-            task,
-            assignee,
-            attempt,
-        };
+        binding.variation = variation;
         let mut tx = Tx::none();
-        let event = self.author(entry, &coordinator, body, None, now_ms, &mut tx)?;
+        let event = self.author(
+            entry,
+            &principal,
+            Body::TaskRevised {
+                task,
+                expected_round,
+                binding,
+            },
+            None,
+            now,
+            &mut tx,
+        )?;
         recorded(event, tx)
     }
-
-    pub(super) fn task_cancel(
+    pub(super) fn work_offer(
         &self,
         actor: &Actor,
         goal: GoalId,
-        assignment: EventId,
-        now_ms: u64,
+        task: TaskId,
+        recipient: PublicKey,
+        now: u64,
     ) -> Plan {
-        let (entry, coordinator) = self.coordinator(actor, &goal)?;
-        let state = entry.state();
-        let found = state
-            .assignment(&assignment)
-            .ok_or_else(|| not_found("no such assignment"))?;
-        if found.cancel.is_some() {
-            return Err(conflict("cancellation was already requested"));
-        }
-        if state
-            .task(&found.task)
-            .is_some_and(|task| task.accepted.is_some())
-        {
-            return Err(conflict("the task already has an accepted result"));
-        }
-        let body = Body::CancelRequested { assignment };
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).flow)?;
+        let context = task_context(entry, task)?;
         let mut tx = Tx::none();
-        let event = self.author(entry, &coordinator, body, None, now_ms, &mut tx)?;
+        let event = self.author(
+            entry,
+            &principal,
+            Body::WorkOffered { context, recipient },
+            None,
+            now,
+            &mut tx,
+        )?;
         recorded(event, tx)
     }
-
-    /// `task.authorize`: the owner lets the assignee claim one assignment
-    /// that no grant covers.
     pub(super) fn task_authorize(
         &self,
         actor: &Actor,
         goal: GoalId,
-        assignment: EventId,
+        task: TaskId,
+        agent: PublicKey,
         takeover: bool,
     ) -> Plan {
         let entry = self.readable(actor, &goal)?;
-        let found = entry
-            .state()
-            .assignment(&assignment)
-            .ok_or_else(|| not_found("no such assignment"))?;
-        if !self.principals.holds(&found.assignee) {
-            return Err(ApiError::new(
-                ErrorCode::Invalid,
-                "the assignment is not for a principal of this daemon",
-            ));
+        let context = task_context(entry, task)?;
+        if !entry.is_member(&agent) || self.principals.active(&agent).is_none() {
+            return Err(not_found("no active local member has that key"));
         }
-        let earlier = entry.local.authorized.get(&assignment);
-        let authorization = Authorization {
-            takeover: takeover || earlier.is_some_and(|earlier| earlier.takeover),
-        };
         let mut tx = Tx::none();
-        if earlier != Some(&authorization) {
-            tx.local(local::authorization_write(
-                &goal,
-                &assignment,
-                &authorization,
-            ))
-            .touch(goal);
-        }
+        tx.local(local::authorization_write(
+            &goal,
+            &context.round,
+            &agent,
+            &local::Authorization { takeover },
+        ))
+        .touch(goal);
         Ok(Planned {
             response: Response::Done,
             tx,
         })
     }
-
-    pub(super) fn result_accept(
+    pub(super) fn work_decline(
         &self,
         actor: &Actor,
         goal: GoalId,
-        result: EventId,
-        head: Option<BlobHash>,
-        now_ms: u64,
+        offer: EventId,
+        now: u64,
     ) -> Plan {
-        let (entry, coordinator) = self.coordinator(actor, &goal)?;
-        let submission = undecided(entry, &result)?;
-        let accepted = entry.state().accepted_head();
-        if head.is_some() && accepted.is_some() && submission.base != accepted {
-            return Err(conflict(
-                "the result was not made against the accepted workspace head",
-            ));
-        }
-        let body = Body::ResultAccepted { result, head };
+        let (entry, principal) = self.member(actor, &goal)?;
         let mut tx = Tx::none();
-        let event = self.author(entry, &coordinator, body, None, now_ms, &mut tx)?;
+        let event = self.author(
+            entry,
+            &principal,
+            Body::WorkDeclined { offer },
+            None,
+            now,
+            &mut tx,
+        )?;
         recorded(event, tx)
     }
-
-    pub(super) fn result_reject(
+    pub(super) fn attempt_cancel(
         &self,
         actor: &Actor,
         goal: GoalId,
-        result: EventId,
-        reason: String,
-        now_ms: u64,
+        attempt: EventId,
+        now: u64,
     ) -> Plan {
-        let (entry, coordinator) = self.coordinator(actor, &goal)?;
-        undecided(entry, &result)?;
-        let body = Body::ResultRejected { result };
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).flow)?;
         let mut tx = Tx::none();
-        let event = self.author(entry, &coordinator, body, Some(&reason), now_ms, &mut tx)?;
+        let event = self.author(
+            entry,
+            &principal,
+            Body::CancelRequested { attempt },
+            None,
+            now,
+            &mut tx,
+        )?;
+        recorded(event, tx)
+    }
+    pub(super) fn completion_declare(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        subject: EventId,
+        now: u64,
+    ) -> Plan {
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
+        let context = subject_context(entry, subject)?;
+        let mut tx = Tx::none();
+        let event = self.author(
+            entry,
+            &principal,
+            Body::CompletionDeclared { context, subject },
+            None,
+            now,
+            &mut tx,
+        )?;
+        recorded(event, tx)
+    }
+    pub(super) fn review_record(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        subject: EventId,
+        verdict: ReviewVerdict,
+        text: String,
+        now: u64,
+    ) -> Plan {
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).review)?;
+        let context = subject_context(entry, subject)?;
+        let mut tx = Tx::none();
+        let event = self.author(
+            entry,
+            &principal,
+            Body::ReviewRecorded {
+                context,
+                subject,
+                verdict,
+            },
+            Some(&text),
+            now,
+            &mut tx,
+        )?;
+        recorded(event, tx)
+    }
+    #[allow(clippy::too_many_arguments)] // Mirrors the typed API request fields.
+    pub(super) fn check_attest(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        subject: EventId,
+        name: String,
+        passed: bool,
+        text: String,
+        now: u64,
+    ) -> Plan {
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).review)?;
+        let context = subject_context(entry, subject)?;
+        let mut tx = Tx::none();
+        let event = self.author(
+            entry,
+            &principal,
+            Body::CheckAttested {
+                context,
+                subject,
+                name,
+                passed,
+            },
+            Some(&text),
+            now,
+            &mut tx,
+        )?;
+        recorded(event, tx)
+    }
+    pub(super) fn scope_select(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        subject: EventId,
+        expected: Option<EventId>,
+        now: u64,
+    ) -> Plan {
+        let entry = self.readable(actor, &goal)?;
+        let context = subject_context(entry, subject)?;
+        let mut evidence = vec![subject];
+        if let Some(contribution) = entry.state().contributions.get(&subject) {
+            evidence.extend(contribution.evidence.iter().copied());
+        }
+        if let Some(revision) = entry.state().revisions.get(&subject) {
+            evidence.extend(revision.evidence.iter().copied());
+        }
+        self.scope_decide(
+            actor,
+            goal,
+            context,
+            expected,
+            DecisionAction::Select { subject },
+            evidence,
+            now,
+        )
+    }
+    pub(super) fn scope_close(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        scope: Scope,
+        expected: Option<EventId>,
+        reopen: bool,
+        now: u64,
+    ) -> Plan {
+        let entry = self.readable(actor, &goal)?;
+        let context = entry
+            .goal
+            .current_context(scope)
+            .ok_or_else(|| not_found("no such current scope"))?;
+        let evidence = entry
+            .state()
+            .contributions
+            .values()
+            .filter(|contribution| contribution.context == context && contribution.approved)
+            .flat_map(|contribution| {
+                std::iter::once(contribution.id).chain(contribution.evidence.iter().copied())
+            })
+            .collect();
+        self.scope_decide(
+            actor,
+            goal,
+            context,
+            expected,
+            if reopen {
+                DecisionAction::Reopen
+            } else {
+                DecisionAction::Close
+            },
+            evidence,
+            now,
+        )
+    }
+    #[allow(clippy::too_many_arguments)] // Mirrors the typed API request fields.
+    fn scope_decide(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        context: Context,
+        previous: Option<EventId>,
+        action: DecisionAction,
+        mut evidence: Vec<EventId>,
+        now: u64,
+    ) -> Plan {
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).select)?;
+        evidence.sort();
+        evidence.dedup();
+        let mut tx = Tx::none();
+        let event = self.author(
+            entry,
+            &principal,
+            Body::ScopeDecided {
+                context,
+                previous,
+                action,
+                evidence,
+            },
+            None,
+            now,
+            &mut tx,
+        )?;
+        recorded(event, tx)
+    }
+    pub(super) fn delivery_acknowledge(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        effect: EffectId,
+        now: u64,
+    ) -> Plan {
+        let (entry, principal) = self.member(actor, &goal)?;
+        let mut tx = Tx::none();
+        let event = self.author(
+            entry,
+            &principal,
+            Body::DeliveryAcknowledged { effect },
+            None,
+            now,
+            &mut tx,
+        )?;
         recorded(event, tx)
     }
 }

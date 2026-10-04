@@ -19,7 +19,7 @@ use crate::node::{local, records};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(in crate::node) struct InviteRecord {
     pub goal: GoalId,
-    pub coordinator: PublicKey,
+    pub administrator: PublicKey,
     pub expires_ms: Option<u64>,
     pub redeemed: Option<(PublicKey, EndpointId)>,
 }
@@ -38,8 +38,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             ));
         }
         self.manages_goals(actor)?;
-        let (entry, coordinator) = self.coordinator(actor, &goal)?;
-        if entry.goal.halt().is_some() {
+        let (entry, administrator) = self.administrator(actor, &goal)?;
+        if entry.goal.evaluation().admin_halt.as_ref().is_some() {
             return Err(ApiError::new(
                 ErrorCode::Halted,
                 "the goal's authority is halted",
@@ -50,7 +50,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let invitation = Invitation {
             version: locust_proto::PROTOCOL_VERSION,
             goal,
-            coordinator,
+            administrator,
             endpoint: own.endpoint,
             hints: own.hints.iter().take(MAX_HINTS).cloned().collect(),
             secret,
@@ -63,7 +63,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             secret.digest().to_vec(),
             &InviteRecord {
                 goal,
-                coordinator,
+                administrator,
                 expires_ms,
                 redeemed: None,
             },
@@ -88,21 +88,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if let Some(entry) = self.goals.get(&goal) {
             if entry
                 .state()
-                .coordinator
-                .is_some_and(|key| key != invitation.coordinator)
+                .administrator
+                .is_some_and(|key| key != invitation.administrator)
             {
                 return Err(conflict(
-                    "the ticket's coordinator differs from the held goal",
+                    "the ticket's administrator differs from the held goal",
                 ));
             }
             if entry
                 .state()
                 .members
-                .get(&invitation.coordinator)
-                .is_some_and(|endpoint| *endpoint != invitation.endpoint)
+                .get(&invitation.administrator)
+                .is_some_and(|member| member.endpoint != invitation.endpoint)
             {
                 return Err(conflict(
-                    "the ticket's endpoint differs from the held coordinator admission",
+                    "the ticket's endpoint differs from the held administrator admission",
                 ));
             }
             if entry.membership(&principal) == Some(Membership::Left) && entry.is_member(&principal)
@@ -114,21 +114,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
             if entry.membership(&principal) == Some(Membership::Member) {
                 return answer(Response::Joined {
                     goal,
-                    coordinator: invitation.coordinator,
+                    administrator: invitation.administrator,
                     membership: Membership::Member,
                 });
             }
             if let Some(join) = entry.local.joins.get(&principal) {
                 let same = join.secret == invitation.secret
                     && join.endpoint == invitation.endpoint
-                    && join.coordinator == invitation.coordinator;
+                    && join.administrator == invitation.administrator;
                 if same && join.refused {
                     return Err(denied("the inviter refused this invitation"));
                 }
                 if same {
                     return answer(Response::Joined {
                         goal,
-                        coordinator: invitation.coordinator,
+                        administrator: invitation.administrator,
                         membership: Membership::Joining,
                     });
                 }
@@ -154,7 +154,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             return Ok(Planned {
                 response: Response::Joined {
                     goal,
-                    coordinator: invitation.coordinator,
+                    administrator: invitation.administrator,
                     membership: Membership::Member,
                 },
                 tx,
@@ -165,7 +165,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             &goal,
             &principal,
             &local::JoinRecord {
-                coordinator: invitation.coordinator,
+                administrator: invitation.administrator,
                 endpoint: invitation.endpoint,
                 hints: invitation.hints.clone(),
                 secret: invitation.secret,
@@ -182,7 +182,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok(Planned {
             response: Response::Joined {
                 goal,
-                coordinator: invitation.coordinator,
+                administrator: invitation.administrator,
                 membership: Membership::Joining,
             },
             tx,

@@ -28,11 +28,12 @@ test('every header link leads to a local route that exists', () => {
 	}
 });
 
-test('the docs route is a clear placeholder', () => {
+test('the docs route provides development documentation', () => {
 	assert.equal(DOCS_PATH, '/docs');
 	assert.ok(docsSource.includes('<title>Docs — locust.farm</title>'));
-	assert.ok(docsSource.includes('<h1>Documentation<span class="accent">.</span></h1>'));
-	assert.ok(docsSource.includes('documentation will live'));
+	assert.ok(docsSource.includes('<h1>Documentation.</h1>'));
+	assert.match(docsSource, /Public\s+installation\s+is\s+unavailable/);
+	assert.ok(docsSource.includes('Machine-readable inventory'));
 });
 
 test('the homepage keeps its original heading, title and description', () => {

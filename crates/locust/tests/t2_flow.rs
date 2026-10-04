@@ -176,7 +176,7 @@ impl Mcp {
                 .as_array()
                 .unwrap()
                 .iter()
-                .any(|t| t["name"] == "locust_task_claim")
+                .any(|t| t["name"] == "locust_attempt_start")
         );
         m
     }
@@ -228,7 +228,7 @@ fn git(root: &Path, args: &[&str]) -> String {
 }
 
 #[test]
-fn mcp_claim_and_cli_contribution_apply_use_real_authority_and_sealed_content() {
+fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_sealed_content() {
     let p = Participant::new();
     let enrolled = p.cli(
         &["--owner"],
@@ -242,7 +242,13 @@ fn mcp_claim_and_cli_contribution_apply_use_real_authority_and_sealed_content() 
     let session = session.to_str().unwrap();
     p.cli(&[], &["session", "create", session]);
     let authority = ["--credential", credential, "--session", session];
-    let created = p.cli(&authority, &["goal", "create", "--title", "T2 real core"]);
+    let definition = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "independent-attempts")
+        .unwrap()
+        .blueprint;
+    let fields = json!({"title":"T2 real core", "blueprint_json":serde_json::to_string(&definition).unwrap(), "roles":{"chooser":[agent]}, "inputs":{}}).to_string();
+    let created = p.cli(&authority, &["call", "goal.create", &fields]);
     let goal = created["goal_created"]["goal"].as_str().unwrap();
     let root = tempfile::tempdir().unwrap();
     git(root.path(), &["init", "-q"]);
@@ -268,31 +274,20 @@ fn mcp_claim_and_cli_contribution_apply_use_real_authority_and_sealed_content() 
     );
     let base = export["manifest"].as_str().unwrap();
     let mut mcp = Mcp::new(&p, credential, session);
-    let proposed = mcp.tool(
-        "locust_task_propose",
-        json!({"goal":goal,"text":"change code.txt","input":base,"depends_on":[]}),
+    let grants = json!({"goal":goal,"agent":agent,"grants":{"contribute":true,"execute":true,"review":false,"select":true,"flow":false,"administer":false,"takeover":false}}).to_string();
+    p.cli(&["--owner"], &["call", "goal.grant", &grants]);
+    let opened = mcp.tool(
+        "locust_task_open",
+        json!({"goal":goal,"text":"change code.txt","variation":null,"inputs":{},"parent":null}),
     );
-    let task = proposed["recorded"]["event"].as_str().unwrap();
-    let assigned = mcp.tool(
-        "locust_task_assign",
-        json!({"goal":goal,"task":task,"assignee":agent}),
-    );
-    let assignment = assigned["recorded"]["event"].as_str().unwrap();
-    p.cli(
-        &["--owner"],
-        &[
-            "task",
-            "authorize",
-            "--goal",
-            goal,
-            "--assignment",
-            assignment,
-        ],
-    );
+    let task = format!("task:{}", opened["recorded"]["event"].as_str().unwrap());
+    let authorize = json!({"goal":goal,"task":task,"agent":agent,"takeover":false}).to_string();
+    p.cli(&["--owner"], &["call", "task.authorize", &authorize]);
     let claim = mcp.tool(
-        "locust_task_claim",
-        json!({"goal":goal,"assignment":assignment}),
+        "locust_attempt_start",
+        json!({"goal":goal,"task":task,"offer":null}),
     );
+    let attempt = claim["claimed"]["attempt"].as_str().unwrap();
     let generation = claim["claimed"]["generation"].as_u64().unwrap().to_string();
     let destination = p.home.path().join("work");
     let destination = destination.to_str().unwrap();
@@ -347,18 +342,29 @@ fn mcp_claim_and_cli_contribution_apply_use_real_authority_and_sealed_content() 
             goal,
             "--patch",
             hash,
-            "--assignment",
-            assignment,
+            "--attempt",
+            attempt,
             "--generation",
             &generation,
             "verified change",
         ],
     );
     let result = submitted["recorded"]["event"].as_str().unwrap();
+    mcp.tool(
+        "locust_completion_declare",
+        json!({"goal":goal,"subject":result}),
+    );
     p.cli(
         &authority,
         &[
-            "patch", "accept", "--goal", goal, "--patch", hash, "--result", result,
+            "patch",
+            "select",
+            "--goal",
+            goal,
+            "--patch",
+            hash,
+            "--subject",
+            result,
         ],
     );
     assert_eq!(
@@ -366,13 +372,18 @@ fn mcp_claim_and_cli_contribution_apply_use_real_authority_and_sealed_content() 
         "before\n"
     );
     let status = mcp.tool("locust_goal_status", json!({"goal":goal}));
-    assert_eq!(status["goal_status"]["head"], head);
-    assert!(status["goal_status"]["workspace"]["integrated"].is_null());
+    assert!(status["goal_status"].get("head").is_none());
+    assert_eq!(status["goal_status"]["workspace"]["integrated"], base);
+    let contributions = mcp.tool("locust_contributions", json!({"goal":goal,"task":task}));
+    assert_eq!(contributions["contributions"][0]["contribution"], result);
+    assert_eq!(contributions["contributions"][0]["selected"], true);
     p.cli(
         &authority,
         &[
             "patch",
             "apply",
+            "--subject",
+            result,
             "--goal",
             goal,
             "--patch",
@@ -397,6 +408,6 @@ fn mcp_claim_and_cli_contribution_apply_use_real_authority_and_sealed_content() 
     let status = mcp.tool("locust_goal_status", json!({"goal":goal}));
     assert_eq!(status["goal_status"]["workspace"]["integrated"], head);
     let board = mcp.tool("locust_board", json!({"goal":goal}));
-    assert_eq!(board["board"][0]["state"], "accepted");
-    assert_eq!(board["board"][0]["applied"], true);
+    assert_eq!(board["board"][0]["completed"], true);
+    assert_eq!(board["board"][0]["selected"], result);
 }

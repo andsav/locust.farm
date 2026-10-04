@@ -1,11 +1,24 @@
 # Organization blueprints: accepted direction
 
-Date: 2026-10-04. **Status: accepted product direction and authoring requirements;
-not implemented.** The [implementation plan](organization-blueprints-implementation-plan.md)
-now sequences the runtime, agent authoring, Polaris, and complete public manual.
-The concrete schema and distributed decision semantics
-remain proposed choices with explicit decision gates. The current
-[protocol-1 coordinator behavior](protocol-v1.md) remains enforced until replaced.
+Date: 2026-10-04. **Status: accepted product direction and authoring requirements.**
+API 2 / protocol 2 now implements the standalone organization runtime, private
+catalog and agent operations. The [implementation plan](organization-blueprints-implementation-plan.md)
+remains the frozen delivery scope. The separate
+[execution ledger](organization-blueprints-status.md) records completed checks
+and remaining formal, native/client, transport and publication boundaries. The
+historical [protocol-1 coordinator behavior](protocol-v1.md) has been replaced;
+it is not available as a fallback.
+
+The installed `locust blueprint contract` command exports the schema, command
+catalog and examples without connecting to a daemon. Validation rejects unknown
+fields, duplicate keys, unresolved role references, invalid selector scopes,
+impossible explicit thresholds and static flow cycles. It normalizes defaults
+and unordered rule sets before deriving semantic identity. These are offline
+definition checks; required member/input bindings, local permissions and runtime
+proofs remain contextual checks. The enforcing implementation is
+[the pure validator](../crates/locust-core/src/organization.rs), with
+[behavioral tests](../crates/locust-core/src/organization/tests.rs) and
+[installed CLI tests](../crates/locust/tests/blueprints.rs).
 
 This decision follows the [organization blueprint research](../research/organization-blueprints.md)
 and the owner's agreement that agents must easily author blueprints and Polaris
@@ -45,6 +58,35 @@ flow, and decisions. Completion follows a task's explicit rule: what evidence is
 required and whose judgment counts. Submission, approval, selection, and applying
 a change locally remain distinct. Organization rules do not grant local tool,
 filesystem, spending, or sharing permissions.
+
+## Accepted governance and scoped decisions
+
+The owner resolved D2 on 2026-10-04: each goal has one explicit administrator
+for membership and rules. Administration is separate from work organization,
+review, and local execution. A work event authorized by the pinned rules does
+not need a fresh administrator signature.
+
+The D4/D5 approach is also accepted: a scope may name an optional authority for
+exclusive reservation or selecting one output. These identities need not be the
+goal administrator. If an authority is unavailable, only the decision requiring
+it waits; authorized independent contributions and non-exclusive evidence can
+continue. No reservation or selection authority is implicit in open work.
+
+Acceptance fixes the product contract, not a signed-event format or finality
+proof. The [semantics and removal inventory](organization-blueprints-semantics.md)
+records concrete scenarios and the remaining cutoff, fork, proof-retention and
+revision obligations. The administrator must not become a hidden finalizer to
+avoid engineering those obligations.
+
+## Daemon-driven transitions and delivery
+
+The accepted D14 correction requires the daemon to advance configured transitions
+and durably deliver ready work without waiting for agents to request each step.
+Deterministic readiness feeds an explicitly authorized materializer. Stable
+logical effect IDs and atomic event/outbox/deduplication writes make retry and
+restart resume the same work. Delivery, acknowledgment and execution start are
+separate facts. Local execution requires the existing local permission grants;
+flow rules do not grant consent or promise to wake a closed client.
 
 ## One contract, two authoring experiences
 
@@ -119,8 +161,10 @@ These are future acceptance criteria, not checks already run:
 5. Task-specific variations preserve parent scope and local permissions, and
    the agent can explain exactly what remains before task completion.
 
-The research's unresolved questions still need concrete answers: reservation and
-decision finality, membership/rule epochs, proof retention, default templates,
-and the exact declarative schema. Earlier compatibility/migration proposals are
+The remaining engineering questions include exact reservation and decision
+finality, membership/rule cutoffs, proof retention, current-model revision
+transitions, and the signed binding of the declarative schema. D2 and the
+D4/D5 authority approach are accepted; their detailed protocol proofs remain
+open. Earlier compatibility/migration proposals are
 superseded by the greenfield constraint above. Acceptance of the
 product direction does not establish protocol correctness or runtime readiness.

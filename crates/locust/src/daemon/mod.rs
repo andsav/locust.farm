@@ -249,7 +249,8 @@ fn store_open_failure(error: locust_store::OpenError) -> Failure {
     match error {
         OpenError::Store(error) => ApiError::from(error).into(),
         error @ OpenError::InUse(_) => Failure::new(ErrorCode::Unavailable, error.to_string()),
-        error @ (OpenError::NewerSchema { .. } | OpenError::UnsupportedProtocolVersion { .. }) => {
+        error @ (OpenError::UnsupportedSchema { .. }
+        | OpenError::UnsupportedProtocolVersion { .. }) => {
             Failure::new(ErrorCode::UnsupportedVersion, error.to_string())
         }
     }

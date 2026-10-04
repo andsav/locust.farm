@@ -27,6 +27,12 @@ def require(condition, message):
         raise CheckFailure(message)
 
 
+def require_unchanged_export_binding(before, after, base):
+    require(before.get("exported") == base and before.get("integrated") is None,
+            "export-only workspace binding did not identify the exported base without integration")
+    require(after == before, "conflicting apply changed workspace binding")
+
+
 class Operations(Qualification):
     def __init__(self, binary, timeout, artifact_dir, network="default"):
         super().__init__(binary, timeout, artifact_dir, network=network)
@@ -140,7 +146,7 @@ class Operations(Qualification):
             self.start(machine)
             machine.agent = identity(variant(self.cli(machine, ["agent", "enroll", f"m{machine.number}",
                                       "--manage-goals"], owner=True), "agent_enrolled")["agent"], "principal")
-        goal = variant(self.cli(lead, ["goal", "create", "--title", "Synthetic operations"]), "goal_created")["goal"]
+        goal = self.create_goal(lead, "Synthetic operations")
         self.summary["goal"] = goal
         for machine in (first, second):
             ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
@@ -148,6 +154,7 @@ class Operations(Qualification):
         del ticket
         self.wait("three members converge", lambda: all(
             (state := self.goal_status(m, goal)) and len(state["members"]) == 3 for m in self.machines))
+        self.grant_contributions(goal)
         self.wait("workers establish their independent peer link", lambda:
                   any(p["endpoint"] == second.endpoint and p["connected"]
                       for p in self.goal_status(first, goal)["peers"]))
@@ -159,8 +166,9 @@ class Operations(Qualification):
         self.wait("both document proposals arrive", lambda: all(
             (detail := self.event(lead, goal, r)) and detail["text"] == f"proposal {m.number}"
             for m, r in zip((first, second), revisions)))
-        self.api(lead, "doc.accept", goal=goal, revision=revisions[0])
-        self.expect_error(lead, ["call", "doc.accept", json.dumps({"goal": goal, "revision": revisions[1]})], "conflict")
+        self.api(lead, "review.record", goal=goal, subject=revisions[0], verdict="approve", text="Reviewed document proposal")
+        self.api(lead, "scope.select", goal=goal, subject=revisions[0], expected=None)
+        self.expect_error(lead, ["call", "scope.select", json.dumps({"goal": goal, "subject": revisions[1], "expected": None})], "conflict")
         require(self.event(lead, goal, revisions[1])["text"] == "proposal 3", "stale revision evidence disappeared")
         self.passed("conflicting_documents", accepted=revisions[0], retained_stale=revisions[1])
 
@@ -180,8 +188,8 @@ class Operations(Qualification):
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, env=git_env, text=True).strip()
         self.stop(second)
         base = self.cli(lead, ["workspace", "export", "--goal", goal, "--root", source, "--commit", commit])["manifest"]
-        tasks = [self.recorded(lead, ["task", "propose", "--goal", goal, "--input", base, f"Worker {m.number} patch"])
-                 for m in (first, second)]
+        task = "task:" + self.recorded(lead, ["task", "open", "--goal", goal, "--inputs", json.dumps({"snapshot": base}), "Competing worker patches"])
+        tasks = [task, task]
         destinations = [root / "worker2", root / "worker3"]
         self.wait("first replica retains complete snapshot", lambda: self.materialize(first, goal, base, destinations[0]))
         require((destinations[0] / "large.bin").read_bytes() == content, "first snapshot bytes differ")
@@ -201,23 +209,23 @@ class Operations(Qualification):
         self.phase = "competing_patches"
         patches, results, claims = [], [], []
         for machine, task, destination in zip((first, second), tasks, destinations):
-            assignment = self.recorded(lead, ["task", "assign", "--goal", goal, "--task", task, "--assignee", machine.agent])
-            self.wait(f"worker {machine.number} receives assignment", lambda m=machine, a=assignment: self.event(m, goal, a))
-            self.cli(machine, ["task", "authorize", "--goal", goal, "--assignment", assignment], owner=True)
+            offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--recipient", machine.agent])
+            self.wait(f"worker {machine.number} receives assignment", lambda m=machine, a=offer: self.event(m, goal, a))
+            self.cli(machine, ["task", "authorize", "--goal", goal, "--task", task, "--agent", machine.agent], owner=True)
             session = machine.home / "sessions" / "operations.secret"
             self.cli(machine, ["session", "create", session], local=True)
-            claim = variant(self.cli(machine, ["task", "claim", "--goal", goal, "--assignment", assignment], session=session), "claimed")
-            claims.append((assignment, session, claim["generation"]))
+            claim = variant(self.cli(machine, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer], session=session), "claimed")
+            claims.append((claim["attempt"], session, claim["generation"]))
             (destination / "code.txt").write_text(f"worker {machine.number}\n")
             (destination / "large.bin").write_bytes(content[:-1] + bytes([machine.number]))
             patch = self.cli(machine, ["patch", "create", "--goal", goal, "--root", destination, "--base", base,
                                        "--path", "code.txt", "--path", "large.bin"])
             patches.append(patch)
         for index, (machine, patch, claim) in enumerate(zip((first, second), patches, claims)):
-            assignment, session, generation = claim
-            def submit(m=machine, p=patch, a=assignment, s=session, g=generation):
+            attempt, session, generation = claim
+            def submit(m=machine, p=patch, a=attempt, s=session, g=generation):
                 results.append(self.recorded(m, ["patch", "submit", "--goal", goal,
-                    "--patch", p["contribution_id"], "--assignment", a, "--generation", g, "Synthetic patch"], session=s))
+                    "--patch", p["contribution_id"], "--attempt", a, "--generation", g, "Synthetic patch"], session=s))
             if index == 0:
                 interruption = self.interrupt_transfer(lead, submit, len(content))
                 self.start(lead)
@@ -226,16 +234,19 @@ class Operations(Qualification):
         for patch in patches:
             self.wait("complete patch review after peer transfer", lambda p=patch: self.cli(lead,
                 ["patch", "review", "--goal", goal, "--patch", p["contribution_id"]], expected_errors=("unavailable", "not_found")))
-        self.cli(lead, ["patch", "accept", "--goal", goal, "--result", results[0], "--patch", patches[0]["contribution_id"]])
-        self.expect_error(lead, ["patch", "accept", "--goal", goal, "--result", results[1], "--patch", patches[1]["contribution_id"]], "conflict")
-        apply = ["patch", "apply", "--goal", goal, "--root", source, "--patch", patches[0]["contribution_id"],
+        self.api(lead, "review.record", goal=goal, subject=results[0], verdict="approve", text="Reviewed first patch")
+        self.api(lead, "review.record", goal=goal, subject=results[1], verdict="approve", text="Reviewed second patch")
+        self.cli(lead, ["patch", "select", "--goal", goal, "--subject", results[0], "--patch", patches[0]["contribution_id"]])
+        self.expect_error(lead, ["patch", "select", "--goal", goal, "--subject", results[1], "--patch", patches[1]["contribution_id"]], "conflict")
+        apply = ["patch", "apply", "--goal", goal, "--subject", results[0], "--root", source, "--patch", patches[0]["contribution_id"],
                  "--expected-base", base, "--expected-git-head", commit]
         (source / "code.txt").write_text("uncommitted conflict\n")
         (source / "unrelated.txt").write_text("unrelated dirty work\n")
         before = {p.name: p.read_bytes() for p in source.iterdir() if p.is_file()}
+        binding_before = self.goal_status(lead, goal)["workspace"]
         self.expect_error(lead, apply, "conflict")
         require(before == {p.name: p.read_bytes() for p in source.iterdir() if p.is_file()}, "conflicting apply changed files")
-        require(self.goal_status(lead, goal)["workspace"]["integrated"] is None, "conflicting apply recorded integration")
+        require_unchanged_export_binding(binding_before, self.goal_status(lead, goal)["workspace"], base)
         (source / "code.txt").write_text("base\n")
         self.cli(lead, apply)
         require((source / "code.txt").read_text() == "worker 2\n", "wrong worker output integrated")
@@ -244,22 +255,22 @@ class Operations(Qualification):
         require(self.goal_status(lead, goal)["workspace"]["integrated"] == patches[0]["contribution"]["head"], "integration not recorded")
         self.passed("competing_patches", base=base, patches=[p["contribution_id"] for p in patches],
                     results=results, patch_interruption=interruption,
-                    resumed_rss=self.sample_rss(lead, "patches_resumed_and_integrated"), stale_acceptance="conflict", dirty_apply="conflict")
+                    resumed_rss=self.sample_rss(lead, "patches_resumed_and_integrated"), stale_selection="conflict", dirty_apply="conflict")
 
         self.phase = "offline_cancellation"
-        task = self.recorded(lead, ["task", "propose", "--goal", goal, "Explicit cancellation acknowledgment"])
-        assignment = self.recorded(lead, ["task", "assign", "--goal", goal, "--task", task, "--assignee", second.agent])
-        self.wait("cancellation assignment arrives", lambda: self.event(second, goal, assignment))
-        self.cli(second, ["task", "authorize", "--goal", goal, "--assignment", assignment], owner=True)
+        task = "task:" + self.recorded(lead, ["task", "open", "--goal", goal, "Explicit cancellation acknowledgment"])
+        offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--recipient", second.agent])
+        self.wait("cancellation assignment arrives", lambda: self.event(second, goal, offer))
+        self.cli(second, ["task", "authorize", "--goal", goal, "--task", task, "--agent", second.agent], owner=True)
         session = claims[1][1]
-        claim = variant(self.cli(second, ["task", "claim", "--goal", goal, "--assignment", assignment], session=session), "claimed")
+        claim = variant(self.cli(second, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer], session=session), "claimed")
         self.stop(second)
-        cancellation = self.recorded(lead, ["task", "cancel", "--goal", goal, "--assignment", assignment])
+        cancellation = self.recorded(lead, ["attempt", "cancel", "--goal", goal, "--attempt", claim["attempt"]])
         self.start(second)
         self.wait("offline worker receives durable cancellation", lambda:
             any(item["cancel"] == cancellation for item in
                 variant(self.cli(second, ["pending", "--goal", goal], session=session), "pending")["to_acknowledge"]))
-        self.expect_error(second, ["task", "submit", "--goal", goal, "--assignment", assignment,
+        self.expect_error(second, ["contribution", "publish", "--goal", goal, "--task", task, "--attempt", claim["attempt"],
                           "--generation", claim["generation"], "late completion"], "conflict", session=session)
         acknowledged = self.recorded(second, ["call", "cancel.acknowledge", json.dumps({"goal": goal,
             "cancel": cancellation, "generation": claim["generation"], "outcome": "stopped"})], session=session)
@@ -268,48 +279,49 @@ class Operations(Qualification):
         require(not any(item["cancel"] == cancellation for item in
                 variant(self.cli(second, ["pending", "--goal", goal], session=session), "pending")["to_acknowledge"]),
                 "acknowledged cancellation returned after restart")
-        self.passed("offline_cancellation", assignment=assignment, cancellation=cancellation, acknowledgment=acknowledged)
+        self.passed("offline_cancellation", attempt=claim["attempt"], cancellation=cancellation, acknowledgment=acknowledged)
 
         self.phase = "withdrawal_leave"
-        note = self.recorded(first, ["note", "add", "--goal", goal, "withdraw this local payload"])
-        self.wait("note retained on coordinator", lambda: self.notes_contain(lead, goal, {note: "withdraw this local payload"}))
+        note = self.recorded(first, ["contribution", "publish", "--goal", goal, "withdraw this local payload"])
+        self.wait("note retained on coordinator", lambda: self.contributions_contain(lead, goal, {note: "withdraw this local payload"}))
         payload = self.event(first, goal, note)["content"][0]["hash"]
         self.api(first, "blob.withdraw", goal=goal, hash=payload)
         self.restart(first)
         require(self.event(first, goal, note)["text"] is None, "withdrawn payload readable after restart")
         require(self.event(lead, goal, note)["text"] == "withdraw this local payload", "withdrawal affected another replica")
         self.api(first, "goal.leave", goal=goal)
-        self.expect_error(first, ["note", "add", "--goal", goal, "must be refused"], "denied")
+        self.expect_error(first, ["contribution", "publish", "--goal", goal, "must be refused"], "denied")
         self.restart(first)
-        self.expect_error(first, ["note", "add", "--goal", goal, "must still be refused"], "denied")
+        self.expect_error(first, ["contribution", "publish", "--goal", goal, "must still be refused"], "denied")
         self.passed("withdrawal_leave", payload=payload, metadata_event=note, retained_other_replica=True)
 
         self.phase = "offline_rotation"
-        goal = variant(self.cli(lead, ["goal", "create", "--title", "Synthetic offline rotation"]), "goal_created")["goal"]
+        goal = self.create_goal(lead, "Synthetic offline rotation")
         for machine in (first, second):
             ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
             self.cli(machine, ["goal", "join", "--ticket", ticket])
         del ticket
         self.wait("rotation goal admitted", lambda: all(
             (state := self.goal_status(m, goal)) and len(state["members"]) == 3 for m in self.machines))
+        self.grant_contributions(goal)
         # Stop all other holders before the member authors its offline suffix.
         self.stop(lead)
         self.stop(first)
-        stale = self.recorded(second, ["note", "add", "--goal", goal, "offline old epoch contribution"])
+        stale = self.recorded(second, ["contribution", "publish", "--goal", goal, "offline old epoch contribution"])
         self.stop(second)
         self.start(lead)
         removal = variant(self.api(lead, "member.remove", goal=goal, member=second.agent), "recorded")["event"]
-        future = self.recorded(lead, ["note", "add", "--goal", goal, "new epoch only"])
+        future = self.recorded(lead, ["contribution", "publish", "--goal", goal, "new epoch only"])
         removal_detail = self.event(lead, goal, removal)
         future_detail = self.event(lead, goal, future)
         require(removal_detail["payload"]["key_epoch"] == 1 and future_detail["payload"]["key_epoch"] == 1,
                 "removal and future content did not rotate to epoch one")
         self.start(first)
         self.wait("offline current member recovers rotated epoch", lambda:
-                  self.notes_contain(first, goal, {future: "new epoch only"}))
+                  self.contributions_contain(first, goal, {future: "new epoch only"}))
         route_start = len(self.routes)
         self.start(second)
-        # A transport path is not a successful authorized exchange. Protocol 1
+        # A transport path is not a successful authorized exchange. Protocol 2
         # refuses ordinary sync to a removed endpoint; it does not deliver a
         # revocation notification to update that endpoint's offline local view.
         self.wait("removed endpoint attempts a fresh transport path", lambda:
@@ -318,7 +330,7 @@ class Operations(Qualification):
         self.wait("current replicas agree on removal", lambda: all(
             all(m["member"] != second.agent for m in self.goal_status(peer, goal)["members"])
             for peer in (lead, first)))
-        require(not self.notes_contain(lead, goal, {stale: "offline old epoch contribution"}), "offline suffix escaped removal cutoff")
+        require(not self.contributions_contain(lead, goal, {stale: "offline old epoch contribution"}), "offline suffix escaped removal cutoff")
         stale_detail = self.event(second, goal, stale)
         require(stale_detail and stale_detail["text"] == "offline old epoch contribution",
                 "offline contribution was not retained locally")

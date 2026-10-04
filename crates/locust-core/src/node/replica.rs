@@ -6,7 +6,7 @@ use std::ops::Bound::{Excluded, Unbounded};
 use locust_proto::crypto::ContentKey;
 use locust_proto::engine::Entropy;
 use locust_proto::event::{AuthorPoint, Body, Event, WireEvent};
-use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
+use locust_proto::id::{BlobHash, EffectId, EndpointId, EventId, GoalId, PublicKey};
 use locust_proto::limits::MAX_BLOB_BYTES;
 use locust_proto::seal;
 use locust_proto::store::{Store, StoreError};
@@ -96,6 +96,77 @@ impl<S: Store, E: Entropy> Node<S, E> {
 }
 
 impl<S: Store, E: Entropy> Replica for Node<S, E> {
+    fn next_delivery(
+        &self,
+        remote: EndpointId,
+        after: Option<(EffectId, PublicKey)>,
+    ) -> Option<(EffectId, PublicKey)> {
+        if self.failed {
+            return None;
+        }
+        self.goals[&self.replica_id()]
+            .deliveries
+            .iter()
+            .find(|(key, record)| {
+                after.is_none_or(|after| **key > after)
+                    && record.endpoint == remote
+                    && record.available
+                    && !record.delivered
+            })
+            .map(|(key, _)| *key)
+    }
+
+    fn receive_delivery(
+        &mut self,
+        effect: EffectId,
+        recipient: PublicKey,
+    ) -> Result<bool, Refusal> {
+        if self.failed {
+            return Err(Refusal::ProtocolError);
+        }
+        // The inbox was committed atomically with the verified event projection.
+        // No missing definition, foreign recipient, or disputed effect earns a receipt.
+        Ok(self.goals[&self.replica_id()]
+            .deliveries
+            .get(&(effect, recipient))
+            .is_some_and(|record| {
+                record.available
+                    && record.received
+                    && self.principals.active(&recipient).is_some()
+                    && self
+                        .identity
+                        .endpoint
+                        .as_ref()
+                        .is_some_and(|local| local.endpoint == record.endpoint)
+            }))
+    }
+
+    fn receive_receipt(
+        &mut self,
+        remote: EndpointId,
+        effect: EffectId,
+        recipient: PublicKey,
+    ) -> Result<(), Refusal> {
+        if self.failed {
+            return Err(Refusal::ProtocolError);
+        }
+        let goal = self.replica_id();
+        let mut record = self.goals[&goal]
+            .deliveries
+            .get(&(effect, recipient))
+            .filter(|record| record.endpoint == remote)
+            .cloned()
+            .ok_or(Refusal::ProtocolError)?;
+        if !record.delivered {
+            record.delivered = true;
+            let mut tx = Tx::none();
+            tx.local(super::delivery::write(goal, effect, recipient, &record))
+                .touch(goal);
+            self.land_once(tx).map_err(|_| Refusal::ProtocolError)?;
+        }
+        Ok(())
+    }
+
     fn frontier(&self) -> Frontier {
         self.goals[&self.replica_id()].goal.frontier()
     }
@@ -127,7 +198,7 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
                     .local
                     .joins
                     .values()
-                    .any(|join| join.coordinator != genesis.coordinator)
+                    .any(|join| join.administrator != genesis.administrator)
             {
                 return Err(Refusal::InvitationRefused);
             }
@@ -151,8 +222,19 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
             .goal
             .authors()
             .flat_map(|author| entry.goal.points(author))
-            .filter_map(|point| entry.goal.event(&point.id)?.header().payload)
-            .map(|payload| payload.key_epoch)
+            .filter_map(|point| entry.goal.event(&point.id))
+            .flat_map(|event| {
+                let definition = match &event.header().body {
+                    Body::RulesBound { binding, .. } => Some(binding.definition.object.key_epoch),
+                    _ => None,
+                };
+                event
+                    .header()
+                    .payload
+                    .map(|payload| payload.key_epoch)
+                    .into_iter()
+                    .chain(definition)
+            })
             .filter(|epoch| !entry.keys.contains_key(epoch))
             .collect::<BTreeSet<_>>()
             .into_iter()

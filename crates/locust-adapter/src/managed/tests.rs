@@ -25,10 +25,9 @@ fn spec(client: Client, workspace: PathBuf) -> LaunchSpec {
             instance: InstanceId([1; 16]),
             principal: PublicKey([2; 32]),
             goal: Some(GoalId([3; 32])),
-            assignment: Some(AssignmentBinding {
-                task: EventId([4; 32]),
-                assignment: EventId([5; 32]),
-                attempt: 1,
+            attempt: Some(AttemptBinding {
+                task: locust_proto::event::TaskId::Authored(EventId([4; 32])),
+                attempt: EventId([5; 32]),
             }),
             claim: None,
         },
@@ -227,8 +226,8 @@ fn daemon_claim_evidence_and_failed_receipt_update_preserve_valid_record() {
     assert_eq!(owned.metadata.delivery, Value::Null);
     let claim = Claim {
         goal: GoalId([3; 32]),
-        task: EventId([4; 32]),
-        assignment: EventId([5; 32]),
+        task: locust_proto::event::TaskId::Authored(EventId([4; 32])),
+        attempt: EventId([5; 32]),
         instance: InstanceId([1; 16]),
         generation: 2,
     };

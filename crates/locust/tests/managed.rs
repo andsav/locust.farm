@@ -25,8 +25,8 @@ use std::{
 };
 const KEY: PublicKey = PublicKey([2; 32]);
 const GOAL: GoalId = GoalId([3; 32]);
-const TASK: EventId = EventId([4; 32]);
-const ASSIGNMENT: EventId = EventId([5; 32]);
+const TASK: locust_proto::event::TaskId = locust_proto::event::TaskId::Authored(EventId([4; 32]));
+const ATTEMPT: EventId = EventId([5; 32]);
 const SESSION: SessionSecret = SessionSecret([6; 32]);
 #[derive(Default)]
 struct State {
@@ -36,7 +36,7 @@ struct State {
     reject_report: bool,
     reject_started: bool,
     claims: Vec<Claim>,
-    wrong_assignee: bool,
+    held_elsewhere: bool,
     race_pending: bool,
     race_observed: bool,
 }
@@ -108,7 +108,7 @@ impl State {
                     self.claims = vec![Claim {
                         goal: GOAL,
                         task: TASK,
-                        assignment: ASSIGNMENT,
+                        attempt: ATTEMPT,
                         instance: SESSION.instance(),
                         generation: 1,
                     }];
@@ -116,9 +116,20 @@ impl State {
                 Ok(Response::Pending(PendingWork {
                     revision: self.reports.len() as u64 + 1,
                     claimed: self.claims.clone(),
+                    held_elsewhere: if self.held_elsewhere {
+                        vec![Claim {
+                            goal: GOAL,
+                            task: TASK,
+                            attempt: ATTEMPT,
+                            instance: SessionSecret([9; 32]).instance(),
+                            generation: 1,
+                        }]
+                    } else {
+                        vec![]
+                    },
                     to_acknowledge: vec![CancelItem {
                         task: TASK,
-                        assignment: ASSIGNMENT,
+                        attempt: ATTEMPT,
                         cancel: EventId([7; 32]),
                         generation: self.claims.first().map(|c| c.generation),
                     }],
@@ -129,18 +140,17 @@ impl State {
                 assert_eq!(goal, GOAL);
                 Ok(Response::Board(vec![TaskView {
                     task: TASK,
-                    state: TaskState::Assigned,
+                    context: locust_proto::event::Context {
+                        scope: locust_proto::event::Scope::Task(TASK),
+                        round: EventId([4; 32]),
+                    },
+                    creator: KEY,
                     title: None,
-                    proposer: KEY,
-                    assignee: Some(if self.wrong_assignee {
-                        PublicKey([9; 32])
-                    } else {
-                        KEY
-                    }),
-                    assignment: Some(ASSIGNMENT),
-                    attempt: 1,
-                    result: None,
-                    applied: false,
+                    attempts: vec![ATTEMPT],
+                    contributions: vec![],
+                    completed: false,
+                    selected: None,
+                    closed: false,
                 }]))
             }
             other => panic!("unexpected managed request {other:?}"),
@@ -271,8 +281,8 @@ impl Fixture {
                 "--goal",
             ])
             .arg(GOAL.to_string())
-            .arg("--assignment")
-            .arg(ASSIGNMENT.to_string());
+            .arg("--attempt")
+            .arg(ATTEMPT.to_string());
         command
     }
 }
@@ -342,10 +352,7 @@ fn launch_readiness_pending_and_exact_resume_preserve_profile_and_cancellation()
     );
     assert_eq!(states.last(), Some(&SessionState::Exited));
     let metadata = locust_adapter::managed::decode(state.record.as_ref().unwrap()).unwrap();
-    assert_eq!(
-        metadata.binding.assignment.as_ref().unwrap().assignment,
-        ASSIGNMENT
-    );
+    assert_eq!(metadata.binding.attempt.as_ref().unwrap().attempt, ATTEMPT);
     assert!(
         !String::from_utf8_lossy(&state.record.as_ref().unwrap().detail).contains("PRIVATE PROMPT")
     );
@@ -387,9 +394,9 @@ fn launch_readiness_pending_and_exact_resume_preserve_profile_and_cancellation()
             .iter()
             .any(|r| matches!(
                 r,
-                Request::TaskClaim { .. }
+                Request::AttemptStart { .. }
                     | Request::CancelAcknowledge { .. }
-                    | Request::TaskSubmit { .. }
+                    | Request::ContributionPublish { .. }
             ))
     );
 }
@@ -436,13 +443,13 @@ fn uncertain_launch_refuses_duplicates_and_recovery_never_spawns() {
     assert_eq!(result(&output)["error"]["code"], "conflict");
 }
 #[test]
-fn wrong_assignee_is_fenced_before_spawn_or_profile_mutation() {
+fn attempt_held_elsewhere_is_fenced_before_spawn_or_profile_mutation() {
     let fixture = Fixture::new();
     let paths = fixture.setup(READY_CLIENT);
     let baseline = fs::read(paths.2.join(".factory/mcp.json")).unwrap();
-    fixture.state.lock().unwrap().wrong_assignee = true;
+    fixture.state.lock().unwrap().held_elsewhere = true;
     let output = fixture.launch(&paths).output().unwrap();
-    assert_eq!(result(&output)["error"]["code"], "denied");
+    assert_eq!(result(&output)["error"]["code"], "claim_held");
     assert!(fixture.state.lock().unwrap().reports.is_empty());
     assert_eq!(
         fs::read(paths.2.join(".factory/mcp.json")).unwrap(),

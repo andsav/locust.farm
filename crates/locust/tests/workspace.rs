@@ -4,7 +4,7 @@ use locust_proto::API_VERSION;
 use locust_proto::api::*;
 use locust_proto::codec;
 use locust_proto::crypto::content_hash;
-use locust_proto::event::Body;
+use locust_proto::event::{Body, Context, Scope, TaskId};
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::limits::{MAX_HELLO_FRAME_BYTES, MAX_LOCAL_FRAME_BYTES};
 use serde_json::Value;
@@ -23,14 +23,19 @@ use std::thread;
 
 const GOAL: GoalId = GoalId([0x31; 32]);
 const PRINCIPAL: PublicKey = PublicKey([0x42; 32]);
-const ASSIGNMENT: EventId = EventId([0x53; 32]);
+const TASK: TaskId = TaskId::Authored(EventId([0x52; 32]));
+const ATTEMPT: EventId = EventId([0x53; 32]);
+const CONTEXT: Context = Context {
+    scope: Scope::Task(TASK),
+    round: EventId([0x52; 32]),
+};
 const RESULT: EventId = EventId([0x64; 32]);
 
 #[derive(Default)]
 struct State {
     objects: HashMap<BlobHash, Vec<u8>>,
     binding: WorkspaceBinding,
-    head: Option<BlobHash>,
+    selected_patch: Option<BlobHash>,
     submitted: Option<Body>,
     requests: Vec<RequestFrame>,
     reject_workspace_set: bool,
@@ -64,11 +69,12 @@ impl State {
                 Ok(Response::GoalStatus(GoalStatus {
                     goal,
                     title: Some("workspace".into()),
-                    coordinator: PRINCIPAL,
-                    decision_head: None,
+                    administrator: PRINCIPAL,
+                    governance_head: None,
+                    current_rules: None,
+                    scope_halts: vec![],
                     members: vec![],
                     halted: None,
-                    head: self.head,
                     workspace: Some(self.binding.clone()),
                     grants: GoalGrants::default(),
                     peers: vec![],
@@ -86,25 +92,28 @@ impl State {
                     .get(&hash)
                     .cloned()
                     .map(|bytes| Response::Blob { bytes })
-                    .ok_or(ApiError {
-                        code: ErrorCode::Unavailable,
-                        message: "object is unavailable from isolated fixture".into(),
+                    .ok_or_else(|| {
+                        ApiError::new(
+                            ErrorCode::Unavailable,
+                            "object is unavailable from isolated fixture",
+                        )
                     })
             }
             Request::WorkspaceSet { goal, binding } => {
                 assert_eq!(goal, GOAL);
                 if self.reject_workspace_set {
-                    return Err(ApiError {
-                        code: ErrorCode::Unavailable,
-                        message: "binding storage unavailable in isolated fixture".into(),
-                    });
+                    return Err(ApiError::new(
+                        ErrorCode::Unavailable,
+                        "binding storage unavailable in isolated fixture",
+                    ));
                 }
                 self.binding = binding;
                 Ok(Response::Done)
             }
-            Request::TaskSubmit {
+            Request::ContributionPublish {
                 goal,
-                assignment,
+                task,
+                attempt,
                 generation,
                 base,
                 patch,
@@ -112,16 +121,18 @@ impl State {
                 ..
             } => {
                 assert_eq!(goal, GOAL);
-                assert_eq!(assignment, ASSIGNMENT);
-                assert_eq!(generation, 7);
+                assert_eq!(task, Some(TASK));
+                assert_eq!(attempt, Some(ATTEMPT));
+                assert_eq!(generation, Some(7));
                 let contribution = locust_proto::contribution::Contribution::decode(
                     self.objects.get(&patch.unwrap()).unwrap(),
                 )
                 .unwrap();
                 assert_eq!(base, Some(contribution.base));
                 assert_eq!(artifacts, [contribution.head]);
-                self.submitted = Some(Body::ResultSubmitted {
-                    assignment,
+                self.submitted = Some(Body::ContributionPublished {
+                    context: CONTEXT,
+                    attempt,
                     base,
                     patch,
                     artifacts,
@@ -131,12 +142,12 @@ impl State {
             Request::Event { goal, event } => {
                 assert_eq!(goal, GOAL);
                 assert_eq!(event, RESULT);
-                Ok(Response::Event(EventDetail {
+                Ok(Response::Event(Box::new(EventDetail {
                     view: EventView {
                         position: Some(1),
                         event,
                         author: PRINCIPAL,
-                        kind: "result_submitted".into(),
+                        kind: "contribution_published".into(),
                         at_ms: 1,
                         standing: Standing::Effective,
                     },
@@ -146,12 +157,68 @@ impl State {
                     text: Some("result".into()),
                     task: None,
                     content: vec![],
+                })))
+            }
+            Request::Pending { goal } => {
+                assert_eq!(goal, GOAL);
+                Ok(Response::Pending(PendingWork {
+                    claimed: vec![Claim {
+                        goal,
+                        task: TASK,
+                        attempt: ATTEMPT,
+                        instance: SessionSecret([1; 32]).instance(),
+                        generation: 7,
+                    }],
+                    ..Default::default()
                 }))
             }
-            Request::ResultAccept { goal, result, head } => {
+            Request::Contributions { goal, task } => {
                 assert_eq!(goal, GOAL);
-                assert_eq!(result, RESULT);
-                self.head = head;
+                assert_eq!(task, None);
+                Ok(Response::Contributions(
+                    self.submitted
+                        .as_ref()
+                        .map(|body| {
+                            let Body::ContributionPublished {
+                                base,
+                                patch,
+                                artifacts,
+                                ..
+                            } = body
+                            else {
+                                unreachable!()
+                            };
+                            ContributionView {
+                                contribution: RESULT,
+                                author: PRINCIPAL,
+                                context: CONTEXT,
+                                attempt: Some(ATTEMPT),
+                                approved: true,
+                                selected: self.selected_patch == *patch,
+                                evidence: vec![],
+                                base: *base,
+                                patch: *patch,
+                                artifacts: artifacts.clone(),
+                                text: Some("result".into()),
+                            }
+                        })
+                        .into_iter()
+                        .collect(),
+                ))
+            }
+            Request::ScopeSelect {
+                goal,
+                subject,
+                expected,
+            } => {
+                assert_eq!(goal, GOAL);
+                assert_eq!(subject, RESULT);
+                assert_eq!(expected, None);
+                let Some(Body::ContributionPublished { patch, .. }) = self.submitted.as_ref()
+                else {
+                    unreachable!()
+                };
+                self.selected_patch = *patch;
                 Ok(Response::Recorded {
                     event: EventId([0x75; 32]),
                 })
@@ -281,7 +348,7 @@ fn git(root: &Path, args: &[&str]) -> String {
 }
 
 #[test]
-fn snapshot_patch_acceptance_and_integration_are_explicit_and_bound() {
+fn snapshot_patch_selection_and_integration_are_explicit_and_bound() {
     let fixture = Fixture::new();
     let files = tempfile::tempdir().unwrap();
     let repo = files.path().join("repo");
@@ -318,7 +385,7 @@ fn snapshot_patch_acceptance_and_integration_are_explicit_and_bound() {
     ])
     .arg(&destination);
     let materialized = output(cmd, 0);
-    assert_eq!(materialized["result"]["integrated"], false);
+    assert_eq!(materialized["result"]["integrated"], true);
     assert_eq!(fs::read(destination.join("file")).unwrap(), b"base\n");
     fs::write(destination.join("file"), b"result\n").unwrap();
     let stored = fixture.state.lock().unwrap().objects.len();
@@ -363,8 +430,8 @@ fn snapshot_patch_acceptance_and_integration_are_explicit_and_bound() {
         "31313131",
         "--patch",
         &patch,
-        "--assignment",
-        &ASSIGNMENT.to_string(),
+        "--attempt",
+        &ATTEMPT.to_string(),
         "--generation",
         "7",
         "finished",
@@ -381,57 +448,77 @@ fn snapshot_patch_acceptance_and_integration_are_explicit_and_bound() {
             "31313131",
             "--patch",
             &patch,
-            "--assignment",
-            &ASSIGNMENT.to_string(),
+            "--attempt",
+            &ATTEMPT.to_string(),
             "--generation",
             "7",
             "finished",
         ]);
     output(cmd, 0);
-    assert!(fixture.state.lock().unwrap().head.is_none());
+    assert!(fixture.state.lock().unwrap().selected_patch.is_none());
     let submitted = fixture.state.lock().unwrap().submitted.clone().unwrap();
-    if let Some(Body::ResultSubmitted { base, .. }) = &mut fixture.state.lock().unwrap().submitted {
+    if let Some(Body::ContributionPublished { base, .. }) =
+        &mut fixture.state.lock().unwrap().submitted
+    {
         *base = Some(BlobHash([0x99; 32]));
     }
     let mut cmd = fixture.cli();
     cmd.args([
         "patch",
-        "accept",
+        "select",
         "--goal",
         "31313131",
         "--patch",
         &patch,
-        "--result",
+        "--subject",
         &RESULT.to_string(),
     ]);
     assert_eq!(output(cmd, 7)["error"]["code"], "conflict");
-    assert!(fixture.state.lock().unwrap().head.is_none());
+    assert!(fixture.state.lock().unwrap().selected_patch.is_none());
     fixture.state.lock().unwrap().submitted = Some(submitted);
     let mut cmd = fixture.cli();
     cmd.args([
         "patch",
-        "accept",
+        "select",
         "--goal",
         "31313131",
         "--patch",
         &patch,
-        "--result",
+        "--subject",
         &RESULT.to_string(),
     ]);
     output(cmd, 0);
     assert_eq!(
-        fixture.state.lock().unwrap().head.unwrap().to_string(),
-        head
+        fixture
+            .state
+            .lock()
+            .unwrap()
+            .selected_patch
+            .unwrap()
+            .to_string(),
+        patch
     );
-    assert!(fixture.state.lock().unwrap().binding.integrated.is_none());
+    assert_eq!(
+        fixture
+            .state
+            .lock()
+            .unwrap()
+            .binding
+            .integrated
+            .unwrap()
+            .to_string(),
+        base
+    );
     fs::write(destination.join("file"), b"base\n").unwrap();
     fs::write(destination.join("unrelated"), b"WIP").unwrap();
-    let accepted = fixture.state.lock().unwrap().head;
-    fixture.state.lock().unwrap().head = Some(BlobHash([0x99; 32]));
+    let selected = fixture.state.lock().unwrap().selected_patch;
+    fixture.state.lock().unwrap().selected_patch = Some(BlobHash([0x99; 32]));
     let mut cmd = fixture.cli();
     cmd.args([
         "patch",
         "apply",
+        "--subject",
+        &RESULT.to_string(),
         "--goal",
         "31313131",
         "--patch",
@@ -441,15 +528,27 @@ fn snapshot_patch_acceptance_and_integration_are_explicit_and_bound() {
         "--root",
     ])
     .arg(&destination);
-    assert_eq!(output(cmd, 6)["error"]["code"], "invalid");
-    assert!(fixture.state.lock().unwrap().binding.integrated.is_none());
+    assert_eq!(output(cmd, 7)["error"]["code"], "conflict");
+    assert_eq!(
+        fixture
+            .state
+            .lock()
+            .unwrap()
+            .binding
+            .integrated
+            .unwrap()
+            .to_string(),
+        base
+    );
     assert_eq!(fs::read(destination.join("file")).unwrap(), b"base\n");
-    fixture.state.lock().unwrap().head = accepted;
+    fixture.state.lock().unwrap().selected_patch = selected;
     let wrong = BlobHash([0x99; 32]).to_string();
     let mut cmd = fixture.cli();
     cmd.args([
         "patch",
         "apply",
+        "--subject",
+        &RESULT.to_string(),
         "--goal",
         "31313131",
         "--patch",
@@ -465,6 +564,8 @@ fn snapshot_patch_acceptance_and_integration_are_explicit_and_bound() {
     cmd.args([
         "patch",
         "apply",
+        "--subject",
+        &RESULT.to_string(),
         "--goal",
         "31313131",
         "--patch",
@@ -566,7 +667,14 @@ fn applied_files_survive_binding_failure_and_exact_retry_recovers_integration() 
         }
         .encode()
         .unwrap());
-        state.head = Some(head);
+        state.selected_patch = Some(patch);
+        state.submitted = Some(Body::ContributionPublished {
+            context: CONTEXT,
+            attempt: Some(ATTEMPT),
+            base: Some(base),
+            patch: Some(patch),
+            artifacts: vec![head],
+        });
         state.binding.destination = Some(root.path().to_str().unwrap().into());
         state.reject_workspace_set = true;
         (base.to_string(), head, patch.to_string())
@@ -576,6 +684,8 @@ fn applied_files_survive_binding_failure_and_exact_retry_recovers_integration() 
         cmd.args([
             "patch",
             "apply",
+            "--subject",
+            &RESULT.to_string(),
             "--goal",
             "31313131",
             "--patch",

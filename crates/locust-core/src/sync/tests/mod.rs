@@ -21,10 +21,16 @@ pub fn endpoint(n: u8) -> EndpointId {
     EndpointId([n; 32])
 }
 
-pub fn note() -> Body {
-    Body::Note {
-        about: None,
-        supersedes: None,
+pub fn contribution() -> Body {
+    Body::ContributionPublished {
+        context: locust_proto::event::Context {
+            scope: locust_proto::event::Scope::Goal,
+            round: locust_proto::id::EventId([1; 32]),
+        },
+        attempt: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
     }
 }
 
@@ -53,7 +59,7 @@ impl Founded {
     /// `count` notes by `author`, anchored at the genesis.
     pub fn notes(&self, author: &mut Author, count: usize) -> Vec<Event> {
         (0..count)
-            .map(|_| author.event(self.goal, self.anchor(), note()))
+            .map(|_| author.event(self.goal, self.anchor(), contribution()))
             .collect()
     }
 

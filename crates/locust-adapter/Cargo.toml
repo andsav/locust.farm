@@ -12,7 +12,6 @@ serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
-locust-proto = { workspace = true, features = ["testkit"] }
 tempfile.workspace = true
 
 [[example]]

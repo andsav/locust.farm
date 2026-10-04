@@ -1,20 +1,9 @@
-//! The database schema and its single forward migration path.
-//!
-//! `PRAGMA user_version` records the schema version, 0 for a new file.
-//! Opening applies every migration above the recorded version in order, each
-//! in one transaction with its version bump, and refuses a database whose
-//! version is newer than this binary knows.
-
+//! One current database format, initialized directly without migrations.
+//! An empty unmarked database is new. Every other format is refused.
+use crate::error::{OpenError, sql};
 use rusqlite::Connection;
 
-use crate::error::{OpenError, corrupted, sql};
-
-/// The schema version this binary writes.
-pub(crate) const VERSION: i64 = MIGRATIONS.len() as i64;
-
-/// Entry `n` migrates version `n` to `n + 1`. Append only: a released entry
-/// is never edited, because databases in the field already ran it.
-const MIGRATIONS: [&str; 1] = [V1];
+pub(crate) const VERSION: i64 = 2;
 
 /// Every table is `STRICT`, so a value of the wrong type is refused when it
 /// is written rather than misread later.
@@ -29,9 +18,9 @@ const MIGRATIONS: [&str; 1] = [V1];
 /// - `blobs`: held content objects. An object is a file under `blobs/`
 ///   exactly when it is longer than `INLINE_MAX_BYTES` (262144), and then
 ///   `bytes` is NULL; the CHECK keeps that rule and the stored length honest.
-///   Changing the limit therefore needs a migration that moves objects.
+///   Changing the limit requires a distinct current schema; existing objects are not converted.
 /// - `local`: non-replicated records, ordered by key bytes within a space.
-pub(crate) const V1: &str = "
+pub(crate) const CURRENT: &str = "
 CREATE TABLE goals (
     goal BLOB NOT NULL PRIMARY KEY,
     last_position INTEGER NOT NULL
@@ -64,25 +53,46 @@ CREATE TABLE local (
 ) STRICT, WITHOUT ROWID;
 ";
 
-/// Brings the database to [`VERSION`].
-pub(crate) fn migrate(conn: &mut Connection) -> Result<(), OpenError> {
+/// Reject unsupported markers and unmarked databases containing schema objects.
+pub(crate) fn check(conn: &Connection) -> Result<(), OpenError> {
     let found: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(sql)?;
-    if found > VERSION {
-        return Err(OpenError::NewerSchema {
+    if found == VERSION {
+        return Ok(());
+    }
+    let empty = if found == 0 {
+        conn.query_row(
+            "SELECT NOT EXISTS(SELECT 1 FROM sqlite_schema)",
+            [],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(sql)?
+    } else {
+        false
+    };
+    if empty {
+        Ok(())
+    } else {
+        Err(OpenError::UnsupportedSchema {
             found,
             known: VERSION,
-        });
+        })
     }
-    let done = usize::try_from(found)
-        .map_err(|_| corrupted(format_args!("schema version {found} is negative")))?;
-    for (from, migration) in (0..).zip(MIGRATIONS).skip(done) {
-        let tx = conn.transaction().map_err(sql)?;
-        tx.execute_batch(migration).map_err(sql)?;
-        tx.pragma_update(None, "user_version", from + 1)
+}
+
+/// Atomically create the current tables and marker only in an empty database.
+pub(crate) fn initialize(conn: &mut Connection) -> Result<(), OpenError> {
+    let tx = conn.transaction().map_err(sql)?;
+    check(&tx)?;
+    let found: i64 = tx
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(sql)?;
+    if found == 0 {
+        tx.execute_batch(CURRENT).map_err(sql)?;
+        tx.pragma_update(None, "user_version", VERSION)
             .map_err(sql)?;
-        tx.commit().map_err(sql)?;
     }
+    tx.commit().map_err(sql)?;
     Ok(())
 }

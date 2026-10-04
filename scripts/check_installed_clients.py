@@ -36,7 +36,7 @@ ASSERTIONS = ("test_signed_install", "persistent_setup", "setup_idempotent", "ne
               "bound_cli_launcher",
               "automatic_skill_metadata", "native_skill_read", "registered_mcp_roundtrip", "default_read",
               "default_write", "permissive_read", "permissive_write", "claim", "progress",
-              "workspace_native_tool", "contribution_flow", "accepted_before_integrated", "dirty_work_preserved",
+              "workspace_native_tool", "contribution_flow", "selected_before_integrated", "dirty_work_preserved",
               "fresh_client_after_restart", "daemon_restart", "setup_removal", "unrelated_settings_preserved",
               "client_execution", "default_interactive_approval", "real_model", "production_release_trust")
 
@@ -136,9 +136,9 @@ def project_envelope(value):
     output = {"ok": True, "result": {}}
     if not isinstance(result, dict):
         return output
-    for key, allowed in (("goal_status", ("goal", "coordinator", "head")),
+    for key, allowed in (("goal_status", ("goal", "administrator", "current_rules")),
                          ("recorded", ("event",)),
-                         ("claimed", ("goal", "task", "assignment", "instance", "generation"))):
+                         ("claimed", ("goal", "task", "attempt", "instance", "generation"))):
         if isinstance(result.get(key), dict):
             output["result"][key] = {name: result[key][name] for name in allowed if name in result[key]}
     return output
@@ -200,14 +200,14 @@ def successful(receipts, tool):
 
 def read_matches(receipts, daemon):
     return any(e["result"].get("goal_status", {}).get("goal") == daemon.goal and
-               e["result"].get("goal_status", {}).get("coordinator") == daemon.principal
+               e["result"].get("goal_status", {}).get("administrator") == daemon.principal
                for e in successful(receipts, workflow.READ))
 
 
-def persisted_note(receipts, daemon, text, tool=workflow.WRITE, assignment=None):
-    if tool not in (workflow.WRITE, workflow.PROGRESS) or (tool == workflow.PROGRESS and assignment is None):
+def persisted_contribution(receipts, daemon, text, tool=workflow.WRITE, attempt=None):
+    if tool not in (workflow.WRITE, workflow.PROGRESS) or (tool == workflow.PROGRESS and attempt is None):
         return False
-    expected_kind = "progress" if tool == workflow.PROGRESS else "note"
+    expected_kind = "attempt_reported" if tool == workflow.PROGRESS else "contribution_published"
     for value in successful(receipts, tool):
         event = value["result"].get("recorded", {}).get("event")
         if event:
@@ -216,7 +216,7 @@ def persisted_note(receipts, daemon, text, tool=workflow.WRITE, assignment=None)
             if (observed.get("text") != text or view.get("author") != daemon.principal
                     or view.get("kind") != expected_kind or view.get("event") != event):
                 continue
-            if tool == workflow.PROGRESS and observed.get("body", {}).get("progress", {}).get("assignment") != assignment:
+            if tool == workflow.PROGRESS and observed.get("body", {}).get("attempt_reported", {}).get("attempt") != attempt:
                 continue
             return True
     return False
@@ -299,10 +299,15 @@ def install(profile, args):
     require(status["installed"] and not status["withdrawn"] and
             status["manifest_sha256"] == digest(bundle / "manifest.json") and
             digest(installed) == digest(bundle / "locust"), "Installed artifact provenance mismatch")
+    import build_release
+    manual = prefix / "current/manual.tar"
+    build_release.verify_manual(manual.read_bytes(), status["manifest"]["source_commit"],
+                                status["manifest"]["protocol_version"], status["manifest"]["api_version"])
     return prefix, installed, {"bootstrap_path": str(args.bootstrap), "bootstrap_sha256": digest(args.bootstrap),
         "manifest_sha256": status["manifest_sha256"], "manifest": status["manifest"],
         "installed_path": str(installed), "installed_binary_sha256": digest(installed),
         "skill_sha256": digest(prefix / "current/skills/locust/SKILL.md"),
+        "manual_sha256": digest(manual), "manual_read_without_checkout": True,
         "test_trust_public_key_sha256": digest(public), "production_release_trust": False}
 
 
@@ -406,12 +411,12 @@ def qualify(client, binary, args):
                     return run, receipts
 
                 default, de = execute("default", [skill_read_step(client, skill_path), workflow.step(workflow.READ, {"goal": daemon.goal}),
-                                                   workflow.step(workflow.WRITE, {"goal": daemon.goal, "text": "installed-default-" + client})])
+                                                   workflow.step(workflow.WRITE, {"goal": daemon.goal, "artifacts": [], "summary": "installed-default-" + client})])
                 first_metadata = default["skill_observations"][:1]
                 checks["automatic_skill_metadata"] = fixture.assertion("pass" if first_metadata and first_metadata[0]["description_present"] else "fail",
                     "Exact installed skill description observed in first provider request before any authored tool call; only hashes/booleans/paths retained", first_metadata)
                 for key, tool, success in (("default_read", workflow.READ, read_matches(de, daemon)),
-                                           ("default_write", workflow.WRITE, persisted_note(de, daemon, "installed-default-" + client))):
+                                           ("default_write", workflow.WRITE, persisted_contribution(de, daemon, "installed-default-" + client))):
                     denied = any(row.get("tool_name", "").endswith(tool) for row in default["policy_denials"])
                     checks[key] = fixture.assertion("pass" if success else "not_run" if denied else "fail",
                         "Native successful response independently verified" if success else "Exact observed default policy denial" if denied else "No verified result or exact policy denial", default["policy_denials"] if denied else default["native_receipts"])
@@ -419,30 +424,30 @@ def qualify(client, binary, args):
                 independent_claims = []
                 def progress_args():
                     pending = daemon.call(["pending", "--goal", daemon.goal])["pending"]
-                    claim = next(c for c in pending["claimed"] if c["assignment"] == work["assignment"])
+                    claim = next(c for c in pending["claimed"] if c["task"] == work["task"])
                     independent_claims.append(claim.copy())
-                    return {"goal": daemon.goal, "assignment": work["assignment"], "generation": claim["generation"], "text": "installed-progress-" + client}
+                    return {"goal": daemon.goal, "attempt": claim["attempt"], "generation": claim["generation"], "status": "progress", "text": "installed-progress-" + client}
 
                 active, ae = execute("permissive", [skill_read_step(client, skill_path), workflow.step(workflow.READ, {"goal": daemon.goal}),
-                    workflow.step(workflow.WRITE, {"goal": daemon.goal, "text": "installed-permissive-" + client}),
-                    workflow.step(workflow.CLAIM, {"goal": daemon.goal, "assignment": work["assignment"]}),
+                    workflow.step(workflow.WRITE, {"goal": daemon.goal, "artifacts": [], "summary": "installed-permissive-" + client}),
+                    workflow.step(workflow.CLAIM, {"goal": daemon.goal, "task": work["task"], "offer": work["offer"]}),
                     workflow.step(workflow.PROGRESS, progress_args), workflow.native_step(client, native_command, args.timeout_ms)], True)
                 checks["native_skill_read"] = fixture.assertion("pass" if any(row["skill_body_match"] and row["skill_path_observed"] for row in de + ae) else "fail",
                     "Completed native tool response contains the exact installed skill body; retained receipt has hash and match boolean only")
                 read = read_matches(ae, daemon)
-                write = persisted_note(ae, daemon, "installed-permissive-" + client)
+                write = persisted_contribution(ae, daemon, "installed-permissive-" + client)
                 checks["permissive_read"] = fixture.assertion("pass" if read else "fail", "Native MCP response matches independently created goal and principal")
                 checks["permissive_write"] = fixture.assertion("pass" if write else "fail", "Native returned event ID independently resolves to expected committed note and author")
                 checks["registered_mcp_roundtrip"] = fixture.assertion("pass" if read and write else "fail", "Actual native MCP result plus durable daemon state through setup-installed command, without registration overlays")
                 observed_claims = [v["result"].get("claimed") for v in successful(ae, workflow.CLAIM)]
-                claim = any(c in independent_claims and c.get("assignment") == work["assignment"] and c.get("instance") == daemon.instance
+                claim = any(c in independent_claims and c.get("task") == work["task"] and c.get("instance") == daemon.instance
                             for c in observed_claims if isinstance(c, dict))
                 checks["claim"] = fixture.assertion("pass" if claim else "fail", "Native claim matches fixed fixture instance and independently observed claim generation")
-                checks["progress"] = fixture.assertion("pass" if persisted_note(ae, daemon, "installed-progress-" + client, workflow.PROGRESS, work["assignment"]) else "fail", "Native progress event independently resolves to exact event ID, progress kind, assignment, text and author")
+                checks["progress"] = fixture.assertion("pass" if persisted_contribution(ae, daemon, "installed-progress-" + client, workflow.PROGRESS, independent_claims[0]["attempt"]) else "fail", "Native progress event independently resolves to exact event ID, progress kind, attempt, text and author")
                 workflow.validate_workspace(checks, daemon, profile, work, workspace_receipt)
                 checks["bound_cli_launcher"] = fixture.assertion(
                     "pass" if all(checks[key]["status"] == "pass" for key in
-                                  ("workspace_native_tool", "contribution_flow", "accepted_before_integrated", "dirty_work_preserved")) else "fail",
+                                  ("workspace_native_tool", "contribution_flow", "selected_before_integrated", "dirty_work_preserved")) else "fail",
                     "Native client workspace driver used only setup's launcher and --json; no executable/home/credential/session prefix supplied by the harness",
                     {"path": str(launcher), "sha256": digest(launcher), "skill_sha256": observer.sha256})
                 before = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
@@ -451,8 +456,8 @@ def qualify(client, binary, args):
                 after = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
                 checks["daemon_restart"] = fixture.assertion("pass" if before == after and endpoint == daemon.endpoint else "fail", "Installed daemon retains exact goal state and endpoint across restart")
                 fresh, fe = execute("fresh-after-restart", [workflow.step(workflow.READ, {"goal": daemon.goal}),
-                    workflow.step(workflow.WRITE, {"goal": daemon.goal, "text": "installed-restart-" + client})], True)
-                fresh_good = (read_matches(fe, daemon) and persisted_note(fe, daemon, "installed-restart-" + client)
+                    workflow.step(workflow.WRITE, {"goal": daemon.goal, "artifacts": [], "summary": "installed-restart-" + client})], True)
+                fresh_good = (read_matches(fe, daemon) and persisted_contribution(fe, daemon, "installed-restart-" + client)
                               and bool(fresh["native_session_id"]) and fresh["native_session_id"] not in
                               {default["native_session_id"], active["native_session_id"]})
                 checks["fresh_client_after_restart"] = fixture.assertion("pass" if fresh_good else "fail", "Fresh native process reads persisted state and commits new note through existing persistent setup after daemon restart")

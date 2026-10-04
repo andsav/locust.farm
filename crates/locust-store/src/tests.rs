@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use locust_proto::PROTOCOL_VERSION;
-use locust_proto::event::{AuthorPoint, Body, Event, Header, PayloadRef};
+use locust_proto::event::{AuthorPoint, Body, Context, Event, Header, PayloadRef, Scope};
 use locust_proto::id::{BlobHash, EventId, GoalId};
 use locust_proto::limits::{
     BLOB_CHUNK_BYTES, MAX_ARTIFACTS, MAX_EVENTS_PER_BATCH, MAX_PARENTS, MAX_PAYLOAD_BYTES,
@@ -32,10 +32,16 @@ fn raw(dir: &TempDir) -> Connection {
     Connection::open(dir.path().join("locust.db")).unwrap()
 }
 
-fn note() -> Body {
-    Body::Note {
-        about: None,
-        supersedes: None,
+fn contribution() -> Body {
+    Body::ContributionPublished {
+        context: Context {
+            scope: Scope::Goal,
+            round: EventId([0; 32]),
+        },
+        attempt: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
     }
 }
 
@@ -135,21 +141,77 @@ fn the_database_is_opened_for_power_loss_durability_under_an_exclusive_lock() {
 }
 
 #[test]
-fn a_database_from_a_newer_schema_is_refused() {
-    let (dir, store) = scratch();
-    drop(store);
-    let raw = Connection::open(dir.path().join("locust.db")).unwrap();
-    raw.pragma_update(None, "user_version", 2).unwrap();
-    drop(raw);
+fn every_unsupported_schema_is_refused_without_mutating_state() {
+    for version in [-1, 0, 1, 3, 999] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("locust.db");
+        let raw = Connection::open(&path).unwrap();
+        raw.execute_batch(
+            "CREATE TABLE preserved(value TEXT); INSERT INTO preserved VALUES ('untouched');",
+        )
+        .unwrap();
+        raw.pragma_update(None, "user_version", version).unwrap();
+        drop(raw);
+        let before = fs::read(&path).unwrap();
+        assert_eq!(
+            SqliteStore::open(dir.path()).unwrap_err(),
+            OpenError::UnsupportedSchema {
+                found: version,
+                known: 2
+            }
+        );
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert_eq!(
+            fs::read_dir(dir.path()).unwrap().count(),
+            1,
+            "refusal created files for schema {version}"
+        );
+    }
+}
+
+#[test]
+fn fresh_initialization_is_atomic_and_current_state_reopens() {
+    let mut conn = Connection::open_in_memory().unwrap();
+    // Allow the schema root and first table, then exhaust the database pages.
+    // SQLite must roll back the earlier table and leave the marker uncommitted.
+    conn.pragma_update(None, "max_page_count", 2).unwrap();
+    assert!(crate::schema::initialize(&mut conn).is_err());
     assert_eq!(
-        SqliteStore::open(dir.path()).unwrap_err(),
-        OpenError::NewerSchema { found: 2, known: 1 }
+        conn.query_row("SELECT COUNT(*) FROM sqlite_schema", [], |row| row
+            .get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    conn.pragma_update(None, "max_page_count", 100).unwrap();
+    crate::schema::initialize(&mut conn).unwrap();
+    assert_eq!(
+        conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+            .unwrap(),
+        2
+    );
+    let (dir, mut store) = scratch();
+    store
+        .commit(&Commit {
+            local: vec![put(Space::Identity, b"persisted", b"current")],
+            ..Commit::default()
+        })
+        .unwrap();
+    drop(store);
+    let store = reopen(&dir);
+    assert_eq!(
+        store.get(Space::Identity, b"persisted").unwrap(),
+        Some(b"current".to_vec())
     );
 }
 
 #[test]
 fn the_schema_states_the_inline_limit_the_code_uses() {
-    assert!(crate::schema::V1.contains(&format!("len > {INLINE_MAX_BYTES} ")));
+    assert!(crate::schema::CURRENT.contains(&format!("len > {INLINE_MAX_BYTES} ")));
 }
 
 #[test]
@@ -158,7 +220,7 @@ fn a_commit_that_fails_part_way_leaves_nothing() {
     let mut owner = Author::new(1);
     let genesis = owner.genesis();
     let goal = genesis.header().goal;
-    let first = owner.event(goal, Some(genesis.id()), note());
+    let first = owner.event(goal, Some(genesis.id()), contribution());
     let small = object(100);
     let large = object(INLINE_MAX_BYTES + 1);
     // Refuses one local write, after the commit's events and objects are in.
@@ -192,7 +254,7 @@ fn a_commit_that_fails_part_way_leaves_nothing() {
     assert_eq!(object_files(dir.path()), [large.hash().to_string()]);
 
     // The store carries on, and the failed commit took no position.
-    let second = owner.event(goal, Some(genesis.id()), note());
+    let second = owner.event(goal, Some(genesis.id()), contribution());
     store
         .commit(&Commit {
             events: vec![genesis.clone(), second.clone()],
@@ -260,8 +322,8 @@ fn a_damaged_event_row_is_reported_as_corrupted_never_as_another_event() {
     let genesis = owner.genesis();
     let goal = genesis.header().goal;
     let author = owner.key.public();
-    let first = owner.event(goal, Some(genesis.id()), note());
-    let second = owner.event(goal, Some(genesis.id()), note());
+    let first = owner.event(goal, Some(genesis.id()), contribution());
+    let second = owner.event(goal, Some(genesis.id()), contribution());
     store
         .commit(&Commit {
             events: vec![genesis.clone(), first.clone(), second.clone()],
@@ -601,8 +663,12 @@ fn largest_header(n: usize, prev: EventId) -> Header {
             len: MAX_PAYLOAD_BYTES as u32,
             key_epoch: u32::MAX,
         }),
-        body: Body::ResultSubmitted {
-            assignment: EventId([0xcc; 32]),
+        body: Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0xaa; 32]),
+            },
+            attempt: Some(EventId([0xcc; 32])),
             base: Some(BlobHash([0xdd; 32])),
             patch: Some(BlobHash([0xee; 32])),
             artifacts: (0..MAX_ARTIFACTS)

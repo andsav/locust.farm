@@ -4,7 +4,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use rusqlite::{Connection, ErrorCode};
+use rusqlite::{Connection, ErrorCode, OpenFlags};
 
 use crate::error::{OpenError, sql};
 
@@ -22,6 +22,8 @@ pub(crate) fn open(database: &Path, dir: &Path) -> Result<Connection, OpenError>
     // index in this process's memory.
     conn.pragma_update(None, "locking_mode", "EXCLUSIVE")
         .map_err(sql)?;
+    crate::schema::check(&conn)?;
+    check_protocol(&conn)?;
     let mode: String = conn
         .pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get(0))
         .map_err(|error| match error.sqlite_error_code() {
@@ -66,20 +68,30 @@ fn recover(conn: &Connection) -> Result<(), OpenError> {
     Ok(())
 }
 
-/// Reject incompatible signed events before migrations, blob collection, or
-/// node identity initialization. WAL recovery above may checkpoint physical
-/// database pages, but this check never rewrites logical event content.
-pub(crate) fn check_protocol(conn: &Connection) -> Result<(), OpenError> {
-    // Do not assume the event table layout of a schema we do not know.
-    let schema: i64 = conn
-        .pragma_query_value(None, "user_version", |row| row.get(0))
-        .map_err(sql)?;
-    if schema > crate::schema::VERSION {
-        return Err(OpenError::NewerSchema {
-            found: schema,
-            known: crate::schema::VERSION,
-        });
+/// Read the existing format before creating directories or configuring writes.
+/// SQLite may need its existing WAL metadata to read a recovered database.
+pub(crate) fn preflight(database: &Path, dir: &Path) -> Result<(), OpenError> {
+    if !database.exists() {
+        return Ok(());
     }
+    let conn =
+        Connection::open_with_flags(database, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(sql)?;
+    conn.busy_timeout(Duration::ZERO).map_err(sql)?;
+    // Read once with lock-aware error mapping before the shared checks.
+    conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+        .map_err(|error| match error.sqlite_error_code() {
+            Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => {
+                OpenError::InUse(dir.to_path_buf())
+            }
+            _ => sql(error).into(),
+        })?;
+    crate::schema::check(&conn)?;
+    check_protocol(&conn)
+}
+
+/// Reject incompatible signed events before initialization or garbage collection.
+pub(crate) fn check_protocol(conn: &Connection) -> Result<(), OpenError> {
+    crate::schema::check(conn)?;
     let exists: bool = conn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'events')",

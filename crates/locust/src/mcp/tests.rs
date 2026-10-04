@@ -8,7 +8,7 @@ fn auth(socket: PathBuf) -> Arc<Authentication> {
     Arc::new(Authentication {
         socket,
         credential: Credential([1; 32]),
-        session: SessionSecret([2; 32]),
+        session: Some(SessionSecret([2; 32])),
     })
 }
 fn fake(
@@ -23,6 +23,7 @@ fn fake(
         Err(ApiError {
             code: ErrorCode::Denied,
             message: "grant required".into(),
+            details_json: None,
         }),
     )
 }
@@ -452,5 +453,57 @@ fn a_cancelled_queued_blocking_worker_never_starts_a_handshake() {
             ErrorCode::Unavailable
         );
     });
+    daemon.join().unwrap();
+}
+
+#[tokio::test]
+async fn private_author_uses_catalog_without_an_execution_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("author-socket");
+    let listener = UnixListener::bind(&socket).unwrap();
+    let daemon = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+            .unwrap();
+        let hello: ClientHello =
+            codec::decode(&codec::read_frame(&mut stream, 4096).unwrap().unwrap()).unwrap();
+        assert_eq!(hello.session, None);
+        let welcome = ServerHello::Welcome {
+            api_version: API_VERSION,
+            daemon_version: "test".into(),
+            caller: Caller::Author(locust_proto::id::PublicKey([4; 32])),
+            max_blob_bytes: 1024,
+        };
+        codec::write_frame(&mut stream, &codec::encode(&welcome).unwrap()).unwrap();
+        let frame: RequestFrame =
+            codec::decode(&codec::read_frame(&mut stream, 4096).unwrap().unwrap()).unwrap();
+        assert_eq!(frame.request, Request::BlueprintDrafts);
+        assert_eq!(frame.on_behalf, None);
+        codec::write_frame(
+            &mut stream,
+            &codec::encode(&ResponseFrame {
+                id: frame.id,
+                result: Ok(Response::BlueprintDrafts(vec![])),
+            })
+            .unwrap(),
+        )
+        .unwrap();
+    });
+    let (input, mut writer) = tokio::io::duplex(8192);
+    let (output, reader) = tokio::io::duplex(8192);
+    let mut reader = BufReader::new(reader);
+    let authentication = Arc::new(Authentication {
+        socket,
+        credential: Credential([1; 32]),
+        session: None,
+    });
+    let bridge = tokio::spawn(serve(input, output, authentication, None));
+    initialize(&mut writer, &mut reader, VERSIONS[0]).await;
+    send(&mut writer,json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"locust_blueprint_drafts"}})).await;
+    let answer = receive(&mut reader).await;
+    assert_eq!(answer["result"]["structuredContent"]["ok"], true);
+    drop(writer);
+    bridge.await.unwrap().unwrap();
     daemon.join().unwrap();
 }

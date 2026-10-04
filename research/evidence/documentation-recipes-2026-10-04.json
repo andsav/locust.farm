@@ -1,0 +1,39 @@
+{
+  "format": "locust-documentation-recipes-v1",
+  "binary_sha256": "5ebffc83aab250c35d0635f851f86ba8eed884f48ad70647d48c2ddd3e74ac7a",
+  "reported_version": "locust 0.1.0 (e95e27729f55-dirty) api 2 protocol 2",
+  "timeout_seconds": 60.0,
+  "cases": [
+    {
+      "page": "docs/guide/apply.md",
+      "name": "open-patch-application",
+      "source_sha256": "995e1620f12776e4a85ed403cea84cb42bfbfa2be9b04ac6c34bd7da72f76d61",
+      "passed": true,
+      "timed_out": false,
+      "exit_code": 0,
+      "stdout": "Verified: explicit local choice applies exact bytes without distributed selection.\nRepositories and observations: <temporary>\n",
+      "stderr": ""
+    },
+    {
+      "page": "docs/guide/blueprint-authoring.md",
+      "name": "private-authoring",
+      "source_sha256": "9de44676b60f1bf018595530d68dc313585c2cf15503227329149cdf61078590",
+      "passed": true,
+      "timed_out": false,
+      "exit_code": 0,
+      "stdout": "Verified: exact private publication, recoverable edit conflict, author-only authority.\nPrivate catalog and observations: <temporary>\n",
+      "stderr": ""
+    },
+    {
+      "page": "docs/guide/collaboration.md",
+      "name": "local-collaboration",
+      "source_sha256": "57cfe29e77daea655ea054fe704c47e09276a7b9b71ef6f6b30ba8ae4f2e8941",
+      "passed": true,
+      "timed_out": false,
+      "exit_code": 0,
+      "stdout": "Verified: taskless completion, independent attempts, pinned task rules, exact peer review.\nLocal state and observations: <temporary>\n",
+      "stderr": ""
+    }
+  ],
+  "binary_unchanged": true
+}

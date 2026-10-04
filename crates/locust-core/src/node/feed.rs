@@ -1,7 +1,7 @@
 //! A goal's event feed and its readers' cursors: `Space::Cursor`.
 //!
-//! The feed numbers events from 1 in the order they first took a
-//! non-pending standing on this daemon. That order depends on arrival, so it
+//! The feed numbers standing changes from 1, including retractions and
+//! missing-proof transitions. An event may therefore appear more than once. That order depends on arrival, so it
 //! cannot be recomputed from the log and is stored: one record per position,
 //! written in the commit that judges the event. A cursor is one caller's
 //! acknowledged position.
@@ -52,7 +52,7 @@ impl Feed {
         self.order.len() as u64
     }
 
-    /// The feed position of `event`; `None` while it is pending.
+    /// The latest feed position of `event`, if it has been observed.
     pub fn position(&self, event: &EventId) -> Option<u64> {
         self.positions.get(event).copied()
     }

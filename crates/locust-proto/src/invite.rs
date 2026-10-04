@@ -6,7 +6,7 @@
 //! retrying with the same key recovers the result, any other key is refused.
 //! Holding an invitation shares nothing and enrolls nothing by itself.
 //!
-//! In version 0 only a goal's coordinator issues invitations, so the daemon
+//! In the current protocol only a goal's administrator issues invitations, so the daemon
 //! that redeems one is the daemon that signs the admission.
 
 use std::fmt;
@@ -107,10 +107,10 @@ pub struct Invitation {
     pub version: u8,
     /// The goal the holder is invited to.
     pub goal: GoalId,
-    /// The goal's coordinator, which in version 0 is also the issuer. Shown
+    /// The goal's administrator, which in the current protocol is also the issuer. Shown
     /// to the joiner as a fingerprint and checked against the genesis record
     /// once it arrives.
-    pub coordinator: PublicKey,
+    pub administrator: PublicKey,
     /// The daemon that redeems the invitation.
     pub endpoint: EndpointId,
     /// Ways to reach `endpoint`; see [`Hint`]. At most [`MAX_HINTS`], each
@@ -309,6 +309,15 @@ fn join_digest(
     *hasher.finalize().as_bytes()
 }
 
+impl schemars::JsonSchema for Ticket {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "Ticket".into()
+    }
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({"type":"string","pattern":"^locust-invite-[0-9a-f]+$"})
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -318,7 +327,7 @@ mod tests {
         Invitation {
             version: PROTOCOL_VERSION,
             goal: GoalId([1; 32]),
-            coordinator: testkit::keypair(1).public(),
+            administrator: testkit::keypair(1).public(),
             endpoint: EndpointId([2; 32]),
             hints: vec!["https://relay.example".to_string()],
             secret: InviteSecret([0x5a; 32]),

@@ -1,5 +1,11 @@
 # Locust implementation plan
 
+> **Historical pre-organization document.** Its protocol-1 commands, source
+> snapshots and qualification claims do not apply to API 2 / protocol 2. Read
+> [the current manual](guide/overview.md) and
+> [implementation status](organization-blueprints-status.md) for current behavior.
+> No legacy reader, migration or old-runtime support is provided.
+
 **Organization model update, 2026-10-04:** the accepted
 [organization blueprint direction](organization-blueprints.md) and its
 [implementation plan](organization-blueprints-implementation-plan.md) supersede

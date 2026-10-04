@@ -81,9 +81,9 @@ class T2WorkflowTests(unittest.TestCase):
     def test_nonzero_policy_denial_exit_allowance_is_exact_observed_droid_case(self):
         run = {"scenario": "default", "permission_profile": "default_headless",
                "interrupted": False, "exit_code": 1,
-               "observed_policy_denials": [{"tool_name": "locust___locust_note_add",
+               "observed_policy_denials": [{"tool_name": "locust___locust_contribution_publish",
                                              "reason": "higher autonomy required"}]}
-        self.assertTrue(harness.expected_client_exit(run, "factory-droid", "0.218.1"))
+        self.assertFalse(harness.expected_client_exit(run, "factory-droid", "0.218.1"))
         for code in (2, 127, -signal.SIGKILL, -signal.SIGSEGV, None):
             self.assertFalse(harness.expected_client_exit(dict(run, exit_code=code), "factory-droid", "0.218.1"))
         for key, value in (("scenario", "resume"), ("permission_profile", "deliberately_permissive"),
@@ -109,8 +109,8 @@ class T2WorkflowTests(unittest.TestCase):
         self.assertFalse(harness.expected_interrupt_exit({"interrupted": True, "exit_code": -signal.SIGKILL}, "codex", "codex-cli 0.153.4"))
 
     def test_claim_requires_full_independent_daemon_snapshot(self):
-        claim={"goal":"goal","task":"task","assignment":"assignment","instance":"instance","generation":2}
-        work={key:claim[key] for key in ("goal","task","assignment")}
+        claim={"goal":"goal","task":"task","attempt":"attempt","instance":"instance","generation":2}
+        work={key:claim[key] for key in ("goal","task")}
         event={"jsonrpc":"2.0","has_result":True,"id":1,"direction":"bridge_response","request_method":"tools/call","tool":harness.CLAIM,"isError":False,"result":{"ok":True,"result":{"claimed":claim}}}
         self.assertTrue(harness.exact_claim([event],[claim],work,"instance"))
         self.assertFalse(harness.exact_claim([event],[],work,"instance"))
@@ -118,34 +118,34 @@ class T2WorkflowTests(unittest.TestCase):
             bad=copy.deepcopy(event);bad["result"]["result"]["claimed"][key]=value
             self.assertFalse(harness.exact_claim([bad],[bad["result"]["result"]["claimed"]],work,"instance"))
 
-    def test_registry_uses_binary_revision_not_working_tree(self):
-        response=type("Output",(),{"stdout":' GoalStatus { .. } => ("goal.status", READ, GOAL, Agent, TOOL, "description"),\n Session { .. } => ("session.show", READ, DAEMON, Agent, NO_TOOL, "description"),'})()
-        with patch("check_t2_clients.subprocess.run",return_value=response) as run:
-            self.assertEqual(harness.expected_tools("0.1.0 (abcdef123456)"),{"locust_goal_status"})
-            self.assertEqual(run.call_args.args[0][2],"abcdef123456:crates/locust-proto/src/api.rs")
-
-    def test_dirty_revision_requires_unchanged_api_source_and_retains_evidence(self):
-        source=' GoalStatus { .. } => ("goal.status", READ, GOAL, Agent, TOOL, "description"),'
-        response=type("Output",(),{"stdout":source})()
+    def test_registry_comes_from_exact_installed_contract(self):
+        contract={"api_version":2,"protocol_version":2,"operations":[
+            {"name":"goal.status","mcp_tool":"locust_goal_status"},
+            {"name":"session.show","mcp_tool":None}]}
+        response=type("Output",(),{"stdout":json.dumps({"ok":True,"result":contract})})()
         evidence={}
-        with patch("check_t2_clients.subprocess.run",return_value=response), patch("pathlib.Path.read_bytes",return_value=source.encode()):
-            self.assertEqual(harness.expected_tools("0.1.0 (abcdef123456-dirty)",evidence),{"locust_goal_status"})
-        self.assertTrue(evidence["binary_reports_dirty"])
-        self.assertTrue(evidence["working_registry_equals_revision"])
-        with patch("check_t2_clients.subprocess.run",return_value=response), patch("pathlib.Path.read_bytes",return_value=b"changed"):
+        with patch("check_t2_clients.subprocess.run",return_value=response) as run:
+            self.assertEqual(harness.expected_tools("/exact/locust",evidence),{"locust_goal_status"})
+            self.assertEqual(run.call_args.args[0],["/exact/locust","--json","contract"])
+        self.assertEqual(evidence["api_version"],2)
+        self.assertEqual(len(evidence["contract_sha256"]),64)
+
+    def test_invalid_installed_contract_is_not_claimed_as_discovered(self):
+        response=type("Output",(),{"stdout":json.dumps({"ok":False})})()
+        with patch("check_t2_clients.subprocess.run",return_value=response):
             with self.assertRaises(harness.ProductionError):
-                harness.expected_tools("0.1.0 (abcdef123456-dirty)")
+                harness.expected_tools("/exact/locust")
 
     def test_restart_without_contribution_verifies_known_state(self):
         class Daemon:
             goal="goal";principal="principal";endpoint="endpoint";restarted=False
             def call(self,args):
                 if args[:2]==["goal","status"]:
-                    return {"goal_status":{"goal":self.goal,"coordinator":self.principal,"head":None}}
+                    return {"goal_status":{"goal":self.goal,"administrator":self.principal}}
                 if args[:2]==["task","show"]:
-                    return {"task":{"view":{"task":"task","assignment":"assignment","state":"claimed"}}}
+                    return {"task":{"view":{"task":"task","attempt":"attempt","attempts":["attempt"]}}}
                 if args[0]=="pending":
-                    return {"pending":{"claimed":[{"assignment":"assignment","generation":2}]}}
+                    return {"pending":{"claimed":[{"attempt":"attempt","generation":2}]}}
                 return {"event":{"text":"known-progress"}}
             def restart(self):
                 self.restarted=True

@@ -1,0 +1,78 @@
+# Availability and evidence
+
+This is an unreleased development manual. There is no published software
+installer, released manual or authorized website deployment supplied by this
+repository. The [availability record](../reference/availability.json) is the
+reviewed machine-readable source for these facts.
+
+## What the source contains
+
+The existing source includes a local daemon, CLI, stdio MCP bridge, signed
+candidate installation, user-session service support and resumable onboarding.
+API 2 / protocol 2 adds organization rules, offline authoring and semantic diff,
+private revisioned drafts and immutable publication, taskless contributions,
+independent attempts, exact completion/review, scoped decisions and durable flow.
+The current [implementation ledger](../organization-blueprints-status.md)
+links the code, tests and qualification boundaries. Publishing a definition does
+not instantiate a goal or authorize local execution.
+
+## What local qualification establishes
+
+The current runtime passes workspace formatting, clippy and tests. Real CLI/daemon
+fixtures exercise persistent identity, taskless findings, two participants,
+independent attempts, exact reviewed selection/application, owner choice of an
+unselected patch, catalog conflicts and restart. Four Markdown tutorials execute
+against the local binary through `scripts/check_documentation.py`; they do not
+launch models or contact external providers.
+
+The exact `0a295cd` macOS arm64 candidate passed ten installation cases, three
+supported installed client setups, four-client managed lifecycle and recovery,
+and all four installed tutorial recipes. These used actual native executables,
+private profiles and scripted providers. The [native record](../../research/organization-native-qualification.md)
+keeps policy denials and unrun real-model/human-approval cases separate. Droid's
+full contribution workflow failed when its native Execute child received
+SIGKILL; the same driver passed directly under the same network guard, so the
+cause remains unresolved.
+
+The [Polaris native package](polaris.md) passed editing, publication, goal
+creation, restart and revocation against those exact Locust bytes. It used an
+isolated QA identity; canonical installed-release and public-fetch claims remain
+open, as do broader Merak gates. The [current Linux cross-build](../../research/linux-installation-qualification.md)
+passed release compilation only. Linux execution, installation and systemd were
+not exercised.
+
+Key-only multicast peer discovery failed independently of the goal engine on the
+qualification host. A separate three-daemon run with normal lookup/relay defaults
+passed, including worker-to-worker relay exchange while the administrator was
+offline and convergence after restart. These are different transport paths;
+neither is two-physical-machine or sleep/wake evidence. The
+[discovery record](../../research/organization-local-discovery.md) preserves the
+local-only failure.
+
+Earlier pre-organization-cutover records remain historical evidence. They do not
+qualify the replacement runtime. Current-source checks, native client behavior,
+real-model behavior, physical networking and publication require their own
+identified evidence.
+
+## Four independent claims
+
+- **Implemented:** an identified source contains the behavior.
+- **Verified:** a named check exercised an identified artifact in a stated
+  platform, profile, model and environment.
+- **Published:** the identified artifact is actually retrievable at its advertised
+  public address.
+- **Proposed:** the accepted target behavior is still unsuitable as present-tense
+  operating instructions.
+
+Each article has a status badge, source identity and separate software, API,
+protocol and blueprint-schema identifiers. A dirty local build is explicitly
+marked because the displayed HEAD does not identify its uncommitted bytes.
+
+## Choose the available entry
+
+For first contact, [identify your harness](https://locust.farm/start), report its
+capabilities and stop while public setup is unavailable. For a reviewed local
+candidate, read [installation and onboarding](installation.md) with the exact
+candidate and independently selected trust inputs. For definition development,
+read [offline authoring](blueprint-authoring.md). None of these paths silently
+turns a proposal into a released product.

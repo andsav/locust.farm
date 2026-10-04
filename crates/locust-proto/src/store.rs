@@ -97,6 +97,8 @@ pub enum Space {
     Blob = 10,
     /// Content keys per goal and key epoch.
     Key = 11,
+    /// Owner-scoped local drafts, presentation revisions and immutable publications.
+    Blueprint = 12,
 }
 
 /// One local record: its key and its value.
@@ -494,13 +496,19 @@ impl Store for MemStore {
 #[cfg(any(test, feature = "testkit"))]
 pub mod conformance {
     use super::*;
-    use crate::event::Body;
+    use crate::event::{Body, Context, Scope};
     use crate::testkit::Author;
 
-    fn note() -> Body {
-        Body::Note {
-            about: None,
-            supersedes: None,
+    fn contribution() -> Body {
+        Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([1; 32]),
+            },
+            attempt: None,
+            base: None,
+            patch: None,
+            artifacts: Vec::new(),
         }
     }
 
@@ -536,7 +544,7 @@ pub mod conformance {
         let goal = genesis.header().goal;
         let mut log = vec![genesis.clone()];
         for _ in 0..count {
-            log.push(owner.event(goal, Some(genesis.id()), note()));
+            log.push(owner.event(goal, Some(genesis.id()), contribution()));
         }
         log
     }
@@ -589,7 +597,7 @@ pub mod conformance {
             store.stage_blob(&discarded_hash, 0, b"discarded").unwrap();
         }
 
-        let next = owner.event(goal, Some(first[0].id()), note());
+        let next = owner.event(goal, Some(first[0].id()), contribution());
         {
             let mut store = open();
             let log = store.log(&goal, 0, 10).unwrap();
@@ -765,16 +773,22 @@ pub mod conformance {
         // The same key continues its log twice from the same point.
         let mut twin = Author::new(1);
         assert_eq!(twin.genesis(), genesis);
-        let first = owner.event(goal, Some(genesis.id()), note());
+        let first = owner.event(goal, Some(genesis.id()), contribution());
         let conflicting = twin.event(
             goal,
             Some(genesis.id()),
-            Body::Note {
-                about: Some(genesis.id()),
-                supersedes: None,
+            Body::ContributionPublished {
+                context: Context {
+                    scope: Scope::Goal,
+                    round: genesis.id(),
+                },
+                attempt: None,
+                base: None,
+                patch: None,
+                artifacts: Vec::new(),
             },
         );
-        let third = owner.event(goal, Some(genesis.id()), note());
+        let third = owner.event(goal, Some(genesis.id()), contribution());
         store
             .commit(&events(&[&third, &conflicting, &genesis, &first]))
             .unwrap();
@@ -894,9 +908,15 @@ pub mod conformance {
                 twin.event(
                     goal,
                     Some(root.id()),
-                    Body::Note {
-                        about: Some(EventId(about)),
-                        supersedes: None,
+                    Body::ContributionPublished {
+                        context: Context {
+                            scope: Scope::Goal,
+                            round: EventId(about),
+                        },
+                        attempt: None,
+                        base: None,
+                        patch: None,
+                        artifacts: Vec::new(),
                     },
                 )
             })
@@ -1042,11 +1062,15 @@ pub mod conformance {
         let task = owner.event(
             goal,
             Some(genesis.id()),
-            Body::TaskProposed {
-                input: Some(dropped.hash()),
-                depends_on: Vec::new(),
-                deadline_ms: None,
-                max_attempts: None,
+            Body::ContributionPublished {
+                context: Context {
+                    scope: Scope::Goal,
+                    round: genesis.id(),
+                },
+                attempt: None,
+                base: None,
+                patch: None,
+                artifacts: vec![dropped.hash()],
             },
         );
         store

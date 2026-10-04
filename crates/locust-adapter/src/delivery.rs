@@ -184,7 +184,7 @@ fn validate(
         let claim = pending
             .claimed
             .iter()
-            .find(|claim| claim.assignment == cancel.assignment && claim.task == cancel.task);
+            .find(|claim| claim.attempt == cancel.attempt && claim.task == cancel.task);
         if cancel.generation != claim.map(|claim| claim.generation) {
             return Err(error(
                 ErrorCode::Superseded,
@@ -245,8 +245,8 @@ mod tests {
     fn fixture() -> (DeliveryBinding, SessionView, PendingWork) {
         let claim = Claim {
             goal: GoalId([1; 32]),
-            task: EventId([2; 32]),
-            assignment: EventId([3; 32]),
+            task: locust_proto::event::TaskId::Authored(EventId([2; 32])),
+            attempt: EventId([3; 32]),
             instance: InstanceId([4; 16]),
             generation: 1,
         };
@@ -275,7 +275,7 @@ mod tests {
             claimed: vec![claim],
             to_acknowledge: vec![CancelItem {
                 task: claim.task,
-                assignment: claim.assignment,
+                attempt: claim.attempt,
                 cancel: EventId([6; 32]),
                 generation: Some(1),
             }],
@@ -414,9 +414,9 @@ mod tests {
         let (binding, session, mut pending) = fixture();
         let first = prepare(binding.clone(), &session, pending.clone(), None).unwrap();
         for _ in 0..2000 {
-            pending.to_claim.push(locust_proto::api::AssignmentRef {
-                task: EventId([8; 32]),
-                assignment: EventId([9; 32]),
+            pending.to_start.push(locust_proto::api::WorkItem {
+                task: locust_proto::event::TaskId::Authored(EventId([8; 32])),
+                offer: Some(EventId([9; 32])),
             });
         }
         let large = prepare(binding, &session, pending, None).unwrap();
@@ -432,6 +432,6 @@ mod tests {
             first.receipt.work_fingerprint,
             large.receipt.work_fingerprint
         );
-        assert_eq!(large.notice.pending.to_claim.len(), 2000);
+        assert_eq!(large.notice.pending.to_start.len(), 2000);
     }
 }

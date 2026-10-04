@@ -1,395 +1,840 @@
-//! Everything derived from the held events, and the fold that computes it
-//! from scratch: the chain first, then every event in canonical order.
-//!
-//! Canonical order: decisions in chain order; a contribution directly after
-//! the decision it anchors to; contributions sharing an anchor in ascending
-//! (author, position). It depends only on the held set.
+//! Dependency-driven validation with scope-local exact proof contexts. Evaluation
+//! is pure: no signing, durable writes or delivery happens here.
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 
-use std::collections::BTreeMap;
-
-use locust_proto::event::{AuthorPoint, Body, Event};
+use locust_proto::event::{
+    Body, Context, DecisionAction, DecisionPurpose, EffectAction, Event, ReviewVerdict, Scope,
+    ScopeKey, TaskBinding, TaskId,
+};
 use locust_proto::id::{EventId, PublicKey};
+use locust_proto::organization::{CompletionRule, StartRule};
 
+use super::DefinitionLookup;
 use super::chain::Chain;
-use super::commitments::Commitments;
-use super::history::{AuthorLog, History, Slot};
-use super::ids::IdSet;
-use super::standing::{Exclusion, Standing, Waiting};
-use super::state::State;
-use super::transition;
+use super::commitments::{self, Proof};
+use super::history::History;
+use super::rules::{self, Resolved, invalid};
+use super::standing::{Dependency, Evaluation, Halt, Standing, Waiting};
 
-/// What the scan of one author's usable prefix has seen so far.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(super) struct Trail {
-    /// The latest chain position any of the author's events anchored to.
-    reach: Option<u32>,
-    /// True once an event's anchor was not a decision of the chain: the
-    /// author's later events wait behind it.
-    gated: bool,
+type CacheKey = (EventId, Option<EventId>);
+
+pub(super) struct Verifier<'a, D: DefinitionLookup + ?Sized> {
+    pub history: &'a History,
+    pub chain: &'a Chain,
+    pub definitions: &'a D,
+    memo: RefCell<BTreeMap<CacheKey, Standing>>,
+    visiting: RefCell<BTreeSet<CacheKey>>,
+    proofs: RefCell<BTreeMap<EventId, Result<Rc<Proof>, Standing>>>,
+    resolved: RefCell<BTreeMap<Context, Result<Resolved, Standing>>>,
+    pub missing: RefCell<BTreeSet<Dependency>>,
+    pub scope_halts: RefCell<BTreeMap<ScopeKey, Halt>>,
+    witnesses: BTreeMap<EventId, Vec<EventId>>,
+    closure_index: RefCell<commitments::Index>,
 }
 
-/// Where one event of a usable prefix goes.
-pub(super) enum Spot {
-    /// A decision body by someone who is not the coordinator.
-    NotCoordinator,
-    /// A decision of the chain; the walk judges it.
-    Decision,
-    /// Behind an earlier event of its author that waits for its anchor.
-    Behind,
-    /// Its own anchor is not a decision of the chain.
-    Unanchored(EventId),
-    /// A contribution anchored at this chain position.
-    At { position: u32, regressed: bool },
-}
-
-impl Trail {
-    /// Notes an anchor at `position`. False if the author anchored later
-    /// than that before, which makes the event a regression.
-    pub fn reach(&mut self, position: u32) -> bool {
-        if self.reach.is_some_and(|reach| position < reach) {
-            return false;
+impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
+    pub fn new(
+        history: &'a History,
+        chain: &'a Chain,
+        definitions: &'a D,
+        mut closure_index: commitments::Index,
+    ) -> Self {
+        closure_index.refresh(history);
+        let mut witnesses = BTreeMap::<EventId, Vec<EventId>>::new();
+        for event in &history.events {
+            if let Body::CompletionDeclared { subject, .. }
+            | Body::ReviewRecorded { subject, .. }
+            | Body::CheckAttested { subject, .. } = event.header().body
+            {
+                witnesses.entry(subject).or_default().push(event.id());
+            }
         }
-        self.reach = Some(position);
-        true
+        Self {
+            witnesses,
+            closure_index: RefCell::new(closure_index),
+            history,
+            chain,
+            definitions,
+            memo: RefCell::new(BTreeMap::new()),
+            visiting: RefCell::new(BTreeSet::new()),
+            proofs: RefCell::new(BTreeMap::new()),
+            resolved: RefCell::new(BTreeMap::new()),
+            missing: RefCell::new(chain.missing.clone()),
+            scope_halts: RefCell::new(BTreeMap::new()),
+        }
     }
-
-    /// Places the next event of the author's usable prefix.
-    pub fn place(&mut self, chain: &Chain, event: &Event, is_coordinator: bool) -> Spot {
-        let header = event.header();
-        if header.body.is_decision() {
-            if !is_coordinator {
-                return Spot::NotCoordinator;
-            }
-            // A decision anchors to the decision before it.
-            if let Some(before) = chain.position(&event.id()).and_then(|at| at.checked_sub(1)) {
-                self.reach(before);
-            }
-            return Spot::Decision;
+    pub fn resolve(&self, context: Context) -> Result<Resolved, Standing> {
+        if let Some(result) = self.resolved.borrow().get(&context).cloned() {
+            return result;
         }
-        if self.gated {
-            return Spot::Behind;
+        let result = rules::resolve(self.history, self.definitions, context);
+        self.resolved.borrow_mut().insert(context, result.clone());
+        result
+    }
+    pub fn event(&self, id: EventId) -> Result<&Event, Standing> {
+        self.history.get(&id).ok_or_else(|| {
+            self.missing.borrow_mut().insert(Dependency::Event(id));
+            Standing::Pending(Waiting::Reference)
+        })
+    }
+    pub fn require(&self, id: EventId, proof: Option<EventId>) -> Result<(), Standing> {
+        match self.status(id, proof) {
+            Standing::Effective => Ok(()),
+            other => Err(other),
         }
-        let Some(anchor) = header.anchor else {
-            return Spot::Behind;
+    }
+    pub fn proof(&self, id: EventId) -> Result<Rc<Proof>, Standing> {
+        if let Some(result) = self.proofs.borrow().get(&id).cloned() {
+            return result;
+        }
+        let event = self.event(id)?;
+        let result = commitments::build(
+            self.history,
+            self.chain,
+            &mut self.closure_index.borrow_mut(),
+            event,
+            &mut self.missing.borrow_mut(),
+        )
+        .map(Rc::new);
+        self.proofs.borrow_mut().insert(id, result.clone());
+        result
+    }
+    pub fn status(&self, id: EventId, proof: Option<EventId>) -> Standing {
+        let key = (id, proof);
+        if let Some(status) = self.memo.borrow().get(&key).copied() {
+            return status;
+        }
+        if !self.visiting.borrow_mut().insert(key) {
+            return invalid("cyclic semantic dependency");
+        }
+        let status = match self.check(id, proof) {
+            Ok(()) => Standing::Effective,
+            Err(status) => status,
         };
-        match chain.position(&anchor) {
-            Some(position) => Spot::At {
-                position,
-                regressed: !self.reach(position),
-            },
-            None => {
-                self.gated = true;
-                Spot::Unanchored(anchor)
+        self.visiting.borrow_mut().remove(&key);
+        self.memo.borrow_mut().insert(key, status);
+        status
+    }
+    fn check(&self, id: EventId, proof: Option<EventId>) -> Result<(), Standing> {
+        let event = self.event(id)?;
+        let h = event.header();
+        // A scoped decision always validates its own authority and its own exact
+        // proof. Another scope may not select a branch of this authority for it.
+        if matches!(h.body, Body::ScopeDecided { .. }) && proof.is_some() {
+            return self.require(id, None);
+        }
+        let exact = proof.map(|id| self.proof(id)).transpose()?;
+        let pins = exact.as_ref().map(|proof| &proof.retained);
+        let base = self
+            .chain
+            .authorize(self.history, event, pins, &mut self.missing.borrow_mut());
+        if base != Standing::Effective {
+            // Same-slot authority equivocation is still a scope conflict even
+            // though neither branch belongs to the ordinary usable prefix.
+            if base == Standing::Pending(Waiting::ForkProof)
+                && matches!(h.body, Body::ScopeDecided { .. })
+                && self.decision(event) == Err(Standing::Disputed)
+            {
+                return Err(Standing::Disputed);
+            }
+            return Err(base);
+        }
+        if h.body.is_governance() && !matches!(h.body, Body::TaskRevised { .. }) {
+            return Ok(());
+        }
+        if matches!(h.body, Body::ScopeDecided { .. }) {
+            return self.decision(event);
+        }
+        for dependency in h.body.dependencies() {
+            self.require(dependency, proof)?;
+        }
+        match &h.body {
+            Body::TaskOpened { binding } => {
+                if binding.stage.is_some() {
+                    return Err(invalid("only a configured effect may create a stage task"));
+                }
+                let resolved = self.task_binding(binding, h.author, proof)?;
+                if let Some(
+                    parent_context @ Context {
+                        scope: Scope::Task(_),
+                        ..
+                    },
+                ) = binding.parent
+                {
+                    self.active_context(parent_context, event, proof)?;
+                    let parent = self.resolve(parent_context)?;
+                    if !rules::matches(
+                        &parent.effective.work.propose,
+                        h.author,
+                        &parent.effective,
+                        None,
+                    ) {
+                        return Err(invalid("principal may not propose under the parent task"));
+                    }
+                }
+                if !matches!(
+                    binding.parent,
+                    Some(Context {
+                        scope: Scope::Task(_),
+                        ..
+                    })
+                ) && self
+                    .chain
+                    .snapshot(&h.anchor.unwrap())
+                    .and_then(|snapshot| snapshot.rules)
+                    != Some(binding.rules)
+                {
+                    return Err(invalid(
+                        "new task does not use defaults at its governance anchor",
+                    ));
+                }
+                if !rules::matches(
+                    &resolved.effective.work.propose,
+                    h.author,
+                    &resolved.effective,
+                    None,
+                ) {
+                    return Err(invalid("principal may not propose this task"));
+                }
+            }
+            Body::TaskRevised {
+                task,
+                expected_round,
+                binding,
+            } => {
+                let current = self.current_round(*task, h.anchor.unwrap(), proof)?;
+                if current != *expected_round {
+                    return Err(invalid("task round compare-and-swap failed"));
+                }
+                let creator = rules::task_creator(self.history, *task)
+                    .ok_or(Standing::Pending(Waiting::Reference))?;
+                self.task_binding(binding, creator, proof)?;
+            }
+            Body::WorkOffered { context, recipient } => {
+                self.active_context(*context, event, proof)?;
+                let resolved = self.resolve(*context)?;
+                if !matches!(context.scope, Scope::Task(_)) {
+                    return Err(invalid("work offers require a task"));
+                }
+                if !self.member_at(*recipient,h.anchor.unwrap())||!resolved.effective.work.starts.iter().any(|rule|matches!(rule,StartRule::Offered{by,to} if rules::matches(by,h.author,&resolved.effective,None)&&rules::matches(to,*recipient,&resolved.effective,None))){return Err(invalid("work offer is not authorized by the pinned rules"));}
+            }
+            Body::AttemptStarted {
+                context,
+                offer,
+                closure,
+            } => {
+                self.active_context(*context, event, proof)?;
+                self.open_at_observed_closure(event, *context, *closure, proof)?;
+                if !matches!(context.scope, Scope::Task(_)) {
+                    return Err(invalid("attempt requires a task"));
+                }
+                let resolved = self.resolve(*context)?;
+                if let Some(offer)=offer{
+                    let (offered,recipient)=self.offer(*offer)?;
+                    if offered!=*context||recipient!=h.author{return Err(invalid("attempt does not accept this recipient's offer"));}
+                    self.no_prior_offer_answer(*offer,event,proof)?;
+                }else if !resolved.effective.work.starts.iter().any(|rule|matches!(rule,StartRule::Independent{by} if rules::matches(by,h.author,&resolved.effective,None))){return Err(invalid("independent start is not authorized"));}
+            }
+            Body::AttemptReported { attempt, .. } => {
+                let target = self.event(*attempt)?;
+                if !matches!(target.header().body, Body::AttemptStarted { .. })
+                    || target.header().author != h.author
+                {
+                    return Err(invalid("only the attempt author reports its status"));
+                }
+            }
+            Body::WorkDeclined { offer } => {
+                let (_, recipient) = self.offer(*offer)?;
+                if recipient != h.author {
+                    return Err(invalid("only the offer recipient may decline"));
+                }
+                self.no_prior_offer_answer(*offer, event, proof)?;
+            }
+            Body::CancelRequested { attempt } => {
+                let target = self.event(*attempt)?;
+                let Body::AttemptStarted { offer, .. } = &target.header().body else {
+                    return Err(invalid("cancellation target is not an attempt"));
+                };
+                let offerer = offer
+                    .and_then(|id| self.history.get(&id))
+                    .map(|event| event.header().author);
+                if target.header().author != h.author && offerer != Some(h.author) {
+                    return Err(invalid(
+                        "only the worker or its offerer may request cancellation",
+                    ));
+                }
+            }
+            Body::CancelAcknowledged { cancel, .. } => {
+                let Body::CancelRequested { attempt } = &self.event(*cancel)?.header().body else {
+                    return Err(invalid("acknowledgment target is not a cancellation"));
+                };
+                if self.event(*attempt)?.header().author != h.author {
+                    return Err(invalid("only the worker acknowledges cancellation"));
+                }
+            }
+            Body::ContributionPublished {
+                context, attempt, ..
+            } => {
+                self.active_context(*context, event, proof)?;
+                if matches!(context.scope, Scope::Document(_)) {
+                    return Err(invalid("document revisions use their typed event"));
+                }
+                let resolved = self.resolve(*context)?;
+                if !rules::matches(
+                    &resolved.effective.work.publish,
+                    h.author,
+                    &resolved.effective,
+                    Some(h.author),
+                ) {
+                    return Err(invalid("principal may not publish under this rule"));
+                }
+                if let Some(attempt) = attempt {
+                    let target = self.event(*attempt)?;
+                    if target.header().author != h.author
+                        || !matches!(target.header().body,Body::AttemptStarted{context:attempt_context,..} if attempt_context==*context)
+                    {
+                        return Err(invalid(
+                            "contribution does not belong to this author's attempt and round",
+                        ));
+                    }
+                }
+            }
+            Body::CompletionDeclared { context, subject } => {
+                let author = self.subject(*subject, *context)?;
+                let resolved = self.resolve(*context)?;
+                if !rules::may_declare(
+                    &resolved.effective.decisions.completion,
+                    h.author,
+                    &resolved.effective,
+                    author,
+                ) {
+                    return Err(invalid("principal may not declare this candidate complete"));
+                }
+            }
+            Body::ReviewRecorded {
+                context, subject, ..
+            } => {
+                let author = self.subject(*subject, *context)?;
+                let resolved = self.resolve(*context)?;
+                if !rules::may_review(
+                    &resolved.effective.decisions.completion,
+                    h.author,
+                    &resolved.effective,
+                    author,
+                ) {
+                    return Err(invalid("reviewer is not eligible for this exact candidate"));
+                }
+            }
+            Body::CheckAttested {
+                context,
+                subject,
+                name,
+                ..
+            } => {
+                let author = self.subject(*subject, *context)?;
+                let resolved = self.resolve(*context)?;
+                if !rules::may_attest(
+                    &resolved.effective.decisions.completion,
+                    name,
+                    h.author,
+                    &resolved.effective,
+                    author,
+                ) {
+                    return Err(invalid("attestor or check name is not authorized"));
+                }
+            }
+            Body::DocumentRevised { context, doc, base } => {
+                if context.scope != Scope::Document(*doc) {
+                    return Err(invalid("document context names another document"));
+                }
+                self.active_context(*context, event, proof)?;
+                let resolved = self.resolve(*context)?;
+                if !rules::matches(
+                    &resolved.effective.work.publish,
+                    h.author,
+                    &resolved.effective,
+                    Some(h.author),
+                ) {
+                    return Err(invalid("principal may not publish document revisions"));
+                }
+                if let Some(base) = base
+                    && !matches!(self.event(*base)?.header().body,Body::DocumentRevised{doc:prior,..} if prior==*doc)
+                {
+                    return Err(invalid("document base belongs to another document"));
+                }
+            }
+            Body::EffectMaterialized { effect } => {
+                self.validate_effect(event, effect, proof)?;
+            }
+            Body::DeliveryAcknowledged { effect } => {
+                let mut found = false;
+                let mut entitled = false;
+                for materialized in &self.history.events {
+                    if let Body::EffectMaterialized { effect: body } = &materialized.header().body
+                        && body.id(h.goal) == *effect
+                        && self.status(materialized.id(), proof) == Standing::Effective
+                    {
+                        found = true;
+                        entitled |= self.effect_recipients(body).contains(&h.author);
+                    }
+                }
+                if !found {
+                    return Err(Standing::Pending(Waiting::Reference));
+                }
+                if !entitled {
+                    return Err(invalid("delivery acknowledgment signer is not a recipient"));
+                }
+            }
+            Body::LeaveRequested { admission } => {
+                if self
+                    .chain
+                    .tenure_at(&h.author, h.anchor.unwrap())
+                    .map(|tenure| tenure.admission)
+                    != Some(*admission)
+                {
+                    return Err(invalid(
+                        "leave request does not name the author's admission",
+                    ));
+                }
+            }
+            Body::Genesis(_)
+            | Body::MemberAdmitted { .. }
+            | Body::MemberRemoved { .. }
+            | Body::RulesBound { .. }
+            | Body::ScopeDecided { .. } => unreachable!(),
+        }
+        Ok(())
+    }
+    pub fn member_at(&self, principal: PublicKey, anchor: EventId) -> bool {
+        self.chain
+            .snapshot(&anchor)
+            .is_some_and(|snapshot| snapshot.members.contains_key(&principal))
+    }
+    fn task_binding(
+        &self,
+        binding: &TaskBinding,
+        creator: PublicKey,
+        proof: Option<EventId>,
+    ) -> Result<Resolved, Standing> {
+        self.require(binding.rules, proof)?;
+        let resolved = rules::resolve_binding(
+            self.history,
+            self.definitions,
+            binding.rules,
+            Some(binding.clone()),
+            Some(creator),
+        )?;
+        if let Some(parent) = binding.parent {
+            self.require(parent.round, proof)?;
+            let parent_context = parent;
+            let parent = self.resolve(parent_context)?;
+            if parent.effective.rules != binding.rules {
+                return Err(invalid("child task cannot replace the parent definition"));
+            }
+            if matches!(parent_context.scope, Scope::Task(_))
+                && !super::delegation::narrows(&resolved.effective, &parent.effective)
+            {
+                return Err(invalid(
+                    "child variation does not prove narrower parent authority and completion",
+                ));
             }
         }
+        let definition = self
+            .definitions
+            .definition(&resolved.effective.definition)
+            .expect("resolved definition exists");
+        if binding
+            .inputs
+            .keys()
+            .any(|name| !definition.context.inputs.contains_key(name))
+            || definition
+                .context
+                .inputs
+                .iter()
+                .any(|(name, input)| input.required && !binding.inputs.contains_key(name))
+        {
+            return Err(invalid(
+                "task inputs do not match required definition inputs",
+            ));
+        }
+        Ok(resolved)
     }
-}
-
-/// What a decision's reference to a contribution allows.
-enum Reference {
-    Clear,
-    Wait(EventId),
-    Refuse(&'static str),
-}
-
-/// A contribution placed in the canonical order.
-#[derive(Clone, Copy, Default)]
-struct Place {
-    position: u32,
-    slot: Slot,
-    regressed: bool,
-}
-
-/// The chain, every standing and the state: a function of the held set.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(super) struct Folded {
-    pub chain: Chain,
-    /// The standing of every held event, by slot.
-    pub standings: Vec<Standing>,
-    pub state: State,
-    /// How many decisions of the chain are applied. Fewer than the chain
-    /// holds while a decision waits for the contribution it names.
-    pub applied: u32,
-    /// The last contribution whose transition was tried under the applied
-    /// head, as its place in the order: (author, position).
-    pub last: Option<(PublicKey, u64)>,
-    /// The contribution the first unapplied decision waits for.
-    pub awaited: Option<EventId>,
-    pub trails: BTreeMap<PublicKey, Trail>,
-    /// Anchors that are not decisions of the chain and hold an author back.
-    pub gates: IdSet,
-}
-
-impl Folded {
-    /// True while a decision of the chain waits to be applied.
-    pub fn stalled(&self) -> bool {
-        (self.applied as usize) < self.chain.links.len()
+    pub fn subject(&self, id: EventId, context: Context) -> Result<PublicKey, Standing> {
+        let event = self.event(id)?;
+        if !matches!(event.header().body,Body::ContributionPublished{context:subject,..}|Body::DocumentRevised{context:subject,..} if subject==context)
+        {
+            return Err(invalid(
+                "evidence subject is not a contribution in this exact round",
+            ));
+        }
+        Ok(event.header().author)
     }
-
-    /// Judges the next decision of the chain. False if it has to wait.
-    pub fn decide(&mut self, history: &History, order: &mut Vec<Slot>) -> bool {
-        let link = &self.chain.links[self.applied as usize];
-        let (slot, epoch) = (link.slot, link.epoch);
-        let decision = &history.events[slot as usize];
-        let standing = match link.verdict {
-            Some(exclusion) => Standing::Excluded(exclusion),
-            None => match self.reference(history, decision) {
-                Reference::Wait(id) => {
-                    self.awaited = Some(id);
-                    self.standings[slot as usize] = Standing::Pending(Waiting::Reference);
+    pub fn offer(&self, id: EventId) -> Result<(Context, PublicKey), Standing> {
+        match &self.event(id)?.header().body {
+            Body::WorkOffered { context, recipient } => Ok((*context, *recipient)),
+            Body::EffectMaterialized { effect } => match effect.action {
+                EffectAction::Offer { context, recipient } => Ok((context, recipient)),
+                _ => Err(invalid("effect is not a work offer")),
+            },
+            _ => Err(invalid("reference is not a work offer")),
+        }
+    }
+    fn no_prior_offer_answer(
+        &self,
+        offer: EventId,
+        event: &Event,
+        proof: Option<EventId>,
+    ) -> Result<(), Standing> {
+        for prior in &self.history.events {
+            if prior.header().author != event.header().author
+                || prior.header().seq >= event.header().seq
+            {
+                continue;
+            }
+            if matches!(prior.header().body,Body::WorkDeclined{offer:id}|Body::AttemptStarted{offer:Some(id),..} if id==offer)
+                && self.status(prior.id(), proof) == Standing::Effective
+            {
+                return Err(invalid("offer was already answered by this recipient"));
+            }
+        }
+        Ok(())
+    }
+    pub fn current_round(
+        &self,
+        task: TaskId,
+        anchor: EventId,
+        proof: Option<EventId>,
+    ) -> Result<EventId, Standing> {
+        let initial=match task{
+            TaskId::Authored(id)=>{self.require(id,proof)?;if !matches!(self.event(id)?.header().body,Body::TaskOpened{..}){return Err(invalid("task identifier has the wrong kind"));}id}
+            TaskId::Derived(id)=>{
+                self.history.events.iter().filter(|event|matches!(&event.header().body,Body::EffectMaterialized{effect} if effect.id(event.header().goal)==id&&matches!(effect.action,EffectAction::OpenTask{..}))).filter(|event|self.status(event.id(),proof)==Standing::Effective).min_by_key(|event|(event.header().seq,event.id())).map(Event::id).ok_or(Standing::Pending(Waiting::Reference))?
+            }
+        };
+        let mut current = initial;
+        let position = self
+            .chain
+            .position(&anchor)
+            .ok_or(Standing::Pending(Waiting::Anchor))?;
+        for id in self.chain.order.iter().take(position + 1) {
+            let event = self.history.get(id).expect("chain event exists");
+            if matches!(event.header().body,Body::TaskRevised{task:target,expected_round,..} if target==task&&expected_round==current)
+                && self.status(*id, proof) == Standing::Effective
+            {
+                current = *id;
+            }
+        }
+        Ok(current)
+    }
+    fn active_context(
+        &self,
+        context: Context,
+        event: &Event,
+        proof: Option<EventId>,
+    ) -> Result<(), Standing> {
+        let anchor = event.header().anchor.unwrap();
+        match context.scope {
+            Scope::Task(task) => {
+                if self.current_round(task, anchor, proof)? != context.round {
+                    return Err(invalid(
+                        "work names a superseded task round at its governance anchor",
+                    ));
+                }
+            }
+            Scope::Goal | Scope::Document(_) => {
+                if self
+                    .chain
+                    .snapshot(&anchor)
+                    .and_then(|snapshot| snapshot.rules)
+                    != Some(context.round)
+                {
+                    return Err(invalid(
+                        "work does not name rules current at its governance anchor",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+    fn decision(&self, event: &Event) -> Result<(), Standing> {
+        let Body::ScopeDecided {
+            context,
+            previous,
+            action,
+            evidence,
+        } = &event.header().body
+        else {
+            unreachable!()
+        };
+        let key = ScopeKey {
+            context: *context,
+            purpose: action.purpose(),
+        };
+        let resolved = self.resolve(*context)?;
+        let authority = match action.purpose() {
+            DecisionPurpose::Selection => resolved.effective.decisions.selection.as_ref(),
+            DecisionPurpose::Closure => resolved.effective.decisions.closure.as_ref(),
+        }
+        .and_then(|authority| rules::authority(authority, &resolved.effective));
+        if authority != Some(event.header().author) {
+            return Err(invalid("principal is not the named scope authority"));
+        }
+        let successors: Vec<_> = self
+            .history
+            .events
+            .iter()
+            .filter(|candidate| {
+                if candidate.header().author != event.header().author {
                     return false;
                 }
-                Reference::Refuse(reason) => Standing::Excluded(Exclusion::Precondition(reason)),
-                Reference::Clear => applied(transition::decide(&mut self.state, decision)),
-            },
-        };
-        transition::advance(&mut self.state, decision, epoch);
-        self.standings[slot as usize] = standing;
-        self.applied += 1;
-        self.last = None;
-        order.push(slot);
-        true
-    }
-
-    /// Whether the contribution a decision names can be decided on. It must
-    /// be held, judged and effective. One that is held and waits can still
-    /// become that only if it is anchored before the decision; the chain up
-    /// to the decision is fixed, so anything else never will.
-    fn reference(&self, history: &History, decision: &Event) -> Reference {
-        let named = match &decision.header().body {
-            Body::TaskAssigned { task, .. } => task,
-            Body::ResultAccepted { result, .. } | Body::ResultRejected { result } => result,
-            Body::RevisionAccepted { revision } => revision,
-            _ => return Reference::Clear,
-        };
-        let Some(slot) = history.slot(named) else {
-            return Reference::Wait(*named);
-        };
-        let target = &history.events[slot as usize];
-        if !matches!(
-            (&decision.header().body, &target.header().body),
-            (Body::TaskAssigned { .. }, Body::TaskProposed { .. })
-                | (
-                    Body::ResultAccepted { .. } | Body::ResultRejected { .. },
-                    Body::ResultSubmitted { .. }
+                let Body::ScopeDecided {
+                    context: other,
+                    previous: prior,
+                    action: other_action,
+                    ..
+                } = &candidate.header().body
+                else {
+                    return false;
+                };
+                if *other != *context
+                    || *prior != *previous
+                    || other_action.purpose() != action.purpose()
+                {
+                    return false;
+                }
+                matches!(
+                    self.chain.authorize(
+                        self.history,
+                        candidate,
+                        None,
+                        &mut self.missing.borrow_mut()
+                    ),
+                    Standing::Effective | Standing::Pending(Waiting::ForkProof)
                 )
-                | (Body::RevisionAccepted { .. }, Body::Revision { .. })
-        ) {
-            return Reference::Refuse("the event named has the wrong kind");
+            })
+            .map(Event::id)
+            .collect();
+        if successors.len() > 1 {
+            let mut events = successors;
+            events.sort();
+            self.scope_halts.borrow_mut().insert(
+                key,
+                Halt::Successors {
+                    previous: *previous,
+                    events,
+                },
+            );
+            return Err(Standing::Disputed);
         }
-        let position = target
-            .header()
-            .anchor
-            .and_then(|anchor| self.chain.position(&anchor));
-        let Some(position) = position.filter(|position| *position < self.applied) else {
-            return Reference::Refuse("the event named is not anchored before the decision");
-        };
-        if self.excluded(target, position, false).is_some() {
-            return Reference::Refuse("the event named grants nothing");
+        if let Some(previous) = previous {
+            let prior = self.event(*previous)?;
+            if !matches!(&prior.header().body,Body::ScopeDecided{context:other,action:prior_action,..} if *other==*context&&prior_action.purpose()==action.purpose())
+            {
+                return Err(invalid("decision predecessor belongs to another stream"));
+            }
+            self.require(*previous, None)?;
         }
-        match self.standings[slot as usize] {
-            Standing::Effective => Reference::Clear,
-            Standing::Excluded(_) => Reference::Refuse("the event named grants nothing"),
-            Standing::Pending(_) => Reference::Wait(*named),
+        let proof = self.proof(event.id()).inspect_err(|standing| {
+            if *standing == Standing::Disputed {
+                self.scope_halts
+                    .borrow_mut()
+                    .insert(key, Halt::IncompatibleProof { event: event.id() });
+            }
+        })?;
+        self.require(context.round, Some(event.id()))?;
+        for root in evidence {
+            self.require(*root, Some(event.id()))?;
         }
-    }
-
-    /// Why a contribution anchored at `position` grants nothing, where the
-    /// chain and its author's log alone decide it.
-    pub fn excluded(&self, event: &Event, position: u32, regressed: bool) -> Option<Exclusion> {
-        let header = event.header();
-        let point = AuthorPoint {
-            seq: header.seq,
-            id: event.id(),
-        };
-        if self.chain.past_removal(&header.author, &point, position) {
-            Some(Exclusion::PastRemoval)
-        } else if regressed {
-            Some(Exclusion::AnchorRegressed)
-        } else if !self.chain.is_member_at(&header.author, position) {
-            Some(Exclusion::NotAMember)
-        } else if header
-            .payload
-            .is_some_and(|payload| payload.key_epoch != self.chain.epoch_at(position))
-        {
-            Some(Exclusion::BadEpoch)
-        } else {
-            None
-        }
-    }
-
-    /// Tries the transition of an authorized contribution under the head.
-    pub fn contribute(&mut self, event: &Event) -> Standing {
-        let header = event.header();
-        self.last = Some((header.author, header.seq));
-        applied(transition::contribute(&mut self.state, event))
-    }
-
-    /// Scans one author's log: settles what the log and the chain decide by
-    /// themselves and collects the contributions the walk has to judge.
-    fn scan(
-        &mut self,
-        history: &History,
-        log: &AuthorLog,
-        is_coordinator: bool,
-        places: &mut Vec<Place>,
-        order: &mut Vec<Slot>,
-        commitments: &Commitments,
-    ) -> Trail {
-        let mut trail = Trail::default();
-        let cut = if is_coordinator {
-            self.chain.halt_seq
-        } else {
-            log.fork
-        };
-        let cut_reason = if is_coordinator {
-            Exclusion::AfterHalt
-        } else {
-            Exclusion::Forked
-        };
-        let mut predecessor = None;
-        let mut next_seq = 0;
-        for (index, (point, &slot)) in log.points.iter().zip(&log.slots).enumerate() {
-            let event = &history.events[slot as usize];
-            let pinned =
-                commitments.pins.get(&(event.header().author, point.seq)) == Some(&point.id);
-            let contiguous = point.seq == next_seq && event.header().prev == predecessor;
-            let standing = &mut self.standings[slot as usize];
-            if cut.is_some_and(|cut| point.seq >= cut) && (is_coordinator || !pinned) {
-                *standing = Standing::Excluded(cut_reason);
-                order.push(slot);
-            } else if index >= log.usable && !(pinned && contiguous) {
-                *standing = Standing::Pending(Waiting::Predecessor);
-            } else {
-                next_seq = point.seq + 1;
-                predecessor = Some(point.id);
-                match trail.place(&self.chain, event, is_coordinator) {
-                    Spot::NotCoordinator => {
-                        *standing = Standing::Excluded(Exclusion::NotCoordinator);
-                        order.push(slot);
-                    }
-                    Spot::Behind => *standing = Standing::Pending(Waiting::Predecessor),
-                    Spot::Unanchored(anchor) => {
-                        self.gates.insert(anchor);
-                    }
-                    Spot::Decision => {}
-                    Spot::At {
-                        position,
-                        regressed,
-                    } => places.push(Place {
-                        position,
-                        slot,
-                        regressed,
-                    }),
+        match action {
+            DecisionAction::Select { subject } => {
+                self.require(*subject, Some(event.id()))?;
+                self.subject(*subject, *context)?;
+                if let Scope::Document(doc) = context.scope
+                    && !matches!(self.event(*subject)?.header().body,Body::DocumentRevised{doc:target,..} if target==doc)
+                {
+                    return Err(invalid("selection subject belongs to another document"));
+                }
+                if self
+                    .approval(*subject, Some(event.id()), Some(&proof.roots))?
+                    .is_none()
+                {
+                    return Err(Standing::Pending(Waiting::Evidence));
                 }
             }
+            DecisionAction::Close | DecisionAction::Reopen => {}
         }
-        trail
+        Ok(())
     }
-}
-
-fn applied(allowed: Result<(), &'static str>) -> Standing {
-    match allowed {
-        Ok(()) => Standing::Effective,
-        Err(reason) => Standing::Excluded(Exclusion::Precondition(reason)),
+    pub fn approval(
+        &self,
+        subject: EventId,
+        proof: Option<EventId>,
+        allowed: Option<&BTreeSet<EventId>>,
+    ) -> Result<Option<BTreeSet<EventId>>, Standing> {
+        self.require(subject, proof)?;
+        let event = self.event(subject)?;
+        let (Body::ContributionPublished { context, .. } | Body::DocumentRevised { context, .. }) =
+            event.header().body
+        else {
+            return Err(invalid("completion subject is not a contribution"));
+        };
+        let resolved = self.resolve(context)?;
+        self.predicate(
+            &resolved.effective.decisions.completion,
+            subject,
+            context,
+            &resolved,
+            proof,
+            allowed,
+        )
     }
-}
-
-/// Computes everything from the held set. Also returns the events that were
-/// judged, in the order they were applied.
-pub(super) fn fold(history: &History) -> (Folded, Vec<Slot>) {
-    let chain = Chain::build(history);
-    // Without a member fork the ordinary usable prefixes already choose
-    // every branch. Dependency retention is computed separately by screening.
-    let commitments = if history
-        .logs
-        .iter()
-        .any(|(author, log)| Some(*author) != history.coordinator && log.fork.is_some())
-    {
-        Commitments::build(history, &chain)
-    } else {
-        Commitments::default()
-    };
-    fold_with_commitments(history, chain, &commitments)
-}
-
-/// Evaluate tentative canonical branch selections with the ordinary fold.
-/// Commitment selection calls this directly, avoiding recursive selection.
-pub(super) fn fold_with_commitments(
-    history: &History,
-    chain: Chain,
-    commitments: &Commitments,
-) -> (Folded, Vec<Slot>) {
-    let mut folded = Folded {
-        chain,
-        standings: vec![Standing::Pending(Waiting::Anchor); history.events.len()],
-        ..Folded::default()
-    };
-    let mut order = Vec::new();
-    let Some(coordinator) = history.coordinator else {
-        // Without a genesis nothing can be judged but a fork.
-        for log in history.logs.values() {
-            for (index, (point, &slot)) in log.points.iter().zip(&log.slots).enumerate() {
-                if log.fork.is_some_and(|fork| point.seq >= fork) {
-                    folded.standings[slot as usize] = Standing::Excluded(Exclusion::Forked);
-                    order.push(slot);
-                } else if index >= log.usable {
-                    folded.standings[slot as usize] = Standing::Pending(Waiting::Predecessor);
-                }
+    fn predicate(
+        &self,
+        rule: &CompletionRule,
+        subject: EventId,
+        context: Context,
+        resolved: &Resolved,
+        proof: Option<EventId>,
+        allowed: Option<&BTreeSet<EventId>>,
+    ) -> Result<Option<BTreeSet<EventId>>, Standing> {
+        let author = self.event(subject)?.header().author;
+        let mut found = BTreeSet::from([subject]);
+        match rule {
+            CompletionRule::Contribution { by } => {
+                return Ok(
+                    rules::matches(by, author, &resolved.effective, Some(author)).then_some(found),
+                );
             }
+            CompletionRule::All { rules } => {
+                for rule in rules {
+                    let Some(evidence) =
+                        self.predicate(rule, subject, context, resolved, proof, allowed)?
+                    else {
+                        return Ok(None);
+                    };
+                    found.extend(evidence);
+                }
+                return Ok(Some(found));
+            }
+            CompletionRule::Any { rules } => {
+                for rule in rules {
+                    if let Some(evidence) =
+                        self.predicate(rule, subject, context, resolved, proof, allowed)?
+                    {
+                        return Ok(Some(evidence));
+                    }
+                }
+                return Ok(None);
+            }
+            _ => {}
         }
-        return (folded, order);
-    };
-
-    // Authors ascend and each log ascends, so `places` is in (author,
-    // position) order and a stable distribution by anchor finishes the sort.
-    let mut places = Vec::new();
-    for (author, log) in &history.logs {
-        let trail = folded.scan(
-            history,
-            log,
-            *author == coordinator,
-            &mut places,
-            &mut order,
-            commitments,
-        );
-        folded.trails.insert(*author, trail);
-    }
-    let links = folded.chain.links.len();
-    let mut starts = vec![0usize; links + 1];
-    for place in &places {
-        starts[place.position as usize + 1] += 1;
-    }
-    for position in 0..links {
-        starts[position + 1] += starts[position];
-    }
-    let mut next = starts.clone();
-    let mut sorted = vec![Place::default(); places.len()];
-    for place in places {
-        let at = &mut next[place.position as usize];
-        sorted[*at] = place;
-        *at += 1;
-    }
-
-    for position in 0..links {
-        let link = &folded.chain.links[position];
-        if let Some(reference) = commitments.pending.get(&link.id) {
-            folded.standings[link.slot as usize] = Standing::Pending(Waiting::Reference);
-            folded.awaited = Some(*reference);
-            break;
-        }
-        if !folded.decide(history, &mut order) {
-            break;
-        }
-        for place in &sorted[starts[position]..starts[position + 1]] {
-            let event = &history.events[place.slot as usize];
-            let standing = match folded.excluded(event, place.position, place.regressed) {
-                Some(exclusion) => Standing::Excluded(exclusion),
-                None => folded.contribute(event),
+        let mut matches = BTreeMap::<PublicKey, EventId>::new();
+        for id in self.witnesses.get(&subject).into_iter().flatten() {
+            let candidate = self.history.get(id).expect("indexed witness exists");
+            if allowed.is_some_and(|ids| !ids.contains(&candidate.id())) {
+                continue;
+            }
+            let principal = candidate.header().author;
+            let eligible = match (rule, &candidate.header().body) {
+                (
+                    CompletionRule::Declaration { by },
+                    Body::CompletionDeclared {
+                        context: other,
+                        subject: id,
+                    },
+                ) => {
+                    *other == context
+                        && *id == subject
+                        && rules::matches(by, principal, &resolved.effective, Some(author))
+                }
+                (
+                    CompletionRule::Reviews {
+                        by, exclude_author, ..
+                    },
+                    Body::ReviewRecorded {
+                        context: other,
+                        subject: id,
+                        verdict: ReviewVerdict::Approve,
+                    },
+                ) => {
+                    *other == context
+                        && *id == subject
+                        && (!exclude_author || principal != author)
+                        && rules::matches(by, principal, &resolved.effective, Some(author))
+                }
+                (
+                    CompletionRule::Check { name, by },
+                    Body::CheckAttested {
+                        context: other,
+                        subject: id,
+                        name: check,
+                        passed: true,
+                    },
+                ) => {
+                    *other == context
+                        && *id == subject
+                        && check == name
+                        && rules::matches(by, principal, &resolved.effective, Some(author))
+                }
+                _ => false,
             };
-            folded.standings[place.slot as usize] = standing;
-            order.push(place.slot);
+            if eligible && self.status(candidate.id(), proof) == Standing::Effective {
+                matches
+                    .entry(principal)
+                    .and_modify(|id| *id = (*id).min(candidate.id()))
+                    .or_insert(candidate.id());
+            }
+        }
+        let count = if let CompletionRule::Reviews { count, .. } = rule {
+            *count as usize
+        } else {
+            1
+        };
+        if matches.len() < count {
+            return Ok(None);
+        }
+        found.extend(matches.into_values().take(count));
+        Ok(Some(found))
+    }
+}
+
+pub(super) fn evaluate<D: DefinitionLookup + ?Sized>(
+    history: &History,
+    chain: &Chain,
+    definitions: &D,
+    closure_index: commitments::Index,
+) -> (Evaluation, commitments::Index) {
+    let verifier = Verifier::new(history, chain, definitions, closure_index);
+    let mut evaluation = Evaluation {
+        state: chain.state.clone(),
+        admin_halt: chain.halt.clone(),
+        ..Evaluation::default()
+    };
+    for event in &history.events {
+        evaluation
+            .standings
+            .insert(event.id(), verifier.status(event.id(), None));
+    }
+    super::projection::project(&verifier, &mut evaluation);
+    evaluation.desired_effects = verifier.desired_effects();
+    evaluation.scope_halts = verifier.scope_halts.into_inner();
+    evaluation.missing = verifier.missing.into_inner();
+    evaluation.retained.extend(chain.order.iter().copied());
+    let mut retained = commitments::EventSet::new(history.events.len());
+    for (id, result) in verifier.proofs.into_inner() {
+        if evaluation
+            .standings
+            .get(&id)
+            .is_some_and(|standing| matches!(standing, Standing::Effective | Standing::Pending(_)))
+            && let Ok(proof) = result
+        {
+            retained.extend(&proof.retained);
         }
     }
-    (folded, order)
+    evaluation
+        .retained
+        .extend(retained.slots().map(|slot| history.events[slot].id()));
+    (evaluation, verifier.closure_index.into_inner())
 }

@@ -75,3 +75,24 @@ class ManagedWorkflowTests(unittest.TestCase):
 
 if __name__=="__main__":
     unittest.main()
+
+class CancellationEvidenceTests(unittest.TestCase):
+    def test_requires_exact_effective_acknowledgment_not_empty_pending(self):
+        import copy
+        cancel = {"view": {"event": "cancel", "standing": "effective"},
+                  "body": {"cancel_requested": {"attempt": "attempt"}}, "task": "task"}
+        ack = {"view": {"event": "ack", "kind": "cancel_acknowledged", "standing": "effective", "author": "principal"},
+               "body": {"cancel_acknowledged": {"cancel": "cancel", "outcome": "uncertain"}}, "task": "task"}
+        kwargs = dict(cancel="cancel", attempt="attempt", task="task", principal="principal")
+        pending = {"to_acknowledge": []}
+        self.assertTrue(harness.cancellation_acknowledged(cancel, ack, pending, **kwargs))
+        self.assertFalse(harness.cancellation_acknowledged(cancel, {}, pending, **kwargs))
+        for path, value in [(('view','author'),'other'), (('view','standing'),'excluded'), (('task',),'other'),
+                            (('body','cancel_acknowledged','cancel'),'other'), (('body','cancel_acknowledged','outcome'),'stopped')]:
+            wrong = copy.deepcopy(ack); target = wrong
+            for key in path[:-1]: target = target[key]
+            target[path[-1]] = value
+            self.assertFalse(harness.cancellation_acknowledged(cancel, wrong, pending, **kwargs))
+        wrong_cancel = copy.deepcopy(cancel); wrong_cancel['body']['cancel_requested']['attempt'] = 'other'
+        self.assertFalse(harness.cancellation_acknowledged(wrong_cancel, ack, pending, **kwargs))
+        self.assertFalse(harness.cancellation_acknowledged(cancel, ack, {'to_acknowledge':[{'cancel':'cancel'}]}, **kwargs))

@@ -12,7 +12,7 @@ from scen_faults import three_member_goal
 
 def timeline(c, victim, watcher, goal, text, deadline=90):
     """Write on the victim; poll each watcher until all hold the note."""
-    note = flows.add_note(c, victim, goal, text)
+    note = flows.add_finding(c, victim, goal, text)
     began, samples, arrived = time.monotonic(), {w.number: [] for w in watcher}, {}
     while time.monotonic() - began < deadline and len(arrived) < len(watcher):
         for w in watcher:
@@ -20,7 +20,7 @@ def timeline(c, victim, watcher, goal, text, deadline=90):
                 continue
             state = c.goal_status(w, goal)
             peer = next((p for p in state["peers"] if p["endpoint"] == victim.endpoint), {})
-            notes = c.note_ids(w, goal)
+            notes = c.finding_ids(w, goal)
             held = note in notes
             readable = notes.get(note) == text
             samples[w.number].append({"t": round(time.monotonic() - began, 2), "connected": peer.get("connected"),
@@ -47,7 +47,7 @@ def restart_latency(c):
                 n = 0
                 while not busy.is_set():
                     for w in (m1, m3):
-                        flows.add_note(c, w, goal, f"{how} background {n} by M{w.number}")
+                        flows.add_finding(c, w, goal, f"{how} background {n} by M{w.number}")
                     n += 1
             writer = threading.Thread(target=write)
             writer.start()
