@@ -1,0 +1,182 @@
+{
+  "schema": "locust.t1-remediation-verification",
+  "schema_version": 1,
+  "date": "2026-10-03",
+  "source_commit": "d253a07bf26cef2b59172df16297383fd286e369",
+  "evidence_level": "source/component, syscall injection and identified local binary; physical machines and public release unqualified",
+  "checks": [
+    {
+      "command": "cargo fmt --all --check",
+      "exit_status": 0
+    },
+    {
+      "command": "cargo clippy --locked --workspace --all-targets -- -D warnings",
+      "exit_status": 0
+    },
+    {
+      "command": "cargo test --locked --workspace",
+      "exit_status": 0,
+      "passed": 439,
+      "failed": 0,
+      "ignored": 9,
+      "ignored_tests": [
+        "test daemon::network::tests::receive_only_completed_frames_survive_production_idle_interval ... ignored, real Iroh one-way traffic runs beyond the production 30-second idle interval",
+        "test daemon::network::tests::send_only_completed_frames_survive_production_idle_interval ... ignored, real Iroh one-way traffic runs beyond the production 30-second idle interval",
+        "test claude_parses_equals_overlay_and_delivers_server_only_environment ... ignored, set LOCUST_CLAUDE_BIN to an absolute installed Claude executable; no login/model needed",
+        "test codex_parses_overlay_and_preserves_other_server_and_profile ... ignored, set LOCUST_CODEX_BIN to an absolute installed Codex executable; no login/model needed",
+        "test tests::mainline_finds_a_peer_by_key_without_contact_hints ... ignored, uses public Mainline DHT and n0 relays; run explicitly for T1 qualification",
+        "test tests::mdns_finds_a_peer_by_key_without_contact_hints ... ignored, requires local multicast networking; run explicitly for T1 qualification",
+        "test child_commits_until_stopped ... ignored, run by the crash tests as a child process",
+        "test recovery_child ... ignored, invoked by recovery_flushes as an owned subprocess",
+        "test recovery_flushes_before_exposure_and_refuses_a_failed_barrier ... ignored, requires the macOS verify-store flush interposer; see module documentation"
+      ]
+    },
+    {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "exit_status": 0,
+      "passed": 76
+    },
+    {
+      "command": "cargo test -p locust completed_frames_survive_production_idle_interval -- --ignored --nocapture",
+      "exit_status": 0,
+      "passed": 2,
+      "elapsed_seconds": 34.09,
+      "evidence": "Real Iroh loopback production exchange shell with fake acknowledging engine; 18 checked 1 KiB frames in each direction, not large-object runtime proof"
+    },
+    {
+      "command": "LOCUST_STORE_TEST_INTERPOSER=<compiled retained helper dylib> cargo test -p locust-store --test recovery_flush recovery_flushes -- --ignored --nocapture",
+      "exit_status": 0,
+      "passed": 1,
+      "evidence": "Actual SQLite syscall injection; failed WAL recovery refuses open before GC; successful sync precedes state exposure; not physical power loss"
+    }
+  ],
+  "initial_shared_checkout_build": {
+    "detail": "HEAD changed while building; no artifact was published",
+    "state": "source_changed",
+    "status": "blocked"
+  },
+  "initial_shared_checkout_build_note": "Release compilation succeeded; an unrelated website commit advanced shared HEAD, so the helper refused the local bundle. Rebuilt the captured source in a detached checkout.",
+  "independent_review": "No remaining actionable gap found in the implemented scope of all 36 accepted findings; physical-machine, real-model, production client lifecycle and distribution boundaries preserved",
+  "four_client_record": "client-qualification-remediation-2026-10-03.json",
+  "four_client_record_sha256": "e9e83b76fb48741e337018a87b7888e06ce4855641457a0a1d0e91cc2eb34c91",
+  "limits": [
+    "No physical two-Mac v1 run",
+    "No OS sleep/wake or power-loss claim",
+    "No real account/model collaboration",
+    "No production MCP/client lifecycle qualification",
+    "No packaged installation, Developer ID signing, notarization or public distribution",
+    "No hermetic or reproducible-build claim"
+  ],
+  "test_build_environment_overrides": {
+    "CARGO_TARGET_DIR": "target/review-ir-sync",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "build_metadata": {
+    "build_environment": {
+      "cargo_arguments": [
+        "build",
+        "--locked",
+        "--release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--package",
+        "locust",
+        "--bin",
+        "locust",
+        "--target-dir",
+        "<build>/target"
+      ],
+      "clang_version": "Apple clang version 16.0.0 (clang-1600.0.26.6)\nTarget: arm64-apple-darwin25.4.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin",
+      "hermetic": false,
+      "policy": "isolated-home-and-cargo-home; no Cargo config; pinned absolute compiler",
+      "reproducibility": "not_verified",
+      "sdk_version": "15.2",
+      "tools": {
+        "ar": {
+          "path": "/Library/Developer/CommandLineTools/usr/bin/ar",
+          "resolved_path": "/Library/Developer/CommandLineTools/usr/bin/ar",
+          "sha256": "36e9d6f85e777e164753ce33cfc762988af2dc9c69d2d98e5dda7f667e3b9b2c"
+        },
+        "cargo": {
+          "path": "/Users/andrei/.rustup/toolchains/1.96.1-aarch64-apple-darwin/bin/cargo",
+          "resolved_path": "/Users/andrei/.rustup/toolchains/1.96.1-aarch64-apple-darwin/bin/cargo",
+          "sha256": "f00ad85ca0a5b0f15b2a7658f15ef3195d9a04d2763921c1f9eaaa51f0136fe8"
+        },
+        "clang": {
+          "path": "/Library/Developer/CommandLineTools/usr/bin/clang",
+          "resolved_path": "/Library/Developer/CommandLineTools/usr/bin/clang",
+          "sha256": "60468f3efd513d53f6ce581ec8d00595855ebf5a31a496d685b91c104aee1ca0"
+        },
+        "clang++": {
+          "path": "/Library/Developer/CommandLineTools/usr/bin/clang++",
+          "resolved_path": "/Library/Developer/CommandLineTools/usr/bin/clang",
+          "sha256": "60468f3efd513d53f6ce581ec8d00595855ebf5a31a496d685b91c104aee1ca0"
+        },
+        "rustc": {
+          "path": "/Users/andrei/.rustup/toolchains/1.96.1-aarch64-apple-darwin/bin/rustc",
+          "resolved_path": "/Users/andrei/.rustup/toolchains/1.96.1-aarch64-apple-darwin/bin/rustc",
+          "sha256": "d10051fa870c54067bd21047e9709084141ffff65695537eb2c0c5d2477467d4"
+        },
+        "rustup": {
+          "path": "/Users/andrei/.cargo/bin/rustup",
+          "resolved_path": "/Users/andrei/.cargo/bin/rustup",
+          "sha256": "aeb4105778ca1bd3c6b0e75768f581c656633cd51368fa61289b6a71696ac7e1"
+        }
+      },
+      "variables": {
+        "AR": "/Library/Developer/CommandLineTools/usr/bin/ar",
+        "CARGO_BUILD_JOBS": "2",
+        "CARGO_ENCODED_RUSTFLAGS": "--remap-path-prefix=<build>=/locust/build",
+        "CARGO_HOME": "<build>/cargo-home",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER": "/Library/Developer/CommandLineTools/usr/bin/clang",
+        "CC": "/Library/Developer/CommandLineTools/usr/bin/clang",
+        "CXX": "/Library/Developer/CommandLineTools/usr/bin/clang++",
+        "DEVELOPER_DIR": "/Library/Developer/CommandLineTools",
+        "GIT_ATTR_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "HOME": "<build>/home",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "LOCUST_BUILD_COMMIT": "d253a07bf26c",
+        "PATH": "/Users/andrei/.rustup/toolchains/1.96.1-aarch64-apple-darwin/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "RUSTC": "/Users/andrei/.rustup/toolchains/1.96.1-aarch64-apple-darwin/bin/rustc",
+        "SDKROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "TMPDIR": "<build>/tmp",
+        "TZ": "UTC"
+      }
+    },
+    "cargo_version": "cargo 1.96.1 (356927216 2026-06-26)",
+    "commit": "d253a07bf26cef2b59172df16297383fd286e369",
+    "created_utc": "2026-10-04T04:19:02.662951+00:00",
+    "dirty_build_inputs": false,
+    "qualification": "not_run",
+    "rustc_version": "rustc 1.96.1 (31fca3adb 2026-06-26)\nbinary: rustc\ncommit-hash: 31fca3adb283cc9dfd56b49cdee9a96eb9c96ffd\ncommit-date: 2026-06-26\nhost: aarch64-apple-darwin\nrelease: 1.96.1\nLLVM version: 22.1.2",
+    "sha256": "4231754e08f1b4b5fb77ae4e56c6a92c4212e4968659f9b1cea94682d6834f25",
+    "source_snapshot": {
+      "checkout_bytes_used": false,
+      "method": "verified_git_archive",
+      "tree": "8538185707bceb8f1242cd43ac6ecb51e04abdbf",
+      "verified_files": 279
+    },
+    "target": "aarch64-apple-darwin",
+    "toolchain": "1.96.1",
+    "version": "0.1.0",
+    "version_output": "locust 0.1.0 (d253a07bf26c) api 1 protocol 1"
+  },
+  "independent_artifact_checks": {
+    "checksum": "passed",
+    "embedded_version": "locust 0.1.0 (d253a07bf26c) api 1 protocol 1",
+    "file_format": "Mach-O thin arm64",
+    "signature": "ad hoc linker signature; no Developer ID or notarization"
+  },
+  "workflow": {
+    "summary": "t1-remediation-local-2026-10-03.json",
+    "transcript": "t1-remediation-local-2026-10-03.jsonl",
+    "status": "passed",
+    "checks": 21,
+    "elapsed_seconds": 24.69
+  }
+}

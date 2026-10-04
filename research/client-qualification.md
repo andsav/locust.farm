@@ -18,6 +18,8 @@ Client interfaces were checked against installed help and primary sources: [Fact
 
 ## Measured results
 
+The results in this section are historical. The [remediation rerun](evidence/client-qualification-remediation-2026-10-03.json) below supersedes their interruption and cleanup evidence; the earlier harness could terminate descendants itself before calling cleanup successful.
+
 The [corrected four-client record](evidence/client-qualification-corrected-2026-10-03.json) retains exact client/probe hashes, harness source hashes, policy labels, OS/architecture, protocol receipts and outcomes. Implementation: `d45a3f5` plus the Factory backend-fixture correction `0e7b150`; bridge configuration is `87f8a42` with shared-contract constants in `d4dbe7c`. All runs used a caller-selected 30-second budget per operation and cleanup on macOS arm64. The corrected harness returned exit 0, and all 54 Python tests passed. Whole-workspace Rust formatting, Clippy with warnings denied and tests also passed after the revision-2/store changes landed.
 
 | Actual client | Default headless read / write | Lifecycle read/write/wait/interruption | Native resume and bridge restart |
@@ -28,6 +30,12 @@ The [corrected four-client record](evidence/client-qualification-corrected-2026-
 | Pi 1.0.1 | Completed / completed | Passed under default policy, no permission extension installed | Passed, same native session and extended history |
 
 Denial rows mean successful execution was blocked; the report marks that assertion `not_run`, not `pass`. No interactive approval was supplied. The OS guard allowed loopback and returned EPERM/EACCES for an external TEST-NET address for all four clients. Every temporary runtime profile was removed; owned-process cleanup was checked and any forced cleanup is explicit in the record.
+
+## Remediation rerun
+
+Commit `0391da8` corrects interruption and cleanup qualification. SIGINT targets the client leader only. Success requires natural exit of the owned session and receipt-identified bridge processes; forced cleanup is a failed lifecycle assertion. Same-session process-group changes are tracked, and session membership is rechecked before signaling. Fully detached descendants without bridge receipts remain outside the cleanup claim. Backend error records also exclude raw private request/error text.
+
+The [new retained record](evidence/client-qualification-remediation-2026-10-03.json) completed 12 recorded runs, with interruption, native-session resume and bridge restart passing for the same four installed client versions. No forced cleanup was needed, all 12 observed bridges exited and all disposable profiles were removed. The default-policy denial rows above remain unchanged. Pi exited after 30.391 seconds, consistent with the fixture's 30-second I/O timeout; this does not establish immediate cancellation. The record identifies the protocol-1 working source and rebuilt probe hashes at the time of the run. All 76 Python tests passed, including subprocess cleanup and redaction regressions. These results remain scripted-provider fixture evidence, with the recorded policy opt-ins and network guard, rather than production Locust lifecycle or real-model qualification.
 
 ## Droid failure and controlled correction
 

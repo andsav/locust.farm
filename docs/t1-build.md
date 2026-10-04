@@ -1,10 +1,10 @@
 # T1: one binary, starting on two Apple Silicon Macs
 
-Date: 2026-10-03. **Status: the historical protocol-0 Apple Silicon candidate passed all 21 local three-process workflow checks. The two-Mac mixed-build run recorded joining, a decrypted note and task readiness; claim/submission, acceptance, physical restart and sleep/wake remain pending.** Publication remains deferred. The [current T1 direction](workstreams.md) and [run guide](t1-run.md) retain a third-participant extension for later. The prepared public-download command below is historical preparation and has not been executed against a published release.
+Date: 2026-10-03. **Status: the protocol-1 candidate from `d253a07` passed all 21 local three-process workflow checks. Physical qualification remains separate; historical protocol-0 two-Mac evidence is preserved.** Publication remains deferred. The [current T1 direction](workstreams.md) and [run guide](t1-run.md) retain a third-participant extension for later. The prepared public-download command below is historical preparation and has not been executed against a published release.
 
 ## Build identity
 
-The identified candidate below preserves the original two-Mac test identity. The independent review found defects in that candidate; a new remediation build needs its own qualification. Preserve existing protocol-0 homes and binaries. To prepare a new candidate from committed source, use **Python 3.11 or newer** from the repository root:
+The current candidate below contains the review remediation. The historical candidate retains the original two-Mac test identity. Preserve existing protocol-0 homes and binaries. To prepare a new candidate from committed source, use **Python 3.11 or newer** from the repository root:
 
 ```sh
 python3 scripts/build_t1.py
@@ -18,16 +18,17 @@ The helper verifies a thin arm64 Mach-O executable and requires `locust --versio
 
 After building and checking identity, the helper writes `output/t1/<full-commit>/locust`, `SHA256SUMS` and `metadata.json`. It hashes the copied bytes, records the verified Git tree, compiler/target/version/commit and build settings, and checks source identity again. Existing identical bundles can be reused; differing or incomplete output is refused. The metadata explicitly says `qualification: not_run`: build identity does not establish daemon behavior, signing, notarization or a successful installation.
 
-## Local candidate
+## Current protocol-1 candidate
 
-The pinned release build succeeded for source commit `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1`:
-
-- Version: `locust 0.1.0 (3422c7b51948) api 0 protocol 0`.
+- Source commit: `d253a07bf26cef2b59172df16297383fd286e369`.
+- Version: `locust 0.1.0 (d253a07bf26c) api 1 protocol 1`.
+- SHA-256: `4231754e08f1b4b5fb77ae4e56c6a92c4212e4968659f9b1cea94682d6834f25`.
 - Target/compiler: `aarch64-apple-darwin`, Rust 1.96.1.
-- SHA-256: `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`.
-- Local bundle: `output/t1/3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1/` with `locust`, `SHA256SUMS` and build-only `metadata.json`.
+- Local bundle: `output/t1/d253a07bf26cef2b59172df16297383fd286e369/` with `locust`, `SHA256SUMS` and `metadata.json`.
 
-The checksum and embedded identity were verified independently after the helper completed. The executable has an ad hoc linker signature, without a Developer ID signature or notarization. Its metadata's `qualification: not_run` describes the build helper's scope; subsequent runtime checks are recorded separately in the [evidence ledger](release-evidence.md).
+The helper compiled an isolated verified Git archive; independent checksum/version and arm64 Mach-O checks passed. The exact artifact passed all 21 local three-process checks in 24.69 seconds. [Retained evidence](../research/evidence/t1-remediation-verification-2026-10-03.json) includes the build environment and test boundaries. It has an ad hoc linker signature, without Developer ID signing or notarization. Build metadata remains `qualification: not_run` because runtime qualification is recorded separately.
+
+Protocol 1 requires fresh state; preserve protocol-0 binaries and homes. Use the [current run guide](t1-run.md), which selects `~/.locust-t1-v1`.
 
 ## Copy to the second Mac
 
@@ -45,7 +46,20 @@ sw_vers -productVersion
 
 Both copies must match the version, source commit and SHA-256 above, and `uname -m` must report `arm64`. Keep those results with the run evidence. Set `LOCUST` to that copy's absolute executable path and continue with the [two-Mac CLI sequence](t1-run.md). No public release, Rust installation or independent rebuild on the second Mac is needed.
 
+## Historical protocol-0 candidate
+
+The pinned release build succeeded for source commit `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1`:
+
+- Version: `locust 0.1.0 (3422c7b51948) api 0 protocol 0`.
+- Target/compiler: `aarch64-apple-darwin`, Rust 1.96.1.
+- SHA-256: `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`.
+- Local bundle: `output/t1/3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1/` with `locust`, `SHA256SUMS` and build-only `metadata.json`.
+
+The checksum and embedded identity were verified independently after the helper completed. The executable has an ad hoc linker signature, without a Developer ID signature or notarization. Its metadata's `qualification: not_run` describes the build helper's scope; subsequent runtime checks are recorded separately in the [evidence ledger](release-evidence.md).
+
 ## Deferred publication draft
+
+The following draft names the historical protocol-0 artifact and must not be used for the protocol-1 run.
 
 The owner has said publication is not needed now. The following is a retained draft, not an action awaiting immediate approval or a prerequisite for local work. The proposed public destination is a separate release-only repository, `andsav/locust-releases`, with tag `v0.1.0-t1.3422c7b`. It has not been created or approved. This keeps source-repository visibility unchanged. The following download/start command is prepared for that destination and will fail until publication; it must not be used until the owner later requests publication and chooses the destination:
 
@@ -92,10 +106,10 @@ Record the same commit and SHA-256 on every participating machine before running
 
 ## Verification and current boundary
 
-The helper has 25 focused tests covering archive/blob verification, hidden index edits, a checkout race, hostile compiler settings, Cargo configuration, changed compiler bytes, exact copy/hash evidence, Python version errors and collision refusal. An actual minimal Rust fixture also compiled for arm64 with pinned Rust 1.96.1 while its hidden checkout source contained `compile_error!` and inherited compiler/SDK variables were deliberately invalid: the verified committed source and selected toolchain produced the artifact. That fixture establishes the build path, not Locust runtime behavior. The full Locust remediation release build remains a separate verification step. Run the tests with:
+The helper has 25 focused tests covering archive/blob verification, hidden index edits, a checkout race, hostile compiler settings, Cargo configuration, changed compiler bytes, exact copy/hash evidence, Python version errors and collision refusal. An actual minimal Rust fixture also compiled for arm64 with pinned Rust 1.96.1 while its hidden checkout source contained `compile_error!` and inherited compiler/SDK variables were deliberately invalid: the verified committed source and selected toolchain produced the artifact. That fixture establishes the build path, not Locust runtime behavior. The full Locust remediation release build and its 21-check local workflow have now passed as recorded above. Run the tests with:
 
 ```sh
 python3 -m unittest discover -s scripts/tests -p test_build_t1.py
 ```
 
-The runtime and version contract are committed in `885b372`; publication and the public first-run path are deferred. The [release-candidate local workflow](../research/t1-integration-2026-10-03.md) passed all 21 checks against this exact artifact in 12.53 seconds. The [two-Mac findings](../research/t1-m2-smoke-2026-10-03.md) record mixed-build joining, decrypted content and task readiness. Two-Mac execution/acceptance, physical restart, sleeping-laptop recovery and the later third-participant extension remain unqualified. The 21-check completion result remains three processes on one Mac. No public-download qualification is claimed.
+For the historical protocol-0 candidate, the runtime and version contract were committed in `885b372`; publication and the public first-run path are deferred. The [release-candidate local workflow](../research/t1-integration-2026-10-03.md) passed all 21 checks against this exact artifact in 12.53 seconds. The [two-Mac findings](../research/t1-m2-smoke-2026-10-03.md) record mixed-build joining, decrypted content and task readiness. Two-Mac execution/acceptance, physical restart, sleeping-laptop recovery and the later third-participant extension remain unqualified. The 21-check completion result remains three processes on one Mac. No public-download qualification is claimed.
