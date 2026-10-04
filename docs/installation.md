@@ -7,6 +7,9 @@ procedure starts with an independently trusted Locust executable and an extracte
 candidate made by the [native builder](packaging.md). A verifier downloaded with
 an untrusted candidate does not establish its authenticity.
 
+The [local installation prompt](install-prompt.md) composes these commands for
+an explicitly selected candidate, service and dedicated client profile.
+
 ## Trust and software activation
 
 The [package verifier](../crates/locust/src/package.rs) verifies the exact manifest
@@ -120,6 +123,12 @@ service. `service start` starts an absent service or restarts an already loaded
 owned service. The reported manager state is separate from a successful daemon
 API roundtrip; run `doctor` with the appropriate scoped credential as well.
 `loaded` means launchd knows the job but does not currently report it running.
+Native service changes can be asynchronous: a successful manager request can
+briefly be followed by an `unavailable` result because the requested running or
+stopped state has not been observed. Inspect `service status` until the state
+settles, then independently check the API after start. Removal still refuses a
+loaded or running service. Do not infer startup failure or completed shutdown
+from the request alone.
 
 The [ownership wrapper](../crates/locust/src/installation/service_install.rs)
 writes a private intent before creating a nonce-marked unit. It never adopts a

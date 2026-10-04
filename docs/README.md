@@ -36,3 +36,4 @@ the repository root to check coverage and local link paths.
 - [T2 coding-agent workflow](t2-workflow.md): MCP, operating skill, snapshots and contribution review/application.
 
 - [Local verified installation](installation.md): explicit trust, withdrawal registry, reviewed activation and conservative software removal.
+- [Local installation prompt](install-prompt.md): pasteable template for explicit local trust, reviewed software/service/client setup and separately observed readiness.
