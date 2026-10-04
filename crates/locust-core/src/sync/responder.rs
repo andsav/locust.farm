@@ -189,6 +189,14 @@ impl Responder {
         }
         let replica = host.replica(&goal).ok_or(Refusal::NotAMember)?;
         match request {
+            SyncMessage::DeliverEffect { effect, recipient } => {
+                let received = replica.receive_delivery(effect, recipient)?;
+                self.outbox.push(SyncMessage::EffectReceipt {
+                    effect,
+                    recipient,
+                    received,
+                });
+            }
             SyncMessage::Frontier(theirs) => self.outbox.task(Work::Frontier {
                 theirs,
                 mine: replica.frontier(),

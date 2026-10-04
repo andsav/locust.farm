@@ -4583,6 +4583,17 @@
         "properties": {
           "attempt_started": {
             "properties": {
+              "closure": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Exact observed position in this round's closure stream. None means\nno position has been observed; concurrent offline starts remain valid."
+              },
               "context": {
                 "$ref": "#/$defs/Context"
               },
@@ -7797,6 +7808,17 @@
             "properties": {
               "attempt_started": {
                 "properties": {
+                  "closure": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/EventId"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Exact observed position in this round's closure stream. None means\nno position has been observed; concurrent offline starts remain valid."
+                  },
                   "context": {
                     "$ref": "#/$defs/Context"
                   },
@@ -8444,17 +8466,27 @@
           "action": {
             "type": "string"
           },
+          "available": {
+            "description": "False when the effect or recipient no longer has effective authority.",
+            "type": "boolean"
+          },
           "context": {
             "$ref": "#/$defs/Context"
           },
           "effect": {
             "$ref": "#/$defs/EffectId"
+          },
+          "received": {
+            "description": "The local daemon durably holds this recipient inbox item.",
+            "type": "boolean"
           }
         },
         "required": [
           "effect",
           "context",
           "acknowledged",
+          "received",
+          "available",
           "action"
         ],
         "type": "object"

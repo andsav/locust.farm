@@ -41,7 +41,7 @@ pub use responder::Responder;
 
 use locust_proto::crypto::ContentKey;
 use locust_proto::event::{AuthorPoint, WireEvent};
-use locust_proto::id::{BlobHash, EventId, PublicKey};
+use locust_proto::id::{BlobHash, EffectId, EndpointId, EventId, PublicKey};
 use locust_proto::sync::{AuthorFrontier, Frontier, Refusal};
 
 /// What [`Replica::stage`] made of one received chunk.
@@ -65,6 +65,34 @@ pub enum Staged {
 /// Reads are infallible: a replica that cannot read its store answers as if
 /// it held nothing more, and the next exchange finds what this one missed.
 pub trait Replica {
+    /// Next committed, currently authorized recipient outbox item for this endpoint.
+    fn next_delivery(
+        &self,
+        _remote: EndpointId,
+        _after: Option<(EffectId, PublicKey)>,
+    ) -> Option<(EffectId, PublicKey)> {
+        None
+    }
+
+    /// Whether this daemon durably holds the addressed local recipient inbox item.
+    fn receive_delivery(
+        &mut self,
+        _effect: EffectId,
+        _recipient: PublicKey,
+    ) -> Result<bool, Refusal> {
+        Ok(false)
+    }
+
+    /// Commit a positive receipt from the authenticated recipient endpoint.
+    fn receive_receipt(
+        &mut self,
+        _remote: EndpointId,
+        _effect: EffectId,
+        _recipient: PublicKey,
+    ) -> Result<(), Refusal> {
+        Err(Refusal::ProtocolError)
+    }
+
     /// What this replica holds: one entry per author it holds events of,
     /// strictly ascending by author, at most
     /// [`MAX_FRONTIER_AUTHORS`](locust_proto::limits::MAX_FRONTIER_AUTHORS).

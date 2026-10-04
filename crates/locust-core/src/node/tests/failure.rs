@@ -11,10 +11,19 @@ use std::rc::Rc;
 struct Failing {
     inner: MemStore,
     fail: Rc<Cell<Option<bool>>>,
+    effect_only: bool,
 }
 impl Store for Failing {
     fn commit(&mut self, tx: &Commit) -> Result<(), StoreError> {
-        if let Some(after) = self.fail.take() {
+        if (!self.effect_only
+            || tx.events.iter().any(|event| {
+                matches!(
+                    event.header().body,
+                    locust_proto::event::Body::EffectMaterialized { .. }
+                )
+            }))
+            && let Some(after) = self.fail.take()
+        {
             if after {
                 self.inner.commit(tx)?;
             }
@@ -125,6 +134,7 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
             Failing {
                 inner: store.reopen(),
                 fail: fail.clone(),
+                effect_only: false,
             },
             Counting::new(31),
             OWNER.digest(),
@@ -238,4 +248,283 @@ fn exhausted_revision_refuses_before_changing_the_goal_projection() {
     assert_eq!(code(refused), ErrorCode::Conflict);
     assert!(daemon.node.goals[&goal].state().tasks.is_empty());
     assert_eq!(daemon.store.log(&goal, 0, usize::MAX).unwrap(), before);
+}
+
+#[test]
+fn effect_and_recipient_records_commit_atomically_and_uncertain_commit_requires_reopen() {
+    use locust_proto::api::GoalGrants;
+    use locust_proto::event::Body;
+    for after in [false, true] {
+        let (store, goal, principal) = super::delivery::unmaterialized();
+        let fail = Rc::new(Cell::new(None));
+        let mut node = Node::open(
+            Failing {
+                inner: store.reopen(),
+                fail: fail.clone(),
+                effect_only: true,
+            },
+            Counting::new(83),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        )
+        .unwrap();
+        let hello = ClientHello {
+            api_version: API_VERSION,
+            credential: OWNER,
+            session: None,
+        };
+        node.connect(ConnId(1), &hello, 0);
+        fail.set(Some(after));
+        let result = call(
+            &mut node,
+            ConnId(1),
+            None,
+            Request::GoalGrant {
+                goal,
+                agent: principal,
+                grants: GoalGrants {
+                    administer: true,
+                    flow: true,
+                    ..Default::default()
+                },
+            },
+            None,
+        );
+        assert!(result.is_err());
+        assert!(node.stop_requested());
+        let signed = store
+            .log(&goal, 0, usize::MAX)
+            .unwrap()
+            .iter()
+            .filter(|(_, event)| matches!(event.header().body, Body::EffectMaterialized { .. }))
+            .count();
+        assert_eq!(signed, usize::from(after));
+        assert_eq!(
+            store.scan(Space::Pending, &[]).unwrap().len(),
+            if after { 2 } else { 0 }
+        );
+        // No tentative delivery is visible after an uncertain commit.
+        assert!(node.goals[&goal].deliveries.is_empty());
+        let reopened = Node::open(
+            store.reopen(),
+            Counting::new(84),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        )
+        .unwrap();
+        let signed = store
+            .log(&goal, 0, usize::MAX)
+            .unwrap()
+            .iter()
+            .filter(|(_, event)| matches!(event.header().body, Body::EffectMaterialized { .. }))
+            .count();
+        assert_eq!(signed, 1);
+        assert_eq!(reopened.goals[&goal].deliveries.len(), 2);
+        assert!(
+            reopened.goals[&goal]
+                .deliveries
+                .values()
+                .all(|record| record.available)
+        );
+    }
+}
+
+#[test]
+fn recipient_inbox_commit_failure_never_issues_a_positive_receipt_before_reopen() {
+    use crate::sync::{Host, Replica};
+    for after in [false, true] {
+        let fixture = super::delivery::failure_fixture();
+        let fail = Rc::new(Cell::new(None));
+        let mut recipient = Node::open(
+            Failing {
+                inner: fixture.recipient.reopen(),
+                fail: fail.clone(),
+                effect_only: false,
+            },
+            Counting::new(91),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        )
+        .unwrap();
+        fail.set(Some(after));
+        assert!(
+            recipient
+                .replica(&fixture.goal)
+                .unwrap()
+                .receive(fixture.incoming.clone())
+                .is_err()
+        );
+        assert!(recipient.stop_requested());
+        assert!(recipient.goals[&fixture.goal].deliveries.is_empty());
+        assert!(recipient.replica(&fixture.goal).is_none());
+        assert!(Replica::receive_delivery(&mut recipient, fixture.effect, fixture.target).is_err());
+        assert_eq!(
+            fixture.recipient.scan(Space::Pending, &[]).unwrap().len(),
+            if after { 2 } else { 0 }
+        );
+        let mut reopened = Node::open(
+            fixture.recipient.reopen(),
+            Counting::new(92),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        )
+        .unwrap();
+        assert_eq!(
+            reopened
+                .replica(&fixture.goal)
+                .unwrap()
+                .receive_delivery(fixture.effect, fixture.target)
+                .unwrap(),
+            after
+        );
+        reopened
+            .replica(&fixture.goal)
+            .unwrap()
+            .receive(fixture.incoming.clone())
+            .unwrap();
+        assert!(
+            reopened
+                .replica(&fixture.goal)
+                .unwrap()
+                .receive_delivery(fixture.effect, fixture.target)
+                .unwrap()
+        );
+        assert_eq!(
+            fixture.recipient.scan(Space::Pending, &[]).unwrap().len(),
+            2
+        );
+        let conn = ConnId(2);
+        reopened.connect(
+            conn,
+            &ClientHello {
+                api_version: API_VERSION,
+                credential: credential(2),
+                session: None,
+            },
+            0,
+        );
+        let Response::Pending(work) = call(
+            &mut reopened,
+            conn,
+            None,
+            Request::Pending { goal: fixture.goal },
+            None,
+        )
+        .unwrap() else {
+            panic!()
+        };
+        assert_eq!(work.deliveries.len(), 1);
+        assert!(work.deliveries[0].received);
+        assert!(!work.deliveries[0].acknowledged);
+        assert!(work.claimed.is_empty());
+    }
+}
+
+#[test]
+fn sender_receipt_commit_failure_keeps_memory_pending_and_reopen_resolves_durability() {
+    use crate::sync::{Host, Replica};
+    for after in [false, true] {
+        let fixture = super::delivery::failure_fixture();
+        let mut recipient = Node::open(
+            fixture.recipient.reopen(),
+            Counting::new(93),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        )
+        .unwrap();
+        recipient
+            .replica(&fixture.goal)
+            .unwrap()
+            .receive(fixture.incoming.clone())
+            .unwrap();
+        assert!(
+            recipient
+                .replica(&fixture.goal)
+                .unwrap()
+                .receive_delivery(fixture.effect, fixture.target)
+                .unwrap()
+        );
+        let fail = Rc::new(Cell::new(None));
+        let mut sender = Node::open(
+            Failing {
+                inner: fixture.sender.reopen(),
+                fail: fail.clone(),
+                effect_only: false,
+            },
+            Counting::new(94),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        )
+        .unwrap();
+        assert!(
+            !sender.goals[&fixture.goal].deliveries[&(fixture.effect, fixture.target)].delivered
+        );
+        let event_count = fixture
+            .sender
+            .log(&fixture.goal, 0, usize::MAX)
+            .unwrap()
+            .len();
+        fail.set(Some(after));
+        assert!(
+            sender
+                .replica(&fixture.goal)
+                .unwrap()
+                .receive_receipt(fixture.recipient_endpoint, fixture.effect, fixture.target)
+                .is_err()
+        );
+        assert!(sender.stop_requested());
+        assert!(
+            !sender.goals[&fixture.goal].deliveries[&(fixture.effect, fixture.target)].delivered
+        );
+        assert!(sender.replica(&fixture.goal).is_none());
+        assert!(Replica::next_delivery(&sender, fixture.recipient_endpoint, None).is_none());
+        let mut reopened = Node::open(
+            fixture.sender.reopen(),
+            Counting::new(95),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        )
+        .unwrap();
+        assert_eq!(
+            reopened.goals[&fixture.goal].deliveries[&(fixture.effect, fixture.target)].delivered,
+            after
+        );
+        assert_eq!(
+            reopened
+                .replica(&fixture.goal)
+                .unwrap()
+                .next_delivery(fixture.recipient_endpoint, None)
+                .is_some(),
+            !after
+        );
+        reopened
+            .replica(&fixture.goal)
+            .unwrap()
+            .receive_receipt(fixture.recipient_endpoint, fixture.effect, fixture.target)
+            .unwrap();
+        reopened
+            .replica(&fixture.goal)
+            .unwrap()
+            .receive_receipt(fixture.recipient_endpoint, fixture.effect, fixture.target)
+            .unwrap();
+        assert!(
+            reopened.goals[&fixture.goal].deliveries[&(fixture.effect, fixture.target)].delivered
+        );
+        assert_eq!(
+            fixture
+                .sender
+                .log(&fixture.goal, 0, usize::MAX)
+                .unwrap()
+                .len(),
+            event_count
+        );
+        assert_eq!(fixture.sender.scan(Space::Pending, &[]).unwrap().len(), 2);
+    }
 }

@@ -4,7 +4,7 @@ use std::collections::{HashSet, VecDeque};
 
 use locust_proto::PROTOCOL_VERSION;
 use locust_proto::event::{AuthorPoint, WireEvent};
-use locust_proto::id::{BlobHash, GoalId, PublicKey};
+use locust_proto::id::{BlobHash, EffectId, EndpointId, GoalId, PublicKey};
 use locust_proto::invite::JoinRequest;
 use locust_proto::limits::MAX_EVENTS_PER_BATCH;
 use locust_proto::sync::{Frontier, Refusal, SyncMessage};
@@ -32,6 +32,8 @@ pub struct Initiator {
     /// lack is pushed page by page, not by the prefix rule.
     inventoried: HashSet<PublicKey>,
     blob_cursor: Option<BlobHash>,
+    remote: Option<EndpointId>,
+    delivery_cursor: Option<(EffectId, PublicKey)>,
     outbox: Outbox,
     ended: Option<Ended>,
     /// The authenticated endpoint is a current member according to signed
@@ -47,12 +49,14 @@ enum Stage {
     EarlyKeys,
     Blobs,
     Keys,
+    Deliveries,
     Finished,
 }
 
 /// One answer the responder owes, in the order it will come.
 #[derive(Clone, Copy, Debug)]
 enum Expect {
+    Receipt(EffectId, PublicKey),
     /// The answer to `Join`: the responder's frontier.
     Join,
     /// The answer to the frontier: `Events` and `Inventory` frames, then the
@@ -99,6 +103,8 @@ impl Initiator {
             expect: VecDeque::new(),
             inventoried: HashSet::new(),
             blob_cursor: None,
+            remote: None,
+            delivery_cursor: None,
             outbox: Outbox::default(),
             ended: None,
             outbound_authorized: true,
@@ -112,6 +118,10 @@ impl Initiator {
         initiator.join = Some(request);
         initiator.outbound_authorized = false;
         initiator
+    }
+
+    pub(super) fn set_remote(&mut self, remote: EndpointId) {
+        self.remote = Some(remote);
     }
 
     pub(super) fn authorize_outbound(&mut self, authorized: bool) {
@@ -201,6 +211,21 @@ impl Initiator {
     fn step(&mut self, replica: &mut dyn Replica, frame: SyncMessage) -> Result<(), Fault> {
         let expect = *self.expect.front().ok_or(BROKEN)?;
         match (expect, frame) {
+            (
+                Expect::Receipt(effect, recipient),
+                SyncMessage::EffectReceipt {
+                    effect: given,
+                    recipient: addressed,
+                    received,
+                },
+            ) if effect == given && recipient == addressed => {
+                self.expect.pop_front();
+                if received {
+                    replica
+                        .receive_receipt(self.remote.ok_or(BROKEN)?, effect, recipient)
+                        .map_err(Fault::Sent)?;
+                }
+            }
             (Expect::Join, SyncMessage::Frontier(_)) => {
                 self.expect.pop_front();
                 self.send_frontier(replica);
@@ -450,7 +475,18 @@ impl Initiator {
                         }
                     }
                 },
-                Stage::Keys => {
+                Stage::Keys => self.stage = Stage::Deliveries,
+                Stage::Deliveries => {
+                    if let Some((effect, recipient)) = self
+                        .remote
+                        .and_then(|remote| replica.next_delivery(remote, self.delivery_cursor))
+                    {
+                        self.delivery_cursor = Some((effect, recipient));
+                        self.outbox
+                            .push(SyncMessage::DeliverEffect { effect, recipient });
+                        self.expect.push_back(Expect::Receipt(effect, recipient));
+                        continue;
+                    }
                     self.stage = Stage::Finished;
                     self.outbox.push(SyncMessage::Done);
                     self.ended = Some(Ended::Completed);

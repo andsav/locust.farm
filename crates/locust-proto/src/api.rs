@@ -1303,6 +1303,10 @@ pub struct DeliveryItem {
     pub effect: EffectId,
     pub context: Context,
     pub acknowledged: bool,
+    /// The local daemon durably holds this recipient inbox item.
+    pub received: bool,
+    /// False when the effect or recipient no longer has effective authority.
+    pub available: bool,
     pub action: String,
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

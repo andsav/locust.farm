@@ -53,19 +53,26 @@ child-task, review-request or handoff effect. The daemon drives this loop after
 replay/ingestion/local action without asking an agent for every next step.
 
 Its logical effect identity binds rule context, trigger, scope, action and target.
-The signed effect and its request/feed state commit atomically. The retained
-event log projects the logical outbox/inbox; replicas synchronize that committed
-effect. `pending --goal GOAL` exposes its stable delivery ID. The recipient uses
-`delivery acknowledge --goal GOAL --effect ID` to persist acknowledgment.
-Lost acknowledgment leaves the same logical delivery pending, not another task.
+The signed effect, feed update and recipient outbox records commit atomically.
+Replicas synchronize the signed evidence. The receiving daemon records one inbox
+item durably before sending a transport receipt. The sender commits that receipt
+before retiring its outbox entry. A lost receipt retries the same logical effect;
+it does not create another task or inbox item. Restart resumes this process.
+
+`pending --goal GOAL` exposes the recipient's stable delivery ID and separate
+`received`, `available` and `acknowledged` fields. The recipient uses
+`delivery acknowledge --goal GOAL --effect ID` for explicit agent acknowledgment.
+Transport retries stop once durable receipt is confirmed; the agent's inbox item
+remains visible until the agent acts. A receipt does not imply acknowledgment.
 
 ## Read delivery and execution separately
 
-Restart resumes pending effects and unacknowledged deliveries. Equivalent
-threshold witnesses do not mint different logical actions. The pending view distinguishes effect kind, recipient and acknowledgment.
-Work offers, local attempt claims and managed-session process observations are
-separate records. It does not provide a transport receipt or prove a remote
-process started merely because the effect is visible.
+Equivalent threshold witnesses do not mint different logical actions. A received
+item remains visible with `available: false` if its authority becomes disputed or
+its recipient becomes ineligible. The daemon stops sending affected pending
+outbox entries. Work offers, local attempt claims and managed-session process
+observations are separate records. Neither transport receipt nor agent
+acknowledgment proves that a remote process started.
 
 An unavailable materializer blocks its configured transition; other replicas do
 not impersonate it. A recipient without local permission retains ready work

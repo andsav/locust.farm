@@ -8,7 +8,7 @@ use locust_proto::api::{
     Membership, PendingWork, ReviewItem, TaskDetail, TaskView, WorkItem,
 };
 use locust_proto::engine::Entropy;
-use locust_proto::event::{AttemptStatus, Body, Context, EffectAction, Event, Scope};
+use locust_proto::event::{AttemptStatus, Body, Context, Event, Scope};
 use locust_proto::id::{BlobHash, PublicKey};
 use locust_proto::store::Store;
 
@@ -343,20 +343,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     }
                 }
             }
-            for effect in entry.state().effects.values() {
-                if !effect.recipients.contains(&principal) {
+            for ((effect, recipient), delivery) in &entry.deliveries {
+                if *recipient != principal || !delivery.received {
                     continue;
                 }
                 work.deliveries.push(DeliveryItem {
-                    effect: effect.id,
-                    context: effect.effect.context,
-                    acknowledged: effect.acknowledged.contains(&principal),
-                    action: match effect.effect.action {
-                        EffectAction::OpenTask { .. } => "open_task",
-                        EffectAction::Offer { .. } => "offer",
-                        EffectAction::RequestReview { .. } => "request_review",
-                    }
-                    .into(),
+                    effect: *effect,
+                    context: delivery.context,
+                    acknowledged: entry
+                        .state()
+                        .effects
+                        .get(effect)
+                        .is_some_and(|effect| effect.acknowledged.contains(&principal)),
+                    received: delivery.received,
+                    available: delivery.available,
+                    action: delivery.action.clone(),
                 });
             }
         }

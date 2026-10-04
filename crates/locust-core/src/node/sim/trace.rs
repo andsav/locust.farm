@@ -41,6 +41,8 @@ fn frame_kind(frame: &SyncMessage) -> u64 {
         SyncMessage::BlobUnavailable(_) => 12,
         SyncMessage::Done => 13,
         SyncMessage::HaltProof(_) => 14,
+        SyncMessage::DeliverEffect { .. } => 15,
+        SyncMessage::EffectReceipt { .. } => 16,
     }
 }
 

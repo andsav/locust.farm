@@ -191,6 +191,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 return Err(error);
             }
         }
+        for goal in &goals {
+            self.project_deliveries(*goal, &mut tx);
+        }
         tx.commit.local.extend(revisions);
         if !tx.is_empty() {
             if let Err(error) = self.store.commit(&tx.commit) {

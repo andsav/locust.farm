@@ -311,10 +311,11 @@ impl Driver {
             link.due = false;
             link.in_flight = Some(number);
             link.last_open_ms = Some(self.elapsed_ms);
-            let (initiator, hints) = match join {
+            let (mut initiator, hints) = match join {
                 Some(join) => (Initiator::joining(join.request.clone()), join.hints.clone()),
                 None => (Initiator::new(pair.0), host.hints(&pair.1)),
             };
+            initiator.set_remote(pair.1);
             self.dialed.insert(
                 number,
                 Dialed {

@@ -191,7 +191,7 @@ not enum declaration order.
 | `ScopeDecided` | Scope/round, decision predecessor, action, exact evidence roots | Named selection/closure authority; selects output or closes/reopens under its rule |
 | `DocumentRevised` | Document name, optional exact base revision, new content reference | Authorized publisher; revisions coexist unless a document selection scope chooses one |
 | `EffectMaterialized` | Logical effect ID, rule transition, trigger, explicit action and witnesses | Configured materializer; daemon-created child, review request or offer |
-| `DeliveryAcknowledged` | Exact logical effect and recipient | Recipient; confirms receipt, never execution start |
+| `DeliveryAcknowledged` | Exact logical effect and recipient | Recipient; explicit agent acknowledgment, distinct from the daemon transport receipt and execution start |
 | `LeaveRequested` | Requester's admission tenure | Member; routes to administrator, grants no self-authored membership mutation |
 
 `ScopeDecided` selection and closure use separate stream purposes when their
@@ -354,8 +354,9 @@ Use the existing single-writer `Node::land`/`Store::commit` seam:
    acknowledgments cause retries, not new effects. After restart, rebuild desired
    effects and resume existing outbox entries. A failed/uncertain store commit
    stops further signing until store reopen/replay establishes its outcome.
-5. Receipt, accept/decline, local session claim and observed process start are
-   distinct. The daemon may start/resume a supported adapter only with an existing
+5. A transport receipt retires the sender's outbox retry. Explicit signed agent
+   acknowledgment remains a separate inbox observation. Receipt, accept/decline,
+   local session claim and observed process start are distinct. The daemon may start/resume a supported adapter only with an existing
    applicable local grant; otherwise work stays durably ready with the missing
    permission shown. An offline or closed client retains deliverable work.
 
@@ -364,6 +365,24 @@ retain all signed evidence. A payload conflict is invalid or disputed, never a
 second child. Do not use a process-local set or an in-memory feed cursor as the
 only duplicate protection. Do not call the network exactly-once: delivery is
 retryable and acknowledgment-driven, with durable logical deduplication.
+
+The current [recipient record implementation](../crates/locust-core/src/node/delivery.rs)
+uses `Space::Pending`, keyed by goal, logical effect and recipient. Records retain
+current endpoint, durable receipt state and availability. Event projection and
+these records share [one commit](../crates/locust-core/src/node/commit.rs).
+[Peer reconciliation](../crates/locust-core/src/node/replica.rs) sends only
+committed currently available entries, checks the authenticated recipient endpoint,
+and commits positive receipts before retiring retries. Missing proof or content
+returns a negative receipt for later anti-entropy. All replicas may relay an
+already verified signed effect; only the named materializer signs it. A recipient
+local to the same daemon receives its inbox record in the materialization commit.
+
+[Encoded driver tests](../crates/locust-core/src/node/tests/delivery.rs) exercise
+lost receipts, duplicate attempts, both-daemon restart, wrong endpoints and fork
+retraction. [Durability fault tests](../crates/locust-core/src/node/tests/failure.rs)
+cover failure before and after effect/outbox, recipient event/inbox and sender
+receipt commits. This is deterministic component evidence, not physical-machine
+network qualification.
 
 ### Evaluator interface for the runtime cutover
 

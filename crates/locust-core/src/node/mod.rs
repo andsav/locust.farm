@@ -19,6 +19,7 @@ mod callers;
 mod commit;
 mod content_graph;
 mod definitions;
+mod delivery;
 mod entry;
 mod feed;
 mod flow;
@@ -54,7 +55,7 @@ use sessions::Sessions;
 
 /// Every space whose records the node keeps in memory, in the order they
 /// are loaded.
-const SPACES: [Space; 7] = [
+const SPACES: [Space; 8] = [
     Space::Identity,
     Space::Agent,
     Space::Session,
@@ -62,6 +63,7 @@ const SPACES: [Space; 7] = [
     Space::Key,
     Space::Claim,
     Space::Cursor,
+    Space::Pending,
 ];
 
 /// The daemon's state machine over a store `S` and a random source `E`.
@@ -174,6 +176,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         node.rebuild_blob_index()?;
         let ids: Vec<_> = node.goals.keys().copied().collect();
         for id in ids {
+            let mut tx = commit::Tx::none();
+            node.project_deliveries(id, &mut tx);
+            node.land_once(tx)
+                .map_err(|error| StoreError::Failed(error.to_string()))?;
             node.drive_flow(id)
                 .map_err(|error| StoreError::Failed(error.to_string()))?;
         }
@@ -217,6 +223,19 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     }
                     None => {
                         claims.remove(&assignment);
+                    }
+                }
+                Ok(())
+            }
+            Space::Pending => {
+                let (goal, effect, recipient) = delivery::subject(key)?;
+                let records = &mut self.entry_mut(goal).deliveries;
+                match value {
+                    Some(value) => {
+                        records.insert((effect, recipient), records::read(value)?);
+                    }
+                    None => {
+                        records.remove(&(effect, recipient));
                     }
                 }
                 Ok(())

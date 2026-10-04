@@ -40,8 +40,11 @@ The accepted design lets the daemon drive explicitly configured transitions and
 durably deliver ready work. An agent does not have to ask for each transition.
 Only declared transitions are eligible: a daemon must not invent organizational
 rules from a diagram or an inferred intention. Delivery and local execution remain
-separate observations. Local restart and duplicate-effect tests exercise this behavior. A delivery
-acknowledgment does not establish native execution.
+separate observations. The sender retains an outbox entry until the receiving
+daemon confirms durable inbox storage. Lost receipts retry the same logical
+identity. Explicit agent acknowledgment and actual local execution remain
+separate. Encoded peer-exchange tests cover lost receipts, both-daemon restart
+and authority retraction; they do not prove physical-machine connectivity.
 
 ## Decisions and authority
 

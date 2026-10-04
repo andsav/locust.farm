@@ -1,6 +1,6 @@
-//! Deterministic materialization. Signed effects themselves form the durable
-//! delivery outbox; acknowledgments are separate replicated facts. Pending
-//! delivery is reconstructed after restart, never consumed by a read.
+//! Deterministic materialization. Each signed effect and its durable recipient
+//! outbox records commit together. Transport receipts, recipient acknowledgment,
+//! and execution remain separate facts. See `delivery` for retry and inbox state.
 use super::{Node, commit::Tx};
 use locust_proto::api::ApiError;
 use locust_proto::engine::Entropy;

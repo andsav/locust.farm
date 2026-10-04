@@ -43,6 +43,9 @@
 //!   from `offset` to `total` (one empty chunk when `offset` equals `total`),
 //!   or with `BlobUnavailable` when the responder does not serve the object or
 //!   `offset` is past its end.
+//! - `DeliverEffect` is answered with `EffectReceipt`. A positive receipt follows
+//!   durable inbox storage at the authenticated recipient endpoint. Missing
+//!   rules/evidence yield a negative receipt and a later exchange retries.
 //! - `Done` is not answered; it ends the exchange.
 //!
 //! Before admission, frames are read at [`MAX_HELLO_FRAME_BYTES`]. `Hello`
@@ -137,7 +140,7 @@ use crate::PROTOCOL_VERSION;
 use crate::codec;
 use crate::crypto::{ContentKey, domain, domain_hasher};
 use crate::event::{AuthorPoint, WireEvent};
-use crate::id::{BlobHash, EventId, GoalId, PublicKey};
+use crate::id::{BlobHash, EffectId, EventId, GoalId, PublicKey};
 use crate::invite::JoinRequest;
 use crate::limits::{
     BLOB_CHUNK_BYTES, MAX_BLOB_BYTES, MAX_EVENTS_PER_BATCH, MAX_FRONTIER_AUTHORS, MAX_HEADER_BYTES,
@@ -353,6 +356,18 @@ pub enum SyncMessage {
     /// it to content, keys, inventory or ordinary event reconciliation. The
     /// receiver validates both signatures and the same author position.
     HaltProof([WireEvent; 2]),
+    /// Retryable notification for a committed effect already shared by event sync.
+    DeliverEffect {
+        effect: EffectId,
+        recipient: PublicKey,
+    },
+    /// True only after this recipient endpoint durably records its inbox item.
+    /// False leaves the outbox pending for a later reconciliation.
+    EffectReceipt {
+        effect: EffectId,
+        recipient: PublicKey,
+        received: bool,
+    },
 }
 
 /// Declaration index of [`SyncMessage::Hello`], its first encoded byte.
