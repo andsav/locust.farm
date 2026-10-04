@@ -64,7 +64,7 @@ Because SIM-3 is withdrawn, the row "Dialing with a remembered address" in the d
 
 ## Fix patch
 
-Prepared by the reviewer in scratch copies and not applied: `evidence/multi-machine-simulation/fixes.patch` (10 files, 620 lines) applies to `040da11`, and `simulator-on-fixes.patch` adds the simulator on top of it, with its model of the shell updated to match. The owner of the source decides whether to apply them.
+Prepared by the reviewer in scratch copies and not applied: `evidence/multi-machine-simulation/fixes.patch` (10 files, 914 lines) applies to `040da11`, and `simulator-on-fixes.patch` adds the simulator on top of it, with its model of the shell updated to match. The owner of the source decides whether to apply them.
 
 | Finding | Change | Before | After |
 |---|---|---|---|
@@ -72,9 +72,10 @@ Prepared by the reviewer in scratch copies and not applied: `evidence/multi-mach
 | SIM-6, driver half | In [driver.rs](../crates/locust-core/src/sync/driver.rs), each backoff wait falls between half the delay and the full delay, drawn from the node's entropy so a seed still reproduces a run | Simulator seed 5252 never joins; slowest join in 100,000 fault-free seeds 69.2 s | 10,000 seeds under faults pass; slowest join 23.5 s |
 | SIM-7 | When an exchange a peer opened completes, the driver clears its backoff toward that peer and, if the goal still wants keys or content, opens a fetch at once | Text after a peer returns: median 1.5 s, 90th percentile 30.5, longest 61.0 | Median 0.2 s, 90th percentile 1.0, longest 1.5 |
 | SIM-2 | The newest connection to an endpoint is used for new exchanges, and connections at least 2 seconds old are closed when a newer one arrives; the transport idle timeout is set to 15 seconds with a 5-second keep-alive in [locust-net](../crates/locust-net/src/lib.rs) | A note from a daemon restarted after `kill -9` readable on peers after 30.9 to 35.1 s | 0.6 to 3.9 s |
+| SIM-9 | One dial per endpoint: exchanges opened while a dial to that endpoint is running wait for its outcome. Dials take permits from their own pool, so they cannot use up the permits that incoming connections need | With a member sharing 8 goals offline, a new member's join did not finish in 10 s (31 s measured earlier) | 87 to 108 ms |
 | SIM-1 | The whole network teardown runs under one 5-second deadline, and the runtime shuts down under the same bound, so the process always exits | Candidate: never exits after a suspension | Bounded at 5 s. On the current source the hang did not reproduce (7 stops of suspended daemons all exited, the slowest in 3.1 s, spent in the transport's close) |
 
-Each change has a regression test that fails without it, except the idle timeout. Checked on the combined result: formatting and Clippy clean; 497 workspace tests passed, none failed, 11 ignored; 5,000 simulator seeds under 48,000 faults passed; the product-only patch passes its three crates' tests on its own.
+Each change has a regression test that fails without it, except the idle timeout. Checked on the combined result: formatting and Clippy clean; the three changed crates pass 244 tests with none failed (the workspace passed 497 before the last of the five changes was merged in); 3,000 simulator seeds under 29,000 faults passed with both patches applied to a fresh copy.
 
 Left out on purpose:
 
@@ -82,11 +83,10 @@ Left out on purpose:
 - **SIM-5.** Waiting for a relay address before the first report fixed the early ticket but delayed start-up by up to 3 seconds without a network, before the local socket answers. That is a poor trade for a ticket issued in the first third of a second, so it was removed. A better fix is for `goal invite` to wait briefly when relays are enabled and no relay address is known yet.
 - **SIM-8** changes the engine contract (elapsed time at the seam).
 - **SIM-4** needs a sentence in the guide, or addresses carried between members, which is a design change.
-- **SIM-9** has its own patch in preparation.
 
-For a reviewer of the patch: the 15-second idle timeout is negotiated as the lower of both ends, so a patched daemon shortens it for unpatched peers too, and a process stalled for more than 15 seconds loses its connections; a restart within 2 seconds of connecting falls back to that timeout instead of being replaced at once; stopping can take up to 5 seconds, about 3 shortly after a suspension; and the jitter draws from the node's entropy, so simulator seed numbers quoted elsewhere in this note name different runs once the patch is applied.
+For a reviewer of the patch: dialed connections that are not yet admitted now have their own 64 MiB receive-credit bound beside the 64 MiB for incoming ones, so the worst case is 128 MiB where it was 64 shared; the 15-second idle timeout is negotiated as the lower of both ends, so a patched daemon shortens it for unpatched peers too, and a process stalled for more than 15 seconds loses its connections; a restart within 2 seconds of connecting falls back to that timeout instead of being replaced at once; stopping can take up to 5 seconds, about 3 shortly after a suspension; and the jitter draws from the node's entropy, so simulator seed numbers quoted elsewhere in this note name different runs once the patch is applied.
 
-One observation from the fix work that is not yet explained: on real daemons, a goal's title was not readable on a new joiner within 15 seconds while the inviter kept writing, before and after the shell change (the joiner held the goal and its own membership within 0.2 seconds). It was measured before the SIM-7 change was combined in, which targets that kind of lag in the simulator; it should be re-measured on the combined patch.
+One further measurement, on real daemons with the combined patch: a new joiner holds the goal and its own membership within 0.1 seconds, but the goal's title becomes readable later, in proportion to the history it has to fetch while the inviter keeps writing: about 1.8 seconds with no earlier notes, 3.6 to 5.2 seconds with 40, and 11 to 16 seconds with 150. That is roughly a dozen content objects a second, with the title fetched in no particular order among them. It is a throughput and ordering matter, not a correctness one, and it is not addressed by the patch: fetching the founding text first, or several objects per request, would be the place to start.
 
 ## Findings to start on
 
