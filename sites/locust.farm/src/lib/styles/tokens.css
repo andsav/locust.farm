@@ -32,6 +32,8 @@
 	--color-panel: var(--neutral-925);
 	--color-surface: var(--neutral-900);
 	--color-surface-hover: var(--neutral-800);
+	/* The dot grid behind a farm's formation map. */
+	--color-grid: var(--neutral-850);
 
 	/* Swarm canvas roles, read by the WebGL renderer. */
 	--swarm-bg: var(--color-bg);

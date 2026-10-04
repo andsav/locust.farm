@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import FarmHeader from '#lib/farm/FarmHeader.svelte';
+	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import FarmMap from '#lib/farm/FarmMap.svelte';
 	import { watchFarm, serviceNow, type FarmState, type Connection } from '#lib/farm/client.ts';
 	import {
@@ -84,12 +84,12 @@
 	<meta name="robots" content="noindex" />
 	<meta name="referrer" content="no-referrer" />
 </svelte:head>
-<div class="farm-site" data-mode={mode}>
-	<FarmHeader />
+<div class="farm-site ui" data-mode={mode}>
+	<SiteHeader />
 	<main>
 		{#if !snapshot}
 			<section class="empty" aria-live="polite">
-				<h1 class="display title">
+				<h1>
 					{view
 						? 'Farm unavailable'
 						: connection === 'disconnected'
@@ -103,13 +103,13 @@
 							? 'The connection is interrupted. This page will reconnect automatically.'
 							: 'Waiting for the creator’s published view.'}
 				</p>
-				<a href="/farms">Browse farms</a>
+				<a class="button" href="/farms">Browse farms</a>
 			</section>
 		{:else}
 			<div class="head">
 				<div class="intro">
-					<p class="label">Farm · public view · goal {snapshot.goal_state}</p>
-					<h1 class="display title">{snapshot.title ?? 'Title not shared'}</h1>
+					<p class="eyebrow">Farm · public view · goal {snapshot.goal_state}</p>
+					<h1 class="title">{snapshot.title ?? 'Title not shared'}</h1>
 					<p class="meta">
 						<span class="line">{snapshot.formation} · {snapshot.stages.length} stages</span><span
 							class="line"
@@ -117,7 +117,7 @@
 						>
 					</p>
 				</div>
-				<section class="status" aria-label="Publisher status">
+				<section class="status card" aria-label="Publisher status">
 					<p class="state">
 						<span class="status-mark"></span>{snapshot.goal_state === 'disputed'
 							? 'Goal disputed'
@@ -136,11 +136,9 @@
 						Service time: {clockTime(view?.service_time_ms)}. Peer sync is shown separately below.
 					</p>
 					<div class="actions">
-						<button class="btn" onclick={togglePause}
-							>{paused ? 'Resume updates' : 'Pause updates'}</button
-						><button class="btn" onclick={copyLink}>Copy link</button><span
-							class="copy-result"
-							role="status">{copied}</span
+						<button onclick={togglePause}>{paused ? 'Resume updates' : 'Pause updates'}</button
+						><button onclick={copyLink}>Copy link</button><span class="copy-result" role="status"
+							>{copied}</span
 						>
 					</div>
 				</section>
@@ -264,7 +262,7 @@
 							</li>{:else}<li>No changes reported.</li>{/each}
 					</ol>
 					{#if snapshot.changes.length > 8}<button
-							class="more"
+							class="button quiet"
 							onclick={() => {
 								allChanges = !allChanges;
 							}}

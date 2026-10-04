@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
-	import FarmHeader from '#lib/farm/FarmHeader.svelte';
+	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import FarmMap from '#lib/farm/FarmMap.svelte';
 	import {
 		watchFarm,
@@ -104,11 +104,11 @@
 		content="Public farm pages whose creators chose to list them."
 	/><meta name="referrer" content="no-referrer" /></svelte:head
 >
-<div class="farm-site">
-	<FarmHeader gallery />
+<div class="farm-site ui">
+	<SiteHeader />
 	<main>
 		<div class="gallery-intro">
-			<h1 class="display gallery-title">Farms</h1>
+			<h1>Farms</h1>
 			<p>
 				Swarms whose creators chose to list their farm page here. Each picture shows the last view
 				the creator’s Locust sent, and changes only when an update arrives.
@@ -131,16 +131,14 @@
 			<p class="rule">Latest change first. Farms keep their places while you read.</p>
 		</div>
 		{#if error}<p class="connection-note" role="status">
-				Unable to reach the farms service. <button class="btn" onclick={() => load()}
-					>Try again</button
-				>
+				Unable to reach the farms service. <button onclick={() => load()}>Try again</button>
 			</p>{/if}
 		<div class="gallery-grid">
 			{#each visible as farm (farm.farm_id)}
 				{@const snapshot = farm.snapshot!}
 				{@const mode = farmMode(farm, now)}
 				<a
-					class="farm-card"
+					class="farm-card card"
 					href={`/farm/${farm.farm_id}`}
 					data-mode={mode}
 					aria-label={`${snapshot.title ?? 'Title not shared'} · ${modeName(mode)}`}
@@ -179,7 +177,7 @@
 					: 'No farms are listed yet. A creator can publish a farm privately by link or choose to list it here.'}
 			</p>{/if}
 		{#if cursor}<div>
-				<button class="btn" disabled={loading} onclick={() => load(true)}>Load more farms</button>
+				<button disabled={loading} onclick={() => load(true)}>Load more farms</button>
 			</div>{/if}
 		<div class="about">
 			<section>

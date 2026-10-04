@@ -1,75 +1,12 @@
-.farm-site a:hover {
-	color: var(--color-text);
-	text-decoration: underline;
-	text-underline-offset: 3px;
-}
+/*
+ * Styles for the farm pages: the gallery at /farms and one farm at /farm/[id], both
+ * under .farm-site. Type, buttons, cards and links come from the site's shared styles;
+ * the pages are `ui` containers, so bare buttons take the shared look. What is here is
+ * the farm's own: the page layouts, the formation map, and the tables of work.
+ */
 
-.farm-site :focus-visible {
-	outline-color: var(--color-text);
-}
-
-.farm-site ::selection {
-	background: var(--color-text);
-	color: var(--color-bg);
-}
-
-.farm-site .site-header {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
-	align-items: center;
-	row-gap: var(--space-12);
-	padding: var(--space-24) var(--gutter-inline);
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	letter-spacing: var(--tracking-label);
-	text-transform: uppercase;
-}
-
-.farm-site .site-header .brand {
-	color: var(--color-text);
-}
-
-.farm-site .site-header nav {
-	display: flex;
-	gap: var(--space-24);
-}
-
-.farm-site .site-header [aria-current='page'] {
-	color: var(--color-text);
-}
-
-.farm-site .label {
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	letter-spacing: var(--tracking-label);
-	text-transform: uppercase;
-}
-
-.farm-site .display {
-	font-family: var(--font-display);
-	font-weight: 400;
-	letter-spacing: var(--tracking-display);
-	text-transform: lowercase;
-}
-
-.farm-site .btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	min-height: 2.25rem;
-	padding: 0.375rem 0.875rem;
-	border: var(--border-hairline);
-	border-color: #3a3b36;
-	border-radius: 2px;
-	background: var(--color-bg);
-	color: var(--color-text);
+.farm-site {
 	font: var(--text-ui);
-	cursor: pointer;
-}
-
-.farm-site .btn:hover {
-	border-color: var(--color-text-faint);
 }
 
 .farm-site main {
@@ -77,6 +14,43 @@
 	gap: 2.25rem;
 	padding: 0.5rem var(--gutter-inline) var(--gutter-block-end);
 }
+
+/* Notes, captions and other secondary text. */
+.farm-site
+	:where(.rule, .note, .caption, .deps, .sub, .key, .count-note, .copy-result, .latest-line) {
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
+}
+
+.farm-site .rule {
+	max-width: 60rem;
+}
+
+.farm-site .note {
+	margin-top: 0.75rem;
+}
+
+.farm-site .connection-note {
+	padding: 0.75rem 0;
+	border-block: var(--border-hairline);
+	color: var(--color-text-muted);
+}
+
+/* A farm that cannot be shown. */
+
+.farm-site .empty {
+	display: grid;
+	gap: 1rem;
+	justify-items: start;
+	max-width: 42rem;
+	padding-block: 3rem 5rem;
+}
+
+.farm-site .empty p {
+	color: var(--color-text-muted);
+}
+
+/* The head of a farm: its title, and the publisher's status beside it. */
 
 .farm-site .head {
 	display: grid;
@@ -92,9 +66,7 @@
 
 .farm-site .title {
 	max-width: 50rem;
-	font-size: clamp(1.5rem, 3.2vw, 2.5rem);
-	line-height: 1.15;
-	text-wrap: balance;
+	overflow-wrap: anywhere;
 }
 
 .farm-site .meta {
@@ -109,18 +81,17 @@
 	display: grid;
 	gap: 0.5rem;
 	padding: 1rem 1.125rem;
-	border: var(--border-hairline);
-	background: color-mix(in srgb, var(--color-surface) 55%, var(--color-bg));
 }
 
 .farm-site .state {
 	display: flex;
-	align-items: center;
 	gap: 0.625rem;
+	align-items: center;
 	color: var(--color-text);
-	font-weight: 500;
+	font-weight: 600;
 }
 
+/* Filled while updates arrive, hollow when quiet, a line once the goal has ended. */
 .farm-site .status-mark {
 	flex: none;
 	width: 0.625rem;
@@ -128,32 +99,20 @@
 	background: var(--color-text);
 }
 
+.farm-site[data-mode='quiet'] .status-mark,
 .farm-site [data-mode='quiet'] .status-mark {
-	background: transparent;
 	border: 1.5px solid var(--color-text);
+	background: transparent;
 }
 
+.farm-site[data-mode='ended'] .status-mark,
 .farm-site [data-mode='ended'] .status-mark {
-	height: 2px;
 	width: 0.75rem;
+	height: 2px;
 }
 
 .farm-site .status-text {
 	color: var(--color-text-muted);
-}
-
-.farm-site .latest-line {
-	padding-top: 0.5rem;
-	border-top: var(--border-hairline);
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	line-height: 1.6;
-	letter-spacing: 0.01em;
-}
-
-.farm-site .latest-line b {
-	color: var(--color-text);
-	font-weight: 400;
 }
 
 .farm-site .status-text b {
@@ -161,24 +120,26 @@
 	font-weight: 500;
 }
 
+.farm-site .latest-line {
+	padding-top: 0.5rem;
+	border-top: var(--border-hairline);
+}
+
 .farm-site .actions {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: center;
 	gap: 0.5rem;
+	align-items: center;
 	margin-top: 0.25rem;
 }
 
-.farm-site .copy-result {
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-}
+/* The task summary. */
 
 .farm-site .counts {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: end;
 	gap: 1rem 2.75rem;
+	align-items: end;
 	padding: 1rem 0;
 	border-block: var(--border-hairline);
 }
@@ -188,31 +149,36 @@
 	gap: 0.25rem;
 }
 
+.farm-site .count .label {
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
+}
+
 .farm-site .count .n {
 	color: var(--color-text);
 	font-size: 1.375rem;
+	font-weight: 500;
 	line-height: 1.2;
-	font-weight: 400;
+	font-variant-numeric: tabular-nums;
 }
 
 .farm-site .count .n small {
 	color: var(--color-text-muted);
-	font-size: 0.8125rem;
+	font: var(--text-ui-small);
 }
 
 .farm-site .count.done .n strong {
 	color: var(--color-accent);
-	font-weight: 400;
+	font-weight: 500;
 }
 
 .farm-site .count-note {
-	margin-left: auto;
 	align-self: center;
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	letter-spacing: 0.02em;
+	margin-left: auto;
 	text-align: right;
 }
+
+/* The formation map: stages in columns, joined by edges, over a dot grid. */
 
 .farm-site .map-wrap {
 	display: grid;
@@ -222,11 +188,13 @@
 .farm-site .map {
 	position: relative;
 	padding: 1.5rem 1.5rem 0;
+	overflow: hidden;
 	border: var(--border-hairline);
-	background-color: var(--color-bg);
+	border-radius: var(--radius-panel);
+	background-color: var(--color-panel);
 	background-image: radial-gradient(circle, var(--color-grid) 1.2px, transparent 1.4px);
-	background-size: 22px 22px;
 	background-position: 11px 11px;
+	background-size: 22px 22px;
 }
 
 .farm-site .map-body {
@@ -234,6 +202,7 @@
 	transition: opacity var(--duration-slow);
 }
 
+.farm-site[data-mode='quiet'] .map-body,
 .farm-site [data-mode='quiet'] .map-body {
 	opacity: 0.38;
 }
@@ -243,8 +212,8 @@
 	inset: 0;
 	width: 100%;
 	height: 100%;
-	pointer-events: none;
 	overflow: visible;
+	pointer-events: none;
 }
 
 .farm-site .edges .edge {
@@ -253,60 +222,64 @@
 	stroke-width: 1.5;
 }
 
-.farm-site .edges .edge.met {
-	stroke: var(--color-text-subtle);
-}
-
 .farm-site .edges .head-unmet {
 	fill: var(--color-text-faint);
 }
 
 .farm-site .cols {
+	position: relative;
 	display: grid;
 	grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
-	gap: 2rem 4.5rem;
-	position: relative;
+	gap: 2rem 3rem;
 }
 
 .farm-site .col {
 	display: grid;
 	align-content: start;
 	gap: 2rem;
+	min-width: 0;
 }
 
 .farm-site .step {
 	display: grid;
 	align-content: start;
 	gap: 0.75rem;
+	min-width: 0;
 }
 
+.farm-site .unstaged {
+	max-width: 27rem;
+	margin-top: 1.5rem;
+	padding-top: 1rem;
+	border-top: 1px dashed var(--color-border);
+}
+
+/* A stage: its number in a disc, then its name. */
 .farm-site .capsule {
 	display: flex;
-	align-items: center;
 	gap: 0.625rem;
+	align-items: center;
 	width: 216px;
 	max-width: 100%;
 	height: 46px;
 	padding: 0 0.875rem 0 0.5rem;
-	border: 1px solid var(--color-border);
-	border-radius: 23px;
+	border: var(--border-hairline);
+	border-radius: 999px;
 	background: var(--color-surface);
+	box-shadow: var(--shadow-popover);
 	color: var(--color-text);
-	box-shadow: 0 6px 18px -10px rgb(0 0 0 / 0.8);
 	font: var(--text-ui);
 	font-weight: 500;
-	text-align: left;
-	cursor: default;
 }
 
 .farm-site .disc {
 	display: grid;
-	place-items: center;
 	flex: none;
+	place-items: center;
 	width: 30px;
 	height: 30px;
 	border-radius: 50%;
-	background: color-mix(in srgb, var(--color-text) 10%, var(--color-surface));
+	background: var(--color-surface-hover);
 	color: var(--color-text-muted);
 	font-size: 0.75rem;
 	font-weight: 500;
@@ -320,10 +293,8 @@
 	white-space: nowrap;
 }
 
-.farm-site .caption {
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	letter-spacing: 0.02em;
+.farm-site .caption,
+.farm-site .deps {
 	padding-left: 0.5rem;
 }
 
@@ -338,42 +309,51 @@
 	display: none;
 }
 
+/* An agent with attempts in a stage: its number, its name, then the tasks it holds. */
 .farm-site .agent {
 	display: inline-flex;
-	align-items: center;
+	flex-wrap: wrap;
 	gap: 0.4375rem;
-	height: 1.75rem;
-	padding: 0 0.625rem 0 0.25rem;
-	border: 1px solid var(--color-border);
+	align-items: center;
+	max-width: 100%;
+	min-height: 1.75rem;
+	padding: 0.2rem 0.625rem 0.2rem 0.25rem;
+	border: var(--border-hairline);
 	border-radius: 999px;
 	background: var(--color-surface);
 	color: var(--color-text);
-	font: var(--text-label);
-	letter-spacing: 0.01em;
-	white-space: nowrap;
-	cursor: default;
+	font: var(--text-ui-small);
 }
 
 .farm-site .num {
 	display: grid;
+	flex: none;
 	place-items: center;
 	width: 1.25rem;
 	height: 1.25rem;
 	border-radius: 50%;
 	background: var(--color-text);
 	color: var(--color-bg);
-	font-size: 0.625rem;
+	font-size: 0.6875rem;
 	font-weight: 600;
 }
 
 .farm-site .agent.free .num {
-	background: transparent;
 	border: 1px solid var(--color-text-muted);
+	background: transparent;
 	color: var(--color-text-muted);
+}
+
+/* Task references are identifiers, so they stay in mono. */
+.farm-site .agent .holds,
+.farm-site .mark,
+.farm-site .ref-btn {
+	font: var(--text-code);
 }
 
 .farm-site .agent .holds {
 	color: var(--color-text-faint);
+	font-size: 0.6875rem;
 }
 
 .farm-site .marks {
@@ -382,144 +362,114 @@
 	gap: 0.25rem 0.125rem;
 }
 
+/* One task: a dot for its state above its reference. */
 .farm-site .mark {
 	position: relative;
 	display: grid;
-	justify-items: center;
 	gap: 0.3125rem;
+	justify-items: center;
 	width: 2.5rem;
+	min-height: 0;
 	padding: 0.375rem 0 0.25rem;
 	border: 0;
 	background: transparent;
 	color: var(--color-text-faint);
-	font: var(--text-label);
 	font-size: 0.625rem;
-	letter-spacing: 0;
-	cursor: default;
+	line-height: 1.25;
 }
 
-.farm-site .dot {
-	position: relative;
-	width: 13px;
-	height: 13px;
-	border-radius: 50%;
-	border: 1.5px solid var(--color-text-subtle);
-}
-
-.farm-site .mark[data-state='taken'] .dot {
-	border-color: var(--color-text-subtle);
-	background: var(--color-text-subtle);
-}
-
-.farm-site .mark[data-state='waiting'] .dot {
-	border-color: var(--color-text);
-	background: var(--color-text);
-}
-
-.farm-site .mark[data-state='done'] .dot {
-	border-color: var(--color-accent);
-	background: var(--color-accent);
-}
-
-.farm-site .mark[data-state='closed'] .dot {
-	border-radius: 1px;
-	border-color: var(--color-text-faint);
-}
-
-.farm-site .mark.changed .dot {
-	box-shadow:
-		0 0 0 3px var(--color-bg),
-		0 0 0 4px var(--color-text);
-}
-
-.farm-site .agent.changed {
-	outline: 1px solid var(--color-text);
-	outline-offset: 3px;
-}
-
+.farm-site .mark:where(:hover) .ref,
 .farm-site .mark.changed .ref {
 	color: var(--color-text);
 }
 
+/* A ring is open, grey has reported attempts, white awaits evidence, ember is completed. */
+.farm-site .dot {
+	position: relative;
+	display: block;
+	width: 13px;
+	height: 13px;
+	border: 1.5px solid var(--color-text-subtle);
+	border-radius: 50%;
+}
+
+.farm-site .mark[data-state='taken'] .dot,
+.farm-site .dot.taken {
+	background: var(--color-text-subtle);
+}
+
+.farm-site .mark[data-state='waiting'] .dot,
+.farm-site .dot.waiting {
+	border-color: var(--color-text);
+	background: var(--color-text);
+}
+
+.farm-site .mark[data-state='done'] .dot,
+.farm-site .dot.done {
+	border-color: var(--color-accent);
+	background: var(--color-accent);
+}
+
+.farm-site .mark[data-state='closed'] .dot,
+.farm-site .dot.closed {
+	border-color: var(--color-text-faint);
+	border-radius: 1px;
+}
+
+.farm-site .mark[data-state='disputed'] .dot,
+.farm-site .dot.disputed {
+	border-radius: 0;
+	transform: rotate(45deg);
+}
+
+.farm-site .mark[data-state='unavailable'] .dot,
+.farm-site .dot.unavailable {
+	border-style: dashed;
+}
+
+.farm-site .mark.changed .dot {
+	box-shadow:
+		0 0 0 3px var(--color-panel),
+		0 0 0 4px var(--color-text);
+}
+
+/* Agents with no attempt in the current round, along the foot of the map. */
 .farm-site .tray {
 	display: flex;
 	flex-wrap: wrap;
+	gap: 0.5rem;
 	align-items: center;
-	gap: 0.5rem 0.5rem;
 	margin: 2rem -1.5rem 0;
 	padding: 0.75rem 1.5rem;
 	border-top: 1px dashed var(--color-border);
-	background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+	background: color-mix(in srgb, var(--color-panel) 80%, transparent);
 }
 
 .farm-site .tray .label {
 	margin-right: 0.5rem;
-}
-
-.farm-site [hidden] {
-	display: none !important;
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
 }
 
 .farm-site .key {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.5rem 1.375rem;
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	letter-spacing: 0.01em;
 }
 
 .farm-site .key span {
 	display: inline-flex;
-	align-items: center;
 	gap: 0.4375rem;
+	align-items: center;
 }
 
-.farm-site .key .dot {
+.farm-site .key .dot,
+.farm-site .cell-mark .dot {
 	width: 10px;
 	height: 10px;
 }
 
-.farm-site .key .dot.taken {
-	background: var(--color-text-subtle);
-}
-
-.farm-site .key .dot.waiting {
-	border-color: var(--color-text);
-	background: var(--color-text);
-}
-
-.farm-site .key .dot.done {
-	border-color: var(--color-accent);
-	background: var(--color-accent);
-}
-
-.farm-site .key .dot.changed {
-	border-color: var(--color-text-subtle);
-	box-shadow:
-		0 0 0 2px var(--color-bg),
-		0 0 0 3px var(--color-text);
-}
-
-.farm-site .key .num {
-	width: 1rem;
-	height: 1rem;
-	font-size: 0.5625rem;
-}
-
-.farm-site .key .num.free {
-	background: transparent;
-	border: 1px solid var(--color-text-muted);
-	color: var(--color-text-muted);
-}
-
-.farm-site .rule {
-	max-width: 60rem;
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	line-height: 1.6;
-	letter-spacing: 0.01em;
-}
+/* Tasks, changes, agents and groups, below the map. */
 
 .farm-site .lower {
 	display: grid;
@@ -531,25 +481,22 @@
 .farm-site .section-head {
 	display: flex;
 	flex-wrap: wrap;
+	gap: 0.25rem 1rem;
 	justify-content: space-between;
 	align-items: baseline;
-	gap: 0.25rem 1rem;
 	padding-bottom: 0.625rem;
 	border-bottom: var(--border-hairline);
 }
 
-.farm-site .section-head h2 {
-	font: var(--text-label);
-	letter-spacing: var(--tracking-label);
-	text-transform: uppercase;
-	color: var(--color-text);
-	font-weight: 500;
+.farm-site .section-head h2,
+.farm-site .about h2,
+.farm-site .farm-card h2 {
+	font: var(--text-ui-heading);
 }
 
 .farm-site .section-head p {
-	color: var(--color-text-faint);
-	font: var(--text-label);
-	letter-spacing: 0.01em;
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
 }
 
 .farm-site table {
@@ -559,12 +506,10 @@
 
 .farm-site th {
 	padding: 0.625rem 0.75rem 0.5rem 0;
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	letter-spacing: 0.02em;
-	text-align: left;
-	font-weight: 400;
 	border-bottom: var(--border-hairline);
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
+	text-align: left;
 }
 
 .farm-site td {
@@ -574,61 +519,46 @@
 	vertical-align: top;
 }
 
-.farm-site td.strong,
 .farm-site .strong {
 	color: var(--color-text);
 }
 
 .farm-site .sub {
 	display: block;
-	color: var(--color-text-faint);
-	font: var(--text-label);
-	letter-spacing: 0.01em;
-	line-height: 1.5;
 	margin-top: 0.125rem;
-}
-
-.farm-site tr.group td {
-	padding-top: 1rem;
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	letter-spacing: var(--tracking-label);
-	text-transform: uppercase;
 }
 
 .farm-site tbody td:first-child {
 	padding-left: 0.625rem;
 }
 
-.farm-site tr.group td:first-child {
+/* The row that names a stage above its tasks. */
+.farm-site tr.group td {
+	padding-top: 1rem;
 	padding-left: 0;
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
+	font-weight: 500;
+}
+
+.farm-site .selected-row {
+	background: var(--color-surface);
 }
 
 .farm-site .work-table th:nth-child(2) {
-	width: 46%;
+	width: 14%;
+}
+
+.farm-site .work-table th:nth-child(3) {
+	width: 56%;
 }
 
 .farm-site .work-table th:nth-child(4) {
-	width: 21%;
-}
-
-.farm-site .work-table td:nth-child(4) {
-	white-space: nowrap;
+	width: 28%;
 }
 
 .farm-site .agents-table th:first-child {
 	width: 34%;
-}
-
-.farm-site .ref-btn {
-	padding: 0;
-	border: 0;
-	background: transparent;
-	color: var(--color-text);
-	font: inherit;
-	text-decoration: underline dotted var(--color-text-faint);
-	text-underline-offset: 3px;
-	cursor: pointer;
 }
 
 .farm-site .cell-mark {
@@ -636,23 +566,25 @@
 	padding-top: 0.875rem;
 }
 
-.farm-site .cell-mark .dot {
-	width: 10px;
-	height: 10px;
+.farm-site .ref-btn {
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: var(--color-text);
+	text-decoration: underline dotted var(--color-text-faint);
+	text-underline-offset: 0.2em;
 }
 
-.farm-site .cell-mark .dot.taken {
-	background: var(--color-text-subtle);
+.farm-site .facts {
+	display: grid;
+	gap: 0.25rem;
 }
 
-.farm-site .cell-mark .dot.waiting {
-	border-color: var(--color-text);
-	background: var(--color-text);
-}
-
-.farm-site .cell-mark .dot.done {
-	border-color: var(--color-accent);
-	background: var(--color-accent);
+.farm-site .facts small {
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
 }
 
 .farm-site .heard ol {
@@ -663,7 +595,7 @@
 
 .farm-site .heard li {
 	display: grid;
-	grid-template-columns: 3.25rem minmax(0, 1fr);
+	grid-template-columns: 4.5rem minmax(0, 1fr);
 	gap: 0.75rem;
 	padding: 0.5625rem 0 0.5625rem 0.625rem;
 	border-bottom: var(--border-hairline);
@@ -673,28 +605,14 @@
 .farm-site .heard time {
 	color: var(--color-text-faint);
 	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 }
 
-.farm-site .more {
+.farm-site .heard .button {
 	margin-top: 0.75rem;
-	padding: 0.25rem 0;
-	border: 0;
-	background: transparent;
-	color: var(--color-text-muted);
-	font: var(--text-label);
-	letter-spacing: 0.02em;
-	text-decoration: underline;
-	text-underline-offset: 3px;
-	cursor: pointer;
 }
 
-.farm-site .note {
-	margin-top: 0.75rem;
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	line-height: 1.6;
-	letter-spacing: 0.01em;
-}
+/* What the page shows and what stays private, at its foot. */
 
 .farm-site .about {
 	display: grid;
@@ -706,40 +624,193 @@
 
 .farm-site .about h2 {
 	margin-bottom: 0.5rem;
-	color: var(--color-text);
-	font: var(--text-label);
-	letter-spacing: var(--tracking-label);
-	text-transform: uppercase;
-	font-weight: 500;
 }
 
 .farm-site .about p {
 	color: var(--color-text-subtle);
-	font: var(--text-label);
-	line-height: 1.65;
-	letter-spacing: 0.01em;
+	font: var(--text-ui-small);
 }
 
-.farm-site .about p + p {
-	margin-top: 0.5rem;
+/* The gallery. */
+
+.farm-site .gallery-intro {
+	display: grid;
+	gap: 1rem;
+	max-width: 52rem;
 }
 
-.farm-site .about a {
+.farm-site .gallery-intro p {
 	color: var(--color-text-muted);
-	text-decoration: underline;
-	text-underline-offset: 3px;
+	font: var(--text-body);
+}
+
+.farm-site .gallery-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	justify-content: space-between;
+	align-items: center;
+	padding-top: 1rem;
+	border-top: var(--border-hairline);
+}
+
+/* One filter is on at a time; it takes the raised surface, as the current page does in the header. */
+.farm-site .filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.125rem;
+}
+
+.farm-site .filters button {
+	border-color: transparent;
+	background: transparent;
+	color: var(--color-text-subtle);
+}
+
+.farm-site .filters button:hover {
+	color: var(--color-text);
+}
+
+.farm-site .filters button[aria-pressed='true'] {
+	background: var(--color-surface);
+	color: var(--color-text);
+}
+
+.farm-site .gallery-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 1rem;
+}
+
+.farm-site .farm-card {
+	display: grid;
+	align-content: start;
+	gap: 0.75rem;
+	min-width: 0;
+	padding: 0.75rem 0.75rem 1rem;
+}
+
+.farm-site .farm-card p {
+	color: var(--color-text-subtle);
+	font: var(--text-ui-small);
+}
+
+.farm-site .farm-card strong {
+	color: var(--color-accent);
+	font-weight: 500;
+}
+
+.farm-site .farm-card .state {
+	color: var(--color-text);
+	font-weight: 500;
+}
+
+/* The map in a card is a picture of the farm: the same shapes, small and without words. */
+
+.farm-site .farm-card .map {
+	min-height: 12rem;
+	padding: 0.75rem 0.75rem 0;
+	border-radius: var(--radius-control);
+	background-color: var(--color-bg);
+}
+
+.farm-site .farm-card .cols {
+	gap: 0.6rem;
+}
+
+.farm-site .farm-card .col {
+	gap: 1rem;
+}
+
+.farm-site .farm-card .step {
+	gap: 0.4rem;
+}
+
+.farm-site .farm-card .unstaged {
+	margin-top: 1rem;
+	padding-top: 0.6rem;
+}
+
+.farm-site .farm-card .capsule {
+	gap: 0.3rem;
+	width: 100%;
+	min-width: 0;
+	height: 1.5rem;
+	padding: 0 0.4rem;
+	overflow: hidden;
+	box-shadow: none;
+	font-size: 0.55rem;
+}
+
+.farm-site .farm-card .unstaged .capsule {
+	width: 40%;
+}
+
+.farm-site .farm-card .disc {
+	width: 0.8rem;
+	height: 0.8rem;
+	font-size: 0.4rem;
+}
+
+.farm-site .farm-card .marks {
+	gap: 0.25rem;
+}
+
+.farm-site .farm-card .mark {
+	width: 0.8rem;
+	padding: 0.2rem 0;
+}
+
+.farm-site .farm-card .dot {
+	width: 0.6rem;
+	height: 0.6rem;
+}
+
+.farm-site .farm-card .holders {
+	gap: 0.2rem;
+	min-height: 0.4rem;
+}
+
+.farm-site .farm-card .agent {
+	width: 0.9rem;
+	height: 0.3rem;
+	min-height: 0.3rem;
+	padding: 0;
+	border: 0;
+	background: var(--color-text);
+}
+
+.farm-site .farm-card .tray {
+	min-height: 2rem;
+	margin: 1.25rem -0.75rem 0;
+	padding: 0.65rem 0.75rem;
+}
+
+.farm-site .farm-card .tray .agent {
+	border: 1px solid var(--color-text-subtle);
+	background: transparent;
+}
+
+.farm-site .farm-card .preview-progress {
+	height: 2px;
+	margin-top: 0.5rem;
+	background: var(--color-border);
+}
+
+.farm-site .farm-card .preview-progress i {
+	display: block;
+	height: 100%;
+	background: var(--color-accent);
 }
 
 @media (max-width: 1100px) {
-	.farm-site .head {
-		grid-template-columns: minmax(0, 1fr);
-	}
-
+	.farm-site .head,
 	.farm-site .lower {
 		grid-template-columns: minmax(0, 1fr);
 	}
 
-	.farm-site .about {
+	.farm-site .about,
+	.farm-site .gallery-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
@@ -753,24 +824,19 @@
 		gap: 0.5rem;
 	}
 
-	.farm-site .counts {
-		padding: 0.75rem 0;
-	}
-
-	.farm-site .title {
-		font-size: 1.5rem;
+	.farm-site .status {
+		padding: 0.875rem;
 	}
 
 	.farm-site .counts {
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 0.75rem 0.5rem;
+		padding: 0.75rem 0;
 	}
 
 	.farm-site .count .label {
-		font-size: 0.5625rem;
-		letter-spacing: 0.04em;
-		min-height: 2em;
+		min-height: 2.9em;
 	}
 
 	.farm-site .count .n {
@@ -785,7 +851,6 @@
 
 	.farm-site .map {
 		padding: 1rem 1rem 0;
-		min-height: 0;
 	}
 
 	.farm-site .cols {
@@ -814,10 +879,26 @@
 		gap: 0.375rem 1rem;
 	}
 
-	.farm-site .about {
+	.farm-site .about,
+	.farm-site .gallery-grid {
 		grid-template-columns: minmax(0, 1fr);
 	}
 
+	/* A card keeps its stages side by side, as a picture. */
+	.farm-site .farm-card .map {
+		min-height: 14rem;
+	}
+
+	.farm-site .farm-card .cols {
+		grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+		gap: 0.6rem;
+	}
+
+	.farm-site .farm-card .col {
+		gap: 1rem;
+	}
+
+	/* Each table row becomes a block, with its mark in a narrow first column. */
 	.farm-site .stack thead {
 		display: none;
 	}
@@ -836,16 +917,20 @@
 		border: 0;
 	}
 
+	.farm-site .stack tbody td:first-child {
+		padding-left: 0;
+	}
+
 	.farm-site .stack td.cell-mark {
-		grid-column: 1;
 		grid-row: 1 / span 4;
+		grid-column: 1;
 		padding-top: 0.3125rem;
 	}
 
 	.farm-site .stack tr.group {
 		display: block;
-		border: 0;
 		padding: 0.5rem 0 0;
+		border: 0;
 	}
 
 	.farm-site .stack tr.group td {
@@ -855,25 +940,6 @@
 	.farm-site .stack td[data-label]::before {
 		content: attr(data-label) ' ';
 		color: var(--color-text-faint);
-		font: var(--text-label);
-	}
-
-	.farm-site .agents-table tr {
-		grid-template-columns: minmax(0, 1fr);
-	}
-
-	.farm-site .agents-table td {
-		grid-column: 1;
-	}
-
-	.farm-site .heard li {
-		grid-template-columns: 2.75rem minmax(0, 1fr);
-		gap: 0.5rem;
-		padding-left: 0.5rem;
-	}
-
-	.farm-site .status {
-		padding: 0.875rem;
 	}
 
 	.farm-site .agents-table tr {
@@ -883,15 +949,14 @@
 
 	.farm-site .agents-table td {
 		display: inline;
-		padding: 0;
 		margin-right: 0.75rem;
-		font-size: 0.75rem;
-		line-height: 1.7;
+		padding: 0;
+		font: var(--text-ui-small);
 	}
 
 	.farm-site .agents-table td.strong {
 		display: block;
-		font-size: 0.8125rem;
+		font: var(--text-ui);
 	}
 
 	.farm-site .agents-table td.strong .sub {
@@ -903,346 +968,8 @@
 		color: var(--color-text-faint);
 	}
 
-	.farm-site .stack tbody td:first-child {
-		padding-left: 0;
-	}
-
-	.farm-site .work-table td:nth-child(4) {
-		white-space: normal;
-	}
-}
-
-.farm-site {
-	--text-body: 400 0.8125rem / 1.7 var(--font-mono);
-	font: var(--text-body);
-	--text-ui: 400 0.8125rem / 1.5 var(--font-mono);
-	--color-grid: var(--neutral-850);
-}
-.farm-site h2,
-.farm-site h3 {
-	margin: 0;
-}
-.farm-site .empty {
-	padding-block: 3rem 5rem;
-	max-width: 42rem;
-}
-.farm-site .empty h1 {
-	margin-bottom: 1rem;
-}
-.farm-site .empty p {
-	color: var(--color-text-muted);
-	margin-bottom: 1rem;
-}
-.farm-site .empty a {
-	text-decoration: underline;
-	text-underline-offset: 3px;
-}
-.farm-site .connection-note {
-	color: var(--color-text-muted);
-	border-block: var(--border-hairline);
-	padding: 0.75rem 0;
-}
-.farm-site .display {
-	overflow-wrap: anywhere;
-}
-.farm-site .facts {
-	display: grid;
-	gap: 0.2rem;
-}
-.farm-site .facts small {
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	line-height: 1.6;
-}
-.farm-site .selected-row {
-	background: var(--color-surface);
-}
-.farm-site .section-head button {
-	background: transparent;
-	border: 0;
-	padding: 0;
-	color: var(--color-text-muted);
-	font: var(--text-label);
-	text-decoration: underline;
-	cursor: pointer;
-}
-.farm-site .deps {
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	line-height: 1.5;
-	padding-left: 0.5rem;
-}
-.farm-site .gallery-intro {
-	display: grid;
-	gap: 1rem;
-	max-width: 52rem;
-}
-.farm-site .gallery-title {
-	font-size: clamp(2rem, 4vw, 3rem);
-	line-height: 1.15;
-}
-.farm-site .gallery-intro p {
-	color: var(--color-text-muted);
-}
-.farm-site .gallery-controls {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: 1rem;
-	border-top: var(--border-hairline);
-	padding-top: 1rem;
-}
-.farm-site .filters {
-	display: flex;
-	flex-wrap: wrap;
-}
-.farm-site .filters button {
-	min-height: 2.5rem;
-	padding: 0.5rem 0.85rem;
-	border: var(--border-hairline);
-	background: transparent;
-	color: var(--color-text-muted);
-	font: var(--text-ui);
-	cursor: pointer;
-}
-.farm-site .filters button[aria-pressed='true'] {
-	background: var(--color-surface);
-	color: var(--color-text);
-	border-bottom-color: var(--color-text-muted);
-}
-.farm-site .gallery-grid {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 2rem 1.5rem;
-}
-.farm-site .farm-card {
-	min-width: 0;
-	display: grid;
-	align-content: start;
-	gap: 0.75rem;
-	border-bottom: var(--border-hairline);
-	padding-bottom: 1rem;
-}
-.farm-site .farm-card h2 {
-	font: var(--text-body);
-	font-weight: 500;
-}
-.farm-site .farm-card p {
-	color: var(--color-text-subtle);
-	font: var(--text-label);
-	line-height: 1.7;
-}
-.farm-site .farm-card strong {
-	color: var(--color-accent);
-	font-weight: 500;
-}
-.farm-site .farm-card .state {
-	font: var(--text-label);
-}
-.farm-site .farm-card .map {
-	padding: 0.75rem 0.75rem 0;
-	min-height: 12rem;
-}
-.farm-site .farm-card .cols {
-	gap: 0.6rem;
-}
-.farm-site .farm-card .col {
-	gap: 1rem;
-}
-.farm-site .farm-card .step {
-	gap: 0.4rem;
-}
-.farm-site .farm-card .capsule {
-	height: 1.5rem;
-	padding: 0 0.4rem;
-	gap: 0.3rem;
-	font-size: 0.55rem;
-	width: 100%;
-}
-.farm-site .farm-card .disc {
-	height: 1rem;
-	width: 1rem;
-	font-size: 0.5rem;
-}
-.farm-site .farm-card .marks {
-	gap: 0.25rem;
-}
-.farm-site .farm-card .mark {
-	width: 0.8rem;
-	padding: 0.2rem 0;
-}
-.farm-site .farm-card .dot {
-	width: 0.6rem;
-	height: 0.6rem;
-}
-.farm-site .farm-card .holders {
-	gap: 0.2rem;
-	min-height: 0.4rem;
-}
-.farm-site .farm-card .agent {
-	width: 0.9rem;
-	height: 0.3rem;
-	padding: 0;
-	border: 0;
-	background: var(--color-text);
-}
-.farm-site .farm-card .tray {
-	margin: 1.25rem -0.75rem 0;
-	padding: 0.65rem 0.75rem;
-	min-height: 2rem;
-}
-.farm-site .farm-card .tray .agent {
-	background: transparent;
-	border: 1px solid var(--color-text-subtle);
-}
-.farm-site .farm-card .preview-progress {
-	height: 2px;
-	background: var(--color-border);
-	margin-top: 0.5rem;
-}
-.farm-site .farm-card .preview-progress i {
-	display: block;
-	height: 100%;
-	background: var(--color-accent);
-}
-@media (max-width: 1100px) {
-	.farm-site .gallery-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-}
-@media (max-width: 760px) {
-	.farm-site .site-header nav {
-		flex-wrap: wrap;
-		gap: 1rem;
-	}
-	.farm-site .site-header {
-		padding-block: 1.25rem;
-	}
-	.farm-site .gallery-grid {
-		grid-template-columns: minmax(0, 1fr);
-	}
-	.farm-site .farm-card .cols {
-		grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-	}
-	.farm-site .farm-card .capsule {
-		width: 100%;
-	}
-	.farm-site .farm-card .col {
-		gap: 1rem;
-	}
-	.farm-site .farm-card .map {
-		min-height: 14rem;
-	}
-}
-.farm-site .cols {
-	gap: 2rem 3rem;
-}
-.farm-site .unstaged {
-	border-top: 1px dashed var(--color-border);
-	padding-top: 1rem;
-	margin-top: 1.5rem;
-	max-width: 27rem;
-}
-.farm-site .agent {
-	white-space: normal;
-	height: auto;
-	min-height: 1.75rem;
-	padding-block: 0.2rem;
-	max-width: 100%;
-	flex-wrap: wrap;
-}
-.farm-site .agent .num {
-	flex: none;
-}
-.farm-site .agent .holds {
-	font-size: 0.55rem;
-}
-.farm-site .farm-card .agent {
-	min-height: 0.3rem;
-}
-.farm-site .farm-card .unstaged {
-	padding-top: 0.6rem;
-	margin-top: 1rem;
-}
-.farm-site .farm-card .unstaged .capsule {
-	width: 40%;
-}
-.farm-site .mark[data-state='disputed'] .dot {
-	border-radius: 0;
-	transform: rotate(45deg);
-}
-.farm-site .mark[data-state='unavailable'] .dot {
-	border-style: dashed;
-}
-@media (max-width: 760px) {
-	.farm-site .cols {
-		gap: 2.25rem;
-	}
-	.farm-site .farm-card .cols {
-		gap: 0.6rem;
-	}
-}
-.farm-site .work-table th:nth-child(2) {
-	width: 14%;
-}
-.farm-site .work-table th:nth-child(3) {
-	width: 56%;
-}
-.farm-site .work-table th:nth-child(4) {
-	width: 28%;
-}
-.farm-site .work-table td:nth-child(4) {
-	white-space: normal;
-}
-.farm-site .facts {
-	gap: 0.25rem;
-}
-.farm-site .col,
-.farm-site .step {
-	min-width: 0;
-}
-.farm-site .farm-card .capsule {
-	min-width: 0;
-	overflow: hidden;
-}
-.farm-site .farm-card .disc {
-	width: 0.8rem;
-	height: 0.8rem;
-	font-size: 0.4rem;
-}
-.farm-site .heard li {
-	grid-template-columns: 4.5rem minmax(0, 1fr);
-}
-.farm-site .heard time {
-	white-space: nowrap;
-}
-.farm-site .cell-mark .dot {
-	display: block;
-}
-@media (max-width: 760px) {
 	.farm-site .heard li {
-		grid-template-columns: 4.5rem minmax(0, 1fr);
+		gap: 0.5rem;
+		padding-left: 0.5rem;
 	}
-}
-.farm-site .cell-mark .dot.closed {
-	border-radius: 1px;
-}
-.farm-site .cell-mark .dot.disputed {
-	border-radius: 0;
-	transform: rotate(45deg);
-}
-.farm-site .cell-mark .dot.unavailable {
-	border-style: dashed;
-}
-.farm-site[data-mode='quiet'] .status-mark {
-	background: transparent;
-	border: 1.5px solid var(--color-text);
-}
-.farm-site[data-mode='ended'] .status-mark {
-	height: 2px;
-	width: 0.75rem;
-}
-.farm-site[data-mode='quiet'] .map-body {
-	opacity: 0.38;
 }
