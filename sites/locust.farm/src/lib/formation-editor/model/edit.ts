@@ -17,7 +17,12 @@ import { DEFAULT_WAY, presetFormation } from './presets.ts';
 
 /** A new document holding a way of working. */
 export function newDocument(id = DEFAULT_WAY): EditorDocument {
-	return { name: '', formation: presetFormation(id), others: {} };
+	return { name: '', formation: presetFormation(id), own: {}, others: {} };
+}
+
+/** Whether a role, step or kind can have this name. "__proto__" cannot be a key of a plain object. */
+export function usableName(name: string): boolean {
+	return name !== '' && name !== '__proto__';
 }
 
 function clone(document: EditorDocument): EditorDocument {
@@ -28,6 +33,7 @@ function clone(document: EditorDocument): EditorDocument {
 export function applyWay(document: EditorDocument, id: string): EditorDocument {
 	const next = clone(document);
 	next.formation = presetFormation(id);
+	next.own = {};
 	return next;
 }
 
@@ -123,6 +129,7 @@ export function roleUses(formation: Formation, name: string): number {
 }
 
 export function addRole(document: EditorDocument, name: string, description = ''): EditorDocument {
+	if (!usableName(name)) return document;
 	const next = clone(document);
 	next.formation.roles[name] = { description };
 	return next;
@@ -139,7 +146,9 @@ export function describeRole(
 }
 
 export function renameRole(document: EditorDocument, from: string, to: string): EditorDocument {
-	if (from === to || Object.hasOwn(document.formation.roles, to)) return document;
+	if (from === to || !usableName(to) || Object.hasOwn(document.formation.roles, to)) {
+		return document;
+	}
 	const next = clone(document);
 	next.formation = mapRoles(next.formation, from, to);
 	const roles: Formation['roles'] = {};
@@ -151,12 +160,28 @@ export function renameRole(document: EditorDocument, from: string, to: string): 
 
 /**
  * Removes a role. Rules that named only this role are left with nobody allowed
- * to act, never with a broader group, so Locust reports them as problems.
+ * to act, never with a broader group, so they show as problems. A step that
+ * waited for the role's pick waits for a result that counts instead.
  */
 export function removeRole(document: EditorDocument, name: string): EditorDocument {
 	const next = clone(document);
-	next.formation = mapRoles(next.formation, name, null);
-	delete next.formation.roles[name];
+	const formation = mapRoles(next.formation, name, null);
+	delete formation.roles[name];
+	const picks = (stage: string) => {
+		const own = formation.flow[stage]?.task_type ?? null;
+		const type = own !== null && Object.hasOwn(formation.task_types, own) ? own : null;
+		const decisions =
+			(type === null ? null : formation.task_types[type].decisions) ?? formation.decisions;
+		return decisions.selection !== null;
+	};
+	for (const stage of Object.values(formation.flow)) {
+		for (const item of stage.requires) {
+			if (item.evidence === 'selection' && Object.hasOwn(formation.flow, item.stage)) {
+				if (!picks(item.stage)) item.evidence = 'completion';
+			}
+		}
+	}
+	next.formation = formation;
 	return next;
 }
 
@@ -170,6 +195,7 @@ export function setTaskType(
 	const next = clone(document);
 	if (taskType === null) {
 		delete next.formation.task_types[name];
+		delete next.own[name];
 		for (const stage of Object.values(next.formation.flow)) {
 			if (stage.task_type === name) stage.task_type = null;
 		}
@@ -180,8 +206,14 @@ export function setTaskType(
 }
 
 export function renameTaskType(document: EditorDocument, from: string, to: string): EditorDocument {
-	if (from === to || Object.hasOwn(document.formation.task_types, to)) return document;
+	if (from === to || !usableName(to) || Object.hasOwn(document.formation.task_types, to)) {
+		return document;
+	}
 	const next = clone(document);
+	if (Object.hasOwn(next.own, from)) {
+		next.own[to] = next.own[from];
+		delete next.own[from];
+	}
 	const taskTypes: Formation['task_types'] = {};
 	for (const [name, value] of Object.entries(next.formation.task_types)) {
 		taskTypes[name === from ? to : name] = value;
@@ -209,6 +241,7 @@ export function freeName(formation: Formation, base: string): string {
 export function renameStage(document: EditorDocument, from: string, to: string): EditorDocument {
 	if (
 		from === to ||
+		!usableName(to) ||
 		Object.hasOwn(document.formation.flow, to) ||
 		!Object.hasOwn(document.formation.flow, from)
 	) {
@@ -248,13 +281,15 @@ export function removeStage(document: EditorDocument, name: string): EditorDocum
 		}
 		stage.requires = kept;
 	}
+	// Rules only this stage used go with it, so they do not turn up as another kind of task.
 	const own = removed.task_type;
 	if (
-		own === name &&
+		own !== null &&
 		Object.hasOwn(next.formation.task_types, own) &&
 		!Object.values(next.formation.flow).some((stage) => stage.task_type === own)
 	) {
 		delete next.formation.task_types[own];
+		delete next.own[own];
 	}
 	return next;
 }

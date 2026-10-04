@@ -6,7 +6,7 @@ import { escapePointer } from '../contract/text.ts';
 import type { Formation, CompletionRule, Selector } from '../contract/types.ts';
 
 export interface PageCheck {
-	kind: 'hidden-characters' | 'specific-person' | 'instruction-like-advice';
+	kind: 'hidden-characters' | 'specific-person' | 'instruction-like-advice' | 'nobody-posts';
 	/** JSON Pointer of the text or rule. */
 	path: string;
 	message: string;
@@ -59,10 +59,10 @@ export function pageChecks(formation: Formation): PageCheck[] {
 		hidden(name, `/context/inputs/${escapePointer(name)}`, `The starting material "${name}"`, out);
 	}
 	for (const name of Object.keys(formation.task_types)) {
-		hidden(name, `/task_types/${escapePointer(name)}`, `The task type "${name}"`, out);
+		hidden(name, `/task_types/${escapePointer(name)}`, `The name "${name}"`, out);
 	}
 	for (const name of Object.keys(formation.flow)) {
-		hidden(name, `/flow/${escapePointer(name)}`, `The stage name "${name}"`, out);
+		hidden(name, `/flow/${escapePointer(name)}`, `The step name "${name}"`, out);
 	}
 	const guidance = formation.context.guidance;
 	hidden(guidance, '/context/guidance', 'The advice', out);
@@ -103,6 +103,15 @@ export function pageChecks(formation: Formation): PageCheck[] {
 		base: string
 	) => {
 		if (work) {
+			// Locust accepts this rule, but no result could ever be posted under it.
+			if (work.publish.kind === 'nobody') {
+				out.push({
+					kind: 'nobody-posts',
+					path: `${base}/work/publish`,
+					message: 'Nobody can post results here. Choose who works on a task.',
+					blocksCopy: false
+				});
+			}
 			selector(work.propose, `${base}/work/propose`);
 			selector(work.publish, `${base}/work/publish`);
 			work.starts.forEach((start, i) => {

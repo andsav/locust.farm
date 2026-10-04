@@ -1,7 +1,7 @@
 <!-- One role's name and description, shown in the side panel. -->
 <script lang="ts">
 	import type { EditorDocument } from '../model/document.ts';
-	import { describeRole, renameRole, roleUses } from '../model/edit.ts';
+	import { describeRole, renameRole, roleUses, usableName } from '../model/edit.ts';
 
 	let {
 		document,
@@ -24,9 +24,15 @@
 		const input = event.target as HTMLInputElement;
 		const to = input.value.trim();
 		if (to === name) return;
-		if (to === '' || Object.hasOwn(formation.roles, to)) {
+		if (!usableName(to) || Object.hasOwn(formation.roles, to)) {
 			input.value = name;
-			onannounce(to === '' ? 'A role needs a name.' : `There is already a role called "${to}".`);
+			onannounce(
+				to === ''
+					? 'A role needs a name.'
+					: usableName(to)
+						? `There is already a role called "${to}".`
+						: 'That name cannot be used.'
+			);
 			return;
 		}
 		onchange(renameRole(document, name, to));

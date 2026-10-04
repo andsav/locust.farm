@@ -15,7 +15,8 @@
 		removeRole,
 		roleUses,
 		setName,
-		stageOrder
+		stageOrder,
+		usableName
 	} from '../model/edit.ts';
 	import { record, redo, startHistory, undo, type History } from '../model/history.ts';
 	import type { LineRef, PointName } from '../model/line.ts';
@@ -202,6 +203,10 @@
 		naming = false;
 		newRole = '';
 		if (name === '') return;
+		if (!usableName(name)) {
+			toast('That name cannot be used.');
+			return;
+		}
 		if (Object.hasOwn(document.formation.roles, name)) {
 			toast(`There is already a role called "${name}".`);
 			return;
@@ -243,8 +248,12 @@
 			else if (openPoint) openPoint = null;
 			return;
 		}
-		const target = event.target as HTMLElement;
-		if (target.closest('input, textarea, select, [contenteditable]')) return;
+		// Text fields keep their own undo; a ticked box or a chosen option does not.
+		const field = (event.target as HTMLElement).closest('input, textarea, [contenteditable]');
+		const typing =
+			field !== null &&
+			!(field instanceof HTMLInputElement && ['radio', 'checkbox'].includes(field.type));
+		if (typing) return;
 		const mod = event.metaKey || event.ctrlKey;
 		if (mod && event.key.toLowerCase() === 'z') {
 			event.preventDefault();
@@ -377,8 +386,8 @@
 						problems.length === 0
 							? 'No problems'
 							: problems.length === 1
-								? '1 thing to check'
-								: `${problems.length} things to check`,
+								? '1 problem'
+								: `${problems.length} problems`,
 					mark: problems.length === 0 ? 'check-circle' : 'warning'
 				};
 			case 'words':
@@ -386,7 +395,7 @@
 			case 'prompt':
 				return {
 					title: prompt
-						? `The prompt, ${(prompt.text.length / 1000).toFixed(1)} thousand characters`
+						? `The prompt (${prompt.text.length.toLocaleString('en')} characters)`
 						: 'The prompt',
 					mark: 'eye'
 				};
@@ -536,7 +545,7 @@
 								Open a formation
 							</button>
 							<button type="button" role="menuitem" onclick={() => toggle('saved')}>
-								Saved in this browser
+								Open one saved in this browser
 							</button>
 							<button type="button" role="menuitem" onclick={copyLink}>Copy a link to it</button>
 							<button type="button" role="menuitem" onclick={download}>Download as JSON</button>
@@ -574,11 +583,11 @@
 			<CopyBar {prompt} {blocked} onfail={copyFailed} />
 
 			<p class="next">
-				Paste it into your coding agent. It adds the formation to the Locust on that computer as a
-				private draft.
+				Paste it into one coding agent. It saves the formation in the Locust on that computer as a
+				private draft and asks before publishing. Starting a goal comes later.
 				<button type="button" class="quiet" onclick={() => toggle('prompt')}>See the prompt</button>
 				<button type="button" class="quiet" onclick={copyCheckOnly}>
-					Copy one that only checks
+					Copy a prompt that checks it and saves nothing
 				</button>
 				<a href="/start">Set up Locust</a>
 				<a href="/docs/next/formation-authoring">Manual</a>
@@ -661,8 +670,8 @@
 					<p>{line.text}</p>
 				{/each}
 				<p>
-					A member is one agent or one person. Locust records these rules. It does not start agents
-					or run checks.
+					A member is one agent or one person. Locust applies these rules to what members add and
+					post. It does not start agents or run checks.
 				</p>
 			</div>
 
@@ -885,11 +894,12 @@
 		text-decoration: underline;
 	}
 
+	/* At the foot of the window, so it never covers the questions. */
 	.toast {
-		position: absolute;
-		top: calc(100% + 0.5rem);
+		position: fixed;
+		bottom: 1.5rem;
 		left: 50%;
-		z-index: 30;
+		z-index: 50;
 		max-width: min(36rem, calc(100% - 2rem));
 		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--color-border);

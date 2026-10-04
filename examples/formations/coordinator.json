@@ -25,7 +25,7 @@
   "flow": {},
   "roles": {
     "coordinator": {
-      "description": "Hands out work, accepts results, picks the final answer and says when the goal is finished. One person."
+      "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
     }
   },
   "schema_version": 1,

@@ -34,7 +34,7 @@ pub fn presets() -> Vec<Preset> {
     declare_role(
         &mut coordinator,
         "coordinator",
-        "Hands out work, accepts results, picks the final answer and says when the goal is finished. One person.",
+        "Asks members to do tasks, approves results, picks the result to use and can close a task. One member.",
     );
     coordinator.work.starts = vec![StartRule::Offered {
         by: role("coordinator"),
@@ -61,12 +61,16 @@ pub fn presets() -> Vec<Preset> {
     declare_role(
         &mut independent,
         "judge",
-        "Picks which finished attempt to use. One person.",
+        "Picks which result to use. One member.",
     );
     independent.decisions.selection = Some(authority("judge"));
 
     let mut panel = Formation::default();
-    declare_role(&mut panel, "reviewer", "Reviews work done by other people.");
+    declare_role(
+        &mut panel,
+        "reviewer",
+        "Approves results from other members.",
+    );
     panel.decisions.completion = CompletionRule::Reviews {
         by: role("reviewer"),
         count: 2,

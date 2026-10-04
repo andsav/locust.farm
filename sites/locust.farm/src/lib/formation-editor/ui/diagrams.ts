@@ -372,10 +372,13 @@ export function drawPoint(svg: Svg, picture: PointPicture) {
 			dot(svg, cycle, bent(n[2], n[0], 0.1), at(0.55), at(0.95), 'result');
 		} else {
 			const n = [P(52, 28), P(40, 62), P(60, 94)];
-			n.forEach((a) => edge(svg, a, task));
 			n.forEach((a) => node(svg, a));
-			dot(svg, cycle, bent(n[1], task, 0), at(0.1), at(0.6));
-			glow(svg, cycle, task, 9, at(0.6), at(1), 'decision');
+			// A rule from elsewhere that the page cannot draw: nothing moves.
+			if (picture.kind !== 'own') {
+				n.forEach((a) => edge(svg, a, task));
+				dot(svg, cycle, bent(n[1], task, 0), at(0.1), at(0.6));
+				glow(svg, cycle, task, 9, at(0.6), at(1), 'decision');
+			}
 		}
 	}
 
@@ -397,9 +400,12 @@ export function drawPoint(svg: Svg, picture: PointPicture) {
 			glow(svg, cycle, n[0], 10, at(0.4), at(1));
 		} else {
 			const n = [P(84, 32), P(164, 32), P(164, 92), P(84, 92)];
-			n.forEach((a, i) => n.slice(i + 1).forEach((b) => edge(svg, a, b)));
+			if (picture.kind !== 'own')
+				n.forEach((a, i) => n.slice(i + 1).forEach((b) => edge(svg, a, b)));
 			n.forEach((a) => node(svg, a));
-			if (picture.kind !== 'none') {
+			if (picture.kind === 'own') {
+				// A rule from elsewhere that the page cannot draw: nothing moves.
+			} else if (picture.kind !== 'none') {
 				// The same task reaches two members: there is no lock.
 				dot(svg, cycle, `M10 62 L${n[0].x} ${n[0].y}`, at(0.05), at(0.4));
 				dot(svg, cycle, `M10 62 L${n[3].x} ${n[3].y}`, at(0.05), at(0.4));
@@ -442,7 +448,9 @@ export function drawPoint(svg: Svg, picture: PointPicture) {
 		node(svg, author, 9);
 		label(svg, author, 'author', 24);
 		const all = check === null ? marks : [...marks, check];
-		if (all.length === 0) {
+		if (picture.own) {
+			// A rule from elsewhere that the page cannot draw: only the author is shown.
+		} else if (all.length === 0) {
 			// Nothing else is needed: the author says so.
 			still(svg, 'result', P(82, 60));
 			pulse(svg, cycle, author, at(0.3), 9, 20, span(0.5));

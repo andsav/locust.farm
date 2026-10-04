@@ -13,14 +13,14 @@ import type {
 	TaskType,
 	WorkRules
 } from '../contract/types.ts';
-import type { EditorDocument } from './document.ts';
+import type { EditorDocument, PointName } from './document.ts';
 import { freeName, stageOrder, wouldLoop } from './edit.ts';
+
+export type { PointName } from './document.ts';
 
 /** Which rules a line shows: the main rules, a step's or another kind of task's. */
 export type LineRef =
 	{ kind: 'main' } | { kind: 'step'; name: string } | { kind: 'kind'; name: string };
-
-export type PointName = 'add' | 'work' | 'counts' | 'pick';
 
 export interface LineRules {
 	work: WorkRules;
@@ -207,24 +207,48 @@ export function afterAnswer(formation: Formation, step: string): AfterAnswer {
 	return { kind: 'own' };
 }
 
+const POINTS: readonly PointName[] = ['add', 'work', 'counts', 'pick'];
+
+/** The fields of the rules that each point answers. A point is changed and followed as a whole. */
+const FIELDS = {
+	add: { part: 'work', fields: ['propose'] },
+	work: { part: 'work', fields: ['starts', 'publish'] },
+	counts: { part: 'decisions', fields: ['completion'] },
+	pick: { part: 'decisions', fields: ['selection', 'finish'] }
+} as const;
+
+function answerAt(rules: LineRules, point: PointName): unknown[] {
+	const { part, fields } = FIELDS[point];
+	const values = rules[part] as unknown as Record<string, unknown>;
+	return fields.map((field) => values[field]);
+}
+
 /** Whether a step or kind gives the same answer as the main rules at one point. */
 export function sameAsMain(formation: Formation, ref: LineRef, point: PointName): boolean {
 	if (ref.kind === 'main') return true;
-	const line = lineRules(formation, ref);
-	const main = lineRules(formation, MAIN);
-	switch (point) {
-		case 'add':
-			return same(line.work.propose, main.work.propose);
-		case 'work':
-			return same([line.work.starts, line.work.publish], [main.work.starts, main.work.publish]);
-		case 'counts':
-			return same(line.decisions.completion, main.decisions.completion);
-		case 'pick':
-			return same(
-				[line.decisions.selection, line.decisions.finish],
-				[main.decisions.selection, main.decisions.finish]
-			);
-	}
+	return same(
+		answerAt(lineRules(formation, ref), point),
+		answerAt(lineRules(formation, MAIN), point)
+	);
+}
+
+/**
+ * Whether a step or kind follows the main rules at one point: it gives the
+ * same answer and has not made the point its own. A point made its own stays
+ * as it is when the main rules change, even while the two happen to be equal.
+ */
+export function follows(document: EditorDocument, ref: LineRef, point: PointName): boolean {
+	if (ref.kind === 'main') return true;
+	const type = typeName(document.formation, ref);
+	const marked = type !== null && (document.own[type] ?? []).includes(point);
+	return !marked && sameAsMain(document.formation, ref, point);
+}
+
+/** Whether a line has no tasks to work on: nobody adds any and Locust adds none as steps. */
+export function noTasks(formation: Formation, ref: LineRef): boolean {
+	if (ref.kind === 'step') return false;
+	if (addAnswer(lineRules(formation, ref).work).kind !== 'none') return false;
+	return ref.kind === 'kind' || Object.keys(formation.flow).length === 0;
 }
 
 // The changes.
@@ -241,24 +265,31 @@ function evidenceFor(formation: Formation, step: string): EvidenceKind {
 	return picker === null ? 'completion' : 'selection';
 }
 
-/** A task type keeps following the main rules wherever it matched them before the change. */
-function follow(type: TaskType, before: LineRules, now: LineRules) {
-	if (type.work !== null) {
-		const work = type.work as unknown as Record<string, unknown>;
-		for (const field of ['propose', 'publish', 'starts'] as const) {
-			if (same(work[field], before.work[field])) work[field] = structuredClone(now.work[field]);
-		}
-		if (same(type.work, now.work)) type.work = null;
+/** A part of a task type that sets nothing of its own is not stored. */
+function collapse(type: TaskType, marks: readonly PointName[], main: LineRules) {
+	const owns = (part: 'work' | 'decisions') => marks.some((point) => FIELDS[point].part === part);
+	if (type.work !== null && !owns('work') && same(type.work, main.work)) type.work = null;
+	if (type.decisions !== null && !owns('decisions') && same(type.decisions, main.decisions)) {
+		type.decisions = null;
 	}
-	if (type.decisions !== null) {
-		const decisions = type.decisions as unknown as Record<string, unknown>;
-		for (const field of ['completion', 'selection', 'finish'] as const) {
-			if (same(decisions[field], before.decisions[field])) {
-				decisions[field] = structuredClone(now.decisions[field]);
-			}
+}
+
+/**
+ * A task type keeps following the main rules at every point it has not made
+ * its own and where it gave the same answer before the change.
+ */
+function follow(type: TaskType, marks: readonly PointName[], before: LineRules, now: LineRules) {
+	for (const point of POINTS) {
+		const { part, fields } = FIELDS[point];
+		const values = type[part] as unknown as Record<string, unknown> | null;
+		if (values === null || marks.includes(point)) continue;
+		const old = before[part] as unknown as Record<string, unknown>;
+		const current = now[part] as unknown as Record<string, unknown>;
+		if (fields.every((field) => same(values[field], old[field]))) {
+			for (const field of fields) values[field] = structuredClone(current[field]);
 		}
-		if (same(type.decisions, now.decisions)) type.decisions = null;
 	}
+	collapse(type, marks, now);
 }
 
 /** The name for a step's own rules: the step's name, or the next free one. */
@@ -271,25 +302,41 @@ function ownTypeName(formation: Formation, step: string): string {
 }
 
 /** Steps whose rules equal the main rules again need no rules of their own. */
-function tidy(formation: Formation) {
-	for (const [name, stage] of Object.entries(formation.flow)) {
+function tidy(document: EditorDocument) {
+	const formation = document.formation;
+	for (const stage of Object.values(formation.flow)) {
 		const own = stage.task_type;
 		if (own === null || !Object.hasOwn(formation.task_types, own)) continue;
 		const type = formation.task_types[own];
 		const shared = Object.values(formation.flow).filter((other) => other.task_type === own);
-		if (type.work === null && type.decisions === null && shared.length === 1 && own === name) {
+		if (type.work === null && type.decisions === null && shared.length === 1) {
 			stage.task_type = null;
 			delete formation.task_types[own];
 		}
 	}
+	for (const name of Object.keys(document.own)) {
+		const type = Object.hasOwn(formation.task_types, name) ? formation.task_types[name] : null;
+		const points = document.own[name].filter(
+			(point) => type !== null && type[FIELDS[point].part] !== null
+		);
+		if (points.length === 0) delete document.own[name];
+		else document.own[name] = points;
+	}
 }
 
-/** Keeps who a step's task is sent to, and what later steps wait for, in line with the rules. */
-function settle(before: Formation, formation: Formation) {
+/**
+ * Keeps who a step's task is sent to, and what later steps wait for, in line
+ * with the rules. `changed` names the steps whose "who works" was just set.
+ */
+function settle(before: Formation, formation: Formation, changed: ReadonlySet<string>) {
 	for (const [name, stage] of Object.entries(formation.flow)) {
 		const ref: LineRef = { kind: 'step', name };
 		const earlier = before.flow[name];
-		if (earlier && same(earlier.recipients, recipientsFor(lineRules(before, ref).work))) {
+		const derived =
+			earlier !== undefined &&
+			(earlier.recipients.kind === 'nobody' ||
+				same(earlier.recipients, recipientsFor(lineRules(before, ref).work)));
+		if (changed.has(name) || derived) {
 			stage.recipients = recipientsFor(lineRules(formation, ref).work);
 		}
 		const had = earlier ? evidenceFor(before, name) : null;
@@ -303,16 +350,40 @@ function settle(before: Formation, formation: Formation) {
 	}
 }
 
-function setRules(document: EditorDocument, ref: LineRef, change: Partial<LineRules>) {
+/**
+ * Writes a line's rules. For a step or kind, each point that changed becomes
+ * its own unless it now equals the main rules; `release` gives a point back to
+ * the main rules whatever its answer.
+ */
+function setRules(
+	document: EditorDocument,
+	ref: LineRef,
+	change: Partial<LineRules>,
+	release: PointName | null = null
+): EditorDocument {
 	const next = structuredClone(document);
 	const formation = next.formation;
 	const main: LineRules = { work: formation.work, decisions: formation.decisions };
+	const changed = new Set<string>();
 	if (ref.kind === 'main') {
 		const now: LineRules = {
 			work: structuredClone(change.work ?? main.work),
 			decisions: structuredClone(change.decisions ?? main.decisions)
 		};
-		for (const type of Object.values(formation.task_types)) follow(type, main, now);
+		for (const [name, type] of Object.entries(formation.task_types)) {
+			// A point where the type differs from the main rules is its own. Say so
+			// before the main rules move, or it would be lost if they came to equal it.
+			const line: LineRules = {
+				work: type.work ?? main.work,
+				decisions: type.decisions ?? main.decisions
+			};
+			const marks = new Set(next.own[name] ?? []);
+			for (const point of POINTS) {
+				if (!same(answerAt(line, point), answerAt(main, point))) marks.add(point);
+			}
+			if (marks.size > 0) next.own[name] = POINTS.filter((point) => marks.has(point));
+			follow(type, next.own[name] ?? [], main, now);
+		}
 		formation.work = now.work;
 		formation.decisions = now.decisions;
 	} else {
@@ -332,21 +403,39 @@ function setRules(document: EditorDocument, ref: LineRef, change: Partial<LineRu
 				// Other steps follow the same rules; this step gets a copy to change.
 				name = ownTypeName(formation, ref.name);
 				formation.task_types[name] = structuredClone(formation.task_types[current]);
+				if (Object.hasOwn(next.own, current)) next.own[name] = [...next.own[current]];
 			} else {
 				name = current;
 			}
 			stage.task_type = name;
+			if (change.work) changed.add(ref.name);
 		}
 		const type = formation.task_types[name];
-		if (change.work) type.work = same(change.work, main.work) ? null : structuredClone(change.work);
-		if (change.decisions) {
-			type.decisions = same(change.decisions, main.decisions)
-				? null
-				: structuredClone(change.decisions);
+		const before: LineRules = {
+			work: type.work ?? main.work,
+			decisions: type.decisions ?? main.decisions
+		};
+		const now: LineRules = {
+			work: structuredClone(change.work ?? before.work),
+			decisions: structuredClone(change.decisions ?? before.decisions)
+		};
+		const marks = new Set(next.own[name] ?? []);
+		for (const point of POINTS) {
+			if (point === release) marks.delete(point);
+			else if (same(answerAt(now, point), answerAt(before, point))) continue;
+			else if (same(answerAt(now, point), answerAt(main, point))) marks.delete(point);
+			else marks.add(point);
 		}
+		type.work = now.work;
+		type.decisions = now.decisions;
+		collapse(type, [...marks], main);
+		if (marks.size > 0) next.own[name] = POINTS.filter((point) => marks.has(point));
+		else delete next.own[name];
 	}
-	tidy(formation);
-	settle(document.formation, formation);
+	tidy(next);
+	settle(document.formation, formation, changed);
+	// A choice that changes nothing is not a change to undo.
+	if (same(next.formation, document.formation) && same(next.own, document.own)) return document;
 	return next;
 }
 
@@ -355,20 +444,14 @@ export function setAdd(
 	ref: LineRef,
 	answer: Exclude<AddAnswer, { kind: 'own' }>
 ): EditorDocument {
-	const before = lineRules(document.formation, ref).work;
-	const work = structuredClone(before);
-	if (answer.kind === 'none') {
-		work.propose = { kind: 'nobody' };
-		work.starts = [];
-		work.publish = { kind: 'members' };
-	} else {
-		work.propose =
-			answer.kind === 'anyone' ? { kind: 'members' } : { kind: 'role', name: answer.name };
-		// Tasks exist again, so someone has to be able to work on them.
-		if (addAnswer(before).kind === 'none' && work.starts.length === 0) {
-			work.starts = [{ kind: 'independent', by: { kind: 'members' } }];
-		}
-	}
+	const work = structuredClone(lineRules(document.formation, ref).work);
+	// Who works on a task is left as it is: with "nobody", steps may still add tasks.
+	work.propose =
+		answer.kind === 'none'
+			? { kind: 'nobody' }
+			: answer.kind === 'anyone'
+				? { kind: 'members' }
+				: { kind: 'role', name: answer.name };
 	return setRules(document, ref, { work });
 }
 
@@ -422,22 +505,11 @@ export function useMain(document: EditorDocument, ref: LineRef, point: PointName
 	if (ref.kind === 'main') return document;
 	const line = structuredClone(lineRules(document.formation, ref));
 	const main = lineRules(document.formation, MAIN);
-	switch (point) {
-		case 'add':
-			line.work.propose = main.work.propose;
-			return setRules(document, ref, { work: line.work });
-		case 'work':
-			line.work.starts = main.work.starts;
-			line.work.publish = main.work.publish;
-			return setRules(document, ref, { work: line.work });
-		case 'counts':
-			line.decisions.completion = main.decisions.completion;
-			return setRules(document, ref, { decisions: line.decisions });
-		case 'pick':
-			line.decisions.selection = main.decisions.selection;
-			line.decisions.finish = main.decisions.finish;
-			return setRules(document, ref, { decisions: line.decisions });
-	}
+	const { part, fields } = FIELDS[point];
+	const values = line[part] as unknown as Record<string, unknown>;
+	const from = main[part] as unknown as Record<string, unknown>;
+	for (const field of fields) values[field] = structuredClone(from[field]);
+	return setRules(document, ref, { [part]: line[part] }, point);
 }
 
 // Steps and kinds of task.

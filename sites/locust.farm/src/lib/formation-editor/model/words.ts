@@ -18,7 +18,7 @@ import {
 	kinds,
 	lineRules,
 	MAIN,
-	pickAnswer,
+	noTasks,
 	sameAsMain,
 	workAnswer,
 	type LineRef,
@@ -118,14 +118,24 @@ export function phrase(formation: Formation, ref: LineRef, point: PointName): st
 	switch (point) {
 		case 'add': {
 			if (ref.kind === 'step') return afterPhrase(formation, ref.name);
-			if (ref.kind === 'kind') return 'A member, as this kind of task.';
 			const answer = addAnswer(rules.work);
+			if (ref.kind === 'kind') {
+				if (answer.kind === 'anyone') return 'A member, as this kind of task.';
+				if (answer.kind === 'role') return `Only ${quoted(answer.name)}, as this kind of task.`;
+				if (answer.kind === 'none') return 'Nobody can add this kind of task.';
+				return `${capital(who(rules.work.propose))}, as this kind of task.`;
+			}
 			if (answer.kind === 'anyone') return 'Anyone.';
 			if (answer.kind === 'role') return `Only ${quoted(answer.name)}.`;
-			if (answer.kind === 'none') return 'No tasks. Members only post results.';
+			if (answer.kind === 'none') {
+				return Object.keys(formation.flow).length > 0
+					? 'Nobody. Only Locust adds tasks, as steps.'
+					: 'No tasks. Members only post results.';
+			}
 			return `${capital(who(rules.work.propose))}.`;
 		}
 		case 'work': {
+			if (noTasks(formation, ref)) return 'No tasks to work on.';
 			const answer = workAnswer(rules.work);
 			if (answer.kind === 'anyone')
 				return 'Anyone. No lock: two members can work on the same task.';
@@ -134,7 +144,12 @@ export function phrase(formation: Formation, ref: LineRef, point: PointName): st
 				return `${capital(whoWord(answer.by))} asks ${answer.by.kind === 'anyone' ? 'another member' : 'a member'}. They can say no.`;
 			}
 			if (answer.kind === 'none') return 'Nobody starts work. Members post results directly.';
-			return rules.work.starts.map(startSentence).join(' ');
+			const parts = rules.work.starts.map(startSentence);
+			if (parts.length === 0) parts.push('Nobody starts work on a task.');
+			if (rules.work.publish.kind !== 'members') {
+				parts.push(`${capital(who(rules.work.publish))} can post results.`);
+			}
+			return parts.join(' ');
 		}
 		case 'counts': {
 			const rule = rules.decisions.completion;
@@ -155,12 +170,15 @@ export function phrase(formation: Formation, ref: LineRef, point: PointName): st
 			return parts.length === 0 ? 'When its author says so.' : `After ${parts.join(' and ')}.`;
 		}
 		case 'pick': {
-			const { selection } = rules.decisions;
-			if (selection === null) return 'Nobody. Every result that counts stays.';
-			const answer = pickAnswer(rules.decisions);
-			return answer.pick.kind === 'role'
-				? `${capital(quoted(answer.pick.name))} picks one result per task.`
-				: `${capital(decider(selection))} picks one result per task.`;
+			const { selection, finish } = rules.decisions;
+			const name = (authority: Authority) =>
+				authority.kind === 'role' ? quoted(authority.name) : decider(authority);
+			const closes = finish === null ? '' : ` ${capital(name(finish))} can close a task.`;
+			if (selection === null) return `Nobody. Every result that counts is kept.${closes}`;
+			if (finish !== null && name(finish) === name(selection)) {
+				return `${capital(name(selection))} picks one result per task and can close a task.`;
+			}
+			return `${capital(name(selection))} picks one result per task.${closes}`;
 		}
 	}
 }
@@ -234,8 +252,8 @@ function sentences(rules: LineRules, points: PointName[], tasks: string): string
 			const { selection, finish } = rules.decisions;
 			out.push(
 				selection === null
-					? 'Nobody picks one result. Every result that counts stays.'
-					: `${capital(decider(selection))} picks one result per task. The other results stay.`
+					? 'Nobody picks one result. Every result that counts is kept.'
+					: `${capital(decider(selection))} picks one result per task as the one to use. The other results are kept.`
 			);
 			if (finish !== null) {
 				out.push(`${capital(decider(finish))} can close a task, which stops new work on it.`);

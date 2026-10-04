@@ -116,13 +116,14 @@ editor:
   menu (open, saved, copy a link, download, start over); a problems button and
   "In words", both with their word shown; and the ember "Copy prompt" button.
   A line under it says what to do with the prompt and holds the links "See the
-  prompt", "Copy one that only checks", "Set up Locust" and "Manual".
+  prompt", "Copy a prompt that checks it and saves nothing", "Set up Locust" and "Manual".
 - **The line for any task.** Four points, left to right, each with its
   question, a picture and a short answer.
 - **Steps** and **other kinds of task**, when there are any: one row each, with
   the same four columns.
 - **Roles**, then one line of limits: "A member is one agent or one person.
-  Locust records these rules. It does not start agents or run checks."
+  Locust applies these rules to what members add and post. It does not start
+  agents or run checks."
 
 Nothing a person needs is only in hover text. Hover text names the icon
 buttons and repeats each card's sentence. One side panel slides over the right
@@ -143,7 +144,7 @@ The design context, shared with the impeccable design skills, is in
 | Peer review | Anyone can work on a task. Someone else has to approve a result before it counts. | `peer-review` |
 | Review panel | Two reviewers have to approve each result before it counts. | `review-panel` |
 | Independent attempts | Several members try the same task in their own way. A judge picks the result to use, and the other results are kept. | `independent-attempts` |
-| Pipeline | Tasks that Locust adds in order. Each one is added when the one before it has a result that counts. | `pipeline` |
+| Steps in order | Tasks that Locust adds in order, once for the whole goal. Each one is added when the one before it has a result that counts. | `pipeline` |
 
 Each card shows its picture and name; the sentence is its hover text and is
 read to screen readers. Choosing a card loads that preset as one undoable
@@ -161,7 +162,7 @@ Each preset is Open with one or two answers changed
 | Who adds tasks? | Anyone. Only one role. Nobody: there are no tasks and members only post results. | `work.propose` |
 | Who works on a task? | Anyone, with "No lock: two members can work on the same task". Only one role, who are then the only ones who can post results. A member is asked, can say no, and others can still post results. | `work.starts`, `work.publish` |
 | When does a result count? | A list that combines: N approvals from anyone or a role, with or without the author's own; a named check reported as passed, with "Locust does not run the check". Nothing ticked: its author says so. | `decisions.completion` |
-| Is one result picked? | Nobody, and every result that counts stays. One role picks one result per task. The same box holds who can close a task. | `decisions.selection`, `decisions.finish` |
+| Is one result picked? | Nobody, and every result that counts is kept. One role picks one result per task as the one to use. The same box holds who can close a task, and the answer under the point says so when someone can. | `decisions.selection`, `decisions.finish` |
 
 A click on a point shows its choices in a box under the line. Options are full
 phrases, every field has a word, and the limit that belongs to a setting is
@@ -189,8 +190,15 @@ step waits for the last one. Removing a step joins the steps around it.
 A row has the four columns of the line. A cell says "Same as any task" until
 its point is changed for that step; the change is stored as a task type named
 after the step, and it goes away when the step follows the main rules again.
-The points a step did not change keep following the main rules when those
-change. Who a step's task is sent to follows who works on it.
+A point is changed and followed as a whole: who works on a task is the start
+rule and the publish rule together, and picking is the picker and the closer
+together. The points a step did not change keep following the main rules when
+those change. A point a step answers for itself stays as it is, even when the
+main rules come to give the same answer for a while; the page records which
+points those are beside the name, because the formation alone cannot say
+([follows](../sites/locust.farm/src/lib/formation-editor/model/line.ts)). "Use
+the same as any task" gives a point back. Who a step's task is sent to follows
+who works on it.
 
 "Another kind of task" adds a row for tasks that members add under other
 rules. It is a task type no step uses.
@@ -216,7 +224,7 @@ TypeScript port, which is what the agent will show.
 
 The ember "Copy prompt" button is the page's one primary action and is always
 in the toolbar. It copies the prompt that adds the formation as a private draft
-and asks before publishing. "Copy one that only checks" is a link beside it:
+and asks before publishing. "Copy a prompt that checks it and saves nothing" is a link beside it:
 the agent checks the formation with Locust and explains it, and nothing is
 saved. After copying, the button says "Copied" and a note says "Copied. Paste
 it into your agent." A failed copy opens the prompt with the text selected.
@@ -234,8 +242,10 @@ it into your agent." A failed copy opens the prompt with the text selected.
 - "Open a formation" accepts pasted JSON, a pasted agent reply containing the
   prompt's formation block, or a file.
 - "Download as JSON" saves the formation.
-- The presentation record carries only the formation's name, under the page's
-  own key: `{"locust.farm": {"name": "…"}}`. Other keys in that record are kept.
+- The presentation record carries the formation's name and which points each
+  step or kind answers for itself, under the page's own key:
+  `{"locust.farm": {"name": "…", "own": {"draft": ["counts"]}}}`. Other keys in
+  that record are kept.
 
 ### 3.8 Wording
 

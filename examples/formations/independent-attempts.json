@@ -19,7 +19,7 @@
   "flow": {},
   "roles": {
     "judge": {
-      "description": "Picks which finished attempt to use. One person."
+      "description": "Picks which result to use. One member."
     }
   },
   "schema_version": 1,

@@ -19,7 +19,7 @@
   "flow": {},
   "roles": {
     "reviewer": {
-      "description": "Reviews work done by other people."
+      "description": "Approves results from other members."
     }
   },
   "schema_version": 1,

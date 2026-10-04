@@ -73,6 +73,7 @@ export function openText(text: string): Opened {
 		document: {
 			name: read.name ?? '',
 			formation: decoded.formation,
+			own: read.own,
 			others: read.others
 		},
 		note:

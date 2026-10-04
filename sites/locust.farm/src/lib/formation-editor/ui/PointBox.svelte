@@ -10,9 +10,10 @@
 		addAnswer,
 		afterAnswer,
 		countsAnswer,
+		follows,
 		lineRules,
+		noTasks,
 		pickAnswer,
-		sameAsMain,
 		setAdd,
 		setAfter,
 		setCounts,
@@ -50,7 +51,8 @@
 	const rules = $derived(lineRules(formation, line));
 	const stepAdd = $derived(line.kind === 'step' && point === 'add');
 	const title = $derived(stepAdd ? 'When does Locust add this task?' : QUESTIONS[point]);
-	const follows = $derived(line.kind !== 'main' && !stepAdd && sameAsMain(formation, line, point));
+	const same = $derived(line.kind !== 'main' && !stepAdd && follows(document, line, point));
+	const hasSteps = $derived(Object.keys(formation.flow).length > 0);
 
 	/** An option that was chosen but still needs a role to be named. */
 	let waiting = $state<string | null>(null);
@@ -88,7 +90,7 @@
 
 	// Who works on a task.
 	const work = $derived(workAnswer(rules.work));
-	const noTasks = $derived(line.kind !== 'step' && add.kind === 'none');
+	const idle = $derived(noTasks(formation, line));
 	const workRoleChange: Change = (d, name) => setWork(d, line, { kind: 'role', name });
 	const asksChange = (d: EditorDocument, by: Who) => setWork(d, line, { kind: 'asks', by });
 
@@ -107,14 +109,15 @@
 	const pickChange: Change = (d, name) => setPick(d, line, { pick: { kind: 'role', name } });
 	const closeChange: Change = (d, name) => setPick(d, line, { close: { kind: 'role', name } });
 
-	const chosen = (answer: string) => waiting ?? answer;
+	// A waiting option only shows while there is still no role to pick.
+	const chosen = (answer: string) => (waiting !== null && roles.length === 0 ? waiting : answer);
 </script>
 
 <div class="box" role="group" aria-labelledby={`${id}-title`}>
 	<header>
 		<h3 id={`${id}-title`}>{title}</h3>
 		{#if line.kind !== 'main' && !stepAdd}
-			{#if follows}
+			{#if same}
 				<p class="muted">Same as any task. Change it here to give this one its own answer.</p>
 			{:else}
 				<button
@@ -227,7 +230,13 @@
 						onchange(setAdd(document, line, { kind: 'none' }));
 					}}
 				/>
-				<span>Nobody. There are no tasks; members only post results.</span>
+				<span>
+					{line.kind === 'kind'
+						? 'Nobody'
+						: hasSteps
+							? 'Nobody. Only Locust adds tasks, as steps.'
+							: 'Nobody. There are no tasks; members only post results.'}
+				</span>
 			</label>
 			{#if add.kind === 'own'}
 				<p class="note">
@@ -237,11 +246,11 @@
 		</div>
 	{:else if point === 'work'}
 		<div class="options">
-			<label class="option" class:disabled={noTasks}>
+			<label class="option" class:disabled={idle}>
 				<input
 					type="radio"
 					name={`${id}-work`}
-					disabled={noTasks}
+					disabled={idle}
 					checked={chosen(work.kind) === 'anyone'}
 					onchange={() => {
 						waiting = null;
@@ -251,11 +260,11 @@
 				<span>Anyone</span>
 				<span class="note">No lock: two members can work on the same task.</span>
 			</label>
-			<label class="option" class:disabled={noTasks}>
+			<label class="option" class:disabled={idle}>
 				<input
 					type="radio"
 					name={`${id}-work`}
-					disabled={noTasks}
+					disabled={idle}
 					checked={chosen(work.kind) === 'role'}
 					onchange={() => needsRole('role', workRoleChange)}
 				/>
@@ -273,11 +282,11 @@
 					/>
 				</div>
 			{/if}
-			<label class="option" class:disabled={noTasks}>
+			<label class="option" class:disabled={idle}>
 				<input
 					type="radio"
 					name={`${id}-work`}
-					disabled={noTasks}
+					disabled={idle}
 					checked={chosen(work.kind) === 'asks'}
 					onchange={() => {
 						waiting = null;
@@ -304,7 +313,7 @@
 					/>
 				</div>
 			{/if}
-			{#if noTasks}
+			{#if idle}
 				<p class="note">There are no tasks to work on. Change who adds tasks first.</p>
 			{:else if work.kind === 'none'}
 				<p class="note">
@@ -348,7 +357,7 @@
 							onchange={(event) => {
 								const input = event.target as HTMLInputElement;
 								const count = Number(input.value);
-								if (Number.isInteger(count) && count >= 1) {
+								if (Number.isInteger(count) && count >= 1 && count <= 99) {
 									onchange(setApprovals(document, { ...approvals, count }));
 								} else {
 									input.value = String(approvals.count);
@@ -399,7 +408,9 @@
 						)}
 				/>
 				<span>A check is reported as passed</span>
-				<span class="note">Locust does not run the check. A member reports that it passed.</span>
+				<span class="note">
+					Locust does not run the check. A member, who can be the author, reports that it passed.
+				</span>
 			</label>
 			{#if list.check !== null}
 				{@const check = list.check}
@@ -436,7 +447,10 @@
 			{:else if list.approvals === null && list.check === null}
 				<p class="note">With nothing ticked, a result counts when its author says so.</p>
 			{:else}
-				<p class="note">A rejection or a failed check is recorded. It does not block a result.</p>
+				<p class="note">
+					A result counts as soon as it has everything ticked. A rejection, or a report that the
+					check failed, is recorded and does not take that away.
+				</p>
 			{/if}
 		</div>
 	{:else}
@@ -452,7 +466,8 @@
 					}}
 				/>
 				<span>Nobody</span>
-				<span class="note">Every result that counts stays.</span>
+				<span class="note">Every result that counts is kept. None is marked as the one to use.</span
+				>
 			</label>
 			<label class="option">
 				<input
@@ -462,7 +477,10 @@
 					onchange={() => needsRole('role', pickChange)}
 				/>
 				<span>One role picks one result per task</span>
-				<span class="note">The other results stay. The role must have exactly one member.</span>
+				<span class="note">
+					The picked result is the one to use; the others are kept. The role must have exactly one
+					member.
+				</span>
 			</label>
 			{#if chosen(pick.pick.kind) === 'role'}
 				<div class="fields">

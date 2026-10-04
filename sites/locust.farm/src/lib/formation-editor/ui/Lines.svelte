@@ -11,18 +11,20 @@
 		renameTaskType,
 		removeStage,
 		setTaskType,
-		stageOrder
+		stageOrder,
+		usableName
 	} from '../model/edit.ts';
 	import {
 		addAnswer,
 		addKind,
 		addStep,
 		countsAnswer,
+		follows,
 		kinds,
 		lineRules,
 		MAIN,
+		noTasks,
 		pickAnswer,
-		sameAsMain,
 		workAnswer,
 		type LineRef,
 		type PointName
@@ -69,7 +71,7 @@
 			{ point: 'add', kind: add.kind, role: add.kind === 'role' ? add.name : undefined },
 			{
 				point: 'work',
-				kind: work.kind,
+				kind: noTasks(formation, MAIN) ? 'none' : work.kind,
 				role:
 					work.kind === 'role'
 						? work.name
@@ -110,9 +112,15 @@
 		if (to === line.name) return;
 		const what = line.kind === 'step' ? 'step' : 'kind of task';
 		const taken = Object.hasOwn(formation.flow, to) || Object.hasOwn(formation.task_types, to);
-		if (to === '' || taken) {
+		if (!usableName(to) || taken) {
 			input.value = line.name;
-			onannounce(to === '' ? `A ${what} needs a name.` : `The name "${to}" is already used.`);
+			onannounce(
+				to === ''
+					? `A ${what} needs a name.`
+					: taken
+						? `The name "${to}" is already used.`
+						: 'That name cannot be used.'
+			);
 			return;
 		}
 		const next =
@@ -169,7 +177,7 @@
 		/>
 		{#each POINTS as point (point)}
 			{@const key = pointKey(line, point)}
-			{@const same = point !== 'add' && sameAsMain(formation, line, point)}
+			{@const same = point !== 'add' && follows(document, line, point)}
 			{#if point === 'add' && line.kind === 'kind'}
 				<p class="cell fixed">
 					<span class="question">{QUESTIONS[point]}</span>
@@ -227,6 +235,7 @@
 				<span class="question">{QUESTIONS[point]}</span>
 				<svg bind:this={svgs[index]} class="diagram" viewBox="0 0 240 120" aria-hidden="true"></svg>
 				<span class="answer">{phrase(formation, MAIN, point)}</span>
+				<span class="change">Change</span>
 			</button>
 		{/each}
 		<span class="end" aria-hidden="true"></span>
@@ -240,7 +249,8 @@
 			<header>
 				<h2 id="steps-title">Steps</h2>
 				<p class="muted">
-					Tasks Locust adds in order. A step follows the rules for any task unless you change a
+					Each step is one task that Locust adds, in order, for the whole goal. It is not a stage
+					that every task goes through. A step follows the rules for any task unless you change a
 					point.
 				</p>
 			</header>
@@ -266,7 +276,7 @@
 
 	<div class="adders">
 		<button type="button" onclick={newStep}><Icon name="plus" size={14} /> Step</button>
-		<span class="muted">A task Locust adds, after the step before it.</span>
+		<span class="muted">One task that Locust adds, after the step before it.</span>
 		<button type="button" onclick={newKind}>
 			<Icon name="plus" size={14} /> Another kind of task
 		</button>
@@ -376,6 +386,20 @@
 
 	.answer {
 		text-wrap: pretty;
+	}
+
+	.change {
+		justify-self: start;
+		color: var(--color-text-subtle);
+		font: var(--text-label);
+		letter-spacing: var(--tracking-label);
+		text-decoration: underline;
+		text-transform: uppercase;
+	}
+
+	.point:hover .change,
+	.point.open .change {
+		color: var(--color-accent);
 	}
 
 	.end {

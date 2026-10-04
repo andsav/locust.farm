@@ -13,10 +13,21 @@ import type {
 	WorkRules
 } from '../contract/types.ts';
 
+/** The four points of a line: who adds a task, who works on it, when a result counts, whether one is picked. */
+export type PointName = 'add' | 'work' | 'counts' | 'pick';
+
+const POINT_NAMES: readonly PointName[] = ['add', 'work', 'counts', 'pick'];
+
 export interface EditorDocument {
 	/** A short name, kept in the presentation record so the agent can name the draft. */
 	name: string;
 	formation: Formation;
+	/**
+	 * The points a step or kind answers for itself, by task type name. The
+	 * formation alone cannot say this once the main rules come to give the same
+	 * answer, so it is kept beside the name.
+	 */
+	own: Record<string, PointName[]>;
 	/** Keys other tools wrote into the same presentation record; kept as they are. */
 	others: Record<string, unknown>;
 }
@@ -25,18 +36,26 @@ export const LAYOUT_KEY = 'locust.farm';
 
 /** The presentation record's JSON object for this document. */
 export function presentation(document: EditorDocument): Record<string, unknown> {
-	return { ...document.others, [LAYOUT_KEY]: { name: document.name } };
+	const own: Record<string, PointName[]> = {};
+	for (const name of Object.keys(document.own).sort(compareCodePoints)) {
+		const points = POINT_NAMES.filter((point) => document.own[name].includes(point));
+		if (points.length > 0 && Object.hasOwn(document.formation.task_types, name)) own[name] = points;
+	}
+	const page = Object.keys(own).length > 0 ? { name: document.name, own } : { name: document.name };
+	return { ...document.others, [LAYOUT_KEY]: page };
 }
 
 /** Reads a presentation record, keeping other tools' keys. */
 export function readPresentation(value: unknown): {
 	others: Record<string, unknown>;
 	name: string | null;
+	own: Record<string, PointName[]>;
 } {
 	const others: Record<string, unknown> = {};
+	const own: Record<string, PointName[]> = {};
 	let name: string | null = null;
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-		return { others, name };
+		return { others, name, own };
 	}
 	for (const [key, item] of Object.entries(value)) {
 		if (key !== LAYOUT_KEY) {
@@ -44,10 +63,17 @@ export function readPresentation(value: unknown): {
 			continue;
 		}
 		if (typeof item !== 'object' || item === null) continue;
-		const own = item as Record<string, unknown>;
-		if (typeof own.name === 'string') name = own.name;
+		const page = item as Record<string, unknown>;
+		if (typeof page.name === 'string') name = page.name;
+		if (typeof page.own === 'object' && page.own !== null && !Array.isArray(page.own)) {
+			for (const [type, points] of Object.entries(page.own)) {
+				if (type === '__proto__' || !Array.isArray(points)) continue;
+				const known = POINT_NAMES.filter((point) => points.includes(point));
+				if (known.length > 0) own[type] = known;
+			}
+		}
 	}
-	return { others, name };
+	return { others, name, own };
 }
 
 // Serialization in Rust field order, with map keys in code point order, so the

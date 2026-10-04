@@ -3,6 +3,7 @@
 	"New role" asks for a name in place, so roles are made where they are needed.
 -->
 <script lang="ts">
+	import { usableName } from '../model/edit.ts';
 	import type { Who } from '../model/line.ts';
 
 	let {
@@ -69,6 +70,10 @@
 			error = 'Give the role a name.';
 			return;
 		}
+		if (!usableName(wanted)) {
+			error = 'That name cannot be used.';
+			return;
+		}
 		if (roles.includes(wanted)) {
 			naming = false;
 			name = '';
@@ -118,7 +123,7 @@
 				type="text"
 				bind:value={name}
 				aria-label="Name of the new role"
-				placeholder="Name of the new role"
+				placeholder="Name it"
 				use:focus
 				oninput={() => (error = '')}
 			/>
@@ -126,6 +131,8 @@
 		</form>
 		{#if error}
 			<p class="error" role="alert">{error}</p>
+		{:else if mustName}
+			<p class="hint">Nothing changes until the role has a name.</p>
 		{/if}
 	{/if}
 </div>
@@ -145,5 +152,9 @@
 
 	.error {
 		color: var(--color-accent);
+	}
+
+	.hint {
+		color: var(--color-text-subtle);
 	}
 </style>

@@ -41,9 +41,9 @@ export const WAYS_OF_WORKING: readonly WayOfWorking[] = [
 	},
 	{
 		id: 'pipeline',
-		title: 'Pipeline',
+		title: 'Steps in order',
 		sentence:
-			'Tasks that Locust adds in order. Each one is added when the one before it has a result that counts.'
+			'Tasks that Locust adds in order, once for the whole goal. Each one is added when the one before it has a result that counts.'
 	}
 ];
 
@@ -64,10 +64,9 @@ export function wayOfWorking(id: string | null): WayOfWorking | undefined {
 	return WAYS_OF_WORKING.find((way) => way.id === id);
 }
 
-/** The rules alone: role descriptions are words about a role, not rules. */
+/** The rules alone. A role is part of them only where a rule names it. */
 function rules(formation: Formation): string {
-	const data = formationData(formation);
-	return JSON.stringify({ ...data, roles: Object.keys(data.roles as object) });
+	return JSON.stringify({ ...formationData(formation), roles: null });
 }
 
 const RULES = new Map(WAYS_OF_WORKING.map((way) => [rules(presetFormation(way.id)), way.id]));

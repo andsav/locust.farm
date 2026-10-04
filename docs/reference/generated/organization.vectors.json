@@ -120,7 +120,7 @@
           "flow": {},
           "roles": {
             "coordinator": {
-              "description": "Hands out work, accepts results, picks the final answer and says when the goal is finished. One person."
+              "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
             }
           },
           "schema_version": 1,
@@ -146,10 +146,10 @@
             ]
           }
         },
-        "semantic_hash": "ed55c048cc49d3401ac6303db19d8d7b66957ddec844f28a144fa83d208120b2",
+        "semantic_hash": "5063b5d5533131b8c72601692f7942943b10d23ae344ccc4d03ede4dd31d2314",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"coordinator\"\n      },\n      \"count\": 1,\n      \"exclude_author\": false,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    },\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"coordinator\": {\n      \"description\": \"Hands out work, accepts results, picks the final answer and says when the goal is finished. One person.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"role\",\n          \"name\": \"coordinator\"\n        },\n        \"kind\": \"offered\",\n        \"to\": {\n          \"kind\": \"members\"\n        }\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"coordinator\"\n      },\n      \"count\": 1,\n      \"exclude_author\": false,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    },\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"coordinator\": {\n      \"description\": \"Asks members to do tasks, approves results, picks the result to use and can close a task. One member.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"role\",\n          \"name\": \"coordinator\"\n        },\n        \"kind\": \"offered\",\n        \"to\": {\n          \"kind\": \"members\"\n        }\n      }\n    ]\n  }\n}\n"
     },
     {
       "id": "preset/peer-review",
@@ -265,7 +265,7 @@
           "flow": {},
           "roles": {
             "reviewer": {
-              "description": "Reviews work done by other people."
+              "description": "Approves results from other members."
             }
           },
           "schema_version": 1,
@@ -287,10 +287,10 @@
             ]
           }
         },
-        "semantic_hash": "eacbaf893cca49c03f4612e674e17212c4e292b46cb0b701eb3c5a87a32a1605",
+        "semantic_hash": "b8d62fc3705878ba0c2c8492cc5e254c00d0a1b99d70d79717f4e93cfe09b936",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"reviewer\"\n      },\n      \"count\": 2,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"reviewer\": {\n      \"description\": \"Reviews work done by other people.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"reviewer\"\n      },\n      \"count\": 2,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"reviewer\": {\n      \"description\": \"Approves results from other members.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
     },
     {
       "id": "preset/independent-attempts",
@@ -341,7 +341,7 @@
           "flow": {},
           "roles": {
             "judge": {
-              "description": "Picks which finished attempt to use. One person."
+              "description": "Picks which result to use. One member."
             }
           },
           "schema_version": 1,
@@ -363,10 +363,10 @@
             ]
           }
         },
-        "semantic_hash": "b99bde642f269a6c8392cfd3c10c5b8e5b845c6b86195bb853cdd088c00d5dec",
+        "semantic_hash": "aed7daad88c885a5a8f8b57a1df48b35b6cf5283e53df8e631c80d808d74aa71",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"judge\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"judge\": {\n      \"description\": \"Picks which finished attempt to use. One person.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"judge\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"judge\": {\n      \"description\": \"Picks which result to use. One member.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
     },
     {
       "id": "preset/pipeline",

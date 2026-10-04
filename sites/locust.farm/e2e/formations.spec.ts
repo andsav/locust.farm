@@ -41,7 +41,7 @@ test('a first visit is ready to copy with the Open way of working', async ({ pag
 		'Peer review',
 		'Review panel',
 		'Independent attempts',
-		'Pipeline'
+		'Steps in order'
 	]);
 	await expect(way(page, 'Open')).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.getByRole('button', { name: 'No problems' })).toBeVisible();
@@ -66,7 +66,7 @@ test('the four questions and their answers are on the page without hovering', as
 	await expect(point(page, 'counts')).toContainText('When does a result count?');
 	await expect(point(page, 'counts')).toContainText('When its author says so.');
 	await expect(point(page, 'pick')).toContainText('Is one result picked?');
-	await expect(point(page, 'pick')).toContainText('Nobody. Every result that counts stays.');
+	await expect(point(page, 'pick')).toContainText('Nobody. Every result that counts is kept.');
 	await expect(page.locator('.notes')).toContainText('It does not start agents or run checks.');
 });
 
@@ -75,7 +75,9 @@ test('each way of working is a different answer at one or two points', async ({ 
 	await way(page, 'Coordinator').click();
 	await expect(point(page, 'work')).toContainText('"coordinator" asks a member. They can say no.');
 	await expect(point(page, 'counts')).toContainText('After 1 approval from "coordinator".');
-	await expect(point(page, 'pick')).toContainText('"coordinator" picks one result per task.');
+	await expect(point(page, 'pick')).toContainText(
+		'"coordinator" picks one result per task and can close a task.'
+	);
 	await way(page, 'Review panel').click();
 	await expect(point(page, 'counts')).toContainText(
 		'After 2 approvals from "reviewer", not the author\'s.'
@@ -135,7 +137,7 @@ test('a role is made where it is needed', async ({ page }) => {
 test('copying the prompt gives a formation the real Locust CLI accepts', async ({ page }) => {
 	test.skip(!existsSync(locust), 'no local Locust build (cargo build -p locust)');
 	await open(page);
-	await way(page, 'Pipeline').click();
+	await way(page, 'Steps in order').click();
 	await page.getByRole('button', { name: 'Copy prompt' }).click();
 	await expect(page.getByText('Copied. Paste it into your agent.')).toBeVisible();
 	const prompt = await page.evaluate(() => navigator.clipboard.readText());
@@ -153,7 +155,9 @@ test('a prompt that only checks can be copied without changing the main button',
 	page
 }) => {
 	await open(page);
-	await page.getByRole('button', { name: 'Copy one that only checks' }).click();
+	await page
+		.getByRole('button', { name: 'Copy a prompt that checks it and saves nothing' })
+		.click();
 	await expect(page.locator('.toast')).toContainText('Nothing is saved.');
 	const prompt = await page.evaluate(() => navigator.clipboard.readText());
 	expect(prompt).toContain('Please check this Locust formation with my local Locust.');
@@ -164,7 +168,7 @@ test('a prompt that only checks can be copied without changing the main button',
 
 test('the pipeline is steps in order, each saying only what differs', async ({ page }) => {
 	await open(page);
-	await way(page, 'Pipeline').click();
+	await way(page, 'Steps in order').click();
 	await expect(page.locator('.line.row')).toHaveCount(2);
 	const draft = row(page, 'draft');
 	const ship = row(page, 'ship');
@@ -182,7 +186,7 @@ test('the pipeline is steps in order, each saying only what differs', async ({ p
 
 test('steps can be added, named, given their own answer and removed', async ({ page }) => {
 	await open(page);
-	await way(page, 'Pipeline').click();
+	await way(page, 'Steps in order').click();
 	await page.getByRole('button', { name: 'Step', exact: true }).click();
 	await expect(page.locator('.line.row')).toHaveCount(3);
 	const added = row(page, 'step');
@@ -241,7 +245,7 @@ test('problems are explained in plain words and can be found', async ({ page }) 
 	await page.getByRole('button', { name: 'Role "coordinator"' }).click();
 	await page.getByRole('button', { name: 'Remove role' }).click();
 	await page.getByRole('button', { name: /^\d+ problems?$/ }).click();
-	await expect(page.locator('.panel.open h2')).toHaveText(/things? to check/);
+	await expect(page.locator('.panel.open h2')).toHaveText(/^\d+ problems?$/);
 	await expect(page.locator('.problems')).toContainText('No result could ever count');
 	await page.locator('.problems').getByRole('button', { name: 'Show me' }).first().click();
 	await expect(page.locator('.box')).toBeVisible();
@@ -251,9 +255,39 @@ test('problems are explained in plain words and can be found', async ({ page }) 
 	await expect(page.getByRole('button', { name: 'No problems' })).toBeVisible();
 });
 
+test('a step keeps its own answer while the rule for any task is edited past it', async ({
+	page
+}) => {
+	await open(page);
+	await way(page, 'Steps in order').click();
+	const draft = row(page, 'draft');
+	await point(page, 'counts').click();
+	// For a moment the rule for any task equals the draft's own.
+	await page.locator('.box').getByLabel('It has approvals').check();
+	await page.locator('.box').getByLabel('How many?').fill('2');
+	await page.locator('.box').getByLabel('How many?').press('Enter');
+	await expect(point(page, 'counts')).toContainText("After 2 approvals, not the author's.");
+	await expect(draft.locator('[data-point="counts"]')).toContainText(
+		"After 1 approval, not the author's."
+	);
+	// A number Locust could not load is refused.
+	await page.locator('.box').getByLabel('How many?').fill('5000000000');
+	await page.locator('.box').getByLabel('How many?').press('Enter');
+	await expect(page.locator('.box').getByLabel('How many?')).toHaveValue('2');
+});
+
+test('undo by keyboard works right after choosing an option', async ({ page }) => {
+	await open(page);
+	await point(page, 'counts').click();
+	await page.locator('.box').getByLabel('It has approvals').check();
+	await expect(way(page, 'Peer review')).toHaveAttribute('aria-pressed', 'true');
+	await page.keyboard.press('ControlOrMeta+z');
+	await expect(way(page, 'Open')).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('a share link opens the same formation as a new copy', async ({ page, context }) => {
 	await open(page);
-	await way(page, 'Pipeline').click();
+	await way(page, 'Steps in order').click();
 	await page.getByLabel('Name of this formation').fill('Sync research');
 	await page.getByLabel('Name of this formation').press('Enter');
 	await page.getByRole('button', { name: 'File' }).click();
@@ -272,7 +306,7 @@ test('a share link opens the same formation as a new copy', async ({ page, conte
 test('on a phone the page fits and every answer is still in view', async ({ page }) => {
 	await page.setViewportSize({ width: 375, height: 812 });
 	await open(page);
-	await way(page, 'Pipeline').click();
+	await way(page, 'Steps in order').click();
 	const widths = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
 	expect(widths[0]).toBeLessThanOrEqual(widths[1]);
 	await expect(point(page, 'work')).toContainText('No lock');

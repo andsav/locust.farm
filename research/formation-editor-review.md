@@ -354,3 +354,50 @@ Findings above that the rebuild does not address:
 - Open questions 5 to 8 are still open. The page keeps "its author says so" as
   the answer when nothing is ticked, and says "asks" where Locust says "offer".
 - Still not tested with real first-time users.
+
+## Check of the rebuilt page
+
+After the rebuild two review agents read screenshots of the new page with the
+same six tasks, and one reviewed the code. As before, the readers are a model
+playing a first-time person, not people.
+
+| Task | Before | After |
+| --- | --- | --- |
+| Three agents attempt one fix, I pick | guessing | guessing: no place to say "three" |
+| Two approvals for every result | confident | confident |
+| Tests pass and another agent approves | stuck | can do it; doubts that a reported check is a real gate |
+| A planner assigns tasks | confident | can do it; notes that asking is not exclusive |
+| Plan, implement, review, ship | would get it wrong | can do it; expected steps to be stages each task goes through |
+| See what it will do before copying | guessing | confident |
+
+What still stops a first-time person is what Locust does, not the page: no
+lock on a task, a check that a member reports, a rejection that does not block,
+and steps that happen once per goal. The page now says each of these beside the
+setting. An [exclusive claim](exclusive-task-claim.md) has its own proposal.
+
+Changed because of this check:
+
+- A point is written and followed as a whole. Before, changing who works for
+  any task could rewrite half of a step's own answer.
+- A step's own answer is recorded, so it survives the main rule passing through
+  the same value.
+- Removing a role repairs what later steps wait for, and the next choice of who
+  works repairs who the step is sent to. A rule under which nobody can post is
+  reported as a problem.
+- "Nobody adds tasks" no longer erases who works; with steps it reads "Only
+  Locust adds tasks, as steps".
+- Undo by keyboard works right after a tick or an option. The approvals box
+  refuses numbers above 99. A choice that changes nothing is not recorded.
+- The card is lit by the rules alone, so a role no rule names does not turn it
+  off. Pictures show nothing moving for a rule the page cannot draw.
+- Words: the steps heading says a step is one task for the whole goal and not a
+  stage every task goes through; the Pipeline card is called "Steps in order";
+  the pick answer says when someone can also close a task; the note under the
+  check says a rejection does not take away a result that has what it needs;
+  "Change" is shown on each point; the bundled role descriptions say "member"
+  and no longer mention finishing the goal.
+
+Not changed, and still open: the card sentences are only in hover text, which
+both readers wanted on the cards (the owner chose names only); there is no
+count of attempts; the page does not say what happens after the draft is saved
+beyond "starting a goal comes later".

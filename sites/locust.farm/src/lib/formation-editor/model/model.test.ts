@@ -22,8 +22,10 @@ import {
 	afterAnswer,
 	countsAnswer,
 	kinds,
+	follows,
 	lineRules,
 	MAIN,
+	noTasks,
 	pickAnswer,
 	sameAsMain,
 	setAdd,
@@ -103,7 +105,8 @@ test('the lit card is the one whose rules match, whatever was clicked', () => {
 		check: null
 	});
 	assert.equal(matchingWay(document.formation), 'peer-review');
-	// A role's description is not a rule.
+	// A role no rule names is not a rule, and neither is a role's description.
+	assert.equal(matchingWay(addRole(newDocument('open'), 'helper').formation), 'open');
 	document = addRole(newDocument('open'), 'judge');
 	document = setPick(document, MAIN, { pick: { kind: 'role', name: 'judge' } });
 	assert.equal(matchingWay(document.formation), 'independent-attempts');
@@ -146,14 +149,97 @@ test('who adds and who works are written as rules Locust enforces', () => {
 	document = setWork(document, MAIN, { kind: 'asks', by: { kind: 'role', name: 'builder' } });
 	assert.equal(workAnswer(document.formation.work).kind, 'asks');
 	assert.deepEqual(document.formation.work.publish, { kind: 'members' });
-	// No tasks: nobody adds them and nobody starts work.
+	// No tasks: nobody adds them. Who works is left as it was, and comes back.
 	document = setAdd(document, MAIN, { kind: 'none' });
-	assert.deepEqual(document.formation.work.starts, []);
-	assert.equal(workAnswer(document.formation.work).kind, 'none');
+	assert.deepEqual(document.formation.work.propose, { kind: 'nobody' });
+	assert.equal(noTasks(document.formation, MAIN), true);
+	assert.equal(phrase(document.formation, MAIN, 'work'), 'No tasks to work on.');
 	assert.ok(valid(document));
-	// Tasks again: someone can work on them.
+	// With steps Locust still adds tasks, so who works on them still matters.
+	const stepped = addStep(document).document;
+	assert.equal(noTasks(stepped.formation, MAIN), false);
+	assert.equal(phrase(stepped.formation, MAIN, 'add'), 'Nobody. Only Locust adds tasks, as steps.');
 	document = setAdd(document, MAIN, { kind: 'anyone' });
-	assert.equal(workAnswer(document.formation.work).kind, 'anyone');
+	assert.equal(workAnswer(document.formation.work).kind, 'asks');
+});
+
+test('a step that changed who works keeps its whole answer when the main rule changes', () => {
+	let document = addRole(addStep(newDocument('open')).document, 'builder');
+	const step: LineRef = { kind: 'step', name: 'step' };
+	document = setWork(document, step, { kind: 'asks', by: { kind: 'anyone' } });
+	document = setWork(document, MAIN, { kind: 'role', name: 'builder' });
+	assert.deepEqual(workAnswer(lineRules(document.formation, step).work), {
+		kind: 'asks',
+		by: { kind: 'anyone' }
+	});
+	assert.deepEqual(document.formation.flow.step.recipients, { kind: 'members' });
+	assert.ok(valid(document));
+});
+
+test('a step keeps its own answer when the main rule passes through the same value', () => {
+	let document = newDocument('pipeline');
+	const draft: LineRef = { kind: 'step', name: 'draft' };
+	const approvals = (count: number) => ({
+		kind: 'list' as const,
+		approvals: { by: { kind: 'anyone' as const }, count, excludeAuthor: true },
+		check: null
+	});
+	// The pipeline's draft is its own because it differs, with nothing marked yet.
+	assert.equal(follows(document, draft, 'counts'), false);
+	assert.deepEqual(document.own, {});
+	// The main rule comes to equal it, then moves on. The draft stays as it was.
+	document = setCounts(document, MAIN, approvals(1));
+	assert.equal(follows(document, draft, 'counts'), false);
+	document = setCounts(document, MAIN, approvals(2));
+	assert.equal(phrase(document.formation, draft, 'counts'), "After 1 approval, not the author's.");
+	// The same when the step's answer was changed on the page.
+	document = setCounts(document, draft, approvals(3));
+	document = setCounts(document, MAIN, approvals(3));
+	assert.equal(follows(document, draft, 'counts'), false);
+	document = setCounts(document, MAIN, approvals(2));
+	assert.equal(phrase(document.formation, draft, 'counts'), "After 3 approvals, not the author's.");
+	// The mark travels with the formation and comes back when it is opened again.
+	assert.deepEqual(presentation(document)['locust.farm'], { name: '', own: { draft: ['counts'] } });
+	// Given back to the main rules, the step follows them again.
+	document = useMain(document, draft, 'counts');
+	assert.equal(follows(document, draft, 'counts'), true);
+	document = setCounts(document, MAIN, approvals(4));
+	assert.equal(phrase(document.formation, draft, 'counts'), "After 4 approvals, not the author's.");
+	assert.deepEqual(presentation(document)['locust.farm'], { name: '' });
+});
+
+test('removing a role repairs what steps wait for and who they are sent to', () => {
+	let document = newDocument('independent-attempts');
+	document = addStep(addStep(document).document).document;
+	assert.equal(document.formation.flow['step 2'].requires[0].evidence, 'selection');
+	document = removeRole(document, 'judge');
+	assert.equal(document.formation.flow['step 2'].requires[0].evidence, 'completion');
+	assert.ok(valid(document));
+
+	document = addRole(addStep(newDocument('open')).document, 'builder');
+	const step: LineRef = { kind: 'step', name: 'step' };
+	document = setWork(document, step, { kind: 'role', name: 'builder' });
+	document = removeRole(document, 'builder');
+	// Nobody can post there now, which the page reports although Locust accepts it.
+	assert.ok(pageChecks(document.formation).some((check) => check.kind === 'nobody-posts'));
+	assert.match(phrase(document.formation, step, 'work'), /Nobody can post results[.]/);
+	document = setWork(document, step, { kind: 'anyone' });
+	assert.deepEqual(document.formation.flow.step.recipients, { kind: 'members' });
+	assert.equal(pageChecks(document.formation).length, 0);
+});
+
+test('a choice that changes nothing is not a change', () => {
+	const document = newDocument('coordinator');
+	assert.equal(setPick(document, MAIN, { pick: { kind: 'role', name: 'coordinator' } }), document);
+	assert.equal(setAdd(document, MAIN, { kind: 'anyone' }), document);
+});
+
+test('names that cannot be keys are refused', () => {
+	const document = addStep(newDocument('open')).document;
+	assert.equal(addRole(document, '__proto__'), document);
+	assert.equal(renameStage(document, 'step', '__proto__'), document);
+	const hostile = JSON.parse('{"locust.farm":{"own":{"__proto__":["counts"],"draft":["counts"]}}}');
+	assert.deepEqual(Object.keys(readPresentation(hostile).own), ['draft']);
 });
 
 test('the pipeline is two steps, and only the draft has an answer of its own', () => {
@@ -320,7 +406,7 @@ test('the summary is plain', () => {
 		'Any member can add tasks.',
 		'Any member can work on a task. There is no lock: two members can work on the same task.',
 		'A result counts when its author says so.',
-		'Nobody picks one result. Every result that counts stays.'
+		'Nobody picks one result. Every result that counts is kept.'
 	]);
 	const pipeline = summarize(newDocument('pipeline').formation).map((line) => line.text);
 	assert.ok(

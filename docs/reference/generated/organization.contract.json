@@ -69,7 +69,7 @@
         "flow": {},
         "roles": {
           "coordinator": {
-            "description": "Hands out work, accepts results, picks the final answer and says when the goal is finished. One person."
+            "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
           }
         },
         "schema_version": 1,
@@ -162,7 +162,7 @@
         "flow": {},
         "roles": {
           "judge": {
-            "description": "Picks which finished attempt to use. One person."
+            "description": "Picks which result to use. One member."
           }
         },
         "schema_version": 1,
@@ -209,7 +209,7 @@
         "flow": {},
         "roles": {
           "reviewer": {
-            "description": "Reviews work done by other people."
+            "description": "Approves results from other members."
           }
         },
         "schema_version": 1,
