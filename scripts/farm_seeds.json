@@ -1,0 +1,54 @@
+[
+  {
+    "slug": "slack-standup-bot",
+    "title": "Build a Slack standup bot",
+    "started_at": "2026-10-03T17:10:00Z",
+    "formation": "Synthetic demo · Plan, build, review",
+    "roles": ["Coordination and integration", "Commands and messages", "Review and tests", "Slack events and storage"],
+    "stages": [
+      {"id": 1, "label": "Plan", "prerequisites": []},
+      {"id": 2, "label": "Slack integration", "prerequisites": [1]},
+      {"id": 3, "label": "Commands", "prerequisites": [1]},
+      {"id": 4, "label": "Verification", "prerequisites": [2, 3]},
+      {"id": 5, "label": "Handoff", "prerequisites": [4]}
+    ],
+    "tasks": [
+      {"stage": 1, "agent": 1, "reviewer": 3, "start": 2, "end": 8, "work": "the standup flow and acceptance checklist", "result": "Scoped daily prompts, thread replies and an on-demand team summary", "check": "Scope and acceptance checklist reviewed"},
+      {"stage": 2, "agent": 4, "reviewer": 3, "start": 9, "end": 29, "work": "Slack request verification", "result": "Added signature validation, timestamp checks and challenge handling", "check": "Valid, tampered and expired request fixtures pass"},
+      {"stage": 2, "agent": 4, "reviewer": 3, "start": 30, "end": 52, "work": "event deduplication and persistence", "result": "Persisted event IDs before processing and made repeated deliveries safe", "check": "Duplicate delivery and restart fixtures pass", "retry": {"at": 39, "reason": "Duplicate Slack deliveries produced two standup replies", "fix": "Moved the deduplication check into the storage transaction"}},
+      {"stage": 2, "agent": 4, "reviewer": 1, "start": 53, "end": 65, "work": "rate-limit recovery", "result": "Queued retryable messages and respected Slack retry delays", "check": "Rate-limit and temporary-failure fixtures pass"},
+      {"stage": 3, "agent": 2, "reviewer": 1, "start": 10, "end": 33, "work": "the standup slash command", "result": "Added start, help and status commands with private acknowledgements", "check": "Command parsing and empty-input cases pass"},
+      {"stage": 3, "agent": 2, "reviewer": 3, "start": 34, "end": 55, "work": "threaded standup replies", "result": "Grouped updates by person and kept replies in the original thread", "check": "Thread routing and user-input escaping reviewed"},
+      {"stage": 3, "agent": 2, "reviewer": 1, "start": 56, "end": 69, "work": "the team summary", "result": "Added an ordered summary with clear empty and partial-response states", "check": "Summary fixtures cover missing and repeated answers"},
+      {"stage": 4, "agent": 3, "reviewer": 1, "start": 70, "end": 94, "work": "end-to-end Slack event fixtures", "result": "Exercised a full standup, repeated events, retries and a process restart", "check": "Full standup fixture suite passes"},
+      {"stage": 4, "agent": 1, "reviewer": 3, "start": 76, "end": 99, "work": "integration and configuration review", "result": "Connected command handlers to event storage and documented required scopes", "check": "Configuration and least-privilege scopes reviewed"},
+      {"stage": 5, "agent": 1, "reviewer": 2, "start": 100, "end": 111, "work": "the setup guide and handoff", "result": "Finished installation steps, example configuration and troubleshooting notes", "check": "Setup walkthrough and handoff checklist reviewed"}
+    ]
+  },
+  {
+    "slug": "shared-todo-list",
+    "title": "Build a shared to-do list",
+    "started_at": "2026-10-04T14:20:00Z",
+    "formation": "Synthetic demo · Design, build, test",
+    "roles": ["Coordination and integration", "Interface and accessibility", "Review and tests", "API and persistence"],
+    "stages": [
+      {"id": 1, "label": "Scope", "prerequisites": []},
+      {"id": 2, "label": "API and storage", "prerequisites": [1]},
+      {"id": 3, "label": "Interface", "prerequisites": [1]},
+      {"id": 4, "label": "Testing", "prerequisites": [2, 3]},
+      {"id": 5, "label": "Handoff", "prerequisites": [4]}
+    ],
+    "tasks": [
+      {"stage": 1, "agent": 1, "reviewer": 3, "start": 1, "end": 6, "work": "the task model and acceptance checklist", "result": "Scoped one shared list with add, edit, complete, filter and delete actions", "check": "Task states and acceptance checklist reviewed"},
+      {"stage": 2, "agent": 4, "reviewer": 1, "start": 7, "end": 23, "work": "the task API", "result": "Added validated create, update and delete handlers with stable task IDs", "check": "API validation and missing-task cases pass"},
+      {"stage": 2, "agent": 4, "reviewer": 3, "start": 24, "end": 42, "work": "SQLite persistence and list ordering", "result": "Preserved completion state and creation order across reloads and restarts", "check": "Persistence and stable-order fixtures pass", "retry": {"at": 31, "reason": "Completed tasks moved unpredictably after a server restart", "fix": "Added a stable creation-order tie-breaker to the list query"}},
+      {"stage": 2, "agent": 4, "reviewer": 1, "start": 43, "end": 50, "work": "delete and undo behavior", "result": "Added recoverable deletion with consistent counts after undo", "check": "Delete, undo and repeated-request cases pass"},
+      {"stage": 3, "agent": 2, "reviewer": 1, "start": 7, "end": 22, "work": "the list layout and add-task form", "result": "Built the task list, inline validation and a useful empty state", "check": "Form validation and empty-state review complete"},
+      {"stage": 3, "agent": 2, "reviewer": 3, "start": 23, "end": 38, "work": "editing, completion and filters", "result": "Added inline editing, completion toggles and all, active and done filters", "check": "Filter counts and keyboard editing cases pass"},
+      {"stage": 3, "agent": 2, "reviewer": 3, "start": 39, "end": 49, "work": "mobile layout and keyboard access", "result": "Kept task controls reachable on narrow screens and restored focus after edits", "check": "Narrow-screen layout and keyboard walkthrough reviewed"},
+      {"stage": 4, "agent": 3, "reviewer": 1, "start": 51, "end": 69, "work": "the browser workflow checks", "result": "Covered add, edit, complete, filter, delete, undo and reload flows", "check": "Browser workflow fixture suite passes"},
+      {"stage": 4, "agent": 1, "reviewer": 3, "start": 53, "end": 74, "work": "client and API integration", "result": "Connected pending and error states and checked shared-list updates in two sessions", "check": "Two-session and failed-request fixtures pass"},
+      {"stage": 5, "agent": 1, "reviewer": 2, "start": 75, "end": 84, "work": "the run guide and handoff", "result": "Documented local startup, the shared-list model and database backup steps", "check": "Local run walkthrough and handoff checklist reviewed"}
+    ]
+  }
+]

@@ -208,7 +208,9 @@ A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
 `/farm/<id>` loads a full public snapshot and subscribes to ordered full-state SSE
 updates. `/farms` displays only listed, available farms. Both use the same stage
 map, with the task table supplying the complete keyboard-readable detail. Data
-comes from the API; the production routes contain no mock farms.
+comes from the API; the browser does not inject example farms. The operator can
+publish explicitly labeled synthetic examples through the same signed API;
+see [demo farm seeding](ops/README.md#seed-the-demo-farms).
 
 For local development, run `locust-farm serve` on `127.0.0.1:4319` and start the
 site with `npm run dev`. `LOCUST_FARM_API` overrides that proxy target. The static

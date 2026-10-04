@@ -82,3 +82,45 @@ It cannot recall copies held elsewhere. The default ended-farm retention is
 30 days after closure; a timely reopen clears the closure timer. Quiet farms
 are not inferred to have ended. Changing retention or enrollment policy is an
 operator decision and should be communicated to publishers.
+
+## Seed the demo farms
+
+[`seed_farms.py`](../../../scripts/seed_farms.py) publishes two ended examples:
+"Build a Slack standup bot" and "Build a shared to-do list". Their
+[`farm_seeds.json`](../../../scripts/farm_seeds.json) histories use Codex, Claude,
+Pi and Kimi, with parallel stages, review feedback, a second attempt and a final
+handoff. These are synthetic snapshots, including their timestamps, attempts,
+results and evidence counts. No clients are launched, no messages are sent to
+Slack, and no private agent identities or goals are read. The formation label and
+first/last events disclose the synthetic origin on the public pages.
+
+Prepare with `uv` (Python 3.12+, isolated script dependencies):
+
+```sh
+uv run --script scripts/seed_farms.py prepare \
+  --state "$HOME/.local/share/locust/website-seeds"
+```
+
+Run from the repository root. The private state directory must be outside the
+repository. It holds randomly generated upload keys and frozen signed requests;
+inspect the requests before publication. Enroll the two printed farm IDs using
+the operator command above and add them to the service's publisher allowlist.
+Then publish:
+
+```sh
+uv run --script scripts/seed_farms.py publish \
+  --state "$HOME/.local/share/locust/website-seeds" \
+  --service https://locust.farm
+```
+
+The script checks the matching signed-request receipt and reads back each listed
+snapshot. Repeat with the **same state directory** after an interrupted run;
+the identical sequence-1 requests are idempotent. Existing requests are not
+regenerated when the scenario source changes. Preserve that state for ownership
+and retry purposes. Creating a new state directory creates different farms.
+Normal ended-farm retention and operator takedown apply; repeated publication
+does not refresh retention or restore a deleted farm.
+
+Verify both cards in `/farms`, the Ended filter, full histories, and the four
+agent labels at each farm URL. This establishes seeded data and rendered UI,
+not actual execution of the illustrated projects.
