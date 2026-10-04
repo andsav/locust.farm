@@ -85,3 +85,69 @@ impl<S: Store, E: Entropy> Node<S, E> {
         })
     }
 }
+
+impl<S: Store, E: Entropy> Node<S, E> {
+    pub(super) fn agent_grant(&self, agent: locust_proto::id::PublicKey, grants: Grants) -> Plan {
+        let mut record = self
+            .principals
+            .active(&agent)
+            .ok_or_else(|| super::super::access::not_found("no active principal has that key"))?
+            .record
+            .clone();
+        record.grants = grants;
+        let mut tx = Tx::none();
+        tx.local(Principals::principal_write(&agent, &record));
+        Ok(Planned {
+            response: Response::Done,
+            tx,
+        })
+    }
+
+    pub(super) fn agent_revoke(&self, agent: locust_proto::id::PublicKey) -> Plan {
+        let mut record = self
+            .principals
+            .get(&agent)
+            .ok_or_else(|| super::super::access::not_found("no principal has that key"))?
+            .record
+            .clone();
+        record.revoked = true;
+        let mut tx = Tx::none();
+        tx.local(Principals::principal_write(&agent, &record));
+        for (goal, entry) in &self.goals {
+            if entry.membership(&agent).is_some() {
+                tx.touch(*goal);
+            }
+        }
+        Ok(Planned {
+            response: Response::Done,
+            tx,
+        })
+    }
+
+    pub(super) fn viewer_enroll(
+        &self,
+        agent: locust_proto::id::PublicKey,
+        credential: [u8; 32],
+    ) -> Plan {
+        use locust_proto::api::Caller;
+        if self.principals.active(&agent).is_none() {
+            return Err(super::super::access::not_found(
+                "no active principal has that key",
+            ));
+        }
+        if self.principals.credential(&credential) == Some(Caller::Viewer(agent)) {
+            return answer(Response::Done);
+        }
+        if credential == self.identity.owner || self.principals.credential(&credential).is_some() {
+            return Err(super::super::access::conflict(
+                "the credential is already in use",
+            ));
+        }
+        let mut tx = Tx::none();
+        tx.local(Principals::viewer_write(&credential, &agent));
+        Ok(Planned {
+            response: Response::Done,
+            tx,
+        })
+    }
+}

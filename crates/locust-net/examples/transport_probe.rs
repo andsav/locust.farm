@@ -151,6 +151,7 @@ async fn run(
         if config.mode == Mode::Direct { "disabled" } else { "enabled" }
     )).await?;
     let endpoint_config = EndpointConfig {
+        lookup: locust_net::Lookup::DISABLED,
         secret_key: iroh::SecretKey::generate().to_bytes(),
         relays: if config.n0_relays {
             RelayConfig::N0

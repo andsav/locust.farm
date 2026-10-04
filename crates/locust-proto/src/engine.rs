@@ -103,6 +103,12 @@ pub enum PeerInput {
         endpoint: EndpointId,
         hints: Vec<String>,
     },
+    /// Whether the shell currently holds any authenticated connection to
+    /// this endpoint. This is reachability, never membership or authority.
+    Connection {
+        endpoint: EndpointId,
+        connected: bool,
+    },
     /// An exchange the engine asked for is open and may be written to.
     Opened(ExchangeId),
     /// An exchange the engine asked for could not be opened. Nothing more
@@ -119,9 +125,15 @@ pub enum PeerInput {
         exchange: ExchangeId,
         frame: SyncMessage,
     },
-    /// The exchange is over: the peer ended it, the link failed, or the shell
-    /// finished it as asked. Nothing more arrives for it, and anything still
-    /// queued for it was dropped.
+    /// The previous output frame was written successfully. The engine may
+    /// produce the next frame; one notification follows each `Send`.
+    Writable(ExchangeId),
+    /// The shell finished the exchange as asked and the transport confirmed
+    /// delivery of every queued frame. Nothing more arrives for it.
+    Finished(ExchangeId),
+    /// The exchange ended without confirmed completion: the peer ended it
+    /// or the link failed. Nothing more arrives for it, and anything still
+    /// queued for it was dropped. This is never a successful finish.
     Closed(ExchangeId),
     /// Nothing happened on the network. The shell sends this after local
     /// requests changed a goal and at least once a second, so the engine can
@@ -141,7 +153,9 @@ pub enum PeerOutput {
         endpoint: EndpointId,
         hints: Vec<String>,
     },
-    /// Send one frame.
+    /// Send one frame. Answered by `Writable` after the write completes, or
+    /// `Closed` if it fails. Producers wait for capacity before emitting the
+    /// next frame of a potentially large response.
     Send {
         exchange: ExchangeId,
         frame: SyncMessage,
@@ -153,7 +167,8 @@ pub enum PeerOutput {
     Admit(ExchangeId),
     /// End the exchange once everything sent on it was delivered, waiting
     /// under the shell's deadline for the transport's acknowledgement.
-    /// Answered by [`PeerInput::Closed`].
+    /// Answered by [`PeerInput::Finished`] on success or [`PeerInput::Closed`]
+    /// on failure.
     Finish(ExchangeId),
 }
 

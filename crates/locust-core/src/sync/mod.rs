@@ -19,16 +19,15 @@
 //!
 //! The machines never hold a goal. They borrow one through [`Replica`],
 //! which the node implements over its goal and store, so this module is
-//! tested with in-memory fakes. Nothing is buffered beyond one received
-//! frame: an answer is computed from the frame and the replica and emitted at
-//! once, and every list is bounded by the contract limits.
-
-// Removed once the bodies land; the skeleton publishes the API first.
-#![allow(dead_code, unused_variables)]
+//! tested with in-memory fakes. Responses retain cursors over history and content, materializing at most one
+//! outgoing frame until the transport reports capacity. Inventory pages and
+//! requests obey the wire limits; complete histories and transfers are never
+//! collected into outgoing frame vectors.
 
 mod batch;
 mod driver;
 mod initiator;
+mod outbox;
 mod responder;
 #[cfg(test)]
 mod tests;
@@ -36,7 +35,7 @@ mod tests;
 pub use driver::{
     ANTI_ENTROPY_MS, Driver, Ended, Host, Joining, MAX_BACKOFF_MS, MIN_BACKOFF_MS, Report,
 };
-pub use initiator::{Initiator, MAX_BLOBS_PER_EXCHANGE};
+pub use initiator::Initiator;
 pub use responder::Responder;
 
 use locust_proto::crypto::ContentKey;
@@ -103,6 +102,17 @@ pub trait Replica {
     /// replica lacks, payloads of held events first, each with its staged
     /// length, where a transfer resumes.
     fn wanted_blobs(&self, limit: usize) -> Vec<(BlobHash, u64)>;
+
+    /// Next missing object in hash order, strictly after the cursor. An
+    /// unavailable object advances the cursor too, so no prefix can starve
+    /// later content. Production implementations should avoid materializing
+    /// the entire wanted set.
+    fn next_wanted_blob(&self, after: Option<BlobHash>) -> Option<(BlobHash, u64)> {
+        self.wanted_blobs(usize::MAX)
+            .into_iter()
+            .filter(|(hash, _)| after.is_none_or(|after| *hash > after))
+            .min_by_key(|(hash, _)| *hash)
+    }
 
     /// The stored length of an object this goal serves, or `None` when it
     /// does not hold it, withdrew it, or no held event of the goal names it.

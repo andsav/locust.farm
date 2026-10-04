@@ -11,10 +11,12 @@ use locust_proto::codec;
 use locust_proto::crypto::content_hash;
 use locust_proto::engine::Entropy;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
-use locust_proto::store::{Commit, LocalWrite, Space, Store, StoreError};
+use locust_proto::store::{Commit, LocalWrite, Space, Store};
 use serde::{Deserialize, Serialize};
 
-use super::{Node, records};
+use super::feed::Feed;
+use super::{Node, local, records};
+use crate::goal::{Goal, Standing};
 
 /// What one request or received frame wants made durable.
 #[derive(Debug, Default)]
@@ -23,6 +25,9 @@ pub(super) struct Tx {
     /// Goals whose revision rises with this commit: their events change, or
     /// a local record that feeds pending work does.
     pub touched: Vec<GoalId>,
+    /// True when the events were signed here for a request, so each must
+    /// take effect or the request fails.
+    pub authored: bool,
     /// The owner asked the daemon to stop.
     pub stop: bool,
 }
@@ -123,21 +128,121 @@ impl<S: Store, E: Entropy> Node<S, E> {
         )
     }
 
-    /// Commits `tx` and then updates memory from it.
-    pub(super) fn land(&mut self, tx: Tx) -> Result<(), StoreError> {
+    /// Makes `tx` durable as one commit and then updates memory from it.
+    ///
+    /// Events are the one exception to "commit first": a goal is advanced in
+    /// memory before the commit, because the feed entries the same commit
+    /// must carry are an outcome of applying them. Nothing is released before
+    /// the commit returns, and when it fails the goal is rebuilt from the
+    /// store, so memory never keeps an uncommitted change.
+    pub(super) fn land(&mut self, mut tx: Tx) -> Result<(), ApiError> {
+        let advanced = tx.commit.events.first().map(|event| event.header().goal);
+        if let Some(goal) = advanced
+            && let Err(error) = self.advance(goal, &mut tx)
+        {
+            self.restore(goal);
+            return Err(error);
+        }
+        for goal in &tx.touched {
+            let revision = self.goals.get(goal).map_or(0, |entry| entry.local.revision) + 1;
+            tx.commit.local.push(local::revision_write(goal, revision));
+        }
         if !tx.is_empty() {
-            self.store.commit(&tx.commit)?;
+            if let Err(error) = self.store.commit(&tx.commit) {
+                // A failed durability operation can have an unknown outcome.
+                // Even a readable store cannot authorize another signature.
+                self.failed = true;
+                if let Some(goal) = advanced {
+                    self.restore(goal);
+                }
+                return Err(error.into());
+            }
             for write in &tx.commit.local {
-                match write {
-                    LocalWrite::Put { space, key, value } => {
-                        self.absorb(*space, key, Some(value))?;
-                    }
-                    LocalWrite::Delete { space, key } => self.absorb(*space, key, None)?,
+                let absorbed = match write {
+                    LocalWrite::Put { space, key, value } => self.absorb(*space, key, Some(value)),
+                    LocalWrite::Delete { space, key } => self.absorb(*space, key, None),
+                };
+                if let Err(error) = absorbed {
+                    // The store holds the record; only memory is behind.
+                    self.failed = true;
+                    return Err(error.into());
                 }
             }
+        }
+        if let Some(goal) = advanced {
+            self.entry_mut(goal).note_named(&tx.commit.events);
+            self.outbound.insert(goal);
         }
         self.changed.extend(tx.touched);
         self.stop |= tx.stop;
         Ok(())
+    }
+
+    /// Applies the events of `tx` to their goal and adds what follows from
+    /// that to the same commit: a feed entry for every event judged, and the
+    /// end of a join whose admission arrived.
+    fn advance(&mut self, goal: GoalId, tx: &mut Tx) -> Result<(), ApiError> {
+        let authored = tx.authored;
+        let entry = self.entry_mut(goal);
+        let changes = entry.goal.apply(&tx.commit.events);
+        if authored
+            && let Some(excluded) =
+                tx.commit
+                    .events
+                    .iter()
+                    .find_map(|event| match entry.goal.standing(&event.id()) {
+                        Some(Standing::Effective) => None,
+                        other => Some(other),
+                    })
+        {
+            // The node signs nothing its own copy of the goal would not
+            // apply; a check before signing missed this case.
+            let reason = match excluded {
+                Some(Standing::Excluded(exclusion)) => {
+                    exclusion.reason().unwrap_or_else(|| exclusion.name())
+                }
+                _ => "the event cannot be applied yet",
+            };
+            return Err(ApiError::new(ErrorCode::Conflict, reason));
+        }
+        let mut position = entry.feed.len();
+        for event in &changes.judged {
+            if entry.feed.position(event).is_none() {
+                position += 1;
+                tx.commit
+                    .local
+                    .push(Feed::entry_write(&goal, position, event));
+            }
+        }
+        for principal in entry.local.joins.keys() {
+            if entry.is_member(principal) {
+                tx.commit.local.push(local::join_delete(&goal, principal));
+                tx.commit
+                    .local
+                    .push(local::part_write(&goal, principal, false));
+            }
+        }
+        tx.touch(goal);
+        Ok(())
+    }
+
+    /// Puts a goal back to what the store holds, after a commit that carried
+    /// its events did not happen.
+    fn restore(&mut self, goal: GoalId) {
+        match Goal::load(&self.store, goal) {
+            Ok(loaded) => {
+                let unknown = loaded.is_empty()
+                    && self
+                        .goals
+                        .get(&goal)
+                        .is_some_and(|entry| entry.local.revision == 0);
+                if unknown {
+                    self.goals.remove(&goal);
+                } else {
+                    self.entry_mut(goal).goal = loaded;
+                }
+            }
+            Err(_) => self.failed = true,
+        }
     }
 }

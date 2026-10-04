@@ -1,10 +1,19 @@
 //! Local requests: resolution of the caller, idempotency, and dispatch to the
 //! module that owns each family of operations.
 
+mod claims;
+pub(super) mod content;
 mod daemon;
+mod goals;
+pub(super) mod invitations;
+mod notes;
+mod reading;
+mod sessions;
+mod tasks;
 
 use locust_proto::api::{ApiError, ErrorCode, Request, RequestFrame, Response, ResponseFrame};
-use locust_proto::engine::{ConnId, Entropy, Parked, Step};
+use locust_proto::engine::{ConnId, Entropy, Step};
+use locust_proto::event::Body;
 use locust_proto::store::Store;
 
 use super::Node;
@@ -28,27 +37,16 @@ pub(super) fn answer(response: Response) -> Plan {
     })
 }
 
-/// The refusal for an operation this build does not implement yet.
-pub(super) fn not_implemented(request: &Request) -> ApiError {
-    ApiError::new(
-        ErrorCode::Unavailable,
-        format!("{} is not implemented in this build", request.name()),
-    )
-}
-
 impl<S: Store, E: Entropy> Node<S, E> {
     /// Handles one request frame from a welcomed connection.
     pub(super) fn handle(&mut self, conn: ConnId, frame: RequestFrame, now_ms: u64) -> Step {
         let id = frame.id;
-        let result = self.respond(conn, frame, now_ms);
-        match result {
-            Ok(Step::Park(parked)) => Step::Park(parked),
-            Ok(Step::Reply(frame)) => Step::Reply(frame),
-            Err(error) => Step::Reply(ResponseFrame {
+        self.respond(conn, frame, now_ms).unwrap_or_else(|error| {
+            Step::Reply(ResponseFrame {
                 id,
                 result: Err(error),
-            }),
-        }
+            })
+        })
     }
 
     fn respond(
@@ -57,6 +55,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
         frame: RequestFrame,
         now_ms: u64,
     ) -> Result<Step, ApiError> {
+        if self.failed {
+            return Err(ApiError::new(
+                ErrorCode::Internal,
+                "storage failed earlier; restart the daemon",
+            ));
+        }
         let Some(state) = self.conns.get(&conn) else {
             return Err(ApiError::new(
                 ErrorCode::Denied,
@@ -66,6 +70,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
         frame.request.check()?;
         let actor = callers::resolve(&self.principals, state.caller, state.session, &frame)?;
         let id = frame.id;
+        if let Request::Wait {
+            goal,
+            seen,
+            timeout_ms,
+        } = frame.request
+        {
+            return self.wait(conn, id, actor, goal, seen, timeout_ms);
+        }
         let reply = |response| {
             Ok(Step::Reply(ResponseFrame {
                 id,
@@ -85,7 +97,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
             return reply(response);
         }
 
-        let Planned { response, mut tx } = self.plan(&actor, frame.request, now_ms)?;
+        let blob_get = match &frame.request {
+            Request::BlobGet { goal, hash } => Some((*goal, *hash)),
+            _ => None,
+        };
+        let Planned { response, mut tx } = match self.plan(&actor, frame.request, now_ms) {
+            Ok(plan) => plan,
+            Err(error) => {
+                if error.code == ErrorCode::Unavailable
+                    && let Some((goal, hash)) = blob_get
+                {
+                    self.note_blob_want(&actor, goal, hash)?;
+                }
+                return Err(error);
+            }
+        };
         if let (Some(key), Some(digest)) = (&key, digest) {
             tx.local(Self::remember(actor.caller, key, digest, &response));
         }
@@ -94,8 +120,25 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// Plans one request without changing anything.
-    fn plan(&self, actor: &Actor, request: Request, _now_ms: u64) -> Plan {
+    fn plan(&self, actor: &Actor, request: Request, now: u64) -> Plan {
         match request {
+            Request::AgentGrant { agent, grants } => self.agent_grant(agent, grants),
+            Request::AgentRevoke { agent } => self.agent_revoke(agent),
+            Request::ViewerEnroll { agent, credential } => self.viewer_enroll(agent, credential),
+            Request::SessionReport { record } => self.session_report(actor, record, now),
+            Request::Session { instance } => self.session_show(actor, instance),
+            Request::Sessions => self.sessions_list(actor),
+            Request::SessionDrop { instance } => self.session_drop(actor, instance),
+            Request::GoalLeave { goal } => self.goal_leave(actor, goal, now),
+            Request::MemberRemove { goal, member } => self.member_remove(actor, goal, member, now),
+            Request::GoalJoin { ticket } => self.goal_join(actor, ticket, now),
+            Request::GoalInvite { goal, expires_ms } => {
+                self.goal_invite(actor, goal, expires_ms, now)
+            }
+            Request::BlobPut { goal, bytes } => self.blob_put(actor, goal, bytes),
+            Request::BlobGet { goal, hash } => self.blob_get(actor, goal, hash),
+            Request::BlobStat { goal, hashes } => self.blob_stat(actor, goal, hashes),
+            Request::BlobWithdraw { goal, hash } => self.blob_withdraw(actor, goal, hash),
             Request::Status => self.status(actor),
             Request::Shutdown => self.shutdown(),
             Request::AgentEnroll {
@@ -103,24 +146,117 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 grants,
                 credential,
             } => self.agent_enroll(name, grants, credential),
-            other => Err(not_implemented(&other)),
+            Request::GoalCreate { title } => self.goal_create(actor, title, now),
+            Request::GoalGrant {
+                goal,
+                agent,
+                grants,
+            } => self.goal_grant(actor, goal, agent, grants),
+            Request::GoalStatus { goal } => self.goal_status(actor, goal),
+            Request::WorkspaceSet { goal, binding } => self.workspace_set(actor, goal, binding),
+            Request::Board { goal } => self.board(actor, goal),
+            Request::Task { goal, task } => self.task_show(actor, goal, task),
+            Request::Event { goal, event } => self.event_show(actor, goal, event),
+            Request::TaskPropose {
+                goal,
+                text,
+                input,
+                depends_on,
+                deadline_ms,
+                max_attempts,
+            } => self.task_propose(
+                actor,
+                goal,
+                text,
+                input,
+                depends_on,
+                deadline_ms,
+                max_attempts,
+                now,
+            ),
+            Request::TaskAssign {
+                goal,
+                task,
+                assignee,
+            } => self.task_assign(actor, goal, task, assignee, now),
+            Request::TaskCancel { goal, assignment } => {
+                self.task_cancel(actor, goal, assignment, now)
+            }
+            Request::TaskAuthorize {
+                goal,
+                assignment,
+                takeover,
+            } => self.task_authorize(actor, goal, assignment, takeover),
+            Request::TaskClaim { goal, assignment } => {
+                self.task_claim(actor, goal, assignment, now)
+            }
+            Request::TaskTakeover { goal, assignment } => {
+                self.task_takeover(actor, goal, assignment)
+            }
+            Request::TaskDecline { goal, assignment } => {
+                self.task_decline(actor, goal, assignment, now)
+            }
+            Request::TaskProgress {
+                goal,
+                assignment,
+                generation,
+                text,
+            } => {
+                let body = Body::Progress { assignment };
+                self.claim_bound(actor, goal, assignment, generation, body, &text, now)
+            }
+            Request::TaskSubmit {
+                goal,
+                assignment,
+                generation,
+                summary,
+                base,
+                patch,
+                artifacts,
+            } => self.task_submit(
+                actor, goal, assignment, generation, summary, base, patch, artifacts, now,
+            ),
+            Request::TaskFail {
+                goal,
+                assignment,
+                generation,
+                reason,
+            } => {
+                let body = Body::AttemptFailed { assignment };
+                self.claim_bound(actor, goal, assignment, generation, body, &reason, now)
+            }
+            Request::CancelAcknowledge {
+                goal,
+                cancel,
+                generation,
+                outcome,
+            } => self.cancel_acknowledge(actor, goal, cancel, generation, outcome, now),
+            Request::ResultAccept { goal, result, head } => {
+                self.result_accept(actor, goal, result, head, now)
+            }
+            Request::ResultReject {
+                goal,
+                result,
+                reason,
+            } => self.result_reject(actor, goal, result, reason, now),
+            Request::Pending { goal } => self.pending(actor, goal),
+            Request::Events { goal, after, limit } => self.events(actor, goal, after, limit),
+            Request::NoteAdd {
+                goal,
+                about,
+                supersedes,
+                text,
+            } => self.note_add(actor, goal, about, supersedes, text, now),
+            Request::Notes { goal, about } => self.notes(actor, goal, about),
+            Request::DocRead { goal, doc } => self.doc_read(actor, goal, doc),
+            Request::DocRevise {
+                goal,
+                doc,
+                base,
+                text,
+            } => self.doc_revise(actor, goal, doc, base, text, now),
+            Request::DocAccept { goal, revision } => self.doc_accept(actor, goal, revision, now),
+            Request::Wait { .. } => unreachable!("wait is dispatched before planning"),
         }
-    }
-
-    /// Revisits a parked wait.
-    pub(super) fn resume_wait(
-        &mut self,
-        _conn: ConnId,
-        parked: &Parked,
-        _timed_out: bool,
-        _now_ms: u64,
-    ) -> Step {
-        Step::Reply(ResponseFrame {
-            id: parked.request_id,
-            result: Err(ApiError::new(
-                ErrorCode::Unavailable,
-                "wait is not implemented in this build",
-            )),
-        })
     }
 }

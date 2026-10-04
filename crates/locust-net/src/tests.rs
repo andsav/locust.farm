@@ -240,12 +240,101 @@ fn memory_capacity_is_explicit_and_nonzero() {
 
 fn local_config(key: SecretKey) -> EndpointConfig {
     EndpointConfig {
+        lookup: crate::Lookup::DISABLED,
         secret_key: key.to_bytes(),
         relays: RelayConfig::Disabled,
         ip_transport: IpTransport::Bind((Ipv4Addr::LOCALHOST, 0).into()),
         port_mapping: false,
         budget: TransportBudget::default(),
     }
+}
+
+/// Explicit environment qualifications, separate from the isolated loopback suite.
+#[tokio::test]
+#[ignore = "requires local multicast networking; run explicitly for T1 qualification"]
+async fn mdns_finds_a_peer_by_key_without_contact_hints() {
+    let config = || EndpointConfig {
+        lookup: Lookup {
+            local_network: true,
+            mainline: false,
+        },
+        ip_transport: IpTransport::Default,
+        ..local_config(SecretKey::generate())
+    };
+    let left = Endpoint::bind(config()).await.unwrap();
+    let right = Endpoint::bind(config()).await.unwrap();
+    let result = tokio::time::timeout(
+        Duration::from_secs(30),
+        key_only_roundtrip(&left, &right, false),
+    )
+    .await;
+    tokio::join!(left.close(), right.close());
+    result
+        .expect("mDNS qualification watchdog")
+        .expect("mDNS key-only exchange");
+}
+
+#[tokio::test]
+#[ignore = "uses public Mainline DHT and n0 relays; run explicitly for T1 qualification"]
+async fn mainline_finds_a_peer_by_key_without_contact_hints() {
+    let config = || EndpointConfig {
+        lookup: Lookup {
+            local_network: false,
+            mainline: true,
+        },
+        relays: RelayConfig::N0,
+        ip_transport: IpTransport::Default,
+        ..local_config(SecretKey::generate())
+    };
+    let left = Endpoint::bind(config()).await.unwrap();
+    let right = Endpoint::bind(config()).await.unwrap();
+    let result = tokio::time::timeout(Duration::from_secs(120), async {
+        tokio::join!(left.online(), right.online());
+        key_only_roundtrip(&left, &right, true).await
+    })
+    .await;
+    tokio::join!(left.close(), right.close());
+    result
+        .expect("Mainline qualification watchdog")
+        .expect("Mainline key-only exchange");
+}
+
+async fn key_only_roundtrip(left: &Endpoint, right: &Endpoint, retry: bool) -> Result<(), String> {
+    let (outgoing, incoming) = loop {
+        match tokio::try_join!(left.connect(right.id(), &[]), async {
+            right
+                .accept()
+                .await
+                .ok_or(TransportError::Handshake)?
+                .accept()
+                .await
+        }) {
+            Ok(pair) => break pair,
+            Err(_) if retry => tokio::time::sleep(Duration::from_secs(2)).await,
+            Err(error) => return Err(error.to_string()),
+        }
+    };
+    let mut sent = outgoing
+        .open_link(FrameLimits::hello())
+        .await
+        .map_err(|e| e.to_string())?;
+    let hello = SyncMessage::Hello {
+        version: 0,
+        goal: GoalId([83; 32]),
+    };
+    sent.send(&hello).await.map_err(|e| e.to_string())?;
+    let mut received = incoming
+        .accept_link(FrameLimits::hello())
+        .await
+        .map_err(|e| e.to_string())?;
+    assert_eq!(
+        received.recv().await.map_err(|e| e.to_string())?,
+        Some(hello)
+    );
+    assert_eq!(outgoing.remote_id(), right.id());
+    assert_eq!(incoming.remote_id(), left.id());
+    eprintln!("key-only exchange paths: {:?}", outgoing.path_snapshot());
+    Ok(())
 }
 
 #[tokio::test]

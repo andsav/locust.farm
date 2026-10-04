@@ -1,14 +1,18 @@
 //! Filling `Events` frames up to the count and byte limits.
 
 use locust_proto::event::WireEvent;
+#[cfg(test)]
 use locust_proto::limits::{MAX_EVENTS_PER_BATCH, MAX_PEER_FRAME_BYTES};
+#[cfg(test)]
 use locust_proto::sync::SyncMessage;
 
 /// Encoded bytes of an `Events` frame around its events: the variant index
 /// and the count, at most two varint bytes for [`MAX_EVENTS_PER_BATCH`].
+#[cfg(test)]
 const FRAME_OVERHEAD: usize = 1 + 2;
 
 /// Bytes the events of one frame may take.
+#[cfg(test)]
 const BUDGET: usize = MAX_PEER_FRAME_BYTES - FRAME_OVERHEAD;
 
 /// The encoded size of one event inside a frame: the header's length varint,
@@ -20,12 +24,14 @@ pub(crate) fn encoded_len(event: &WireEvent) -> usize {
 }
 
 /// Events waiting to go out in one frame.
+#[cfg(test)]
 #[derive(Debug, Default)]
 pub(crate) struct Batch {
     events: Vec<WireEvent>,
     bytes: usize,
 }
 
+#[cfg(test)]
 impl Batch {
     /// Adds `event`, first sending the frame being filled when the event
     /// would take it past either limit. Callers add each author's events in

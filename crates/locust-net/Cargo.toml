@@ -10,6 +10,8 @@ testkit = []
 
 [dependencies]
 iroh.workspace = true
+iroh-mainline-address-lookup.workspace = true
+iroh-mdns-address-lookup.workspace = true
 locust-proto.workspace = true
 tokio.workspace = true
 tracing.workspace = true

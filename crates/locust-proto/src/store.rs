@@ -235,6 +235,20 @@ pub trait Store {
     /// The number of bytes staged for `hash`; 0 when none are.
     fn staged_len(&self, hash: &BlobHash) -> Result<u64, StoreError>;
 
+    /// Reads at most `len` unverified staged bytes from `offset`, without
+    /// promoting them. None means no staged copy; an exhausted range is
+    /// empty. Allows restart-safe format checks before promotion.
+    fn staged_range(
+        &self,
+        hash: &BlobHash,
+        offset: u64,
+        len: usize,
+    ) -> Result<Option<Vec<u8>>, StoreError>;
+
+    /// Durably discards only the staged copy. An existing held object is
+    /// untouched. Repeating the discard is harmless.
+    fn discard_staged_blob(&mut self, hash: &BlobHash) -> Result<(), StoreError>;
+
     /// Ends the receipt of object `hash`. If the staged bytes hash to `hash`
     /// they become a held object (an object already held is left untouched)
     /// and this returns `true`; otherwise they are discarded and this returns
@@ -428,6 +442,26 @@ impl Store for MemStore {
         Ok(self.state().staged.get(hash).map_or(0, Vec::len) as u64)
     }
 
+    fn staged_range(
+        &self,
+        hash: &BlobHash,
+        offset: u64,
+        len: usize,
+    ) -> Result<Option<Vec<u8>>, StoreError> {
+        let state = self.state();
+        let Some(bytes) = state.staged.get(hash) else {
+            return Ok(None);
+        };
+        let start = usize::try_from(offset).map_or(bytes.len(), |offset| offset.min(bytes.len()));
+        let end = start.saturating_add(len).min(bytes.len());
+        Ok(Some(bytes[start..end].to_vec()))
+    }
+
+    fn discard_staged_blob(&mut self, hash: &BlobHash) -> Result<(), StoreError> {
+        self.state().staged.remove(hash);
+        Ok(())
+    }
+
     fn finish_blob(&mut self, hash: &BlobHash) -> Result<bool, StoreError> {
         let mut state = self.state();
         let staged = state.staged.remove(hash).unwrap_or_default();
@@ -538,6 +572,7 @@ pub mod conformance {
         let blob = Blob::new(b"kept across a restart".to_vec());
         let partial = b"staged then resumed".to_vec();
         let partial_hash = content_hash(&partial);
+        let discarded_hash = content_hash(b"discarded before promotion");
         let initial = Commit {
             events: [first.clone(), other.clone()].concat(),
             blobs: vec![blob.clone()],
@@ -550,6 +585,7 @@ pub mod conformance {
             assert_eq!(store.goals(), Ok(Vec::new()), "the first open is empty");
             store.commit(&initial).unwrap();
             assert_eq!(store.stage_blob(&partial_hash, 0, &partial[..6]), Ok(6));
+            store.stage_blob(&discarded_hash, 0, b"discarded").unwrap();
         }
 
         let next = owner.event(goal, Some(first[0].id()), note());
@@ -571,6 +607,10 @@ pub mod conformance {
             assert_eq!(store.blob(&blob.hash()), Ok(Some(blob.bytes().to_vec())));
             assert_eq!(store.get(Space::Key, &[0x00, 0xff]), Ok(Some(Vec::new())));
             assert_eq!(store.staged_len(&partial_hash), Ok(6));
+            assert_eq!(
+                store.staged_range(&partial_hash, 0, 6),
+                Ok(Some(partial[..6].to_vec()))
+            );
 
             // Replay keeps positions; a new event takes the next one.
             store.commit(&initial).unwrap();
@@ -579,6 +619,7 @@ pub mod conformance {
                 store.stage_blob(&partial_hash, 6, &partial[6..]),
                 Ok(partial.len() as u64)
             );
+            store.discard_staged_blob(&discarded_hash).unwrap();
         }
 
         {
@@ -587,6 +628,9 @@ pub mod conformance {
             assert_eq!(positions(&log), [3, 4]);
             assert_eq!(log[1].1, next);
             assert_eq!(store.staged_len(&partial_hash), Ok(partial.len() as u64));
+            assert_eq!(store.staged_len(&discarded_hash), Ok(0));
+            assert_eq!(store.staged_range(&discarded_hash, 0, 20), Ok(None));
+            assert_eq!(store.blob_len(&discarded_hash), Ok(None));
             assert_eq!(store.finish_blob(&partial_hash), Ok(true));
         }
 
@@ -1073,6 +1117,16 @@ pub mod conformance {
 
         assert_eq!(store.staged_len(&hash), Ok(0));
         assert_eq!(store.stage_blob(&hash, 0, b"0123"), Ok(4));
+        assert_eq!(store.staged_range(&hash, 0, 2), Ok(Some(b"01".to_vec())));
+        assert_eq!(
+            store.staged_range(&hash, 2, usize::MAX),
+            Ok(Some(b"23".to_vec()))
+        );
+        assert_eq!(
+            store.staged_range(&hash, u64::MAX, usize::MAX),
+            Ok(Some(Vec::new()))
+        );
+        assert_eq!(store.staged_range(&BlobHash([9; 32]), 0, 2), Ok(None));
         // A repeated, overlapping or early chunk changes nothing.
         assert_eq!(store.stage_blob(&hash, 0, b"0123"), Ok(4));
         assert_eq!(store.stage_blob(&hash, 2, b"23456"), Ok(4));
@@ -1097,6 +1151,11 @@ pub mod conformance {
         assert_eq!(store.staged_len(&tampered), Ok(0));
         assert_eq!(store.blob_len(&tampered), Ok(None));
 
+        store.stage_blob(&hash, 0, b"bad staged copy").unwrap();
+        store.discard_staged_blob(&hash).unwrap();
+        store.discard_staged_blob(&hash).unwrap();
+        assert_eq!(store.staged_range(&hash, 0, 10), Ok(None));
+        assert_eq!(store.blob(&hash), Ok(Some(object.clone())));
         // Receiving an object again leaves the held one untouched.
         assert_eq!(store.stage_blob(&hash, 0, &object), Ok(10));
         assert_eq!(store.finish_blob(&hash), Ok(true));

@@ -42,13 +42,10 @@ pub(crate) struct Files {
 
 impl Files {
     /// Uses `dir`, creating it (and the state directory) owner-only if
-    /// missing.
+    /// missing. Each newly created directory's entry is synced in its
+    /// parent before this returns.
     pub(crate) fn create(dir: PathBuf) -> Result<Self, StoreError> {
-        DirBuilder::new()
-            .recursive(true)
-            .mode(0o700)
-            .create(&dir)
-            .map_err(|error| file("create", &dir, error))?;
+        create_directories(&dir, sync_directory)?;
         Ok(Self { dir })
     }
 
@@ -59,9 +56,7 @@ impl Files {
     /// Makes the directory's entries (created, renamed or removed files)
     /// durable.
     pub(crate) fn sync(&self) -> Result<(), StoreError> {
-        File::open(&self.dir)
-            .and_then(|dir| dir.sync_all())
-            .map_err(|error| file("sync", &self.dir, error))
+        sync_directory(&self.dir).map_err(|error| file("sync", &self.dir, error))
     }
 
     /// Writes an object under its final name, durable except for the
@@ -131,6 +126,27 @@ impl Files {
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(0),
             Err(error) => Err(file("inspect", &path, error)),
         }
+    }
+
+    pub(crate) fn staged_range(
+        &self,
+        hash: &BlobHash,
+        offset: u64,
+        len: usize,
+    ) -> Result<Option<Vec<u8>>, StoreError> {
+        let Some(staged) = self.open_staged(hash)? else {
+            return Ok(None);
+        };
+        let offset = offset.min(staged.len);
+        let len = u64::try_from(len)
+            .unwrap_or(u64::MAX)
+            .min(staged.len - offset) as usize;
+        let mut bytes = vec![0; len];
+        staged
+            .file
+            .read_exact_at(&mut bytes, offset)
+            .map_err(|error| file("read", &staged.path, error))?;
+        Ok(Some(bytes))
     }
 
     /// Appends `bytes` to the staged copy of `hash` if `offset` is its
@@ -257,6 +273,65 @@ impl Files {
     }
 }
 
+fn sync_directory(path: &Path) -> io::Result<()> {
+    File::open(path)?.sync_all()
+}
+
+/// Creates missing ancestors from the first existing directory down. The
+/// sync operation is supplied so tests can inject a failed parent sync.
+fn create_directories(
+    dir: &Path,
+    mut sync_parent: impl FnMut(&Path) -> io::Result<()>,
+) -> Result<(), StoreError> {
+    let mut missing = Vec::new();
+    let mut ancestor = dir;
+    loop {
+        match fs::metadata(ancestor) {
+            Ok(metadata) if metadata.is_dir() => {
+                // The first existing ancestor may be the directory whose
+                // creation succeeded but whose parent sync failed on the
+                // previous attempt. Repair it before creating descendants.
+                if ancestor.parent().is_some() {
+                    let parent = parent_directory(ancestor);
+                    sync_parent(parent).map_err(|error| file("sync", parent, error))?;
+                }
+                break;
+            }
+            Ok(_) => {
+                return Err(file(
+                    "create",
+                    ancestor,
+                    io::Error::from(io::ErrorKind::NotADirectory),
+                ));
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                missing.push(ancestor);
+                ancestor = parent_directory(ancestor);
+            }
+            Err(error) => return Err(file("inspect", ancestor, error)),
+        }
+    }
+
+    for path in missing.into_iter().rev() {
+        match DirBuilder::new().mode(0o700).create(path) {
+            Ok(()) => {}
+            // Another creator may have won the race. Its directory entry
+            // must also be durable before our open succeeds.
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists && path.is_dir() => {}
+            Err(error) => return Err(file("create", path, error)),
+        }
+        let parent = parent_directory(path);
+        sync_parent(parent).map_err(|error| file("sync", parent, error))?;
+    }
+    Ok(())
+}
+
+fn parent_directory(path: &Path) -> &Path {
+    path.parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+}
+
 /// An open staged copy, read once to promote it.
 pub(crate) struct Staged {
     file: File,
@@ -318,6 +393,125 @@ fn wrong_length(path: &Path, actual: u64, recorded: u64) -> StoreError {
 mod tests {
     use super::*;
     use locust_proto::crypto::content_hash;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn newly_created_ancestors_sync_their_parents_in_order() {
+        let root = tempfile::tempdir().unwrap();
+        let state = root.path().join("ancestor/state");
+        let blobs = state.join("blobs");
+        let mut synced = Vec::new();
+        create_directories(&blobs, |parent| {
+            synced.push(parent.to_path_buf());
+            sync_directory(parent)
+        })
+        .unwrap();
+        assert_eq!(
+            synced,
+            [
+                parent_directory(root.path()),
+                root.path(),
+                &root.path().join("ancestor"),
+                &state
+            ]
+        );
+        for path in [root.path().join("ancestor"), state.clone(), blobs.clone()] {
+            assert_eq!(
+                fs::metadata(path).unwrap().permissions().mode() & 0o777,
+                0o700
+            );
+        }
+        // Reopening repairs only the existing leaf's parent entry.
+        synced.clear();
+        create_directories(&blobs, |parent| {
+            synced.push(parent.to_path_buf());
+            sync_directory(parent)
+        })
+        .unwrap();
+        assert_eq!(synced, [state]);
+    }
+
+    #[test]
+    fn a_failed_parent_sync_stops_directory_creation_and_is_reported() {
+        for fail_at in 0..3 {
+            let root = tempfile::tempdir().unwrap();
+            let paths = [
+                root.path().join("ancestor"),
+                root.path().join("ancestor/state"),
+                root.path().join("ancestor/state/blobs"),
+            ];
+            let mut syncs = 0;
+            let error = create_directories(&paths[2], |parent| {
+                if parent == parent_directory(root.path()) {
+                    return sync_directory(parent);
+                }
+                let index = syncs;
+                syncs += 1;
+                if index == fail_at {
+                    Err(io::Error::other("injected parent sync failure"))
+                } else {
+                    Ok(())
+                }
+            })
+            .unwrap_err();
+            let parent = parent_directory(&paths[fail_at]);
+            assert_eq!(
+                error,
+                StoreError::Failed(format!(
+                    "cannot sync {}: injected parent sync failure",
+                    parent.display()
+                ))
+            );
+            assert_eq!(syncs, fail_at + 1);
+            for (index, path) in paths.iter().enumerate() {
+                assert_eq!(path.exists(), index <= fail_at);
+            }
+            // The retry repairs the closest surviving ancestor, then creates
+            // and syncs the remaining descendants. Earlier ancestors need no
+            // additional sync because the first attempt stopped at the failure.
+            let mut repaired = Vec::new();
+            create_directories(&paths[2], |parent| {
+                repaired.push(parent.to_path_buf());
+                sync_directory(parent)
+            })
+            .unwrap();
+            assert_eq!(
+                repaired,
+                paths[fail_at..]
+                    .iter()
+                    .map(|path| parent_directory(path).to_path_buf())
+                    .collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn an_existing_directory_still_propagates_a_failed_publication_repair() {
+        let root = tempfile::tempdir().unwrap();
+        let error = create_directories(root.path(), |_| {
+            Err(io::Error::other("injected repair failure"))
+        })
+        .unwrap_err();
+        assert_eq!(
+            error,
+            StoreError::Failed(format!(
+                "cannot sync {}: injected repair failure",
+                parent_directory(root.path()).display()
+            ))
+        );
+    }
+
+    #[test]
+    fn a_file_in_the_directory_hierarchy_is_reported_without_syncing() {
+        let root = tempfile::tempdir().unwrap();
+        let blocker = root.path().join("state");
+        fs::write(&blocker, b"not a directory").unwrap();
+        let result = create_directories(&blocker.join("blobs"), |_| {
+            panic!("no directory was created")
+        });
+        assert!(matches!(result, Err(StoreError::Failed(_))));
+        assert_eq!(fs::read(blocker).unwrap(), b"not a directory");
+    }
 
     #[test]
     fn hashing_in_pieces_equals_hashing_the_whole_object() {

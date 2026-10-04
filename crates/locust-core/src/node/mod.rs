@@ -7,25 +7,32 @@
 //! (`Node::absorb`), so memory is always what a restart would load.
 //!
 //! Module map: `identity` (who the daemon is, its principals), `callers`
-//! (connections, who a request acts as), `commit` (the single write path),
-//! `requests` (one module per family of operations).
+//! (connections, who a request acts as), `sessions` (sessions and claims),
+//! `entry`, `local` and `feed` (one goal as the node holds it), `authoring`
+//! (signing events), `commit` (the single write path), `views` (what reads
+//! answer with), `requests` (one module per family of operations), `peers`
+//! (the transport's side).
 
-// Removed once every family of requests exists; until then some shared
-// helpers have no caller yet.
-#![allow(dead_code)]
-
+mod access;
+mod authoring;
 mod callers;
 mod commit;
+mod entry;
+mod feed;
 mod identity;
+mod local;
 mod peers;
 mod records;
+mod replica;
 mod requests;
+mod sessions;
+mod views;
 
 #[cfg(test)]
 mod tests;
 
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use locust_proto::API_VERSION;
 use locust_proto::api::{ApiError, Caller, ClientHello, ErrorCode, RequestFrame, ServerHello};
@@ -34,11 +41,23 @@ use locust_proto::id::GoalId;
 use locust_proto::limits::MAX_BLOB_BYTES;
 use locust_proto::store::{Commit, Space, Store, StoreError};
 
+use crate::goal::Goal;
 use callers::Conn;
+use entry::Entry;
 use identity::{Identity, Principals};
+use sessions::Sessions;
 
-/// Every space the node keeps records in, in the order they are loaded.
-const SPACES: [Space; 2] = [Space::Identity, Space::Agent];
+/// Every space whose records the node keeps in memory, in the order they
+/// are loaded.
+const SPACES: [Space; 7] = [
+    Space::Identity,
+    Space::Agent,
+    Space::Session,
+    Space::Goal,
+    Space::Key,
+    Space::Claim,
+    Space::Cursor,
+];
 
 /// The daemon's state machine over a store `S` and a random source `E`.
 pub struct Node<S, E> {
@@ -49,9 +68,20 @@ pub struct Node<S, E> {
     daemon_version: String,
     identity: Identity,
     principals: Principals,
+    sessions: Sessions,
+    /// Every goal held or being joined.
+    goals: BTreeMap<GoalId, Entry>,
     conns: HashMap<ConnId, Conn>,
     /// Goals whose revision rose since `take_changed` was last called.
     changed: BTreeSet<GoalId>,
+    /// Goals whose events changed since the peer driver last asked.
+    outbound: BTreeSet<GoalId>,
+    /// Set when a failed commit could not be undone in memory: the node
+    /// answers nothing more until it is reopened.
+    peer_driver: crate::sync::Driver,
+    peer_connections: BTreeSet<locust_proto::id::EndpointId>,
+    replica_goal: Option<GoalId>,
+    failed: bool,
     stop: bool,
 }
 
@@ -95,10 +125,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
             daemon_version,
             identity,
             principals: Principals::default(),
+            sessions: Sessions::default(),
+            goals: BTreeMap::new(),
             conns: HashMap::new(),
             changed: BTreeSet::new(),
+            outbound: BTreeSet::new(),
+            peer_driver: crate::sync::Driver::default(),
+            peer_connections: BTreeSet::new(),
+            replica_goal: None,
+            failed: false,
             stop: false,
         };
+        for id in node.store.goals()? {
+            let goal = Goal::load(&node.store, id)?;
+            node.goals.insert(id, Entry::loaded(goal));
+        }
         for space in SPACES {
             for (key, value) in node.store.scan(space, &[])? {
                 node.absorb(space, &key, Some(&value))?;
@@ -120,17 +161,49 @@ impl<S: Store, E: Entropy> Node<S, E> {
         match space {
             Space::Identity => self.identity.absorb(key, value),
             Space::Agent => self.principals.absorb(key, value),
+            Space::Session => self.sessions.absorb(key, value),
+            Space::Goal => {
+                let goal = local::goal_of(key)?;
+                self.entry_mut(goal).local.absorb(key, value)
+            }
+            Space::Key => {
+                let (goal, epoch) = entry::key_subject(key)?;
+                if let Some(value) = value {
+                    let content_key = records::read(value)?;
+                    self.entry_mut(goal).keys.insert(epoch, content_key);
+                }
+                Ok(())
+            }
+            Space::Claim => {
+                let (goal, assignment) = sessions::claim_subject(key)?;
+                let claims = &mut self.entry_mut(goal).claims;
+                match value {
+                    Some(value) => {
+                        claims.insert(assignment, records::read(value)?);
+                    }
+                    None => {
+                        claims.remove(&assignment);
+                    }
+                }
+                Ok(())
+            }
+            Space::Cursor => match value {
+                Some(value) if feed::is_entry(key) => {
+                    let goal = feed::goal_of(key)?;
+                    self.entry_mut(goal).feed.absorb(key, value)
+                }
+                _ => Ok(()),
+            },
             _ => Ok(()),
         }
     }
 
-    /// One entry per goal and local principal in it; only `principal`'s own
-    /// when one is named.
-    fn goal_summaries(
-        &self,
-        _principal: Option<locust_proto::id::PublicKey>,
-    ) -> Vec<locust_proto::api::GoalSummary> {
-        Vec::new()
+    /// The entry of `goal`, created with nothing held when a local record
+    /// is the first thing known about it (a join in progress).
+    fn entry_mut(&mut self, goal: GoalId) -> &mut Entry {
+        self.goals
+            .entry(goal)
+            .or_insert_with(|| Entry::new(Goal::new(goal)))
     }
 
     fn refuse(&self, code: ErrorCode, message: &'static str) -> ServerHello {

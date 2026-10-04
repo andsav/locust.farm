@@ -102,13 +102,38 @@ impl Default for TransportBudget {
     }
 }
 
-/// Caller-owned endpoint identity and network choices. No discovery is enabled.
+/// Address publication and lookup. The daemon uses both; isolated probes
+/// can disable them and use only explicit hints.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Lookup {
+    pub local_network: bool,
+    pub mainline: bool,
+}
+
+impl Lookup {
+    pub const DISABLED: Self = Self {
+        local_network: false,
+        mainline: false,
+    };
+}
+
+impl Default for Lookup {
+    fn default() -> Self {
+        Self {
+            local_network: true,
+            mainline: true,
+        }
+    }
+}
+
+/// Caller-owned endpoint identity and network choices.
 #[derive(Clone)]
 pub struct EndpointConfig {
     pub secret_key: [u8; 32],
     pub relays: RelayConfig,
     pub ip_transport: IpTransport,
     pub port_mapping: bool,
+    pub lookup: Lookup,
     pub budget: TransportBudget,
 }
 
@@ -126,6 +151,7 @@ impl fmt::Debug for EndpointConfig {
             )
             .field("ip_transport", &self.ip_transport)
             .field("port_mapping", &self.port_mapping)
+            .field("lookup", &self.lookup)
             .field("budget", &self.budget)
             .finish()
     }
@@ -219,6 +245,14 @@ impl Endpoint {
             .transport_config(transport);
         if !config.port_mapping {
             builder = builder.portmapper_config(PortmapperConfig::Disabled);
+        }
+        if config.lookup.local_network {
+            builder =
+                builder.address_lookup(iroh_mdns_address_lookup::MdnsAddressLookup::builder());
+        }
+        if config.lookup.mainline {
+            builder =
+                builder.address_lookup(iroh_mainline_address_lookup::DhtAddressLookup::builder());
         }
         builder = match config.ip_transport {
             IpTransport::Default => builder,
@@ -364,6 +398,11 @@ impl IncomingConnection {
 pub struct PeerConnection(Connection);
 
 impl PeerConnection {
+    /// Whether the transport has already observed this connection closing.
+    pub fn is_closed(&self) -> bool {
+        self.0.close_reason().is_some()
+    }
+
     /// Identity established by Iroh's handshake, never by peer message content.
     pub fn remote_id(&self) -> EndpointId {
         EndpointId(*self.0.remote_id().as_bytes())

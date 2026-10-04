@@ -32,7 +32,8 @@ pub struct SqliteStore {
 }
 
 impl SqliteStore {
-    /// Opens the state directory `dir`, creating it owner-only if missing,
+    /// Opens the state directory `dir`, durably creating it and its missing
+    /// ancestors owner-only if needed,
     /// with its database (created or migrated to this binary's schema) and
     /// its object directory, from which the leftovers of an interrupted
     /// commit are removed.
@@ -218,6 +219,21 @@ impl Store for SqliteStore {
     fn staged_len(&self, hash: &BlobHash) -> Result<u64, StoreError> {
         self.usable()?;
         self.files.staged_len(hash)
+    }
+
+    fn staged_range(
+        &self,
+        hash: &BlobHash,
+        offset: u64,
+        len: usize,
+    ) -> Result<Option<Vec<u8>>, StoreError> {
+        self.usable()?;
+        self.files.staged_range(hash, offset, len)
+    }
+
+    fn discard_staged_blob(&mut self, hash: &BlobHash) -> Result<(), StoreError> {
+        self.usable()?;
+        self.files.discard_staged(hash)
     }
 
     /// A small copy is verified in memory and moved into the database; a
