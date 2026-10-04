@@ -20,4 +20,18 @@ Found by the scenario runner against the candidate, before the [remediation](t1-
 
 SIM-4, for completeness and not a head start: with `LOCUST_LOOKUP=none` a peer that moves is never found again and two members that are not the coordinator never connect, because only a joiner stores hints and only the ticket's. That is the expected cost of turning discovery off; carrying addresses between members would be a design change.
 
+## How quickly to give up: a recommendation for SIM-2 and SIM-3
+
+The principle: giving up wrongly is cheap here and waiting is not. A reconnect costs one handshake and an exchange that was cut resumes where it stopped, while a stall holds the only exchange slot for that goal and peer and the person waits. So the deadlines should sit a small multiple above the slowest healthy case, not at a round 30 seconds. Healthy cases measured so far: a direct path answers in a few milliseconds, the relay path between the two Macs in about 57 ms, local lookup in about a second, and a DHT lookup in 6 to 7 seconds.
+
+| Situation | Now | Recommended | Why |
+|---|---|---|---|
+| A new connection arrives from an endpoint that already has one | The older connection keeps being used until it times out | The newest connection replaces the older ones at once | No timeout is needed: a peer that reconnects has proved the old connection dead. This alone removes the 30-second lag of SIM-2, because the restarted daemon dials its peers as soon as it has something to send |
+| The peer is silent on an open connection | 30 seconds | 15 seconds, with the existing 5-second heartbeat | Three missed heartbeats. The transport library uses the same figure for direct paths. A Wi-Fi blip of a few seconds survives; a dead process or a sleeping laptop is noticed in half the time |
+| Dialing with a remembered address | 30 seconds | 5 seconds, then dial by key alone | A remembered address either answers within a second or is stale; a stale one currently blocks discovery, which is why a moved coordinator takes 30 seconds to reach and a moved worker (dialed by key) takes at most 6 |
+| Dialing by key alone, through discovery | 30 seconds | Keep 30 seconds | The DHT needs 6 to 7 seconds when healthy and more when not |
+| An exchange whose peer is alive but makes no progress | 30 seconds | Keep 30 seconds | This is the backstop for a stalled application, and a 1 MiB frame on a slow link legitimately takes many seconds |
+
+After a dial succeeds, store the address that worked, so the remembered address stops being the ticket's.
+
 SIM-1 and SIM-5 are small and local. SIM-2 and SIM-3 share a cause, a 30-second wait on a dead path while holding the only exchange slot, and need one decision about how quickly to give up on a connection or an address.
