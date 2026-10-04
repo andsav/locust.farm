@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "tlc": {
+    "release": "v1.7.4",
+    "version": "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)",
+    "url": "https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar",
+    "sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+  },
+  "java": {
+    "vendor": "Eclipse Adoptium",
+    "runtime_version": "21.0.8+9-LTS",
+    "release": "jdk-21.0.8+9",
+    "platforms": {
+      "Darwin-arm64": {
+        "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.8_9.tar.gz",
+        "sha256": "59422c2292ae4e76b87e00d8808dbe49cffa39af731e08bb0292ddb0af4e0261",
+        "archive": "jdk-macos-aarch64.tar.gz",
+        "java": "jdk-21.0.8+9/Contents/Home/bin/java",
+        "arch": "aarch64"
+      },
+      "Linux-x86_64": {
+        "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jdk_x64_linux_hotspot_21.0.8_9.tar.gz",
+        "sha256": "f2dc5418092c43003db8f9005c4a286e1c0104fea96ccdd49e8ebd037cac9219",
+        "archive": "jdk-linux-x64.tar.gz",
+        "java": "jdk-21.0.8+9/bin/java",
+        "arch": "amd64"
+      }
+    }
+  }
+}
