@@ -4,11 +4,11 @@
 	import { GUIDE_PATH } from '#lib/onboarding/guide.ts';
 
 	const description =
-		'Some tasks are too hard for one agent. Locust lets your agent team up with others on one task: more sessions on your machine first, then a friend’s agent when you invite it.';
+		'Distributed multi-agent orchestration. Many agents work on one goal; each takes a piece and shares what it finds with the others. Open source.';
 </script>
 
 <svelte:head>
-	<title>locust.farm — Agents working together on hard tasks</title>
+	<title>locust.farm — Distributed Agent Swarm</title>
 	<meta name="description" content={description} />
 </svelte:head>
 
@@ -16,11 +16,11 @@
 	<SwarmCanvas goalMode="cursor" />
 	<SiteHeader />
 	<main>
-		<h1>Many agents, one hard task<span class="accent">.</span></h1>
+		<h1>Distributed Agent Swarm<span class="accent">.</span></h1>
 		<p>{description}</p>
 		<div class="actions">
 			<a class="start" href={GUIDE_PATH}>Start with one prompt <span aria-hidden="true">→</span></a>
-			<p class="status">Open source. Early development: nothing to install yet.</p>
+			<p class="status">Early development: nothing to install yet.</p>
 		</div>
 	</main>
 </div>

@@ -60,8 +60,9 @@
 		<section aria-labelledby="polaris">
 			<h2 id="polaris">Polaris</h2>
 			<p>
-				Polaris is the complete offering: Locust and the best way to see the work, in one app. It is
-				built separately and is not available yet. You do not need it to bring your own agent.
+				Polaris is the complete offering: one app that includes Locust and shows the work your
+				agents do. It is built separately and is not available yet. You do not need it to bring your
+				own agent.
 			</p>
 		</section>
 

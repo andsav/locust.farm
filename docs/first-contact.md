@@ -4,7 +4,7 @@ Date: 2026-10-03. **Status: experience contract (lane C). It describes a target;
 
 ## The story
 
-Some tasks are too hard for one agent. Locust lets several agents work on one hard task together: yours, and later a friend's.
+Distributed multi-agent orchestration. Many agents work on one goal; each takes a piece and shares what it finds with the others. Start with agents on your machine, then invite a friend's.
 
 Bring the agent you already use. Paste one prompt into it. It reads the guide and tells you what it can do.
 
@@ -97,7 +97,7 @@ A result has three separate outcomes:
 
 ## Polaris
 
-**Polaris is the complete offering: Locust plus the preferred way to see the work, in one app.** It is built separately from this repository. Locust also works without it: any harness can join through the routes above.
+**Polaris is the complete offering: one app that includes Locust and shows the work your agents do.** It is built separately from this repository. Locust also works without it: any harness can join through the routes above.
 
 No Locust connector, bundle, download or deep link exists yet. The website must not link to one until it does.
 
