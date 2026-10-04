@@ -1,8 +1,9 @@
 # locust.farm
 
-The Locust marketing site: a prerendered SvelteKit page with a WebGL2 swarm
-animation. It is a self-contained npm project with its own `package.json` and
-`node_modules`.
+The Locust marketing site: two prerendered SvelteKit pages over a WebGL2 swarm
+animation. `/` says what Locust is for and links to `/start`, the first-contact
+guide with the entry prompt. It is a self-contained npm project with its own
+`package.json` and `node_modules`.
 
 ```sh
 npm install
@@ -20,9 +21,11 @@ npm prunes the generated `node_modules/$app` directory that `tsconfig.json` exte
 ## Layout
 
 ```text
-src/routes/          The landing page, and the root layout that loads fonts and global styles
+src/routes/          The homepage, the /start guide, and the root layout that loads fonts and global styles
 src/lib/styles/      Design tokens and element defaults
 src/lib/components/  Svelte components
+src/lib/onboarding/  The guide's content and the clipboard helper, in plain TypeScript
+src/lib/site.ts      Header links
 src/lib/swarm/       The swarm animation, in plain TypeScript
 static/              Files served as they are
 ```
@@ -57,6 +60,25 @@ selection). Everything else is scoped to the component that uses it. Sizes are i
 Add a token only when something uses it, and add a palette value before a role that
 needs it.
 
+## First-contact guide
+
+`/start` follows the [first-contact contract](../../docs/first-contact.md). Its
+entry prompt, routing questions and harness routes live in
+[`guide.ts`](src/lib/onboarding/guide.ts); change them together with the contract.
+A test checks that the prompt matches the contract word for word.
+
+- The prompt only points the agent at `https://locust.farm/start`. It carries no
+  command, download, invitation or secret. The address is the canonical one; the
+  page is available locally and is not deployed by this repository.
+- `SETUP_ARTIFACT` is unset because no setup is published. The guide then tells
+  agents to report their harness and capabilities and stop. Set it to lane B's
+  canonical setup location once that exists, and update each route's status from
+  lane B's qualification records only.
+- The copy button reports success only when the clipboard write succeeds. On
+  failure it says so in a live status and selects the prompt for manual copying.
+  Without JavaScript the button is not rendered and the prompt stays selectable.
+- Harness details are native `<details>` elements, so they work without JavaScript.
+
 ## Swarm animation
 
 `SwarmCanvas.svelte` runs [`createSwarm`](src/lib/swarm/swarm.ts) on a canvas. The
@@ -69,7 +91,9 @@ agents. The locust's shape and its Game of Life are plain data on the CPU
 - The simulation advances at a fixed 120 steps per second, independent of the
   display's refresh rate. On a 60 Hz display that is two steps per frame, drawn
   under a single fade of the trail buffer, which is the costly part of a step.
-- The landing page uses `goalMode="cursor"`: the swarm follows the pointer, and
+- The guide draws 700 wandering agents behind its top section, faded out before
+  the details.
+- The homepage uses `goalMode="cursor"`: the swarm follows the pointer, and
   wanders on its own when there is none. `catchUp` sets how much harder agents far
   from the cursor are pulled toward it; 0 gives the design's original, slower chase.
 - Colors come from the `--swarm-*` tokens, read once when the canvas mounts.

@@ -1,15 +1,14 @@
 <script lang="ts">
-	import CopyCommand from '#lib/components/CopyCommand.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import SwarmCanvas from '#lib/components/SwarmCanvas.svelte';
+	import { GUIDE_PATH } from '#lib/onboarding/guide.ts';
 
-	const command = 'locust swarm --goal "…"';
 	const description =
-		'Distributed multi-agent orchestration. Many agents work on one goal; each takes a piece and shares what it finds with the others. Open source.';
+		'Some tasks are too hard for one agent. Locust lets your agent team up with others on one task: more sessions on your machine first, then a friend’s agent when you invite it.';
 </script>
 
 <svelte:head>
-	<title>locust.farm — Distributed Agent Swarm</title>
+	<title>locust.farm — Agents working together on hard tasks</title>
 	<meta name="description" content={description} />
 </svelte:head>
 
@@ -17,10 +16,11 @@
 	<SwarmCanvas goalMode="cursor" />
 	<SiteHeader />
 	<main>
-		<h1>Distributed Agent Swarm<span class="accent">.</span></h1>
+		<h1>Many agents, one hard task<span class="accent">.</span></h1>
 		<p>{description}</p>
 		<div class="actions">
-			<CopyCommand {command} />
+			<a class="start" href={GUIDE_PATH}>Start with one prompt <span aria-hidden="true">→</span></a>
+			<p class="status">Open source. Early development: nothing to install yet.</p>
 		</div>
 	</main>
 </div>
@@ -74,5 +74,45 @@
 		gap: var(--space-16);
 		padding-top: var(--space-18);
 		border-top: var(--border-hairline);
+	}
+
+	.start {
+		display: inline-flex;
+		gap: var(--space-14);
+		align-items: center;
+		min-height: 2.5rem;
+		padding: var(--space-12) var(--space-16);
+		border: 1px solid var(--color-accent);
+		background: var(--color-bg);
+		color: var(--color-text);
+		font: var(--text-code);
+		cursor: pointer;
+		transition-property: background-color, color, scale;
+		transition-duration: 150ms;
+		transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+	}
+
+	.start:hover {
+		background: var(--color-accent);
+		color: var(--color-bg);
+	}
+
+	.start:active {
+		scale: 0.96;
+	}
+
+	.status {
+		color: var(--color-text-faint);
+		font: var(--text-label);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.start {
+			transition: none;
+		}
+
+		.start:active {
+			scale: none;
+		}
 	}
 </style>

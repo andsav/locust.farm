@@ -1,16 +1,15 @@
 <script lang="ts">
-	const links = [
-		{ label: 'docs', href: '#' },
-		{ label: 'protocol', href: '#' },
-		{ label: 'github', href: 'https://github.com/andsav/locust.farm' }
-	];
+	import { page } from '$app/state';
+	import { HOME_PATH, NAV_LINKS } from '#lib/site.ts';
+
+	const current = (href: string) => (page.url.pathname === href ? 'page' : undefined);
 </script>
 
 <header>
-	<span class="brand">locust.farm</span>
+	<a class="brand" href={HOME_PATH} aria-current={current(HOME_PATH)}>locust.farm</a>
 	<nav aria-label="Primary">
-		{#each links as { label, href } (label)}
-			<a {href}>{label}</a>
+		{#each NAV_LINKS as { label, href } (label)}
+			<a {href} aria-current={current(href)}>{label}</a>
 		{/each}
 	</nav>
 </header>
@@ -37,5 +36,20 @@
 	nav {
 		display: flex;
 		gap: var(--space-24);
+	}
+
+	/* The labels are small, so each link's hit area extends past its text without moving it. */
+	a {
+		position: relative;
+	}
+
+	a::after {
+		content: '';
+		position: absolute;
+		inset: calc(-1 * var(--space-14)) calc(-1 * var(--space-12) / 2);
+	}
+
+	nav [aria-current='page'] {
+		color: var(--color-text);
 	}
 </style>

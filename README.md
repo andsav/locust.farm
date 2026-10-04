@@ -50,8 +50,11 @@ before checking. Untracked drafts, heading anchors, and external URLs are exclud
 use ordinary inline Markdown links for local references.
 
 The [locust.farm](sites/locust.farm/README.md) marketing site is a SvelteKit
-project with its own `package.json`. Run `npm install` and `npm run dev` inside
-`sites/locust.farm/`. CI does not check it yet.
+project with its own `package.json`. It has two prerendered pages: the homepage
+and the `/start` guide, which holds the entry prompt from the first-contact
+contract and tells agents to report and stop until setup is published. Run
+`npm install` and `npm run dev` inside `sites/locust.farm/`. CI does not check it
+yet.
 
 Keep disposable logs and experiment output in `output/`. Commit useful findings
 and supporting evidence under `research/` or `docs/` so they are preserved.

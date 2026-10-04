@@ -1,6 +1,6 @@
 # First contact
 
-Date: 2026-10-03. **Status: proposed experience contract (lane C). It describes a target; most steps are not available yet.** Each step's current status is listed below and in the [source review](#current-status). Runtime behavior belongs to lanes A and B; this document asks for it in the [lane C log](lane-c-log.md). Source notes are in [first-contact integrations](../research/first-contact-integrations.md).
+Date: 2026-10-03. **Status: experience contract (lane C). It describes a target; most steps are not available yet.** The entry prompt and the `/start` guide are implemented in the site and available locally; they are not deployed. Each step's current status is listed below and in the [source review](#current-status). Runtime behavior belongs to lanes A and B; this document asks for it in the [lane C log](lane-c-log.md). Source notes are in [first-contact integrations](../research/first-contact-integrations.md).
 
 ## The story
 
@@ -14,11 +14,11 @@ Bring the agent you already use. Paste one prompt into it. It reads the guide an
 
 The prompt points the agent at the guide. It is not an installer. It carries no command, download, invitation or secret.
 
-Proposed text, which the website copies exactly:
+The text, which the website shows and copies exactly:
 
 > Read https://locust.farm/start and follow the instructions for agents. First tell me which harness you are and what you can use. Do not install or change anything until I approve.
 
-The guide at `/start` is the website's (lane C). Executable setup is lane B's canonical artifact. Until that artifact exists, the guide says so and the agent stops after reporting.
+The guide at `/start` is the website's (lane C): [its page](../sites/locust.farm/src/routes/start/+page.svelte) and [its content](../sites/locust.farm/src/lib/onboarding/guide.ts). It is available locally, not deployed. Executable setup is lane B's canonical artifact. Until that artifact exists, the guide says so and the agent stops after reporting.
 
 ## Target journey
 
@@ -26,7 +26,7 @@ A hard task: *a sync bug shows up only under load.* You start locally, then invi
 
 | # | Step | What you see | Status |
 |---|---|---|---|
-| 1 | Paste the prompt | Your agent opens the guide | Target; the guide is being built by lane C |
+| 1 | Paste the prompt | Your agent opens the guide | Prompt and guide available locally, not deployed |
 | 2 | Agent says who it is | Harness, version and mode, and which capabilities it found. Unknowns are named | Target |
 | 3 | Agent shows setup | Every file, configuration entry and service it would add or change, then asks you | Target; needs lane B's setup artifact |
 | 4 | Readiness check | Installed, daemon running, instructions visible, tools reachable: four separate answers | Target; needs the daemon and `locust mcp` |
@@ -53,10 +53,10 @@ The owner made Claude Code, Codex, Droid and pi the first-release baseline ([rel
 
 | Harness | Upstream (2026-10-03) | Locust today | Next prerequisite (owner) |
 |---|---|---|---|
-| Claude Code | Stdio MCP; skills reload live in watched directories; a new top-level skills directory needs `/reload-skills` | Generated MCP registration has component tests only; lane A's review found fixes needed | Default-profile run with `locust mcp`; fix A-R9 `${}` expansion (B) |
-| Codex | Stdio MCP in `config.toml`; skills detected automatically, restart if missing; restart after config changes | Codex 0.153.4 parsed the generated configuration in a disposable profile. Configuration only | Real tool reach and approvals with `locust mcp` (B) |
-| pi | Built-in MCP since v0.99.0, unless an extension owns `/mcp`, it is disabled, or the session uses the SDK; `/reload` after outside changes | Not implemented or qualified | Adapter, and a qualified version and mode (B) |
-| Droid | Stdio MCP; MCP config hot-reloads; a new skill may need a new session; organization policy can block servers | Not implemented or qualified | Adapter; qualify MCP and skill refresh separately (B) |
+| Claude Code | Stdio MCP; skills reload live in watched directories; a new top-level skills directory needs `/reload-skills` | Claude Code 2.1.280 accepted the generated launch arguments in a disposable profile, with no model or account; A-R9 corrected. Configuration only | Real tool reach and approvals with the daemon and `locust mcp` (A, B) |
+| Codex | Stdio MCP in `config.toml`; skills detected automatically, restart if missing; restart after config changes | Codex 0.153.4 parsed the generated configuration in a disposable profile and kept unrelated servers. Configuration only | Real tool reach and approvals with the daemon and `locust mcp` (A, B) |
+| pi | Built-in MCP since v0.99.0, unless an extension owns `/mcp`, it is disabled, or the session uses the SDK; `/reload` after outside changes | Configuration-file merge proposal; no qualification record | The daemon and `locust mcp`, then a qualified version and mode (A, B) |
+| Droid | Stdio MCP; MCP config hot-reloads; a new skill may need a new session; organization policy can block servers | Configuration-file merge proposal; no qualification record | The daemon and `locust mcp`, then MCP and skill refresh qualified separately (A, B) |
 | Any other harness | Unknown until the agent answers the three questions | None | Minimum capability set for a generic route (B) |
 
 ## Readiness and recovery
@@ -124,11 +124,12 @@ These are types from the contract, not a running daemon. The requests to fill th
 
 ## Current status
 
-Source review on 2026-10-03 at `9fbbf74`:
+Source review on 2026-10-03 at `ce0ece6`:
 
 - The [`locust` binary](../crates/locust/src/main.rs) prints `locust`. No daemon, CLI, `locust mcp`, installer, skill or install prompt exists.
 - The [local API](../crates/locust-proto/src/api.rs) is a typed contract; revision 2 of it is still to land ([lane A log](lane-a-log.md)).
 - [Workspace snapshots](../crates/locust-workspace/src/lib.rs) export and materialize; patches are not implemented.
-- Lane B has client configuration for Codex and Claude Code, an MCP fixture and peer links, with component and same-host evidence only ([lane B implementation log](lane-b-implementation-log.md)). Droid and pi adapters are not implemented. The [release ledger](release-evidence.md) has no passed gate and a four-client matrix whose task-flow and lifecycle columns all read "Not run".
+- Lane B prepares MCP configuration for all four baseline clients: launch arguments for Codex and Claude Code, configuration-file merge proposals for Droid and pi. It also has a protected MCP fixture and peer links. Evidence is component tests, installed-client configuration checks for Codex and Claude Code without a model or account, and same-host transport runs ([lane B implementation log](lane-b-implementation-log.md)). The [release ledger](release-evidence.md) has no passed gate and a four-client matrix whose task-flow and lifecycle columns all read "Not run".
+- The website's [homepage](../sites/locust.farm/src/routes/+page.svelte) and [`/start` guide](../sites/locust.farm/src/routes/start/+page.svelte) carry this contract's entry prompt and routing table. They are available locally, not deployed.
 
 **Keeping this current.** When lane A or B lands behavior, it records it in its own log or the release ledger. Lane C then rereads those records, updates the status column, routing table and states here and on the website in the same change, and replaces any caveat the new behavior makes obsolete. A route moves from "None" only when a lane B qualification record exists.
