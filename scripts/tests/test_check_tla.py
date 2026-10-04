@@ -211,6 +211,23 @@ The depth of the complete state graph search is 17.
         self.assertEqual(result["kind"], "runner-fixtures")
         self.assertNotIn("modeled_baseline", result)
 
+    def test_mixed_versions_preserve_both_baselines(self):
+        old = {"source_commit": "a" * 40, "protocol_version": 0}
+        new = {"source_commit": "b" * 40, "protocol_version": 1}
+        cases = [{"kind": "runner-fixture"}, {"kind": "current-safety"},
+                 {"kind": "current-safety", "model_baseline": new}]
+        result = tla.model_scope({"model_baseline": old}, cases)
+        self.assertEqual(result["modeled_baselines"], [old, new])
+        self.assertNotIn("modeled_baseline", result)
+        self.assertFalse(result["runtime_conformance_claimed"])
+        result = tla.model_scope({"model_baseline": old}, cases[2:])
+        self.assertEqual(result["modeled_baseline"], new)
+
+    def test_invalid_case_baseline_cannot_fall_back_to_historical(self):
+        with self.assertRaises(tla.CheckError):
+            tla.model_scope({"model_baseline": {"source_commit": "a" * 40}},
+                            [{"kind": "current-safety", "model_baseline": {}}])
+
 
 if __name__ == "__main__":
     unittest.main()
