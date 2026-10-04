@@ -1,126 +1,126 @@
-//! Tasks as their assignee acts on them: claiming, taking over, declining,
-//! reporting, submitting, failing and answering a cancellation.
-//!
-//! A claim binds an assignment to the session that took it and carries a
-//! generation. Claim-bound writes name the generation the session was given;
-//! a takeover raises it, so the earlier holder's delayed writes are refused
-//! as `Superseded` instead of landing.
-
-use locust_proto::api::{ApiError, ErrorCode, Response};
-use locust_proto::engine::Entropy;
-use locust_proto::event::{Body, CancelOutcome};
-use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
-use locust_proto::store::Store;
-
-use super::tasks::recorded;
+//! Local session fencing is independent of replicated work eligibility.
+use super::tasks::{recorded, task_context};
 use super::{Plan, Planned, answer};
-use crate::goal::{Assignment, Task, TaskState};
 use crate::node::Node;
 use crate::node::access::{authorization_required, conflict, denied, not_found};
 use crate::node::callers::Actor;
 use crate::node::commit::Tx;
 use crate::node::entry::Entry;
 use crate::node::sessions::{ClaimRecord, claim_write};
+use locust_proto::api::{ApiError, ErrorCode, Response};
+use locust_proto::engine::Entropy;
+use locust_proto::event::{AttemptStatus, Body, CancelOutcome, Scope, TaskId};
+use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
+use locust_proto::store::Store;
 
 fn superseded(message: &'static str) -> ApiError {
     ApiError::new(ErrorCode::Superseded, message)
 }
 
-/// The assignment `id` of `principal`, with its task, while it is the task's
-/// current one.
-fn current<'a>(
-    entry: &'a Entry,
-    principal: &PublicKey,
-    id: &EventId,
-) -> Result<(&'a Assignment, &'a Task), ApiError> {
-    let state = entry.state();
-    let assignment = state
-        .assignment(id)
-        .ok_or_else(|| not_found("no such assignment"))?;
-    if assignment.assignee != *principal {
-        return Err(denied("the assignment is for another principal"));
+pub(super) fn active_attempt(
+    entry: &Entry,
+    principal: PublicKey,
+    attempt: EventId,
+) -> Result<&crate::goal::state::Attempt, ApiError> {
+    let found = entry
+        .state()
+        .attempts
+        .get(&attempt)
+        .ok_or_else(|| not_found("no such attempt"))?;
+    if found.author != principal {
+        return Err(denied("the attempt belongs to another principal"));
     }
-    let task = state
-        .task(&assignment.task)
-        .ok_or_else(|| not_found("no such task"))?;
-    if assignment.revoked || task.assignment != Some(*id) || task.accepted.is_some() {
-        return Err(superseded("the assignment is no longer current"));
+    let Scope::Task(task) = found.context.scope else {
+        return Err(conflict("the attempt has no task"));
+    };
+    if task_context(entry, task)? != found.context {
+        return Err(superseded("the attempt belongs to an earlier task round"));
     }
-    Ok((assignment, task))
+    if !matches!(found.status, None | Some(AttemptStatus::Progress)) {
+        return Err(conflict("the attempt has ended"));
+    }
+    Ok(found)
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
-    /// `task.claim`: the assignee's session takes an assignment, or recovers
-    /// the claim it already holds.
-    pub(super) fn task_claim(
+    pub(super) fn attempt_start(
         &self,
         actor: &Actor,
         goal: GoalId,
-        assignment: EventId,
-        now_ms: u64,
+        task: TaskId,
+        offer: Option<EventId>,
+        now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         let instance = actor.session()?;
-        let (found, task) = current(entry, &principal, &assignment)?;
-        if let Some(claim) = entry.claims.get(&assignment) {
-            return if claim.instance == instance {
-                answer(Response::Claimed(claim.view(goal, assignment)))
-            } else {
-                Err(ApiError::new(
-                    ErrorCode::ClaimHeld,
-                    "another session holds the claim",
-                ))
-            };
+        let context = task_context(entry, task)?;
+        // Retrying on the same session recovers its durable claim. Independent
+        // attempts by other sessions remain independent shared facts.
+        for (attempt, claim) in &entry.claims {
+            if claim.instance == instance
+                && claim.principal == principal
+                && let Some(found) = entry.state().attempts.get(attempt)
+                && found.context == context
+                && found.offer == offer
+                && matches!(found.status, None | Some(AttemptStatus::Progress))
+            {
+                return answer(Response::Claimed(claim.view(goal, *attempt)));
+            }
         }
-        if task.state != TaskState::Assigned {
-            return Err(conflict("the assignment is not open to be claimed"));
-        }
-        if !actor.owner_act && !entry.may_claim(&principal, &assignment) {
+        if !actor.owner_act && !entry.may_start(&principal, context) {
             return Err(authorization_required(
-                "no grant lets the principal take this assignment; the owner authorizes it",
+                "the owner must authorize local execution",
             ));
         }
-        let claim = ClaimRecord {
-            task: found.task,
-            instance,
-            generation: 1,
-            principal,
-        };
+        if !entry
+            .goal
+            .can_start(context, principal, offer, &entry.definitions)
+        {
+            return Err(denied("the pinned rules do not permit this attempt"));
+        }
         let mut tx = Tx::none();
         tx.commit
             .local
             .extend(self.sessions.bind(&instance, &principal)?);
-        tx.local(claim_write(&goal, &assignment, &claim));
-        let body = Body::AssignmentAccepted { assignment };
-        self.author(entry, &principal, body, None, now_ms, &mut tx)?;
+        let attempt = self.author(
+            entry,
+            &principal,
+            Body::AttemptStarted { context, offer },
+            None,
+            now,
+            &mut tx,
+        )?;
+        let claim = ClaimRecord {
+            task,
+            instance,
+            generation: 1,
+            principal,
+        };
+        tx.local(claim_write(&goal, &attempt, &claim));
         Ok(Planned {
-            response: Response::Claimed(claim.view(goal, assignment)),
+            response: Response::Claimed(claim.view(goal, attempt)),
             tx,
         })
     }
-
-    /// `task.takeover`: the assignee's session replaces another session's
-    /// claim and fences it by raising the generation.
-    pub(super) fn task_takeover(&self, actor: &Actor, goal: GoalId, assignment: EventId) -> Plan {
+    pub(super) fn attempt_takeover(&self, actor: &Actor, goal: GoalId, attempt: EventId) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         let instance = actor.session()?;
-        current(entry, &principal, &assignment)?;
-        let Some(claim) = entry.claims.get(&assignment) else {
-            return Err(conflict("nobody holds a claim; use task.claim"));
-        };
+        let found = active_attempt(entry, principal, attempt)?;
+        let claim = entry
+            .claims
+            .get(&attempt)
+            .ok_or_else(|| conflict("no local session holds this attempt"))?;
         if claim.instance == instance {
-            return answer(Response::Claimed(claim.view(goal, assignment)));
+            return answer(Response::Claimed(claim.view(goal, attempt)));
         }
         let granted = entry.local.grants(&principal).takeover
             || entry
                 .local
                 .authorized
-                .get(&assignment)
+                .get(&(found.context.round, principal))
                 .is_some_and(|authorization| authorization.takeover);
         if !actor.owner_act && !granted {
-            return Err(authorization_required(
-                "no grant lets the principal take this claim over; the owner authorizes it",
-            ));
+            return Err(authorization_required("the owner must authorize takeover"));
         }
         let taken = ClaimRecord {
             instance,
@@ -134,95 +134,117 @@ impl<S: Store, E: Entropy> Node<S, E> {
         tx.commit
             .local
             .extend(self.sessions.bind(&instance, &principal)?);
-        tx.local(claim_write(&goal, &assignment, &taken))
-            .touch(goal);
+        tx.local(claim_write(&goal, &attempt, &taken)).touch(goal);
         Ok(Planned {
-            response: Response::Claimed(taken.view(goal, assignment)),
+            response: Response::Claimed(taken.view(goal, attempt)),
             tx,
         })
     }
-
-    /// `task.decline`: only before the assignment is claimed.
-    pub(super) fn task_decline(
+    fn check_claim(
         &self,
+        entry: &Entry,
         actor: &Actor,
-        goal: GoalId,
-        assignment: EventId,
-        now_ms: u64,
-    ) -> Plan {
-        let (entry, principal) = self.member(actor, &goal)?;
-        let (_, task) = current(entry, &principal, &assignment)?;
-        if entry.claims.contains_key(&assignment) || task.state != TaskState::Assigned {
-            return Err(conflict("the assignment was already taken"));
-        }
-        let body = Body::AssignmentDeclined { assignment };
-        let mut tx = Tx::none();
-        let event = self.author(entry, &principal, body, None, now_ms, &mut tx)?;
-        recorded(event, tx)
-    }
-
-    /// A claim-bound write: the connection's session holds the claim at
-    /// `generation`, and the attempt is still running.
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn claim_bound(
-        &self,
-        actor: &Actor,
-        goal: GoalId,
-        assignment: EventId,
+        principal: PublicKey,
+        attempt: EventId,
         generation: u32,
-        body: Body,
-        text: &str,
-        now_ms: u64,
-    ) -> Plan {
-        let (entry, principal) = self.member(actor, &goal)?;
-        let instance = actor.session()?;
-        let (found, task) = current(entry, &principal, &assignment)?;
-        let holds = entry
-            .claims
-            .get(&assignment)
-            .is_some_and(|claim| claim.instance == instance && claim.generation == generation);
-        if !holds {
+    ) -> Result<(), ApiError> {
+        let found = active_attempt(entry, principal, attempt)?;
+        if !entry.claims.get(&attempt).is_some_and(|claim| {
+            Some(claim.instance) == actor.session
+                && claim.principal == principal
+                && claim.generation == generation
+        }) {
             return Err(superseded(
-                "the session does not hold the claim at that generation",
+                "the session does not hold this claim generation",
             ));
         }
-        if found.cancel.is_some() {
+        if !found.cancellations.is_empty() {
             return Err(conflict(
-                "cancellation was requested; answer it with cancel.acknowledge",
+                "answer the cancellation before reporting more work",
             ));
         }
-        if task.state != TaskState::Taken {
-            return Err(conflict("the attempt has already ended"));
-        }
-        let mut tx = Tx::none();
-        let event = self.author(entry, &principal, body, Some(text), now_ms, &mut tx)?;
-        recorded(event, tx)
+        Ok(())
     }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn task_submit(
+    #[allow(clippy::too_many_arguments)] // Mirrors the typed API request fields.
+    pub(super) fn attempt_report(
         &self,
         actor: &Actor,
         goal: GoalId,
-        assignment: EventId,
+        attempt: EventId,
         generation: u32,
+        status: AttemptStatus,
+        text: String,
+        now: u64,
+    ) -> Plan {
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.check_claim(entry, actor, principal, attempt, generation)?;
+        let mut tx = Tx::none();
+        let event = self.author(
+            entry,
+            &principal,
+            Body::AttemptReported { attempt, status },
+            Some(&text),
+            now,
+            &mut tx,
+        )?;
+        recorded(event, tx)
+    }
+    #[allow(clippy::too_many_arguments)] // Mirrors the typed API request fields.
+    pub(super) fn contribution_publish(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        task: Option<TaskId>,
+        attempt: Option<EventId>,
+        generation: Option<u32>,
         summary: String,
         base: Option<BlobHash>,
         patch: Option<BlobHash>,
         artifacts: Vec<BlobHash>,
-        now_ms: u64,
+        now: u64,
     ) -> Plan {
-        let body = Body::ResultSubmitted {
-            assignment,
-            base,
-            patch,
-            artifacts,
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
+        let context = if let Some(task) = task {
+            task_context(entry, task)?
+        } else {
+            entry
+                .goal
+                .current_context(Scope::Goal)
+                .ok_or_else(|| conflict("no current rules binding"))?
         };
-        self.claim_bound(actor, goal, assignment, generation, body, &summary, now_ms)
+        match (attempt, generation) {
+            (Some(attempt), Some(generation)) => {
+                self.check_claim(entry, actor, principal, attempt, generation)?;
+                if entry.state().attempts[&attempt].context != context {
+                    return Err(conflict("the attempt concerns a different task round"));
+                }
+            }
+            (None, None) => (),
+            _ => {
+                return Err(ApiError::new(
+                    ErrorCode::Invalid,
+                    "attempt and generation must be supplied together",
+                ));
+            }
+        }
+        let mut tx = Tx::none();
+        let event = self.author(
+            entry,
+            &principal,
+            Body::ContributionPublished {
+                context,
+                attempt,
+                base,
+                patch,
+                artifacts,
+            },
+            Some(&summary),
+            now,
+            &mut tx,
+        )?;
+        recorded(event, tx)
     }
-
-    /// `cancel.acknowledge`: while a claim exists only its holder answers,
-    /// naming its generation; otherwise any connection of the assignee.
     pub(super) fn cancel_acknowledge(
         &self,
         actor: &Actor,
@@ -230,17 +252,23 @@ impl<S: Store, E: Entropy> Node<S, E> {
         cancel: EventId,
         generation: Option<u32>,
         outcome: CancelOutcome,
-        now_ms: u64,
+        now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         let found = entry
             .state()
-            .cancelled(&cancel)
+            .cancellations
+            .get(&cancel)
             .ok_or_else(|| not_found("no such cancellation request"))?;
-        if found.assignee != principal {
-            return Err(denied("the cancelled assignment is for another principal"));
+        let attempt = entry
+            .state()
+            .attempts
+            .get(&found.attempt)
+            .ok_or_else(|| not_found("no such attempt"))?;
+        if attempt.author != principal {
+            return Err(denied("the attempt belongs to another principal"));
         }
-        let allowed = match entry.claims.get(&found.id) {
+        let allowed = match entry.claims.get(&found.attempt) {
             Some(claim) => {
                 Some(claim.instance) == actor.session && generation == Some(claim.generation)
             }
@@ -248,18 +276,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
         };
         if !allowed {
             return Err(superseded(
-                "the cancellation is the claim holder's to answer, at its current generation",
+                "only the current claim holder can answer this cancellation",
             ));
         }
-        if found
-            .cancel
-            .is_some_and(|request| request.outcome.is_some())
-        {
-            return Err(conflict("the cancellation was already answered"));
-        }
-        let body = Body::CancelAcknowledged { cancel, outcome };
         let mut tx = Tx::none();
-        let event = self.author(entry, &principal, body, None, now_ms, &mut tx)?;
+        let event = self.author(
+            entry,
+            &principal,
+            Body::CancelAcknowledged { cancel, outcome },
+            None,
+            now,
+            &mut tx,
+        )?;
         recorded(event, tx)
     }
 }

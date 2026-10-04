@@ -120,7 +120,12 @@ fn role_key_scope_threshold_and_cycles_report_actionable_locations() {
             "/flow/b/requires/0/evidence",
         ),
     ];
-    for (source, code, path) in cases {
+    for (mut source, code, path) in cases {
+        if let Some(flow) = source.get_mut("flow").and_then(Value::as_object_mut) {
+            for stage in flow.values_mut() {
+                stage["materializer"] = json!({"kind":"participant","key":"ab".repeat(32)});
+            }
+        }
         let result = checked(source);
         assert!(!result.valid);
         assert!(

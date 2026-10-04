@@ -6,10 +6,9 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use locust_net::{Endpoint, EndpointConfig, IpTransport, Lookup, RelayConfig, TransportBudget};
-use locust_proto::api::{
-    Credential, ErrorCode, Grants, Request, Response, SessionSecret, TaskState,
-};
-use locust_proto::client::{Client, ClientError};
+use locust_proto::api::{Caller, Credential, GoalGrants, Grants, Request, Response, SessionSecret};
+use locust_proto::client::Client;
+use locust_proto::event::{AttemptStatus, ReviewVerdict, TaskId};
 use locust_proto::id::{EventId, GoalId, IdempotencyKey, PublicKey};
 use locust_proto::invite::Invitation;
 use locust_proto::local;
@@ -118,6 +117,25 @@ fn goal(client: &mut LocalClient) -> GoalId {
     let Response::GoalCreated { goal } = client
         .call(Request::GoalCreate {
             title: "Durable lifecycle".into(),
+            blueprint_json: Some(
+                serde_json::to_string(
+                    &locust_proto::organization::presets()
+                        .into_iter()
+                        .find(|p| p.name == "coordinator")
+                        .unwrap()
+                        .blueprint,
+                )
+                .unwrap(),
+            ),
+            roles: [(
+                "coordinator".into(),
+                vec![match client.caller() {
+                    Caller::Agent(key) => key,
+                    _ => panic!(),
+                }],
+            )]
+            .into(),
+            inputs: Default::default(),
         })
         .unwrap()
     else {
@@ -125,19 +143,35 @@ fn goal(client: &mut LocalClient) -> GoalId {
     };
     goal
 }
-fn propose(client: &mut LocalClient, goal: GoalId, text: String) -> EventId {
-    recorded(
+fn propose(client: &mut LocalClient, goal: GoalId, text: String) -> TaskId {
+    TaskId::Authored(recorded(
         client
-            .call(Request::TaskPropose {
+            .call(Request::TaskOpen {
                 goal,
                 text,
-                input: None,
-                depends_on: vec![],
-                deadline_ms: None,
-                max_attempts: None,
+                variation: None,
+                inputs: Default::default(),
+                parent: None,
             })
             .unwrap(),
-    )
+    ))
+}
+fn grant(owner: &mut LocalClient, goal: GoalId, agent: PublicKey) {
+    owner
+        .call(Request::GoalGrant {
+            goal,
+            agent,
+            grants: GoalGrants {
+                administer: true,
+                contribute: true,
+                execute: true,
+                review: true,
+                select: true,
+                flow: true,
+                takeover: true,
+            },
+        })
+        .unwrap();
 }
 fn eventually<T>(mut read: impl FnMut() -> Option<T>) -> T {
     let deadline = Instant::now() + Duration::from_secs(20);
@@ -161,33 +195,45 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
     let mut agent = running.client(Credential([1; 32]), Some(SessionSecret([1; 32])));
     let mut owner = running.owner();
     let goal = goal(&mut agent);
+    grant(&mut owner, goal, principal);
     let task = propose(&mut agent, goal, "Complete after a restart".into());
     let assignment = recorded(
         agent
-            .call(Request::TaskAssign {
+            .call(Request::WorkOffer {
                 goal,
                 task,
-                assignee: principal,
+                recipient: principal,
             })
             .unwrap(),
     );
     owner
         .call(Request::TaskAuthorize {
             goal,
-            assignment,
+            task,
+            agent: principal,
             takeover: true,
         })
         .unwrap();
-    let Response::Claimed(claim) = agent.call(Request::TaskClaim { goal, assignment }).unwrap()
+    let Response::Claimed(claim) = agent
+        .call(Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(assignment),
+        })
+        .unwrap()
     else {
         panic!()
     };
     assert_eq!(claim.generation, 1);
-    let note_request = Request::NoteAdd {
+    let note_request = Request::ContributionPublish {
         goal,
-        about: Some(task),
-        supersedes: None,
-        text: "Retried safely".into(),
+        task: None,
+        attempt: None,
+        generation: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
+        summary: "Retried safely".into(),
     };
     let note = agent
         .call_with(note_request.clone(), Some(IdempotencyKey([1; 16])), None)
@@ -208,15 +254,22 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
         note
     );
     assert_eq!(
-        agent.call(Request::TaskClaim { goal, assignment }).unwrap(),
+        agent
+            .call(Request::AttemptStart {
+                goal,
+                task,
+                offer: Some(assignment)
+            })
+            .unwrap(),
         Response::Claimed(claim)
     );
     let result = recorded(
         agent
-            .call(Request::TaskSubmit {
+            .call(Request::ContributionPublish {
                 goal,
-                assignment,
-                generation: 1,
+                task: Some(task),
+                attempt: Some(claim.attempt),
+                generation: Some(1),
                 summary: "Restarted work is complete".into(),
                 base: None,
                 patch: None,
@@ -235,16 +288,24 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
     };
     assert_eq!(detail.text.as_deref(), Some("Restarted work is complete"));
     agent
-        .call(Request::ResultAccept {
+        .call(Request::ReviewRecord {
             goal,
-            result,
-            head: None,
+            subject: result,
+            verdict: ReviewVerdict::Approve,
+            text: String::new(),
         })
         .unwrap();
     let Response::Board(board) = agent.call(Request::Board { goal }).unwrap() else {
         panic!()
     };
-    assert_eq!(board[0].state, TaskState::Accepted);
+    assert!(board[0].completed);
+    agent
+        .call(Request::ScopeSelect {
+            goal,
+            subject: result,
+            expected: None,
+        })
+        .unwrap();
 }
 
 #[test]
@@ -253,11 +314,12 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let second = short_dir();
     let coordinator = Running::start(first.path());
     let worker = Running::start(second.path());
-    coordinator.enroll(1);
+    let coordinator_key = coordinator.enroll(1);
     let worker_key = worker.enroll(2);
     let mut c = coordinator.client(Credential([1; 32]), None);
     let mut w = worker.client(Credential([2; 32]), Some(SessionSecret([2; 32])));
     let goal = goal(&mut c);
+    grant(&mut coordinator.owner(), goal, coordinator_key);
     let Response::Invited { ticket } = c
         .call(Request::GoalInvite {
             goal,
@@ -282,44 +344,56 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let text = "large encrypted task details ".repeat(400);
     let task = propose(&mut c, goal, text.clone());
     let assignment = recorded(
-        c.call(Request::TaskAssign {
+        c.call(Request::WorkOffer {
             goal,
             task,
-            assignee: worker_key,
+            recipient: worker_key,
         })
         .unwrap(),
     );
     eventually(|| match w.call(Request::Task { goal, task }) {
         Ok(Response::Task(detail))
-            if detail.text.as_ref() == Some(&text)
-                && detail.view.assignment == Some(assignment) =>
+            if detail.text.as_ref() == Some(&text) && detail.view.task == task =>
         {
             Some(())
         }
         _ => None,
     });
     let mut owner = worker.owner();
+    grant(&mut owner, goal, worker_key);
     owner
         .call(Request::TaskAuthorize {
             goal,
-            assignment,
+            task,
+            agent: worker_key,
             takeover: false,
         })
         .unwrap();
-    w.call(Request::TaskClaim { goal, assignment }).unwrap();
-    w.call(Request::TaskProgress {
+    let Response::Claimed(claim) = w
+        .call(Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(assignment),
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    w.call(Request::AttemptReport {
         goal,
-        assignment,
+        attempt: claim.attempt,
+        status: AttemptStatus::Progress,
         generation: 1,
         text: "running remotely".into(),
     })
     .unwrap();
     let summary = "large encrypted result evidence ".repeat(350);
     let result = recorded(
-        w.call(Request::TaskSubmit {
+        w.call(Request::ContributionPublish {
             goal,
-            assignment,
-            generation: 1,
+            task: Some(task),
+            attempt: Some(claim.attempt),
+            generation: Some(1),
             summary: summary.clone(),
             base: None,
             patch: None,
@@ -339,20 +413,28 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let Response::Pending(pending) = c.call(Request::Pending { goal }).unwrap() else {
         panic!()
     };
-    assert_eq!(pending.to_review[0].result, result);
-    c.call(Request::ResultAccept {
+    assert_eq!(pending.to_review[0].subject, result);
+    c.call(Request::ReviewRecord {
         goal,
-        result,
-        head: None,
+        subject: result,
+        verdict: ReviewVerdict::Approve,
+        text: String::new(),
     })
     .unwrap();
     eventually(|| match w.call(Request::Board { goal }) {
-        Ok(Response::Board(board)) if board[0].state == TaskState::Accepted => Some(()),
+        Ok(Response::Board(board)) if board[0].completed => Some(()),
         _ => None,
     });
-    assert!(
-        matches!(w.call(Request::TaskProgress {goal,assignment,generation:1,text:"late".into()}),Err(ClientError::Api(error)) if error.code == ErrorCode::Superseded)
-    );
+    c.call(Request::ScopeSelect {
+        goal,
+        subject: result,
+        expected: None,
+    })
+    .unwrap();
+    eventually(|| match w.call(Request::Board { goal }) {
+        Ok(Response::Board(board)) if board[0].selected == Some(result) => Some(()),
+        _ => None,
+    });
     let Response::GoalStatus(status) = c.call(Request::GoalStatus { goal }).unwrap() else {
         panic!()
     };
@@ -464,7 +546,7 @@ fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
             let ticket = Invitation {
                 version: locust_proto::PROTOCOL_VERSION,
                 goal,
-                coordinator: locust_proto::crypto::Keypair::from_seed([95; 32]).public(),
+                administrator: locust_proto::crypto::Keypair::from_seed([95; 32]).public(),
                 endpoint: inviter.id(),
                 hints: inviter.hints(),
                 secret: InviteSecret([96; 32]),

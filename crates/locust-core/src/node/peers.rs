@@ -38,8 +38,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         };
         let mut peers = entry
             .state()
-            .endpoints
-            .keys()
+            .members
+            .values()
+            .filter(|member| member.is_active())
+            .map(|member| &member.endpoint)
             .filter(|endpoint| Some(**endpoint) != own)
             .peekable();
         peers.peek().is_none() || peers.any(|endpoint| self.peer_view(endpoint).connected)
@@ -95,18 +97,23 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
             .map(|record| record.endpoint);
         let mut proofs = Vec::new();
         for (goal, entry) in &self.goals {
-            let Some(crate::goal::Halt::Fork { events, .. }) = entry.goal.halt() else {
-                continue;
-            };
-            let (Some(first), Some(second)) = (
-                events.first().and_then(|id| entry.goal.event(id)),
-                events.get(1).and_then(|id| entry.goal.event(id)),
-            ) else {
-                continue;
-            };
-            for endpoint in historical_endpoints(entry) {
-                if Some(endpoint) != own {
-                    proofs.push((*goal, endpoint, [first.to_wire(), second.to_wire()]));
+            for author in entry.goal.authors() {
+                let Some(seq) = entry.goal.fork_point(author) else {
+                    continue;
+                };
+                let mut conflicts = entry
+                    .goal
+                    .points(author)
+                    .iter()
+                    .filter(|point| point.seq == seq)
+                    .filter_map(|point| entry.goal.event(&point.id));
+                let (Some(first), Some(second)) = (conflicts.next(), conflicts.next()) else {
+                    continue;
+                };
+                for endpoint in historical_endpoints(entry) {
+                    if Some(endpoint) != own {
+                        proofs.push((*goal, endpoint, [first.to_wire(), second.to_wire()]));
+                    }
                 }
             }
         }
@@ -135,26 +142,23 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
             return Err(Refusal::NotAMember);
         }
         let entry = self.goals.get(goal).ok_or(Refusal::NotAMember)?;
-        let coordinator = entry
-            .state()
-            .coordinator
-            .or_else(|| {
-                entry
-                    .local
-                    .joins
-                    .values()
-                    .find(|join| join.endpoint == *remote)
-                    .map(|join| join.coordinator)
-            })
-            .ok_or(Refusal::NotAMember)?;
         let first =
             locust_proto::event::Event::from_wire(&proof[0]).map_err(|_| Refusal::NotAMember)?;
         let second =
             locust_proto::event::Event::from_wire(&proof[1]).map_err(|_| Refusal::NotAMember)?;
         if first.header().goal != *goal
             || second.header().goal != *goal
-            || first.header().author != coordinator
-            || second.header().author != coordinator
+            || first.header().author != second.header().author
+            || !(entry.state().administrator == Some(first.header().author)
+                || entry.state().members.contains_key(&first.header().author)
+                || entry.state().administrator.is_some_and(|administrator| {
+                    entry.goal.points(&administrator).iter().any(|point| {
+                        entry.goal.event(&point.id).is_some_and(|event| {
+                            matches!(event.header().body, Body::MemberAdmitted { member, .. } if member == first.header().author)
+                        })
+                    })
+                })
+                || entry.local.joins.values().any(|join| join.administrator == first.header().author))
             || first.header().seq != second.header().seq
             || first.id() == second.id()
         {
@@ -183,8 +187,10 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
             .flat_map(|(goal, entry)| {
                 entry
                     .state()
-                    .endpoints
-                    .keys()
+                    .members
+                    .values()
+                    .filter(|member| member.is_active())
+                    .map(|member| &member.endpoint)
                     .filter(move |endpoint| Some(**endpoint) != own)
                     .map(move |endpoint| (*goal, *endpoint))
             })
@@ -200,10 +206,13 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
     }
     fn speaks_for_member(&self, goal: &GoalId, endpoint: &EndpointId) -> bool {
         !self.failed
-            && self
-                .goals
-                .get(goal)
-                .is_some_and(|entry| entry.state().endpoints.contains_key(endpoint))
+            && self.goals.get(goal).is_some_and(|entry| {
+                entry
+                    .state()
+                    .members
+                    .values()
+                    .any(|member| member.is_active() && member.endpoint == *endpoint)
+            })
     }
     fn replica(&mut self, goal: &GoalId) -> Option<&mut dyn Replica> {
         if self.failed || !self.goals.contains_key(goal) {
@@ -309,22 +318,26 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if let Some((member, endpoint)) = invite.redeemed {
             return if member == request.member
                 && endpoint == *remote
-                && entry.state().members.get(&member) == Some(remote)
+                && entry
+                    .state()
+                    .members
+                    .get(&member)
+                    .is_some_and(|member| member.is_active() && member.endpoint == *remote)
             {
                 Ok(Tx::none())
             } else {
                 Err(refused)
             };
         }
-        if self.principals.active(&invite.coordinator).is_none()
-            || entry.local.part.get(&invite.coordinator) == Some(&true)
-            || !entry.local.grants(&invite.coordinator).decide
+        if self.principals.active(&invite.administrator).is_none()
+            || entry.local.part.get(&invite.administrator) == Some(&true)
+            || !entry.local.grants(&invite.administrator).administer
             || !self
                 .principals
-                .active(&invite.coordinator)
+                .active(&invite.administrator)
                 .is_some_and(|principal| principal.record.grants.manage_goals)
             || invite.expires_ms.is_some_and(|expires| now_ms >= expires)
-            || entry.state().coordinator != Some(invite.coordinator)
+            || entry.state().administrator != Some(invite.administrator)
             || entry.is_member(&request.member)
         {
             return Err(refused);
@@ -332,7 +345,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let mut tx = Tx::none();
         self.author(
             entry,
-            &invite.coordinator,
+            &invite.administrator,
             Body::MemberAdmitted {
                 member: request.member,
                 endpoint: *remote,
@@ -351,12 +364,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
 /// Signed admission contacts remain eligible for conflict evidence only.
 /// This never changes the current member/endpoint projection.
 fn historical_endpoints(entry: &super::entry::Entry) -> std::collections::BTreeSet<EndpointId> {
-    let Some(coordinator) = entry.state().coordinator else {
+    let Some(administrator) = entry.state().administrator else {
         return Default::default();
     };
     entry
         .goal
-        .points(&coordinator)
+        .points(&administrator)
         .iter()
         .filter_map(|point| match entry.goal.event(&point.id)?.header().body {
             Body::MemberAdmitted { endpoint, .. } => Some(endpoint),

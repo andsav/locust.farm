@@ -18,8 +18,10 @@ mod authoring;
 mod callers;
 mod commit;
 mod content_graph;
+mod definitions;
 mod entry;
 mod feed;
+mod flow;
 mod identity;
 mod local;
 mod peers;
@@ -142,15 +144,39 @@ impl<S: Store, E: Entropy> Node<S, E> {
             stop: false,
         };
         for id in node.store.goals()? {
-            let goal = Goal::load(&node.store, id)?;
-            node.goals.insert(id, Entry::loaded(goal));
+            node.goals.insert(id, Entry::new(Goal::new(id)));
         }
         for space in SPACES {
             for (key, value) in node.store.scan(space, &[])? {
                 node.absorb(space, &key, Some(&value))?;
             }
         }
+        let ids: Vec<_> = node.goals.keys().copied().collect();
+        for id in ids {
+            let definitions = definitions::Definitions::load(
+                &node.store,
+                id,
+                &node.goals[&id].keys,
+                &Commit::default(),
+            )?;
+            let goal = Goal::load(&node.store, id, &definitions)?;
+            let entry = node.goals.get_mut(&id).expect("known goal");
+            entry.goal = goal;
+            entry.definitions = definitions;
+            let events: Vec<_> = entry
+                .goal
+                .authors()
+                .flat_map(|author| entry.goal.points(author))
+                .filter_map(|point| entry.goal.event(&point.id).cloned())
+                .collect();
+            entry.note_named(&events);
+        }
         node.rebuild_blob_index()?;
+        let ids: Vec<_> = node.goals.keys().copied().collect();
+        for id in ids {
+            node.drive_flow(id)
+                .map_err(|error| StoreError::Failed(error.to_string()))?;
+        }
         Ok(node)
     }
 
@@ -236,7 +262,7 @@ impl<S: Store, E: Entropy> Engine for Node<S, E> {
             Caller::Owner
         } else {
             match self.principals.credential(&digest) {
-                Some(caller @ (Caller::Agent(key) | Caller::Viewer(key)))
+                Some(caller @ (Caller::Agent(key) | Caller::Viewer(key) | Caller::Author(key)))
                     if self.principals.active(&key).is_some() =>
                 {
                     caller
@@ -244,8 +270,11 @@ impl<S: Store, E: Entropy> Engine for Node<S, E> {
                 _ => return self.refuse(ErrorCode::Denied, "the credential is unknown or revoked"),
             }
         };
-        if matches!(caller, Caller::Viewer(_)) && hello.session.is_some() {
-            return self.refuse(ErrorCode::Invalid, "a viewer is never an execution session");
+        if matches!(caller, Caller::Viewer(_) | Caller::Author(_)) && hello.session.is_some() {
+            return self.refuse(
+                ErrorCode::Invalid,
+                "this credential cannot represent an execution session",
+            );
         }
         self.conns.insert(
             conn,

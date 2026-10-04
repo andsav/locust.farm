@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use locust_proto::api::{BlobState, ErrorCode, Membership, Request, Response, Standing, TaskState};
+use locust_proto::api::{BlobState, ErrorCode, Membership, Request, Response, Standing};
 use locust_proto::id::EventId;
 use locust_proto::store::Store;
 
@@ -37,7 +37,7 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
     let everyone: BTreeSet<_> = r.principals.iter().copied().collect();
     let reference = held(r, 0);
     let expected_notes: BTreeMap<EventId, Option<String>> = r
-        .notes
+        .findings
         .iter()
         .map(|(id, text)| (*id, Some(text.clone())))
         .collect();
@@ -85,10 +85,10 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
                 if let Some(halt) = status.halted {
                     bad.push(format!("{name} reports the goal halted: {halt:?}"));
                 }
-                if status.coordinator != r.principals[0] {
+                if status.administrator != r.principals[0] {
                     bad.push(format!("{name} names another coordinator"));
                 }
-                heads.push(status.decision_head);
+                heads.push(status.governance_head);
             }
             other => bad.push(format!("{name} cannot show the goal: {other:?}")),
         }
@@ -104,15 +104,15 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
             }
             other => bad.push(format!("{name} cannot show its status: {other:?}")),
         }
-        let notes = r.note_views(m).map(|notes| {
-            notes
+        let findings = r.finding_views(m).map(|findings| {
+            findings
                 .into_iter()
-                .map(|view| (view.note, view.text))
+                .map(|view| (view.contribution, view.text))
                 .collect::<BTreeMap<_, _>>()
         });
-        if notes.as_ref() != Some(&expected_notes) {
+        if findings.as_ref() != Some(&expected_notes) {
             bad.push(format!(
-                "{name} shows notes {notes:?}, expected {expected_notes:?}"
+                "{name} shows findings {findings:?}, expected {expected_notes:?}"
             ));
         }
         if let (Some(task), Some(result)) = (r.task, r.result) {
@@ -126,13 +126,14 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
             let board = r.board(m).unwrap_or_default();
             let done = board.iter().any(|view| {
                 view.task == task
-                    && view.state == TaskState::Accepted
-                    && view.assignment == r.assignment
-                    && view.result == Some(result)
+                    && view.completed
+                    && r.attempt
+                        .is_some_and(|attempt| view.attempts.contains(&attempt))
+                    && view.selected == Some(result)
             });
             if !done {
                 bad.push(format!(
-                    "{name} board does not show the accepted task: {board:?}"
+                    "{name} board does not show the reviewed and selected task: {board:?}"
                 ));
             }
             boards.push(board);
@@ -145,8 +146,10 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
                 }
                 _ => false,
             };
+            // BlobGet explicitly records a want; BlobStat is a read-only inventory.
+            let fetched = r.read(m, Request::BlobGet { goal, hash });
             let same = !deep
-                || match r.read(m, Request::BlobGet { goal, hash }) {
+                || match fetched {
                     Some(Response::Blob { bytes }) => {
                         r.artifact.as_ref().is_some_and(|(_, sent)| *sent == bytes)
                     }
@@ -182,18 +185,31 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
                         view.kind, view.standing
                     ));
                 }
-                if views.len() != events.len() {
-                    bad.push(format!(
-                        "{name} feed lists {} of {} events",
-                        views.len(),
-                        events.len()
-                    ));
+                let listed: BTreeSet<_> = views.iter().map(|view| view.event).collect();
+                if listed != events {
+                    bad.push(format!("{name} feed does not cover its stored event set"));
+                }
+                if views
+                    .windows(2)
+                    .any(|pair| pair[0].position >= pair[1].position)
+                {
+                    bad.push(format!("{name} feed positions do not advance"));
                 }
             }
             other => bad.push(format!("{name} cannot list events: {other:?}")),
         }
         match r.read(m, Request::Pending { goal }) {
-            Some(Response::Pending(work)) if work.is_empty() => {}
+            Some(Response::Pending(work))
+                if work.to_authorize.is_empty()
+                    && work.to_start.is_empty()
+                    && work.claimed.is_empty()
+                    && work.held_elsewhere.is_empty()
+                    && work.to_acknowledge.is_empty()
+                    && work.deliveries.iter().all(|delivery| delivery.acknowledged)
+                    && work
+                        .to_review
+                        .iter()
+                        .all(|item| expected_notes.contains_key(&item.subject)) => {}
             other => bad.push(format!("{name} still has pending work: {other:?}")),
         }
     }
@@ -201,17 +217,19 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
         bad.push(format!("boards differ between machines: {boards:?}"));
     }
     if heads.windows(2).any(|pair| pair[0] != pair[1]) {
-        bad.push(format!("decision heads differ between machines: {heads:?}"));
+        bad.push(format!(
+            "governance heads differ between machines: {heads:?}"
+        ));
     }
     claims(r, &mut bad);
     bad
 }
 
 /// Claims and generations: the claim lives only where it was taken, at the
-/// generation its holder was told, and a finished assignment can neither be
+/// generation its holder was told, and a finished attempt can neither be
 /// claimed again nor written to.
 fn claims(r: &mut Run, bad: &mut Vec<String>) {
-    let (Some(assignment), Some(generation)) = (r.assignment, r.generation) else {
+    let (Some(attempt), Some(generation)) = (r.attempt, r.generation) else {
         return;
     };
     let goal = r.goal();
@@ -222,7 +240,7 @@ fn claims(r: &mut Run, bad: &mut Vec<String>) {
         let record = node
             .goals
             .get(&goal)
-            .and_then(|entry| entry.claims.get(&assignment));
+            .and_then(|entry| entry.claims.get(&attempt));
         let found = record.map(|claim| claim.generation);
         let expected = (m == 1).then_some(generation);
         if found != expected {
@@ -232,10 +250,11 @@ fn claims(r: &mut Run, bad: &mut Vec<String>) {
             ));
         }
     }
-    let claim = Request::TaskClaim { goal, assignment };
-    let progress = Request::TaskProgress {
+    let claim = Request::AttemptTakeover { goal, attempt };
+    let progress = Request::AttemptReport {
         goal,
-        assignment,
+        attempt,
+        status: locust_proto::event::AttemptStatus::Progress,
         generation,
         text: "after the end".into(),
     };
@@ -251,9 +270,7 @@ fn claims(r: &mut Run, bad: &mut Vec<String>) {
         let name = request.name();
         match r.w.call(1, Who::Session(session), request) {
             Err(error) if matches!(error.code, ErrorCode::Superseded | ErrorCode::Conflict) => {}
-            other => bad.push(format!(
-                "{name} on the finished assignment answered {other:?}"
-            )),
+            other => bad.push(format!("{name} on the finished attempt answered {other:?}")),
         }
     }
 }
@@ -271,6 +288,28 @@ pub fn settle(r: &mut Run) -> Result<Micros, Fail> {
     let mut last = Vec::new();
     let mut looked = 0;
     loop {
+        // Review requests remain durable until the intended local recipient
+        // explicitly acknowledges them, including requests whose review is done.
+        for m in 0..r.w.machines.len() {
+            let goal = r.goal();
+            if let Some(Response::Pending(work)) = r.read(m, Request::Pending { goal }) {
+                for delivery in work
+                    .deliveries
+                    .iter()
+                    .filter(|delivery| !delivery.acknowledged)
+                {
+                    r.record(
+                        m,
+                        Who::Agent,
+                        "delivery acknowledgement",
+                        Request::DeliveryAcknowledge {
+                            goal,
+                            effect: delivery.effect,
+                        },
+                    )?;
+                }
+            }
+        }
         // The stores are compared every second; the full reading through
         // the API follows once they agree, then every few seconds.
         if same_events(r) && (looked == 0 || r.w.now >= looked + 5 * SEC) {

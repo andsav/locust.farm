@@ -22,7 +22,7 @@ pub struct TestHost {
     /// Keys admitted through a join, with the endpoint bound to them.
     pub admitted: BTreeMap<(GoalId, PublicKey), EndpointId>,
     /// Signs the admission of a joined key, anchored at the given event.
-    pub coordinator: Option<(Author, EventId)>,
+    pub administrator: Option<(Author, EventId)>,
     pub reports: Vec<Report>,
     /// What [`Host::random`] returns, in turn and then again from the start.
     pub random: Vec<u64>,
@@ -39,7 +39,7 @@ impl TestHost {
             joins: Vec::new(),
             invites: BTreeMap::new(),
             admitted: BTreeMap::new(),
-            coordinator: None,
+            administrator: None,
             reports: Vec::new(),
             random: vec![0],
             draws: 0,
@@ -129,7 +129,7 @@ impl Host for TestHost {
         }
         self.admitted.insert((goal, request.member), *remote);
         self.members.entry(goal).or_default().insert(*remote);
-        if let Some((author, anchor)) = &mut self.coordinator {
+        if let Some((author, anchor)) = &mut self.administrator {
             let admission = author.event(
                 goal,
                 Some(*anchor),

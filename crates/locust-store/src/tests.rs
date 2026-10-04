@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use locust_proto::PROTOCOL_VERSION;
-use locust_proto::event::{AuthorPoint, Body, Event, Header, PayloadRef};
+use locust_proto::event::{AuthorPoint, Body, Context, Event, Header, PayloadRef, Scope};
 use locust_proto::id::{BlobHash, EventId, GoalId};
 use locust_proto::limits::{
     BLOB_CHUNK_BYTES, MAX_ARTIFACTS, MAX_EVENTS_PER_BATCH, MAX_PARENTS, MAX_PAYLOAD_BYTES,
@@ -32,10 +32,16 @@ fn raw(dir: &TempDir) -> Connection {
     Connection::open(dir.path().join("locust.db")).unwrap()
 }
 
-fn note() -> Body {
-    Body::Note {
-        about: None,
-        supersedes: None,
+fn contribution() -> Body {
+    Body::ContributionPublished {
+        context: Context {
+            scope: Scope::Goal,
+            round: EventId([0; 32]),
+        },
+        attempt: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
     }
 }
 
@@ -214,7 +220,7 @@ fn a_commit_that_fails_part_way_leaves_nothing() {
     let mut owner = Author::new(1);
     let genesis = owner.genesis();
     let goal = genesis.header().goal;
-    let first = owner.event(goal, Some(genesis.id()), note());
+    let first = owner.event(goal, Some(genesis.id()), contribution());
     let small = object(100);
     let large = object(INLINE_MAX_BYTES + 1);
     // Refuses one local write, after the commit's events and objects are in.
@@ -248,7 +254,7 @@ fn a_commit_that_fails_part_way_leaves_nothing() {
     assert_eq!(object_files(dir.path()), [large.hash().to_string()]);
 
     // The store carries on, and the failed commit took no position.
-    let second = owner.event(goal, Some(genesis.id()), note());
+    let second = owner.event(goal, Some(genesis.id()), contribution());
     store
         .commit(&Commit {
             events: vec![genesis.clone(), second.clone()],
@@ -316,8 +322,8 @@ fn a_damaged_event_row_is_reported_as_corrupted_never_as_another_event() {
     let genesis = owner.genesis();
     let goal = genesis.header().goal;
     let author = owner.key.public();
-    let first = owner.event(goal, Some(genesis.id()), note());
-    let second = owner.event(goal, Some(genesis.id()), note());
+    let first = owner.event(goal, Some(genesis.id()), contribution());
+    let second = owner.event(goal, Some(genesis.id()), contribution());
     store
         .commit(&Commit {
             events: vec![genesis.clone(), first.clone(), second.clone()],
@@ -657,8 +663,12 @@ fn largest_header(n: usize, prev: EventId) -> Header {
             len: MAX_PAYLOAD_BYTES as u32,
             key_epoch: u32::MAX,
         }),
-        body: Body::ResultSubmitted {
-            assignment: EventId([0xcc; 32]),
+        body: Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0xaa; 32]),
+            },
+            attempt: Some(EventId([0xcc; 32])),
             base: Some(BlobHash([0xdd; 32])),
             patch: Some(BlobHash([0xee; 32])),
             artifacts: (0..MAX_ARTIFACTS)

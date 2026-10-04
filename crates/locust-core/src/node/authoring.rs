@@ -125,12 +125,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// Where `author`'s next event in the goal goes, after the checks every
     /// signature needs: the goal is not halted and the author is a member.
     pub(super) fn next_place(&self, entry: &Entry, author: &PublicKey) -> Result<Place, ApiError> {
-        if entry.goal.halt().is_some() {
-            return Err(ApiError::new(
-                ErrorCode::Halted,
-                "the goal's authority history conflicts; nothing more is signed for it",
-            ));
-        }
         if !entry.is_member(author) || entry.local.part.get(author) == Some(&true) {
             return Err(ApiError::new(
                 ErrorCode::Denied,

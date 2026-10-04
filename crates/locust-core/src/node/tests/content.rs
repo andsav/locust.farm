@@ -3,17 +3,18 @@ use super::lifecycle::{event, setup};
 use super::*;
 use locust_proto::api::{BlobState, Membership};
 use locust_proto::engine::{PeerEngine, PeerInput};
-use locust_proto::event::Doc;
+use locust_proto::event::{Context, Doc, ReviewVerdict, Scope, TaskBinding, TaskId};
+use locust_proto::id::EventId;
 use locust_proto::id::{BlobHash, EndpointId};
 use locust_proto::invite::Invitation;
 use locust_proto::store::{Space, Store};
 
 #[test]
 fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart() {
-    let (mut daemon, _, _, coordinator, goal) = setup();
-    let (_, member) = super::authorization::join_local(&mut daemon, coordinator, goal, 2);
+    let (mut daemon, _, _, administrator, goal) = setup();
+    let (_, member) = super::authorization::join_local(&mut daemon, administrator, goal, 2);
     let first = event(daemon.ok(
-        coordinator,
+        administrator,
         Request::DocRevise {
             goal,
             doc: Doc::Plan,
@@ -31,18 +32,29 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
         },
     ));
     daemon.ok(
-        coordinator,
-        Request::DocAccept {
+        administrator,
+        Request::ReviewRecord {
             goal,
-            revision: first,
+            subject: first,
+            verdict: ReviewVerdict::Approve,
+            text: "reviewed".into(),
+        },
+    );
+    daemon.ok(
+        administrator,
+        Request::ScopeSelect {
+            goal,
+            subject: first,
+            expected: None,
         },
     );
     assert_eq!(
         code(daemon.call(
-            coordinator,
-            Request::DocAccept {
+            administrator,
+            Request::ScopeSelect {
                 goal,
-                revision: competing
+                subject: competing,
+                expected: None
             }
         )),
         ErrorCode::Conflict
@@ -53,7 +65,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     daemon.ok(member, Request::BlobWithdraw { goal, hash });
     daemon.ok(member, Request::GoalLeave { goal });
     daemon.restart();
-    let coordinator = daemon.connect(credential(1), None);
+    let administrator = daemon.connect(credential(1), None);
     let member = daemon.connect(credential(2), None);
     assert_eq!(
         daemon.store.event(&competing).unwrap(),
@@ -61,7 +73,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     );
     assert_eq!(daemon.store.blob(&hash).unwrap(), Some(sealed));
     let Response::Event(detail) = daemon.ok(
-        coordinator,
+        administrator,
         Request::Event {
             goal,
             event: competing,
@@ -71,7 +83,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     };
     assert_eq!(detail.text, None);
     let Response::Doc(view) = daemon.ok(
-        coordinator,
+        administrator,
         Request::DocRead {
             goal,
             doc: Doc::Plan,
@@ -79,7 +91,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     ) else {
         panic!("expected accepted document");
     };
-    assert_eq!(view.accepted, Some(first));
+    assert_eq!(view.selected, Some(first));
     assert_eq!(view.text.as_deref(), Some("accepted plan"));
     assert_eq!(
         code(daemon.call(
@@ -95,10 +107,11 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     );
     assert_eq!(
         code(daemon.call(
-            coordinator,
-            Request::DocAccept {
+            administrator,
+            Request::ScopeSelect {
                 goal,
-                revision: competing
+                subject: competing,
+                expected: None
             }
         )),
         ErrorCode::Conflict
@@ -129,6 +142,9 @@ fn content_put_get_scope_withdrawal_and_reput_survive_restart() {
         agent,
         Request::GoalCreate {
             title: "Other".into(),
+            blueprint_json: None,
+            roles: Default::default(),
+            inputs: Default::default(),
         },
     ) else {
         panic!()
@@ -190,13 +206,12 @@ fn missing_content_read_records_want_only_for_nonviewers() {
     let hash = BlobHash([91; 32]);
     daemon.ok(
         agent,
-        Request::TaskPropose {
+        Request::TaskOpen {
             goal,
             text: "needs input".into(),
-            input: Some(hash),
-            depends_on: vec![],
-            deadline_ms: None,
-            max_attempts: None,
+            variation: None,
+            parent: None,
+            inputs: std::collections::BTreeMap::from([("workspace".into(), hash)]),
         },
     );
     daemon.ok(
@@ -255,22 +270,25 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
     let text = "A test goal".to_owned();
     let task = event(daemon.ok(
         agent,
-        Request::TaskPropose {
+        Request::TaskOpen {
             goal,
             text: text.clone(),
-            input: None,
-            depends_on: vec![],
-            deadline_ms: None,
-            max_attempts: None,
+            variation: None,
+            parent: None,
+            inputs: Default::default(),
         },
     ));
     daemon.ok(
         agent,
-        Request::NoteAdd {
+        Request::ContributionPublish {
             goal,
-            about: None,
-            supersedes: None,
-            text: text.clone(),
+            task: None,
+            attempt: None,
+            generation: None,
+            summary: text.clone(),
+            base: None,
+            patch: None,
+            artifacts: vec![],
         },
     );
     let revision = event(daemon.ok(
@@ -282,7 +300,23 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
             text: text.clone(),
         },
     ));
-    daemon.ok(agent, Request::DocAccept { goal, revision });
+    daemon.ok(
+        agent,
+        Request::ReviewRecord {
+            goal,
+            subject: revision,
+            verdict: ReviewVerdict::Approve,
+            text: "reviewed".into(),
+        },
+    );
+    daemon.ok(
+        agent,
+        Request::ScopeSelect {
+            goal,
+            subject: revision,
+            expected: None,
+        },
+    );
     let payload = daemon
         .store
         .event(&task)
@@ -298,7 +332,13 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
             hash: payload.hash,
         },
     );
-    let Response::Task(detail) = daemon.ok(agent, Request::Task { goal, task }) else {
+    let Response::Task(detail) = daemon.ok(
+        agent,
+        Request::Task {
+            goal,
+            task: TaskId::Authored(task),
+        },
+    ) else {
         panic!()
     };
     assert_eq!(detail.text, None);
@@ -307,7 +347,9 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
         panic!()
     };
     assert_eq!(detail.text, None);
-    let Response::Notes(notes) = daemon.ok(agent, Request::Notes { goal, about: None }) else {
+    let Response::Contributions(notes) =
+        daemon.ok(agent, Request::Contributions { goal, task: None })
+    else {
         panic!()
     };
     assert_eq!(notes[0].text, None);
@@ -332,7 +374,13 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
             bytes: text.into_bytes(),
         },
     );
-    let Response::Task(detail) = daemon.ok(agent, Request::Task { goal, task }) else {
+    let Response::Task(detail) = daemon.ok(
+        agent,
+        Request::Task {
+            goal,
+            task: TaskId::Authored(task),
+        },
+    ) else {
         panic!()
     };
     assert_eq!(detail.text.as_deref(), Some("A test goal"));
@@ -352,7 +400,7 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
     };
     let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     assert_eq!(invitation.goal, goal);
-    assert_eq!(invitation.coordinator, principal);
+    assert_eq!(invitation.administrator, principal);
     let rows = daemon.store.scan(Space::Invite, &[]).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].0, invitation.secret.digest());
@@ -371,8 +419,8 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
 }
 
 #[test]
-fn pending_join_cannot_relabel_the_coordinator() {
-    let (mut issuer, coordinator, _, agent, goal) = setup();
+fn pending_join_cannot_relabel_the_administrator() {
+    let (mut issuer, administrator, _, agent, goal) = setup();
     let Response::Invited { ticket } = issuer.ok(
         agent,
         Request::GoalInvite {
@@ -403,7 +451,7 @@ fn pending_join_cannot_relabel_the_coordinator() {
         },
     );
     let mut altered = Invitation::from_ticket(ticket.as_str()).unwrap();
-    altered.coordinator = PublicKey([99; 32]);
+    altered.administrator = PublicKey([99; 32]);
     assert_eq!(
         code(joining.call(
             actor,
@@ -417,7 +465,7 @@ fn pending_join_cannot_relabel_the_coordinator() {
         joining.ok(actor, Request::GoalJoin { ticket }),
         Response::Joined {
             goal,
-            coordinator,
+            administrator,
             membership: Membership::Joining,
         }
     );
@@ -459,11 +507,21 @@ fn receive_payload(
     goal: locust_proto::id::GoalId,
     author: PublicKey,
     payload: locust_proto::event::PayloadRef,
-    body: locust_proto::event::Body,
+    mut body: locust_proto::event::Body,
 ) -> locust_proto::id::EventId {
     use crate::sync::Host;
     use locust_proto::event::{Event, Header};
-    let next = daemon.node.goals[&goal].goal.next(&author).unwrap();
+    let entry = &daemon.node.goals[&goal];
+    match &mut body {
+        locust_proto::event::Body::TaskOpened { binding } => {
+            binding.rules = entry.state().current_rules.unwrap()
+        }
+        locust_proto::event::Body::ContributionPublished { context, .. } => {
+            context.round = entry.state().current_rules.unwrap()
+        }
+        _ => (),
+    }
+    let next = entry.goal.next(&author).unwrap();
     let event = Event::sign(
         Header {
             version: locust_proto::PROTOCOL_VERSION,
@@ -516,11 +574,14 @@ fn held_content_requires_matching_references_and_each_text_view_checks_its_own_r
             len: payload.len + 1,
             ..payload
         },
-        Body::TaskProposed {
-            input: None,
-            depends_on: vec![],
-            deadline_ms: None,
-            max_attempts: None,
+        Body::TaskOpened {
+            binding: TaskBinding {
+                rules: EventId([0; 32]),
+                variation: None,
+                inputs: Default::default(),
+                parent: None,
+                stage: None,
+            },
         },
     );
     assert_eq!(
@@ -542,9 +603,15 @@ fn held_content_requires_matching_references_and_each_text_view_checks_its_own_r
         goal,
         principal,
         payload,
-        Body::Note {
-            about: None,
-            supersedes: None,
+        Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0; 32]),
+            },
+            attempt: None,
+            base: None,
+            patch: None,
+            artifacts: vec![],
         },
     );
     // Another matching reference admits the object, but not the task's text.
@@ -571,7 +638,13 @@ fn held_content_requires_matching_references_and_each_text_view_checks_its_own_r
             panic!()
         };
         assert_eq!(states[0].state, BlobState::Held);
-        let Response::Task(detail) = daemon.ok(reader, Request::Task { goal, task }) else {
+        let Response::Task(detail) = daemon.ok(
+            reader,
+            Request::Task {
+                goal,
+                task: TaskId::Authored(task),
+            },
+        ) else {
             panic!()
         };
         assert_eq!(detail.text, None);
@@ -622,9 +695,15 @@ fn held_content_epoch_must_match_the_signed_reference_even_with_a_decryption_key
         goal,
         principal,
         payload,
-        Body::Note {
-            about: None,
-            supersedes: None,
+        Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0; 32]),
+            },
+            attempt: None,
+            base: None,
+            patch: None,
+            artifacts: vec![],
         },
     );
     assert_eq!(
@@ -651,8 +730,110 @@ fn held_content_epoch_must_match_the_signed_reference_even_with_a_decryption_key
         panic!()
     };
     assert_eq!(detail.text, None);
-    let Response::Notes(notes) = daemon.ok(agent, Request::Notes { goal, about: None }) else {
+    let Response::Contributions(notes) =
+        daemon.ok(agent, Request::Contributions { goal, task: None })
+    else {
         panic!()
     };
     assert_eq!(notes[0].text, None);
+}
+
+#[test]
+fn selected_contribution_stays_readable_in_its_scope_after_author_fork() {
+    use locust_proto::event::{Event, ReviewVerdict, TaskId};
+    let (mut daemon, _, _, agent, goal) = super::lifecycle::setup();
+    let (member, member_conn) = super::authorization::join_local(&mut daemon, agent, goal, 2);
+    let task = TaskId::Authored(super::lifecycle::event(daemon.ok(
+        member_conn,
+        Request::TaskOpen {
+            goal,
+            text: "selected output".into(),
+            variation: None,
+            inputs: Default::default(),
+            parent: None,
+        },
+    )));
+    let subject = super::lifecycle::event(daemon.ok(
+        member_conn,
+        Request::ContributionPublish {
+            goal,
+            task: Some(task),
+            attempt: None,
+            generation: None,
+            summary: "retained exact result".into(),
+            base: None,
+            patch: None,
+            artifacts: vec![],
+        },
+    ));
+    daemon.ok(
+        agent,
+        Request::ReviewRecord {
+            goal,
+            subject,
+            verdict: ReviewVerdict::Approve,
+            text: "reviewed".into(),
+        },
+    );
+    daemon.ok(
+        agent,
+        Request::ScopeSelect {
+            goal,
+            subject,
+            expected: None,
+        },
+    );
+    let TaskId::Authored(opened) = task else {
+        panic!()
+    };
+    let mut header = daemon.node.goals[&goal]
+        .goal
+        .event(&opened)
+        .unwrap()
+        .header()
+        .clone();
+    header.at_ms += 1;
+    let fork = Event::sign(header, daemon.node.signer(&member).unwrap()).unwrap();
+    let mut tx = crate::node::commit::Tx::none();
+    tx.commit.events.push(fork);
+    daemon.node.land(tx).unwrap();
+    for reopened in [false, true] {
+        let reader = if reopened {
+            daemon.restart();
+            daemon.connect(credential(1), None)
+        } else {
+            agent
+        };
+        assert!(matches!(
+            daemon.node.goals[&goal].goal.standing(&subject),
+            Some(crate::goal::Standing::Pending(_))
+        ));
+        let Response::Contributions(contributions) = daemon.ok(
+            reader,
+            Request::Contributions {
+                goal,
+                task: Some(task),
+            },
+        ) else {
+            panic!()
+        };
+        assert_eq!(contributions.len(), 1);
+        assert!(contributions[0].selected && contributions[0].approved);
+        assert_eq!(contributions[0].contribution, subject);
+        let Response::Task(detail) = daemon.ok(reader, Request::Task { goal, task }) else {
+            panic!()
+        };
+        assert_eq!(detail.view.selected, Some(subject));
+        assert_eq!(detail.view.creator, member);
+        assert_ne!(detail.effective_rules_json, "null");
+        let Response::Board(board) = daemon.ok(reader, Request::Board { goal }) else {
+            panic!()
+        };
+        assert_eq!(board.len(), 1);
+        assert_eq!(board[0].selected, Some(subject));
+        assert_eq!(
+            contributions[0].text.as_deref(),
+            Some("retained exact result")
+        );
+    }
 }

@@ -137,3 +137,5 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Installed managed-client artifact binding](evidence/installed-client-artifact-bindings.json): unchanged managed-run hashes correlated with the verified installation, manifest, executable and subsequent uninstall.
 - [Installed-client qualification verdicts](evidence/installed-client-qualification-2026-10-04.json): final native-client verdicts, public task/session/event identifiers, artifact identities and cleanup observations without retained skill bodies or provider payloads.
 - [Linux installation qualification](linux-installation-qualification.md): exact Debian/QEMU environment, completed static checks, incomplete workspace tests and the observed process-spawn blocker; native artifact and installation outcomes recorded separately.
+
+- [Organization runtime performance comparison](organization-protocol2-performance.md): paired task/selection replay and ingestion measurements, exact proof indexing, and the remaining regression.

@@ -1,61 +1,75 @@
-//! What one goal's held events mean: history, standing and state. See the crate documentation.
-//!
-//! The property every rule here serves: the state of a goal is a function of
-//! the set of events held, never of the order they arrived in.
-//!
-//! - `history`: the held events, per-author logs with running digests, usable
-//!   prefixes and fork points.
-//! - [`standing`]: how one event stands, and why a goal is halted.
-//! - [`state`]: the read model, as of the latest applied decision.
-
-mod append;
+//! Pure organization evaluation. Equal authenticated evidence and definitions
+//! produce equal projections regardless of transport or insertion order.
 mod chain;
 mod commitments;
+mod flow;
 mod fold;
 mod history;
 mod ids;
+mod projection;
+mod rules;
 mod screen;
 pub mod standing;
 pub mod state;
-mod transition;
 
-use locust_proto::event::{AuthorPoint, Event};
-use locust_proto::id::{EventId, GoalId, PublicKey};
+use std::collections::{BTreeMap, BTreeSet};
+
+use locust_proto::event::{AuthorPoint, Body, Context, Event, Scope, TaskId};
+use locust_proto::id::{DefinitionHash, EventId, GoalId, PublicKey};
+use locust_proto::organization::{Blueprint, Selector, StartRule};
 use locust_proto::store::{Store, StoreError};
 use locust_proto::sync::{AuthorFrontier, Frontier};
 
-pub use standing::{Changes, Exclusion, Halt, Next, Standing, Waiting};
-pub use state::{
-    AcceptedHead, Assignment, Cancellation, Document, Note, Record, RecordKind, Revision, State,
-    Submission, Task, TaskState, Verdict,
+pub use rules::EffectiveRules;
+pub use standing::{
+    Changes, Dependency, DesiredEffect, Evaluation, Exclusion, Halt, Next, Standing, Waiting,
 };
+pub use state::*;
 
-/// Largest number of different events retained at one position of one
-/// author's log. Two are enough to prove a fork.
-pub use screen::MAX_FORK_VARIANTS;
+pub trait DefinitionLookup {
+    fn definition(&self, hash: &DefinitionHash) -> Option<&Blueprint>;
+}
 
-/// Largest number of events of one author retained past its usable prefix.
-pub use screen::MAX_WAITING_PER_AUTHOR;
+impl DefinitionLookup for BTreeMap<DefinitionHash, Blueprint> {
+    fn definition(&self, hash: &DefinitionHash) -> Option<&Blueprint> {
+        self.get(hash)
+    }
+}
 
-/// One goal: every event held for it and what they add up to.
+fn valid_definition(hash: &DefinitionHash, definition: &Blueprint) -> bool {
+    let Ok(source) = serde_json::to_string(definition) else {
+        return false;
+    };
+    let inspected = crate::organization::inspect(&source);
+    inspected.valid
+        && inspected.normalized.as_ref() == Some(definition)
+        && inspected.semantic_hash.as_deref() == Some(hash.to_string().as_str())
+}
+
+#[derive(Clone)]
 pub struct Goal {
     id: GoalId,
     history: history::History,
-    folded: fold::Folded,
+    chain: chain::Chain,
+    evaluation: Evaluation,
+    closure_index: commitments::Index,
 }
 
 impl Goal {
-    /// A goal with nothing held yet, as while a join is in progress.
     pub fn new(id: GoalId) -> Self {
         Self {
             id,
             history: history::History::default(),
-            folded: fold::Folded::default(),
+            chain: chain::Chain::default(),
+            evaluation: Evaluation::default(),
+            closure_index: commitments::Index::default(),
         }
     }
-
-    /// Rebuilds a goal by replaying everything `store` holds for it.
-    pub fn load<S: Store>(store: &S, id: GoalId) -> Result<Self, StoreError> {
+    pub fn load<S: Store, D: DefinitionLookup + ?Sized>(
+        store: &S,
+        id: GoalId,
+        definitions: &D,
+    ) -> Result<Self, StoreError> {
         let mut goal = Self::new(id);
         let mut cursor = 0;
         loop {
@@ -68,136 +82,165 @@ impl Goal {
                 cursor = position;
             }
         }
-        goal.folded = fold::fold(&goal.history).0;
+        goal.refresh(definitions);
         Ok(goal)
     }
-
-    /// The goal's identifier.
+    pub fn apply<D: DefinitionLookup + ?Sized>(
+        &mut self,
+        events: &[Event],
+        definitions: &D,
+    ) -> Changes {
+        let mut inserted = false;
+        for event in events {
+            if event.header().goal == self.id {
+                inserted |= self.history.insert(event).is_some();
+            }
+        }
+        let mut changes = self.refresh(definitions);
+        changes.changed |= inserted;
+        changes
+    }
+    pub fn refresh<D: DefinitionLookup + ?Sized>(&mut self, definitions: &D) -> Changes {
+        let chain = chain::Chain::build(&self.history, definitions);
+        let closure_index = if chain.order == self.chain.order {
+            std::mem::take(&mut self.closure_index)
+        } else {
+            commitments::Index::default()
+        };
+        let (evaluation, closure_index) =
+            fold::evaluate(&self.history, &chain, definitions, closure_index);
+        self.closure_index = closure_index;
+        let judged = evaluation
+            .standings
+            .iter()
+            .filter(|(id, status)| self.evaluation.standings.get(id) != Some(status))
+            .map(|(id, _)| *id)
+            .collect();
+        let changed = evaluation != self.evaluation;
+        self.chain = chain;
+        self.evaluation = evaluation;
+        Changes {
+            judged,
+            changed,
+            refolded: true,
+        }
+    }
     pub fn id(&self) -> GoalId {
         self.id
     }
-
-    /// The number of events held.
     pub fn len(&self) -> usize {
         self.history.events.len()
     }
-
-    /// True while nothing is held.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.history.events.is_empty()
     }
-
-    /// The subset of `events` to retain, in an order that keeps each author's
-    /// log ascending. Call it before the store commit; what it drops will be
-    /// offered again by a later reconciliation if it becomes admissible.
-    pub fn screen(&self, events: Vec<Event>) -> Vec<Event> {
-        let mut events = screen::screen(self.id, &self.history, events);
-        events.sort_by_key(|event| (event.header().author, event.header().seq, event.id()));
-        events
+    pub fn evaluation(&self) -> &Evaluation {
+        &self.evaluation
     }
-
-    /// Applies events the store has durably committed. Events already held,
-    /// and events of another goal, are ignored. Returns what changed.
-    pub fn apply(&mut self, events: &[Event]) -> Changes {
-        let before = self.folded.standings.clone();
-        let mut changes = Changes::default();
-        let mut judged = Vec::new();
-        for event in events {
-            if event.header().goal != self.id {
-                continue;
-            }
-            let Some((slot, placed)) = self.history.insert(event) else {
-                continue;
-            };
-            changes.changed = true;
-            if !changes.refolded && !self.folded.append(&self.history, slot, placed, &mut judged) {
-                changes.refolded = true;
-            }
-        }
-        if changes.refolded {
-            (self.folded, judged) = fold::fold(&self.history);
-        }
-        changes.judged = judged
-            .into_iter()
-            .filter(|&slot| before.get(slot as usize).is_none_or(Standing::is_pending))
-            .map(|slot| self.history.events[slot as usize].id())
+    pub fn state(&self) -> &State {
+        &self.evaluation.state
+    }
+    pub fn selection(&self, key: &locust_proto::event::ScopeKey) -> Option<&ScopedSelection> {
+        self.state().selections.get(key)
+    }
+    /// Read-only accepted task history. Current means the latest selected round
+    /// linked by explicit revisions; unrelated branches yield no combined task.
+    pub fn selected_task(&self, id: TaskId) -> Option<Task> {
+        let rounds: BTreeMap<_, _> = self
+            .state()
+            .selections
+            .values()
+            .filter(|selection| selection.context.scope == Scope::Task(id))
+            .filter_map(|selection| selection.task.clone())
+            .map(|round| (round.context.round, round))
             .collect();
-        changes
+        let mut candidates = Vec::new();
+        for candidate in rounds.keys().copied() {
+            let mut ancestry = BTreeSet::new();
+            let mut current = candidate;
+            loop {
+                if !ancestry.insert(current) {
+                    break;
+                }
+                let event = self.event(&current)?;
+                if let Body::TaskRevised { expected_round, .. } = event.header().body {
+                    current = expected_round;
+                } else {
+                    break;
+                }
+            }
+            if rounds.keys().all(|round| ancestry.contains(round)) {
+                candidates.push((candidate, current));
+            }
+        }
+        let [(current_round, created)] = candidates.as_slice() else {
+            return None;
+        };
+        let creator = self.event(created)?.header().author;
+        Some(Task {
+            id,
+            creator,
+            created: *created,
+            current_round: *current_round,
+            rounds,
+        })
     }
-
-    /// The held event with this identifier.
+    /// Rules exposed for one accepted view, without granting ordinary execution.
+    pub fn selected_rules<D: DefinitionLookup + ?Sized>(
+        &self,
+        context: Context,
+        definitions: &D,
+    ) -> Option<EffectiveRules> {
+        self.selection(&locust_proto::event::ScopeKey {
+            context,
+            purpose: locust_proto::event::DecisionPurpose::Selection,
+        })?;
+        rules::resolve(&self.history, definitions, context)
+            .ok()
+            .map(|resolved| resolved.effective)
+    }
     pub fn event(&self, id: &EventId) -> Option<&Event> {
         self.history.get(id)
     }
-
-    /// Whether the event with this identifier is held.
     pub fn holds(&self, id: &EventId) -> bool {
-        self.history.slot(id).is_some()
+        self.history.get(id).is_some()
     }
-
-    /// How a held event stands.
     pub fn standing(&self, id: &EventId) -> Option<Standing> {
-        Some(self.folded.standings[self.history.slot(id)? as usize])
+        self.evaluation.standings.get(id).copied()
     }
-
-    /// The read model as of the latest applied decision.
-    pub fn state(&self) -> &State {
-        &self.folded.state
+    pub fn genesis(&self) -> Option<EventId> {
+        self.chain.order.first().copied()
     }
-
-    /// Why the goal's decisions cannot advance, with the evidence.
-    pub fn halt(&self) -> Option<&Halt> {
-        self.folded.chain.halt.as_ref()
-    }
-
-    /// Every author with at least one held event, ascending.
     pub fn authors(&self) -> impl Iterator<Item = &PublicKey> {
         self.history.logs.keys()
     }
-
-    /// The held points of `author`, ascending by (position, identifier).
     pub fn points(&self, author: &PublicKey) -> &[AuthorPoint] {
         self.history.log(author).map_or(&[], |log| &log.points)
     }
-
-    /// The number of leading positions of `author`'s log that form its usable
-    /// prefix: each held once, each naming the one before it.
     pub fn usable(&self, author: &PublicKey) -> u64 {
         self.history.log(author).map_or(0, |log| log.usable as u64)
     }
-
-    /// The lowest position of `author`'s log holding two different events.
     pub fn fork_point(&self, author: &PublicKey) -> Option<u64> {
         self.history.log(author).and_then(|log| log.fork)
     }
-
-    /// What this goal holds, an entry per author.
     pub fn frontier(&self) -> Frontier {
         self.history.frontier()
     }
-
-    /// The frontier entry for `author`; the empty entry when nothing is held.
     pub fn frontier_of(&self, author: &PublicKey) -> AuthorFrontier {
         self.history.frontier_of(author)
     }
-
-    /// The reconciliation rule of [`AuthorFrontier::is_prefix_of`], answered
-    /// by lookup: true when the peer that sent `theirs` holds exactly this
-    /// goal's prefix of that author's log.
     pub fn extends(&self, theirs: &AuthorFrontier) -> bool {
         self.history.extends(theirs)
     }
-
-    /// What the next event signed by `author` must carry. `None` while the
-    /// goal has no applied decision, while `author`'s log here is forked or
-    /// has events past a missing position (signing would fork it), and for
-    /// the coordinator while a decision of its chain waits to be applied.
+    pub fn screen(&self, events: Vec<Event>) -> Vec<Event> {
+        screen::screen(self.id, &self.history, events)
+    }
     pub fn next(&self, author: &PublicKey) -> Option<Next> {
         let anchor = self.state().head?;
         let log = self.history.log(author);
         if log.is_some_and(|log| log.fork.is_some() || log.waiting() != 0)
-            || (self.history.coordinator.as_ref() == Some(author)
-                && (self.folded.stalled() || self.halt().is_some()))
+            || (self.state().administrator.as_ref() == Some(author)
+                && self.evaluation.admin_halt.is_some())
         {
             return None;
         }
@@ -208,56 +251,137 @@ impl Goal {
             epoch: self.state().epoch,
         })
     }
-
-    /// The key epoch of a held event: the epoch at its anchor, or at its own
-    /// place for a decision of the chain. `None` while its anchor is not a
-    /// decision of the chain.
     pub fn epoch_of(&self, id: &EventId) -> Option<u32> {
         let event = self.event(id)?;
-        let position = self.folded.chain.position(id).or_else(|| {
-            event
-                .header()
-                .anchor
-                .and_then(|anchor| self.folded.chain.position(&anchor))
-        })?;
-        Some(self.folded.chain.epoch_at(position))
-    }
-
-    /// Latest epoch a principal may read, derived from canonical admissions
-    /// and removals. A principal never admitted has no plaintext access.
-    pub fn read_epoch(&self, member: &PublicKey) -> Option<u32> {
-        self.folded.chain.read_epoch(member, self.folded.applied)
-    }
-
-    /// The task a held event concerns, resolved through its assignment,
-    /// result or cancellation.
-    pub fn task_of(&self, id: &EventId) -> Option<EventId> {
-        use locust_proto::event::Body;
-        let assignment_task = |assignment: &EventId| match &self.event(assignment)?.header().body {
-            Body::TaskAssigned { task, .. } => Some(*task),
-            _ => None,
+        let anchor = if event.header().body.is_governance() {
+            *id
+        } else {
+            event.header().anchor?
         };
-        match &self.event(id)?.header().body {
-            Body::TaskProposed { .. } => Some(*id),
-            Body::TaskAssigned { task, .. } => Some(*task),
-            Body::AssignmentAccepted { assignment }
-            | Body::AssignmentDeclined { assignment }
-            | Body::Progress { assignment }
-            | Body::AttemptFailed { assignment }
-            | Body::ResultSubmitted { assignment, .. }
-            | Body::CancelRequested { assignment } => assignment_task(assignment),
-            Body::ResultAccepted { result, .. } | Body::ResultRejected { result } => {
-                match &self.event(result)?.header().body {
-                    Body::ResultSubmitted { assignment, .. } => assignment_task(assignment),
-                    _ => None,
-                }
+        Some(self.chain.snapshot(&anchor)?.epoch)
+    }
+    pub fn read_epoch(&self, member: &PublicKey) -> Option<u32> {
+        self.state()
+            .members
+            .get(member)
+            .map(|member| member.read_epoch)
+    }
+    pub fn current_context(&self, scope: Scope) -> Option<Context> {
+        let round = match scope {
+            Scope::Task(task) => self.state().tasks.get(&task)?.current_round,
+            Scope::Goal | Scope::Document(_) => self.state().current_rules?,
+        };
+        Some(Context { scope, round })
+    }
+    pub fn task_of(&self, id: &EventId) -> Option<TaskId> {
+        let event = self.event(id)?;
+        match &event.header().body {
+            Body::TaskOpened { .. } => Some(TaskId::Authored(*id)),
+            Body::TaskRevised { task, .. } => Some(*task),
+            Body::EffectMaterialized { effect }
+                if matches!(
+                    effect.action,
+                    locust_proto::event::EffectAction::OpenTask { .. }
+                ) =>
+            {
+                Some(TaskId::Derived(effect.id(self.id)))
             }
-            Body::CancelAcknowledged { cancel, .. } => match &self.event(cancel)?.header().body {
-                Body::CancelRequested { assignment } => assignment_task(assignment),
-                _ => None,
-            },
-            _ => None,
+            Body::AttemptReported { attempt, .. } | Body::CancelRequested { attempt } => {
+                self.task_of(attempt)
+            }
+            Body::WorkDeclined { offer } => self.task_of(offer),
+            Body::CancelAcknowledged { cancel, .. } => self.task_of(cancel),
+            _ => event
+                .header()
+                .body
+                .context()
+                .and_then(|context| match context.scope {
+                    Scope::Task(task) => Some(task),
+                    _ => None,
+                }),
         }
+    }
+    pub fn effective_rules<D: DefinitionLookup + ?Sized>(
+        &self,
+        context: Context,
+        definitions: &D,
+    ) -> Option<EffectiveRules> {
+        if self.standing(&context.round) != Some(Standing::Effective) {
+            return None;
+        }
+        rules::resolve(&self.history, definitions, context)
+            .ok()
+            .map(|resolved| resolved.effective)
+    }
+    pub fn eligible<D: DefinitionLookup + ?Sized>(
+        &self,
+        context: Context,
+        selector: &Selector,
+        subject_author: Option<PublicKey>,
+        definitions: &D,
+    ) -> BTreeSet<PublicKey> {
+        let Some(rules) = self.effective_rules(context, definitions) else {
+            return BTreeSet::new();
+        };
+        rules::selected(
+            selector,
+            self.state()
+                .members
+                .values()
+                .filter(|member| member.is_active())
+                .map(|member| member.principal),
+            &rules,
+            subject_author,
+        )
+    }
+    pub fn can_start<D: DefinitionLookup + ?Sized>(
+        &self,
+        context: Context,
+        principal: PublicKey,
+        offer: Option<EventId>,
+        definitions: &D,
+    ) -> bool {
+        if !self.state().is_member(&principal)
+            || self
+                .state()
+                .task_round(context)
+                .is_none_or(|round| round.closed)
+        {
+            return false;
+        }
+        let Some(rules) = self.effective_rules(context, definitions) else {
+            return false;
+        };
+        match offer {
+            None=>rules.work.starts.iter().any(|rule|matches!(rule,StartRule::Independent{by} if rules::matches(by,principal,&rules,None))),
+            Some(id)=>self.state().offers.get(&id).is_some_and(|offer|offer.context==context&&offer.recipient==principal&&offer.attempts.is_empty()&&offer.declined.is_empty()),
+        }
+    }
+    pub fn can_review<D: DefinitionLookup + ?Sized>(
+        &self,
+        subject: EventId,
+        principal: PublicKey,
+        definitions: &D,
+    ) -> bool {
+        let candidate = self
+            .state()
+            .contributions
+            .get(&subject)
+            .map(|candidate| (candidate.context, candidate.author))
+            .or_else(|| {
+                self.state()
+                    .revisions
+                    .get(&subject)
+                    .map(|candidate| (candidate.context, candidate.author))
+            });
+        let Some((context, author)) = candidate else {
+            return false;
+        };
+        let Some(rules) = self.effective_rules(context, definitions) else {
+            return false;
+        };
+        self.state().is_member(&principal)
+            && rules::may_review(&rules.decisions.completion, principal, &rules, author)
     }
 }
 

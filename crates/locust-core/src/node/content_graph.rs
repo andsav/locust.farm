@@ -28,7 +28,7 @@ enum Kind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Reference {
     kind: Kind,
-    /// None while the signed root's anchor is not on the coordinator chain.
+    /// None while the signed root's anchor is not on the governance chain.
     epoch: Option<u32>,
     exact_epoch: bool,
     len: Option<u64>,
@@ -211,37 +211,60 @@ impl Graph {
                 for hash in header
                     .blobs()
                     .into_iter()
-                    .skip(usize::from(header.payload.is_some()))
+                    .filter(|hash| header.payload.is_none_or(|payload| payload.hash != *hash))
                 {
-                    graph.add(hash, Reference::root(Kind::Opaque, epoch, None), &mut queue);
+                    if !matches!(&header.body, Body::RulesBound { binding, .. } if binding.definition.object.hash == hash)
+                    {
+                        graph.add(hash, Reference::root(Kind::Opaque, epoch, None), &mut queue);
+                    }
                 }
-                match header.body {
-                    Body::TaskProposed {
-                        input: Some(hash), ..
-                    }
-                    | Body::ResultAccepted {
-                        head: Some(hash), ..
-                    } => {
-                        graph.add(
-                            hash,
-                            Reference::root(Kind::Manifest, epoch, None),
-                            &mut queue,
+                match &header.body {
+                    Body::RulesBound { binding, .. } => {
+                        let payload = binding.definition.object;
+                        let mut reference = Reference::root(
+                            Kind::Opaque,
+                            Some(payload.key_epoch),
+                            Some(u64::from(payload.len)),
                         );
+                        reference.exact_epoch = true;
+                        graph.add(payload.hash, reference, &mut queue);
                     }
-                    Body::ResultSubmitted { base, patch, .. } => {
+                    Body::TaskOpened { binding } | Body::TaskRevised { binding, .. } => {
+                        for hash in binding.inputs.values() {
+                            graph.add(
+                                *hash,
+                                Reference::root(Kind::Manifest, epoch, None),
+                                &mut queue,
+                            );
+                        }
+                    }
+                    Body::ContributionPublished { base, patch, .. } => {
                         if let Some(hash) = base {
                             graph.add(
-                                hash,
+                                *hash,
                                 Reference::root(Kind::Manifest, epoch, None),
                                 &mut queue,
                             );
                         }
                         if let Some(hash) = patch {
                             graph.add(
-                                hash,
+                                *hash,
                                 Reference::root(Kind::Contribution, epoch, None),
                                 &mut queue,
                             );
+                        }
+                    }
+                    Body::EffectMaterialized { effect } => {
+                        if let locust_proto::event::EffectAction::OpenTask { binding, .. } =
+                            &effect.action
+                        {
+                            for hash in binding.inputs.values() {
+                                graph.add(
+                                    *hash,
+                                    Reference::root(Kind::Manifest, epoch, None),
+                                    &mut queue,
+                                );
+                            }
                         }
                     }
                     _ => {}

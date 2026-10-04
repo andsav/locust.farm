@@ -251,10 +251,24 @@
         },
         "flow": {
           "draft": {
+            "materializer": {
+              "kind": "role",
+              "name": "materializer"
+            },
+            "recipients": {
+              "kind": "members"
+            },
             "requires": [],
             "variation": null
           },
           "review": {
+            "materializer": {
+              "kind": "role",
+              "name": "materializer"
+            },
+            "recipients": {
+              "kind": "members"
+            },
             "requires": [
               {
                 "evidence": "completion",
@@ -264,7 +278,11 @@
             "variation": "reviewed"
           }
         },
-        "roles": {},
+        "roles": {
+          "materializer": {
+            "description": "One member's daemon advances the configured stages and durably delivers ready work."
+          }
+        },
         "schema_version": 1,
         "variations": {
           "reviewed": {
@@ -746,6 +764,17 @@
       "Stage": {
         "additionalProperties": false,
         "properties": {
+          "materializer": {
+            "$ref": "#/$defs/Authority",
+            "description": "One explicitly bound principal whose daemon materializes this stage."
+          },
+          "recipients": {
+            "$ref": "#/$defs/Selector",
+            "default": {
+              "kind": "members"
+            },
+            "description": "Eligible recipients of durable ready-work delivery, resolved at binding."
+          },
           "requires": {
             "default": [],
             "items": {
@@ -761,6 +790,9 @@
             ]
           }
         },
+        "required": [
+          "materializer"
+        ],
         "type": "object"
       },
       "StartRule": {

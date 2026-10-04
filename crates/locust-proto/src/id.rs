@@ -83,6 +83,16 @@ macro_rules! byte_id {
             }
         }
 
+        impl schemars::JsonSchema for $name {
+            fn schema_name() -> std::borrow::Cow<'static, str> { stringify!($name).into() }
+            fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+                schemars::json_schema!({
+                    "type": "string",
+                    "pattern": format!("^[0-9a-fA-F]{{{}}}$", $len * 2)
+                })
+            }
+        }
+
         impl fmt::Display for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write_hex(&self.0, f)
@@ -171,8 +181,20 @@ byte_id!(
 
 byte_id!(
     /// Identifies a goal: the digest of its genesis record, which pins the
-    /// initial owner and coordinator keys.
+    /// administrator and initial definition.
     GoalId,
+    32
+);
+
+byte_id!(
+    /// Semantic identity of a normalized organization definition.
+    DefinitionHash,
+    32
+);
+
+byte_id!(
+    /// Stable logical identity of a configured transition effect.
+    EffectId,
     32
 );
 

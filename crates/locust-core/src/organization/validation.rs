@@ -193,6 +193,13 @@ impl Validator<'_> {
         for (name, stage) in &self.blueprint.flow {
             let path = format!("/flow/{}", escape(name));
             self.name(name, &path);
+            self.authority(&stage.materializer, &format!("{path}/materializer"));
+            self.selector(
+                &stage.recipients,
+                &format!("{path}/recipients"),
+                false,
+                false,
+            );
             if let Some(variation) = &stage.variation
                 && !self.blueprint.variations.contains_key(variation)
             {

@@ -69,11 +69,15 @@ impl History {
             let goal = self.goal();
             let anchor = Some(self.events[0].id());
             let (payload, _) = sealed_payload(&goal, 0, format!("task {next}").as_bytes());
-            let body = Body::TaskProposed {
-                input: Some(Self::input(next).hash()),
-                depends_on: Vec::new(),
-                deadline_ms: None,
-                max_attempts: None,
+            let body = Body::ContributionPublished {
+                context: locust_proto::event::Context {
+                    scope: locust_proto::event::Scope::Goal,
+                    round: self.events[0].id(),
+                },
+                attempt: None,
+                base: Some(Self::input(next).hash()),
+                patch: None,
+                artifacts: vec![],
             };
             let event = self.author.event_with(goal, anchor, body, Some(payload));
             self.events.push(event);

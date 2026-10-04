@@ -27,13 +27,13 @@ use locust_proto::id::EventId;
 use super::check::settle;
 use super::machine::Who;
 use super::run::{Acked, Fail, Run};
-use super::scenario::{create, join, note, setup};
+use super::scenario::{create, finding, join, setup};
 use super::world::{MS, Micros, SEC};
 
 /// How soon a write must show everywhere when nothing is wrong.
 pub const PROMPT: Micros = 10 * SEC;
 
-/// Members write notes at seeded moments under a fresh set of faults; in a
+/// Members write findings at seeded moments under a fresh set of faults; in a
 /// third of the seeds the coordinator is stopped throughout.
 pub fn storm(r: &mut Run) -> Result<(), Fail> {
     r.step = "write under faults";
@@ -52,23 +52,27 @@ pub fn storm(r: &mut Run) -> Result<(), Fail> {
         r.w.chaos_point();
         // Someone can only type on a machine that is up.
         if r.w.machines[m].running() {
-            let text = format!("storm note {round} from m{}", m + 1);
-            let request = Request::NoteAdd {
+            let text = format!("storm finding {round} from m{}", m + 1);
+            let request = Request::ContributionPublish {
                 goal,
-                about: None,
-                supersedes: None,
-                text: text.clone(),
+                task: None,
+                attempt: None,
+                generation: None,
+                summary: text.clone(),
+                base: None,
+                patch: None,
+                artifacts: Vec::new(),
             };
             match r.w.call(m, Who::Agent, request) {
                 Ok(Response::Recorded { event }) => {
                     r.acked.push(Acked {
-                        what: "note",
+                        what: "finding",
                         machine: m,
                         event,
                     });
-                    r.notes.push((event, text));
+                    r.findings.push((event, text));
                 }
-                other => return r.fail(format!("m{} note.add answered {other:?}", m + 1)),
+                other => return r.fail(format!("m{} finding.add answered {other:?}", m + 1)),
             }
         }
         let pause = r.rng.range(0, 15_000);
@@ -80,7 +84,7 @@ pub fn storm(r: &mut Run) -> Result<(), Fail> {
     Ok(())
 }
 
-/// Three members in steady state with nothing wrong: bursts of notes from
+/// Three members in steady state with nothing wrong: bursts of findings from
 /// seeded members, each visible everywhere within [`PROMPT`].
 pub fn prompt(r: &mut Run) -> Result<Micros, Fail> {
     setup(r)?;
@@ -96,22 +100,22 @@ pub fn prompt(r: &mut Run) -> Result<Micros, Fail> {
         let mut written: Vec<(EventId, String)> = Vec::new();
         for n in 0..r.rng.range(1, 4) {
             let m = r.rng.below(3) as usize;
-            let text = format!("burst {burst} note {n} from m{}", m + 1);
-            written.push((note(r, m, &text)?, text));
+            let text = format!("burst {burst} finding {n} from m{}", m + 1);
+            written.push((finding(r, m, &text)?, text));
             let gap = r.rng.range(0, 400);
             r.w.run_for(gap * MS);
         }
         let from = r.w.now;
-        r.wait("every member to show a burst of notes", |r| {
+        r.wait("every member to show a burst of findings", |r| {
             written
                 .iter()
-                .all(|(id, text)| (0..3).all(|m| r.shows_note(m, *id, text)))
+                .all(|(id, text)| (0..3).all(|m| r.shows_finding(m, *id, text)))
         })?;
         let took = r.w.now - from;
         slowest = slowest.max(took);
         if took > PROMPT {
             return r.fail(format!(
-                "with nothing wrong, notes took {:.1} s to show everywhere",
+                "with nothing wrong, findings took {:.1} s to show everywhere",
                 took as f64 / SEC as f64
             ));
         }
@@ -127,8 +131,8 @@ pub fn prompt(r: &mut Run) -> Result<Micros, Fail> {
 pub const LAG_BOUND: Micros = 10 * SEC;
 
 /// No injected faults. Machine 2 sleeps for minutes while machine 1 keeps
-/// trying it, wakes, and writes a note some seconds later. Returns how long
-/// machine 1 took to show the note's text.
+/// trying it, wakes, and writes a finding some seconds later. Returns how long
+/// machine 1 took to show the finding's text.
 pub fn lag(r: &mut Run) -> Result<Micros, Fail> {
     setup(r)?;
     r.w.net.stall = 0;
@@ -146,11 +150,12 @@ pub fn lag(r: &mut Run) -> Result<Micros, Fail> {
     r.w.run_for(awake * SEC);
     r.step = "text written after waking";
     let text = "M2 wrote this after waking";
-    let id = note(r, 1, text)?;
+    let id = finding(r, 1, text)?;
     let from = r.w.now;
-    r.wait("m1 to show the text of a note m2 wrote after waking", |r| {
-        r.shows_note(0, id, text)
-    })?;
+    r.wait(
+        "m1 to show the text of a finding m2 wrote after waking",
+        |r| r.shows_finding(0, id, text),
+    )?;
     let took = r.w.now - from;
     if took > LAG_BOUND {
         return r.fail(format!(

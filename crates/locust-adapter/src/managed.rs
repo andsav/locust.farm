@@ -24,15 +24,14 @@ pub struct Binding {
     pub instance: InstanceId,
     pub principal: PublicKey,
     pub goal: Option<GoalId>,
-    pub assignment: Option<AssignmentBinding>,
+    pub attempt: Option<AttemptBinding>,
     pub claim: Option<Claim>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AssignmentBinding {
-    pub task: locust_proto::id::EventId,
-    pub assignment: locust_proto::id::EventId,
-    pub attempt: u32,
+pub struct AttemptBinding {
+    pub task: locust_proto::event::TaskId,
+    pub attempt: locust_proto::id::EventId,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,9 +150,9 @@ pub fn prepare(
             "launch requires explicit absolute paths, identifier and client version",
         ));
     }
-    if spec.binding.claim.is_some() && spec.binding.assignment.is_none() {
+    if spec.binding.claim.is_some() && spec.binding.attempt.is_none() {
         return Err(invalid(
-            "claimed launch requires exact assignment and attempt binding",
+            "claimed launch requires exact attempt and attempt binding",
         ));
     }
     if let Some(claim) = spec.binding.claim
@@ -189,14 +188,16 @@ pub fn prepare(
             "native resume/session arguments belong in explicit launch mode",
         ));
     }
-    if let Some(assignment) = &spec.binding.assignment {
-        if spec.binding.goal.is_none() || assignment.attempt == 0 {
-            return Err(invalid("assignment requires goal and positive attempt"));
+    if let Some(attempt) = &spec.binding.attempt {
+        if spec.binding.goal.is_none() {
+            return Err(invalid("attempt binding requires a goal"));
         }
-        if spec.binding.claim.is_some_and(|claim| {
-            claim.task != assignment.task || claim.assignment != assignment.assignment
-        }) {
-            return Err(invalid("claim differs from bound assignment"));
+        if spec
+            .binding
+            .claim
+            .is_some_and(|claim| claim.task != attempt.task || claim.attempt != attempt.attempt)
+        {
+            return Err(invalid("claim differs from bound attempt"));
         }
     }
     let mut argv = spec.global_arguments.clone();
@@ -372,11 +373,11 @@ impl OwnedLaunch {
             return Err(invalid("daemon session view differs from managed binding"));
         }
         let mut candidate = self.metadata.clone();
-        if let Some(assignment) = &candidate.binding.assignment {
+        if let Some(attempt) = &candidate.binding.attempt {
             candidate.binding.claim = view.claims.iter().copied().find(|claim| {
                 Some(claim.goal) == candidate.binding.goal
-                    && claim.task == assignment.task
-                    && claim.assignment == assignment.assignment
+                    && claim.task == attempt.task
+                    && claim.attempt == attempt.attempt
                     && claim.instance == view.instance
                     && claim.generation > 0
             });

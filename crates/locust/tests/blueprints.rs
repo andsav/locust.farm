@@ -212,3 +212,38 @@ fn installed_contract_matches_cli_schema_examples_and_operations() {
         assert!(contract["verification"][boundary].is_string());
     }
 }
+
+#[test]
+fn runtime_contract_discovers_requests_responses_events_and_cli_without_state() {
+    let scratch = tempfile::tempdir().unwrap();
+    let home = scratch.path().join("absent");
+    let result = cli()
+        .env("LOCUST_HOME", &home)
+        .env("LOCUST_CREDENTIAL", "/unavailable/credential")
+        .args(["--json", "contract"])
+        .output()
+        .unwrap();
+    let contract = value(&result, 0)["result"].clone();
+    assert_eq!(contract["api_version"], locust_proto::API_VERSION);
+    assert!(!home.exists());
+    let operations = contract["operations"].as_array().unwrap();
+    assert!(
+        operations
+            .iter()
+            .any(|operation| operation["mcp_tool"] == "locust_blueprint_draft_update")
+    );
+    assert!(contract["response_schema"]["$defs"]["Draft"].is_object());
+    assert!(contract["event_schema"]["$defs"]["Effect"].is_object());
+    assert!(
+        contract["cli"]["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|command| command["name"] == "attempt")
+    );
+    assert!(
+        !operations
+            .iter()
+            .any(|operation| operation["name"] == "task.assign")
+    );
+}

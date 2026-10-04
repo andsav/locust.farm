@@ -58,11 +58,11 @@
 //! A separate evidence exchange is `Hello`, `HaltProof([a, b])`, `Done`.
 //! The receiver authenticates the sender as a historical contact of this known
 //! goal (or its pending inviter), verifies both signatures and checks that the
-//! two different events name the goal's coordinator at the same sequence. Once
+//! two different events name the same author at the same sequence. Once
 //! that historical eligibility is established, the shell may raise only the
 //! evidence frame limit to `2 * (MAX_HEADER_BYTES + 128)`. This permission grants
 //! no ordinary membership, inventory, content or key access. It lets a halted
-//! replica deliver coordinator equivocation to contacts whose admission the
+//! replica deliver author equivocation to contacts whose admission the
 //! fork excluded. Proofs are retained through the normal durable commit path.
 //!
 //! The responder advances its answer lazily, at most one frame per transport
@@ -348,10 +348,10 @@ pub enum SyncMessage {
     BlobUnavailable(BlobHash),
     /// Ends the exchange.
     Done,
-    /// Exactly two conflicting coordinator events for this known goal. This
+    /// Exactly two conflicting author events for this known goal. This
     /// proof-only frame may reach a historical participant without admitting
     /// it to content, keys, inventory or ordinary event reconciliation. The
-    /// receiver validates both signatures and the same coordinator position.
+    /// receiver validates both signatures and the same author position.
     HaltProof([WireEvent; 2]),
 }
 
@@ -465,10 +465,16 @@ mod tests {
         }
     }
 
-    fn note() -> Body {
-        Body::Note {
-            about: None,
-            supersedes: None,
+    fn contribution() -> Body {
+        Body::ContributionPublished {
+            context: crate::event::Context {
+                scope: crate::event::Scope::Goal,
+                round: crate::id::EventId([1; 32]),
+            },
+            attempt: None,
+            base: None,
+            patch: None,
+            artifacts: vec![],
         }
     }
 
@@ -577,11 +583,11 @@ mod tests {
         let genesis = owner.genesis();
         let goal = genesis.header().goal;
         let anchor = Some(genesis.id());
-        let owner_first = owner.event(goal, anchor, note());
-        let owner_second = owner.event(goal, anchor, note());
-        let owner_third = owner.event(goal, anchor, note());
-        let member_first = member.event(goal, anchor, note());
-        let member_second = member.event(goal, anchor, note());
+        let owner_first = owner.event(goal, anchor, contribution());
+        let owner_second = owner.event(goal, anchor, contribution());
+        let owner_third = owner.event(goal, anchor, contribution());
+        let member_first = member.event(goal, anchor, contribution());
+        let member_second = member.event(goal, anchor, contribution());
         let (owner_key, member_key) = (owner.key.public(), member.key.public());
 
         let frontier = |store: &MemStore| {
@@ -705,7 +711,7 @@ mod tests {
         let author = writer.key.public();
         let mut events = vec![root.clone()];
         for _ in 0..4 {
-            events.push(writer.event(goal, Some(root.id()), note()));
+            events.push(writer.event(goal, Some(root.id()), contribution()));
         }
         let ahead: Vec<AuthorPoint> = events.iter().map(point).collect();
         let behind = &ahead[..3];
@@ -739,9 +745,15 @@ mod tests {
         let sibling = twin.event(
             goal,
             Some(root.id()),
-            Body::Note {
-                about: Some(root.id()),
-                supersedes: None,
+            Body::ContributionPublished {
+                context: crate::event::Context {
+                    scope: crate::event::Scope::Goal,
+                    round: root.id(),
+                },
+                attempt: None,
+                base: None,
+                patch: None,
+                artifacts: vec![],
             },
         );
         let mut forked = ahead.clone();

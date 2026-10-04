@@ -78,11 +78,11 @@ pub trait Host {
     fn halt_proofs(&self) -> Vec<(GoalId, EndpointId, [WireEvent; 2])> {
         Vec::new()
     }
-    /// Whether this authenticated endpoint may deliver coordinator fork evidence.
+    /// Whether this authenticated endpoint may deliver author fork evidence.
     fn accepts_halt_proof(&self, _goal: &GoalId, _remote: &EndpointId) -> bool {
         false
     }
-    /// Validates and durably holds exactly one coordinator equivocation proof.
+    /// Validates and durably holds exactly one author equivocation proof.
     fn receive_halt_proof(
         &mut self,
         _goal: &GoalId,

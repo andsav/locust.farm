@@ -6,10 +6,10 @@ use crate::node::{
     callers::Actor,
     commit::Tx,
     sessions::{SessionEntry, Sessions},
-    views::unfinished,
 };
 use locust_proto::api::{Caller, Claim, Response, SessionRecord, SessionView};
 use locust_proto::engine::Entropy;
+use locust_proto::event::AttemptStatus;
 use locust_proto::id::InstanceId;
 use locust_proto::store::Store;
 
@@ -18,14 +18,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
         self.goals
             .iter()
             .flat_map(|(goal, entry)| {
-                entry.claims.iter().filter_map(move |(assignment, claim)| {
-                    let task = entry.state().task(&claim.task)?;
-                    let assigned = entry.state().assignment(assignment)?;
+                entry.claims.iter().filter_map(move |(id, claim)| {
+                    let attempt = entry.state().attempts.get(id)?;
                     (claim.instance == *instance
-                        && task.assignment == Some(*assignment)
-                        && !assigned.revoked
-                        && unfinished(task.state))
-                    .then(|| claim.view(*goal, *assignment))
+                        && entry.goal.current_context(attempt.context.scope)
+                            == Some(attempt.context)
+                        && matches!(attempt.status, None | Some(AttemptStatus::Progress)))
+                    .then(|| claim.view(*goal, *id))
                 })
             })
             .collect()
@@ -111,7 +110,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             return Err(denied("the session belongs to another principal"));
         }
         if !self.session_claims(&instance).is_empty() {
-            return Err(conflict("the session still holds an unfinished assignment"));
+            return Err(conflict("the session still holds an unfinished attempt"));
         }
         let mut tx = Tx::none();
         // Keep the principal binding: dropping a record never transfers a secret.

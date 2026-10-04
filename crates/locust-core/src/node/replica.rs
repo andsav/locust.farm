@@ -127,7 +127,7 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
                     .local
                     .joins
                     .values()
-                    .any(|join| join.coordinator != genesis.coordinator)
+                    .any(|join| join.administrator != genesis.administrator)
             {
                 return Err(Refusal::InvitationRefused);
             }
@@ -151,8 +151,19 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
             .goal
             .authors()
             .flat_map(|author| entry.goal.points(author))
-            .filter_map(|point| entry.goal.event(&point.id)?.header().payload)
-            .map(|payload| payload.key_epoch)
+            .filter_map(|point| entry.goal.event(&point.id))
+            .flat_map(|event| {
+                let definition = match &event.header().body {
+                    Body::RulesBound { binding, .. } => Some(binding.definition.object.key_epoch),
+                    _ => None,
+                };
+                event
+                    .header()
+                    .payload
+                    .map(|payload| payload.key_epoch)
+                    .into_iter()
+                    .chain(definition)
+            })
             .filter(|epoch| !entry.keys.contains_key(epoch))
             .collect::<BTreeSet<_>>()
             .into_iter()

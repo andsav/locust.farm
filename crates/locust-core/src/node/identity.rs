@@ -80,6 +80,7 @@ pub(super) struct PrincipalRecord {
     pub credential: [u8; 32],
     pub grants: Grants,
     pub revoked: bool,
+    pub author_only: bool,
 }
 
 /// One enrolled principal with its signing key ready.
@@ -128,8 +129,14 @@ impl Principals {
                 let keypair = Keypair::from_seed(record.seed);
                 let public = keypair.public();
                 self.by_name.insert(record.name.clone(), public);
-                self.by_credential
-                    .insert(record.credential, Caller::Agent(public));
+                self.by_credential.insert(
+                    record.credential,
+                    if record.author_only {
+                        Caller::Author(public)
+                    } else {
+                        Caller::Agent(public)
+                    },
+                );
                 self.by_key.insert(
                     public,
                     Principal {

@@ -35,6 +35,18 @@ pub(super) fn join_local(
             ..
         }
     ));
+    let owner = daemon.owner();
+    daemon.ok(
+        owner,
+        Request::GoalGrant {
+            goal,
+            agent: member,
+            grants: GoalGrants {
+                contribute: true,
+                ..Default::default()
+            },
+        },
+    );
     (member, conn)
 }
 
@@ -89,7 +101,7 @@ fn fabricated_join_intent_never_grants_read_access_on_a_shared_daemon() {
     assert!(daemon.node.goals[&goal].membership(&intruder).is_none());
     // Remote join intent and refused intent both preserve no plaintext authority.
     let mut join = crate::node::local::JoinRecord {
-        coordinator: forged.coordinator,
+        administrator: forged.administrator,
         endpoint: forged.endpoint,
         hints: vec![],
         secret: forged.secret,
@@ -149,21 +161,29 @@ fn removed_principal_and_viewer_cannot_read_new_epoch_but_readmission_restores_h
     let viewer = daemon.connect(credential(9), None);
     let old = event(daemon.ok(
         agent,
-        Request::NoteAdd {
+        Request::ContributionPublish {
             goal,
-            about: None,
-            supersedes: None,
-            text: "old".into(),
+            task: None,
+            attempt: None,
+            generation: None,
+            summary: "old".into(),
+            base: None,
+            patch: None,
+            artifacts: vec![],
         },
     ));
     daemon.ok(agent, Request::MemberRemove { goal, member });
     let new = event(daemon.ok(
         agent,
-        Request::NoteAdd {
+        Request::ContributionPublish {
             goal,
-            about: None,
-            supersedes: None,
-            text: "new".into(),
+            task: None,
+            attempt: None,
+            generation: None,
+            summary: "new".into(),
+            base: None,
+            patch: None,
+            artifacts: vec![],
         },
     ));
     let hash = daemon
@@ -332,11 +352,15 @@ fn leaving_member_cannot_clear_local_departure_with_a_spare_ticket() {
     );
     daemon.ok(
         agent,
-        Request::NoteAdd {
+        Request::ContributionPublish {
             goal,
-            about: None,
-            supersedes: None,
-            text: "still left".into(),
+            task: None,
+            attempt: None,
+            generation: None,
+            summary: "still left".into(),
+            base: None,
+            patch: None,
+            artifacts: vec![],
         },
     );
     assert_eq!(
@@ -352,7 +376,7 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
     use locust_proto::event::Event;
     use locust_proto::id::EndpointId;
     use locust_proto::invite::JoinRequest;
-    let (mut daemon, coordinator, _, agent, goal) = setup();
+    let (mut daemon, administrator, _, agent, goal) = setup();
     let ticket = invite(&mut daemon, agent, goal);
     let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     let remote = EndpointId([44; 32]);
@@ -363,7 +387,7 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
     let own = &events[1].1;
     let mut header = own.header().clone();
     header.at_ms += 44;
-    let fork = Event::sign(header, daemon.node.signer(&coordinator).unwrap()).unwrap();
+    let fork = Event::sign(header, daemon.node.signer(&administrator).unwrap()).unwrap();
     let proof = [own.to_wire(), fork.to_wire()];
     assert!(
         daemon
@@ -391,7 +415,14 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
             .is_err()
     );
     daemon.restart();
-    assert!(daemon.node.goals[&goal].goal.halt().is_some());
+    assert!(
+        daemon.node.goals[&goal]
+            .goal
+            .evaluation()
+            .admin_halt
+            .as_ref()
+            .is_some()
+    );
     assert!(
         daemon
             .node

@@ -512,8 +512,8 @@ fn launcher_quotes_paths_and_preserves_arguments_without_environment_binding() {
     let script = base.join("launcher");
     package::create_file(&script, &launcher::render(&s).unwrap(), 0o700).unwrap();
     let arguments = [
-        "note",
-        "add",
+        "contribution",
+        "publish",
         "--goal",
         &"ab".repeat(32),
         "a 'quoted' $value; `not a command`\nnext line",

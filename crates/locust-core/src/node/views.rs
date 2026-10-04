@@ -4,43 +4,18 @@
 use std::collections::BTreeSet;
 
 use locust_proto::api::{
-    self, AssignmentRef, BlobState, BlobStatus, CancelItem, EventDetail, EventView, GoalSummary,
-    Membership, PendingWork, ReviewItem, TaskDetail, TaskView,
+    self, BlobState, BlobStatus, CancelItem, DeliveryItem, EventDetail, EventView, GoalSummary,
+    Membership, PendingWork, ReviewItem, TaskDetail, TaskView, WorkItem,
 };
 use locust_proto::engine::Entropy;
-use locust_proto::event::Event;
-use locust_proto::id::{BlobHash, EventId, PublicKey};
+use locust_proto::event::{AttemptStatus, Body, Context, EffectAction, Event, Scope};
+use locust_proto::id::{BlobHash, PublicKey};
 use locust_proto::store::Store;
 
 use super::Node;
 use super::callers::Actor;
 use super::entry::Entry;
-use crate::goal::{Standing, Task, TaskState};
-
-/// The API's name for a task state.
-pub(super) fn task_state(state: TaskState) -> api::TaskState {
-    match state {
-        TaskState::Proposed => api::TaskState::Proposed,
-        TaskState::Assigned => api::TaskState::Assigned,
-        TaskState::Taken => api::TaskState::Taken,
-        TaskState::Declined => api::TaskState::Declined,
-        TaskState::Failed => api::TaskState::Failed,
-        TaskState::Submitted => api::TaskState::Submitted,
-        TaskState::Accepted => api::TaskState::Accepted,
-        TaskState::Rejected => api::TaskState::Rejected,
-        TaskState::CancelRequested => api::TaskState::CancelRequested,
-        TaskState::Cancelled(outcome) => api::TaskState::Cancelled(outcome),
-    }
-}
-
-/// True while the current assignment of a task in this state still has work
-/// or an answer outstanding from its assignee.
-pub(super) fn unfinished(state: TaskState) -> bool {
-    matches!(
-        state,
-        TaskState::Assigned | TaskState::Taken | TaskState::CancelRequested
-    )
-}
+use crate::goal::{Standing, Task};
 
 impl Entry {
     /// How a local principal stands in the goal; `None` when it never took
@@ -62,12 +37,19 @@ impl Entry {
     }
 
     pub fn halted(&self) -> Option<api::Halt> {
-        self.goal.halt().map(|_| api::Halt::AuthorityConflict)
+        self.goal
+            .evaluation()
+            .admin_halt
+            .as_ref()
+            .map(|_| api::Halt::AuthorityConflict)
     }
 
-    /// True if `principal` may claim `assignment` without asking the owner.
-    pub fn may_claim(&self, principal: &PublicKey, assignment: &EventId) -> bool {
-        self.local.grants(principal).execute || self.local.authorized.contains_key(assignment)
+    pub fn may_start(&self, principal: &PublicKey, context: Context) -> bool {
+        self.local.grants(principal).execute
+            || self
+                .local
+                .authorized
+                .contains_key(&(context.round, *principal))
     }
 
     /// One event as the feed lists it.
@@ -83,6 +65,7 @@ impl Entry {
             standing: match self.goal.standing(&id) {
                 Some(Standing::Effective) => api::Standing::Effective,
                 Some(Standing::Excluded(_)) => api::Standing::Excluded,
+                Some(Standing::Disputed) => api::Standing::Disputed,
                 Some(Standing::Pending(_)) | None => api::Standing::Pending,
             },
         }
@@ -97,8 +80,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             return None;
         }
         if let Some(payload) = entry
-            .state()
-            .genesis
+            .goal
+            .genesis()
             .and_then(|id| entry.goal.event(&id))
             .and_then(|event| event.header().payload)
             && super::requests::content::blob_record(&self.store, &entry.id(), &payload.hash)
@@ -109,7 +92,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             return None;
         }
         entry.local.title.clone().or_else(|| {
-            let genesis = entry.goal.event(&entry.state().genesis?)?;
+            let genesis = entry.goal.event(&entry.goal.genesis()?)?;
             entry.text(&self.store, genesis, reader)
         })
     }
@@ -158,31 +141,22 @@ impl<S: Store, E: Entropy> Node<S, E> {
         task: &Task,
         reader: Option<&PublicKey>,
     ) -> TaskView {
-        let state = entry.state();
+        let round = &task.rounds[&task.current_round];
         let title = entry
             .goal
-            .event(&task.id)
+            .event(&task.created)
             .and_then(|event| entry.text(&self.store, event, reader))
             .map(|text| text.lines().next().unwrap_or_default().to_owned());
-        let integrated = reader
-            .and_then(|reader| entry.local.workspace.get(reader)?.integrated)
-            .and_then(|head| state.head_position(&head));
-        let accepted_at = task.accepted_head.and_then(|_| {
-            state
-                .accepted_heads
-                .iter()
-                .rposition(|accepted| accepted.task == task.id)
-        });
         TaskView {
             task: task.id,
-            state: task_state(task.state),
+            context: round.context,
+            creator: task.creator,
             title,
-            proposer: task.proposer,
-            assignee: task.assignee,
-            assignment: task.assignment,
-            attempt: task.attempt,
-            result: task.result,
-            applied: matches!((integrated, accepted_at), (Some(mine), Some(theirs)) if mine >= theirs),
+            attempts: round.attempts.iter().copied().collect(),
+            contributions: round.contributions.iter().copied().collect(),
+            completed: round.completed,
+            selected: round.selected,
+            closed: round.closed,
         }
     }
 
@@ -192,17 +166,29 @@ impl<S: Store, E: Entropy> Node<S, E> {
         task: &Task,
         reader: Option<&PublicKey>,
     ) -> TaskDetail {
+        let round = &task.rounds[&task.current_round];
         TaskDetail {
             view: self.task_view(entry, task, reader),
             text: entry
                 .goal
-                .event(&task.id)
+                .event(&task.created)
                 .and_then(|event| entry.text(&self.store, event, reader)),
-            input: task.input,
-            depends_on: task.depends_on.clone(),
-            deadline_ms: task.deadline_ms,
-            max_attempts: task.max_attempts,
-            cancel: task.cancel,
+            inputs: round.binding.inputs.clone(),
+            parent: round.binding.parent.and_then(|context| {
+                if let Scope::Task(task) = context.scope {
+                    Some(task)
+                } else {
+                    None
+                }
+            }),
+            variation: round.binding.variation.clone(),
+            effective_rules_json: serde_json::to_string(
+                &entry
+                    .goal
+                    .effective_rules(round.context, &entry.definitions)
+                    .or_else(|| entry.goal.selected_rules(round.context, &entry.definitions)),
+            )
+            .expect("effective rules encode"),
         }
     }
 
@@ -232,79 +218,145 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
     }
 
-    /// What needs the caller in one goal now.
+    /// Durable evidence determines pending work after every retry and restart.
     pub(super) fn pending_work(&self, entry: &Entry, actor: &Actor) -> PendingWork {
-        let state = entry.state();
-        let goal = entry.id();
         let mut work = PendingWork {
             revision: entry.revision(),
             ..PendingWork::default()
         };
-        let taking_part = |principal: &PublicKey| {
-            entry.membership(principal) == Some(Membership::Member)
-                && self.principals.active(principal).is_some()
+        let candidates: Vec<_> = match actor.principal {
+            Some(principal) => vec![principal],
+            None => entry.local.part.keys().copied().collect(),
         };
-        for task in &state.tasks {
-            let (Some(assignment), Some(assignee)) = (task.assignment, task.assignee) else {
-                continue;
-            };
-            if state
-                .assignment(&assignment)
-                .is_some_and(|assignment| assignment.revoked)
+        for principal in candidates {
+            if entry.membership(&principal) != Some(Membership::Member)
+                || self.principals.active(&principal).is_none()
             {
                 continue;
             }
-            let item = AssignmentRef {
-                task: task.id,
-                assignment,
-            };
-            let claim = entry.claims.get(&assignment);
-            let unclaimed = claim.is_none() && task.state == TaskState::Assigned;
-            let Some(principal) = actor.principal else {
-                // The owner asking directly: what waits for an authorization.
-                if unclaimed && taking_part(&assignee) && !entry.may_claim(&assignee, &assignment) {
-                    work.to_authorize.push(item);
-                }
-                continue;
-            };
-            if !taking_part(&principal) {
-                continue;
-            }
-            if principal == assignee {
-                if unclaimed {
-                    if entry.may_claim(&assignee, &assignment) {
-                        work.to_claim.push(item);
-                    } else {
-                        work.to_authorize.push(item);
+            for task in entry.state().tasks.values() {
+                let round = &task.rounds[&task.current_round];
+                let already_running = round.attempts.iter().any(|id| {
+                    entry.state().attempts.get(id).is_some_and(|attempt| {
+                        attempt.author == principal
+                            && matches!(attempt.status, None | Some(AttemptStatus::Progress))
+                    })
+                });
+                if !already_running {
+                    let offers = std::iter::once(None).chain(
+                        entry
+                            .state()
+                            .offers
+                            .values()
+                            .filter(|offer| {
+                                offer.context == round.context && offer.recipient == principal
+                            })
+                            .map(|offer| Some(offer.id)),
+                    );
+                    for offer in offers {
+                        if !entry.goal.can_start(
+                            round.context,
+                            principal,
+                            offer,
+                            &entry.definitions,
+                        ) {
+                            continue;
+                        }
+                        let item = WorkItem {
+                            task: task.id,
+                            offer,
+                        };
+                        if entry.may_start(&principal, round.context) {
+                            if actor.principal.is_some() {
+                                work.to_start.push(item);
+                            }
+                        } else {
+                            work.to_authorize.push(item);
+                        }
                     }
                 }
+            }
+            if actor.principal.is_none() {
+                continue;
+            }
+            for (id, attempt) in &entry.state().attempts {
+                if attempt.author != principal {
+                    continue;
+                }
+                let Scope::Task(task) = attempt.context.scope else {
+                    continue;
+                };
+                if entry.goal.current_context(attempt.context.scope) != Some(attempt.context) {
+                    continue;
+                }
+                let claim = entry.claims.get(id);
                 let mine = claim.filter(|claim| Some(claim.instance) == actor.session);
-                if let Some(claim) = claim.filter(|_| unfinished(task.state)) {
-                    let view = claim.view(goal, assignment);
+                if matches!(attempt.status, None | Some(AttemptStatus::Progress))
+                    && let Some(claim) = claim
+                {
+                    let view = claim.view(entry.id(), *id);
                     if mine.is_some() {
                         work.claimed.push(view);
                     } else {
                         work.held_elsewhere.push(view);
                     }
                 }
-                if let Some(cancel) = task.cancel
-                    && (claim.is_none() || mine.is_some())
-                {
-                    work.to_acknowledge.push(CancelItem {
-                        task: task.id,
-                        assignment,
-                        cancel,
-                        generation: mine.map(|claim| claim.generation),
-                    });
+                if claim.is_none() || mine.is_some() {
+                    for cancel in &attempt.cancellations {
+                        if entry
+                            .state()
+                            .cancellations
+                            .get(cancel)
+                            .is_some_and(|cancel| cancel.acknowledgments.is_empty())
+                        {
+                            work.to_acknowledge.push(CancelItem {
+                                task,
+                                attempt: *id,
+                                cancel: *cancel,
+                                generation: mine.map(|claim| claim.generation),
+                            });
+                        }
+                    }
                 }
             }
-            if state.coordinator == Some(principal)
-                && task.state == TaskState::Submitted
-                && let Some(result) = task.result
-            {
-                work.to_review.push(ReviewItem {
-                    task: task.id,
-                    result,
+            let reviewable = entry
+                .state()
+                .contributions
+                .values()
+                .map(|c| (c.id, c.context, c.approved))
+                .chain(
+                    entry
+                        .state()
+                        .revisions
+                        .values()
+                        .map(|r| (r.id, r.context, r.approved)),
+                );
+            for (subject, context, approved) in reviewable {
+                if !approved
+                    && entry
+                        .goal
+                        .can_review(subject, principal, &entry.definitions)
+                {
+                    let reviewed = entry.goal.authors().flat_map(|author| entry.goal.points(author)).filter_map(|point| entry.goal.event(&point.id)).any(|event| event.header().author == principal && entry.goal.standing(&event.id()) == Some(Standing::Effective) && matches!(&event.header().body, Body::ReviewRecorded { subject: reviewed, .. } if *reviewed == subject));
+                    if !reviewed {
+                        work.to_review.push(ReviewItem { subject, context });
+                    }
+                }
+            }
+            for effect in entry.state().effects.values() {
+                if !effect.recipients.contains(&principal) {
+                    continue;
+                }
+                work.deliveries.push(DeliveryItem {
+                    effect: effect.id,
+                    context: effect.effect.context,
+                    acknowledged: effect.acknowledged.contains(&principal),
+                    action: match effect.effect.action {
+                        EffectAction::OpenTask { .. } => "open_task",
+                        EffectAction::Offer { .. } => "offer",
+                        EffectAction::RequestReview { .. } => "request_review",
+                    }
+                    .into(),
                 });
             }
         }

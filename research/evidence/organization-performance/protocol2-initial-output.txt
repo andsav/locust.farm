@@ -1,0 +1,29 @@
+   Compiling locust-proto v0.1.0 (/Users/andrei/Projects26/locust/crates/locust-proto)
+   Compiling locust-core v0.1.0 (/Users/andrei/Projects26/locust/crates/locust-core)
+    Finished `release` profile [optimized] target(s) in 19.48s
+     Running tests/organization_performance.rs (output/organization-baseline/target/release/deps/organization_performance-146ccebcbf64d47a)
+
+running 1 test
+kind,tasks,events,mode,min_us,median_us,max_us
+healthy,16,84,store_replay,1022,1273,1627
+healthy,16,84,decoded_batch_ingest,911,1015,1236
+healthy,16,84,wire_decode_batch_ingest,3247,3427,3790
+member_fork_pinned,16,85,store_replay,688,701,731
+member_fork_pinned,16,85,decoded_batch_ingest,650,660,670
+member_fork_pinned,16,85,wire_decode_batch_ingest,2534,2697,2770
+healthy,128,644,store_replay,20280,20386,20624
+healthy,128,644,decoded_batch_ingest,65174,65949,66262
+healthy,128,644,wire_decode_batch_ingest,80604,81138,81529
+member_fork_pinned,128,645,store_replay,19497,19779,20138
+member_fork_pinned,128,645,decoded_batch_ingest,64769,65022,65950
+member_fork_pinned,128,645,wire_decode_batch_ingest,79939,80374,81125
+healthy,512,2564,store_replay,303325,304947,310679
+healthy,512,2564,decoded_batch_ingest,2455430,2531464,3224084
+healthy,512,2564,wire_decode_batch_ingest,2524953,2574554,2611847
+member_fork_pinned,512,2565,store_replay,298242,299233,300531
+test measure_organization_goal has been running for over 60 seconds
+member_fork_pinned,512,2565,decoded_batch_ingest,2454738,2458940,2519736
+member_fork_pinned,512,2565,wire_decode_batch_ingest,2500910,2517834,2755467
+test measure_organization_goal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 89.88s

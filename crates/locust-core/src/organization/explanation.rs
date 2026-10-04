@@ -112,6 +112,7 @@ pub(super) fn explain(value: &Blueprint) -> Explanation {
         );
     }
     for (name, stage) in &value.flow {
+        summary.push(format!("Stage {name:?}: {} materializes the configured task and durably delivers ready work to {}.", authority(&stage.materializer), selector(&stage.recipients)));
         let needs = if stage.requires.is_empty() {
             "no upstream evidence".into()
         } else {

@@ -93,10 +93,25 @@ pub fn presets() -> Vec<Preset> {
             }),
         },
     );
-    pipeline.flow.insert("draft".into(), Stage::default());
+    declare_role(
+        &mut pipeline,
+        "materializer",
+        "One member's daemon advances the configured stages and durably delivers ready work.",
+    );
+    pipeline.flow.insert(
+        "draft".into(),
+        Stage {
+            materializer: authority("materializer"),
+            recipients: Selector::Members,
+            variation: None,
+            requires: Vec::new(),
+        },
+    );
     pipeline.flow.insert(
         "review".into(),
         Stage {
+            materializer: authority("materializer"),
+            recipients: Selector::Members,
             variation: Some("reviewed".into()),
             requires: vec![Prerequisite {
                 stage: "draft".into(),

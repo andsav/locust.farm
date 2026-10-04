@@ -1,19 +1,19 @@
 //! Local requests: resolution of the caller, idempotency, and dispatch to the
 //! module that owns each family of operations.
 
+mod catalog;
 mod claims;
 pub(super) mod content;
 mod daemon;
+mod documents;
 mod goals;
 pub(super) mod invitations;
-mod notes;
 mod reading;
 mod sessions;
 mod tasks;
 
 use locust_proto::api::{ApiError, ErrorCode, Request, RequestFrame, Response, ResponseFrame};
 use locust_proto::engine::{ConnId, Entropy, Step};
-use locust_proto::event::Body;
 use locust_proto::store::Store;
 
 use super::Node;
@@ -127,6 +127,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::AgentGrant { agent, grants } => self.agent_grant(agent, grants),
             Request::AgentRevoke { agent } => self.agent_revoke(agent),
             Request::ViewerEnroll { agent, credential } => self.viewer_enroll(agent, credential),
+            Request::AuthorEnroll { name, credential } => self.author_enroll(name, credential),
             Request::SessionReport { record } => self.session_report(actor, record, now),
             Request::Session { instance } => self.session_show(actor, instance),
             Request::Sessions => self.sessions_list(actor),
@@ -148,84 +149,116 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 grants,
                 credential,
             } => self.agent_enroll(name, grants, credential),
-            Request::GoalCreate { title } => self.goal_create(actor, title, now),
+            Request::GoalCreate {
+                title,
+                blueprint_json,
+                roles,
+                inputs,
+            } => self.goal_create(actor, title, blueprint_json, roles, inputs, now),
             Request::GoalGrant {
                 goal,
                 agent,
                 grants,
             } => self.goal_grant(actor, goal, agent, grants),
             Request::GoalStatus { goal } => self.goal_status(actor, goal),
+            Request::RulesBind {
+                goal,
+                expected,
+                blueprint_json,
+                roles,
+                inputs,
+            } => self.rules_bind(actor, goal, expected, blueprint_json, roles, inputs, now),
             Request::WorkspaceSet { goal, binding } => self.workspace_set(actor, goal, binding),
             Request::Board { goal } => self.board(actor, goal),
             Request::Task { goal, task } => self.task_show(actor, goal, task),
             Request::Event { goal, event } => self.event_show(actor, goal, event),
-            Request::TaskPropose {
+            Request::TaskOpen {
                 goal,
                 text,
-                input,
-                depends_on,
-                deadline_ms,
-                max_attempts,
-            } => self.task_propose(
-                actor,
-                goal,
-                text,
-                input,
-                depends_on,
-                deadline_ms,
-                max_attempts,
-                now,
-            ),
-            Request::TaskAssign {
+                variation,
+                inputs,
+                parent,
+            } => self.task_open(actor, goal, text, variation, inputs, parent, now),
+            Request::TaskRevise {
                 goal,
                 task,
-                assignee,
-            } => self.task_assign(actor, goal, task, assignee, now),
-            Request::TaskCancel { goal, assignment } => {
-                self.task_cancel(actor, goal, assignment, now)
-            }
+                expected_round,
+                variation,
+            } => self.task_revise(actor, goal, task, expected_round, variation, now),
+            Request::WorkOffer {
+                goal,
+                task,
+                recipient,
+            } => self.work_offer(actor, goal, task, recipient, now),
             Request::TaskAuthorize {
                 goal,
-                assignment,
+                task,
+                agent,
                 takeover,
-            } => self.task_authorize(actor, goal, assignment, takeover),
-            Request::TaskClaim { goal, assignment } => {
-                self.task_claim(actor, goal, assignment, now)
+            } => self.task_authorize(actor, goal, task, agent, takeover),
+            Request::AttemptStart { goal, task, offer } => {
+                self.attempt_start(actor, goal, task, offer, now)
             }
-            Request::TaskTakeover { goal, assignment } => {
-                self.task_takeover(actor, goal, assignment)
+            Request::AttemptTakeover { goal, attempt } => {
+                self.attempt_takeover(actor, goal, attempt)
             }
-            Request::TaskDecline { goal, assignment } => {
-                self.task_decline(actor, goal, assignment, now)
+            Request::WorkDecline { goal, offer } => self.work_decline(actor, goal, offer, now),
+            Request::AttemptCancel { goal, attempt } => {
+                self.attempt_cancel(actor, goal, attempt, now)
             }
-            Request::TaskProgress {
+            Request::AttemptReport {
                 goal,
-                assignment,
+                attempt,
                 generation,
+                status,
                 text,
-            } => {
-                let body = Body::Progress { assignment };
-                self.claim_bound(actor, goal, assignment, generation, body, &text, now)
-            }
-            Request::TaskSubmit {
+            } => self.attempt_report(actor, goal, attempt, generation, status, text, now),
+            Request::ContributionPublish {
                 goal,
-                assignment,
+                task,
+                attempt,
                 generation,
                 summary,
                 base,
                 patch,
                 artifacts,
-            } => self.task_submit(
-                actor, goal, assignment, generation, summary, base, patch, artifacts, now,
+            } => self.contribution_publish(
+                actor, goal, task, attempt, generation, summary, base, patch, artifacts, now,
             ),
-            Request::TaskFail {
+            Request::Contributions { goal, task } => self.contributions(actor, goal, task),
+            Request::CompletionDeclare { goal, subject } => {
+                self.completion_declare(actor, goal, subject, now)
+            }
+            Request::ReviewRecord {
                 goal,
-                assignment,
-                generation,
-                reason,
-            } => {
-                let body = Body::AttemptFailed { assignment };
-                self.claim_bound(actor, goal, assignment, generation, body, &reason, now)
+                subject,
+                verdict,
+                text,
+            } => self.review_record(actor, goal, subject, verdict, text, now),
+            Request::CheckAttest {
+                goal,
+                subject,
+                name,
+                passed,
+                text,
+            } => self.check_attest(actor, goal, subject, name, passed, text, now),
+            Request::ScopeSelect {
+                goal,
+                subject,
+                expected,
+            } => self.scope_select(actor, goal, subject, expected, now),
+            Request::ScopeClose {
+                goal,
+                scope,
+                expected,
+            } => self.scope_close(actor, goal, scope, expected, false, now),
+            Request::ScopeReopen {
+                goal,
+                scope,
+                expected,
+            } => self.scope_close(actor, goal, scope, expected, true, now),
+            Request::DeliveryAcknowledge { goal, effect } => {
+                self.delivery_acknowledge(actor, goal, effect, now)
             }
             Request::CancelAcknowledge {
                 goal,
@@ -233,23 +266,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 generation,
                 outcome,
             } => self.cancel_acknowledge(actor, goal, cancel, generation, outcome, now),
-            Request::ResultAccept { goal, result, head } => {
-                self.result_accept(actor, goal, result, head, now)
-            }
-            Request::ResultReject {
-                goal,
-                result,
-                reason,
-            } => self.result_reject(actor, goal, result, reason, now),
             Request::Pending { goal } => self.pending(actor, goal),
             Request::Events { goal, after, limit } => self.events(actor, goal, after, limit),
-            Request::NoteAdd {
-                goal,
-                about,
-                supersedes,
-                text,
-            } => self.note_add(actor, goal, about, supersedes, text, now),
-            Request::Notes { goal, about } => self.notes(actor, goal, about),
             Request::DocRead { goal, doc } => self.doc_read(actor, goal, doc),
             Request::DocRevise {
                 goal,
@@ -257,8 +275,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 base,
                 text,
             } => self.doc_revise(actor, goal, doc, base, text, now),
-            Request::DocAccept { goal, revision } => self.doc_accept(actor, goal, revision, now),
             Request::Wait { .. } => unreachable!("wait is dispatched before planning"),
+            request @ (Request::BlueprintDraftCreate { .. }
+            | Request::BlueprintDraftUpdate { .. }
+            | Request::BlueprintDraft { .. }
+            | Request::BlueprintDrafts
+            | Request::BlueprintPublish { .. }
+            | Request::BlueprintPublication { .. }
+            | Request::BlueprintPublications
+            | Request::BlueprintPresentation { .. }
+            | Request::BlueprintPresentationUpdate { .. }
+            | Request::BlueprintValidate { .. }
+            | Request::BlueprintExplain { .. }) => self.catalog(actor, request),
         }
     }
 }

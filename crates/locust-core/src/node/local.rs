@@ -34,9 +34,9 @@ const PART: u8 = b'm';
 /// A redeemed invitation whose admission has not arrived, or was refused.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct JoinRecord {
-    /// The coordinator the ticket named, checked against the genesis record
+    /// The administrator the ticket named, checked against the genesis record
     /// once it arrives.
-    pub coordinator: PublicKey,
+    pub administrator: PublicKey,
     /// The inviting daemon.
     pub endpoint: EndpointId,
     pub hints: Vec<String>,
@@ -62,7 +62,7 @@ pub(super) struct Local {
     pub grants: BTreeMap<PublicKey, GoalGrants>,
     pub workspace: BTreeMap<PublicKey, WorkspaceBinding>,
     pub joins: BTreeMap<PublicKey, JoinRecord>,
-    pub authorized: BTreeMap<EventId, Authorization>,
+    pub authorized: BTreeMap<(EventId, PublicKey), Authorization>,
     /// Local principals that are or were members here; true once the
     /// principal asked to leave.
     pub part: BTreeMap<PublicKey, bool>,
@@ -106,12 +106,13 @@ pub(super) fn join_delete(goal: &GoalId, principal: &PublicKey) -> LocalWrite {
 
 pub(super) fn authorization_write(
     goal: &GoalId,
-    assignment: &EventId,
+    round: &EventId,
+    principal: &PublicKey,
     authorization: &Authorization,
 ) -> LocalWrite {
     records::put(
         Space::Goal,
-        key(AUTHORIZATION, goal, &assignment.0),
+        records::key(AUTHORIZATION, &[&goal.0, &round.0, &principal.0]),
         authorization,
     )
 }
@@ -153,8 +154,13 @@ impl Local {
                 self.joins.remove(&PublicKey(subject()?));
             }
             (AUTHORIZATION, Some(value)) => {
-                self.authorized
-                    .insert(EventId(subject()?), records::read(value)?);
+                self.authorized.insert(
+                    (
+                        EventId(subject()?),
+                        PublicKey(records::part(key, REST + 32).ok_or_else(records::bad_key)?),
+                    ),
+                    records::read(value)?,
+                );
             }
             (PART, Some(value)) => {
                 self.part

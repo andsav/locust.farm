@@ -165,6 +165,9 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
         };
         let request = Request::GoalCreate {
             title: "Atomic creation".into(),
+            blueprint_json: None,
+            roles: Default::default(),
+            inputs: Default::default(),
         };
         fail.set(Some(after));
         assert!(
@@ -210,7 +213,29 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
             panic!()
         };
         assert_eq!(store.goals().unwrap(), vec![goal]);
-        assert_eq!(store.log(&goal, 0, 256).unwrap().len(), 2);
+        assert_eq!(store.log(&goal, 0, 256).unwrap().len(), 3);
         assert_eq!(reopened.goals[&goal].state().members.len(), 1);
     }
+}
+
+#[test]
+fn exhausted_revision_refuses_before_changing_the_goal_projection() {
+    let (mut daemon, _, _, agent, goal) = super::lifecycle::setup();
+    let mut tx = crate::node::commit::Tx::none();
+    tx.local(crate::node::local::revision_write(&goal, u64::MAX));
+    daemon.node.land(tx).unwrap();
+    let before = daemon.store.log(&goal, 0, usize::MAX).unwrap();
+    let refused = daemon.call(
+        agent,
+        Request::TaskOpen {
+            goal,
+            text: "must not appear".into(),
+            variation: None,
+            inputs: Default::default(),
+            parent: None,
+        },
+    );
+    assert_eq!(code(refused), ErrorCode::Conflict);
+    assert!(daemon.node.goals[&goal].state().tasks.is_empty());
+    assert_eq!(daemon.store.log(&goal, 0, usize::MAX).unwrap(), before);
 }

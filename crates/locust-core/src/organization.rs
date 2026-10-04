@@ -139,3 +139,5 @@ struct References {
 
 #[cfg(test)]
 mod tests;
+
+pub mod catalog;

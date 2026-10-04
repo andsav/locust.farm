@@ -73,7 +73,7 @@ struct IdempotencyRecord {
 fn idempotency_key(caller: Caller, key: &IdempotencyKey) -> Vec<u8> {
     match caller {
         Caller::Owner => records::key(0, &[&key.0]),
-        Caller::Agent(principal) | Caller::Viewer(principal) => {
+        Caller::Agent(principal) | Caller::Viewer(principal) | Caller::Author(principal) => {
             records::key(1, &[&principal.0, &key.0])
         }
     }
@@ -135,43 +135,92 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// must carry are an outcome of applying them. Nothing is released before
     /// the commit returns, and when it fails the goal is rebuilt from the
     /// store, so memory never keeps an uncommitted change.
-    pub(super) fn land(&mut self, mut tx: Tx) -> Result<(), ApiError> {
-        let advanced = tx.commit.events.first().map(|event| event.header().goal);
-        if let Some(goal) = advanced
-            && let Err(error) = self.advance(goal, &mut tx)
-        {
-            self.restore(goal);
-            return Err(error);
+    pub(super) fn land(&mut self, tx: Tx) -> Result<(), ApiError> {
+        let goals: std::collections::BTreeSet<_> = tx
+            .touched
+            .iter()
+            .copied()
+            .chain(tx.commit.events.iter().map(|event| event.header().goal))
+            .collect();
+        self.land_once(tx)?;
+        for goal in goals {
+            self.drive_flow(goal)?;
         }
-        for goal in &tx.touched {
-            let revision = self.goals.get(goal).map_or(0, |entry| entry.local.revision) + 1;
-            tx.commit.local.push(local::revision_write(goal, revision));
+        Ok(())
+    }
+
+    pub(super) fn land_once(&mut self, mut tx: Tx) -> Result<(), ApiError> {
+        let goals: std::collections::BTreeSet<_> = tx
+            .touched
+            .iter()
+            .copied()
+            .chain(tx.commit.events.iter().map(|event| event.header().goal))
+            .collect();
+        // Check local counters before advancing any in-memory projection.
+        // A refused transaction must not leave even a temporarily accepted fact.
+        let revisions: Vec<_> = goals
+            .iter()
+            .map(|goal| {
+                self.goals
+                    .get(goal)
+                    .map_or(0, |entry| entry.local.revision)
+                    .checked_add(1)
+                    .map(|revision| local::revision_write(goal, revision))
+                    .ok_or_else(|| {
+                        ApiError::new(
+                            ErrorCode::Conflict,
+                            "the goal revision counter is exhausted",
+                        )
+                    })
+            })
+            .collect::<Result<_, _>>()?;
+        let backups: Vec<_> = goals
+            .iter()
+            .map(|id| {
+                (
+                    *id,
+                    self.goals
+                        .get(id)
+                        .map(|entry| (entry.goal.clone(), entry.definitions.clone())),
+                )
+            })
+            .collect();
+        for goal in &goals {
+            if let Err(error) = self.advance(*goal, &mut tx) {
+                self.rollback(backups);
+                return Err(error);
+            }
         }
+        tx.commit.local.extend(revisions);
         if !tx.is_empty() {
             if let Err(error) = self.store.commit(&tx.commit) {
-                // A failed durability operation can have an unknown outcome.
-                // Even a readable store cannot authorize another signature.
                 self.failed = true;
-                if let Some(goal) = advanced {
-                    self.restore(goal);
-                }
+                self.rollback(backups);
                 return Err(error.into());
             }
             for write in &tx.commit.local {
-                let absorbed = match write {
+                let result = match write {
                     LocalWrite::Put { space, key, value } => self.absorb(*space, key, Some(value)),
                     LocalWrite::Delete { space, key } => self.absorb(*space, key, None),
                 };
-                if let Err(error) = absorbed {
-                    // The store holds the record; only memory is behind.
+                if let Err(error) = result {
                     self.failed = true;
                     return Err(error.into());
                 }
             }
         }
-        if let Some(goal) = advanced {
-            self.entry_mut(goal).note_named(&tx.commit.events);
-            self.outbound.insert(goal);
+        for goal in &goals {
+            let events: Vec<_> = tx
+                .commit
+                .events
+                .iter()
+                .filter(|event| event.header().goal == *goal)
+                .cloned()
+                .collect();
+            if !events.is_empty() {
+                self.entry_mut(*goal).note_named(&events);
+                self.outbound.insert(*goal);
+            }
         }
         if let Err(error) = self.update_blob_index(&tx.commit) {
             self.failed = true;
@@ -182,22 +231,46 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok(())
     }
 
+    fn rollback(
+        &mut self,
+        backups: Vec<(GoalId, Option<(Goal, super::definitions::Definitions)>)>,
+    ) {
+        for (id, backup) in backups {
+            if let Some((goal, definitions)) = backup {
+                let entry = self.entry_mut(id);
+                entry.goal = goal;
+                entry.definitions = definitions;
+            } else {
+                self.goals.remove(&id);
+            }
+        }
+    }
+
     /// Applies the events of `tx` to their goal and adds what follows from
     /// that to the same commit: a feed entry for every event judged, and the
     /// end of a join whose admission arrived.
     fn advance(&mut self, goal: GoalId, tx: &mut Tx) -> Result<(), ApiError> {
         let authored = tx.authored;
+        let keys = self
+            .goals
+            .get(&goal)
+            .map(|entry| entry.keys.clone())
+            .unwrap_or_default();
+        let definitions =
+            super::definitions::Definitions::load(&self.store, goal, &keys, &tx.commit)?;
         let entry = self.entry_mut(goal);
-        let changes = entry.goal.apply(&tx.commit.events);
+        entry.definitions = definitions;
+        let changes = entry.goal.apply(&tx.commit.events, &entry.definitions);
         if authored
-            && let Some(excluded) =
-                tx.commit
-                    .events
-                    .iter()
-                    .find_map(|event| match entry.goal.standing(&event.id()) {
-                        Some(Standing::Effective) => None,
-                        other => Some(other),
-                    })
+            && let Some(excluded) = tx
+                .commit
+                .events
+                .iter()
+                .filter(|event| event.header().goal == goal)
+                .find_map(|event| match entry.goal.standing(&event.id()) {
+                    Some(Standing::Effective) => None,
+                    other => Some(other),
+                })
         {
             // The node signs nothing its own copy of the goal would not
             // apply; a check before signing missed this case.
@@ -211,12 +284,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         let mut position = entry.feed.len();
         for event in &changes.judged {
-            if entry.feed.position(event).is_none() {
-                position += 1;
-                tx.commit
-                    .local
-                    .push(Feed::entry_write(&goal, position, event));
-            }
+            position += 1;
+            tx.commit
+                .local
+                .push(Feed::entry_write(&goal, position, event));
         }
         for principal in entry.local.joins.keys() {
             if entry.is_member(principal) {
@@ -228,25 +299,5 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         tx.touch(goal);
         Ok(())
-    }
-
-    /// Puts a goal back to what the store holds, after a commit that carried
-    /// its events did not happen.
-    fn restore(&mut self, goal: GoalId) {
-        match Goal::load(&self.store, goal) {
-            Ok(loaded) => {
-                let unknown = loaded.is_empty()
-                    && self
-                        .goals
-                        .get(&goal)
-                        .is_some_and(|entry| entry.local.revision == 0);
-                if unknown {
-                    self.goals.remove(&goal);
-                } else {
-                    self.entry_mut(goal).goal = loaded;
-                }
-            }
-            Err(_) => self.failed = true,
-        }
     }
 }

@@ -218,9 +218,14 @@ pub struct TaskVariation {
     pub decisions: Option<DecisionRules>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Stage {
+    /// One explicitly bound principal whose daemon materializes this stage.
+    pub materializer: Authority,
+    /// Eligible recipients of durable ready-work delivery, resolved at binding.
+    #[serde(default)]
+    pub recipients: Selector,
     #[serde(default)]
     pub variation: Option<String>,
     #[serde(default)]
@@ -270,3 +275,5 @@ pub use presets::presets;
 
 mod contract;
 pub use contract::{OPERATIONS, Operation, contract};
+
+pub mod catalog;

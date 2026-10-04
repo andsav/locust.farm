@@ -8,7 +8,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command};
 use locust_adapter::{
     config::{BridgePaths, Client, StdioServer},
     delivery::{self, DeliveryBinding, DeliveryReceipt},
-    managed::{self, AssignmentBinding, Binding, LaunchSpec, Mode},
+    managed::{self, AttemptBinding, Binding, LaunchSpec, Mode},
 };
 use locust_proto::api::{
     Caller, ErrorCode, PendingWork, Request, Response, SessionSecret, SessionState, SessionView,
@@ -34,7 +34,7 @@ pub(super) fn commands() -> Command {
             .arg(opt("prompt",true).allow_hyphen_values(true))
             .arg(opt("arg",false).action(ArgAction::Append).allow_hyphen_values(true))
             .arg(opt("global-arg",false).action(ArgAction::Append).allow_hyphen_values(true))
-            .arg(opt("goal",false)).arg(opt("assignment",false).requires("goal"))
+            .arg(opt("goal",false)).arg(opt("attempt",false).requires("goal"))
             .arg(opt("resume",false)).arg(opt("native-session",false)))
         .subcommand(Command::new("status").about("Read this authenticated session's lifecycle record"))
         .subcommand(Command::new("recover").about("Mark an interrupted launch uncertain without spawning or signaling"))
@@ -212,21 +212,21 @@ pub(super) fn run(
         .get_one::<String>("goal")
         .map(|g| resolve_goal(&mut api, &socket, g, None))
         .transpose()?;
-    let assignment = args
-        .get_one::<String>("assignment")
+    let attempt = args
+        .get_one::<String>("attempt")
         .map(|s| {
             s.parse::<EventId>()
-                .map_err(|_| Failure::usage("--assignment requires a full event identifier"))
+                .map_err(|_| Failure::usage("--attempt requires a full event identifier"))
         })
         .transpose()?;
     let mut binding = Binding {
         instance,
         principal,
         goal,
-        assignment: None,
+        attempt: None,
         claim: None,
     };
-    if let Some(assignment) = assignment {
+    if let Some(attempt) = attempt {
         let Response::Board(board) = call(
             &mut api,
             &socket,
@@ -239,42 +239,27 @@ pub(super) fn run(
         };
         let task = board
             .into_iter()
-            .find(|t| t.assignment == Some(assignment))
-            .ok_or_else(|| Failure::new(ErrorCode::Superseded, "assignment is not current"))?;
-        if task.assignee != Some(principal) {
-            return Err(Failure::new(
-                ErrorCode::Denied,
-                "assignment belongs to another principal",
-            ));
+            .find(|t| t.attempts.contains(&attempt))
+            .ok_or_else(|| Failure::new(ErrorCode::Superseded, "attempt is not current"))?;
+        if task.closed {
+            return Err(Failure::new(ErrorCode::Conflict, "attempt task is closed"));
         }
-        if !matches!(
-            task.state,
-            locust_proto::api::TaskState::Assigned
-                | locust_proto::api::TaskState::Taken
-                | locust_proto::api::TaskState::CancelRequested
-        ) {
-            return Err(Failure::new(
-                ErrorCode::Conflict,
-                "assignment is no longer unfinished",
-            ));
-        }
-        binding.assignment = Some(AssignmentBinding {
+        binding.attempt = Some(AttemptBinding {
             task: task.task,
-            assignment,
-            attempt: task.attempt,
+            attempt,
         });
         let work = pending(&mut api, &socket, goal.unwrap())?;
         binding.claim = work.claimed.iter().copied().find(|claim| {
-            claim.assignment == assignment && claim.task == task.task && claim.instance == instance
+            claim.attempt == attempt && claim.task == task.task && claim.instance == instance
         });
         if work
             .held_elsewhere
             .iter()
-            .any(|claim| claim.assignment == assignment)
+            .any(|claim| claim.attempt == attempt)
         {
             return Err(Failure::new(
                 ErrorCode::ClaimHeld,
-                "assignment is held by another session; explicit takeover is required before this launch",
+                "attempt is held by another session; explicit takeover is required before this launch",
             ));
         }
     }
@@ -284,7 +269,7 @@ pub(super) fn run(
     {
         return Err(Failure::new(
             ErrorCode::Conflict,
-            "session has an unfinished claim outside the selected assignment",
+            "session has an unfinished claim outside the selected attempt",
         ));
     }
     let mode = if let Some(id) = args.get_one::<String>("resume") {
@@ -300,7 +285,7 @@ pub(super) fn run(
             || metadata.workspace != workspace
             || metadata.profile != profile_path
             || metadata.binding.goal != goal
-            || metadata.binding.assignment != binding.assignment
+            || metadata.binding.attempt != binding.attempt
             || !prev
                 .record
                 .client
@@ -308,7 +293,7 @@ pub(super) fn run(
         {
             return Err(Failure::new(
                 ErrorCode::Conflict,
-                "resume must match the exact exited native session, client, paths and assignment",
+                "resume must match the exact exited native session, client, paths and attempt",
             ));
         }
         Mode::Resume(id.clone())

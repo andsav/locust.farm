@@ -187,7 +187,7 @@ impl Machine {
     }
 
     /// Everything the owner and the principal can read, as text: status,
-    /// and for every goal its status, board, notes and pending work. Which
+    /// and for every goal its status, board, findings and pending work. Which
     /// peers are connected is left out, because only that may differ after
     /// a restart. `None` before the principal is enrolled.
     pub fn visible(&mut self, now_ms: u64) -> Option<String> {
@@ -200,7 +200,7 @@ impl Machine {
             let reads = [
                 Request::GoalStatus { goal },
                 Request::Board { goal },
-                Request::Notes { goal, about: None },
+                Request::Contributions { goal, task: None },
                 Request::Pending { goal },
             ];
             for request in reads {

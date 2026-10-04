@@ -3,6 +3,7 @@
 
 use locust_proto::api::{ApiError, ErrorCode, MAX_FEED_PAGE, Response, ResponseFrame, WaitOutcome};
 use locust_proto::engine::{ConnId, Entropy, Parked, Step};
+use locust_proto::event::{Scope, TaskId};
 use locust_proto::id::{EventId, GoalId};
 use locust_proto::store::{Space, Store};
 
@@ -16,21 +17,31 @@ impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn board(&self, actor: &Actor, goal: GoalId) -> Plan {
         let entry = self.readable(actor, &goal)?;
         let reader = actor.principal.as_ref();
+        let mut tasks = entry.state().tasks.clone();
+        for selection in entry.state().selections.values() {
+            if let Scope::Task(id) = selection.context.scope
+                && !tasks.contains_key(&id)
+                && let Some(task) = entry.goal.selected_task(id)
+            {
+                tasks.insert(id, task);
+            }
+        }
         answer(Response::Board(
-            entry
-                .state()
-                .tasks
-                .iter()
+            tasks
+                .values()
                 .map(|task| self.task_view(entry, task, reader))
                 .collect(),
         ))
     }
 
-    pub(super) fn task_show(&self, actor: &Actor, goal: GoalId, task: EventId) -> Plan {
+    pub(super) fn task_show(&self, actor: &Actor, goal: GoalId, task: TaskId) -> Plan {
         let entry = self.readable(actor, &goal)?;
+        let selected = entry.goal.selected_task(task);
         let found = entry
             .state()
-            .task(&task)
+            .tasks
+            .get(&task)
+            .or(selected.as_ref())
             .ok_or_else(|| not_found("no such task"))?;
         answer(Response::Task(self.task_detail(
             entry,
@@ -39,17 +50,62 @@ impl<S: Store, E: Entropy> Node<S, E> {
         )))
     }
 
+    pub(super) fn contributions(&self, actor: &Actor, goal: GoalId, task: Option<TaskId>) -> Plan {
+        let entry = self.readable(actor, &goal)?;
+        // A selection pins its exact proof branch in that scope. Keep the
+        // selected view readable even when a later fork makes the same event
+        // pending in the ordinary contribution projection.
+        let mut subjects = entry
+            .state()
+            .contributions
+            .iter()
+            .map(|(id, contribution)| (*id, (contribution, false)))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        for selection in entry.state().selections.values() {
+            if let crate::goal::state::SelectedSubject::Contribution(contribution) =
+                &selection.subject
+            {
+                subjects.insert(contribution.id, (contribution, true));
+            }
+        }
+        let contributions = subjects
+            .values()
+            .filter(|(contribution, _)| {
+                task.is_none_or(|task| contribution.context.scope == Scope::Task(task))
+            })
+            .map(
+                |(contribution, selected)| locust_proto::api::ContributionView {
+                    contribution: contribution.id,
+                    author: contribution.author,
+                    context: contribution.context,
+                    attempt: contribution.attempt,
+                    approved: contribution.approved,
+                    selected: *selected,
+                    evidence: contribution.evidence.iter().copied().collect(),
+                    base: contribution.base,
+                    patch: contribution.patch,
+                    artifacts: contribution.artifacts.clone(),
+                    text: entry
+                        .goal
+                        .event(&contribution.id)
+                        .and_then(|event| entry.text(&self.store, event, actor.principal.as_ref())),
+                },
+            )
+            .collect();
+        answer(Response::Contributions(contributions))
+    }
+
     pub(super) fn event_show(&self, actor: &Actor, goal: GoalId, event: EventId) -> Plan {
         let entry = self.readable(actor, &goal)?;
         let found = entry
             .goal
             .event(&event)
             .ok_or_else(|| not_found("no such event"))?;
-        answer(Response::Event(self.event_detail(
+        answer(Response::Event(Box::new(self.event_detail(
             entry,
             found,
             actor.principal.as_ref(),
-        )))
+        ))))
     }
 
     pub(super) fn pending(&self, actor: &Actor, goal: GoalId) -> Plan {
@@ -90,8 +146,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let views = entry
             .feed
             .after(from, page)
-            .filter_map(|(_, id)| entry.goal.event(id))
-            .map(|event| entry.event_view(event))
+            .filter_map(|(position, id)| {
+                entry.goal.event(id).map(|event| {
+                    let mut view = entry.event_view(event);
+                    view.position = Some(position);
+                    view
+                })
+            })
             .collect();
         Ok(Planned {
             response: Response::Events(views),

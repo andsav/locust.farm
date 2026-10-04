@@ -50,13 +50,32 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// `agent.enroll`: a new principal under a credential the client already
     /// stored. The daemon generates and keeps the signing key.
     pub(super) fn agent_enroll(&self, name: String, grants: Grants, credential: [u8; 32]) -> Plan {
+        self.enroll(name, grants, credential, false)
+    }
+    pub(super) fn author_enroll(&self, name: String, credential: [u8; 32]) -> Plan {
+        self.enroll(name, Grants::default(), credential, true)
+    }
+    fn enroll(
+        &self,
+        name: String,
+        grants: Grants,
+        credential: [u8; 32],
+        author_only: bool,
+    ) -> Plan {
         if let Some(existing) = self.principals.by_name(&name) {
             return if existing.record.credential == credential
                 && existing.record.grants == grants
+                && existing.record.author_only == author_only
                 && !existing.record.revoked
             {
-                answer(Response::AgentEnrolled {
-                    agent: existing.key.public(),
+                answer(if author_only {
+                    Response::AuthorEnrolled {
+                        author: existing.key.public(),
+                    }
+                } else {
+                    Response::AgentEnrolled {
+                        agent: existing.key.public(),
+                    }
                 })
             } else {
                 Err(ApiError::new(
@@ -79,11 +98,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
             credential,
             grants,
             revoked: false,
+            author_only,
         };
         let mut tx = Tx::none();
         tx.local(Principals::principal_write(&agent, &record));
         Ok(Planned {
-            response: Response::AgentEnrolled { agent },
+            response: if author_only {
+                Response::AuthorEnrolled { author: agent }
+            } else {
+                Response::AgentEnrolled { agent }
+            },
             tx,
         })
     }

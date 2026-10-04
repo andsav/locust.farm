@@ -92,6 +92,8 @@ pub(super) fn normalize(value: &mut Blueprint) {
         decisions(rules);
     }
     for stage in value.flow.values_mut() {
+        authority(&mut stage.materializer);
+        selector(&mut stage.recipients);
         set(&mut stage.requires);
     }
 }

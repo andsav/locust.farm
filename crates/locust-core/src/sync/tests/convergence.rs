@@ -189,9 +189,15 @@ fn a_forked_author_with_more_variants_than_one_inventory_page_converges() {
             author.event(
                 founded.goal,
                 founded.anchor(),
-                Body::Note {
-                    about: Some(EventId([(n % 251) as u8; 32])),
-                    supersedes: Some(EventId([(n / 251) as u8; 32])),
+                Body::ContributionPublished {
+                    context: locust_proto::event::Context {
+                        scope: locust_proto::event::Scope::Goal,
+                        round: EventId([(n % 251) as u8; 32]),
+                    },
+                    attempt: None,
+                    base: None,
+                    patch: None,
+                    artifacts: vec![],
                 },
             )
         })
@@ -250,17 +256,29 @@ fn unequal_divergent_prefixes_still_exchange_inventory_and_converge() {
     let left = vec![a.event(
         founded.goal,
         founded.anchor(),
-        Body::Note {
-            about: None,
-            supersedes: None,
+        Body::ContributionPublished {
+            context: locust_proto::event::Context {
+                scope: locust_proto::event::Scope::Goal,
+                round: locust_proto::id::EventId([1; 32]),
+            },
+            attempt: None,
+            base: None,
+            patch: None,
+            artifacts: vec![],
         },
     )];
     let mut right = vec![b.event(
         founded.goal,
         founded.anchor(),
-        Body::Note {
-            about: Some(founded.genesis.id()),
-            supersedes: None,
+        Body::ContributionPublished {
+            context: locust_proto::event::Context {
+                scope: locust_proto::event::Scope::Goal,
+                round: founded.genesis.id(),
+            },
+            attempt: None,
+            base: None,
+            patch: None,
+            artifacts: vec![],
         },
     )];
     right.extend(founded.notes(&mut b, 4));

@@ -42,6 +42,11 @@ def main() -> int:
             ROOT / "docs/reference/generated/organization.contract.json": encoded(contract),
             ROOT / "docs/reference/generated/organization.schema.json": encoded(run(binary, "schema")),
         }
+        runtime = subprocess.run([str(binary), "--json", "contract"], text=True, capture_output=True, check=True)
+        envelope = json.loads(runtime.stdout)
+        if not envelope["ok"]:
+            raise ValueError("runtime contract export did not succeed")
+        artifacts[ROOT / "docs/reference/generated/runtime.contract.json"] = encoded(envelope["result"])
         examples = run(binary, "examples")
         for example in examples:
             name = example["name"]

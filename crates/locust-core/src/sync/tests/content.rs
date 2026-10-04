@@ -30,8 +30,12 @@ fn ciphertext_arrives_before_a_verifiable_key_and_corruption_is_retried() {
     use locust_proto::testkit::{self, Author};
     let founded = Founded::new();
     let (payload, blob) = testkit::sealed_payload(&founded.goal, 0, b"sealed text");
-    let event =
-        Author::new(2).event_with(founded.goal, founded.anchor(), super::note(), Some(payload));
+    let event = Author::new(2).event_with(
+        founded.goal,
+        founded.anchor(),
+        super::contribution(),
+        Some(payload),
+    );
     let mut right = founded.replica(std::slice::from_ref(&event));
     right.add_blob(blob);
     right.set_key(0, testkit::content_key(1));
@@ -60,8 +64,12 @@ fn a_returning_peers_push_is_followed_by_an_immediate_fetch() {
     use locust_proto::testkit::{self, Author};
     let founded = Founded::new();
     let (payload, blob) = testkit::sealed_payload(&founded.goal, 0, b"written after waking");
-    let event =
-        Author::new(2).event_with(founded.goal, founded.anchor(), super::note(), Some(payload));
+    let event = Author::new(2).event_with(
+        founded.goal,
+        founded.anchor(),
+        super::contribution(),
+        Some(payload),
+    );
     let mut right = founded.replica(std::slice::from_ref(&event));
     right.add_blob(blob);
     right.set_key(0, testkit::content_key(1));

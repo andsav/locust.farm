@@ -141,7 +141,11 @@ impl Engine for Scripted {
                     timeout_ms,
                 });
             }
-            Request::NoteAdd { goal, text, .. } => {
+            Request::ContributionPublish {
+                goal,
+                summary: text,
+                ..
+            } => {
                 self.changed.push(goal);
                 // The event says how much text arrived.
                 let mut event = [0u8; 32];
@@ -371,11 +375,15 @@ fn wait(timeout_ms: u32) -> Request {
 }
 
 fn note(goal: GoalId, text: &str) -> Request {
-    Request::NoteAdd {
+    Request::ContributionPublish {
         goal,
-        about: None,
-        supersedes: None,
-        text: text.to_string(),
+        task: None,
+        attempt: None,
+        generation: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
+        summary: text.to_string(),
     }
 }
 

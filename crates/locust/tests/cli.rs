@@ -112,7 +112,7 @@ fn no_credential_never_falls_back_to_owner_and_usage_errors_are_json() {
         .unwrap();
     assert_eq!(envelope(&output, 2)["error"]["code"], "invalid");
     let output = cli(home.path())
-        .args(["task", "claim", "--goal", "abc"])
+        .args(["attempt", "start", "--goal", "abc"])
         .output()
         .unwrap();
     assert_eq!(envelope(&output, 2)["error"]["code"], "invalid");
@@ -228,11 +228,15 @@ fn stdin_text_and_idempotency_are_forwarded_without_changing_text() {
         assert_eq!(frame.on_behalf, Some(PublicKey([5; 32])));
         assert_eq!(
             frame.request,
-            Request::NoteAdd {
+            Request::ContributionPublish {
                 goal,
-                about: None,
-                supersedes: None,
-                text: "first\nsecond\n".into()
+                task: None,
+                attempt: None,
+                generation: None,
+                summary: "first\nsecond\n".into(),
+                base: None,
+                patch: None,
+                artifacts: vec![]
             }
         );
         Ok(Response::Recorded {
@@ -246,8 +250,8 @@ fn stdin_text_and_idempotency_are_forwarded_without_changing_text() {
         &PublicKey([5; 32]).to_string(),
         "--idempotency-key",
         &key.to_string(),
-        "note",
-        "add",
+        "contribution",
+        "publish",
         "--goal",
         &goal.to_string(),
         "-",
@@ -478,25 +482,33 @@ fn claims_require_an_explicit_session_and_present_exact_file_bytes() {
     let session = home.path().join("worker.secret");
     write_secret(&session, &[7; 32]);
     let goal = GoalId([3; 32]);
-    let assignment = locust_proto::id::EventId([4; 32]);
+    let attempt = locust_proto::id::EventId([4; 32]);
+    let task = locust_proto::event::TaskId::Authored(locust_proto::id::EventId([5; 32]));
     let handle = server(home.path(), 2, move |frame| {
-        assert_eq!(frame.request, Request::TaskClaim { goal, assignment });
+        assert_eq!(
+            frame.request,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: None
+            }
+        );
         Ok(Response::Claimed(locust_proto::api::Claim {
             goal,
-            assignment,
-            task: locust_proto::id::EventId([5; 32]),
+            attempt,
+            task,
             instance: SessionSecret([7; 32]).instance(),
             generation: 1,
         }))
     });
     let fields = [
         "--owner",
-        "task",
-        "claim",
+        "attempt",
+        "start",
         "--goal",
         &goal.to_string(),
-        "--assignment",
-        &assignment.to_string(),
+        "--task",
+        &task.to_string(),
     ];
     assert_eq!(
         envelope(&cli(home.path()).args(fields).output().unwrap(), 6)["error"]["code"],
@@ -573,8 +585,8 @@ fn version_is_registered_and_json_works_on_either_side() {
     let body = envelope(&output, 0);
     let help = body["result"]["help"].as_str().unwrap();
     assert!(help.contains("--version"));
-    assert!(help.contains("Absolute credential file"));
-    assert!(help.contains("Start or stop the participant daemon"));
+    assert!(help.contains("Explicit credential file"));
+    assert!(help.contains("Local participant daemon and client"));
 }
 
 #[test]
@@ -635,6 +647,7 @@ fn named_grant_explicitly_sets_or_revokes_goal_management() {
         Ok(Response::Done)
     });
     for value in ["true", "false"] {
+        let grants = format!(r#"{{"manage_goals":{value}}}"#);
         envelope(
             &cli(home.path())
                 .args([
@@ -643,8 +656,8 @@ fn named_grant_explicitly_sets_or_revokes_goal_management() {
                     "grant",
                     "--agent",
                     &agent.to_string(),
-                    "--manage-goals",
-                    value,
+                    "--grants",
+                    &grants,
                 ])
                 .output()
                 .unwrap(),
@@ -663,7 +676,7 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
     let invitation = Invitation {
         version: locust_proto::PROTOCOL_VERSION,
         goal: GoalId([3; 32]),
-        coordinator: PublicKey([4; 32]),
+        administrator: PublicKey([4; 32]),
         endpoint: EndpointId([5; 32]),
         hints: vec![],
         secret: InviteSecret([6; 32]),
@@ -680,7 +693,7 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
         );
         Ok(Response::Joined {
             goal: invitation.goal,
-            coordinator: invitation.coordinator,
+            administrator: invitation.administrator,
             membership: Membership::Joining,
         })
     });

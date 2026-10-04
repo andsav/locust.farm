@@ -396,6 +396,17 @@
     "Stage": {
       "additionalProperties": false,
       "properties": {
+        "materializer": {
+          "$ref": "#/$defs/Authority",
+          "description": "One explicitly bound principal whose daemon materializes this stage."
+        },
+        "recipients": {
+          "$ref": "#/$defs/Selector",
+          "default": {
+            "kind": "members"
+          },
+          "description": "Eligible recipients of durable ready-work delivery, resolved at binding."
+        },
         "requires": {
           "default": [],
           "items": {
@@ -411,6 +422,9 @@
           ]
         }
       },
+      "required": [
+        "materializer"
+      ],
       "type": "object"
     },
     "StartRule": {

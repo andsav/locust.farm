@@ -96,7 +96,7 @@ impl MinimalEngine {
     fn status(&self, caller: Caller) -> DaemonStatus {
         let visible = |principal: &&Principal| match caller {
             Caller::Owner => true,
-            Caller::Agent(key) | Caller::Viewer(key) => principal.key == key,
+            Caller::Agent(key) | Caller::Viewer(key) | Caller::Author(key) => principal.key == key,
         };
         DaemonStatus {
             daemon_version: self.daemon_version.clone(),
@@ -374,6 +374,9 @@ mod tests {
         for request in [
             Request::GoalCreate {
                 title: "Ship it".to_string(),
+                blueprint_json: None,
+                roles: Default::default(),
+                inputs: Default::default(),
             },
             Request::Board { goal },
             Request::Wait {

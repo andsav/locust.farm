@@ -42,6 +42,7 @@ pub struct Failure {
     pub code: ErrorCode,
     /// For people.
     pub message: String,
+    pub details_json: Option<String>,
     /// True for a mistake in the command line. It is reported with the code
     /// `invalid` and exits with [`USAGE`].
     pub usage: bool,
@@ -52,6 +53,7 @@ impl Failure {
         Self {
             code,
             message: message.into(),
+            details_json: None,
             usage: false,
         }
     }
@@ -61,6 +63,7 @@ impl Failure {
         Self {
             code: ErrorCode::Invalid,
             message: message.into(),
+            details_json: None,
             usage: true,
         }
     }
@@ -96,7 +99,9 @@ impl std::error::Error for Failure {}
 
 impl From<ApiError> for Failure {
     fn from(error: ApiError) -> Self {
-        Self::new(error.code, error.message)
+        let mut failure = Self::new(error.code, error.message);
+        failure.details_json = error.details_json;
+        failure
     }
 }
 

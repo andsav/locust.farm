@@ -6,9 +6,10 @@ use locust_proto::api::{
 use locust_proto::engine::{
     ConnId, Engine, Entropy, ExchangeId, PeerEngine, PeerInput, PeerOutput, Step,
 };
+use locust_proto::event::{Body, Context, Scope};
 use locust_proto::id::{EndpointId, GoalId, PublicKey};
 use locust_proto::store::{MemStore, Store};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 
 struct Random(u64);
 impl Entropy for Random {
@@ -198,6 +199,9 @@ fn reconcile_from(
 fn found(peers: &mut [Peer]) -> GoalId {
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "shared durable goal".into(),
+        blueprint_json: Some(r#"{"schema_version":1,"context":{"inputs":{"snapshot":{"kind":"artifact","required":false}}}}"#.into()),
+        roles: BTreeMap::new(),
+        inputs: BTreeMap::new(),
     }) else {
         panic!("create");
     };
@@ -227,18 +231,23 @@ fn actual_nodes_join_converge_read_sealed_content_and_reopen() {
         assert_eq!(status.title.as_deref(), Some("shared durable goal"));
     }
     peers[0].online = false;
-    peers[1].call(Request::NoteAdd {
+    peers[1].call(Request::ContributionPublish {
         goal,
-        about: None,
-        supersedes: None,
-        text: "offline from coordinator".into(),
+        task: None,
+        attempt: None,
+        generation: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
+        summary: "offline from administrator".into(),
     });
     reconcile(&mut peers, 35000);
-    let Response::Notes(notes) = peers[2].call(Request::Notes { goal, about: None }) else {
+    let Response::Contributions(notes) = peers[2].call(Request::Contributions { goal, task: None })
+    else {
         panic!("notes");
     };
     assert_eq!(notes.len(), 1);
-    assert_eq!(notes[0].text.as_deref(), Some("offline from coordinator"));
+    assert_eq!(notes[0].text.as_deref(), Some("offline from administrator"));
     peers[0].restart();
     peers[0].online = true;
     reconcile(&mut peers, 100000);
@@ -256,10 +265,11 @@ fn actual_nodes_join_converge_read_sealed_content_and_reopen() {
         .collect();
     assert!(logs.iter().all(|log| log == &logs[0]));
     peers[2].restart();
-    let Response::Notes(notes) = peers[2].call(Request::Notes { goal, about: None }) else {
+    let Response::Contributions(notes) = peers[2].call(Request::Contributions { goal, task: None })
+    else {
         panic!("notes");
     };
-    assert_eq!(notes[0].text.as_deref(), Some("offline from coordinator"));
+    assert_eq!(notes[0].text.as_deref(), Some("offline from administrator"));
 }
 
 #[test]
@@ -337,6 +347,9 @@ fn invitations_bind_once_to_authenticated_member_and_survive_restart() {
     let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "join checks".into(),
+        blueprint_json: None,
+        roles: BTreeMap::new(),
+        inputs: BTreeMap::new(),
     }) else {
         panic!("create");
     };
@@ -409,11 +422,15 @@ fn removal_distributes_a_verified_new_epoch_only_to_remaining_members() {
         goal,
         member: removed,
     });
-    peers[0].call(Request::NoteAdd {
+    peers[0].call(Request::ContributionPublish {
         goal,
-        about: None,
-        supersedes: None,
-        text: "new epoch".into(),
+        task: None,
+        attempt: None,
+        generation: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
+        summary: "new epoch".into(),
     });
     reconcile(&mut peers, 35000);
     reconcile(&mut peers, 70000);
@@ -429,7 +446,8 @@ fn removal_distributes_a_verified_new_epoch_only_to_remaining_members() {
             .key(1)
             .is_none()
     );
-    let Response::Notes(notes) = peers[1].call(Request::Notes { goal, about: None }) else {
+    let Response::Contributions(notes) = peers[1].call(Request::Contributions { goal, task: None })
+    else {
         panic!("notes");
     };
     assert_eq!(notes[0].text.as_deref(), Some("new epoch"));
@@ -460,6 +478,9 @@ fn refused_join_does_not_poison_another_local_principals_invitation() {
     let second = peers[1].principal.max(second);
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "independent invitations".into(),
+        blueprint_json: None,
+        roles: BTreeMap::new(),
+        inputs: BTreeMap::new(),
     }) else {
         panic!("create");
     };
@@ -537,6 +558,9 @@ fn pending_join_has_exactly_one_status_entry_per_local_principal() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "status cardinality".into(),
+        blueprint_json: None,
+        roles: BTreeMap::new(),
+        inputs: BTreeMap::new(),
     }) else {
         panic!("create");
     };
@@ -557,7 +581,7 @@ fn pending_join_has_exactly_one_status_entry_per_local_principal() {
 #[test]
 fn signed_payload_epoch_must_match_the_sealed_object() {
     use crate::sync::{Host, Staged};
-    use locust_proto::event::{Body, Event, Header, PayloadRef};
+    use locust_proto::event::{Event, Header, PayloadRef};
     use locust_proto::seal;
     use locust_proto::store::Blob;
     let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
@@ -591,10 +615,10 @@ fn signed_payload_epoch_must_match_the_sealed_object() {
                 len: blob.bytes().len() as u32,
                 key_epoch: 1,
             }),
-            body: Body::Note {
-                about: None,
-                supersedes: None,
-            },
+            body: standalone(Context {
+                scope: Scope::Goal,
+                round: entry.state().current_rules.unwrap(),
+            }),
         },
         source.signer(&author).unwrap(),
     )
@@ -622,9 +646,21 @@ fn reference_event(
     peer: &Peer,
     goal: GoalId,
     payload: Option<locust_proto::event::PayloadRef>,
-    body: locust_proto::event::Body,
+    mut body: locust_proto::event::Body,
 ) -> locust_proto::event::Event {
     use locust_proto::event::{Event, Header};
+    let rules = peer.node.goals[&goal].state().current_rules.unwrap();
+    match &mut body {
+        Body::ContributionPublished { context, .. }
+            if context.round == locust_proto::id::EventId([0; 32]) =>
+        {
+            context.round = rules
+        }
+        Body::TaskOpened { binding } if binding.rules == locust_proto::id::EventId([0; 32]) => {
+            binding.rules = rules
+        }
+        _ => {}
+    }
     let next = peer.node.goals[&goal].goal.next(&peer.principal).unwrap();
     Event::sign(
         Header {
@@ -647,7 +683,7 @@ fn reference_event(
 #[test]
 fn matching_reference_allows_short_chunks_despite_a_conflicting_reference() {
     use crate::sync::{Host, Staged};
-    use locust_proto::event::{Body, PayloadRef};
+    use locust_proto::event::PayloadRef;
     use locust_proto::{seal, store::Blob};
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
@@ -671,10 +707,10 @@ fn matching_reference_allows_short_chunks_despite_a_conflicting_reference() {
                 len,
                 key_epoch: 0,
             }),
-            Body::Note {
-                about: None,
-                supersedes: None,
-            },
+            standalone(Context {
+                scope: Scope::Goal,
+                round: locust_proto::id::EventId([0; 32]),
+            }),
         );
         for peer in &mut peers {
             assert_eq!(
@@ -750,11 +786,14 @@ fn bare_object_reference_refuses_an_epoch_after_its_event() {
         &peers[0],
         goal,
         None,
-        Body::TaskProposed {
-            input: Some(hash),
-            depends_on: vec![],
-            deadline_ms: None,
-            max_attempts: None,
+        Body::TaskOpened {
+            binding: locust_proto::event::TaskBinding {
+                rules: locust_proto::id::EventId([0; 32]),
+                variation: None,
+                inputs: BTreeMap::from([("snapshot".into(), hash)]),
+                parent: None,
+                stage: None,
+            },
         },
     );
     let replica = Host::replica(&mut peers[1].node, &goal).unwrap();
@@ -767,9 +806,9 @@ fn bare_object_reference_refuses_an_epoch_after_its_event() {
 }
 
 #[test]
-fn inflated_advertisement_is_rejected_and_legacy_oversized_stage_recovers_from_zero() {
+fn inflated_advertisement_is_rejected_and_corrupted_oversized_stage_recovers_from_zero() {
     use crate::sync::{Host, Staged};
-    use locust_proto::event::{Body, PayloadRef};
+    use locust_proto::event::PayloadRef;
     use locust_proto::sync::SyncMessage;
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
@@ -788,10 +827,10 @@ fn inflated_advertisement_is_rejected_and_legacy_oversized_stage_recovers_from_z
             len: sealed.len() as u32,
             key_epoch: 0,
         }),
-        Body::Note {
-            about: None,
-            supersedes: None,
-        },
+        standalone(Context {
+            scope: Scope::Goal,
+            round: locust_proto::id::EventId([0; 32]),
+        }),
     );
     for peer in &mut peers {
         Host::replica(&mut peer.node, &goal)
@@ -805,7 +844,7 @@ fn inflated_advertisement_is_rejected_and_legacy_oversized_stage_recovers_from_z
         Staged::Rejected
     );
     assert_eq!(peers[1].store.staged_len(&hash).unwrap(), 0);
-    // Simulate a partial object left by the old receiver, then reopen.
+    // Simulate an oversized corrupted partial object, then reopen.
     peers[1]
         .store
         .stage_blob(&hash, 0, &vec![9; 100_000])
@@ -822,7 +861,7 @@ fn inflated_advertisement_is_rejected_and_legacy_oversized_stage_recovers_from_z
 #[test]
 fn unavailable_peer_and_incomplete_conflicting_retry_preserve_shared_staging() {
     use crate::sync::{Host, Staged};
-    use locust_proto::event::{Body, PayloadRef};
+    use locust_proto::event::PayloadRef;
     use locust_proto::sync::SyncMessage;
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
@@ -841,10 +880,10 @@ fn unavailable_peer_and_incomplete_conflicting_retry_preserve_shared_staging() {
             len: sealed.len() as u32,
             key_epoch: 0,
         }),
-        Body::Note {
-            about: None,
-            supersedes: None,
-        },
+        standalone(Context {
+            scope: Scope::Goal,
+            round: locust_proto::id::EventId([0; 32]),
+        }),
     );
     for peer in &mut peers {
         Host::replica(&mut peer.node, &goal)
@@ -882,11 +921,15 @@ fn wanted_cursor_is_sorted_and_updates_after_commits_completion_and_reopen() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
     for n in 0..100 {
-        peers[0].call(Request::NoteAdd {
+        peers[0].call(Request::ContributionPublish {
             goal,
-            about: None,
-            supersedes: None,
-            text: format!("missing {n}"),
+            task: None,
+            attempt: None,
+            generation: None,
+            base: None,
+            patch: None,
+            artifacts: vec![],
+            summary: format!("missing {n}"),
         });
     }
     let wires = peers[0]
@@ -929,7 +972,7 @@ fn wanted_cursor_is_sorted_and_updates_after_commits_completion_and_reopen() {
 }
 
 #[test]
-fn coordinator_halt_reaches_a_historical_contact_without_history_or_key_admission() {
+fn administrator_halt_reaches_a_historical_contact_without_history_or_key_admission() {
     use crate::sync::Host;
     use locust_proto::event::{Body, Event};
     use locust_proto::sync::SyncMessage;
@@ -969,9 +1012,21 @@ fn coordinator_halt_reaches_a_historical_contact_without_history_or_key_admissio
         "proof exchange disclosed ordinary data: {frames:?}"
     );
     for peer in &mut peers {
-        assert!(peer.node.goals[&goal].goal.halt().is_some());
+        assert!(
+            peer.node.goals[&goal]
+                .goal
+                .evaluation()
+                .admin_halt
+                .is_some()
+        );
         peer.restart();
-        assert!(peer.node.goals[&goal].goal.halt().is_some());
+        assert!(
+            peer.node.goals[&goal]
+                .goal
+                .evaluation()
+                .admin_halt
+                .is_some()
+        );
     }
     let before = peers[1].node.goals[&goal].revision();
     let remote = peers[0].endpoint;
@@ -1000,15 +1055,22 @@ fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "early readable title".into(),
+        blueprint_json: None,
+        roles: BTreeMap::new(),
+        inputs: BTreeMap::new(),
     }) else {
         panic!("create")
     };
     for index in 0..40 {
-        peers[0].call(Request::NoteAdd {
+        peers[0].call(Request::ContributionPublish {
             goal,
-            about: None,
-            supersedes: None,
-            text: format!("history {index}"),
+            task: None,
+            attempt: None,
+            generation: None,
+            base: None,
+            patch: None,
+            artifacts: vec![],
+            summary: format!("history {index}"),
         });
     }
     let genesis = peers[0]
@@ -1060,11 +1122,15 @@ fn an_offline_removed_endpoint_is_refused_after_restart_without_learning_new_his
         goal,
         member: removed,
     });
-    peers[0].call(Request::NoteAdd {
+    peers[0].call(Request::ContributionPublish {
         goal,
-        about: None,
-        supersedes: None,
-        text: "only current members may read this".into(),
+        task: None,
+        attempt: None,
+        generation: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
+        summary: "only current members may read this".into(),
     });
     reconcile(&mut peers, 35_000);
     for peer in &mut peers[..2] {
@@ -1094,11 +1160,22 @@ fn an_offline_removed_endpoint_is_refused_after_restart_without_learning_new_his
             .key(1)
             .is_none()
     );
-    let Response::Notes(notes) = peers[2].call(Request::Notes { goal, about: None }) else {
+    let Response::Contributions(notes) = peers[2].call(Request::Contributions { goal, task: None })
+    else {
         panic!("notes")
     };
     assert!(notes.is_empty());
     // Status describes held state. A transport refusal is not a signed
     // removal decision and cannot rewrite the offline replica's projection.
     assert!(peers[2].node.goals[&goal].is_member(&removed));
+}
+
+fn standalone(context: Context) -> Body {
+    Body::ContributionPublished {
+        context,
+        attempt: None,
+        base: None,
+        patch: None,
+        artifacts: vec![],
+    }
 }

@@ -1,8 +1,10 @@
-//! Public Engine transcripts: claims, reading, fencing, cancellation and replay.
+//! Public Engine transcripts: independent evidence, local claims and replay.
 use super::*;
-use locust_proto::api::{PendingWork, SessionCapabilities, SessionRecord, SessionState, TaskState};
+use locust_proto::api::{
+    GoalGrants, PendingWork, SessionCapabilities, SessionRecord, SessionState,
+};
 use locust_proto::engine::{PeerEngine, PeerInput};
-use locust_proto::event::{CancelOutcome, Doc};
+use locust_proto::event::{AttemptStatus, CancelOutcome, Doc, ReviewVerdict, TaskId};
 use locust_proto::id::{EndpointId, EventId, GoalId};
 use locust_proto::store::Store;
 
@@ -19,17 +21,47 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
         },
         &mut Vec::new(),
     );
-    let principal = daemon.enroll("coordinator", 1, true);
+    let principal = daemon.enroll("administrator", 1, true);
     let owner = daemon.owner();
     let agent = daemon.connect(credential(1), Some(session(1)));
+    let mut blueprint = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "coordinator")
+        .unwrap()
+        .blueprint;
+    blueprint.context.inputs.insert(
+        "workspace".into(),
+        locust_proto::organization::Input {
+            kind: locust_proto::organization::InputKind::Artifact,
+            required: false,
+        },
+    );
     let Response::GoalCreated { goal } = daemon.ok(
         agent,
         Request::GoalCreate {
             title: "A test goal".into(),
+            blueprint_json: Some(serde_json::to_string(&blueprint).unwrap()),
+            roles: std::collections::BTreeMap::from([("coordinator".into(), vec![principal])]),
+            inputs: Default::default(),
         },
     ) else {
         panic!()
     };
+    daemon.ok(
+        owner,
+        Request::GoalGrant {
+            goal,
+            agent: principal,
+            grants: GoalGrants {
+                administer: true,
+                contribute: true,
+                review: true,
+                select: true,
+                flow: true,
+                ..Default::default()
+            },
+        },
+    );
     (daemon, principal, owner, agent, goal)
 }
 pub(super) fn event(response: Response) -> EventId {
@@ -38,140 +70,180 @@ pub(super) fn event(response: Response) -> EventId {
     };
     event
 }
+pub(super) fn finding(goal: GoalId, text: &str) -> Request {
+    Request::ContributionPublish {
+        goal,
+        task: None,
+        attempt: None,
+        generation: None,
+        summary: text.into(),
+        base: None,
+        patch: None,
+        artifacts: vec![],
+    }
+}
 fn pending(daemon: &mut Daemon, conn: ConnId, goal: GoalId) -> PendingWork {
     let Response::Pending(work) = daemon.ok(conn, Request::Pending { goal }) else {
         panic!()
     };
     work
 }
-fn assigned(
+pub(super) fn offered(
     daemon: &mut Daemon,
     agent: ConnId,
     goal: GoalId,
     principal: PublicKey,
-) -> (EventId, EventId) {
-    let task = event(daemon.ok(
+) -> (TaskId, EventId) {
+    let task = TaskId::Authored(event(daemon.ok(
         agent,
-        Request::TaskPropose {
+        Request::TaskOpen {
             goal,
             text: "Read and implement\nAcceptance details".into(),
-            input: None,
-            depends_on: vec![],
-            deadline_ms: None,
-            max_attempts: Some(2),
+            variation: None,
+            inputs: Default::default(),
+            parent: None,
         },
-    ));
-    let assignment = event(daemon.ok(
+    )));
+    let offer = event(daemon.ok(
         agent,
-        Request::TaskAssign {
+        Request::WorkOffer {
             goal,
             task,
-            assignee: principal,
+            recipient: principal,
         },
     ));
-    (task, assignment)
+    (task, offer)
 }
-fn progress(goal: GoalId, assignment: EventId, generation: u32) -> Request {
-    Request::TaskProgress {
+pub(super) fn authorize(
+    daemon: &mut Daemon,
+    owner: ConnId,
+    goal: GoalId,
+    task: TaskId,
+    agent: PublicKey,
+) {
+    daemon.ok(
+        owner,
+        Request::TaskAuthorize {
+            goal,
+            task,
+            agent,
+            takeover: true,
+        },
+    );
+}
+pub(super) fn progress(goal: GoalId, attempt: EventId, generation: u32) -> Request {
+    Request::AttemptReport {
         goal,
-        assignment,
+        attempt,
         generation,
+        status: AttemptStatus::Progress,
         text: "still working".into(),
     }
 }
-fn submit(goal: GoalId, assignment: EventId, generation: u32) -> Request {
-    Request::TaskSubmit {
+fn publish(goal: GoalId, task: TaskId, attempt: EventId, generation: u32) -> Request {
+    Request::ContributionPublish {
         goal,
-        assignment,
-        generation,
+        task: Some(task),
+        attempt: Some(attempt),
+        generation: Some(generation),
         summary: "Completed with evidence".into(),
         base: None,
         patch: None,
         artifacts: vec![],
     }
 }
-fn authorize(daemon: &mut Daemon, owner: ConnId, goal: GoalId, assignment: EventId) {
-    daemon.ok(
-        owner,
-        Request::TaskAuthorize {
-            goal,
-            assignment,
-            takeover: true,
-        },
-    );
-}
 
 #[test]
-fn complete_transcript_keeps_submitted_review_and_replays_after_restart() {
-    let (mut daemon, principal, owner, agent, goal) = setup();
-    let (task, assignment) = assigned(&mut daemon, agent, goal, principal);
+fn complete_transcript_keeps_contribution_review_and_selection_separate_after_restart() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, offer) = offered(&mut d, a, goal, p);
     assert_eq!(
-        pending(&mut daemon, owner, goal).to_authorize[0].assignment,
-        assignment
+        pending(&mut d, owner, goal).to_authorize[0].offer,
+        Some(offer)
     );
     assert_eq!(
-        code(daemon.call(agent, Request::TaskClaim { goal, assignment })),
+        code(d.call(
+            a,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: Some(offer)
+            }
+        )),
         ErrorCode::AuthorizationRequired
     );
-    authorize(&mut daemon, owner, goal, assignment);
-    assert_eq!(
-        pending(&mut daemon, agent, goal).to_claim[0].assignment,
-        assignment
-    );
-    let Response::Claimed(claim) = daemon.ok(agent, Request::TaskClaim { goal, assignment }) else {
-        panic!()
-    };
-    assert_eq!(claim.generation, 1);
-    assert_eq!(pending(&mut daemon, agent, goal).claimed, vec![claim]);
-    daemon.ok(agent, progress(goal, assignment, 1));
-    let result = event(daemon.ok(agent, submit(goal, assignment, 1)));
-    assert_eq!(
-        code(daemon.call(agent, progress(goal, assignment, 1))),
-        ErrorCode::Conflict
-    );
-    assert_eq!(
-        pending(&mut daemon, agent, goal).to_review[0].result,
-        result
-    );
-    let Response::Event(detail) = daemon.ok(
-        agent,
-        Request::Event {
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
             goal,
-            event: result,
+            task,
+            offer: Some(offer),
         },
     ) else {
         panic!()
     };
-    assert_eq!(detail.text.as_deref(), Some("Completed with evidence"));
-    assert_eq!(detail.task, Some(task));
-    let Response::Task(detail) = daemon.ok(agent, Request::Task { goal, task }) else {
+    assert_eq!(pending(&mut d, a, goal).claimed, vec![claim]);
+    d.ok(a, progress(goal, claim.attempt, 1));
+    let contribution = event(d.ok(a, publish(goal, task, claim.attempt, 1)));
+    assert!(
+        pending(&mut d, a, goal)
+            .to_review
+            .iter()
+            .any(|item| item.subject == contribution)
+    );
+    let Response::Task(detail) = d.ok(a, Request::Task { goal, task }) else {
         panic!()
     };
-    assert_eq!(detail.view.state, TaskState::Submitted);
-    daemon.ok(
-        agent,
-        Request::ResultAccept {
+    assert!(!detail.view.completed);
+    assert_eq!(detail.view.selected, None);
+    d.ok(
+        a,
+        Request::ReviewRecord {
             goal,
-            result,
-            head: None,
+            subject: contribution,
+            verdict: ReviewVerdict::Approve,
+            text: "reviewed".into(),
         },
     );
-    assert!(pending(&mut daemon, agent, goal).to_review.is_empty());
-    let expected = daemon.ok(agent, Request::Board { goal });
-    let feed = daemon.ok(
-        agent,
+    let Response::Task(detail) = d.ok(a, Request::Task { goal, task }) else {
+        panic!()
+    };
+    assert!(detail.view.completed);
+    assert_eq!(detail.view.selected, None);
+    d.ok(
+        a,
+        Request::ScopeSelect {
+            goal,
+            subject: contribution,
+            expected: None,
+        },
+    );
+    d.ok(
+        a,
+        Request::AttemptReport {
+            goal,
+            attempt: claim.attempt,
+            generation: 1,
+            status: AttemptStatus::Completed,
+            text: "done".into(),
+        },
+    );
+    let expected = d.ok(a, Request::Board { goal });
+    let feed = d.ok(
+        a,
         Request::Events {
             goal,
             after: Some(0),
             limit: 256,
         },
     );
-    daemon.restart();
-    let agent = daemon.connect(credential(1), Some(session(1)));
-    assert_eq!(daemon.ok(agent, Request::Board { goal }), expected);
+    d.restart();
+    let a = d.connect(credential(1), Some(session(1)));
+    assert_eq!(d.ok(a, Request::Board { goal }), expected);
     assert_eq!(
-        daemon.ok(
-            agent,
+        d.ok(
+            a,
             Request::Events {
                 goal,
                 after: Some(0),
@@ -180,75 +252,85 @@ fn complete_transcript_keeps_submitted_review_and_replays_after_restart() {
         ),
         feed
     );
-    assert!(pending(&mut daemon, agent, goal).claimed.is_empty());
+    assert!(pending(&mut d, a, goal).claimed.is_empty());
 }
 
 #[test]
 fn takeover_a_b_a_fences_old_generation_even_when_secret_returns() {
-    let (mut daemon, principal, owner, a, goal) = setup();
-    let (_, assignment) = assigned(&mut daemon, a, goal, principal);
-    authorize(&mut daemon, owner, goal, assignment);
-    daemon.ok(a, Request::TaskClaim { goal, assignment });
-    let b = daemon.connect(credential(1), Some(session(2)));
-    assert_eq!(
-        code(daemon.call(b, Request::TaskClaim { goal, assignment })),
-        ErrorCode::ClaimHeld
-    );
-    let Response::Claimed(claim) = daemon.ok(b, Request::TaskTakeover { goal, assignment }) else {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(first) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
         panic!()
     };
-    assert_eq!(claim.generation, 2);
-    assert_eq!(
-        code(daemon.call(a, progress(goal, assignment, 1))),
-        ErrorCode::Superseded
-    );
-    let Response::Claimed(claim) = daemon.ok(a, Request::TaskTakeover { goal, assignment }) else {
+    let attempt = first.attempt;
+    let b = d.connect(credential(1), Some(session(2)));
+    let Response::Claimed(taken) = d.ok(b, Request::AttemptTakeover { goal, attempt }) else {
         panic!()
     };
-    assert_eq!(claim.generation, 3);
+    assert_eq!(taken.generation, 2);
     assert_eq!(
-        code(daemon.call(a, progress(goal, assignment, 1))),
+        code(d.call(a, progress(goal, attempt, 1))),
         ErrorCode::Superseded
     );
-    assert_eq!(
-        code(daemon.call(b, submit(goal, assignment, 2))),
-        ErrorCode::Superseded
-    );
-    daemon.restart();
-    let a = daemon.connect(credential(1), Some(session(1)));
-    let Response::Claimed(claim) = daemon.ok(a, Request::TaskClaim { goal, assignment }) else {
+    let Response::Claimed(back) = d.ok(a, Request::AttemptTakeover { goal, attempt }) else {
         panic!()
     };
-    assert_eq!(claim.generation, 3);
-    daemon.ok(a, progress(goal, assignment, 3));
+    assert_eq!(back.generation, 3);
+    assert_eq!(
+        code(d.call(b, publish(goal, task, attempt, 2))),
+        ErrorCode::Superseded
+    );
+    d.restart();
+    let a = d.connect(credential(1), Some(session(1)));
+    assert_eq!(
+        d.ok(
+            a,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: Some(offer)
+            }
+        ),
+        Response::Claimed(back)
+    );
+    d.ok(a, progress(goal, attempt, 3));
 }
 
 #[test]
-fn cancellation_requires_holder_generation_and_cannot_finalize() {
-    let (mut daemon, principal, owner, a, goal) = setup();
-    let (_, assignment) = assigned(&mut daemon, a, goal, principal);
-    authorize(&mut daemon, owner, goal, assignment);
-    daemon.ok(a, Request::TaskClaim { goal, assignment });
-    let result = event(daemon.ok(a, submit(goal, assignment, 1)));
-    let cancel = event(daemon.ok(a, Request::TaskCancel { goal, assignment }));
+fn cancellation_requires_holder_generation_and_is_not_completion_evidence() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    let subject = event(d.ok(a, publish(goal, task, claim.attempt, 1)));
+    let cancel = event(d.ok(
+        a,
+        Request::AttemptCancel {
+            goal,
+            attempt: claim.attempt,
+        },
+    ));
+    assert_eq!(pending(&mut d, a, goal).to_acknowledge[0].cancel, cancel);
+    let b = d.connect(credential(1), Some(session(2)));
     assert_eq!(
-        code(daemon.call(
-            a,
-            Request::ResultAccept {
-                goal,
-                result,
-                head: None
-            }
-        )),
-        ErrorCode::Conflict
-    );
-    assert_eq!(
-        pending(&mut daemon, a, goal).to_acknowledge[0].cancel,
-        cancel
-    );
-    let b = daemon.connect(credential(1), Some(session(2)));
-    assert_eq!(
-        code(daemon.call(
+        code(d.call(
             b,
             Request::CancelAcknowledge {
                 goal,
@@ -259,7 +341,7 @@ fn cancellation_requires_holder_generation_and_cannot_finalize() {
         )),
         ErrorCode::Superseded
     );
-    daemon.ok(
+    d.ok(
         a,
         Request::CancelAcknowledge {
             goal,
@@ -268,49 +350,50 @@ fn cancellation_requires_holder_generation_and_cannot_finalize() {
             outcome: CancelOutcome::Completed,
         },
     );
-    assert!(pending(&mut daemon, a, goal).to_acknowledge.is_empty());
+    assert!(pending(&mut d, a, goal).to_acknowledge.is_empty());
     assert_eq!(
-        code(daemon.call(
+        code(d.call(
             a,
-            Request::ResultAccept {
+            Request::ScopeSelect {
                 goal,
-                result,
-                head: None
+                subject,
+                expected: None
             }
         )),
         ErrorCode::Conflict
     );
+    let Response::Task(detail) = d.ok(a, Request::Task { goal, task }) else {
+        panic!()
+    };
+    assert!(!detail.view.completed);
 }
 
 #[test]
 fn viewer_reads_do_not_move_agent_cursor_or_write_and_revocation_is_immediate() {
-    let (mut daemon, principal, owner, agent, goal) = setup();
-    let (task, assignment) = assigned(&mut daemon, agent, goal, principal);
-    daemon.ok(
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, _) = offered(&mut d, a, goal, p);
+    d.ok(
         owner,
         Request::ViewerEnroll {
-            agent: principal,
+            agent: p,
             credential: credential(9).digest(),
         },
     );
-    let viewer = daemon.connect(credential(9), None);
+    let viewer = d.connect(credential(9), None);
     assert!(matches!(
-        daemon.ok(viewer, Request::Task { goal, task }),
+        d.ok(viewer, Request::Task { goal, task }),
         Response::Task(_)
     ));
-    assert_eq!(
-        code(daemon.call(viewer, progress(goal, assignment, 1))),
-        ErrorCode::Denied
-    );
-    let before = daemon.ok(
-        agent,
+    assert_eq!(code(d.call(viewer, finding(goal, "no"))), ErrorCode::Denied);
+    let before = d.ok(
+        a,
         Request::Events {
             goal,
             after: None,
             limit: 256,
         },
     );
-    daemon.ok(
+    d.ok(
         viewer,
         Request::Events {
             goal,
@@ -319,8 +402,8 @@ fn viewer_reads_do_not_move_agent_cursor_or_write_and_revocation_is_immediate() 
         },
     );
     assert_eq!(
-        daemon.ok(
-            agent,
+        d.ok(
+            a,
             Request::Events {
                 goal,
                 after: None,
@@ -329,9 +412,8 @@ fn viewer_reads_do_not_move_agent_cursor_or_write_and_revocation_is_immediate() 
         ),
         before
     );
-    assert!(pending(&mut daemon, viewer, goal).claimed.is_empty());
     assert!(matches!(
-        daemon.hello(credential(9), Some(session(9))).1,
+        d.hello(credential(9), Some(session(9))).1,
         ServerHello::Refused {
             error: ApiError {
                 code: ErrorCode::Invalid,
@@ -340,102 +422,90 @@ fn viewer_reads_do_not_move_agent_cursor_or_write_and_revocation_is_immediate() 
             ..
         }
     ));
-    daemon.ok(owner, Request::AgentRevoke { agent: principal });
+    d.ok(owner, Request::AgentRevoke { agent: p });
     assert_eq!(
-        code(daemon.call(viewer, Request::Board { goal })),
+        code(d.call(viewer, Request::Board { goal })),
         ErrorCode::Denied
     );
-    assert_eq!(
-        code(daemon.call(agent, Request::Board { goal })),
-        ErrorCode::Denied
-    );
+    assert_eq!(code(d.call(a, Request::Board { goal })), ErrorCode::Denied);
 }
 
 #[test]
 fn sessions_survive_restart_drop_requires_finished_claim_and_binding_is_permanent() {
-    let (mut daemon, principal, owner, agent, goal) = setup();
+    let (mut d, p, owner, a, goal) = setup();
     let record = SessionRecord {
-        client: "test adapter".into(),
+        client: "test".into(),
         state: SessionState::Ready,
-        client_session: Some("test-session".into()),
+        client_session: Some("session".into()),
         capabilities: SessionCapabilities::default(),
-        detail: vec![1, 2],
+        detail: vec![],
     };
-    daemon.ok(
-        agent,
+    d.ok(
+        a,
         Request::SessionReport {
             record: record.clone(),
         },
     );
-    let (_, assignment) = assigned(&mut daemon, agent, goal, principal);
-    authorize(&mut daemon, owner, goal, assignment);
-    daemon.ok(agent, Request::TaskClaim { goal, assignment });
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
     assert_eq!(
-        code(daemon.call(
-            agent,
+        code(d.call(
+            a,
             Request::SessionDrop {
                 instance: session(1).instance()
             }
         )),
         ErrorCode::Conflict
     );
-    daemon.restart();
-    let agent = daemon.connect(credential(1), Some(session(1)));
-    let Response::Session(view) = daemon.ok(agent, Request::Session { instance: None }) else {
+    d.restart();
+    let a = d.connect(credential(1), Some(session(1)));
+    let Response::Session(view) = d.ok(a, Request::Session { instance: None }) else {
         panic!()
     };
     assert_eq!(view.record, record);
-    assert_eq!(view.claims.len(), 1);
-    daemon.ok(
-        agent,
-        Request::TaskFail {
+    assert_eq!(view.claims, vec![claim]);
+    d.ok(
+        a,
+        Request::AttemptReport {
             goal,
-            assignment,
+            attempt: claim.attempt,
             generation: 1,
-            reason: "cannot complete".into(),
+            status: AttemptStatus::Failed,
+            text: "failed".into(),
         },
     );
-    daemon.ok(
-        agent,
+    d.ok(
+        a,
         Request::SessionDrop {
             instance: session(1).instance(),
         },
     );
+    d.enroll("other", 2, false);
+    let other = d.connect(credential(2), Some(session(1)));
     assert_eq!(
-        code(daemon.call(agent, Request::Session { instance: None })),
-        ErrorCode::NotFound
-    );
-    daemon.enroll("other", 2, false);
-    let other = daemon.connect(credential(2), Some(session(1)));
-    assert_eq!(
-        code(daemon.call(other, Request::SessionReport { record })),
+        code(d.call(other, Request::SessionReport { record })),
         ErrorCode::Denied
     );
 }
 
 #[test]
-fn revisions_notes_and_idempotent_mutation_survive_replay() {
-    let (mut daemon, _, _, agent, goal) = setup();
-    let request = Request::NoteAdd {
-        goal,
-        about: None,
-        supersedes: None,
-        text: "A finding".into(),
-    };
-    let response = daemon.keyed(agent, 44, request.clone()).unwrap();
-    assert_eq!(daemon.keyed(agent, 44, request.clone()).unwrap(), response);
-    let note = event(response.clone());
-    daemon.ok(
-        agent,
-        Request::NoteAdd {
-            goal,
-            about: None,
-            supersedes: Some(note),
-            text: "Corrected finding".into(),
-        },
-    );
-    let revision = event(daemon.ok(
-        agent,
+fn document_review_and_idempotent_finding_survive_replay() {
+    let (mut d, _, _, a, goal) = setup();
+    let request = finding(goal, "A finding");
+    let response = d.keyed(a, 44, request.clone()).unwrap();
+    assert_eq!(d.keyed(a, 44, request.clone()).unwrap(), response);
+    let revision = event(d.ok(
+        a,
         Request::DocRevise {
             goal,
             doc: Doc::Plan,
@@ -443,27 +513,38 @@ fn revisions_notes_and_idempotent_mutation_survive_replay() {
             text: "The plan".into(),
         },
     ));
-    daemon.ok(agent, Request::DocAccept { goal, revision });
-    let notes = daemon.ok(agent, Request::Notes { goal, about: None });
-    let document = daemon.ok(
-        agent,
+    d.ok(
+        a,
+        Request::ReviewRecord {
+            goal,
+            subject: revision,
+            verdict: ReviewVerdict::Approve,
+            text: "reviewed".into(),
+        },
+    );
+    d.ok(
+        a,
+        Request::ScopeSelect {
+            goal,
+            subject: revision,
+            expected: None,
+        },
+    );
+    let document = d.ok(
+        a,
         Request::DocRead {
             goal,
             doc: Doc::Plan,
         },
     );
-    let count = daemon.store.log(&goal, 0, 1000).unwrap().len();
-    daemon.restart();
-    let agent = daemon.connect(credential(1), None);
-    assert_eq!(daemon.keyed(agent, 44, request).unwrap(), response);
-    assert_eq!(daemon.store.log(&goal, 0, 1000).unwrap().len(), count);
+    let count = d.store.log(&goal, 0, 1000).unwrap().len();
+    d.restart();
+    let a = d.connect(credential(1), None);
+    assert_eq!(d.keyed(a, 44, request).unwrap(), response);
+    assert_eq!(d.store.log(&goal, 0, 1000).unwrap().len(), count);
     assert_eq!(
-        daemon.ok(agent, Request::Notes { goal, about: None }),
-        notes
-    );
-    assert_eq!(
-        daemon.ok(
-            agent,
+        d.ok(
+            a,
             Request::DocRead {
                 goal,
                 doc: Doc::Plan
@@ -475,52 +556,31 @@ fn revisions_notes_and_idempotent_mutation_survive_replay() {
 
 #[test]
 fn removal_seals_new_epoch_proof_and_stops_member_writes() {
-    let (mut daemon, coordinator, _, agent, goal) = setup();
+    let (mut d, p, _, a, goal) = setup();
     assert_eq!(
-        code(daemon.call(
-            agent,
-            Request::MemberRemove {
-                goal,
-                member: coordinator
-            }
-        )),
+        code(d.call(a, Request::MemberRemove { goal, member: p })),
         ErrorCode::Conflict
     );
     assert_eq!(
-        code(daemon.call(agent, Request::GoalLeave { goal })),
+        code(d.call(a, Request::GoalLeave { goal })),
         ErrorCode::Conflict
     );
-    let (principal, member_conn) = super::authorization::join_local(&mut daemon, agent, goal, 2);
-    let removal = event(daemon.ok(
-        agent,
-        Request::MemberRemove {
-            goal,
-            member: principal,
-        },
-    ));
-    let event = daemon.store.event(&removal).unwrap().unwrap();
+    let (member, conn) = super::authorization::join_local(&mut d, a, goal, 2);
+    let removal = event(d.ok(a, Request::MemberRemove { goal, member }));
+    let event = d.store.event(&removal).unwrap().unwrap();
     let payload = event.header().payload.unwrap();
     assert_eq!(payload.key_epoch, 1);
-    let key = &daemon.node.goals[&goal].keys[&1];
     assert_eq!(
         locust_proto::seal::open(
             &goal,
-            key,
-            &daemon.store.blob(&payload.hash).unwrap().unwrap()
+            &d.node.goals[&goal].keys[&1],
+            &d.store.blob(&payload.hash).unwrap().unwrap()
         )
         .unwrap(),
         b""
     );
     assert_eq!(
-        code(daemon.call(
-            member_conn,
-            Request::NoteAdd {
-                goal,
-                about: None,
-                supersedes: None,
-                text: "removed".into()
-            }
-        )),
+        code(d.call(conn, finding(goal, "removed"))),
         ErrorCode::Denied
     );
 }
@@ -528,142 +588,120 @@ fn removal_seals_new_epoch_proof_and_stops_member_writes() {
 #[test]
 fn waits_observe_committed_revisions_timeout_and_recheck_revocation() {
     use locust_proto::api::WaitOutcome;
-    let (mut daemon, principal, owner, agent, goal) = setup();
-    let seen = pending(&mut daemon, agent, goal).revision;
-    let frame = daemon.frame(Request::Wait {
+    let (mut d, p, owner, a, goal) = setup();
+    let seen = pending(&mut d, a, goal).revision;
+    let frame = d.frame(Request::Wait {
         goal,
         seen,
         timeout_ms: 1000,
     });
-    let Step::Park(parked) = daemon.step(agent, frame, 100) else {
+    let Step::Park(parked) = d.step(a, frame, 100) else {
         panic!()
     };
     assert!(matches!(
-        daemon.node.resume(agent, &parked, false, 101),
+        d.node.resume(a, &parked, false, 101),
         Step::Park(_)
     ));
     assert!(matches!(
-        daemon.node.resume(agent, &parked, true, 1100),
+        d.node.resume(a, &parked, true, 1100),
         Step::Reply(locust_proto::api::ResponseFrame {
             result: Ok(Response::Waited(WaitOutcome::NoEvent)),
             ..
         })
     ));
-    let frame = daemon.frame(Request::Wait {
+    let frame = d.frame(Request::Wait {
         goal,
         seen,
         timeout_ms: 1000,
     });
-    let Step::Park(parked) = daemon.step(agent, frame, 1200) else {
+    let Step::Park(parked) = d.step(a, frame, 1200) else {
         panic!()
     };
-    daemon
-        .on_behalf(
-            owner,
-            principal,
-            Request::NoteAdd {
-                goal,
-                about: None,
-                supersedes: None,
-                text: "changed".into(),
-            },
-        )
-        .unwrap();
-    assert!(daemon.node.take_changed().contains(&goal));
-    let Step::Reply(reply) = daemon.node.resume(agent, &parked, false, 1201) else {
+    d.ok(a, finding(goal, "changed"));
+    let Step::Reply(reply) = d.node.resume(a, &parked, false, 1201) else {
         panic!()
     };
     let Response::Waited(WaitOutcome::Work(work)) = reply.result.unwrap() else {
         panic!()
     };
     assert!(work.revision > seen);
-    let frame = daemon.frame(Request::Wait {
+    let frame = d.frame(Request::Wait {
         goal,
         seen: work.revision,
         timeout_ms: 1000,
     });
-    let Step::Park(parked) = daemon.step(agent, frame, 1300) else {
+    let Step::Park(parked) = d.step(a, frame, 1300) else {
         panic!()
     };
-    daemon.ok(owner, Request::AgentRevoke { agent: principal });
-    let Step::Reply(reply) = daemon.node.resume(agent, &parked, false, 1301) else {
+    d.ok(owner, Request::AgentRevoke { agent: p });
+    let Step::Reply(reply) = d.node.resume(a, &parked, false, 1301) else {
         panic!()
     };
     assert_eq!(code(reply.result), ErrorCode::Denied);
 }
 
 #[test]
-fn decline_reassignment_rejection_and_attempt_budget_are_enforced() {
-    let (mut daemon, principal, owner, agent, goal) = setup();
-    let (task, first) = assigned(&mut daemon, agent, goal, principal);
-    daemon.ok(
-        agent,
-        Request::TaskDecline {
-            goal,
-            assignment: first,
-        },
-    );
+fn declining_one_offer_does_not_impose_an_attempt_budget() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, first) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    d.ok(a, Request::WorkDecline { goal, offer: first });
     assert_eq!(
-        code(daemon.call(
-            agent,
-            Request::TaskClaim {
-                goal,
-                assignment: first
-            }
-        )),
-        ErrorCode::Conflict
-    );
-    let second = event(daemon.ok(
-        agent,
-        Request::TaskAssign {
-            goal,
-            task,
-            assignee: principal,
-        },
-    ));
-    authorize(&mut daemon, owner, goal, second);
-    daemon.ok(
-        agent,
-        Request::TaskClaim {
-            goal,
-            assignment: second,
-        },
-    );
-    assert_eq!(
-        code(daemon.call(agent, progress(goal, first, 1))),
-        ErrorCode::Superseded
-    );
-    let result = event(daemon.ok(agent, submit(goal, second, 1)));
-    daemon.ok(
-        agent,
-        Request::ResultReject {
-            goal,
-            result,
-            reason: "needs revision".into(),
-        },
-    );
-    assert!(pending(&mut daemon, agent, goal).to_review.is_empty());
-    assert!(pending(&mut daemon, agent, goal).claimed.is_empty());
-    assert_eq!(
-        code(daemon.call(
-            agent,
-            Request::ResultAccept {
-                goal,
-                result,
-                head: None
-            }
-        )),
-        ErrorCode::Conflict
-    );
-    assert_eq!(
-        code(daemon.call(
-            agent,
-            Request::TaskAssign {
+        code(d.call(
+            a,
+            Request::AttemptStart {
                 goal,
                 task,
-                assignee: principal
+                offer: Some(first)
             }
         )),
-        ErrorCode::Conflict
+        ErrorCode::Denied
     );
+    let second = event(d.ok(
+        a,
+        Request::WorkOffer {
+            goal,
+            task,
+            recipient: p,
+        },
+    ));
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(second),
+        },
+    ) else {
+        panic!()
+    };
+    d.ok(
+        a,
+        Request::AttemptReport {
+            goal,
+            attempt: claim.attempt,
+            generation: 1,
+            status: AttemptStatus::Failed,
+            text: "failed".into(),
+        },
+    );
+    let third = event(d.ok(
+        a,
+        Request::WorkOffer {
+            goal,
+            task,
+            recipient: p,
+        },
+    ));
+    assert!(matches!(
+        d.ok(
+            a,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: Some(third)
+            }
+        ),
+        Response::Claimed(_)
+    ));
 }

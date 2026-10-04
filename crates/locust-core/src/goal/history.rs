@@ -1,7 +1,7 @@
 //! The events held for one goal: decoded once, indexed by identifier, with a
 //! log per author that answers frontier and prefix questions by lookup.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use locust_proto::event::{AuthorPoint, Body, Event};
 use locust_proto::id::{EventId, PublicKey};
@@ -10,10 +10,10 @@ use locust_proto::sync::{AuthorFrontier, EMPTY_LOG_DIGEST, Frontier, log_digest_
 use super::ids::IdMap;
 
 /// Where a held event lives in [`History::events`].
-pub(super) type Slot = u32;
+pub(super) type Slot = usize;
 
 /// One author's held events.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct AuthorLog {
     /// Every held point, ascending by (position, identifier).
     pub points: Vec<AuthorPoint>,
@@ -62,15 +62,6 @@ impl AuthorLog {
         self.points.len() - self.usable
     }
 
-    /// The number of different events held at `seq`.
-    pub fn variants(&self, seq: u64) -> usize {
-        let from = self.points.partition_point(|point| point.seq < seq);
-        self.points[from..]
-            .iter()
-            .take_while(|point| point.seq == seq)
-            .count()
-    }
-
     /// The last event of the usable prefix.
     pub fn tip(&self) -> Option<EventId> {
         Some(self.points[self.usable.checked_sub(1)?].id)
@@ -108,7 +99,7 @@ impl AuthorLog {
                 .points
                 .get(index + 1)
                 .is_some_and(|after| after.seq == next.seq);
-            let prev = events[self.slots[index] as usize].header().prev;
+            let prev = events[self.slots[index]].header().prev;
             if next.seq != index as u64 || forked || prev != self.tip() {
                 break;
             }
@@ -138,16 +129,14 @@ impl AuthorLog {
 }
 
 /// Every event held for one goal.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct History {
     /// Held events in arrival order.
     pub events: Vec<Event>,
     index: IdMap<Slot>,
     pub logs: BTreeMap<PublicKey, AuthorLog>,
     /// The author of a held genesis event.
-    pub coordinator: Option<PublicKey>,
-    /// Every key named by a held `MemberAdmitted` event, with its signer.
-    admissions: HashSet<(PublicKey, PublicKey)>,
+    pub administrator: Option<PublicKey>,
 }
 
 impl History {
@@ -156,17 +145,11 @@ impl History {
     }
 
     pub fn get(&self, id: &EventId) -> Option<&Event> {
-        Some(&self.events[self.slot(id)? as usize])
+        Some(&self.events[self.slot(id)?])
     }
 
     pub fn log(&self, author: &PublicKey) -> Option<&AuthorLog> {
         self.logs.get(author)
-    }
-
-    /// True if a held `MemberAdmitted` event signed by `coordinator` names
-    /// `member`, whether or not it was applied.
-    pub fn admits(&self, coordinator: &PublicKey, member: &PublicKey) -> bool {
-        self.admissions.contains(&(*coordinator, *member))
     }
 
     /// Holds `event`. `None` if it was held already.
@@ -178,12 +161,8 @@ impl History {
         };
         self.events.push(event.clone());
         let header = event.header();
-        match &header.body {
-            Body::Genesis(genesis) => self.coordinator = Some(genesis.coordinator),
-            Body::MemberAdmitted { member, .. } => {
-                self.admissions.insert((header.author, *member));
-            }
-            _ => {}
+        if let Body::Genesis(genesis) = &header.body {
+            self.administrator = Some(genesis.administrator);
         }
         let point = AuthorPoint {
             seq: header.seq,

@@ -42,20 +42,20 @@ pub(super) fn commands() -> [Command; 2] {
         .subcommand(Command::new("preview").about("Review a committed export locally without sharing bytes").arg(root()).arg(commit()))
         .subcommand(Command::new("export").about("Store a committed snapshot in the selected goal and record its local binding").arg(goal()).arg(root()).arg(commit()))
         .subcommand(Command::new("materialize").about("Write a received snapshot into a new directory").arg(goal()).arg(option("manifest", "Full snapshot manifest identifier", true)).arg(option("destination", "Absolute new destination directory", true))),
-     Command::new("patch").about("Create, review, submit, accept and apply inert workspace contributions").subcommand_required(true)
+     Command::new("patch").about("Create, review, publish, select and apply inert workspace contributions").subcommand_required(true)
         .subcommand(Command::new("create").about("Capture a committed tree or explicitly selected regular files against an exact base")
             .arg(goal()).arg(root()).arg(option("base", "Full base snapshot manifest identifier", true))
             .arg(option("commit", "Committed tree to compare with the base", false).required_unless_present("path").conflicts_with("path"))
             .arg(option("path", "Exact relative file to capture, or missing base file to delete; repeat for each path", false).action(ArgAction::Append).required_unless_present("commit")))
         .subcommand(Command::new("review").about("Read exact before/after content and show text diffs or binary summaries").arg(goal()).arg(patch()))
         .subcommand(Command::new("submit").about("Submit a validated contribution using the current claimed generation")
-            .arg(goal()).arg(patch()).arg(option("assignment", "Full assignment event identifier", true))
+            .arg(goal()).arg(patch()).arg(option("attempt", "Full attempt event identifier", true))
             .arg(option("generation", "Current claim generation", true))
             .arg(Arg::new("summary").required(true).allow_hyphen_values(true).help("Summary text, or - to read standard input")))
-        .subcommand(Command::new("accept").about("Accept a reviewed result with its exact contribution head")
-            .arg(goal()).arg(option("result", "Full submitted result event identifier", true)).arg(patch()))
-        .subcommand(Command::new("apply").about("Apply an accepted contribution to a recorded root; preserve originals for recovery")
-            .arg(goal()).arg(root()).arg(patch()).arg(option("expected-base", "Exact manifest the local changes are expected to start from", true))
+        .subcommand(Command::new("select").about("Select an exact reviewed contribution within its scope")
+            .arg(goal()).arg(option("subject", "Full contribution event identifier", true)).arg(option("expected", "Current scope selection decision identifier", false)).arg(patch()))
+        .subcommand(Command::new("apply").about("Apply a selected contribution to a recorded root; preserve originals for recovery")
+            .arg(goal()).arg(root()).arg(patch()).arg(option("subject", "Exact selected contribution event identifier", true)).arg(option("expected-base", "Exact manifest the local changes are expected to start from", true))
             .arg(option("expected-git-head", "Full expected Git HEAD; required when applying to an exported Git root", false)))]
 }
 
@@ -116,9 +116,7 @@ pub(super) fn run(
             locust_workspace::materialize(&manifest, &mut api, &destination)
                 .map_err(workspace_error)?;
             binding.destination = Some(destination.to_string_lossy().into_owned());
-            // Task inputs need not be accepted heads. Only record integration
-            // when this exact snapshot is already accepted locally.
-            binding.integrated = (status.head == Some(id)).then_some(id);
+            binding.integrated = Some(id);
             api.bind(binding).map_err(|e| {
                 after_action(
                     e,
@@ -126,7 +124,7 @@ pub(super) fn run(
                 )
             })?;
             output(
-                json!({"manifest":id,"destination":destination,"files":manifest.entries.len(),"integrated":status.head == Some(id)}),
+                json!({"manifest":id,"destination":destination,"files":manifest.entries.len(),"integrated":true}),
             )
         }
         "patch.create" => {
@@ -160,9 +158,9 @@ pub(super) fn run(
             let patch = hash(args, "patch")?;
             let review =
                 locust_workspace::review_contribution(patch, &mut api).map_err(workspace_error)?;
-            let assignment = value(args, "assignment")
+            let attempt = value(args, "attempt")
                 .parse()
-                .map_err(|_| Failure::usage("--assignment requires a full event identifier"))?;
+                .map_err(|_| Failure::usage("--attempt requires a full event identifier"))?;
             let generation = value(args, "generation")
                 .parse()
                 .map_err(|_| Failure::usage("--generation requires an unsigned 32-bit integer"))?;
@@ -171,10 +169,25 @@ pub(super) fn run(
             } else {
                 value(args, "summary").to_owned()
             };
-            let response = api.call(Request::TaskSubmit {
+            let Response::Pending(work) = api.call(Request::Pending { goal })? else {
+                unreachable!()
+            };
+            let task = work
+                .claimed
+                .iter()
+                .find(|claim| claim.attempt == attempt && claim.generation == generation)
+                .ok_or_else(|| {
+                    Failure::new(
+                        ErrorCode::Superseded,
+                        "this session does not hold the current attempt generation",
+                    )
+                })?
+                .task;
+            let response = api.call(Request::ContributionPublish {
                 goal,
-                assignment,
-                generation,
+                task: Some(task),
+                attempt: Some(attempt),
+                generation: Some(generation),
                 summary,
                 base: Some(review.base),
                 patch: Some(patch),
@@ -182,22 +195,22 @@ pub(super) fn run(
             })?;
             response_output(response)
         }
-        "patch.accept" => {
-            let result = value(args, "result")
+        "patch.select" => {
+            let subject = value(args, "subject")
                 .parse()
-                .map_err(|_| Failure::usage("--result requires a full event identifier"))?;
+                .map_err(|_| Failure::usage("--subject requires a full event identifier"))?;
             let patch = hash(args, "patch")?;
             let review =
                 locust_workspace::review_contribution(patch, &mut api).map_err(workspace_error)?;
             let Response::Event(event) = api.call(Request::Event {
                 goal,
-                event: result,
+                event: subject,
             })?
             else {
                 return Err(Failure::internal("expected event detail"));
             };
             match event.body {
-                Body::ResultSubmitted {
+                Body::ContributionPublished {
                     base: Some(base),
                     patch: Some(stored),
                     ..
@@ -205,14 +218,19 @@ pub(super) fn run(
                 _ => {
                     return Err(Failure::new(
                         ErrorCode::Conflict,
-                        "result does not name this exact contribution and base",
+                        "subject does not name this exact contribution and base",
                     ));
                 }
             }
-            response_output(api.call(Request::ResultAccept {
+            let expected = args
+                .get_one::<String>("expected")
+                .map(|text| text.parse())
+                .transpose()
+                .map_err(|_| Failure::usage("--expected requires a full event identifier"))?;
+            response_output(api.call(Request::ScopeSelect {
                 goal,
-                result,
-                head: Some(review.head),
+                subject,
+                expected,
             })?)
         }
         "patch.apply" => {
@@ -220,12 +238,13 @@ pub(super) fn run(
             require_binding(&binding, &root)?;
             let expected_base = hash(args, "expected-base")?;
             let patch = hash(args, "patch")?;
-            let accepted = status.head.ok_or_else(|| {
-                Failure::new(
-                    ErrorCode::Conflict,
-                    "the goal has no accepted workspace head",
-                )
-            })?;
+            let subject = value(args, "subject")
+                .parse()
+                .map_err(|_| Failure::usage("--subject requires a full event identifier"))?;
+            require_selected(&mut api, subject, patch)?;
+            let review =
+                locust_workspace::review_contribution(patch, &mut api).map_err(workspace_error)?;
+            let selected_artifact = review.head;
             let expected_git_head = args
                 .get_one::<String>("expected-git-head")
                 .map(String::as_str);
@@ -244,25 +263,41 @@ pub(super) fn run(
                 &mut api,
                 &root,
                 expected_base,
-                accepted,
+                selected_artifact,
                 expected_git_head,
             )
             .map_err(workspace_error)?;
-            // Acceptance can advance while local files are being applied. Do
-            // not claim those files contain that newer head.
-            if api.status().map_err(|e| after_action(e, "contribution applied; current goal head could not be checked and integration binding was not recorded"))?.head != Some(accepted) {
-                return Err(Failure::new(
-                    ErrorCode::Conflict,
-                    format!(
-                        "contribution to accepted head {accepted} was applied, but the goal head advanced; integration binding was not updated"
-                    ),
-                ));
-            }
-            binding.integrated = Some(accepted);
+            require_selected(&mut api, subject, patch).map_err(|error| after_action(error,"files applied; scope selection changed and integration binding was not recorded"))?;
+            binding.integrated = Some(selected_artifact);
             api.bind(binding).map_err(|e| after_action(e, "files applied; integration binding was not recorded; retry this exact contribution"))?;
             output(serde_json::to_value(report).map_err(|e| Failure::internal(e.to_string()))?)
         }
         _ => unreachable!("workspace dispatch"),
+    }
+}
+fn require_selected(
+    api: &mut Objects<'_>,
+    subject: locust_proto::id::EventId,
+    patch: BlobHash,
+) -> Result<(), Failure> {
+    let Response::Contributions(contributions) = api.call(Request::Contributions {
+        goal: api.goal,
+        task: None,
+    })?
+    else {
+        unreachable!()
+    };
+    if contributions.iter().any(|contribution| {
+        contribution.contribution == subject
+            && contribution.selected
+            && contribution.patch == Some(patch)
+    }) {
+        Ok(())
+    } else {
+        Err(Failure::new(
+            ErrorCode::Conflict,
+            "exact contribution is not currently selected in its scope",
+        ))
     }
 }
 fn value<'a>(args: &'a ArgMatches, key: &str) -> &'a str {

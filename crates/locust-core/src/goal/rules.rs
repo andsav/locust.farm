@@ -1,0 +1,229 @@
+//! One rule/selector interpretation shared by replay and caller opportunities.
+use std::collections::{BTreeMap, BTreeSet};
+
+use locust_proto::event::{Body, Context, EffectAction, RulesBinding, Scope, TaskBinding, TaskId};
+use locust_proto::id::{DefinitionHash, EventId, PublicKey};
+use locust_proto::organization::{Authority, CompletionRule, DecisionRules, Selector, WorkRules};
+
+use super::DefinitionLookup;
+use super::history::History;
+use super::standing::{Exclusion, Standing, Waiting};
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct EffectiveRules {
+    pub work: WorkRules,
+    pub decisions: DecisionRules,
+    pub roles: BTreeMap<String, Vec<PublicKey>>,
+    pub creator: Option<PublicKey>,
+    pub rules: EventId,
+    pub definition: DefinitionHash,
+}
+
+#[derive(Clone)]
+pub(super) struct Resolved {
+    pub effective: EffectiveRules,
+    pub binding: RulesBinding,
+    pub task: Option<TaskBinding>,
+}
+
+pub(super) fn resolve<D: DefinitionLookup + ?Sized>(
+    history: &History,
+    definitions: &D,
+    context: Context,
+) -> Result<Resolved, Standing> {
+    let event = history
+        .get(&context.round)
+        .ok_or(Standing::Pending(Waiting::Reference))?;
+    let (rules, task, creator) = match context.scope {
+        Scope::Goal | Scope::Document(_) => {
+            if !matches!(event.header().body, Body::RulesBound { .. }) {
+                return Err(invalid("context round is not a rules binding"));
+            }
+            (context.round, None, None)
+        }
+        Scope::Task(task) => match &event.header().body {
+            Body::TaskOpened { binding } if task == TaskId::Authored(event.id()) => (
+                binding.rules,
+                Some(binding.clone()),
+                Some(event.header().author),
+            ),
+            Body::TaskRevised {
+                task: target,
+                binding,
+                ..
+            } if *target == task => {
+                let creator =
+                    task_creator(history, task).ok_or(Standing::Pending(Waiting::Reference))?;
+                (binding.rules, Some(binding.clone()), Some(creator))
+            }
+            Body::EffectMaterialized { effect }
+                if task == TaskId::Derived(effect.id(event.header().goal)) =>
+            {
+                let EffectAction::OpenTask { binding, .. } = &effect.action else {
+                    return Err(invalid("context effect does not create a task"));
+                };
+                (
+                    binding.rules,
+                    Some(binding.clone()),
+                    Some(event.header().author),
+                )
+            }
+            _ => return Err(invalid("context round belongs to another task")),
+        },
+    };
+    resolve_binding(history, definitions, rules, task, creator)
+}
+
+pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
+    history: &History,
+    definitions: &D,
+    rules: EventId,
+    task: Option<TaskBinding>,
+    creator: Option<PublicKey>,
+) -> Result<Resolved, Standing> {
+    let event = history
+        .get(&rules)
+        .ok_or(Standing::Pending(Waiting::Reference))?;
+    let Body::RulesBound { binding, .. } = &event.header().body else {
+        return Err(invalid("rules reference has the wrong event kind"));
+    };
+    let definition = definitions
+        .definition(&binding.definition.semantic)
+        .ok_or(Standing::Pending(Waiting::Definition))?;
+    if !super::valid_definition(&binding.definition.semantic, definition) {
+        return Err(Standing::Excluded(Exclusion::InvalidDefinition));
+    }
+    let mut work = definition.work.clone();
+    let mut decisions = definition.decisions.clone();
+    if let Some(name) = task.as_ref().and_then(|task| task.variation.as_ref()) {
+        let variation = definition
+            .variations
+            .get(name)
+            .ok_or(invalid("task variation is not delegated by the definition"))?;
+        if let Some(value) = &variation.work {
+            work = value.clone();
+        }
+        if let Some(value) = &variation.decisions {
+            decisions = value.clone();
+        }
+    }
+    Ok(Resolved {
+        effective: EffectiveRules {
+            work,
+            decisions,
+            roles: binding.roles.clone(),
+            creator,
+            rules,
+            definition: binding.definition.semantic,
+        },
+        binding: binding.clone(),
+        task,
+    })
+}
+
+pub(super) fn task_creator(history: &History, task: TaskId) -> Option<PublicKey> {
+    match task {
+        TaskId::Authored(id)=>history.get(&id).filter(|event|matches!(event.header().body,Body::TaskOpened{..})).map(|event|event.header().author),
+        TaskId::Derived(id)=>history.events.iter().filter(|event|matches!(&event.header().body,Body::EffectMaterialized{effect} if effect.id(event.header().goal)==id && matches!(effect.action,EffectAction::OpenTask{..}))).min_by_key(|event|(event.header().seq,event.id())).map(|event|event.header().author),
+    }
+}
+
+pub(super) fn matches(
+    selector: &Selector,
+    principal: PublicKey,
+    rules: &EffectiveRules,
+    subject: Option<PublicKey>,
+) -> bool {
+    match selector {
+        Selector::Members => true,
+        Selector::Nobody => false,
+        Selector::Role { name } => rules
+            .roles
+            .get(name)
+            .is_some_and(|keys| keys.contains(&principal)),
+        Selector::Participant { key } => key.parse::<PublicKey>().ok() == Some(principal),
+        Selector::TaskCreator => rules.creator == Some(principal),
+        Selector::ContributionAuthor => subject == Some(principal),
+        Selector::Any { selectors } => selectors
+            .iter()
+            .any(|selector| matches(selector, principal, rules, subject)),
+    }
+}
+
+pub(super) fn selected(
+    selector: &Selector,
+    members: impl Iterator<Item = PublicKey>,
+    rules: &EffectiveRules,
+    subject: Option<PublicKey>,
+) -> BTreeSet<PublicKey> {
+    members
+        .filter(|principal| matches(selector, *principal, rules, subject))
+        .collect()
+}
+
+pub(super) fn authority(authority: &Authority, rules: &EffectiveRules) -> Option<PublicKey> {
+    match authority {
+        Authority::Participant { key } => key.parse().ok(),
+        Authority::Role { name } => {
+            let keys = rules.roles.get(name)?;
+            if keys.len() == 1 { Some(keys[0]) } else { None }
+        }
+    }
+}
+
+pub(super) fn may_review(
+    rule: &CompletionRule,
+    principal: PublicKey,
+    rules: &EffectiveRules,
+    subject: PublicKey,
+) -> bool {
+    match rule {
+        CompletionRule::Reviews {
+            by, exclude_author, ..
+        } => {
+            (!exclude_author || principal != subject)
+                && matches(by, principal, rules, Some(subject))
+        }
+        CompletionRule::All { rules: items } | CompletionRule::Any { rules: items } => items
+            .iter()
+            .any(|rule| may_review(rule, principal, rules, subject)),
+        _ => false,
+    }
+}
+
+pub(super) fn may_declare(
+    rule: &CompletionRule,
+    principal: PublicKey,
+    rules: &EffectiveRules,
+    subject: PublicKey,
+) -> bool {
+    match rule {
+        CompletionRule::Declaration { by } => matches(by, principal, rules, Some(subject)),
+        CompletionRule::All { rules: items } | CompletionRule::Any { rules: items } => items
+            .iter()
+            .any(|rule| may_declare(rule, principal, rules, subject)),
+        _ => false,
+    }
+}
+
+pub(super) fn may_attest(
+    rule: &CompletionRule,
+    name: &str,
+    principal: PublicKey,
+    rules: &EffectiveRules,
+    subject: PublicKey,
+) -> bool {
+    match rule {
+        CompletionRule::Check { name: expected, by } => {
+            name == expected && matches(by, principal, rules, Some(subject))
+        }
+        CompletionRule::All { rules: items } | CompletionRule::Any { rules: items } => items
+            .iter()
+            .any(|rule| may_attest(rule, name, principal, rules, subject)),
+        _ => false,
+    }
+}
+
+pub(super) fn invalid(reason: &'static str) -> Standing {
+    Standing::Excluded(Exclusion::Precondition(reason))
+}
