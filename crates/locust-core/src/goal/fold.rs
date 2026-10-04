@@ -437,7 +437,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 && !super::delegation::narrows(&resolved.effective, &parent.effective)
             {
                 return Err(invalid(
-                    "child task_type does not prove narrower parent authority and completion",
+                    "child task type does not prove narrower parent authority and completion",
                 ));
             }
         }

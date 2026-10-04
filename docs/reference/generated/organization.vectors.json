@@ -1,0 +1,3413 @@
+{
+  "cases": [
+    {
+      "id": "preset/open",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "1954b82aef03f195b9b054dff5e9b3acb9e3830c9f1357821107d7193ee3ee91",
+        "valid": true
+      },
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "id": "preset/coordinator",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [
+            "coordinator"
+          ],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "coordinator"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: members bound to role \"coordinator\" may offer work to goal members; the recipient must acknowledge before starting.",
+            "Default rules: completion requires 1 distinct approving reviewer(s) from members bound to role \"coordinator\", including the author if eligible on the exact candidate.",
+            "Default rules: the single member bound to role \"coordinator\" may select one qualifying output; approval alone does not select it.",
+            "Default rules: the single member bound to role \"coordinator\" may declare the scope finished."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "role",
+                "name": "coordinator"
+              },
+              "count": 1,
+              "exclude_author": false,
+              "kind": "reviews"
+            },
+            "finish": {
+              "kind": "role",
+              "name": "coordinator"
+            },
+            "selection": {
+              "kind": "role",
+              "name": "coordinator"
+            }
+          },
+          "flow": {},
+          "roles": {
+            "coordinator": {
+              "description": "One member offers work and decides completion, selection and when the goal is finished."
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "role",
+                  "name": "coordinator"
+                },
+                "kind": "offered",
+                "to": {
+                  "kind": "members"
+                }
+              }
+            ]
+          }
+        },
+        "semantic_hash": "16a75e5fd4e2befb051bca663208f71abab7b0bd46b2855a163b624bda3b5379",
+        "valid": true
+      },
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"coordinator\"\n      },\n      \"count\": 1,\n      \"exclude_author\": false,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    },\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"coordinator\": {\n      \"description\": \"One member offers work and decides completion, selection and when the goal is finished.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"role\",\n          \"name\": \"coordinator\"\n        },\n        \"kind\": \"offered\",\n        \"to\": {\n          \"kind\": \"members\"\n        }\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "id": "preset/peer-review",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires 1 distinct approving reviewer(s) from goal members, excluding the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "members"
+              },
+              "count": 1,
+              "exclude_author": true,
+              "kind": "reviews"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "90c1265d1a5088aafdb8fa78c7f9cf5c09714a375972a2c024d8cc26a43dc94e",
+        "valid": true
+      },
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"members\"\n      },\n      \"count\": 1,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "id": "preset/review-panel",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "reviewer"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires 2 distinct approving reviewer(s) from members bound to role \"reviewer\", excluding the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "role",
+                "name": "reviewer"
+              },
+              "count": 2,
+              "exclude_author": true,
+              "kind": "reviews"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "reviewer": {
+              "description": "Members eligible to review contributions by other authors."
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "efd9564acec397a32d61c217600e6483bcad919618000c801db42473f60b92cd",
+        "valid": true
+      },
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"reviewer\"\n      },\n      \"count\": 2,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"reviewer\": {\n      \"description\": \"Members eligible to review contributions by other authors.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "id": "preset/independent-attempts",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [
+            "chooser"
+          ],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "chooser"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: the single member bound to role \"chooser\" may select one qualifying output; approval alone does not select it.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": {
+              "kind": "role",
+              "name": "chooser"
+            }
+          },
+          "flow": {},
+          "roles": {
+            "chooser": {
+              "description": "One member selects among independently completed contributions."
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "b640f74c484c992c0db845256a06cc2f02a66242fcb5dab828fea399baced706",
+        "valid": true
+      },
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"chooser\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"chooser\": {\n      \"description\": \"One member selects among independently completed contributions.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "id": "preset/pipeline",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [
+            "runner"
+          ],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "runner"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion.",
+            "Task type \"reviewed\": goal members may propose tasks; goal members may publish contributions without a task.",
+            "Task type \"reviewed\": goal members may start independent attempts; concurrent attempts may coexist.",
+            "Task type \"reviewed\": completion requires 1 distinct approving reviewer(s) from goal members, excluding the contribution author on the exact candidate.",
+            "Task type \"reviewed\": qualifying contributions coexist; no single output is selected.",
+            "Task type \"reviewed\": no one may declare it finished; an empty task list is not completion.",
+            "Stage \"draft\": the single member bound to role \"runner\" runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"draft\" requires no upstream evidence and uses default rules.",
+            "Stage \"review\": the single member bound to role \"runner\" runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"review\" requires completion from \"draft\" and uses task type \"reviewed\"."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {
+            "draft": {
+              "recipients": {
+                "kind": "members"
+              },
+              "requires": [],
+              "runner": {
+                "kind": "role",
+                "name": "runner"
+              },
+              "task_type": null
+            },
+            "review": {
+              "recipients": {
+                "kind": "members"
+              },
+              "requires": [
+                {
+                  "evidence": "completion",
+                  "stage": "draft"
+                }
+              ],
+              "runner": {
+                "kind": "role",
+                "name": "runner"
+              },
+              "task_type": "reviewed"
+            }
+          },
+          "roles": {
+            "runner": {
+              "description": "One member's daemon advances the configured stages and durably delivers ready work."
+            }
+          },
+          "schema_version": 1,
+          "task_types": {
+            "reviewed": {
+              "decisions": {
+                "completion": {
+                  "by": {
+                    "kind": "members"
+                  },
+                  "count": 1,
+                  "exclude_author": true,
+                  "kind": "reviews"
+                },
+                "finish": null,
+                "selection": null
+              },
+              "work": {
+                "propose": {
+                  "kind": "members"
+                },
+                "publish": {
+                  "kind": "members"
+                },
+                "starts": [
+                  {
+                    "by": {
+                      "kind": "members"
+                    },
+                    "kind": "independent"
+                  }
+                ]
+              }
+            }
+          },
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "8192423e7dfe76982234550e9a6efd10de86a2a9eaa1092ba5e63b0f47c0fcab",
+        "valid": true
+      },
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {\n    \"draft\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [],\n      \"runner\": {\n        \"kind\": \"role\",\n        \"name\": \"runner\"\n      },\n      \"task_type\": null\n    },\n    \"review\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [\n        {\n          \"evidence\": \"completion\",\n          \"stage\": \"draft\"\n        }\n      ],\n      \"runner\": {\n        \"kind\": \"role\",\n        \"name\": \"runner\"\n      },\n      \"task_type\": \"reviewed\"\n    }\n  },\n  \"roles\": {\n    \"runner\": {\n      \"description\": \"One member's daemon advances the configured stages and durably delivers ready work.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {\n    \"reviewed\": {\n      \"decisions\": {\n        \"completion\": {\n          \"by\": {\n            \"kind\": \"members\"\n          },\n          \"count\": 1,\n          \"exclude_author\": true,\n          \"kind\": \"reviews\"\n        },\n        \"finish\": null,\n        \"selection\": null\n      },\n      \"work\": null\n    }\n  },\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "id": "load/eof",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_json",
+            "correction": "Supply one complete JSON object with unique field names; parser resource-limit errors are reported without truncating the document.",
+            "message": "EOF while parsing a value at line 1 column 20",
+            "path": "",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":1,"
+    },
+    {
+      "id": "load/trailing",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_json",
+            "correction": "Supply one complete JSON object with unique field names; parser resource-limit errors are reported without truncating the document.",
+            "message": "trailing characters at line 1 column 22",
+            "path": "",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":1} x"
+    },
+    {
+      "id": "load/not-json",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_json",
+            "correction": "Supply one complete JSON object with unique field names; parser resource-limit errors are reported without truncating the document.",
+            "message": "expected value at line 1 column 1",
+            "path": "",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "hello"
+    },
+    {
+      "id": "load/empty",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_json",
+            "correction": "Supply one complete JSON object with unique field names; parser resource-limit errors are reported without truncating the document.",
+            "message": "EOF while parsing a value at line 1 column 0",
+            "path": "",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": ""
+    },
+    {
+      "id": "load/duplicate-top",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "duplicate_key",
+            "correction": "Supply one complete JSON object with unique field names; parser resource-limit errors are reported without truncating the document.",
+            "message": "duplicate JSON key \"a\" at line 1 column 29",
+            "path": "/a",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":1,\"a\":1,\"a\":2}"
+    },
+    {
+      "id": "load/duplicate-nested",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "duplicate_key",
+            "correction": "Supply one complete JSON object with unique field names; parser resource-limit errors are reported without truncating the document.",
+            "message": "duplicate JSON key \"r\" at line 1 column 39",
+            "path": "/roles/r",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":1,\"roles\":{\"r\":{},\"r\":{}}}"
+    },
+    {
+      "id": "load/duplicate-after-error-free-prefix",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "duplicate_key",
+            "correction": "Supply one complete JSON object with unique field names; parser resource-limit errors are reported without truncating the document.",
+            "message": "duplicate JSON key \"description\" at line 1 column 65",
+            "path": "/roles/r/description",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":1,\"roles\":{\"r\":{\"description\":\"x\",\"description\":\"y\"}}}"
+    },
+    {
+      "id": "version/two",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "unsupported_version",
+            "correction": "Use the contract exported by this build. Unsupported documents are not converted.",
+            "message": "schema version 2 is unsupported; this build accepts 1",
+            "path": "/schema_version",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":2}"
+    },
+    {
+      "id": "version/two-with-unknown-field",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "unsupported_version",
+            "correction": "Use the contract exported by this build. Unsupported documents are not converted.",
+            "message": "schema version 2 is unsupported; this build accepts 1",
+            "path": "/schema_version",
+            "phase": "load",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":2,\"extra\":1}"
+    },
+    {
+      "id": "structure/missing-version",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "missing field `schema_version`",
+            "path": "",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{}"
+    },
+    {
+      "id": "structure/null",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: null, expected struct Blueprint",
+            "path": "",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "null"
+    },
+    {
+      "id": "structure/string",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: string \"x\", expected struct Blueprint",
+            "path": "",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "\"x\""
+    },
+    {
+      "id": "structure/version-string",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: string \"1\", expected u32",
+            "path": "/schema_version",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":\"1\"}"
+    },
+    {
+      "id": "structure/version-float",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: floating point `1.0`, expected u32",
+            "path": "/schema_version",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":1.0}"
+    },
+    {
+      "id": "structure/version-negative",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid value: integer `-1`, expected u32",
+            "path": "/schema_version",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":-1}"
+    },
+    {
+      "id": "structure/version-huge",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: floating point `1.8446744073709552e+19`, expected u32",
+            "path": "/schema_version",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\":18446744073709551617}"
+    },
+    {
+      "id": "structure/unknown-top-field",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown field `extra`, expected one of `schema_version`, `roles`, `context`, `work`, `decisions`, `task_types`, `flow`",
+            "path": "/extra",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"extra\": 1}"
+    },
+    {
+      "id": "structure/roles-array",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: sequence, expected a map",
+            "path": "/roles",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": []}"
+    },
+    {
+      "id": "structure/role-unknown-field",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown field `desc`, expected `description`",
+            "path": "/roles/a/desc",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {\"desc\": \"\"}}}"
+    },
+    {
+      "id": "structure/role-description-type",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: integer `1`, expected a string",
+            "path": "/roles/a/description",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {\"description\": 1}}}"
+    },
+    {
+      "id": "structure/selector-missing-name",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "missing field `name`",
+            "path": "/work/propose",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\"}}}"
+    },
+    {
+      "id": "structure/selector-unknown-kind",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
+            "path": "/work/propose/kind",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"bogus\"}}}"
+    },
+    {
+      "id": "structure/selector-kind-type",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: integer `5`, expected variant identifier",
+            "path": "/work/propose/kind",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": 5}}}"
+    },
+    {
+      "id": "structure/selector-not-object",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: integer `5`, expected internally tagged enum Selector",
+            "path": "/work/propose",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": 5}}"
+    },
+    {
+      "id": "structure/selector-extra-field",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown field `y`, expected `name`",
+            "path": "/work/propose",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\", \"y\": 1}}}"
+    },
+    {
+      "id": "structure/start-missing-kind",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "missing field `kind`",
+            "path": "/work/starts/0",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"by\": {\"kind\": \"members\"}}]}}"
+    },
+    {
+      "id": "structure/start-missing-by",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "missing field `by`",
+            "path": "/work/starts/0",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\"}]}}"
+    },
+    {
+      "id": "structure/start-nested-unknown-kind",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
+            "path": "/work/starts/0",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"bogus\"}}]}}"
+    },
+    {
+      "id": "structure/start-nested-type",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: integer `5`, expected a string",
+            "path": "/work/starts/0",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"role\", \"name\": 5}}]}}"
+    },
+    {
+      "id": "structure/starts-not-array",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: map, expected a sequence",
+            "path": "/work/starts",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": {}}}"
+    },
+    {
+      "id": "structure/authority-unknown-kind",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `bogus`, expected `role` or `participant`",
+            "path": "/decisions/selection/kind",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": {\"kind\": \"bogus\"}}}"
+    },
+    {
+      "id": "structure/authority-missing-name",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "missing field `name`",
+            "path": "/decisions/selection",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": {\"kind\": \"role\"}}}"
+    },
+    {
+      "id": "structure/authority-not-object",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: integer `5`, expected internally tagged enum Authority",
+            "path": "/decisions/selection",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": 5}}"
+    },
+    {
+      "id": "structure/runner-members",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `members`, expected `role` or `participant`",
+            "path": "/flow/s/runner/kind",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"members\"}}}}"
+    },
+    {
+      "id": "structure/stage-missing-runner",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "missing field `runner`",
+            "path": "/flow/s",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {}}}"
+    },
+    {
+      "id": "structure/requires-missing-evidence",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "missing field `evidence`",
+            "path": "/flow/s/requires/0",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\"}]}}}"
+    },
+    {
+      "id": "structure/requires-bad-evidence",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `x`, expected one of `publication`, `review`, `completion`, `selection`",
+            "path": "/flow/s/requires/0/evidence",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\", \"evidence\": \"x\"}]}}}"
+    },
+    {
+      "id": "structure/count-negative",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid value: integer `-1`, expected u32",
+            "path": "/decisions/completion",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": -1}}}"
+    },
+    {
+      "id": "structure/count-float",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: floating point `1.5`, expected u32",
+            "path": "/decisions/completion",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 1.5}}}"
+    },
+    {
+      "id": "structure/completion-nested-missing-count",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "missing field `count`",
+            "path": "/decisions/completion",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}}]}}}"
+    },
+    {
+      "id": "structure/input-bad-kind",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `file`, expected `text` or `artifact`",
+            "path": "/context/inputs/x/kind",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"x\": {\"kind\": \"file\"}}}}"
+    },
+    {
+      "id": "structure/input-required-type",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: string \"yes\", expected a boolean",
+            "path": "/context/inputs/x/required",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"x\": {\"kind\": \"text\", \"required\": \"yes\"}}}}"
+    },
+    {
+      "id": "structure/guidance-type",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: integer `1`, expected a string",
+            "path": "/context/guidance",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"context\": {\"guidance\": 1}}"
+    },
+    {
+      "id": "structure/stage-task-type-type",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "invalid type: integer `5`, expected a string",
+            "path": "/flow/s/task_type",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": 5}}}"
+    },
+    {
+      "id": "structure/task-type-nested-unknown-kind",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `x`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
+            "path": "/task_types/t/work/propose/kind",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"task_types\": {\"t\": {\"work\": {\"propose\": {\"kind\": \"x\"}}}}}"
+    },
+    {
+      "id": "structure/task-type-unknown-field",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown field `rules`, expected `work` or `decisions`",
+            "path": "/task_types/t/rules",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"task_types\": {\"t\": {\"rules\": {}}}}"
+    },
+    {
+      "id": "structure/any-nested-unknown-kind",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
+            "path": "/work/propose",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"bogus\"}]}}}"
+    },
+    {
+      "id": "structure/decisions-unknown-field",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown field `closure`, expected one of `completion`, `selection`, `finish`",
+            "path": "/decisions/closure",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"closure\": null}}"
+    },
+    {
+      "id": "structure/old-name-variations",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
+            "message": "unknown field `variations`, expected one of `schema_version`, `roles`, `context`, `work`, `decisions`, `task_types`, `flow`",
+            "path": "/variations",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"variations\": {}}"
+    },
+    {
+      "id": "rules/invalid_name-blank-role",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_name",
+            "correction": "Choose a stable descriptive name.",
+            "message": "Names must contain visible text and no control characters",
+            "path": "/roles/ ",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\" \": {}}}"
+    },
+    {
+      "id": "rules/invalid_name-control-role",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_name",
+            "correction": "Choose a stable descriptive name.",
+            "message": "Names must contain visible text and no control characters",
+            "path": "/roles/a\u0007",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\\u0007\": {}}}"
+    },
+    {
+      "id": "rules/invalid_name-input",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_name",
+            "correction": "Choose a stable descriptive name.",
+            "message": "Names must contain visible text and no control characters",
+            "path": "/context/inputs/",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"\": {\"kind\": \"text\"}}}}"
+    },
+    {
+      "id": "rules/invalid_name-check",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_name",
+            "correction": "Choose a stable descriptive name.",
+            "message": "Names must contain visible text and no control characters",
+            "path": "/decisions/completion/name",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"check\", \"name\": \"\\t\", \"by\": {\"kind\": \"members\"}}}}"
+    },
+    {
+      "id": "rules/invalid_name-stage-and-task-type",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_name",
+            "correction": "Choose a stable descriptive name.",
+            "message": "Names must contain visible text and no control characters",
+            "path": "/task_types/ ",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "invalid_name",
+            "correction": "Choose a stable descriptive name.",
+            "message": "Names must contain visible text and no control characters",
+            "path": "/flow/\n",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"task_types\": {\" \": {}}, \"flow\": {\"\\n\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}}, \"roles\": {\"r\": {}}}"
+    },
+    {
+      "id": "rules/unknown_role",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "unknown_role",
+            "correction": "Declare the role in roles or reference an existing role.",
+            "message": "Role \"x\" is not declared",
+            "path": "/work/propose/name",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}}}"
+    },
+    {
+      "id": "rules/invalid_participant",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_participant",
+            "correction": "Use the authenticated participant public key, or a declared role slot for a reusable template.",
+            "message": "Participant identity must be a 32-byte public key encoded as 64 hex characters",
+            "path": "/work/propose/key",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"participant\", \"key\": \"abc\"}}}"
+    },
+    {
+      "id": "rules/selector_scope-task-creator",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Use members, a role or a participant in goal-level rules.",
+            "message": "There is no task creator in this scope",
+            "path": "/work/propose",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"task_creator\"}}}"
+    },
+    {
+      "id": "rules/selector_scope-contribution-author",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Use contribution_author only in a contribution completion criterion.",
+            "message": "There is no contribution author in this scope",
+            "path": "/work/starts/0/by",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"contribution_author\"}}]}}"
+    },
+    {
+      "id": "rules/selector_scope-recipients",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Use members, a role or a participant in goal-level rules.",
+            "message": "There is no task creator in this scope",
+            "path": "/flow/s/recipients",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"recipients\": {\"kind\": \"task_creator\"}}}}"
+    },
+    {
+      "id": "rules/empty_selector",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "empty_selector",
+            "correction": "Add an eligible selector, or use nobody to deliberately disable a work action.",
+            "message": "An any selector needs at least one alternative",
+            "path": "/work/propose",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": []}}}"
+    },
+    {
+      "id": "rules/impossible_completion",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "impossible_completion",
+            "correction": "Choose an eligible participant selector.",
+            "message": "This criterion has no possible eligible signer",
+            "path": "/decisions/completion/by",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"nobody\"}}}}"
+    },
+    {
+      "id": "rules/invalid_threshold",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_threshold",
+            "correction": "Require one or more distinct eligible reviewers.",
+            "message": "Review thresholds must be positive",
+            "path": "/decisions/completion/count",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}}}"
+    },
+    {
+      "id": "rules/impossible_threshold",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "impossible_threshold",
+            "correction": "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.",
+            "message": "The requested distinct-reviewer threshold exceeds the explicitly possible identities",
+            "path": "/decisions/completion/count",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}]}, \"count\": 2}}}"
+    },
+    {
+      "id": "rules/impossible_threshold-exclude-author",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "impossible_threshold",
+            "correction": "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.",
+            "message": "The requested distinct-reviewer threshold exceeds the explicitly possible identities",
+            "path": "/decisions/completion/count",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"contribution_author\"}, \"count\": 1}}}"
+    },
+    {
+      "id": "rules/impossible_threshold-case-folded-keys",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "impossible_threshold",
+            "correction": "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.",
+            "message": "The requested distinct-reviewer threshold exceeds the explicitly possible identities",
+            "path": "/decisions/completion/count",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}]}, \"count\": 2}}}"
+    },
+    {
+      "id": "rules/empty_criteria",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "empty_criteria",
+            "correction": "Add an explicit completion criterion.",
+            "message": "Completion groups need at least one criterion",
+            "path": "/decisions/completion",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": []}}}"
+    },
+    {
+      "id": "rules/unknown_task_type",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "unknown_task_type",
+            "correction": "Declare the task type or remove the reference to inherit the default rules.",
+            "message": "Task type \"missing\" is not declared",
+            "path": "/flow/s/task_type",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": \"missing\"}}}"
+    },
+    {
+      "id": "rules/unknown_stage",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "unknown_stage",
+            "correction": "Reference a declared stage.",
+            "message": "Stage \"t\" is not declared",
+            "path": "/flow/s/requires/0/stage",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\", \"evidence\": \"completion\"}]}}}"
+    },
+    {
+      "id": "rules/unavailable_evidence",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "unavailable_evidence",
+            "correction": "Require completion/publication/review evidence, or explicitly configure upstream selection.",
+            "message": "The upstream stage has no selection authority",
+            "path": "/flow/b/requires/0/evidence",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}, \"b\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}]}}}"
+    },
+    {
+      "id": "rules/flow_cycle",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "flow_cycle",
+            "correction": "Remove a cyclic prerequisite; retries and new rounds are explicit runtime actions.",
+            "message": "Flow has a dependency cycle involving: a, b",
+            "path": "/flow",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"b\", \"evidence\": \"completion\"}]}, \"b\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"completion\"}]}, \"c\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}}}"
+    },
+    {
+      "id": "rules/several",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_name",
+            "correction": "Choose a stable descriptive name.",
+            "message": "Names must contain visible text and no control characters",
+            "path": "/roles/",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "unknown_role",
+            "correction": "Declare the role in roles or reference an existing role.",
+            "message": "Role \"x\" is not declared",
+            "path": "/work/propose/name",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "selector_scope",
+            "correction": "Use members, a role or a participant in goal-level rules.",
+            "message": "There is no task creator in this scope",
+            "path": "/work/publish",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "invalid_threshold",
+            "correction": "Require one or more distinct eligible reviewers.",
+            "message": "Review thresholds must be positive",
+            "path": "/decisions/completion/count",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "unknown_role",
+            "correction": "Declare the role in roles or reference an existing role.",
+            "message": "Role \"y\" is not declared",
+            "path": "/decisions/finish/name",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "unknown_role",
+            "correction": "Declare the role in roles or reference an existing role.",
+            "message": "Role \"z\" is not declared",
+            "path": "/flow/s/runner/name",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "unknown_task_type",
+            "correction": "Declare the task type or remove the reference to inherit the default rules.",
+            "message": "Task type \"t\" is not declared",
+            "path": "/flow/s/task_type",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}, \"publish\": {\"kind\": \"task_creator\"}}, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}, \"finish\": {\"kind\": \"role\", \"name\": \"y\"}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"z\"}, \"task_type\": \"t\"}}}"
+    },
+    {
+      "id": "rules/pointer-escaping",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "unknown_role",
+            "correction": "Declare the role in roles or reference an existing role.",
+            "message": "Role \"x/y\" is not declared",
+            "path": "/work/propose/name",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "unknown_task_type",
+            "correction": "Declare the task type or remove the reference to inherit the default rules.",
+            "message": "Task type \"m~n\" is not declared",
+            "path": "/flow/p~1q/task_type",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"a/b~c\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x/y\"}}, \"flow\": {\"p/q\": {\"runner\": {\"kind\": \"role\", \"name\": \"a/b~c\"}, \"task_type\": \"m~n\"}}}"
+    },
+    {
+      "id": "explain/check-and-any",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "tester"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires any of [check \"ci\" attested by members bound to role \"tester\" on the exact contribution; 2 distinct approving reviewer(s) from goal members, including the author if eligible] on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "kind": "any",
+              "rules": [
+                {
+                  "by": {
+                    "kind": "role",
+                    "name": "tester"
+                  },
+                  "kind": "check",
+                  "name": "ci"
+                },
+                {
+                  "by": {
+                    "kind": "members"
+                  },
+                  "count": 2,
+                  "exclude_author": false,
+                  "kind": "reviews"
+                }
+              ]
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "tester": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "fee1e254baf29c3a981908e9ba3e1646557881fba8f2197c76526ea6d03b3e45",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"tester\": {}}, \"decisions\": {\"completion\": {\"kind\": \"any\", \"rules\": [{\"kind\": \"check\", \"name\": \"ci\", \"by\": {\"kind\": \"role\", \"name\": \"tester\"}}, {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 2, \"exclude_author\": false}]}}}"
+    },
+    {
+      "id": "explain/nested-groups",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires all of [a completion declaration by the contribution author; publication by goal members] on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "kind": "all",
+              "rules": [
+                {
+                  "by": {
+                    "kind": "contribution_author"
+                  },
+                  "kind": "declaration"
+                },
+                {
+                  "by": {
+                    "kind": "members"
+                  },
+                  "kind": "contribution"
+                }
+              ]
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "4fe12b563ef65580353b7a349baa889b6291038f106cca00662baf7c39f3e972",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, {\"kind\": \"all\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}]}, {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}]}}}"
+    },
+    {
+      "id": "explain/single-rule-group",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires publication by goal members on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "members"
+              },
+              "kind": "contribution"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "e66da4f93435123a9b58b692bbb5963ebd74e90d160bd482528641f5169e8aae",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"any\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}]}}}"
+    },
+    {
+      "id": "explain/selector-flatten",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "a",
+            "bb"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: members bound to role \"a\" or members bound to role \"bb\" or goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "a": {
+              "description": ""
+            },
+            "bb": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "any",
+              "selectors": [
+                {
+                  "kind": "role",
+                  "name": "a"
+                },
+                {
+                  "kind": "role",
+                  "name": "bb"
+                },
+                {
+                  "kind": "members"
+                }
+              ]
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "01d70c16d966ab3222bb12fe72c523a4b828a9fd25dc31c8885f6bf8fbc60c6c",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {}, \"bb\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"bb\"}, {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"a\"}, {\"kind\": \"members\"}]}, {\"kind\": \"role\", \"name\": \"bb\"}]}}}"
+    },
+    {
+      "id": "explain/selector-single",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "a"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; members bound to role \"a\" may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "a": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "role",
+              "name": "a"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "ca785572a678519d6a69a53296eecc80c94f7125f771301a828888360816601b",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {}}, \"work\": {\"publish\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"a\"}]}}}"
+    },
+    {
+      "id": "explain/starts-order",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "c"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: members bound to role \"c\" may offer work to goal members; the recipient must acknowledge before starting.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "c": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "role",
+                  "name": "c"
+                },
+                "kind": "offered",
+                "to": {
+                  "kind": "members"
+                }
+              },
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "303b9f905694412d816da4c8fae4f1b8925232c398e8629acd347356a8f2a6fb",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"c\": {}}, \"work\": {\"starts\": [{\"kind\": \"offered\", \"by\": {\"kind\": \"role\", \"name\": \"c\"}, \"to\": {\"kind\": \"members\"}}, {\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}, {\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}]}}"
+    },
+    {
+      "id": "explain/no-starts",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; nobody may publish contributions without a task.",
+            "Default rules: no new task attempts are permitted.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "nobody"
+            },
+            "starts": []
+          }
+        },
+        "semantic_hash": "8f6362a2abb318f1f9db1f2a5ac37090b9126ee6cb69dc015ddbdac32c85ae12",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [], \"publish\": {\"kind\": \"nobody\"}}}"
+    },
+    {
+      "id": "explain/participants",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: participant abababababababababababababababababababababababababababababababab may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: participant abababababababababababababababababababababababababababababababab may select one qualifying output; approval alone does not select it.",
+            "Default rules: participant cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd may declare the scope finished."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": {
+              "key": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+              "kind": "participant"
+            },
+            "selection": {
+              "key": "abababababababababababababababababababababababababababababababab",
+              "kind": "participant"
+            }
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "key": "abababababababababababababababababababababababababababababababab",
+              "kind": "participant"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "e608f01988dbf96342df0d9224cf5b52b16dcea92d38fed17c416ecff74a4671",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}}, \"decisions\": {\"selection\": {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}, \"finish\": {\"kind\": \"participant\", \"key\": \"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"}}}"
+    },
+    {
+      "id": "explain/authority-roles",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [
+            "closer",
+            "judge"
+          ],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "closer",
+            "judge"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: the single member bound to role \"judge\" may select one qualifying output; approval alone does not select it.",
+            "Default rules: the single member bound to role \"closer\" may declare the scope finished."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": {
+              "kind": "role",
+              "name": "closer"
+            },
+            "selection": {
+              "kind": "role",
+              "name": "judge"
+            }
+          },
+          "flow": {},
+          "roles": {
+            "closer": {
+              "description": ""
+            },
+            "extra": {
+              "description": ""
+            },
+            "judge": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "0657890460d9a9de9db54b02fe878a41d587c577e9f36ff46d1427e596e679eb",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"judge\": {}, \"closer\": {}, \"extra\": {}}, \"decisions\": {\"selection\": {\"kind\": \"role\", \"name\": \"judge\"}, \"finish\": {\"kind\": \"role\", \"name\": \"closer\"}}}"
+    },
+    {
+      "id": "explain/task-type-partial",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "rev"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion.",
+            "Task type \"a\": goal members may propose tasks; goal members may publish contributions without a task.",
+            "Task type \"a\": no new task attempts are permitted.",
+            "Task type \"a\": completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Task type \"a\": qualifying contributions coexist; no single output is selected.",
+            "Task type \"a\": no one may declare it finished; an empty task list is not completion.",
+            "Task type \"z\": goal members may propose tasks; goal members may publish contributions without a task.",
+            "Task type \"z\": goal members may start independent attempts; concurrent attempts may coexist.",
+            "Task type \"z\": completion requires 1 distinct approving reviewer(s) from members bound to role \"rev\", excluding the contribution author on the exact candidate.",
+            "Task type \"z\": qualifying contributions coexist; no single output is selected.",
+            "Task type \"z\": no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "rev": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {
+            "a": {
+              "decisions": {
+                "completion": {
+                  "by": {
+                    "kind": "contribution_author"
+                  },
+                  "kind": "declaration"
+                },
+                "finish": null,
+                "selection": null
+              },
+              "work": {
+                "propose": {
+                  "kind": "members"
+                },
+                "publish": {
+                  "kind": "members"
+                },
+                "starts": []
+              }
+            },
+            "z": {
+              "decisions": {
+                "completion": {
+                  "by": {
+                    "kind": "role",
+                    "name": "rev"
+                  },
+                  "count": 1,
+                  "exclude_author": true,
+                  "kind": "reviews"
+                },
+                "finish": null,
+                "selection": null
+              },
+              "work": {
+                "propose": {
+                  "kind": "members"
+                },
+                "publish": {
+                  "kind": "members"
+                },
+                "starts": [
+                  {
+                    "by": {
+                      "kind": "members"
+                    },
+                    "kind": "independent"
+                  }
+                ]
+              }
+            }
+          },
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "41a23db829fd6f4a85ec9239019503843c74c6a372b26b44fc7e3de342e8ff39",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"rev\": {}}, \"task_types\": {\"z\": {\"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"role\", \"name\": \"rev\"}, \"count\": 1}}}, \"a\": {\"work\": {\"starts\": []}}}}"
+    },
+    {
+      "id": "explain/inputs",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [
+            "a",
+            "repo"
+          ],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "Run the tests first.",
+            "inputs": {
+              "a": {
+                "kind": "text",
+                "required": true
+              },
+              "brief": {
+                "kind": "text",
+                "required": false
+              },
+              "repo": {
+                "kind": "artifact",
+                "required": true
+              }
+            }
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "aee354907ac008bbef9c418bf72ccef9e79c0c7245683e465d95b02b98c030c3",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"context\": {\"guidance\": \"Run the tests first.\", \"inputs\": {\"repo\": {\"kind\": \"artifact\"}, \"brief\": {\"kind\": \"text\", \"required\": false}, \"a\": {\"kind\": \"text\"}}}}"
+    },
+    {
+      "id": "explain/stage-requires-order",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [
+            "r"
+          ],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "r"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion.",
+            "Task type \"t\": goal members may propose tasks; goal members may publish contributions without a task.",
+            "Task type \"t\": goal members may start independent attempts; concurrent attempts may coexist.",
+            "Task type \"t\": completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Task type \"t\": the single member bound to role \"r\" may select one qualifying output; approval alone does not select it.",
+            "Task type \"t\": no one may declare it finished; an empty task list is not completion.",
+            "Stage \"a\": the single member bound to role \"r\" runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"a\" requires no upstream evidence and uses task type \"t\".",
+            "Stage \"b\": participant abababababababababababababababababababababababababababababababab runs this stage: it creates the configured task and durably delivers ready work to members bound to role \"r\" or goal members.",
+            "Stage \"b\" requires publication from \"a\" and eligible review from \"a\" and completion from \"a\" and selection from \"a\" and uses default rules."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {
+            "a": {
+              "recipients": {
+                "kind": "members"
+              },
+              "requires": [],
+              "runner": {
+                "kind": "role",
+                "name": "r"
+              },
+              "task_type": "t"
+            },
+            "b": {
+              "recipients": {
+                "kind": "any",
+                "selectors": [
+                  {
+                    "kind": "role",
+                    "name": "r"
+                  },
+                  {
+                    "kind": "members"
+                  }
+                ]
+              },
+              "requires": [
+                {
+                  "evidence": "publication",
+                  "stage": "a"
+                },
+                {
+                  "evidence": "review",
+                  "stage": "a"
+                },
+                {
+                  "evidence": "completion",
+                  "stage": "a"
+                },
+                {
+                  "evidence": "selection",
+                  "stage": "a"
+                }
+              ],
+              "runner": {
+                "key": "abababababababababababababababababababababababababababababababab",
+                "kind": "participant"
+              },
+              "task_type": null
+            }
+          },
+          "roles": {
+            "r": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {
+            "t": {
+              "decisions": {
+                "completion": {
+                  "by": {
+                    "kind": "contribution_author"
+                  },
+                  "kind": "declaration"
+                },
+                "finish": null,
+                "selection": {
+                  "kind": "role",
+                  "name": "r"
+                }
+              },
+              "work": {
+                "propose": {
+                  "kind": "members"
+                },
+                "publish": {
+                  "kind": "members"
+                },
+                "starts": [
+                  {
+                    "by": {
+                      "kind": "members"
+                    },
+                    "kind": "independent"
+                  }
+                ]
+              }
+            }
+          },
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "b6057f1c1e77a8b213344c1936abb3198fb37cb8c7ae52ac214d873c16d06a2b",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, \"selection\": {\"kind\": \"role\", \"name\": \"r\"}}}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": \"t\"}, \"b\": {\"runner\": {\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, \"recipients\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"r\"}, {\"kind\": \"members\"}]}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}, {\"stage\": \"a\", \"evidence\": \"publication\"}, {\"stage\": \"a\", \"evidence\": \"review\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}]}}}"
+    },
+    {
+      "id": "explain/name-escaping",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "back\\slash",
+            "ré",
+            "say \"hi\""
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: members bound to role \"ré\" or members bound to role \"say \\\"hi\\\"\" or members bound to role \"back\\\\slash\" may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "back\\slash": {
+              "description": ""
+            },
+            "ré": {
+              "description": ""
+            },
+            "say \"hi\"": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "any",
+              "selectors": [
+                {
+                  "kind": "role",
+                  "name": "ré"
+                },
+                {
+                  "kind": "role",
+                  "name": "say \"hi\""
+                },
+                {
+                  "kind": "role",
+                  "name": "back\\slash"
+                }
+              ]
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "5349402322b0186efcbde47ef34df3bf9d8606a2ab5e842345dad4c235186878",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"say \\\"hi\\\"\": {}, \"back\\\\slash\": {}, \"ré\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"say \\\"hi\\\"\"}, {\"kind\": \"role\", \"name\": \"back\\\\slash\"}, {\"kind\": \"role\", \"name\": \"ré\"}]}}}"
+    },
+    {
+      "id": "explain/name-length-order",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "aa",
+            "b",
+            "c"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: members bound to role \"b\" or members bound to role \"c\" or members bound to role \"aa\" may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "aa": {
+              "description": ""
+            },
+            "b": {
+              "description": ""
+            },
+            "c": {
+              "description": ""
+            }
+          },
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "any",
+              "selectors": [
+                {
+                  "kind": "role",
+                  "name": "b"
+                },
+                {
+                  "kind": "role",
+                  "name": "c"
+                },
+                {
+                  "kind": "role",
+                  "name": "aa"
+                }
+              ]
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "b95f9bc1cb77bf276e1d09b6cc718e661a4e25b9699d912543c018f1c845cf96",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"roles\": {\"b\": {}, \"aa\": {}, \"c\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"aa\"}, {\"kind\": \"role\", \"name\": \"c\"}, {\"kind\": \"role\", \"name\": \"b\"}]}}}"
+    },
+    {
+      "id": "explain/unit-selector-extra-field",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          }
+        },
+        "semantic_hash": "1954b82aef03f195b9b054dff5e9b3acb9e3830c9f1357821107d7193ee3ee91",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"members\", \"x\": 1}}}"
+    }
+  ],
+  "generated_by": "scripts/check_blueprints.py"
+}

@@ -207,7 +207,7 @@ impl Validator<'_> {
                     "unknown_task_type",
                     &format!("{path}/task_type"),
                     format!("Task type {task_type:?} is not declared"),
-                    "Declare the task_type or remove the reference to inherit the default rules.",
+                    "Declare the task type or remove the reference to inherit the default rules.",
                 );
             }
             let mut required = BTreeSet::new();

@@ -148,7 +148,7 @@ pub fn presets() -> Vec<Preset> {
         ),
         preset(
             "pipeline",
-            "A review stage requires completed draft evidence and uses a named peer-review task_type.",
+            "A review stage requires completed draft evidence and uses a named peer-review task type.",
             pipeline,
         ),
     ]

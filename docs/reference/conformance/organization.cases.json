@@ -1,0 +1,377 @@
+{
+  "description": "Conformance cases for offline blueprint inspection. check_blueprints.py runs each through the Locust CLI and writes the results to docs/reference/generated/organization.vectors.json. Keep at least one case for every diagnostic code.",
+  "cases": [
+    {
+      "id": "preset/open",
+      "example": "open"
+    },
+    {
+      "id": "preset/coordinator",
+      "example": "coordinator"
+    },
+    {
+      "id": "preset/peer-review",
+      "example": "peer-review"
+    },
+    {
+      "id": "preset/review-panel",
+      "example": "review-panel"
+    },
+    {
+      "id": "preset/independent-attempts",
+      "example": "independent-attempts"
+    },
+    {
+      "id": "preset/pipeline",
+      "example": "pipeline"
+    },
+    {
+      "id": "load/eof",
+      "source": "{\"schema_version\":1,"
+    },
+    {
+      "id": "load/trailing",
+      "source": "{\"schema_version\":1} x"
+    },
+    {
+      "id": "load/not-json",
+      "source": "hello"
+    },
+    {
+      "id": "load/empty",
+      "source": ""
+    },
+    {
+      "id": "load/duplicate-top",
+      "source": "{\"schema_version\":1,\"a\":1,\"a\":2}"
+    },
+    {
+      "id": "load/duplicate-nested",
+      "source": "{\"schema_version\":1,\"roles\":{\"r\":{},\"r\":{}}}"
+    },
+    {
+      "id": "load/duplicate-after-error-free-prefix",
+      "source": "{\"schema_version\":1,\"roles\":{\"r\":{\"description\":\"x\",\"description\":\"y\"}}}"
+    },
+    {
+      "id": "version/two",
+      "source": "{\"schema_version\":2}"
+    },
+    {
+      "id": "version/two-with-unknown-field",
+      "source": "{\"schema_version\":2,\"extra\":1}"
+    },
+    {
+      "id": "structure/missing-version",
+      "source": "{}"
+    },
+    {
+      "id": "structure/null",
+      "source": "null"
+    },
+    {
+      "id": "structure/string",
+      "source": "\"x\""
+    },
+    {
+      "id": "structure/version-string",
+      "source": "{\"schema_version\":\"1\"}"
+    },
+    {
+      "id": "structure/version-float",
+      "source": "{\"schema_version\":1.0}"
+    },
+    {
+      "id": "structure/version-negative",
+      "source": "{\"schema_version\":-1}"
+    },
+    {
+      "id": "structure/version-huge",
+      "source": "{\"schema_version\":18446744073709551617}"
+    },
+    {
+      "id": "structure/unknown-top-field",
+      "source": "{\"schema_version\": 1, \"extra\": 1}"
+    },
+    {
+      "id": "structure/roles-array",
+      "source": "{\"schema_version\": 1, \"roles\": []}"
+    },
+    {
+      "id": "structure/role-unknown-field",
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {\"desc\": \"\"}}}"
+    },
+    {
+      "id": "structure/role-description-type",
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {\"description\": 1}}}"
+    },
+    {
+      "id": "structure/selector-missing-name",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\"}}}"
+    },
+    {
+      "id": "structure/selector-unknown-kind",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"bogus\"}}}"
+    },
+    {
+      "id": "structure/selector-kind-type",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": 5}}}"
+    },
+    {
+      "id": "structure/selector-not-object",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": 5}}"
+    },
+    {
+      "id": "structure/selector-extra-field",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\", \"y\": 1}}}"
+    },
+    {
+      "id": "structure/start-missing-kind",
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"by\": {\"kind\": \"members\"}}]}}"
+    },
+    {
+      "id": "structure/start-missing-by",
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\"}]}}"
+    },
+    {
+      "id": "structure/start-nested-unknown-kind",
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"bogus\"}}]}}"
+    },
+    {
+      "id": "structure/start-nested-type",
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"role\", \"name\": 5}}]}}"
+    },
+    {
+      "id": "structure/starts-not-array",
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": {}}}"
+    },
+    {
+      "id": "structure/authority-unknown-kind",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": {\"kind\": \"bogus\"}}}"
+    },
+    {
+      "id": "structure/authority-missing-name",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": {\"kind\": \"role\"}}}"
+    },
+    {
+      "id": "structure/authority-not-object",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": 5}}"
+    },
+    {
+      "id": "structure/runner-members",
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"members\"}}}}"
+    },
+    {
+      "id": "structure/stage-missing-runner",
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {}}}"
+    },
+    {
+      "id": "structure/requires-missing-evidence",
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\"}]}}}"
+    },
+    {
+      "id": "structure/requires-bad-evidence",
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\", \"evidence\": \"x\"}]}}}"
+    },
+    {
+      "id": "structure/count-negative",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": -1}}}"
+    },
+    {
+      "id": "structure/count-float",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 1.5}}}"
+    },
+    {
+      "id": "structure/completion-nested-missing-count",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}}]}}}"
+    },
+    {
+      "id": "structure/input-bad-kind",
+      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"x\": {\"kind\": \"file\"}}}}"
+    },
+    {
+      "id": "structure/input-required-type",
+      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"x\": {\"kind\": \"text\", \"required\": \"yes\"}}}}"
+    },
+    {
+      "id": "structure/guidance-type",
+      "source": "{\"schema_version\": 1, \"context\": {\"guidance\": 1}}"
+    },
+    {
+      "id": "structure/stage-task-type-type",
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": 5}}}"
+    },
+    {
+      "id": "structure/task-type-nested-unknown-kind",
+      "source": "{\"schema_version\": 1, \"task_types\": {\"t\": {\"work\": {\"propose\": {\"kind\": \"x\"}}}}}"
+    },
+    {
+      "id": "structure/task-type-unknown-field",
+      "source": "{\"schema_version\": 1, \"task_types\": {\"t\": {\"rules\": {}}}}"
+    },
+    {
+      "id": "structure/any-nested-unknown-kind",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"bogus\"}]}}}"
+    },
+    {
+      "id": "structure/decisions-unknown-field",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"closure\": null}}"
+    },
+    {
+      "id": "structure/old-name-variations",
+      "source": "{\"schema_version\": 1, \"variations\": {}}"
+    },
+    {
+      "id": "rules/invalid_name-blank-role",
+      "source": "{\"schema_version\": 1, \"roles\": {\" \": {}}}"
+    },
+    {
+      "id": "rules/invalid_name-control-role",
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\\u0007\": {}}}"
+    },
+    {
+      "id": "rules/invalid_name-input",
+      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"\": {\"kind\": \"text\"}}}}"
+    },
+    {
+      "id": "rules/invalid_name-check",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"check\", \"name\": \"\\t\", \"by\": {\"kind\": \"members\"}}}}"
+    },
+    {
+      "id": "rules/invalid_name-stage-and-task-type",
+      "source": "{\"schema_version\": 1, \"task_types\": {\" \": {}}, \"flow\": {\"\\n\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}}, \"roles\": {\"r\": {}}}"
+    },
+    {
+      "id": "rules/unknown_role",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}}}"
+    },
+    {
+      "id": "rules/invalid_participant",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"participant\", \"key\": \"abc\"}}}"
+    },
+    {
+      "id": "rules/selector_scope-task-creator",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"task_creator\"}}}"
+    },
+    {
+      "id": "rules/selector_scope-contribution-author",
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"contribution_author\"}}]}}"
+    },
+    {
+      "id": "rules/selector_scope-recipients",
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"recipients\": {\"kind\": \"task_creator\"}}}}"
+    },
+    {
+      "id": "rules/empty_selector",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": []}}}"
+    },
+    {
+      "id": "rules/impossible_completion",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"nobody\"}}}}"
+    },
+    {
+      "id": "rules/invalid_threshold",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}}}"
+    },
+    {
+      "id": "rules/impossible_threshold",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}]}, \"count\": 2}}}"
+    },
+    {
+      "id": "rules/impossible_threshold-exclude-author",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"contribution_author\"}, \"count\": 1}}}"
+    },
+    {
+      "id": "rules/impossible_threshold-case-folded-keys",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}]}, \"count\": 2}}}"
+    },
+    {
+      "id": "rules/empty_criteria",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": []}}}"
+    },
+    {
+      "id": "rules/unknown_task_type",
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": \"missing\"}}}"
+    },
+    {
+      "id": "rules/unknown_stage",
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\", \"evidence\": \"completion\"}]}}}"
+    },
+    {
+      "id": "rules/unavailable_evidence",
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}, \"b\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}]}}}"
+    },
+    {
+      "id": "rules/flow_cycle",
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"b\", \"evidence\": \"completion\"}]}, \"b\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"completion\"}]}, \"c\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}}}"
+    },
+    {
+      "id": "rules/several",
+      "source": "{\"schema_version\": 1, \"roles\": {\"\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}, \"publish\": {\"kind\": \"task_creator\"}}, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}, \"finish\": {\"kind\": \"role\", \"name\": \"y\"}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"z\"}, \"task_type\": \"t\"}}}"
+    },
+    {
+      "id": "rules/pointer-escaping",
+      "source": "{\"schema_version\": 1, \"roles\": {\"a/b~c\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x/y\"}}, \"flow\": {\"p/q\": {\"runner\": {\"kind\": \"role\", \"name\": \"a/b~c\"}, \"task_type\": \"m~n\"}}}"
+    },
+    {
+      "id": "explain/check-and-any",
+      "source": "{\"schema_version\": 1, \"roles\": {\"tester\": {}}, \"decisions\": {\"completion\": {\"kind\": \"any\", \"rules\": [{\"kind\": \"check\", \"name\": \"ci\", \"by\": {\"kind\": \"role\", \"name\": \"tester\"}}, {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 2, \"exclude_author\": false}]}}}"
+    },
+    {
+      "id": "explain/nested-groups",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, {\"kind\": \"all\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}]}, {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}]}}}"
+    },
+    {
+      "id": "explain/single-rule-group",
+      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"any\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}]}}}"
+    },
+    {
+      "id": "explain/selector-flatten",
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {}, \"bb\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"bb\"}, {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"a\"}, {\"kind\": \"members\"}]}, {\"kind\": \"role\", \"name\": \"bb\"}]}}}"
+    },
+    {
+      "id": "explain/selector-single",
+      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {}}, \"work\": {\"publish\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"a\"}]}}}"
+    },
+    {
+      "id": "explain/starts-order",
+      "source": "{\"schema_version\": 1, \"roles\": {\"c\": {}}, \"work\": {\"starts\": [{\"kind\": \"offered\", \"by\": {\"kind\": \"role\", \"name\": \"c\"}, \"to\": {\"kind\": \"members\"}}, {\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}, {\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}]}}"
+    },
+    {
+      "id": "explain/no-starts",
+      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [], \"publish\": {\"kind\": \"nobody\"}}}"
+    },
+    {
+      "id": "explain/participants",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}}, \"decisions\": {\"selection\": {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}, \"finish\": {\"kind\": \"participant\", \"key\": \"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"}}}"
+    },
+    {
+      "id": "explain/authority-roles",
+      "source": "{\"schema_version\": 1, \"roles\": {\"judge\": {}, \"closer\": {}, \"extra\": {}}, \"decisions\": {\"selection\": {\"kind\": \"role\", \"name\": \"judge\"}, \"finish\": {\"kind\": \"role\", \"name\": \"closer\"}}}"
+    },
+    {
+      "id": "explain/task-type-partial",
+      "source": "{\"schema_version\": 1, \"roles\": {\"rev\": {}}, \"task_types\": {\"z\": {\"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"role\", \"name\": \"rev\"}, \"count\": 1}}}, \"a\": {\"work\": {\"starts\": []}}}}"
+    },
+    {
+      "id": "explain/inputs",
+      "source": "{\"schema_version\": 1, \"context\": {\"guidance\": \"Run the tests first.\", \"inputs\": {\"repo\": {\"kind\": \"artifact\"}, \"brief\": {\"kind\": \"text\", \"required\": false}, \"a\": {\"kind\": \"text\"}}}}"
+    },
+    {
+      "id": "explain/stage-requires-order",
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, \"selection\": {\"kind\": \"role\", \"name\": \"r\"}}}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": \"t\"}, \"b\": {\"runner\": {\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, \"recipients\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"r\"}, {\"kind\": \"members\"}]}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}, {\"stage\": \"a\", \"evidence\": \"publication\"}, {\"stage\": \"a\", \"evidence\": \"review\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}]}}}"
+    },
+    {
+      "id": "explain/name-escaping",
+      "source": "{\"schema_version\": 1, \"roles\": {\"say \\\"hi\\\"\": {}, \"back\\\\slash\": {}, \"ré\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"say \\\"hi\\\"\"}, {\"kind\": \"role\", \"name\": \"back\\\\slash\"}, {\"kind\": \"role\", \"name\": \"ré\"}]}}}"
+    },
+    {
+      "id": "explain/name-length-order",
+      "source": "{\"schema_version\": 1, \"roles\": {\"b\": {}, \"aa\": {}, \"c\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"aa\"}, {\"kind\": \"role\", \"name\": \"c\"}, {\"kind\": \"role\", \"name\": \"b\"}]}}}"
+    },
+    {
+      "id": "explain/unit-selector-extra-field",
+      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"members\", \"x\": 1}}}"
+    }
+  ]
+}

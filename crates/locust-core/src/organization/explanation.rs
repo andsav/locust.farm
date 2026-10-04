@@ -143,7 +143,7 @@ pub(super) fn explain(value: &Blueprint) -> Explanation {
             "Stage {name:?} requires {needs} and uses {}.",
             stage.task_type.as_ref().map_or_else(
                 || "default rules".into(),
-                |name| format!("task_type {name:?}")
+                |name| format!("task type {name:?}")
             )
         ));
     }

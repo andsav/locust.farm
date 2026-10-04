@@ -318,7 +318,7 @@
           ]
         }
       },
-      "description": "A review stage requires completed draft evidence and uses a named peer-review task_type.",
+      "description": "A review stage requires completed draft evidence and uses a named peer-review task type.",
       "name": "pipeline"
     }
   ],

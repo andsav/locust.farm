@@ -108,7 +108,7 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
         let task_type = definition
             .task_types
             .get(name)
-            .ok_or(invalid("task task_type is not delegated by the definition"))?;
+            .ok_or(invalid("task type is not delegated by the definition"))?;
         if let Some(value) = &task_type.work {
             work = value.clone();
         }
