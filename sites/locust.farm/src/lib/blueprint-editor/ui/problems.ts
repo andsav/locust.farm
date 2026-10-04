@@ -1,24 +1,12 @@
 // Plain sentences for Locust's diagnostics, and where "Show me" should go.
 // Locust's own message and code stay available under "Technical details".
 
-import type { Diagnostic } from '../contract/types.ts';
+import type { Blueprint, Diagnostic } from '../contract/types.ts';
 import type { PageCheck } from '../model/checks.ts';
+import type { LineRef, PointName } from '../model/line.ts';
 
-export type Place =
-	| { kind: 'stage'; name: string }
-	| {
-			kind: 'section';
-			id:
-				| 'roles'
-				| 'work'
-				| 'sharing'
-				| 'done'
-				| 'final-answer'
-				| 'finish'
-				| 'advice'
-				| 'material'
-				| 'task-types';
-	  };
+/** Where a problem lives on the page: a point of a line, or the roles. */
+export type Place = { kind: 'point'; ref: LineRef; point: PointName } | { kind: 'roles' };
 
 export interface Problem {
 	text: string;
@@ -33,66 +21,80 @@ function unescape(segment: string): string {
 	return segment.replaceAll('~1', '/').replaceAll('~0', '~');
 }
 
-/** Where a JSON Pointer lives in the editor. */
-export function placeOf(path: string): Place | null {
+function pointOf(group: string | undefined, field: string | undefined): PointName {
+	if (group === 'work') return field === 'propose' ? 'add' : 'work';
+	if (group === 'decisions') return field === 'completion' ? 'counts' : 'pick';
+	return 'work';
+}
+
+/** Where a JSON Pointer lives on the page. */
+export function placeOf(path: string, blueprint: Blueprint): Place | null {
 	const parts = path.split('/').slice(1).map(unescape);
 	switch (parts[0]) {
-		case 'flow':
-			return parts[1] === undefined ? null : { kind: 'stage', name: parts[1] };
 		case 'roles':
-			return { kind: 'section', id: 'roles' };
+			return { kind: 'roles' };
 		case 'work':
-			return {
-				kind: 'section',
-				id: parts[1] === 'propose' || parts[1] === 'publish' ? 'sharing' : 'work'
-			};
 		case 'decisions':
-			if (parts[1] === 'selection') return { kind: 'section', id: 'final-answer' };
-			if (parts[1] === 'finish') return { kind: 'section', id: 'finish' };
-			return { kind: 'section', id: 'done' };
-		case 'task_types':
-			return { kind: 'section', id: 'task-types' };
-		case 'context':
-			return { kind: 'section', id: parts[1] === 'guidance' ? 'advice' : 'material' };
+			return { kind: 'point', ref: { kind: 'main' }, point: pointOf(parts[0], parts[1]) };
+		case 'task_types': {
+			const name = parts[1];
+			if (name === undefined) return null;
+			const step = Object.keys(blueprint.flow).find((s) => blueprint.flow[s].task_type === name);
+			const ref: LineRef =
+				step === undefined ? { kind: 'kind', name } : { kind: 'step', name: step };
+			return { kind: 'point', ref, point: pointOf(parts[2], parts[3]) };
+		}
+		case 'flow': {
+			const name = parts[1];
+			if (name === undefined || !Object.hasOwn(blueprint.flow, name)) return null;
+			const point: PointName =
+				parts[2] === 'recipients' ? 'work' : parts[2] === 'task_type' ? 'counts' : 'add';
+			return { kind: 'point', ref: { kind: 'step', name }, point };
+		}
 		default:
 			return null;
 	}
 }
 
+/** A key for a point of a line, to mark where problems are. */
+export function pointKey(ref: LineRef, point: PointName): string {
+	return `${ref.kind}:${ref.kind === 'main' ? '' : ref.name}:${point}`;
+}
+
 const quoted = (message: string) => /"((?:[^"\\]|\\.)*)"/.exec(message)?.[1] ?? '';
 
-function sentence(diagnostic: Diagnostic): string {
-	const where = placeOf(diagnostic.path);
-	const inStage = where?.kind === 'stage' ? ` in stage "${where.name}"` : '';
+function sentence(diagnostic: Diagnostic, where: Place | null): string {
+	const step = where?.kind === 'point' && where.ref.kind === 'step' ? where.ref.name : null;
+	const inStage = step === null ? '' : ` in step "${step}"`;
 	switch (diagnostic.code) {
 		case 'invalid_name':
 			return 'A name is empty or contains control characters. Give it a visible name.';
 		case 'unknown_role':
 			return `A rule${inStage} names the role "${quoted(diagnostic.message)}", which is not in the list of roles. Add the role or choose another.`;
 		case 'invalid_participant':
-			return `A specific person's key${inStage} is not valid. Keys are 64 hexadecimal characters; a role is usually better.`;
+			return `A specific member's key${inStage} is not valid. Keys are 64 hexadecimal characters; a role is usually better.`;
 		case 'selector_scope':
 			return diagnostic.message.includes('task creator')
-				? `"The person who created the task" can only be used for starting or finishing tasks, not here.`
-				: `"The author of the work" can only be used in a "when is a task done" rule.`;
+				? `"The member who added the task" can only be used for working on or closing tasks, not here.`
+				: `"The author of the result" can only be used in a "when does a result count" rule.`;
 		case 'empty_selector':
-			return 'A choice of people is empty. Pick at least one, or choose "nobody".';
+			return 'A choice of members is empty. Pick at least one.';
 		case 'impossible_completion':
-			return 'Nobody could ever finish a task with this rule. Choose who can say it is done.';
+			return 'No result could ever count with this rule. Choose who approves or reports.';
 		case 'invalid_threshold':
-			return 'The number of reviewers must be at least 1.';
+			return 'The number of approvals must be at least 1.';
 		case 'impossible_threshold':
-			return 'This rule asks for more reviewers than there can ever be. Lower the number or choose a role.';
+			return 'This rule asks for more approvals than there can ever be. Lower the number or choose a role.';
 		case 'empty_criteria':
-			return 'A group of "done" rules is empty. Add a rule or remove the group.';
+			return 'A group of "counts" rules is empty. Tick at least one.';
 		case 'unknown_task_type':
-			return `Stage "${where?.kind === 'stage' ? where.name : ''}" follows rules that no longer exist. Choose its done rule again.`;
+			return `Step "${step ?? ''}" follows rules that no longer exist. Choose when its result counts again.`;
 		case 'unknown_stage':
-			return `A stage${inStage} waits for "${quoted(diagnostic.message)}", which is not a stage. Remove that condition.`;
+			return `A step${inStage} waits for "${quoted(diagnostic.message)}", which is not a step. Choose again when Locust adds it.`;
 		case 'unavailable_evidence':
-			return `A stage${inStage} waits for a picked result, but nobody picks results in the stage before it. Wait for "is complete" instead, or decide who picks one.`;
+			return `A step${inStage} waits for a picked result, but nobody picks results in the step before it. Decide who picks one there, or choose again when Locust adds this step.`;
 		case 'flow_cycle':
-			return 'Some stages wait for each other in a loop, so none of them can start.';
+			return 'Some steps wait for each other in a loop, so Locust can add none of them.';
 		case 'unsupported_version':
 			return 'This blueprint is for a different format of Locust blueprints.';
 		default:
@@ -100,32 +102,34 @@ function sentence(diagnostic: Diagnostic): string {
 	}
 }
 
-export function fromDiagnostics(diagnostics: Diagnostic[]): Problem[] {
-	return diagnostics.map((diagnostic) => ({
-		text: sentence(diagnostic),
-		place: placeOf(diagnostic.path),
-		blocksCopy: false,
-		technical: `${diagnostic.code} at ${diagnostic.path || 'the whole blueprint'}: ${diagnostic.message}`,
-		fromLocust: true
-	}));
+export function fromDiagnostics(diagnostics: Diagnostic[], blueprint: Blueprint): Problem[] {
+	return diagnostics.map((diagnostic) => {
+		const place = placeOf(diagnostic.path, blueprint);
+		return {
+			text: sentence(diagnostic, place),
+			place,
+			blocksCopy: false,
+			technical: `${diagnostic.code} at ${diagnostic.path || 'the whole blueprint'}: ${diagnostic.message}`,
+			fromLocust: true
+		};
+	});
 }
 
-export function fromPageChecks(checks: PageCheck[]): Problem[] {
+export function fromPageChecks(checks: PageCheck[], blueprint: Blueprint): Problem[] {
 	return checks.map((check) => ({
 		text: check.message,
-		place: placeOf(check.path),
+		place: placeOf(check.path, blueprint),
 		blocksCopy: check.blocksCopy,
 		technical: null,
 		fromLocust: false
 	}));
 }
 
-/** Problem counts per stage, for the map. */
-export function perStage(problems: Problem[]): Record<string, number> {
-	const out: Record<string, number> = {};
+/** The points that have a problem, by pointKey. */
+export function problemPoints(problems: Problem[]): Set<string> {
+	const out = new Set<string>();
 	for (const problem of problems) {
-		if (problem.place?.kind === 'stage')
-			out[problem.place.name] = (out[problem.place.name] ?? 0) + 1;
+		if (problem.place?.kind === 'point') out.add(pointKey(problem.place.ref, problem.place.point));
 	}
 	return out;
 }

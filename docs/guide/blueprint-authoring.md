@@ -198,14 +198,14 @@ hide errors with a permissive parser or local permission change.
 ## Use the editor on locust.farm
 
 The editor at [locust.farm/blueprints](https://locust.farm/blueprints) builds a
-blueprint without writing JSON. Choose one of six ways of working, adjust who is
-involved, how work starts and when a task is done, and add stages if work moves
-from one step to the next. The page runs the same offline checks as
+blueprint without writing JSON. Choose one of six ways of working, change who
+adds tasks, who works on them, when a result counts and whether one result is
+picked, and add steps if Locust should add tasks in order. The page runs the same offline checks as
 `locust blueprint validate`, shows Locust's explanation, and copies one prompt.
 
 The prompt has your agent find Locust, check the schema version, save the
 blueprint to a file and check its size and SHA-256, validate and explain it with
-Locust, save a private draft and its layout, and ask before publishing. It never
+Locust, save a private draft and its name, and ask before publishing. It never
 starts a goal. Its exact text is in the
 [blueprint prompt contract](../blueprint-prompt.md). The editor keeps work in the
 browser only; nothing reaches Locust until you paste the prompt.

@@ -1,26 +1,25 @@
 <!--
-	The blueprint editor: the ways of working, one toolbar, the rules beside a
-	large stage map, and a side panel for everything else.
+	The blueprint editor: the ways of working, one toolbar, the rules as lines of
+	four points, the roles, and a side panel for everything else.
 -->
 <script lang="ts">
 	import './editor.css';
 	import { onMount, tick } from 'svelte';
-	import StageMap from '../canvas/StageMap.svelte';
 	import { inspectBlueprint } from '../contract/inspect.ts';
-	import { changedFromWay } from '../model/answers.ts';
 	import { pageChecks } from '../model/checks.ts';
 	import { blueprintText, type EditorDocument } from '../model/document.ts';
 	import {
+		addRole,
 		applyWay,
 		newDocument,
 		removeRole,
-		removeStage,
 		roleUses,
 		setName,
 		stageOrder
 	} from '../model/edit.ts';
 	import { record, redo, startHistory, undo, type History } from '../model/history.ts';
-	import { wayOfWorking } from '../model/presets.ts';
+	import type { LineRef, PointName } from '../model/line.ts';
+	import { matchingWay, wayOfWorking } from '../model/presets.ts';
 	import { summarize } from '../model/words.ts';
 	import { openText } from '../prompt/open.ts';
 	import {
@@ -28,8 +27,7 @@
 		buildPrompt,
 		draftId,
 		LARGE_PROMPT,
-		type BuiltPrompt,
-		type Intent
+		type BuiltPrompt
 	} from '../prompt/prompt.ts';
 	import { copyText } from '../../onboarding/clipboard.ts';
 	import { decodeLink, encodeLink, LONG_LINK } from '../storage/link.ts';
@@ -46,31 +44,32 @@
 	import CopyBar from './CopyBar.svelte';
 	import Icon from './Icon.svelte';
 	import type { IconName } from './icons.ts';
-	import MoreSettings from './MoreSettings.svelte';
+	import Lines from './Lines.svelte';
 	import OpenBlueprint from './OpenBlueprint.svelte';
 	import Problems from './Problems.svelte';
-	import { fromDiagnostics, fromPageChecks, perStage, type Place } from './problems.ts';
+	import {
+		fromDiagnostics,
+		fromPageChecks,
+		pointKey,
+		problemPoints,
+		type Place
+	} from './problems.ts';
 	import RoleSettings from './RoleSettings.svelte';
-	import RulesPanel from './RulesPanel.svelte';
 	import SavedList from './SavedList.svelte';
 	import SidePanel from './SidePanel.svelte';
-	import StageList from './StageList.svelte';
-	import StageSettings from './StageSettings.svelte';
 	import Summary from './Summary.svelte';
 	import { tip } from './tooltip.ts';
 	import WayPicker from './WayPicker.svelte';
 
 	type Panel =
-		| { kind: 'stage'; name: string }
-		| { kind: 'role'; name: string }
-		| { kind: 'more' | 'problems' | 'words' | 'prompt' | 'open' | 'saved' };
+		{ kind: 'role'; name: string } | { kind: 'problems' | 'words' | 'prompt' | 'open' | 'saved' };
 
 	let history = $state.raw<History>(startHistory(newDocument()));
 	const document = $derived(history.present);
 
 	let panel = $state<Panel | null>(null);
-	/** Counts loaded blueprints, so the map frames each one afresh. */
-	let frame = $state(0);
+	/** The point of a line whose choices are shown, if any. */
+	let openPoint = $state<{ line: LineRef; point: PointName } | null>(null);
 	let announcement = $state('');
 	let saveStatus = $state<{ ok: boolean; text: string }>({ ok: true, text: '' });
 	let banner = $state<string | null>(null);
@@ -83,34 +82,27 @@
 	const inspection = $derived(inspectBlueprint(document.blueprint));
 	const checks = $derived(pageChecks(document.blueprint));
 	const problems = $derived([
-		...fromDiagnostics(inspection.diagnostics),
-		...fromPageChecks(checks)
+		...fromDiagnostics(inspection.diagnostics, document.blueprint),
+		...fromPageChecks(checks, document.blueprint)
 	]);
-	const stageProblems = $derived(perStage(problems));
+	const marked = $derived(problemPoints(problems));
 	const blocked = $derived(
 		checks.some((check) => check.blocksCopy)
 			? 'Remove the invisible characters listed under problems before copying.'
 			: null
 	);
-	const lines = $derived(summarize(document));
-	const changed = $derived(
-		document.way ? changedFromWay(document, applyWay(newDocument(), document.way)) : []
-	);
-	const moreChanged = $derived(
-		changed.filter((area) =>
-			['final answer', 'finish', 'advice', 'starting material', 'task types'].includes(area)
-		).length
-	);
-	const order = $derived(stageOrder(document));
-	const selected = $derived(panel?.kind === 'stage' ? panel.name : null);
+	const lines = $derived(summarize(document.blueprint));
+	const kept = $derived(lines.filter((line) => line.area === 'kept'));
+	const way = $derived(matchingWay(document.blueprint));
+	const roles = $derived(Object.keys(document.blueprint.roles));
+	const hasSteps = $derived(stageOrder(document.blueprint).length > 0);
 
 	// The prompt follows every change.
-	let intent = $state<Intent>('add');
 	let prompt = $state<BuiltPrompt | null>(null);
 	$effect(() => {
-		const current = { document, intent, hasErrors: inspection.diagnostics.length > 0 };
+		const current = { document, hasErrors: inspection.diagnostics.length > 0 };
 		let cancelled = false;
-		buildPrompt(current.document, current.intent, current.hasErrors).then((built) => {
+		buildPrompt(current.document, 'add', current.hasErrors).then((built) => {
 			if (!cancelled) prompt = built;
 		});
 		return () => {
@@ -139,7 +131,6 @@
 			const ok = save(store, {
 				id: recordId,
 				name: document.name,
-				way: document.way,
 				origin,
 				saved: new Date().toISOString(),
 				data: data.text
@@ -159,25 +150,24 @@
 		if (history !== before) scheduleSave();
 	}
 
-	/** Closes a stage or role panel whose stage or role no longer exists. */
-	function keepPanelValid() {
+	/** Closes a panel or a point whose role, step or kind no longer exists. */
+	function keepOpenValid() {
 		const blueprint = history.present.blueprint;
-		if (panel?.kind === 'stage' && !Object.hasOwn(blueprint.flow, panel.name)) panel = null;
 		if (panel?.kind === 'role' && !Object.hasOwn(blueprint.roles, panel.name)) panel = null;
+		const line = openPoint?.line;
+		if (line?.kind === 'step' && !Object.hasOwn(blueprint.flow, line.name)) openPoint = null;
+		if (line?.kind === 'kind' && !Object.hasOwn(blueprint.task_types, line.name)) openPoint = null;
 	}
 
 	function pickWay(id: string) {
 		change(applyWay(document, id));
-		frame += 1;
 		panel = null;
+		openPoint = null;
 		announce(`Loaded the ${wayOfWorking(id)?.title ?? id} way of working.`);
 	}
 
-	function open(next: Panel | null) {
-		panel = next;
-	}
-
-	function toggle(kind: 'more' | 'problems' | 'words' | 'prompt' | 'open' | 'saved') {
+	function toggle(kind: 'problems' | 'words' | 'prompt' | 'open' | 'saved') {
+		fileOpen = false;
 		if (panel?.kind === kind) {
 			panel = null;
 			return;
@@ -188,34 +178,71 @@
 	}
 
 	async function show(place: Place) {
-		if (place.kind === 'stage') {
-			if (Object.hasOwn(document.blueprint.flow, place.name))
-				panel = { kind: 'stage', name: place.name };
+		panel = null;
+		if (place.kind === 'roles') {
+			openPoint = null;
+			await tick();
+			window.document.getElementById('section-roles')?.scrollIntoView({ block: 'center' });
 			return;
 		}
-		const inRail = place.id === 'roles' || place.id === 'work' || place.id === 'done';
-		panel = inRail ? null : { kind: 'more' };
+		openPoint = { line: place.ref, point: place.point };
 		await tick();
-		const section = window.document.getElementById(`section-${place.id}`);
-		section?.scrollIntoView({ block: 'center' });
-		section?.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
+		const key = pointKey(place.ref, place.point);
+		const control = window.document.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
+		control?.scrollIntoView({ block: 'center' });
+		control?.focus();
+	}
+
+	// Roles.
+	let naming = $state(false);
+	let newRole = $state('');
+
+	function addRoleNamed() {
+		const name = newRole.trim();
+		naming = false;
+		newRole = '';
+		if (name === '') return;
+		if (Object.hasOwn(document.blueprint.roles, name)) {
+			toast(`There is already a role called "${name}".`);
+			return;
+		}
+		change(addRole(document, name));
+		announce(`Added the role "${name}".`);
+	}
+
+	function focus(element: HTMLInputElement) {
+		element.focus();
+	}
+
+	// The File menu.
+	let fileOpen = $state(false);
+	let fileMenu: HTMLDivElement | undefined = $state();
+
+	function onpointerdown(event: PointerEvent) {
+		if (fileOpen && fileMenu && !fileMenu.contains(event.target as Node)) fileOpen = false;
 	}
 
 	function doUndo() {
 		history = undo(history);
-		keepPanelValid();
+		keepOpenValid();
 		scheduleSave();
 		announce('Undone.');
 	}
 
 	function doRedo() {
 		history = redo(history);
-		keepPanelValid();
+		keepOpenValid();
 		scheduleSave();
 		announce('Redone.');
 	}
 
 	function onkeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			if (fileOpen) fileOpen = false;
+			else if (panel) panel = null;
+			else if (openPoint) openPoint = null;
+			return;
+		}
 		const target = event.target as HTMLElement;
 		if (target.closest('input, textarea, select, [contenteditable]')) return;
 		const mod = event.metaKey || event.ctrlKey;
@@ -226,8 +253,6 @@
 		} else if (mod && event.key.toLowerCase() === 'y') {
 			event.preventDefault();
 			doRedo();
-		} else if (event.key === 'Escape' && panel) {
-			panel = null;
 		}
 	}
 
@@ -236,7 +261,7 @@
 		recordId = id;
 		origin = from;
 		panel = null;
-		frame += 1;
+		openPoint = null;
 	}
 
 	// Saved in this browser.
@@ -278,6 +303,7 @@
 
 	// Links and downloads.
 	async function copyLink() {
+		fileOpen = false;
 		const data = await blocks(document);
 		const fragment = await encodeLink(data.text);
 		const url = `${location.origin}${location.pathname}#${fragment}`;
@@ -292,6 +318,7 @@
 	}
 
 	function download() {
+		fileOpen = false;
 		const blob = new Blob([blueprintText(document.blueprint)], { type: 'application/json' });
 		const link = window.document.createElement('a');
 		link.href = URL.createObjectURL(blob);
@@ -301,6 +328,7 @@
 	}
 
 	function startOver() {
+		fileOpen = false;
 		load(newDocument(), 'new');
 		scheduleSave();
 		toast('Started a new blueprint. The earlier one is under Saved in this browser.');
@@ -316,6 +344,17 @@
 		toastTimer = setTimeout(() => (toastText = ''), 6000);
 	}
 
+	/** Copies a prompt that only has the agent check the blueprint and explain it. */
+	async function copyCheckOnly() {
+		const built = await buildPrompt(document, 'check', inspection.diagnostics.length > 0);
+		const result = await copyText(built.text, navigator.clipboard);
+		toast(
+			result === 'copied'
+				? 'Copied a prompt that only checks. Your agent checks the blueprint with Locust and explains it. Nothing is saved.'
+				: 'Copying did not work. Use "See the prompt" and copy it by hand.'
+		);
+	}
+
 	async function copyFailed() {
 		panel = { kind: 'prompt' };
 		await tick();
@@ -327,15 +366,11 @@
 		selection?.addRange(range);
 	}
 
-	const panelTitle = $derived.by((): { title: string; mark: number | IconName } | null => {
+	const panelTitle = $derived.by((): { title: string; mark: IconName } | null => {
 		if (!panel) return null;
 		switch (panel.kind) {
-			case 'stage':
-				return { title: panel.name, mark: order.indexOf(panel.name) + 1 };
 			case 'role':
 				return { title: panel.name, mark: 'user' };
-			case 'more':
-				return { title: 'More rules', mark: 'sliders-horizontal' };
 			case 'problems':
 				return {
 					title:
@@ -378,7 +413,7 @@
 					if (opened.ok) {
 						load(opened.document, 'link');
 						banner =
-							'Opened from a link. If someone else made it, read its names and advice before you copy it.';
+							'Opened from a link. If someone else made it, read its names before you copy it.';
 						scheduleSave();
 						return;
 					}
@@ -401,24 +436,26 @@
 	});
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} {onpointerdown} />
 
-{#snippet tool(
-	label: string,
-	icon: IconName,
-	action: () => void,
-	options: { disabled?: boolean; pressed?: boolean; description?: string } = {}
-)}
+{#snippet removeRoleButton()}
 	<button
 		type="button"
-		class="tool"
-		aria-label={label}
-		aria-pressed={options.pressed}
-		disabled={options.disabled}
-		use:tip={{ label, description: options.description }}
-		onclick={action}
+		class="remove"
+		onclick={() => {
+			if (panel?.kind !== 'role') return;
+			const name = panel.name;
+			const uses = roleUses(document.blueprint, name);
+			change(removeRole(document, name));
+			panel = null;
+			toast(
+				uses > 0
+					? `Removed "${name}". ${uses} rule${uses === 1 ? '' : 's'} used it and now name nobody. Undo brings it back.`
+					: `Removed "${name}".`
+			);
+		}}
 	>
-		<Icon name={icon} />
+		<Icon name="trash" size={16} /> Remove role
 	</button>
 {/snippet}
 
@@ -439,9 +476,9 @@
 		</div>
 	{/if}
 
-	<WayPicker current={document.way} changed={changed.length} onpick={pickWay} />
+	<WayPicker current={way} onpick={pickWay} />
 
-	<div class="frame" class:compact>
+	<div class="frame">
 		<div class="bar">
 			<div class="name">
 				<input
@@ -463,89 +500,89 @@
 			</div>
 
 			<div class="tools" role="toolbar" aria-label="Blueprint">
-				{@render tool('Undo', 'arrow-counter-clockwise', doUndo, {
-					disabled: history.past.length === 0,
-					description: 'Cmd or Ctrl + Z'
-				})}
-				{@render tool('Redo', 'arrow-clockwise', doRedo, {
-					disabled: history.future.length === 0,
-					description: 'Shift + Cmd or Ctrl + Z'
-				})}
-				<span class="divider" aria-hidden="true"></span>
-				{@render tool('Open a blueprint', 'folder-open', () => toggle('open'), {
-					pressed: panel?.kind === 'open',
-					description: 'From pasted JSON, a prompt from this page, an agent reply or a file.'
-				})}
-				{@render tool('Saved in this browser', 'clock-counter-clockwise', () => toggle('saved'), {
-					pressed: panel?.kind === 'saved'
-				})}
-				{@render tool('Copy link', 'link', copyLink, {
-					description: 'A link that opens this blueprint. The blueprint stays in the link.'
-				})}
-				{@render tool('Download', 'download-simple', download, {
-					description: 'The blueprint as a JSON file.'
-				})}
-				{@render tool('Start over', 'file-plus', startOver, {
-					description: 'The current blueprint stays under Saved in this browser.'
-				})}
+				<button
+					type="button"
+					class="tool"
+					aria-label="Undo"
+					disabled={history.past.length === 0}
+					use:tip={{ label: 'Undo', description: 'Cmd or Ctrl + Z' }}
+					onclick={doUndo}
+				>
+					<Icon name="arrow-counter-clockwise" />
+				</button>
+				<button
+					type="button"
+					class="tool"
+					aria-label="Redo"
+					disabled={history.future.length === 0}
+					use:tip={{ label: 'Redo', description: 'Shift + Cmd or Ctrl + Z' }}
+					onclick={doRedo}
+				>
+					<Icon name="arrow-clockwise" />
+				</button>
+				<div class="file" bind:this={fileMenu}>
+					<button
+						type="button"
+						class="word"
+						aria-haspopup="menu"
+						aria-expanded={fileOpen}
+						onclick={() => (fileOpen = !fileOpen)}
+					>
+						File
+					</button>
+					{#if fileOpen}
+						<div class="menu" role="menu">
+							<button type="button" role="menuitem" onclick={() => toggle('open')}>
+								Open a blueprint
+							</button>
+							<button type="button" role="menuitem" onclick={() => toggle('saved')}>
+								Saved in this browser
+							</button>
+							<button type="button" role="menuitem" onclick={copyLink}>Copy a link to it</button>
+							<button type="button" role="menuitem" onclick={download}>Download as JSON</button>
+							<button type="button" role="menuitem" onclick={startOver}>Start over</button>
+						</div>
+					{/if}
+				</div>
 			</div>
 
 			<span class="spacer"></span>
 
-			<div class="tools" role="toolbar" aria-label="Check and read">
-				<button
-					type="button"
-					class="tool status"
-					class:attention={problems.length > 0}
-					aria-label={problems.length === 0
-						? 'No problems found'
-						: problems.length === 1
-							? '1 problem'
-							: `${problems.length} problems`}
-					aria-pressed={panel?.kind === 'problems'}
-					use:tip={problems.length === 0
-						? 'No problems found'
-						: { label: 'Problems', description: problems[0].text }}
-					onclick={() => toggle('problems')}
-				>
-					<Icon name={problems.length === 0 ? 'check-circle' : 'warning'} />
-					{#if problems.length > 0}<span class="count">{problems.length}</span>{/if}
-				</button>
-				{@render tool('In words', 'article', () => toggle('words'), {
-					pressed: panel?.kind === 'words',
-					description: 'The blueprint in plain sentences, and what Locust will say.'
-				})}
-				{@render tool('See the prompt', 'eye', () => toggle('prompt'), {
-					pressed: panel?.kind === 'prompt'
-				})}
-				<a
-					class="tool"
-					href="/docs/next/blueprint-authoring"
-					aria-label="Read about blueprints in the manual"
-					use:tip={'Read about blueprints in the manual'}
-				>
-					<Icon name="book-open" />
-				</a>
-				<a
-					class="tool"
-					href="/start"
-					aria-label="Set up Locust"
-					use:tip={{
-						label: 'Set up Locust',
-						description: 'The prompt needs Locust on your computer. Not set up yet? Start here.'
-					}}
-				>
-					<Icon name="question" />
-				</a>
-			</div>
+			<button
+				type="button"
+				class="word status"
+				class:attention={problems.length > 0}
+				aria-pressed={panel?.kind === 'problems'}
+				onclick={() => toggle('problems')}
+			>
+				<Icon name={problems.length === 0 ? 'check-circle' : 'warning'} size={16} />
+				{problems.length === 0
+					? 'No problems'
+					: problems.length === 1
+						? '1 problem'
+						: `${problems.length} problems`}
+			</button>
+			<button
+				type="button"
+				class="word"
+				aria-pressed={panel?.kind === 'words'}
+				onclick={() => toggle('words')}
+			>
+				<Icon name="article" size={16} /> In words
+			</button>
 
-			<CopyBar
-				{prompt}
-				bind:intent
-				hasErrors={inspection.diagnostics.length > 0}
-				{blocked}
-				onfail={copyFailed}
-			/>
+			<CopyBar {prompt} {blocked} onfail={copyFailed} />
+
+			<p class="next">
+				Paste it into your coding agent. It adds the blueprint to the Locust on that computer as a
+				private draft.
+				<button type="button" class="quiet" onclick={() => toggle('prompt')}>See the prompt</button>
+				<button type="button" class="quiet" onclick={copyCheckOnly}>
+					Copy one that only checks
+				</button>
+				<a href="/start">Set up Locust</a>
+				<a href="/docs/next/blueprint-authoring">Manual</a>
+			</p>
 
 			{#if toastText}
 				<p class="toast">{toastText}</p>
@@ -553,131 +590,125 @@
 		</div>
 
 		<div class="body">
-			<aside class="rail" aria-label="Rules">
-				<RulesPanel
-					{document}
-					{moreChanged}
-					openRole={panel?.kind === 'role' ? panel.name : null}
-					moreOpen={panel?.kind === 'more'}
-					onchange={change}
-					onopenrole={(name) => open({ kind: 'role', name })}
-					onopenmore={() => toggle('more')}
-					onannounce={announce}
-				/>
-			</aside>
+			<Lines
+				{document}
+				open={openPoint}
+				problems={marked}
+				onchange={change}
+				onopen={(next) => (openPoint = next)}
+				onannounce={announce}
+			/>
 
-			<div class="canvas">
-				<StageMap
-					{document}
-					{selected}
-					panelOpen={selected !== null}
-					panelWidth={panel && !compact ? 400 : 0}
-					problems={stageProblems}
-					{compact}
-					{frame}
-					onchange={change}
-					onselect={(name) => open(name === null ? null : { kind: 'stage', name })}
-					onannounce={announce}
-				/>
+			<section id="section-roles" class="roles" aria-labelledby="roles-title">
+				<h2 id="roles-title">Roles</h2>
+				<ul class="chips">
+					{#each roles as role (role)}
+						<li>
+							<button
+								type="button"
+								class="chip"
+								class:open={panel?.kind === 'role' && panel.name === role}
+								aria-label={`Role "${role}"`}
+								onclick={() => (panel = { kind: 'role', name: role })}
+							>
+								<Icon name="user" size={14} />
+								<span>{role}</span>
+							</button>
+						</li>
+					{/each}
+					<li>
+						{#if naming}
+							<form
+								class="chip new"
+								onsubmit={(event) => {
+									event.preventDefault();
+									addRoleNamed();
+								}}
+							>
+								<Icon name="user-plus" size={14} />
+								<input
+									type="text"
+									bind:value={newRole}
+									aria-label="Name of the new role"
+									placeholder="reviewer"
+									use:focus
+									onblur={addRoleNamed}
+									onkeydown={(event) => {
+										if (event.key === 'Escape') {
+											event.stopPropagation();
+											newRole = '';
+											naming = false;
+										}
+									}}
+								/>
+							</form>
+						{:else}
+							<button type="button" class="chip add" onclick={() => (naming = true)}>
+								<Icon name="plus" size={14} /> Role
+							</button>
+						{/if}
+					</li>
+				</ul>
+				<p class="muted">
+					{roles.length === 0
+						? 'None. Every member takes part on equal terms.'
+						: 'Members are put into roles later, in Locust.'}
+				</p>
+			</section>
 
-				{#if panel && panelTitle}
-					<div class="panel-host" class:compact>
-						<SidePanel
-							open
-							mark={panelTitle.mark}
-							title={panelTitle.title}
-							onclose={() => (panel = null)}
-						>
-							{#if panel.kind === 'stage' && Object.hasOwn(document.blueprint.flow, panel.name)}
-								<StageSettings
-									{document}
-									name={panel.name}
-									onchange={change}
-									onrename={(to) => (panel = { kind: 'stage', name: to })}
-									onannounce={announce}
-								/>
-							{:else if panel.kind === 'role' && Object.hasOwn(document.blueprint.roles, panel.name)}
-								<RoleSettings
-									{document}
-									name={panel.name}
-									onchange={change}
-									onrename={(to) => (panel = { kind: 'role', name: to })}
-									onannounce={announce}
-								/>
-							{:else if panel.kind === 'more'}
-								<MoreSettings {document} onchange={change} />
-							{:else if panel.kind === 'problems'}
-								<Problems {problems} onshow={show} />
-							{:else if panel.kind === 'words'}
-								<Summary
-									{lines}
-									explanation={inspection.explanation}
-									hasStages={order.length > 0}
-								/>
-							{:else if panel.kind === 'prompt'}
-								{#if prompt && prompt.text.length > LARGE_PROMPT}
-									<p class="faint">
-										This prompt is long. Some agents shorten very long pastes; if yours does,
-										download the blueprint and give your agent the file.
-									</p>
-								{/if}
-								<pre class="prompt" bind:this={promptElement}>{prompt?.text ?? ''}</pre>
-							{:else if panel.kind === 'open'}
-								<OpenBlueprint message={openMessage} onopen={openFrom} />
-							{:else if panel.kind === 'saved'}
-								<SavedList {saved} current={recordId} onopen={openRecord} ondelete={deleteRecord} />
-							{/if}
-
-							{#snippet footer()}
-								{#if panel?.kind === 'stage'}
-									<button
-										type="button"
-										class="remove"
-										onclick={() => {
-											if (panel?.kind !== 'stage') return;
-											const name = panel.name;
-											change(removeStage(document, name));
-											panel = null;
-											announce(`Removed stage "${name}". Undo brings it back.`);
-										}}
-									>
-										<Icon name="trash" size={16} /> Remove stage
-									</button>
-								{:else if panel?.kind === 'role'}
-									<button
-										type="button"
-										class="remove"
-										onclick={() => {
-											if (panel?.kind !== 'role') return;
-											const name = panel.name;
-											const uses = roleUses(document.blueprint, name);
-											change(removeRole(document, name));
-											panel = null;
-											announce(
-												uses > 0
-													? `Removed "${name}". ${uses} rule${uses === 1 ? '' : 's'} used it and now name nobody. Undo brings it back.`
-													: `Removed "${name}".`
-											);
-										}}
-									>
-										<Icon name="trash" size={16} /> Remove role
-									</button>
-								{/if}
-							{/snippet}
-						</SidePanel>
-					</div>
-				{/if}
+			<div class="notes">
+				{#each kept as line, index (index)}
+					<p>{line.text}</p>
+				{/each}
+				<p>
+					A member is one agent or one person. Locust records these rules. It does not start agents
+					or run checks.
+				</p>
 			</div>
+
+			{#if panel && panelTitle}
+				<div class="panel-host" class:compact>
+					<SidePanel
+						open
+						mark={panelTitle.mark}
+						title={panelTitle.title}
+						footer={panel.kind === 'role' ? removeRoleButton : undefined}
+						onclose={() => (panel = null)}
+					>
+						{#if panel.kind === 'role' && Object.hasOwn(document.blueprint.roles, panel.name)}
+							<RoleSettings
+								{document}
+								name={panel.name}
+								onchange={change}
+								onrename={(to) => (panel = { kind: 'role', name: to })}
+								onannounce={announce}
+							/>
+						{:else if panel.kind === 'problems'}
+							<Problems {problems} onshow={show} />
+						{:else if panel.kind === 'words'}
+							<Summary
+								lines={lines.filter((line) => line.area !== 'kept')}
+								explanation={inspection.explanation}
+								{hasSteps}
+							/>
+						{:else if panel.kind === 'prompt'}
+							{#if prompt && prompt.text.length > LARGE_PROMPT}
+								<p class="faint">
+									This prompt is long. Some agents shorten very long pastes; if yours does, download
+									the blueprint and give your agent the file.
+								</p>
+							{/if}
+							<pre class="prompt" bind:this={promptElement}>{prompt?.text ?? ''}</pre>
+						{:else if panel.kind === 'open'}
+							<OpenBlueprint message={openMessage} onopen={openFrom} />
+						{:else if panel.kind === 'saved'}
+							<SavedList {saved} current={recordId} onopen={openRecord} ondelete={deleteRecord} />
+						{/if}
+					</SidePanel>
+				</div>
+			{/if}
 		</div>
 	</div>
-
-	{#if compact}
-		<StageList
-			{document}
-			problems={stageProblems}
-			onopen={(name) => open({ kind: 'stage', name })}
-		/>
-	{/if}
 
 	<p class="visually-hidden" aria-live="polite">{announcement}</p>
 </div>
@@ -685,7 +716,6 @@
 <style>
 	.blueprint-editor {
 		display: flex;
-		flex: 1;
 		flex-direction: column;
 		gap: 1rem;
 	}
@@ -708,12 +738,6 @@
 	}
 
 	.frame {
-		display: grid;
-		flex: 1;
-		grid-template-rows: auto minmax(0, 1fr);
-		grid-template-columns: minmax(0, 1fr);
-		height: 0;
-		min-height: 34rem;
 		border: var(--border-hairline);
 	}
 
@@ -721,9 +745,9 @@
 		position: relative;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem 0.75rem;
+		gap: 0.5rem 0.5rem;
 		align-items: center;
-		padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+		padding: 0.5rem 0.5rem 0.625rem 0.75rem;
 		border-bottom: var(--border-hairline);
 	}
 
@@ -780,47 +804,85 @@
 		color: var(--color-text);
 	}
 
-	.tool[aria-pressed='true'] {
-		border-color: var(--color-border);
-		background: var(--color-surface);
-		color: var(--color-text);
-	}
-
 	.tool:disabled {
 		color: var(--color-text-faint);
 		opacity: 0.5;
 	}
 
-	.tool:focus-visible {
-		outline: 1px solid var(--color-accent);
-		outline-offset: 1px;
+	.word {
+		display: flex;
+		gap: 0.375rem;
+		align-items: center;
+		border-color: transparent;
+		background: transparent;
+		color: var(--color-text-muted);
 	}
 
-	.status {
-		display: flex;
-		gap: 0.25rem;
-		width: auto;
-		min-width: 2.25rem;
-		padding: 0 0.5rem;
+	.word:hover {
+		border-color: var(--color-border);
+		color: var(--color-text);
+	}
+
+	.word[aria-pressed='true'],
+	.word[aria-expanded='true'] {
+		border-color: var(--color-border);
+		background: var(--color-surface);
+		color: var(--color-text);
 	}
 
 	.status.attention {
 		color: var(--color-accent);
 	}
 
-	.count {
-		font: 500 0.75rem / 1 var(--font-mono);
+	.file {
+		position: relative;
 	}
 
-	.divider {
-		width: 1px;
-		height: 1.25rem;
-		margin: 0 0.375rem;
-		background: var(--color-border);
+	.menu {
+		position: absolute;
+		top: calc(100% + 0.25rem);
+		left: 0;
+		z-index: 30;
+		display: grid;
+		min-width: 14rem;
+		border: var(--border-hairline);
+		background: var(--color-surface);
+		box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.9);
+	}
+
+	.menu button {
+		border: 0;
+		background: transparent;
+		text-align: left;
+	}
+
+	.menu button:hover {
+		background: var(--color-bg);
 	}
 
 	.spacer {
 		flex: 1;
+	}
+
+	.next {
+		display: flex;
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+		gap: 0.125rem 0.875rem;
+		justify-content: flex-end;
+		align-items: baseline;
+		margin: 0;
+		color: var(--color-text-subtle);
+		font: var(--text-label);
+	}
+
+	.next button,
+	.next a {
+		min-height: 0;
+		padding: 0;
+		color: var(--color-text-muted);
+		font: inherit;
+		text-decoration: underline;
 	}
 
 	.toast {
@@ -836,25 +898,91 @@
 	}
 
 	.body {
-		display: grid;
-		grid-template-columns: 19rem minmax(0, 1fr);
-		min-height: 0;
-	}
-
-	.rail {
-		overflow: auto;
-		padding: 1.25rem 1rem 1.5rem 1.25rem;
-		border-right: var(--border-hairline);
-	}
-
-	.canvas {
 		position: relative;
-		min-height: 0;
-		overflow: hidden;
+		min-height: 24rem;
 	}
 
-	.canvas :global(.map) {
+	.roles {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1rem;
+		align-items: center;
+		padding: 0.875rem 1.25rem;
+		border-bottom: var(--border-hairline);
+	}
+
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.chip {
+		display: inline-flex;
+		gap: 0.375rem;
+		align-items: center;
+		min-height: 2rem;
+		max-width: 100%;
+		padding: 0 0.75rem 0 0.625rem;
+		border: 1px solid var(--color-border);
+		border-radius: 999px;
+		background: var(--color-surface);
+		color: var(--color-text);
+		font: var(--text-ui);
+	}
+
+	.chip span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.chip :global(.icon) {
+		color: var(--color-text-subtle);
+	}
+
+	.chip.open {
+		border-color: var(--color-accent);
+	}
+
+	.chip.add {
+		background: transparent;
+		color: var(--color-text-muted);
+	}
+
+	.chip.new input {
+		width: 8rem;
+		min-height: 0;
+		padding: 0;
 		border: 0;
+		background: transparent;
+	}
+
+	.chip.new input:focus-visible {
+		outline: 0;
+	}
+
+	.chip.new:focus-within {
+		border-color: var(--color-accent);
+	}
+
+	.muted {
+		margin: 0;
+		color: var(--color-text-subtle);
+	}
+
+	.notes {
+		display: grid;
+		gap: 0.25rem;
+		padding: 0.875rem 1.25rem 1rem;
+		color: var(--color-text-subtle);
+	}
+
+	.notes p {
+		margin: 0;
 	}
 
 	.panel-host {
@@ -896,40 +1024,21 @@
 		color: var(--color-text-subtle);
 	}
 
-	@media (max-width: 64rem) {
-		.body {
-			grid-template-columns: 16rem minmax(0, 1fr);
+	@media (max-width: 48rem) {
+		.name {
+			flex: 1 1 100%;
 		}
-	}
 
-	.frame.compact {
-		flex: none;
-		height: auto;
-		min-height: 0;
-	}
+		.name input {
+			width: 100%;
+		}
 
-	.frame.compact .body {
-		grid-template-columns: 1fr;
-	}
+		.bar :global(.copy) {
+			flex: 1 1 100%;
+		}
 
-	.frame.compact .rail {
-		border-right: 0;
-		border-bottom: var(--border-hairline);
-	}
-
-	.frame.compact .canvas {
-		height: 22rem;
-	}
-
-	.frame.compact .name {
-		flex: 1 1 100%;
-	}
-
-	.frame.compact .name input {
-		width: 100%;
-	}
-
-	.frame.compact .bar :global(.copy) {
-		flex: 1 1 100%;
+		.next {
+			justify-content: flex-start;
+		}
 	}
 </style>

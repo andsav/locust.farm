@@ -6,65 +6,40 @@
 
 	let {
 		current,
-		changed,
 		onpick
 	}: {
+		/** The way of working whose rules equal the current rules, if any. */
 		current: string | null;
-		/** How many settings differ from the current way of working. */
-		changed: number;
 		onpick: (id: string) => void;
 	} = $props();
-
-	const name = $props.id();
 
 	function draw(svg: SVGSVGElement, id: string) {
 		drawDiagram(svg, id);
 	}
 </script>
 
-<fieldset class="ways">
-	<legend class="visually-hidden">Ways of working</legend>
+<div class="ways" role="group" aria-label="Ways of working">
 	{#each WAYS_OF_WORKING as way (way.id)}
-		<label
+		<button
+			type="button"
 			class="way"
 			class:current={current === way.id}
-			use:tip={{
-				label: way.title,
-				description:
-					current === way.id && changed > 0
-						? `${way.sentence} Click to go back to it; undo keeps your changes.`
-						: way.sentence
-			}}
+			aria-pressed={current === way.id}
+			use:tip={{ label: way.title, description: way.sentence }}
+			onclick={() => onpick(way.id)}
 		>
-			<input
-				type="radio"
-				{name}
-				value={way.id}
-				checked={current === way.id}
-				onchange={() => onpick(way.id)}
-				onclick={() => {
-					if (current === way.id && changed > 0) onpick(way.id);
-				}}
-			/>
 			<svg class="diagram" viewBox="0 0 320 180" aria-hidden="true" use:draw={way.id}></svg>
-			<span class="title">
-				{way.title}
-				{#if current === way.id && changed > 0}
-					<span class="changed">changed</span>
-				{/if}
-			</span>
+			<span class="title">{way.title}</span>
 			<span class="visually-hidden">{way.sentence}</span>
-		</label>
+		</button>
 	{/each}
-</fieldset>
+</div>
 
 <style>
 	.ways {
 		display: grid;
 		grid-template-columns: repeat(6, minmax(0, 1fr));
 		gap: 1px;
-		margin: 0;
-		padding: 0;
 		border: 1px solid var(--color-border);
 		background: var(--color-border);
 	}
@@ -86,8 +61,12 @@
 		display: grid;
 		align-content: start;
 		gap: 0.25rem;
+		min-height: 0;
 		padding: 0.5rem 0.75rem 0.75rem;
+		border: 0;
 		background: var(--color-bg);
+		color: var(--color-text);
+		text-align: left;
 		cursor: pointer;
 	}
 
@@ -100,15 +79,9 @@
 		box-shadow: inset 0 0 0 1px var(--color-accent);
 	}
 
-	.way:has(input:focus-visible) {
+	.way:focus-visible {
 		outline: 1px solid var(--color-accent);
 		outline-offset: -4px;
-	}
-
-	input {
-		position: absolute;
-		opacity: 0;
-		pointer-events: none;
 	}
 
 	svg {
@@ -126,10 +99,5 @@
 
 	.way:not(.current) .title {
 		color: var(--color-text-muted);
-	}
-
-	.changed {
-		color: var(--color-accent);
-		font: var(--text-label);
 	}
 </style>

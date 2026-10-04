@@ -121,7 +121,7 @@ export function explain(value: Blueprint): Explanation {
 	for (const name of sortedKeys(value.flow)) {
 		const stage = value.flow[name];
 		summary.push(
-			`Stage ${rustDebug(name)}: ${authority(stage.runner)} runs this stage: it creates the configured task and durably delivers ready work to ${selector(stage.recipients)}.`
+			`Stage ${rustDebug(name)}: the goal administrator runs this stage: it creates the configured task and durably delivers ready work to ${selector(stage.recipients)}.`
 		);
 		const needs =
 			stage.requires.length === 0

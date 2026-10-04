@@ -4,7 +4,9 @@ Date: 2026-10-04. **Status: implemented in the site at `/blueprints`; checked by
 unit tests, conformance vectors and a browser walkthrough. Not yet tried with
 real agents or first-time users (section 8).** Baseline: Locust `74ec9fb`, after the
 organization implementation landed (`809bbbe`) and the contract rename. The
-Polaris checkout read for the canvas fork is `dreamcolor10` at `01d8aa3c4`.
+Polaris checkout read for the side panel is `dreamcolor10` at `01d8aa3c4`. The
+page was rebuilt later the same day around one line of four points (decisions 9
+to 13, section 3).
 
 Related documents: the [accepted direction](organization-blueprints.md), the
 [blueprint implementation plan](organization-blueprints-implementation-plan.md),
@@ -23,18 +25,38 @@ measurements, the compared designs and the reviews behind this plan.
 3. The page opens with the question "How does your team work?" and six ways of
    working, each with a small animated diagram. Everything else adjusts the
    chosen way.
-4. The canvas shows only stages and the order between them. Roles, work rules,
-   decisions, task types and advice are properties, edited in panels.
-5. Nodes and the side panel keep the look of Polaris's nodes and settings panel,
-   in Locust's colours, font and tone.
-6. The canvas code is forked once from Polaris into the site. There is no
-   shared repository or package. The two may diverge. Licensing needs no step.
+4. Superseded by decision 9. (Was: the canvas shows only stages and the order
+   between them; everything else is edited in panels.)
+5. The side panel keeps the look of Polaris's settings panel, in Locust's
+   colours, font and tone.
+6. Superseded by decision 9. (Was: the canvas code is forked once from Polaris
+   into the site.)
 7. All checks that need no goal or machine context run in TypeScript in the
    page. There is no WebAssembly build. Locust stays authoritative: the agent
    re-checks with Locust before anything is saved.
 8. The contract uses plain names: `task_types` (was `variations`), a stage's
    `task_type`, `decisions.finish` (was `closure`) and a stage's `runner` (was
-   `materializer`). Implemented in `74ec9fb`.
+   `materializer`). Implemented in `74ec9fb`. The runner was removed later
+   (decision 10).
+
+Later the same day, after a [review](../research/blueprint-editor-review.md) of
+the built editor:
+
+9. The rules are shown as one line of four points: who adds a task, who works
+   on it, when a result counts, and whether one result is picked. Each point
+   has a picture drawn from the rules and a short answer, and a click shows its
+   choices. Steps and other kinds of task are shorter lines under it. This
+   replaces the rules rail, the More panel, the decorative drawing and the
+   stage canvas.
+10. A stage has no runner. The goal's administrator, who is the member that
+    started the goal, runs every stage. Implemented in `cd9bf97`.
+11. One agent is one member. The page says "member" and "anyone", never
+    "person" or "people".
+12. A step is one task that Locust adds, as before; the page says so. A
+    workflow that every task passes through is what the four points already
+    are.
+13. An exclusive claim on a task is wanted but not built. Until it exists the
+    page says "No lock" beside "Anyone".
 
 Decision 7 departs from the blueprint plan's O1.4 ("prevent handwritten copies
 in Polaris or the site") and from the accepted direction's "use the same
@@ -42,9 +64,8 @@ validator". The test cases in section 5 keep the copy honest.
 
 ## 1. Outcome and scope
 
-A person opens `locust.farm/blueprints`, picks how their team works, adjusts a
-few plain choices, optionally lays out stages on a map, and presses one button
-to copy a prompt. Pasted into their agent, the prompt makes the agent check
+A person opens `locust.farm/blueprints`, picks how their team works, changes any
+of four points, optionally adds steps, and presses one button to copy a prompt. Pasted into their agent, the prompt makes the agent check
 the blueprint with their Locust, explain it in Locust's words, save it as a
 private draft and ask before publishing it.
 
@@ -52,9 +73,8 @@ Done means:
 
 - Each of the six ways of working can be chosen and copied without any edit.
 - Every part of the contract the editor can show is editable by keyboard and
-  on a phone, without the canvas.
+  on a phone.
 - The page's checks agree with Locust on every test case (section 5).
-- Layout changes never change the blueprint itself.
 - A blueprint written by an agent opens in the editor; parts the editor does
   not show are kept unchanged and listed.
 - The copied prompt validates and saves with the real CLI in an automated test.
@@ -75,8 +95,8 @@ Verified at `74ec9fb`.
 | Presets | `open`, `coordinator`, `peer-review`, `review-panel`, `independent-attempts`, `pipeline` ([examples](../examples/blueprints/open.json)) | The six ways of working |
 | Offline checks | `locust blueprint validate`, `explain`, `normalize`, `diff`, `contract`, `schema`, `examples` ([CLI](../crates/locust/src/cli/blueprint.rs)); diagnostics have `code`, `severity`, `phase`, `path`, `message`, `correction`, `related_paths` | Prompt steps; the test cases |
 | Validation | [loader](../crates/locust-core/src/organization/strict_json.rs), [rules](../crates/locust-core/src/organization/validation.rs), [explanation](../crates/locust-core/src/organization/explanation.rs), [normalization](../crates/locust-core/src/organization/normalize.rs), [diff](../crates/locust-core/src/organization/diff.rs) | Ported to TypeScript (section 5) |
-| Catalog | Private drafts, a separate presentation record holding opaque `data_json` that never affects identity, and immutable publications; operations `blueprint.draft.create`, `blueprint.draft.update`, `blueprint.drafts`, `blueprint.presentation.update`, `blueprint.publish` and others ([API](../crates/locust-proto/src/api.rs)) | Prompt steps; the stage layout |
-| Flow | A stage is ready when its `requires` evidence exists; the stage's runner's Locust then creates its task and delivers it to the stage's recipients. No agent is started ([semantics](organization-blueprints-semantics.md)) | The map's wording |
+| Catalog | Private drafts, a separate presentation record holding opaque `data_json` that never affects identity, and immutable publications; operations `blueprint.draft.create`, `blueprint.draft.update`, `blueprint.drafts`, `blueprint.presentation.update`, `blueprint.publish` and others ([API](../crates/locust-proto/src/api.rs)) | Prompt steps; the blueprint's name |
+| Flow | A stage is ready when its `requires` evidence exists; the goal administrator's Locust then creates its task and delivers it to the stage's recipients. No agent is started ([semantics](organization-blueprints-semantics.md)) | The wording of steps |
 | Goal creation | `goal.create` takes inline `blueprint_json`, `roles` and `inputs`, needs the daemon-wide `manage_goals` grant, makes the creator the only member, and needs required inputs as blobs that exist only after the goal does | Why the prompt does not start goals |
 | Site | SvelteKit 3, Svelte 5, Vite 8, `node --test`, prerendered pages, a docs site under `/docs`, CI in [site.yml](../.github/workflows/site.yml) | Where the editor lives |
 
@@ -88,192 +108,153 @@ schema's shapes, and the research note lists the quirks for lane A.
 
 ### 3.1 Layout
 
-The page shows, tells little. Under the site header and the headline it has the
-six ways of working as a strip of animated pictures, then one framed editor
-that fills the rest of the window:
+Under the site header: the headline, one sentence saying what a blueprint is,
+the six ways of working as a strip of animated pictures, then one framed
+editor:
 
-- **Toolbar.** The blueprint's name, a save mark, icon buttons (undo, redo,
-  open, saved, copy link, download, start over; problems, in words, see the
-  prompt, manual, set up) and the copy controls.
-- **Rules rail** on the left: roles, how work starts, when a task is done, and
-  More.
-- **Map** filling the rest: the stages, or, with no stages, a large animated
-  picture of the current rules.
+- **Toolbar.** The blueprint's name and a save mark; Undo, Redo and a File
+  menu (open, saved, copy a link, download, start over); a problems button and
+  "In words", both with their word shown; and the ember "Copy prompt" button.
+  A line under it says what to do with the prompt and holds the links "See the
+  prompt", "Copy one that only checks", "Set up Locust" and "Manual".
+- **The line for any task.** Four points, left to right, each with its
+  question, a picture and a short answer.
+- **Steps** and **other kinds of task**, when there are any: one row each, with
+  the same four columns.
+- **Roles**, then one line of limits: "A member is one agent or one person.
+  Locust records these rules. It does not start agents or run checks."
 
-Every icon has a tooltip with its name and, where needed, one sentence. Longer
-text lives in one side panel that slides over the right of the map, as in
-Polaris: stage and role settings, More rules, problems, the blueprint in words,
-the prompt, open and saved blueprints. There are no modal dialogs. On phones the
-page is one column: ways, toolbar, rules, the map as a preview that opens full
-screen, and the stages as a list; the side panel covers the screen.
+Nothing a person needs is only in hover text. Hover text names the icon
+buttons and repeats each card's sentence. One side panel slides over the right
+of the editor for a role's settings, problems, the blueprint in words, the
+prompt, and open and saved blueprints. There are no modal dialogs. On a phone
+the points stack two by two and a step is a short list; the side panel covers
+the screen.
 
 The design context, shared with the impeccable design skills, is in
 [.impeccable.md](../.impeccable.md).
 
-### 3.2 First visit
-
-The page opens with "How does your team work?" and six choices, each a card
-with its animated diagram (from the approved draft), a name and one sentence:
+### 3.2 The six ways of working
 
 | Way of working | Sentence | Preset |
 | --- | --- | --- |
 | Open | Everyone works freely and shares what they find. You say when your own work is done. | `open` |
-| Coordinator | One person hands out work and accepts the results. | `coordinator` |
-| Peer review | Anyone can work on a task. Someone else has to approve it before it counts. | `peer-review` |
-| Review panel | Several reviewers look at each result. It counts once enough of them approve. | `review-panel` |
-| Independent attempts | Several people try the same task in their own way. A judge picks the result to use, and the other attempts are kept. | `independent-attempts` |
-| Pipeline | Work moves through steps in order. Each step starts when the one before it is done. | `pipeline` |
+| Coordinator | One member asks others to do tasks and approves the results. | `coordinator` |
+| Peer review | Anyone can work on a task. Someone else has to approve a result before it counts. | `peer-review` |
+| Review panel | Two reviewers have to approve each result before it counts. | `review-panel` |
+| Independent attempts | Several members try the same task in their own way. A judge picks the result to use, and the other results are kept. | `independent-attempts` |
+| Pipeline | Tasks that Locust adds in order. Each one is added when the one before it has a result that counts. | `pipeline` |
 
-Each card shows only its picture and name; the sentence is its tooltip and is
-read to screen readers. Open is selected on arrival, so the copy button works
-straight away. Choosing a card loads that preset as one undoable change. Once
-the rules differ from the chosen way, its card says "changed"; clicking it again
-goes back to the way, and undo keeps the changes.
+Each card shows its picture and name; the sentence is its hover text and is
+read to screen readers. Choosing a card loads that preset as one undoable
+change. The lit card is the one whose rules equal the current rules, whatever
+was clicked last, and no card is lit for an arrangement none of them shows
+([matchingWay](../sites/locust.farm/src/lib/blueprint-editor/model/presets.ts)).
 
-### 3.3 Rules rail
+### 3.3 The four points
 
-Each question is an icon heading with one word (Roles, Start, Done) and the
-question in its tooltip. Answers are rows of icon choices with one word each
-and a sentence in each choice's tooltip. Roles are chips; a chip opens the
-role's settings and "+" adds one. Details of the chosen answer, such as who
-reviews and how many approvals, appear under it as icon-labelled fields. The
-less common rules are under More, in the side panel.
+Each preset is Open with one or two answers changed
+([line.ts](../sites/locust.farm/src/lib/blueprint-editor/model/line.ts)).
 
-| Question | Contract |
-| --- | --- |
-| Who is involved? Everyone in the goal, or named roles. Roles are filled with people when someone starts a goal. | `roles` |
-| Who can suggest tasks? Who can share findings? | `work.propose`, `work.publish` |
-| How does work start? Anyone can start working on a task (several people may work on the same one), or someone hands out work and the person asked must accept. | `work.starts` |
-| When is a task done? The person who did it says so; someone else reviews it (how many, and whether the author may review); an automated check reports success. | `decisions.completion` |
-| Do you need one final answer? If yes, who picks it. | `decisions.selection` |
-| Who can say the whole goal is finished? Nobody (the goal stays open), or one named role. | `decisions.finish` |
-| Advice for everyone. Shown to agents; never a permission. | `context.guidance` |
-| Starting material: text or files supplied when a goal starts. | `context.inputs` |
-| Different rules for some tasks. Named sets of rules that tasks or stages can use. | `task_types` |
+| Point | Answers | Contract |
+| --- | --- | --- |
+| Who adds tasks? | Anyone. Only one role. Nobody: there are no tasks and members only post results. | `work.propose` |
+| Who works on a task? | Anyone, with "No lock: two members can work on the same task". Only one role, who are then the only ones who can post results. A member is asked, can say no, and others can still post results. | `work.starts`, `work.publish` |
+| When does a result count? | A list that combines: N approvals from anyone or a role, with or without the author's own; a named check reported as passed, with "Locust does not run the check". Nothing ticked: its author says so. | `decisions.completion` |
+| Is one result picked? | Nobody, and every result that counts stays. One role picks one result per task. The same box holds who can close a task. | `decisions.selection`, `decisions.finish` |
 
-The first three questions are always visible. The rest sit under "More
-choices", which shows how many differ from the chosen way. Who-pickers offer
-"everyone in the goal", each role, and where allowed "the person who created
-the task" or "the author of the work"; specific people by key are shown only if
-an imported blueprint contains them. Choices that Locust cannot do (first
-person to grab a task keeps it, approval when nobody objects, majority votes,
-private roles) are listed under "Not possible" with Locust's reason and what to
-do instead.
+A click on a point shows its choices in a box under the line. Options are full
+phrases, every field has a word, and the limit that belongs to a setting is
+printed beside it. Every list of roles ends with "New role", which asks for a
+name in place and adds the role and the rule as one change.
 
-### 3.4 Stage map
+The pictures are drawn from the answers, with the blueprint's own role names
+and numbers ([drawPoint](../sites/locust.farm/src/lib/blueprint-editor/ui/diagrams.ts)):
+the members and the task for Add, the mesh or the hub for Work, as many
+reviewer circles as approvals and a diamond for a check for Counts, and the
+picker's line to one result for Pick. The four share one clock and play in
+turn, left to right.
 
-Nodes are the keys of `flow`. Arrows are each stage's `requires` entries,
-drawn from the earlier stage to the later one, with no words on them; the
-owner found labels on arrows confusing. A solid arrow waits until the earlier
-stage is complete (`completion`); a dashed one starts sooner, on a published
-result, a review or a picked result (`publication`, `review`, `selection`).
-Hovering an arrow shows the sentence, such as "review" starts when "draft" is
-complete, and the stage's settings list the same conditions. Nothing else is
-drawn.
+A rule the page does not offer, such as "any of these", is shown as a sentence
+and kept as it is until an option replaces it.
 
-- **Empty map.** A large animated picture of the current rules, chosen by
-  `pictureFor` in [presets](../sites/locust.farm/src/lib/blueprint-editor/model/presets.ts):
-  handed-out work, then one final answer, then reviews. Changing a rule changes
-  the picture.
-- **Adding.** The round "+" places a new node and opens its settings. Dragging
-  from one node's handle to another opens a small menu: "Start review when
-  draft is…" with the four choices. Dropping on empty map adds a stage that
-  waits for the first one to be complete and opens it, as in Catalyst; other
-  stages keep their places. A connection that would make a loop is refused at
-  drop time: "That would make draft wait for itself."
-- **Node.** A Polaris capsule: a round accent disc, the stage name, and while
-  selected a row of icon chips (work goes to, run by, own rule) with tooltips.
-  Problems show as a warning icon and count on the node.
-- **Settings panel.** Polaris's settings panel: a header with the node's disc
-  and name, one scrolling body, and a footer with Delete and the save state.
-  Fields, in order: Name; "Starts when" (the prerequisites as a list, each with
-  a stage and one of the four choices, plus "Add"); "Who gets this step's
-  work?" (`recipients`); "Run by" with the help "Whose Locust creates this
-  step's task and sends it out when it is ready. Must be one person."
-  (`runner`); "When is this step done?" with "Same as the rules on the left" or
-  its own answer.
-- **Stage rules without new words.** Choosing its own answer for "When is this
-  step done?" creates or updates a task type named after the stage. The word
-  "task type" appears only under "More choices", where all task types are
-  listed.
-- **Layout.** Positions live in the presentation record, under the page's own
-  key: `{"locust.farm": {"stages": {"draft": {"x": 0, "y": 0}}}}`. Other keys
-  in that record are kept. Missing positions are filled by an automatic left to
-  right layout. Renaming a stage renames its layout key and every reference to
-  it in one undoable change.
-- **Keyboard and screen readers.** Every stage has a spoken description, and
-  on phones every stage is also listed under the map as text. Tab moves between stages, Enter
-  opens settings, C starts a connection from the focused stage and asks for
-  the target and the choice. Backspace on the page never deletes anything
-  unless a stage has focus.
+### 3.4 Steps and other kinds of task
+
+"Step" adds a row under the line. A step is one task that Locust adds: at the
+start, or after another step has a result that counts. If someone picks a
+result in the earlier step, the later one waits for the pick; the page chooses
+`completion` or `selection` and keeps it right when the picker changes. A new
+step waits for the last one. Removing a step joins the steps around it.
+
+A row has the four columns of the line. A cell says "Same as any task" until
+its point is changed for that step; the change is stored as a task type named
+after the step, and it goes away when the step follows the main rules again.
+The points a step did not change keep following the main rules when those
+change. Who a step's task is sent to follows who works on it.
+
+"Another kind of task" adds a row for tasks that members add under other
+rules. It is a task type no step uses.
+
+Contract parts the page does not show (`context.guidance`, `context.inputs`,
+prerequisites on a posted result or a review, several prerequisites) are kept
+unchanged and listed under the roles.
 
 ### 3.5 Problems and the blueprint in words
 
-The toolbar's status button is a check when nothing is wrong and an ember
-warning with a count otherwise. It opens the problems in the side panel: a plain
-sentence first, then "Show me", which selects the field or node, and "Details"
-with the code and path. Problems block nothing: copying with problems produces a
-prompt that saves an unfinished draft and does not publish.
+The problems button shows "No problems" or the count, in ember when there are
+any. It opens the problems in the side panel: a plain sentence first, then
+"Show me", which opens the point it is about, and "Details" with the code and
+path. A point with a problem has an ember outline. Problems block nothing:
+copying with problems produces a prompt that saves an unfinished draft and does
+not publish.
 
-"In words" opens a plain summary written by the page from the current
-blueprint, then "What Locust will say": Locust's own explanation lines,
-produced by the TypeScript port, which is what the agent will show.
+"In words" opens the whole blueprint as sentences written by the page, then
+"What Locust will say": Locust's own explanation lines, produced by the
+TypeScript port, which is what the agent will show.
 
 ### 3.6 Copy
 
 The ember "Copy prompt" button is the page's one primary action and is always
-in the toolbar. Beside it, two choices for what the agent should do, each with
-its sentence in the tooltip:
-
-- **Add** (default). "Your agent adds it to your Locust as a private draft and
-  asks you before publishing."
-- **Check.** "Your agent checks it with Locust and explains it. Nothing is
-  saved."
-
-After copying, the button says "Copied" and a note says "Copied. Paste it into
-your agent." The eye button shows the full prompt with its size; a failed copy
-opens it with the text selected. The set-up icon links to `/start`.
+in the toolbar. It copies the prompt that adds the blueprint as a private draft
+and asks before publishing. "Copy one that only checks" is a link beside it:
+the agent checks the blueprint with Locust and explains it, and nothing is
+saved. After copying, the button says "Copied" and a note says "Copied. Paste
+it into your agent." A failed copy opens the prompt with the text selected.
 
 ### 3.7 Keeping work
 
 - The browser keeps a list of saved blueprints (local storage, one record per
   blueprint). Opening a link, importing or starting over creates a new record;
-  nothing is replaced silently. "Saved in this browser" lists them with Delete,
-  in the side panel. A check beside the name means saved; an ember warning
-  means this browser is not keeping it.
-- "Copy link" puts the blueprint and its layout in the address after `#`,
-  compressed. The part after `#` is not sent to any server. Opening such a link
-  creates a new record and shows "Opened from a link. Read its names and advice
-  before you copy it."
+  nothing is replaced silently. A check beside the name means saved; an ember
+  warning means this browser is not keeping it.
+- "Copy a link to it" puts the blueprint and its name in the address after
+  `#`, compressed. The part after `#` is not sent to any server. Opening such a
+  link creates a new record and shows "Opened from a link. If someone else made
+  it, read its names before you copy it."
 - "Open a blueprint" accepts pasted JSON, a pasted agent reply containing the
   prompt's blueprint block, or a file.
-- "Download" saves the blueprint as JSON.
+- "Download as JSON" saves the blueprint.
+- The presentation record carries only the blueprint's name, under the page's
+  own key: `{"locust.farm": {"name": "…"}}`. Other keys in that record are kept.
 
 ### 3.8 Wording
 
-Contract words appear only under a problem's "Details" and in the prompt's data.
-The page says: "task type" only where named rule sets are listed; "runs" or
-"run by" for `runner`; "say the goal is finished" for `finish`; "pick one
-final answer" for `selection`; "advice" for `guidance`; "starting material"
-for `inputs`. Visible words are kept to names and one-word labels; sentences
-are in tooltips and the side panel.
+Contract words appear only under a problem's "Details" and in the prompt's
+data. The page says "member" and "anyone" for who takes part; "task" and
+"result" for the work; "counts" for a result that meets its rule; "approval"
+for an approving review; "picks" for `selection`; "close a task" for `finish`;
+"step" for a stage; "another kind of task" for a task type; "asks" for an
+offer. It never says "runner".
 
 ## 4. Look and feel
 
-The fork keeps Polaris's shapes and behaviour and uses the site's tokens:
-
-| Element | From Polaris | On the site |
-| --- | --- | --- |
-| Stage node | `NodeCapsule.svelte`: 216×46 capsule, round accent disc, title, right slot; selected nodes grow an overlay with chips; hover and selection light the rim | Same shapes; fill `--neutral-900`, rim `--neutral-800`, text `--color-text`, accent disc and selected rim in ember; Martian Mono |
-| Settings panel | `InspectorPanel.svelte`: slide-over, header with the 40px accent disc and title, scrolling body, footer band with Delete and save state | Same structure; panel background `--neutral-950` with a hairline `--color-border`; labels in the site's label style |
-| Camera | `panelCamera.svelte.ts`: pans so the selected node stays visible beside the panel | Not kept: the owner wants the map to move only when they pan or zoom it. Each blueprint is framed once when it loads, and Fit frames it again |
-| Map ground | Dot grid, viewport controls | Dot grid in `--neutral-850`; a floating plate of icon buttons for zoom, fit and tidy |
-| Icons | Phosphor, regular weight | The same Phosphor icons, copied into `ui/icons.ts`, with a tooltip on every icon control |
-| Focus | Polaris's background change | The site's 1px ember outline |
-
-New tokens are added to [tokens](../sites/locust.farm/src/lib/styles/tokens.css)
-only when used: `--color-surface`, `--color-grid`, `--text-ui` and two motion
-durations.
+| Element | On the site |
+| --- | --- |
+| Points and rows | Square, hairline borders; the open point has the surface colour and an ember underline; a point with a problem has an ember outline |
+| Pictures | The cards' own marks: grey dots are work and results moving between members, ember marks a decision. A named circle is a role |
+| Side panel | Polaris's settings panel (`InspectorPanel.svelte`): slide-over, header with the 40px accent disc and title, one scrolling body, a footer only when there is something in it. Panel background `--neutral-950` with a hairline `--color-border` |
+| Icons | Phosphor, regular weight, copied into `ui/icons.ts`; an icon alone only for Undo, Redo, Close and the save mark, each with hover text |
+| Focus | The site's 1px ember outline |
 
 ## 5. Checks in TypeScript
 
@@ -307,31 +288,13 @@ must match exactly. A rule added to Locust without a case fails the export
 check, because the script requires every code in `validation.rs` to appear in
 some case's result.
 
-## 6. Canvas fork
+## 6. No canvas
 
-Forked once from `crates/polaris/frontend/src/lib/` at `01d8aa3c4` into
-`sites/locust.farm/src/lib/blueprint-editor/canvas/`. The site README lists
-each forked file with its source path and commit.
-
-| Forked | Change |
-| --- | --- |
-| `components/blueprint/nodes/NodeCapsule.svelte` | Became `StageNode.svelte`: same pill, disc, rims, ports and selected overlay; site tokens; no run states, inline rename or tooltips |
-| `components/blueprint/InspectorPanel.svelte` | Became `SidePanel.svelte`: same header, body and footer; site tokens; a labelled Close button |
-| `components/blueprint/FitViewBridge.svelte` | Became `FlowBridge.svelte`, trimmed to the hooks the map uses |
-| `workflow/layout.ts` | Became `layout.ts`: stages only, on `@dagrejs/dagre`, left to right |
-
-The map itself, its edges and the viewport controls are written for the site;
-the Polaris versions carried run, loop and depth behaviour the stage map does
-not need. There is no camera nudge: the map moves only when the person moves
-it.
-
-Not forked: everything tied to Merak's step graph, runs, loops, depth, the dock,
-haptics, the frame bar and the icon set. Any forked module that ends up unused
-is deleted before the work is committed.
-
-Dependencies added to the site: `@xyflow/svelte` 1.7.0 and `@dagrejs/dagre`
-3.1.1, plus `@playwright/test` for browser tests. The canvas and its CSS load
-only on `/blueprints`, after the page shell, so other pages stay unchanged.
+The first version forked Polaris's canvas for a map of stages. Decision 9
+replaced the map with rows, and the fork, `@xyflow/svelte` and `@dagrejs/dagre`
+were removed from the site. The side panel is still adapted from Polaris's
+settings panel at `dreamcolor10` `01d8aa3c4`; the site README records the
+source path.
 
 ## 7. The prompt
 
@@ -404,7 +367,7 @@ Each step is committed when its checks pass.
 | 2 | TypeScript checks (section 5) with tests against the vectors | `npm test` passes on every vector |
 | 3 | Editor model: document, edits with reference updates, undo, presets, plain summary, page checks for hidden characters | Unit tests pass, including layout changes leaving the blueprint unchanged |
 | 4 | Prompt builder, data blocks, extraction of pasted blocks, `docs/blueprint-prompt.md` | Prompt tests pass; the generated prompt's blocks validate with the real CLI |
-| 5 | Canvas fork and stage map with settings panel | The map works in a production build |
+| 5 | Canvas fork and stage map with settings panel | Done, then removed by decision 9 |
 | 6 | Page: ways of working with diagrams, rules panel, summary, problems, copy, saved blueprints, links, import | The six ways copy without edits; browser tests pass |
 | 7 | Site integration: header link, `llms.txt`, site README, docs page under "Author definitions", sitemap | Site checks pass |
 | 8 | Browser walkthrough of the first visit, a preset, a pipeline and copying, from a first-time user's point of view; fixes | Findings recorded in the research note |
@@ -415,8 +378,9 @@ change count, an awkward arrow label, the way cards' grid and the panel
 covering the map.
 
 A later [review](../research/blueprint-editor-review.md) of the built editor
-lists what a first-time person is likely to misread and proposes changes to the
-rule choices. It is a proposal; nothing in this plan has changed because of it.
+listed what a first-time person is likely to misread. The owner accepted its
+proposal the same day (decisions 9 to 13), and the page was rebuilt as section
+3 describes: the line of four points, steps as rows, no runner and no canvas.
 
 Testing with real first-time users is for the owner to run; the research note
 holds the script.
@@ -436,8 +400,8 @@ holds the script.
 | Risk | Answer |
 | --- | --- |
 | The TypeScript checks drift from Locust | Generated vectors; the export check fails on a code without a case; the agent re-checks with Locust |
-| People read arrows as automatic execution | The runner sentence under "In words"; arrow tooltips and stage settings say "starts when … is complete" |
+| People read steps as automatic execution | A step's first column says "Locust, after … has a result that counts"; the limits line says Locust does not start agents |
 | The six ways do not fit someone's team | Every choice stays editable; "Open a blueprint" accepts anything an agent writes |
 | Pasted prompts get cut or altered | Byte count, SHA-256, END lines and a final line |
 | Names or advice try to instruct the agent | They appear only inside data blocks; the prompt says they are data |
-| Polaris and the site drift apart | Accepted; the fork records its source commit |
+| Polaris and the site drift apart | Accepted; only the side panel remains from Polaris, and the site README records its source |

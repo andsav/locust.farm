@@ -405,7 +405,6 @@ function prerequisite(value: JsonValue, place: Place): Prerequisite {
 
 function stage(value: JsonValue, place: Place): Stage {
 	const out: Stage = {
-		runner: { kind: 'role', name: '' },
 		recipients: { kind: 'members' },
 		task_type: null,
 		requires: []
@@ -415,12 +414,11 @@ function stage(value: JsonValue, place: Place): Stage {
 		place,
 		'an object',
 		{
-			runner: (v, p) => (out.runner = authority(v, p)),
 			recipients: (v, p) => (out.recipients = selector(v, p)),
 			task_type: (v, p) => (out.task_type = v === null ? null : string(v, p)),
 			requires: (v, p) => (out.requires = list(v, p).map((r, i) => prerequisite(r, child(p, i))))
 		},
-		['runner']
+		[]
 	);
 	return out;
 }

@@ -3,6 +3,7 @@
 
 import contract from '../../../../../../docs/reference/generated/organization.contract.json' with { type: 'json' };
 import type { Blueprint } from '../contract/types.ts';
+import { blueprintData } from './document.ts';
 
 export interface WayOfWorking {
 	/** The Locust example name. */
@@ -20,28 +21,29 @@ export const WAYS_OF_WORKING: readonly WayOfWorking[] = [
 	{
 		id: 'coordinator',
 		title: 'Coordinator',
-		sentence: 'One person hands out work and accepts the results.'
+		sentence: 'One member asks others to do tasks and approves the results.'
 	},
 	{
 		id: 'peer-review',
 		title: 'Peer review',
-		sentence: 'Anyone can work on a task. Someone else has to approve it before it counts.'
+		sentence: 'Anyone can work on a task. Someone else has to approve a result before it counts.'
 	},
 	{
 		id: 'review-panel',
 		title: 'Review panel',
-		sentence: 'Several reviewers look at each result. It counts once enough of them approve.'
+		sentence: 'Two reviewers have to approve each result before it counts.'
 	},
 	{
 		id: 'independent-attempts',
 		title: 'Independent attempts',
 		sentence:
-			'Several people try the same task in their own way. A judge picks the result to use, and the other attempts are kept.'
+			'Several members try the same task in their own way. A judge picks the result to use, and the other results are kept.'
 	},
 	{
 		id: 'pipeline',
 		title: 'Pipeline',
-		sentence: 'Work moves through steps in order. Each step starts when the one before it is done.'
+		sentence:
+			'Tasks that Locust adds in order. Each one is added when the one before it has a result that counts.'
 	}
 ];
 
@@ -62,16 +64,15 @@ export function wayOfWorking(id: string | null): WayOfWorking | undefined {
 	return WAYS_OF_WORKING.find((way) => way.id === id);
 }
 
-/**
- * The way of working whose picture best shows a blueprint's rules: stages,
- * then handed-out work, then one final answer, then reviews. Used to draw the
- * map when a blueprint has no stages, so the picture follows the rules.
- */
-export function pictureFor(blueprint: Blueprint): string {
-	if (Object.keys(blueprint.flow).length > 0) return 'pipeline';
-	if (blueprint.work.starts.some((start) => start.kind === 'offered')) return 'coordinator';
-	if (blueprint.decisions.selection !== null) return 'independent-attempts';
-	const completion = blueprint.decisions.completion;
-	if (completion.kind === 'reviews') return completion.count > 1 ? 'review-panel' : 'peer-review';
-	return 'open';
+/** The rules alone: role descriptions are words about a role, not rules. */
+function rules(blueprint: Blueprint): string {
+	const data = blueprintData(blueprint);
+	return JSON.stringify({ ...data, roles: Object.keys(data.roles as object) });
+}
+
+const RULES = new Map(WAYS_OF_WORKING.map((way) => [rules(presetBlueprint(way.id)), way.id]));
+
+/** The way of working whose rules equal this blueprint's, if any. */
+export function matchingWay(blueprint: Blueprint): string | null {
+	return RULES.get(rules(blueprint)) ?? null;
 }

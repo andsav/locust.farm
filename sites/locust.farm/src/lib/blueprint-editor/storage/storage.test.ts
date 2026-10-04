@@ -21,7 +21,6 @@ test('saved blueprints are separate records listed newest first', () => {
 	const record = (id: string, saved: string) => ({
 		id,
 		name: id,
-		way: 'open',
 		origin: 'new' as const,
 		saved,
 		data: '{}'
@@ -50,10 +49,7 @@ test('a full or blocked store reports failure instead of throwing', () => {
 		},
 		removeItem: () => {}
 	};
-	assert.equal(
-		save(store, { id: 'x', name: '', way: null, origin: 'new', saved: '', data: '' }),
-		false
-	);
+	assert.equal(save(store, { id: 'x', name: '', origin: 'new', saved: '', data: '' }), false);
 });
 
 test('a share link round-trips a blueprint and its layout', async () => {

@@ -5,7 +5,6 @@
 export interface SavedRecord {
 	id: string;
 	name: string;
-	way: string | null;
 	origin: 'new' | 'link' | 'import';
 	saved: string;
 	/** The prompt's data blocks: blueprint and layout. */
@@ -20,7 +19,7 @@ export interface KeyValueStore {
 	removeItem(key: string): void;
 }
 
-const PREFIX = 'locust:blueprint-editor:1:';
+const PREFIX = 'locust:blueprint-editor:2:';
 const INDEX = `${PREFIX}index`;
 
 function readIndex(store: KeyValueStore): SavedSummary[] {
@@ -53,7 +52,6 @@ export function save(store: KeyValueStore, record: SavedRecord): boolean {
 		index.push({
 			id: record.id,
 			name: record.name,
-			way: record.way,
 			origin: record.origin,
 			saved: record.saved
 		});

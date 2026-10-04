@@ -122,7 +122,6 @@ export function pageChecks(blueprint: Blueprint): PageCheck[] {
 	}
 	for (const [name, stage] of Object.entries(blueprint.flow)) {
 		const base = `/flow/${escapePointer(name)}`;
-		if (stage.runner.kind === 'participant') person(`${base}/runner`);
 		selector(stage.recipients, `${base}/recipients`);
 	}
 	return out;

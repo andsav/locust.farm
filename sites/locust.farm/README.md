@@ -117,31 +117,27 @@ that has their coding agent add it to their Locust. The plan is in
 prompt's fixed text in [`docs/blueprint-prompt.md`](../../docs/blueprint-prompt.md).
 
 - The page is prerendered with its heading and explanation; the editor loads after
-  hydration, so xyflow and its CSS stay out of every other page.
+  hydration, so its code stays out of every other page.
 - `contract/` ports Locust's offline checks to TypeScript. A test runs them on
   every conformance vector that `scripts/check_blueprints.py` generates with the
   real CLI and requires the same codes, paths, messages and explanations.
 - `model/` holds the document and every edit, so references stay consistent when
-  roles, stages or task types are renamed or removed. `prompt/` builds the prompt
-  and reads pasted prompts, replies and JSON back. `storage/` keeps blueprints in
-  the browser and makes share links.
-- The canvas and side panel are forked from Polaris (dreamcolor10 at `01d8aa3c4`)
-  and restyled with this site's tokens. Forked or adapted files:
-
-  | Site file                  | Polaris source (`crates/polaris/frontend/src/lib/`)                 |
-  | -------------------------- | ------------------------------------------------------------------- |
-  | `canvas/FlowBridge.svelte` | `components/blueprint/FitViewBridge.svelte`, trimmed                |
-  | `canvas/StageNode.svelte`  | `components/blueprint/nodes/NodeCapsule.svelte`, adapted for stages |
-  | `canvas/layout.ts`         | `workflow/layout.ts`, adapted for stages                            |
-  | `ui/SidePanel.svelte`      | `components/blueprint/InspectorPanel.svelte`, adapted               |
-  | `ui/icons.ts`              | The Phosphor icons Polaris uses, from `@phosphor-icons/core` 2.1.1  |
-
-  The rest of the map is written for this site. Fixes cross between the two by
-  hand, only when they matter here.
-
+  roles, steps or kinds of task are renamed or removed. `model/line.ts` reads the
+  four answers of a line (who adds a task, who works on it, when a result counts,
+  whether one result is picked) from the blueprint and writes them back.
+  `prompt/` builds the prompt and reads pasted prompts, replies and JSON back.
+  `storage/` keeps blueprints in the browser and makes share links.
+- `ui/` draws the page: the six cards, the line of four points with a picture
+  at each (`diagrams.ts`), the box of choices under a point, the rows for steps
+  and other kinds of task, and one side panel. The side panel is adapted from
+  Polaris's settings panel (dreamcolor10 at `01d8aa3c4`,
+  `crates/polaris/frontend/src/lib/components/blueprint/InspectorPanel.svelte`)
+  and restyled with this site's tokens. `ui/icons.ts` holds the Phosphor icons
+  the page shows, from `@phosphor-icons/core` 2.1.1. There is no canvas.
 - `e2e/blueprints.spec.ts` drives the built page in Chromium: the first visit,
-  stages, keyboard connection, problems, share links, a phone viewport and the
-  page without JavaScript. When `target/debug/locust` exists it also checks that
+  the four points and their pictures, the card that matches the rules, roles made
+  in place, steps, other kinds of task, problems, share links, a phone viewport
+  and the page without JavaScript. When `target/debug/locust` exists it also checks that
   the copied prompt's blueprint passes `locust blueprint validate`. Install the
   browser once with `npx playwright install chromium`.
 

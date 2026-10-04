@@ -110,8 +110,8 @@ END OF LOCUST PROMPT
 The byte count and SHA-256 cover the UTF-8 bytes between the BEGIN and END
 lines, without the line break before the END line. They catch a cut or
 altered paste; they are not a signature. The layout is the presentation
-record Locust keeps beside a draft. The page writes its part under the key
-`locust.farm` and keeps other keys it finds.
+record Locust keeps beside a draft. The page writes its part, the blueprint's
+name, under the key `locust.farm` and keeps other keys it finds.
 
 ## Why the prompt does not start a goal
 

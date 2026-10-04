@@ -17,53 +17,13 @@
 	gap: 0.625rem;
 }
 
-.blueprint-editor .eyebrow {
-	color: var(--color-text-faint);
-	font: var(--text-label);
-	letter-spacing: var(--tracking-label);
-	text-transform: uppercase;
-}
-
 .blueprint-editor .muted {
 	color: var(--color-text-muted);
-}
-
-.blueprint-editor .help {
-	display: block;
-	color: var(--color-text-subtle);
 }
 
 .blueprint-editor .field {
 	display: grid;
 	gap: 0.25rem;
-}
-
-/* An icon in place of a written label; the question is in the icon's tooltip. */
-.blueprint-editor .field.inline {
-	grid-template-columns: auto minmax(0, 1fr);
-	gap: 0.5rem;
-	align-items: center;
-}
-
-.blueprint-editor .field.inline > label {
-	display: grid;
-	place-items: center;
-	width: 1.5rem;
-	color: var(--color-text-subtle);
-	cursor: help;
-}
-
-.blueprint-editor .field.inline.labelled {
-	grid-template-columns: 8.5rem minmax(0, 1fr);
-}
-
-.blueprint-editor .field.inline.labelled > label {
-	display: flex;
-	gap: 0.5rem;
-	align-items: center;
-	width: auto;
-	place-items: initial;
-	color: var(--color-text-muted);
 }
 
 .blueprint-editor .label {
@@ -148,43 +108,6 @@
 	accent-color: var(--color-accent);
 }
 
-.blueprint-editor .items {
-	display: grid;
-	gap: 0.625rem;
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.blueprint-editor .item {
-	display: grid;
-	gap: 0.5rem;
-	padding: 0.75rem;
-	border: var(--border-hairline);
-}
-
-.blueprint-editor .item.row {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-}
-
-.blueprint-editor .item-name {
-	flex: 1;
-	min-width: 6rem;
-}
-
-.blueprint-editor .item.row select {
-	width: auto;
-}
-
-.blueprint-editor .add {
-	display: grid;
-	grid-template-columns: 1fr auto;
-	gap: 0.5rem;
-	align-items: end;
-}
-
 .blueprint-editor .diagram .d-edge {
 	fill: none;
 	stroke: var(--color-border);
@@ -206,10 +129,6 @@
 	fill: var(--color-text-faint);
 	font: 400 8.5px var(--font-mono);
 	letter-spacing: 0.04em;
-}
-
-.blueprint-editor .diagram .d-note {
-	fill: var(--color-accent);
 }
 
 .blueprint-editor .diagram .d-stage-label {

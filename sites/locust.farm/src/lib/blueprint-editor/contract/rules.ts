@@ -213,7 +213,6 @@ class Validator {
 			const stage = value.flow[name];
 			const path = `/flow/${escapePointer(name)}`;
 			this.name(name, path);
-			this.authority(stage.runner, `${path}/runner`);
 			this.selector(stage.recipients, `${path}/recipients`, false, false);
 			if (stage.task_type !== null && !Object.hasOwn(value.task_types, stage.task_type)) {
 				this.error(

@@ -167,7 +167,6 @@ export function normalize(value: Blueprint): Blueprint {
 	const flow: Blueprint['flow'] = {};
 	for (const [name, stage] of Object.entries(value.flow)) {
 		flow[name] = {
-			runner: authority(stage.runner),
 			recipients: selector(stage.recipients),
 			task_type: stage.task_type,
 			requires: asSet(stage.requires, encodePrerequisite)

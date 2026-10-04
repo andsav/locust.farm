@@ -73,12 +73,11 @@ export function openText(text: string): Opened {
 		document: {
 			name: read.name ?? '',
 			blueprint: decoded.blueprint,
-			layout: read.layout,
-			way: read.way
+			others: read.others
 		},
 		note:
 			layout !== null && presentationValue === null
-				? 'The layout could not be read, so stages are placed automatically.'
+				? 'The name could not be read, so the blueprint is untitled.'
 				: null
 	};
 }

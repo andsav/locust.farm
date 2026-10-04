@@ -1,88 +1,298 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { inspect, inspectBlueprint } from '../contract/inspect.ts';
-import { doneAnswer, setDoneAnswer, setStartAnswer, startAnswer } from './answers.ts';
 import { pageChecks, withoutHiddenCharacters } from './checks.ts';
 import { blueprintText, presentation, readPresentation } from './document.ts';
 import {
-	addRequirement,
 	addRole,
-	addStage,
 	applyWay,
-	moveStage,
 	newDocument,
 	removeRole,
 	removeStage,
 	renameRole,
 	renameStage,
-	setStageCompletion,
-	setWork,
 	stageOrder,
 	wouldLoop
 } from './edit.ts';
 import { record, redo, startHistory, undo } from './history.ts';
-import { pictureFor, WAYS_OF_WORKING } from './presets.ts';
-import { summarize } from './words.ts';
+import {
+	addAnswer,
+	addKind,
+	addStep,
+	afterAnswer,
+	countsAnswer,
+	kinds,
+	lineRules,
+	MAIN,
+	pickAnswer,
+	sameAsMain,
+	setAdd,
+	setAfter,
+	setCounts,
+	setPick,
+	setWork,
+	useMain,
+	workAnswer,
+	type LineRef
+} from './line.ts';
+import { matchingWay, WAYS_OF_WORKING } from './presets.ts';
+import { phrase, summarize } from './words.ts';
+
+const valid = (document: { blueprint: Parameters<typeof inspectBlueprint>[0] }) =>
+	inspectBlueprint(document.blueprint).valid;
 
 test('every way of working is a valid blueprint with Locust and with the page', () => {
 	for (const way of WAYS_OF_WORKING) {
 		const document = newDocument(way.id);
-		assert.ok(inspectBlueprint(document.blueprint).valid, way.id);
+		assert.ok(valid(document), way.id);
 		assert.ok(inspect(blueprintText(document.blueprint)).valid, way.id);
 	}
 });
 
-test('each way of working is drawn with its own picture, and the picture follows the rules', () => {
-	for (const way of WAYS_OF_WORKING) {
-		assert.equal(pictureFor(newDocument(way.id).blueprint), way.id);
-	}
-	const open = newDocument('open');
-	const reviewed = setDoneAnswer(open, {
-		kind: 'review',
-		by: { kind: 'members' },
-		count: 1,
-		excludeAuthor: true
-	});
-	assert.equal(pictureFor(reviewed.blueprint), 'peer-review');
-	const handedOut = setStartAnswer(open, { kind: 'handed-out', by: { kind: 'members' } });
-	assert.equal(pictureFor(handedOut.blueprint), 'coordinator');
-});
-
 test('the blueprint text round-trips through the strict loader', () => {
 	for (const way of WAYS_OF_WORKING) {
-		const document = newDocument(way.id);
-		const text = blueprintText(document.blueprint);
-		const result = inspect(text);
-		assert.ok(result.valid);
+		const text = blueprintText(newDocument(way.id).blueprint);
+		assert.ok(inspect(text).valid);
 		assert.equal(text.endsWith('\n'), false);
 		assert.equal(text.includes('\r'), false);
 	}
 });
 
-test('moving stages changes only the layout', () => {
-	const document = newDocument('pipeline');
-	const before = blueprintText(document.blueprint);
-	const moved = moveStage(document, 'draft', { x: 400, y: 120 });
-	assert.equal(blueprintText(moved.blueprint), before);
-	assert.deepEqual(presentation(moved)['locust.farm'], {
-		name: '',
-		way: 'pipeline',
-		stages: { draft: { x: 400, y: 120 } }
+test('each way of working is four answers', () => {
+	const answers = (id: string) => {
+		const rules = lineRules(newDocument(id).blueprint, MAIN);
+		return [
+			addAnswer(rules.work).kind,
+			workAnswer(rules.work).kind,
+			countsAnswer(rules.decisions.completion),
+			pickAnswer(rules.decisions).pick.kind
+		];
+	};
+	assert.deepEqual(answers('open'), [
+		'anyone',
+		'anyone',
+		{ kind: 'list', approvals: null, check: null },
+		'nobody'
+	]);
+	assert.deepEqual(answers('coordinator'), [
+		'anyone',
+		'asks',
+		{
+			kind: 'list',
+			approvals: { by: { kind: 'role', name: 'coordinator' }, count: 1, excludeAuthor: false },
+			check: null
+		},
+		'role'
+	]);
+	assert.deepEqual(answers('review-panel')[2], {
+		kind: 'list',
+		approvals: { by: { kind: 'role', name: 'reviewer' }, count: 2, excludeAuthor: true },
+		check: null
+	});
+	assert.equal(answers('independent-attempts')[3], 'role');
+});
+
+test('the lit card is the one whose rules match, whatever was clicked', () => {
+	for (const way of WAYS_OF_WORKING) {
+		assert.equal(matchingWay(newDocument(way.id).blueprint), way.id);
+	}
+	// Open with one approval is Peer review.
+	let document = setCounts(newDocument('open'), MAIN, {
+		kind: 'list',
+		approvals: { by: { kind: 'anyone' }, count: 1, excludeAuthor: true },
+		check: null
+	});
+	assert.equal(matchingWay(document.blueprint), 'peer-review');
+	// A role's description is not a rule.
+	document = addRole(newDocument('open'), 'judge');
+	document = setPick(document, MAIN, { pick: { kind: 'role', name: 'judge' } });
+	assert.equal(matchingWay(document.blueprint), 'independent-attempts');
+	// An arrangement no card shows.
+	document = setCounts(document, MAIN, {
+		kind: 'list',
+		approvals: { by: { kind: 'anyone' }, count: 2, excludeAuthor: true },
+		check: { name: 'tests', by: { kind: 'anyone' } }
+	});
+	assert.equal(matchingWay(document.blueprint), null);
+	assert.ok(valid(document));
+});
+
+test('approvals and a check combine, and are read back', () => {
+	const answer = {
+		kind: 'list' as const,
+		approvals: { by: { kind: 'anyone' as const }, count: 1, excludeAuthor: true },
+		check: { name: 'tests', by: { kind: 'anyone' as const } }
+	};
+	const document = setCounts(newDocument('open'), MAIN, answer);
+	assert.equal(document.blueprint.decisions.completion.kind, 'all');
+	assert.deepEqual(countsAnswer(document.blueprint.decisions.completion), answer);
+	assert.ok(valid(document));
+	assert.equal(
+		phrase(document.blueprint, MAIN, 'counts'),
+		'After 1 approval, not the author\'s and the check "tests" reported as passed.'
+	);
+	const none = setCounts(document, MAIN, { kind: 'list', approvals: null, check: null });
+	assert.deepEqual(none.blueprint.decisions.completion, {
+		kind: 'declaration',
+		by: { kind: 'contribution_author' }
 	});
 });
 
-test('the presentation keeps other tools keys and drops positions of missing stages', () => {
-	const read = readPresentation({
-		polaris: { zoom: 2 },
-		'locust.farm': { name: 'Sync', stages: { draft: { x: 1, y: 2 }, gone: { x: 0, y: 0 } } }
+test('who adds and who works are written as rules Locust enforces', () => {
+	let document = addRole(newDocument('open'), 'builder');
+	document = setWork(document, MAIN, { kind: 'role', name: 'builder' });
+	assert.deepEqual(document.blueprint.work.publish, { kind: 'role', name: 'builder' });
+	assert.deepEqual(workAnswer(document.blueprint.work), { kind: 'role', name: 'builder' });
+	document = setWork(document, MAIN, { kind: 'asks', by: { kind: 'role', name: 'builder' } });
+	assert.equal(workAnswer(document.blueprint.work).kind, 'asks');
+	assert.deepEqual(document.blueprint.work.publish, { kind: 'members' });
+	// No tasks: nobody adds them and nobody starts work.
+	document = setAdd(document, MAIN, { kind: 'none' });
+	assert.deepEqual(document.blueprint.work.starts, []);
+	assert.equal(workAnswer(document.blueprint.work).kind, 'none');
+	assert.ok(valid(document));
+	// Tasks again: someone can work on them.
+	document = setAdd(document, MAIN, { kind: 'anyone' });
+	assert.equal(workAnswer(document.blueprint.work).kind, 'anyone');
+});
+
+test('the pipeline is two steps, and only the draft has an answer of its own', () => {
+	const blueprint = newDocument('pipeline').blueprint;
+	assert.deepEqual(stageOrder(blueprint), ['draft', 'ship']);
+	const draft: LineRef = { kind: 'step', name: 'draft' };
+	const ship: LineRef = { kind: 'step', name: 'ship' };
+	assert.equal(sameAsMain(blueprint, draft, 'counts'), false);
+	assert.equal(sameAsMain(blueprint, draft, 'work'), true);
+	assert.equal(sameAsMain(blueprint, ship, 'counts'), true);
+	assert.deepEqual(afterAnswer(blueprint, 'draft'), { kind: 'start' });
+	assert.deepEqual(afterAnswer(blueprint, 'ship'), { kind: 'after', step: 'draft', picked: false });
+	assert.equal(phrase(blueprint, draft, 'counts'), "After 1 approval, not the author's.");
+	assert.equal(phrase(blueprint, ship, 'add'), 'Locust, after "draft" has a result that counts.');
+	assert.deepEqual(kinds(blueprint), []);
+});
+
+test('a step gets rules of its own only where it differs, and gives them up again', () => {
+	const added = addStep(newDocument('open'));
+	let document = added.document;
+	assert.equal(added.name, 'step');
+	assert.equal(document.blueprint.flow.step.task_type, null);
+	const step: LineRef = { kind: 'step', name: 'step' };
+	const approvals = { by: { kind: 'anyone' as const }, count: 1, excludeAuthor: true };
+	document = setCounts(document, step, { kind: 'list', approvals, check: null });
+	assert.equal(document.blueprint.flow.step.task_type, 'step');
+	assert.equal(document.blueprint.task_types.step.work, null);
+	assert.equal(document.blueprint.decisions.completion.kind, 'declaration');
+	assert.ok(valid(document));
+	document = useMain(document, step, 'counts');
+	assert.equal(document.blueprint.flow.step.task_type, null);
+	assert.deepEqual(document.blueprint.task_types, {});
+});
+
+test('a step keeps following the main rules at the points it did not change', () => {
+	let document = addRole(addStep(newDocument('open')).document, 'judge');
+	const step: LineRef = { kind: 'step', name: 'step' };
+	document = setCounts(document, step, {
+		kind: 'list',
+		approvals: { by: { kind: 'anyone' }, count: 1, excludeAuthor: true },
+		check: null
 	});
-	const document = { ...newDocument('pipeline'), layout: read.layout, name: read.name ?? '' };
-	const out = presentation(document);
-	assert.deepEqual(out.polaris, { zoom: 2 });
-	assert.deepEqual(out['locust.farm'], {
-		name: 'Sync',
-		way: 'pipeline',
-		stages: { draft: { x: 1, y: 2 } }
+	// The picker is set later, for any task; the step follows it.
+	document = setPick(document, MAIN, { pick: { kind: 'role', name: 'judge' } });
+	assert.deepEqual(lineRules(document.blueprint, step).decisions.selection, {
+		kind: 'role',
+		name: 'judge'
+	});
+	assert.equal(sameAsMain(document.blueprint, step, 'pick'), true);
+	assert.equal(sameAsMain(document.blueprint, step, 'counts'), false);
+});
+
+test('new steps wait for the one before; a later step waits for a pick when someone picks', () => {
+	let document = addRole(newDocument('open'), 'judge');
+	document = addStep(document).document;
+	document = addStep(document).document;
+	assert.deepEqual(stageOrder(document.blueprint), ['step', 'step 2']);
+	assert.deepEqual(document.blueprint.flow['step 2'].requires, [
+		{ stage: 'step', evidence: 'completion' }
+	]);
+	document = setPick(
+		document,
+		{ kind: 'step', name: 'step' },
+		{ pick: { kind: 'role', name: 'judge' } }
+	);
+	assert.deepEqual(document.blueprint.flow['step 2'].requires, [
+		{ stage: 'step', evidence: 'selection' }
+	]);
+	assert.ok(valid(document));
+	document = setPick(document, { kind: 'step', name: 'step' }, { pick: { kind: 'nobody' } });
+	assert.equal(document.blueprint.flow['step 2'].requires[0].evidence, 'completion');
+	assert.ok(valid(document));
+});
+
+test('who a step is sent to follows who works on it', () => {
+	let document = addRole(addStep(newDocument('open')).document, 'builder');
+	const step: LineRef = { kind: 'step', name: 'step' };
+	document = setWork(document, step, { kind: 'role', name: 'builder' });
+	assert.deepEqual(document.blueprint.flow.step.recipients, { kind: 'role', name: 'builder' });
+	document = useMain(document, step, 'work');
+	assert.deepEqual(document.blueprint.flow.step.recipients, { kind: 'members' });
+	assert.ok(valid(document));
+});
+
+test('renaming and removing steps keeps the order consistent', () => {
+	let document = renameStage(newDocument('pipeline'), 'draft', 'write');
+	assert.deepEqual(document.blueprint.flow.ship.requires, [
+		{ stage: 'write', evidence: 'completion' }
+	]);
+	// The step's own rules follow its name.
+	assert.equal(document.blueprint.flow.write.task_type, 'write');
+	assert.ok(Object.hasOwn(document.blueprint.task_types, 'write'));
+	assert.ok(valid(document));
+	document = removeStage(document, 'write');
+	assert.deepEqual(document.blueprint.flow.ship.requires, []);
+	assert.deepEqual(document.blueprint.task_types, {});
+	assert.ok(valid(document));
+});
+
+test('removing a step in the middle joins the steps around it', () => {
+	let document = addStep(newDocument('pipeline')).document;
+	assert.deepEqual(stageOrder(document.blueprint), ['draft', 'ship', 'step']);
+	document = removeStage(document, 'ship');
+	assert.deepEqual(document.blueprint.flow.step.requires, [
+		{ stage: 'draft', evidence: 'completion' }
+	]);
+});
+
+test('a step cannot wait for a step that waits for it', () => {
+	const document = newDocument('pipeline');
+	assert.equal(wouldLoop(document.blueprint, 'ship', 'draft'), true);
+	assert.equal(setAfter(document, 'draft', 'ship'), document);
+	assert.equal(wouldLoop(document.blueprint, 'draft', 'ship'), false);
+	assert.deepEqual(setAfter(document, 'ship', null).blueprint.flow.ship.requires, []);
+});
+
+test('another kind of task follows the main rules until a point is changed', () => {
+	const added = addKind(addRole(newDocument('open'), 'security'));
+	let document = added.document;
+	assert.equal(added.name, 'kind');
+	const kind: LineRef = { kind: 'kind', name: 'kind' };
+	assert.deepEqual(kinds(document.blueprint), ['kind']);
+	assert.equal(sameAsMain(document.blueprint, kind, 'counts'), true);
+	document = setCounts(document, kind, {
+		kind: 'list',
+		approvals: { by: { kind: 'role', name: 'security' }, count: 1, excludeAuthor: true },
+		check: null
+	});
+	assert.equal(sameAsMain(document.blueprint, kind, 'counts'), false);
+	assert.equal(document.blueprint.decisions.completion.kind, 'declaration');
+	assert.ok(valid(document));
+});
+
+test('the name is the only presentation the page keeps, beside other tools keys', () => {
+	const read = readPresentation({ polaris: { zoom: 2 }, 'locust.farm': { name: 'Sync' } });
+	const document = { ...newDocument('pipeline'), others: read.others, name: read.name ?? '' };
+	assert.deepEqual(presentation(document), {
+		polaris: { zoom: 2 },
+		'locust.farm': { name: 'Sync' }
 	});
 });
 
@@ -90,7 +300,7 @@ test('renaming a role rewrites every rule that names it', () => {
 	const document = renameRole(newDocument('coordinator'), 'coordinator', 'lead');
 	const text = blueprintText(document.blueprint);
 	assert.equal(text.includes('"coordinator"'), false);
-	assert.ok(inspectBlueprint(document.blueprint).valid);
+	assert.ok(valid(document));
 	assert.deepEqual(Object.keys(document.blueprint.roles), ['lead']);
 });
 
@@ -100,87 +310,36 @@ test('removing a role leaves its rules to nobody, never to everyone', () => {
 	assert.equal(document.blueprint.decisions.finish, null);
 	const completion = document.blueprint.decisions.completion;
 	assert.equal(completion.kind === 'reviews' && completion.by.kind, 'nobody');
-	assert.equal(inspectBlueprint(document.blueprint).valid, false);
-});
-
-test('renaming and removing stages keeps prerequisites consistent', () => {
-	let document = moveStage(newDocument('pipeline'), 'draft', { x: 0, y: 0 });
-	document = renameStage(document, 'draft', 'write');
-	assert.deepEqual(document.blueprint.flow.review.requires, [
-		{ stage: 'write', evidence: 'completion' }
-	]);
-	assert.deepEqual(document.layout.stages, { write: { x: 0, y: 0 } });
-	assert.ok(inspectBlueprint(document.blueprint).valid);
-	document = removeStage(document, 'write');
-	assert.deepEqual(document.blueprint.flow.review.requires, []);
-	assert.ok(inspectBlueprint(document.blueprint).valid);
-});
-
-test('a connection that would make a stage wait for itself is refused', () => {
-	const document = newDocument('pipeline');
-	assert.equal(wouldLoop(document.blueprint, 'review', 'draft'), true);
-	assert.equal(addRequirement(document, 'review', 'draft', 'completion'), document);
-	assert.equal(wouldLoop(document.blueprint, 'draft', 'review'), false);
-});
-
-test('new stages get a runner role and start in order', () => {
-	let document = newDocument('open');
-	document = addStage(document, 'design', { x: 0, y: 0 });
-	document = addStage(document, 'build', { x: 300, y: 0 });
-	document = addRequirement(document, 'design', 'build', 'completion');
-	assert.ok(Object.hasOwn(document.blueprint.roles, 'runner'));
-	assert.deepEqual(stageOrder(document), ['design', 'build']);
-	assert.ok(inspectBlueprint(document.blueprint).valid);
-});
-
-test('a stage with its own done rule gets a task type named after it', () => {
-	let document = addStage(newDocument('open'), 'review', null);
-	document = setStageCompletion(document, 'review', {
-		kind: 'reviews',
-		by: { kind: 'members' },
-		count: 1,
-		exclude_author: true
-	});
-	assert.equal(document.blueprint.flow.review.task_type, 'review');
-	assert.equal(document.blueprint.task_types.review.decisions?.completion.kind, 'reviews');
-	assert.ok(inspectBlueprint(document.blueprint).valid);
-	document = setStageCompletion(document, 'review', null);
-	assert.equal(document.blueprint.flow.review.task_type, null);
-	assert.equal(Object.hasOwn(document.blueprint.task_types, 'review'), false);
-});
-
-test('answers are read back from the blueprint', () => {
-	assert.deepEqual(startAnswer(newDocument('open').blueprint.work.starts), { kind: 'anyone' });
-	assert.equal(startAnswer(newDocument('coordinator').blueprint.work.starts).kind, 'handed-out');
-	assert.deepEqual(doneAnswer(newDocument('open').blueprint.decisions.completion), {
-		kind: 'self'
-	});
-	const review = doneAnswer(newDocument('peer-review').blueprint.decisions.completion);
-	assert.equal(review.kind, 'review');
-	let document = setStartAnswer(newDocument('open'), { kind: 'nobody' });
-	assert.deepEqual(document.blueprint.work.starts, []);
-	document = setDoneAnswer(document, {
-		kind: 'review',
-		by: { kind: 'members' },
-		count: 2,
-		excludeAuthor: true
-	});
-	assert.equal(doneAnswer(document.blueprint.decisions.completion).kind, 'review');
+	assert.equal(valid(document), false);
 });
 
 test('the summary is plain', () => {
-	const lines = summarize(newDocument('open')).map((line) => line.text);
+	const lines = summarize(newDocument('open').blueprint).map((line) => line.text);
 	assert.deepEqual(lines, [
-		'Everyone in the goal takes part on equal terms.',
-		'Anyone in the goal can suggest tasks and share findings.',
-		'Anyone in the goal can start working on a task. Several people may work on the same task.',
-		'A task is done when the person who did it says so.',
-		'Every result that is done is kept. Nobody picks a single final answer.',
-		'Nobody can say the goal is finished. It stays open.'
+		'There are no roles. Every member takes part on equal terms.',
+		'Any member can add tasks.',
+		'Any member can work on a task. There is no lock: two members can work on the same task.',
+		'A result counts when its author says so.',
+		'Nobody picks one result. Every result that counts stays.'
 	]);
+	const pipeline = summarize(newDocument('pipeline').blueprint).map((line) => line.text);
+	assert.ok(
+		pipeline.includes(
+			'Step "draft": Locust adds this task at the start. A result counts when it has 1 approval, not the author\'s.'
+		)
+	);
+	assert.ok(
+		pipeline.includes(
+			'Step "ship": Locust adds this task after "draft" has a result that counts. It follows the rules for any task.'
+		)
+	);
 	for (const way of WAYS_OF_WORKING) {
-		for (const line of summarize(newDocument(way.id))) {
-			assert.doesNotMatch(line.text, /variation|closure|materiali|selector|predicate/i, way.id);
+		for (const line of summarize(newDocument(way.id).blueprint)) {
+			assert.doesNotMatch(
+				line.text,
+				/variation|closure|materiali|selector|predicate|runner|stage/i,
+				way.id
+			);
 		}
 	}
 });
@@ -188,14 +347,14 @@ test('the summary is plain', () => {
 test('undo and redo walk the history', () => {
 	let history = startHistory(newDocument('open'));
 	history = record(history, applyWay(history.present, 'pipeline'));
-	history = record(history, setWork(history.present, { starts: [] }));
+	history = record(history, setAdd(history.present, MAIN, { kind: 'none' }));
 	assert.equal(history.past.length, 2);
 	history = undo(history);
-	assert.equal(history.present.way, 'pipeline');
+	assert.equal(matchingWay(history.present.blueprint), 'pipeline');
 	history = undo(history);
-	assert.equal(history.present.way, 'open');
+	assert.equal(matchingWay(history.present.blueprint), 'open');
 	history = redo(history);
-	assert.equal(history.present.way, 'pipeline');
+	assert.equal(matchingWay(history.present.blueprint), 'pipeline');
 	assert.equal(record(history, history.present), history);
 });
 
@@ -216,15 +375,12 @@ test('serialization escapes characters that could hide or break lines', () => {
 	assert.ok(Object.hasOwn(parsed.roles, 'a\u{2028}b\u{E0041}'));
 });
 
-test('a reopened way of working shows no changes', async () => {
+test('a reopened way of working is still that way of working', async () => {
 	const { blocks } = await import('../prompt/prompt.ts');
 	const { openText } = await import('../prompt/open.ts');
-	const { changedFromWay } = await import('./answers.ts');
 	for (const way of WAYS_OF_WORKING) {
-		const document = newDocument(way.id);
-		const opened = openText((await blocks(document)).text);
+		const opened = openText((await blocks(newDocument(way.id))).text);
 		assert.ok(opened.ok);
-		if (opened.ok)
-			assert.deepEqual(changedFromWay(opened.document, newDocument(way.id)), [], way.id);
+		if (opened.ok) assert.equal(matchingWay(opened.document.blueprint), way.id, way.id);
 	}
 });

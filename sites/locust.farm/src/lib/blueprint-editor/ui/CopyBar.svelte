@@ -1,21 +1,15 @@
-<!-- What the agent should do, and the one copy button. -->
+<!-- The one copy button. -->
 <script lang="ts">
 	import { COPY_MESSAGES, copyText } from '../../onboarding/clipboard.ts';
-	import type { BuiltPrompt, Intent } from '../prompt/prompt.ts';
+	import type { BuiltPrompt } from '../prompt/prompt.ts';
 	import Icon from './Icon.svelte';
-	import type { IconName } from './icons.ts';
-	import { tip } from './tooltip.ts';
 
 	let {
 		prompt,
-		intent = $bindable(),
-		hasErrors,
 		blocked,
 		onfail
 	}: {
 		prompt: BuiltPrompt | null;
-		intent: Intent;
-		hasErrors: boolean;
 		/** Why copying waits, or null. */
 		blocked: string | null;
 		/** Copying failed: show the prompt so it can be copied by hand. */
@@ -25,24 +19,6 @@
 	let message = $state('');
 	let copied = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
-
-	const choices: { value: Intent; icon: IconName; text: string; tip: () => string }[] = [
-		{
-			value: 'add',
-			icon: 'plus',
-			text: 'Add',
-			tip: () =>
-				hasErrors
-					? 'Your agent saves it as an unfinished private draft and does not publish it.'
-					: 'Your agent adds it to your Locust as a private draft and asks you before publishing.'
-		},
-		{
-			value: 'check',
-			icon: 'magnifying-glass',
-			text: 'Check',
-			tip: () => 'Your agent checks it with Locust and explains it. Nothing is saved.'
-		}
-	];
 
 	async function copy() {
 		if (!prompt || blocked) return;
@@ -64,30 +40,7 @@
 </script>
 
 <div class="copy">
-	<div class="intent" role="radiogroup" aria-label="What should your agent do?">
-		{#each choices as choice (choice.value)}
-			<button
-				type="button"
-				role="radio"
-				aria-checked={intent === choice.value}
-				use:tip={{ label: choice.text, description: choice.tip() }}
-				onclick={() => (intent = choice.value)}
-			>
-				<Icon name={choice.icon} size={14} />
-				{choice.text}
-			</button>
-		{/each}
-	</div>
-	<button
-		type="button"
-		class="primary"
-		onclick={copy}
-		disabled={!prompt || blocked !== null}
-		use:tip={{
-			label: 'Copy prompt',
-			description: blocked ?? 'Paste it into your coding agent. It needs Locust on this computer.'
-		}}
-	>
+	<button type="button" class="primary" onclick={copy} disabled={!prompt || blocked !== null}>
 		<Icon name={copied ? 'check' : 'copy'} size={16} />
 		{copied ? 'Copied' : 'Copy prompt'}
 	</button>
@@ -100,34 +53,6 @@
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
-	}
-
-	.intent {
-		display: flex;
-		border: 1px solid var(--color-border);
-	}
-
-	.intent button {
-		display: flex;
-		gap: 0.375rem;
-		align-items: center;
-		min-height: 2.25rem;
-		padding: 0 0.625rem;
-		border: 0;
-		background: transparent;
-		color: var(--color-text-subtle);
-		font: var(--text-ui);
-		cursor: pointer;
-	}
-
-	.intent button[aria-checked='true'] {
-		background: var(--color-surface);
-		color: var(--color-text);
-	}
-
-	.intent button:focus-visible {
-		outline: 1px solid var(--color-accent);
-		outline-offset: -2px;
 	}
 
 	.primary {

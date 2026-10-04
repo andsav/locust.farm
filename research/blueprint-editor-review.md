@@ -1,7 +1,9 @@
 # Blueprint editor review: first-time understanding
 
-Date: 2026-10-04. **Status: review findings and a proposal. Nothing here is
-accepted or implemented.** It reviews the editor built from the
+Date: 2026-10-04. **Status: review findings and a proposal. The owner accepted
+the proposal the same day and the page was rebuilt; see "Owner decisions and
+what was built" at the end. The findings describe the editor before that.** It
+reviews the editor built from the
 [blueprint editor plan](../docs/blueprint-authoring-plan.md) at commit
 `9e68cf5`, and extends the [blueprint authoring research](blueprint-authoring.md).
 
@@ -306,3 +308,49 @@ In rough order of value [I]:
 6. "Asks", or Locust's own word "offers"? The person's agent will say "offer".
 7. Keep the free stage canvas for flows that branch, or use rows in order?
 8. How does an agent learn there is work for it? The page needs one sentence.
+
+## Owner decisions and what was built
+
+The owner answered the first four open questions on 2026-10-04 and asked for
+the line of four points to be built.
+
+| Question | Decision |
+| --- | --- |
+| Is a member one person with all their agents, or one agent session? | One agent is one member. Whether one person runs several is not knowable and the setting is not adversarial. |
+| May the administrator run stages by default? | Yes. Administrator, starter and runner are the same. A separate runner was confusing. |
+| Should a step happen once per goal or once per task? | Left to the reviewer. Kept as it is: a step is one task that Locust adds. The four points already are the path every task takes, so a second, per-task meaning would say the same thing twice. |
+| Is an exclusive claim in scope? | Wanted, not built. The page says "No lock" until it exists. |
+
+Built, with their checks:
+
+- Locust: a stage has no runner and the goal's administrator signs stage
+  effects ([flow.rs](../crates/locust-core/src/goal/flow.rs)). The bundled
+  pipeline is a draft that needs one approval, then ship. Commit `cd9bf97`;
+  formatting, Clippy and 624 Rust tests pass. The `flow` grant is still needed
+  on the administrator's Locust and is not given at goal creation; that default
+  was not changed.
+- The page: the line of four points with pictures drawn from the rules, boxes
+  of full-phrase choices, roles made in place, steps and other kinds of task as
+  rows, the lit card chosen by rule equality, a combining list for when a
+  result counts, a File menu, and the limits in view. The rail, the More panel,
+  the stage canvas and its two packages were removed. Described in the
+  [plan](../docs/blueprint-authoring-plan.md), section 3. Lint, type check, 174
+  unit tests, the build and 15 browser tests pass, including one that runs the
+  copied blueprint through `locust blueprint validate`.
+
+Findings above that the rebuild does not address:
+
+- Closing the goal has no effect and advice is never shown (finding 1). The
+  page no longer offers either as a goal-level choice; it keeps them if a
+  blueprint from elsewhere has them and says so. The runtime is unchanged.
+- A step's task still has no title and no link to the result before it
+  (format change 2).
+- No runtime test covers `all` or `check` completion (format change 4). The
+  page now writes `all` for approvals with a check.
+- "Only one role works on a task" writes the start rule and the publish rule
+  together, which is the only gate the runtime has (format change 6).
+- At goal creation only the creator is a member, so single-member roles are the
+  creator until the rules are bound again.
+- Open questions 5 to 8 are still open. The page keeps "its author says so" as
+  the answer when nothing is ticked, and says "asks" where Locust says "offer".
+- Still not tested with real first-time users.

@@ -194,27 +194,17 @@ const DRAWINGS: Record<
 		still: 0.66,
 		draw(svg, cycle) {
 			const a = P(72, 90);
-			const r = [P(240, 38), P(252, 90), P(240, 142)];
+			const r = [P(244, 52), P(244, 128)];
 			r.forEach((p) => edge(svg, a, p, 0.06));
 			r.forEach((p) => node(svg, p));
 			node(svg, a, 9);
 			label(svg, a, 'author', 24);
-			label(svg, P(266, 90), 'reviewers', 3, 'start');
+			label(svg, P(244, 90), 'reviewers', 3, 'middle');
 			r.forEach((p) => dot(svg, cycle, bent(a, p, 0.06), 0.04, 0.2, 'result'));
-			r.forEach((p, i) => glow(svg, cycle, p, 10, 0.2, [0.36, 0.48, 0.62][i]));
+			r.forEach((p, i) => glow(svg, cycle, p, 10, 0.2, [0.36, 0.5][i]));
 			dot(svg, cycle, bent(r[0], a, 0.06), 0.36, 0.5, 'decision', 2.4);
-			dot(svg, cycle, bent(r[2], a, 0.06), 0.48, 0.62, 'decision', 2.4);
-			pulse(svg, cycle, a, 0.62, 9, 20);
-			const note = label(svg, a, '2 of 3 approved', -20);
-			note.setAttribute('class', 'd-label d-note');
-			note.setAttribute('opacity', '0');
-			el(note, 'animate', {
-				attributeName: 'opacity',
-				dur: `${cycle}s`,
-				repeatCount: 'indefinite',
-				values: '0;0;1;1;0',
-				keyTimes: times([0, 0.63, 0.66, 0.92, 0.96])
-			});
+			dot(svg, cycle, bent(r[1], a, 0.06), 0.5, 0.64, 'decision', 2.4);
+			pulse(svg, cycle, a, 0.64, 9, 20);
 		}
 	},
 	'independent-attempts': {
@@ -259,12 +249,12 @@ const DRAWINGS: Record<
 		cycle: 8,
 		still: 0.5,
 		draw(svg, cycle) {
-			const W = 62;
+			const W = 84;
 			const Y = 62;
 			const H = 52;
 			const rest = 100;
-			const xs = [16, 129, 242];
-			const boxes = ['draft', 'review', 'ship'].map((name, i) => {
+			const xs = [48, 188];
+			const boxes = ['draft', 'ship'].map((name, i) => {
 				el(svg, 'rect', { x: xs[i], y: Y, width: W, height: H, class: 'd-stage' });
 				const t = el(svg, 'text', {
 					x: xs[i] + W / 2,
@@ -275,17 +265,13 @@ const DRAWINGS: Record<
 				t.textContent = name;
 				return P(xs[i] + W / 2, rest);
 			});
-			[0, 1].forEach((i) => {
-				const x1 = xs[i] + W + 4;
-				const x2 = xs[i + 1] - 4;
-				el(svg, 'line', { x1, y1: 88, x2, y2: 88, class: 'd-arrow' });
-				el(svg, 'path', { d: `M${x2 - 5} 84 L${x2} 88 L${x2 - 5} 92`, class: 'd-arrow' });
-				label(svg, P((x1 + x2) / 2, 88), 'when done', -10);
-			});
+			const x1 = xs[0] + W + 6;
+			const x2 = xs[1] - 6;
+			el(svg, 'line', { x1, y1: 88, x2, y2: 88, class: 'd-arrow' });
+			el(svg, 'path', { d: `M${x2 - 5} 84 L${x2} 88 L${x2 - 5} 92`, class: 'd-arrow' });
 			const active: [number, number][] = [
-				[0.02, 0.3],
-				[0.4, 0.66],
-				[0.76, 0.96]
+				[0.04, 0.5],
+				[0.6, 0.94]
 			];
 			xs.forEach((x, i) => {
 				const hl = el(svg, 'rect', {
@@ -315,14 +301,15 @@ const DRAWINGS: Record<
 				dot(svg, cycle, `M${a.x} ${a.y} L${a.x + 0.01} ${a.y}`, t0, t1, 'result', 3);
 			const move = (a: P, b: P, t0: number, t1: number) =>
 				dot(svg, cycle, `M${a.x} ${a.y} L${b.x} ${b.y}`, t0, t1, 'result', 3);
-			move(P(-6, rest), boxes[0], 0, 0.04);
-			hold(boxes[0], 0.04, 0.3);
-			move(boxes[0], boxes[1], 0.3, 0.4);
-			hold(boxes[1], 0.4, 0.66);
-			move(boxes[1], boxes[2], 0.66, 0.76);
-			hold(boxes[2], 0.76, 0.96);
-			label(svg, P(160, 148), 'each step can have its own rules,', 0);
-			label(svg, P(160, 160), 'such as needing a review', 0);
+			move(P(-6, rest), boxes[0], 0, 0.06);
+			hold(boxes[0], 0.06, 0.5);
+			// The draft needs one approval before the next step is added.
+			const reviewer = P(boxes[0].x, 150);
+			node(svg, reviewer, 6);
+			dot(svg, cycle, bent(reviewer, boxes[0], 0), 0.3, 0.44, 'decision', 2.4);
+			pulse(svg, cycle, boxes[0], 0.44, 6, 16);
+			move(boxes[0], boxes[1], 0.5, 0.6);
+			hold(boxes[1], 0.6, 0.94);
 		}
 	}
 };
@@ -337,4 +324,177 @@ export function drawDiagram(svg: Svg, id: string) {
 		svg.pauseAnimations();
 		svg.setCurrentTime(drawing.cycle * drawing.still);
 	}
+}
+
+// The pictures on the line: one for each of the four points, drawn from the
+// current rules with their own role names and numbers. The four share one clock
+// and play in turn, left to right, so the line shows one task moving through
+// the rules.
+
+export type PointPicture =
+	| { point: 'add'; kind: 'anyone' | 'role' | 'none' | 'own'; role?: string }
+	| { point: 'work'; kind: 'anyone' | 'role' | 'asks' | 'none' | 'own'; role?: string }
+	| { point: 'counts'; approvals: number; reviewers?: string; check?: string; own?: boolean }
+	| { point: 'pick'; picks: boolean; role?: string };
+
+const LINE_CYCLE = 12;
+const ORDER = ['add', 'work', 'counts', 'pick'] as const;
+
+function short(text: string, max = 14): string {
+	return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function still(svg: Svg, tone: string, at: P, r = 3) {
+	el(svg, 'circle', { cx: at.x, cy: at.y, r, class: `d-dot d-${tone}` });
+}
+
+function diamond(svg: Svg, at: P, r = 9) {
+	el(svg, 'path', {
+		d: `M${at.x} ${at.y - r} L${at.x + r} ${at.y} L${at.x} ${at.y + r} L${at.x - r} ${at.y} Z`,
+		class: 'd-node d-lead'
+	});
+}
+
+/** Draws one point's picture into an empty SVG with a 240×120 view box. */
+export function drawPoint(svg: Svg, picture: PointPicture) {
+	svg.replaceChildren();
+	const cycle = LINE_CYCLE;
+	const slot = ORDER.indexOf(picture.point);
+	// This point's share of the clock; u runs from 0 to 1 inside it.
+	const at = (u: number) => (slot + 0.04 + u * 0.9) / ORDER.length;
+	const span = (u: number) => (u * 0.9) / ORDER.length;
+
+	if (picture.point === 'add') {
+		const task = P(196, 60);
+		el(svg, 'circle', { cx: task.x, cy: task.y, r: 9, class: 'd-ring d-busy' });
+		label(svg, task, 'task', 22);
+		if (picture.kind === 'role') {
+			const lead = P(56, 60);
+			edge(svg, lead, task);
+			node(svg, lead, 10, true);
+			label(svg, lead, short(picture.role ?? ''), 25);
+			dot(svg, cycle, bent(lead, task, 0), at(0.1), at(0.6));
+			glow(svg, cycle, task, 9, at(0.6), at(1), 'decision');
+		} else if (picture.kind === 'none') {
+			svg.replaceChildren();
+			const n = [P(70, 34), P(170, 34), P(120, 92)];
+			n.forEach((a, i) => n.slice(i + 1).forEach((b) => edge(svg, a, b)));
+			n.forEach((a) => node(svg, a));
+			dot(svg, cycle, bent(n[0], n[1], 0.1), at(0.05), at(0.4), 'result');
+			dot(svg, cycle, bent(n[1], n[2], 0.1), at(0.3), at(0.7), 'result');
+			dot(svg, cycle, bent(n[2], n[0], 0.1), at(0.55), at(0.95), 'result');
+		} else {
+			const n = [P(52, 28), P(40, 62), P(60, 94)];
+			n.forEach((a) => edge(svg, a, task));
+			n.forEach((a) => node(svg, a));
+			dot(svg, cycle, bent(n[1], task, 0), at(0.1), at(0.6));
+			glow(svg, cycle, task, 9, at(0.6), at(1), 'decision');
+		}
+	}
+
+	if (picture.point === 'work') {
+		if (picture.kind === 'asks') {
+			const hub = P(70, 60);
+			const w = [P(184, 26), P(196, 60), P(184, 94)];
+			w.forEach((p) => edge(svg, hub, p));
+			w.forEach((p) => node(svg, p));
+			node(svg, hub, 10, picture.role !== undefined);
+			if (picture.role !== undefined) label(svg, hub, short(picture.role), 25);
+			dot(svg, cycle, bent(hub, w[1], 0), at(0.1), at(0.45));
+			glow(svg, cycle, w[1], 10, at(0.45), at(1));
+		} else if (picture.kind === 'role') {
+			const n = [P(84, 40), P(156, 40), P(84, 86), P(156, 86)];
+			n.forEach((a, i) => node(svg, a, 7, i < 2));
+			label(svg, P(120, 40), short(picture.role ?? ''), -14);
+			dot(svg, cycle, `M10 40 L${n[0].x} ${n[0].y}`, at(0.05), at(0.4));
+			glow(svg, cycle, n[0], 10, at(0.4), at(1));
+		} else {
+			const n = [P(84, 32), P(164, 32), P(164, 92), P(84, 92)];
+			n.forEach((a, i) => n.slice(i + 1).forEach((b) => edge(svg, a, b)));
+			n.forEach((a) => node(svg, a));
+			if (picture.kind !== 'none') {
+				// The same task reaches two members: there is no lock.
+				dot(svg, cycle, `M10 62 L${n[0].x} ${n[0].y}`, at(0.05), at(0.4));
+				dot(svg, cycle, `M10 62 L${n[3].x} ${n[3].y}`, at(0.05), at(0.4));
+				glow(svg, cycle, n[0], 10, at(0.4), at(1));
+				glow(svg, cycle, n[3], 10, at(0.4), at(1));
+			} else {
+				dot(svg, cycle, bent(n[0], n[2], 0.1), at(0.1), at(0.6), 'result');
+				dot(svg, cycle, bent(n[1], n[3], 0.1), at(0.4), at(0.9), 'result');
+			}
+		}
+	}
+
+	if (picture.point === 'counts') {
+		const author = P(40, 60);
+		const column = 138;
+		const drawn = Math.min(picture.approvals, 3);
+		const marks: P[] = [];
+		const top = picture.check !== undefined ? 22 : 30;
+		const bottom = picture.check !== undefined ? 66 : 90;
+		for (let i = 0; i < drawn; i += 1) {
+			marks.push(
+				P(column, drawn === 1 ? (top + bottom) / 2 : top + ((bottom - top) * i) / (drawn - 1))
+			);
+		}
+		marks.forEach((p) => edge(svg, author, p, 0.05));
+		marks.forEach((p) => node(svg, p, 7, true));
+		if (drawn > 0) {
+			const words =
+				picture.approvals > drawn
+					? `${picture.approvals} approvals`
+					: (picture.reviewers ?? (drawn === 1 ? 'approves' : 'approve'));
+			label(svg, P(column + 14, marks[0].y), short(words, 13), 3, 'start');
+		}
+		const check = picture.check !== undefined ? P(column, drawn > 0 ? 98 : 60) : null;
+		if (check !== null) {
+			edge(svg, author, check, 0.05);
+			diamond(svg, check);
+			label(svg, P(column + 16, check.y), short(picture.check ?? '', 13), 3, 'start');
+		}
+		node(svg, author, 9);
+		label(svg, author, 'author', 24);
+		const all = check === null ? marks : [...marks, check];
+		if (all.length === 0) {
+			// Nothing else is needed: the author says so.
+			still(svg, 'result', P(82, 60));
+			pulse(svg, cycle, author, at(0.3), 9, 20, span(0.5));
+		} else {
+			all.forEach((p) => dot(svg, cycle, bent(author, p, 0.05), at(0.02), at(0.3), 'result'));
+			all.forEach((p, i) => {
+				const back = 0.36 + i * 0.12;
+				dot(svg, cycle, bent(p, author, 0.05), at(back), at(back + 0.26), 'decision', 2.4);
+			});
+			pulse(svg, cycle, author, at(0.36 + (all.length - 1) * 0.12 + 0.26), 9, 20, span(0.2));
+		}
+	}
+
+	if (picture.point === 'pick') {
+		const results = [P(64, 30), P(64, 60), P(64, 90)];
+		if (picture.picks) {
+			const judge = P(184, 60);
+			el(svg, 'path', { d: bent(judge, results[0], 0), class: 'd-chosen' });
+			node(svg, judge, 10, true);
+			label(svg, judge, short(picture.role ?? 'picks'), 25);
+			results.forEach((p) => still(svg, 'result', p, 3.5));
+			el(svg, 'circle', { cx: results[0].x, cy: results[0].y, r: 9, class: 'd-ring d-decision' });
+			pulse(svg, cycle, judge, at(0.2), 10, 22, span(0.4));
+			pulse(svg, cycle, results[0], at(0.5), 9, 18, span(0.4));
+		} else {
+			results.forEach((p) => still(svg, 'result', p, 3.5));
+			results.forEach((p, i) => glow(svg, cycle, p, 8, at(0.1 + i * 0.2), at(1)));
+		}
+	}
+
+	if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		svg.pauseAnimations();
+		svg.setCurrentTime(cycle * at(0.7));
+	}
+}
+
+/** Starts the four pictures of a line together, so they play in turn. */
+export function drawLine(svgs: Svg[], pictures: PointPicture[]) {
+	svgs.forEach((svg, index) => drawPoint(svg, pictures[index]));
+	if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+	svgs.forEach((svg) => svg.setCurrentTime(0));
 }

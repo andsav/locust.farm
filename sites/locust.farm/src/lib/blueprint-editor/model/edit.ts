@@ -8,30 +8,26 @@ import type {
 	Blueprint,
 	CompletionRule,
 	DecisionRules,
-	EvidenceKind,
 	Selector,
-	Stage,
 	StartRule,
 	WorkRules
 } from '../contract/types.ts';
-import { emptyLayout, type EditorDocument, type Point } from './document.ts';
+import type { EditorDocument } from './document.ts';
 import { DEFAULT_WAY, presetBlueprint } from './presets.ts';
 
-/** A new document holding a way of working, named after it. */
+/** A new document holding a way of working. */
 export function newDocument(id = DEFAULT_WAY): EditorDocument {
-	return { name: '', blueprint: presetBlueprint(id), layout: emptyLayout(), way: id };
+	return { name: '', blueprint: presetBlueprint(id), others: {} };
 }
 
 function clone(document: EditorDocument): EditorDocument {
 	return structuredClone(document);
 }
 
-/** Loads a way of working; the name and other layout keys are kept. */
+/** Loads a way of working; the name is kept. */
 export function applyWay(document: EditorDocument, id: string): EditorDocument {
 	const next = clone(document);
 	next.blueprint = presetBlueprint(id);
-	next.way = id;
-	next.layout.stages = {};
 	return next;
 }
 
@@ -107,9 +103,6 @@ function mapRoles(blueprint: Blueprint, from: string, to: string | null): Bluepr
 	}
 	for (const stage of Object.values(next.flow)) {
 		stage.recipients = mapSelector(stage.recipients, role) ?? { kind: 'nobody' };
-		if (stage.runner.kind === 'role' && stage.runner.name === from && to !== null) {
-			stage.runner = { kind: 'role', name: to };
-		}
 	}
 	return next;
 }
@@ -159,52 +152,11 @@ export function renameRole(document: EditorDocument, from: string, to: string): 
 /**
  * Removes a role. Rules that named only this role are left with nobody allowed
  * to act, never with a broader group, so Locust reports them as problems.
- * Stages it ran keep the name, which Locust reports as an unknown role.
  */
 export function removeRole(document: EditorDocument, name: string): EditorDocument {
 	const next = clone(document);
 	next.blueprint = mapRoles(next.blueprint, name, null);
 	delete next.blueprint.roles[name];
-	return next;
-}
-
-// Work and decisions at goal level.
-
-export function setWork(document: EditorDocument, work: Partial<WorkRules>): EditorDocument {
-	const next = clone(document);
-	next.blueprint.work = { ...next.blueprint.work, ...structuredClone(work) };
-	return next;
-}
-
-export function setDecisions(
-	document: EditorDocument,
-	decisions: Partial<DecisionRules>
-): EditorDocument {
-	const next = clone(document);
-	next.blueprint.decisions = { ...next.blueprint.decisions, ...structuredClone(decisions) };
-	return next;
-}
-
-export function setGuidance(document: EditorDocument, guidance: string): EditorDocument {
-	const next = clone(document);
-	next.blueprint.context.guidance = guidance;
-	return next;
-}
-
-export function setInput(
-	document: EditorDocument,
-	name: string,
-	input: { kind: 'text' | 'artifact'; required: boolean } | null,
-	renameTo?: string
-): EditorDocument {
-	const next = clone(document);
-	const inputs: Blueprint['context']['inputs'] = {};
-	for (const [key, value] of Object.entries(next.blueprint.context.inputs)) {
-		if (key !== name) inputs[key] = value;
-		else if (input !== null) inputs[renameTo ?? key] = input;
-	}
-	if (input !== null && !Object.hasOwn(next.blueprint.context.inputs, name)) inputs[name] = input;
-	next.blueprint.context.inputs = inputs;
 	return next;
 }
 
@@ -243,48 +195,15 @@ export function renameTaskType(document: EditorDocument, from: string, to: strin
 
 // Stages.
 
-/** A name not yet used by a stage: "step", "step 2", "step 3"… */
-export function freeStageName(blueprint: Blueprint, base = 'step'): string {
-	if (!Object.hasOwn(blueprint.flow, base)) return base;
+/** A name not yet used by a stage or a task type: "step", "step 2", "step 3"… */
+export function freeName(blueprint: Blueprint, base: string): string {
+	const taken = (name: string) =>
+		Object.hasOwn(blueprint.flow, name) || Object.hasOwn(blueprint.task_types, name);
+	if (!taken(base)) return base;
 	for (let index = 2; ; index += 1) {
 		const name = `${base} ${index}`;
-		if (!Object.hasOwn(blueprint.flow, name)) return name;
+		if (!taken(name)) return name;
 	}
-}
-
-/** The role a new stage is run by: an existing single-person role, or a new "runner" role. */
-function defaultRunner(blueprint: Blueprint): { authority: Authority; newRole: string | null } {
-	for (const stage of Object.values(blueprint.flow)) {
-		if (stage.runner.kind === 'role') return { authority: stage.runner, newRole: null };
-	}
-	return {
-		authority: { kind: 'role', name: 'runner' },
-		newRole: Object.hasOwn(blueprint.roles, 'runner') ? null : 'runner'
-	};
-}
-
-export function addStage(
-	document: EditorDocument,
-	name: string,
-	position: Point | null
-): EditorDocument {
-	if (Object.hasOwn(document.blueprint.flow, name)) return document;
-	const next = clone(document);
-	const runner = defaultRunner(next.blueprint);
-	if (runner.newRole !== null) {
-		next.blueprint.roles[runner.newRole] = {
-			description: 'The person whose Locust hands out stage work when it is ready.'
-		};
-	}
-	const stage: Stage = {
-		runner: runner.authority,
-		recipients: { kind: 'members' },
-		task_type: null,
-		requires: []
-	};
-	next.blueprint.flow[name] = stage;
-	if (position) next.layout.stages[name] = position;
-	return next;
 }
 
 export function renameStage(document: EditorDocument, from: string, to: string): EditorDocument {
@@ -295,7 +214,7 @@ export function renameStage(document: EditorDocument, from: string, to: string):
 	) {
 		return document;
 	}
-	const next = clone(document);
+	let next = clone(document);
 	const flow: Blueprint['flow'] = {};
 	for (const [name, stage] of Object.entries(next.blueprint.flow)) {
 		stage.requires = stage.requires.map((item) =>
@@ -304,37 +223,39 @@ export function renameStage(document: EditorDocument, from: string, to: string):
 		flow[name === from ? to : name] = stage;
 	}
 	next.blueprint.flow = flow;
-	if (Object.hasOwn(next.layout.stages, from)) {
-		next.layout.stages[to] = next.layout.stages[from];
-		delete next.layout.stages[from];
+	// A stage's own rules are a task type named after it; the name follows the stage.
+	const own = flow[to].task_type;
+	const shared = Object.values(flow).filter((stage) => stage.task_type === own).length > 1;
+	if (own === from && !shared && !Object.hasOwn(next.blueprint.task_types, to)) {
+		next = renameTaskType(next, from, to);
 	}
 	return next;
 }
 
+/** Removes a stage. Stages that waited for it wait for what it waited for. */
 export function removeStage(document: EditorDocument, name: string): EditorDocument {
-	const next = clone(document);
-	delete next.blueprint.flow[name];
-	delete next.layout.stages[name];
-	for (const stage of Object.values(next.blueprint.flow)) {
-		stage.requires = stage.requires.filter((item) => item.stage !== name);
-	}
-	return next;
-}
-
-export function moveStage(document: EditorDocument, name: string, position: Point): EditorDocument {
-	const next = clone(document);
-	next.layout.stages[name] = position;
-	return next;
-}
-
-export function setStage(
-	document: EditorDocument,
-	name: string,
-	change: Partial<Pick<Stage, 'runner' | 'recipients' | 'task_type'>>
-): EditorDocument {
 	if (!Object.hasOwn(document.blueprint.flow, name)) return document;
 	const next = clone(document);
-	next.blueprint.flow[name] = { ...next.blueprint.flow[name], ...structuredClone(change) };
+	const removed = next.blueprint.flow[name];
+	delete next.blueprint.flow[name];
+	for (const stage of Object.values(next.blueprint.flow)) {
+		if (!stage.requires.some((item) => item.stage === name)) continue;
+		const kept = stage.requires.filter((item) => item.stage !== name);
+		for (const item of removed.requires) {
+			if (!kept.some((other) => other.stage === item.stage && other.evidence === item.evidence)) {
+				kept.push({ ...item });
+			}
+		}
+		stage.requires = kept;
+	}
+	const own = removed.task_type;
+	if (
+		own === name &&
+		Object.hasOwn(next.blueprint.task_types, own) &&
+		!Object.values(next.blueprint.flow).some((stage) => stage.task_type === own)
+	) {
+		delete next.blueprint.task_types[own];
+	}
 	return next;
 }
 
@@ -353,105 +274,23 @@ function upstreamOf(blueprint: Blueprint, name: string): Set<string> {
 	return seen;
 }
 
-/** Whether "to starts when from …" would make a stage wait for itself. */
+/** Whether "to waits for from" would make a stage wait for itself. */
 export function wouldLoop(blueprint: Blueprint, from: string, to: string): boolean {
 	return from === to || upstreamOf(blueprint, from).has(to);
 }
 
-export function addRequirement(
-	document: EditorDocument,
-	from: string,
-	to: string,
-	evidence: EvidenceKind
-): EditorDocument {
-	const flow = document.blueprint.flow;
-	if (!Object.hasOwn(flow, from) || !Object.hasOwn(flow, to)) return document;
-	if (wouldLoop(document.blueprint, from, to)) return document;
-	if (flow[to].requires.some((item) => item.stage === from && item.evidence === evidence)) {
-		return document;
-	}
-	const next = clone(document);
-	next.blueprint.flow[to].requires.push({ stage: from, evidence });
-	return next;
-}
-
-export function removeRequirement(
-	document: EditorDocument,
-	to: string,
-	index: number
-): EditorDocument {
-	if (!Object.hasOwn(document.blueprint.flow, to)) return document;
-	const next = clone(document);
-	next.blueprint.flow[to].requires.splice(index, 1);
-	return next;
-}
-
-export function setRequirement(
-	document: EditorDocument,
-	to: string,
-	index: number,
-	change: { stage?: string; evidence?: EvidenceKind }
-): EditorDocument {
-	if (!Object.hasOwn(document.blueprint.flow, to)) return document;
-	const current = document.blueprint.flow[to].requires[index];
-	if (!current) return document;
-	const stage = change.stage ?? current.stage;
-	if (stage !== current.stage && wouldLoop(document.blueprint, stage, to)) return document;
-	const next = clone(document);
-	next.blueprint.flow[to].requires[index] = {
-		stage,
-		evidence: change.evidence ?? current.evidence
-	};
-	return next;
-}
-
-/**
- * Gives a stage its own "when is it done" rule. The rule is stored as a task
- * type named after the stage; passing null returns the stage to the default
- * rules and removes that task type if nothing else uses it.
- */
-export function setStageCompletion(
-	document: EditorDocument,
-	name: string,
-	completion: CompletionRule | null
-): EditorDocument {
-	if (!Object.hasOwn(document.blueprint.flow, name)) return document;
-	let next = clone(document);
-	const stage = next.blueprint.flow[name];
-	if (completion === null) {
-		const previous = stage.task_type;
-		stage.task_type = null;
-		if (previous !== null) {
-			const stillUsed = Object.values(next.blueprint.flow).some((s) => s.task_type === previous);
-			if (!stillUsed && previous === name) next = setTaskType(next, previous, null);
-		}
-		return next;
-	}
-	const taskTypeName = stage.task_type ?? name;
-	const existing = next.blueprint.task_types[taskTypeName];
-	next.blueprint.task_types[taskTypeName] = {
-		work: existing?.work ?? null,
-		decisions: {
-			...(existing?.decisions ?? structuredClone(next.blueprint.decisions)),
-			completion: structuredClone(completion)
-		}
-	};
-	stage.task_type = taskTypeName;
-	return next;
-}
-
-/** Stage names in the order the map and list show them: by position, then name. */
-export function stageOrder(document: EditorDocument): string[] {
-	const names = Object.keys(document.blueprint.flow);
+/** Stage names in the order the page lists them: by what they wait for, then by name. */
+export function stageOrder(blueprint: Blueprint): string[] {
+	const names = Object.keys(blueprint.flow);
 	const depth = new Map<string, number>();
 	const level = (name: string, trail: Set<string>): number => {
 		if (depth.has(name)) return depth.get(name)!;
 		if (trail.has(name)) return 0;
 		trail.add(name);
-		const requires = document.blueprint.flow[name]?.requires ?? [];
+		const requires = blueprint.flow[name]?.requires ?? [];
 		const value = requires.reduce(
 			(max, item) =>
-				Object.hasOwn(document.blueprint.flow, item.stage)
+				Object.hasOwn(blueprint.flow, item.stage)
 					? Math.max(max, level(item.stage, trail) + 1)
 					: max,
 			0

@@ -1,7 +1,6 @@
-// What the editor holds: the blueprint, the stage layout and the way of working
-// it started from. The layout is presentation only. It travels in Locust's
-// presentation record under the page's own key and never changes the
-// blueprint.
+// What the editor holds: the blueprint and its name. The name is presentation
+// only. It travels in Locust's presentation record under the page's own key and
+// never changes the blueprint.
 
 import { compareCodePoints } from '../contract/text.ts';
 import type {
@@ -14,79 +13,41 @@ import type {
 	WorkRules
 } from '../contract/types.ts';
 
-export interface Point {
-	x: number;
-	y: number;
-}
-
-export interface Layout {
-	stages: Record<string, Point>;
+export interface EditorDocument {
+	/** A short name, kept in the presentation record so the agent can name the draft. */
+	name: string;
+	blueprint: Blueprint;
 	/** Keys other tools wrote into the same presentation record; kept as they are. */
 	others: Record<string, unknown>;
 }
 
-export interface EditorDocument {
-	/** A short name, kept in the layout so the agent can name the draft. */
-	name: string;
-	blueprint: Blueprint;
-	layout: Layout;
-	/** The way of working last applied, if any. */
-	way: string | null;
-}
-
 export const LAYOUT_KEY = 'locust.farm';
-
-export function emptyLayout(): Layout {
-	return { stages: {}, others: {} };
-}
 
 /** The presentation record's JSON object for this document. */
 export function presentation(document: EditorDocument): Record<string, unknown> {
-	const stages: Record<string, Point> = {};
-	for (const name of Object.keys(document.layout.stages).sort(compareCodePoints)) {
-		if (Object.hasOwn(document.blueprint.flow, name)) {
-			const { x, y } = document.layout.stages[name];
-			stages[name] = { x: Math.round(x), y: Math.round(y) };
-		}
-	}
-	return {
-		...document.layout.others,
-		[LAYOUT_KEY]: { name: document.name, way: document.way, stages }
-	};
+	return { ...document.others, [LAYOUT_KEY]: { name: document.name } };
 }
 
 /** Reads a presentation record, keeping other tools' keys. */
 export function readPresentation(value: unknown): {
-	layout: Layout;
+	others: Record<string, unknown>;
 	name: string | null;
-	way: string | null;
 } {
-	const layout = emptyLayout();
+	const others: Record<string, unknown> = {};
 	let name: string | null = null;
-	let way: string | null = null;
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-		return { layout, name, way };
+		return { others, name };
 	}
 	for (const [key, item] of Object.entries(value)) {
 		if (key !== LAYOUT_KEY) {
-			layout.others[key] = item;
+			others[key] = item;
 			continue;
 		}
 		if (typeof item !== 'object' || item === null) continue;
 		const own = item as Record<string, unknown>;
 		if (typeof own.name === 'string') name = own.name;
-		if (typeof own.way === 'string') way = own.way;
-		const stages = own.stages;
-		if (typeof stages === 'object' && stages !== null) {
-			for (const [stage, point] of Object.entries(stages as Record<string, unknown>)) {
-				const p = point as Partial<Point> | null;
-				if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) {
-					layout.stages[stage] = { x: p.x as number, y: p.y as number };
-				}
-			}
-		}
 	}
-	return { layout, name, way };
+	return { others, name };
 }
 
 // Serialization in Rust field order, with map keys in code point order, so the
@@ -178,7 +139,6 @@ export function blueprintData(value: Blueprint): Record<string, unknown> {
 			decisions: taskType.decisions && decisions(taskType.decisions)
 		})),
 		flow: sortedRecord(value.flow, (stage) => ({
-			runner: authority(stage.runner),
 			recipients: selector(stage.recipients),
 			task_type: stage.task_type,
 			requires: stage.requires.map((item) => ({ stage: item.stage, evidence: item.evidence }))

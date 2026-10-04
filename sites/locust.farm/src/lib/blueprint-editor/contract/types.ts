@@ -65,7 +65,6 @@ export interface Prerequisite {
 }
 
 export interface Stage {
-	runner: Authority;
 	recipients: Selector;
 	task_type: string | null;
 	requires: Prerequisite[];

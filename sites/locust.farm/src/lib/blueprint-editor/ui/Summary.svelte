@@ -6,11 +6,11 @@
 	let {
 		lines,
 		explanation,
-		hasStages
+		hasSteps
 	}: {
 		lines: SummaryLine[];
 		explanation: Explanation | null;
-		hasStages: boolean;
+		hasSteps: boolean;
 	} = $props();
 </script>
 
@@ -19,10 +19,10 @@
 		{#each lines as line, index (index)}
 			<li>{line.text}</li>
 		{/each}
-		{#if hasStages}
+		{#if hasSteps}
 			<li>
-				When a stage is ready, the Locust of the person who runs it creates the task and sends it
-				out. Locust never starts an agent.
+				The Locust of whoever started the goal adds each step's task and sends it out. Locust never
+				starts an agent.
 			</li>
 		{/if}
 	</ul>
