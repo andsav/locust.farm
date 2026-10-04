@@ -28,4 +28,5 @@
 
 pub mod goal;
 pub mod node;
+pub mod organization;
 pub mod sync;

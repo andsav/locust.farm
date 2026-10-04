@@ -1,0 +1,272 @@
+//! Declarative organization definitions for offline authoring.
+//!
+//! These types do not grant local permissions or enable a goal runtime. They
+//! describe the shared contract which the core authoring validator checks.
+
+use std::collections::BTreeMap;
+
+use schemars::{JsonSchema, schema_for};
+use serde::{Deserialize, Serialize};
+
+/// The only organization definition format understood by this implementation.
+pub const SCHEMA_VERSION: u32 = 1;
+
+/// An agreement about work organization, independent of local execution.
+/// Membership and organization-rule administration belong to one separately
+/// authenticated goal administrator. Roles never grant that authority themselves.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Blueprint {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub roles: BTreeMap<String, Role>,
+    #[serde(default)]
+    pub context: Context,
+    #[serde(default)]
+    pub work: WorkRules,
+    #[serde(default)]
+    pub decisions: DecisionRules,
+    /// Explicitly delegated alternatives to the default task rules.
+    #[serde(default)]
+    pub variations: BTreeMap<String, TaskVariation>,
+    /// Optional named stages and their prerequisite evidence.
+    #[serde(default)]
+    pub flow: BTreeMap<String, Stage>,
+}
+
+impl Default for Blueprint {
+    fn default() -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            roles: BTreeMap::new(),
+            context: Context::default(),
+            work: WorkRules::default(),
+            decisions: DecisionRules::default(),
+            variations: BTreeMap::new(),
+            flow: BTreeMap::new(),
+        }
+    }
+}
+
+/// A reusable role slot. Actual members are bound when creating an instance.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Role {
+    #[serde(default)]
+    pub description: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Context {
+    /// Advisory instructions, versioned with the agreement. Never permissions.
+    #[serde(default)]
+    pub guidance: String,
+    #[serde(default)]
+    pub inputs: BTreeMap<String, Input>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Input {
+    pub kind: InputKind,
+    #[serde(default = "yes")]
+    pub required: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InputKind {
+    Text,
+    Artifact,
+}
+
+/// Eligibility within the pinned instance context, not a local tool grant.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Selector {
+    #[default]
+    Members,
+    Role {
+        name: String,
+    },
+    Participant {
+        key: String,
+    },
+    TaskCreator,
+    ContributionAuthor,
+    Any {
+        selectors: Vec<Selector>,
+    },
+    Nobody,
+}
+
+/// One scope-specific authority. A role used here must bind exactly one member.
+/// This is separate from membership administration and from local execution.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Authority {
+    Role { name: String },
+    Participant { key: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WorkRules {
+    #[serde(default)]
+    pub propose: Selector,
+    /// Publishing unattached findings does not require a task or attempt.
+    #[serde(default)]
+    pub publish: Selector,
+    /// An empty list allows contributions but no new task attempts.
+    #[serde(default = "independent_starts")]
+    pub starts: Vec<StartRule>,
+}
+
+fn independent_starts() -> Vec<StartRule> {
+    vec![StartRule::Independent {
+        by: Selector::Members,
+    }]
+}
+
+impl Default for WorkRules {
+    fn default() -> Self {
+        Self {
+            propose: Selector::Members,
+            publish: Selector::Members,
+            starts: independent_starts(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum StartRule {
+    Independent {
+        by: Selector,
+    },
+    /// An offer needs the recipient's acknowledgment; it does not launch work.
+    Offered {
+        by: Selector,
+        to: Selector,
+    },
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DecisionRules {
+    #[serde(default)]
+    pub completion: CompletionRule,
+    /// Approval alone never chooses one winner among qualifying contributions.
+    #[serde(default)]
+    pub selection: Option<Authority>,
+    /// An optional explicit closure decision; an empty board is not closure.
+    #[serde(default)]
+    pub closure: Option<Authority>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CompletionRule {
+    Contribution {
+        by: Selector,
+    },
+    Declaration {
+        by: Selector,
+    },
+    Reviews {
+        by: Selector,
+        #[schemars(range(min = 1))]
+        count: u32,
+        #[serde(default = "yes")]
+        exclude_author: bool,
+    },
+    /// A named attestor reports a check on the exact candidate. A label does
+    /// not prove the check ran independently or that a local command is allowed.
+    Check {
+        name: String,
+        by: Selector,
+    },
+    All {
+        rules: Vec<CompletionRule>,
+    },
+    Any {
+        rules: Vec<CompletionRule>,
+    },
+}
+
+impl Default for CompletionRule {
+    fn default() -> Self {
+        Self::Declaration {
+            by: Selector::ContributionAuthor,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TaskVariation {
+    /// Omitted groups inherit the goal definition's full corresponding group.
+    #[serde(default)]
+    pub work: Option<WorkRules>,
+    #[serde(default)]
+    pub decisions: Option<DecisionRules>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Stage {
+    #[serde(default)]
+    pub variation: Option<String>,
+    #[serde(default)]
+    pub requires: Vec<Prerequisite>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Prerequisite {
+    pub stage: String,
+    pub evidence: EvidenceKind,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceKind {
+    Publication,
+    Review,
+    Completion,
+    Selection,
+}
+
+/// Exported from the same types used by deserialization and validation.
+pub fn schema() -> serde_json::Value {
+    serde_json::to_value(schema_for!(Blueprint)).expect("JSON Schema is JSON serializable")
+}
+
+/// The semantic identity of a normalized current-format definition. This is
+/// distinct from the hash of encrypted bytes used to share it within a goal.
+pub fn semantic_hash(normalized: &Blueprint) -> String {
+    let bytes = crate::codec::encode(normalized).expect("blueprint is canonically encodable");
+    let mut hash = blake3::Hasher::new_derive_key("locust organization definition v1");
+    hash.update(&bytes);
+    hash.finalize().to_hex().to_string()
+}
+
+/// Display metadata is outside the semantic definition.
+#[derive(Clone, Debug, Serialize)]
+pub struct Preset {
+    pub name: String,
+    pub description: String,
+    pub blueprint: Blueprint,
+}
+
+mod presets;
+pub use presets::presets;
+
+mod contract;
+pub use contract::{OPERATIONS, Operation, contract};

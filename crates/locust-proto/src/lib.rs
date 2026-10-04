@@ -21,6 +21,7 @@ pub mod invite;
 pub mod limits;
 pub mod local;
 pub mod manifest;
+pub mod organization;
 pub mod seal;
 pub mod store;
 pub mod sync;

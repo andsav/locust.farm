@@ -290,6 +290,7 @@ pub(super) fn command() -> Command {
         .subcommand(super::install::commands())
         .subcommand(super::service::commands())
         .subcommand(super::setup::commands())
+        .subcommand(super::blueprint::commands())
         .subcommand(super::onboarding::up_command())
         .subcommand(group(
             "daemon",

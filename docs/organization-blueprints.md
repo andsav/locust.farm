@@ -3,11 +3,22 @@
 Date: 2026-10-04. **Status: accepted product direction and authoring requirements;
 runtime not implemented.** The [implementation plan](organization-blueprints-implementation-plan.md)
 now sequences the runtime, agent authoring, Polaris, and complete public manual.
-Implementation is authorized. The first delivery is offline JSON authoring,
-validation, explanation, schema export, and presets; it does not activate the
+Implementation is authorized. The first implemented slice is offline JSON authoring,
+validation, explanation, schema export, and six presets; it does not activate the
 new distributed runtime. Exact signed decision semantics remain engineering
 obligations with explicit proof gates. The current
 [protocol-1 coordinator behavior](protocol-v1.md) remains enforced until replaced.
+
+The installed `locust blueprint contract` command exports the schema, command
+catalog and examples without connecting to a daemon. Validation rejects unknown
+fields, duplicate keys, unresolved role references, invalid selector scopes,
+impossible explicit thresholds and static flow cycles. It normalizes defaults
+and unordered rule sets before deriving semantic identity. These are offline
+definition checks; required member/input bindings, local permissions and runtime
+proofs remain contextual checks. The enforcing implementation is
+[the pure validator](../crates/locust-core/src/organization.rs), with
+[behavioral tests](../crates/locust-core/src/organization/tests.rs) and
+[installed CLI tests](../crates/locust/tests/blueprints.rs).
 
 This decision follows the [organization blueprint research](../research/organization-blueprints.md)
 and the owner's agreement that agents must easily author blueprints and Polaris

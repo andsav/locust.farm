@@ -38,6 +38,8 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Rust tests
         run: cargo test --locked --workspace
+      - name: Authoring schema and example parity
+        run: python3 scripts/check_blueprints.py
       - name: Python helper tests
         run: python3 -m unittest discover -s scripts/tests
       - name: Documentation indexes and links

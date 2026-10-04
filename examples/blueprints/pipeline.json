@@ -1,0 +1,66 @@
+{
+  "context": {
+    "guidance": "",
+    "inputs": {}
+  },
+  "decisions": {
+    "closure": null,
+    "completion": {
+      "by": {
+        "kind": "contribution_author"
+      },
+      "kind": "declaration"
+    },
+    "selection": null
+  },
+  "flow": {
+    "draft": {
+      "requires": [],
+      "variation": null
+    },
+    "review": {
+      "requires": [
+        {
+          "evidence": "completion",
+          "stage": "draft"
+        }
+      ],
+      "variation": "reviewed"
+    }
+  },
+  "roles": {},
+  "schema_version": 1,
+  "variations": {
+    "reviewed": {
+      "decisions": {
+        "closure": null,
+        "completion": {
+          "by": {
+            "kind": "members"
+          },
+          "count": 1,
+          "exclude_author": true,
+          "kind": "reviews"
+        },
+        "selection": null
+      },
+      "work": null
+    }
+  },
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "by": {
+          "kind": "members"
+        },
+        "kind": "independent"
+      }
+    ]
+  }
+}

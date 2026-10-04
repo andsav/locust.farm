@@ -1,5 +1,6 @@
 //! Command-line client: explicit authority, one JSON envelope, typed API.
 mod args;
+mod blueprint;
 mod client;
 mod connection;
 mod doctor;
@@ -156,6 +157,9 @@ fn stdin_text() -> Result<String, Failure> {
 }
 fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let (operation, selected) = args::selected(matches);
+    if operation.starts_with("blueprint.") {
+        return blueprint::run(&operation, selected);
+    }
     if operation == "up" || operation == "agent.add" {
         return onboarding::run(matches, &operation, selected);
     }
