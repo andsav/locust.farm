@@ -356,9 +356,11 @@ contribution so frontend/backend work can proceed independently.
 
 ### Dedicated formation and collaboration path
 
-Author and validate one current-format demo formation with explicit roles, task
-types, review requirements, selection where a unique candidate is needed, and a
-single finish authority bound to the coordinator. The owner invokes that authority
+The [team-chat definition](../examples/demos/team-chat.json) implements the
+current-format demo rules with explicit roles, task types, non-author review,
+selection of exact prerequisite candidates and a single finish authority bound
+to the coordinator. It passes offline formation validation; live bindings and
+execution still require qualification. The owner invokes the finish authority
 for the final close after examining the result. Its staged graph is:
 
 ```text
