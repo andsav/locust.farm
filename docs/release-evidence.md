@@ -15,10 +15,10 @@ The repository owner decides release go/no-go and changes to required scope or s
 | R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Partial; gate open | A-C1 |
 | R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2; B-C5; B-C6 (scripted fixture only) |
 | R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2; B-C5; B-C6 (scripted fixture only) |
-| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7 (build helper only) |
+| R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7; A-C2 (identified candidate; installation still unqualified) |
 | R8 — Real collaboration | M6: two people/machines, mixed-client flows covering all four baseline clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
-| R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3; B-C4 (same-host direct/public relay) |
-| R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Not run | None |
+| R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3; B-C4; A-C1; A-C2 (same-host direct/public relay) |
+| R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Partial; gate open | A-C2 (exact local artifact only) |
 
 ## Partial component evidence — October 3
 
@@ -40,19 +40,21 @@ Exact reproduction commands, observations and remaining boundaries are in the [i
 
 **A-C1, relevant to R1–R5/R9 and T1:** `98dbb9c` fixes workspace export ancestry; `885b372` integrates the real core, SQLite daemon, CLI and Iroh peer synchronization. Workspace formatting, strict Clippy and 391 Rust tests pass (five explicit ignores); 63 Python helper tests pass. The [integration findings](../research/t1-integration-2026-10-03.md) retain a complete default-network three-process workflow and its earlier multicast-only failure, with exact debug hashes and event/route evidence. A separate key-only Mainline exchange passed. This is source/component and same-host multiprocess evidence, not public-artifact, three-Mac, sleep/wake, physical-power-loss or real-client qualification. The [lane A log](lane-a-log.md) maps the reviewed fixes and their enforcing tests.
 
+**A-C2, relevant to R7/R9/R10 and T1:** the pinned Apple Silicon release build from `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1` reports `locust 0.1.0 (3422c7b51948) api 0 protocol 0` and SHA-256 `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`. After independent identity/checksum verification, this exact artifact passed all 21 CLI workflow checks in 12.53 seconds. The [summary](../research/evidence/t1-release-local-2026-10-03.json) and [redacted transcript](../research/evidence/t1-release-local-2026-10-03.jsonl) retain joining, sealed task completion, coordinator-offline relay exchange, catch-up and restart evidence. All eight daemon generations exited cleanly. This is three processes on one Mac; public download, three Macs, OS sleep/wake, Developer ID signing and notarization remain unqualified. The [candidate record](t1-build.md) has the proposed download/start command.
+
 ## T1 preparation and run status
 
 The first integrated run uses one binary on the owner's three Apple Silicon Macs; the full sequence is in [workstreams](workstreams.md).
 
 | Required record | Current evidence |
 |---|---|
-| One identified `aarch64-apple-darwin` binary | Version/commit CLI implemented in `885b372`; identified release rebuild pending |
-| Published pre-release and first-run fetch/verify/start path | Not implemented or published; owner must instruct publication |
+| One identified `aarch64-apple-darwin` binary | Candidate from `3422c7b` passes all 21 local workflow checks; version and SHA-256 verified; see [candidate record](t1-build.md) |
+| Published pre-release and first-run fetch/verify/start path | Pinned download/start command prepared for proposed release-only repository; host choice and publication remain pending |
 | Matching downloaded version, commit and SHA-256 on all three Macs | Not run; publication pending |
-| Three members; observed peer routes | Local three-process pass; three-Mac run pending |
-| Propose → assign → claim → submit → inspect → accept; third peer observes history | Local three-process pass; three-Mac run pending |
-| Coordinator offline while other peers exchange notes; catch-up | Local pass after M3 restart, relay paths observed; three-Mac run pending |
-| Restart each daemon and sleeping-laptop reconnect | Local process restarts pass; physical restart/reconnect and OS sleep/wake pending |
+| Three members; observed peer routes | Exact release candidate passes locally; three-Mac run pending |
+| Propose → assign → claim → submit → inspect → accept; third peer observes history | Exact release candidate passes locally; three-Mac run pending |
+| Coordinator offline while other peers exchange notes; catch-up | Exact candidate passes after M3 restart, relay paths observed; three-Mac run pending |
+| Restart each daemon and sleeping-laptop reconnect | Exact candidate passes local process restarts; physical restart/reconnect and OS sleep/wake pending |
 
 
 ## Evidence record format

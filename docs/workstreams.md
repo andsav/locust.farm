@@ -1,6 +1,6 @@
 # Crates and workstreams
 
-Date: 2026-10-03. **Status: the persistent daemon, CLI, core, store and peer synchronization are integrated in `885b372`; the local three-process T1 workflow passes. The published build and three-Mac run remain open.** The repository owner approved the crate split and shared checkout without worktrees. One orchestrator now owns lanes A and B; lane C remains independent. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
+Date: 2026-10-03. **Status: the persistent daemon, CLI, core, store and peer synchronization are integrated in `885b372`; the exact release candidate from `3422c7b` passes all 21 local three-process T1 checks. The published build and three-Mac run remain open.** The repository owner approved the crate split and shared checkout without worktrees. One orchestrator now owns lanes A and B; lane C remains independent. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
 
 **Ownership update, October 3:** the owner has now assigned Lane A to Lane B's
 orchestrating session, including responsibility for completing and integrating

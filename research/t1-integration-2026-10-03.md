@@ -28,11 +28,19 @@ The owner's accepted configuration uses discovery across networks, with both loo
 - M1 restarted and caught up; each daemon then restarted with stable endpoint/principal identity, accepted task, content, notes and history.
 - All eight launched daemon generations stopped and were reaped cleanly.
 
-The exact debug image was SHA-256 `f7eca1f112ff7678a53a7f698479cf69b37871e69d08770766de6842519bb8c3`, reporting `locust 0.1.0 (98956f1728a2-dirty) api 0 protocol 0`. The working tree was not yet committed at that run, and subsequent held-content and directory-retry guards received their own tests. This result therefore qualifies that captured debug executable, not the later release artifact. The release artifact must repeat the harness after build identity verification.
+The exact debug image was SHA-256 `f7eca1f112ff7678a53a7f698479cf69b37871e69d08770766de6842519bb8c3`, reporting `locust 0.1.0 (98956f1728a2-dirty) api 0 protocol 0`. The working tree was not yet committed at that run, and subsequent held-content and directory-retry guards received their own tests. This result therefore qualifies that captured debug executable. The separate release-artifact run below includes those guards.
 
 Initial routes were direct and the coordinator-offline routes were relayed. Route snapshots describe the selected path at the time of observation; they do not independently identify the lookup service that supplied it. A separate Mainline-only component test, with no contact hints and n0 relays, completed an authenticated exchange in 6.41 seconds after an initial no-address retry. The finalized test at `885b372` passed again in 7.37 seconds and observed a selected relay path (73.49 ms RTT snapshot). That isolates a working Mainline path on this host; separate machines and networks remain unqualified.
 
 The harness never reads credential or session-secret bytes. Redaction review of 231 default-run and 270 failed-run transcript records found no raw invitation strings or unredacted secret fields. Tracked summaries omit private local paths. The transient invitation is handed to its intended join command and removed from retained command/output records.
+
+## Exact release-candidate run: all 21 checks passed
+
+The [identified Apple Silicon candidate](../docs/t1-build.md) was built from clean source commit `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1` using Rust 1.96.1. It reports `locust 0.1.0 (3422c7b51948) api 0 protocol 0`; its SHA-256 is `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`. The original bundle's hash was checked before and after qualification, and all subprocesses used one independently verified private copy.
+
+The [release run summary](evidence/t1-release-local-2026-10-03.json) and [redacted command transcript](evidence/t1-release-local-2026-10-03.jsonl) record all 21 checks passing in 12.53 seconds with daemon-default networking. Three principals joined; the encrypted task reached acceptance and M3 held the effective history; M2 and restarted M3 exchanged notes with M1 absent; M1 caught up; sequential restarts retained identities, task state and content. Initial selected routes were direct, and coordinator-offline routes were relayed. All eight daemon generations exited cleanly, with no forced cleanup. Temporary homes and the private executable copy were removed.
+
+Redaction review covered all 259 transcript records and the summary: no raw invitation strings, unredacted secret fields or private local paths remained. This is qualification of the exact release executable on three processes on one Mac. It does not establish public download, three physical Macs, OS sleep/wake or signed installation. The immutable build metadata keeps `qualification: not_run` because it describes the build helper's scope; this separate run record supplies runtime evidence.
 
 ## Reproduction and boundaries
 
