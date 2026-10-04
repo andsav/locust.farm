@@ -1,6 +1,6 @@
 # Simulating multi-machine tests on one computer — 2026-10-03
 
-**Status: both prototypes are built, run and saved as evidence; a second reviewer is still verifying the findings, and its verdicts will be added here.** Written by the independent reviewer (see the [candidate review](t1-candidate-independent-review.md)); no source was changed. The prototypes are in `evidence/multi-machine-simulation/`, listed in the [evidence index](evidence/README.md), for the owner of the source to adopt.
+**Status: both prototypes are built, run and saved as evidence, and every finding has been checked by a second reviewer; the verdicts are in the table under "Verdicts". Two of this note's earlier statements were wrong and are corrected there (SIM-3 and SIM-5).** Written by the independent reviewer (see the [candidate review](t1-candidate-independent-review.md)); no source was changed. The prototypes are in `evidence/multi-machine-simulation/`, listed in the [evidence index](evidence/README.md), for the owner of the source to adopt.
 
 The owner asked for the multi-machine tests to be simulated on one computer for everyday use, keeping real machines as a final gate. Two levels were built.
 
@@ -43,6 +43,24 @@ It cannot simulate separate network stacks and addresses, address translation, a
 ## What would let the simulation go further
 
 Small seams in the product, in order of value: the network shell's decisions as a state machine without I/O, shared by the daemon and the simulator, so level 1 stops re-implementing them; elapsed time at the engine seam, separate from the wall clock (this also fixes SIM-8); an override that disables direct paths, so the relay path is exercised on one host; a store for tests that can fail a chosen commit or lose its unflushed tail; and a read-only view of the peer driver's state for diagnosis.
+
+## Verdicts
+
+Each finding was reproduced or refuted by a second reviewer, with instrumented builds where needed.
+
+| ID | Verdict | Severity | Could real machines hit it | What verification added |
+|---|---|---|---|---|
+| SIM-6 | Product defect, a regression from `d253a07` | P2 | Yes | Confirmed on the real network shell over loopback connections, not only in the simulator. Over 30,000 fault-free join seeds the slowest join is 54 seconds on the current source against 23 on the candidate |
+| SIM-9 (new) | Product defect, also from `d253a07` | P2 | Not in the guide | Found while verifying SIM-6: outgoing dials and incoming connections that are not yet admitted share one pool of 7 permits, and a dial holds its permit for up to 30 seconds. One member that goes offline while sharing 8 goals made the daemon dial it 8 times at once; every incoming connection was then refused and a new join took 31 seconds instead of 0.15 |
+| SIM-4 | Product defect in the sense that nothing documents it | P2 | Not with the defaults | With lookup off, members other than the coordinator have no address for each other, so the guide's coordinator-offline step cannot pass whatever the ports. The guide's sentence that member keys are enough to attempt discovery does not hold under that override |
+| SIM-1 | Product defect | P3 | Not shown | The hang is in `endpoint.close().await`, not in the task teardown. After the process is frozen, acknowledgements wait in the socket buffer while the clock runs, so one round-trip sample of about 120 seconds drives the connection's smoothed round-trip estimate to 15 seconds; closing such a connection took 405 seconds. The same inflated estimate explains the 31-second catch-up after resuming. Whether a laptop's real sleep does the same is not known |
+| SIM-2 | Product defect | P3 | Yes, after a crash, a kill, a power loss or a force-quit | Confirmed with an instrumented build: the peer held two connections to the restarted daemon and opened its next exchange on the dead one, which ended exactly 30.0 seconds later. A clean `daemon stop` sends a close, so the guide's own restarts are not affected |
+| SIM-7 | Product defect | P3 | Yes, by seconds | Confirmed over 3,000 seeds. A completed exchange that the peer opened does not clear the backoff, although the driver's own comment says a completed exchange clears it |
+| SIM-8 | Product defect | P3 | Not in the guide | Confirmed; operating systems can step the clock, so it is a robustness gap and not only something a simulator can do |
+| SIM-5 | Product defect, narrower than first stated | P3 | Not with the defaults | **Correction:** it happens only when `LOCUST_BIND` is set. With the default bind every ticket carried a relay address from 0.3 seconds after start |
+| SIM-3 | **Harness artifact; withdrawn** | none | No | **Correction:** the 30 seconds the runner measured was not synchronization latency. After a coordinator restarted on a new port, notes were readable in both directions in 0.05 to 1.27 seconds in seven trials, with no stall from the stale ticket address. The runner timed `last_sync_ms`, which a member updates only on its own periodic exchange. One small real issue is underneath: an exchange that a peer opened ends on the accepting side as aborted, so `goal status` shows a stale last-synchronization time |
+
+Because SIM-3 is withdrawn, the row "Dialing with a remembered address" in the deadline table below is worth doing only for daemons run with lookup off; with lookup on, the transport consults discovery about 200 ms into a dial that has addresses.
 
 ## Findings to start on
 
