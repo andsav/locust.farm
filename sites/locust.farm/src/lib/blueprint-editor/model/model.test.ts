@@ -199,3 +199,16 @@ test('serialization escapes characters that could hide or break lines', () => {
 	const parsed = JSON.parse(text);
 	assert.ok(Object.hasOwn(parsed.roles, 'a\u{2028}b\u{E0041}'));
 });
+
+test('a reopened way of working shows no changes', async () => {
+	const { blocks } = await import('../prompt/prompt.ts');
+	const { openText } = await import('../prompt/open.ts');
+	const { changedFromWay } = await import('./answers.ts');
+	for (const way of WAYS_OF_WORKING) {
+		const document = newDocument(way.id);
+		const opened = openText((await blocks(document)).text);
+		assert.ok(opened.ok);
+		if (opened.ok)
+			assert.deepEqual(changedFromWay(opened.document, newDocument(way.id)), [], way.id);
+	}
+});

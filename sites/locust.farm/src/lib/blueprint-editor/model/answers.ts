@@ -2,7 +2,7 @@
 // the changes each answer makes. Answers are never stored separately.
 
 import type { CompletionRule, Selector, StartRule } from '../contract/types.ts';
-import type { EditorDocument } from './document.ts';
+import { blueprintData, type EditorDocument } from './document.ts';
 import { setDecisions, setWork } from './edit.ts';
 
 export type StartAnswer =
@@ -74,19 +74,19 @@ export function setDoneAnswer(document: EditorDocument, answer: DoneAnswer): Edi
 	return next === current ? document : setDecisions(document, { completion: next });
 }
 
-/** Which questions under "More choices" differ from the way of working the document started from. */
+/** Which areas differ from the way of working the document started from. Compared in a fixed key order. */
 export function changedFromWay(document: EditorDocument, way: EditorDocument | null): string[] {
 	if (way === null) return [];
-	const a = document.blueprint;
-	const b = way.blueprint;
+	const a = blueprintData(document.blueprint) as Record<string, Record<string, unknown>>;
+	const b = blueprintData(way.blueprint) as Record<string, Record<string, unknown>>;
 	const same = (x: unknown, y: unknown) => JSON.stringify(x) === JSON.stringify(y);
 	const changed: string[] = [];
-	if (!same(Object.keys(a.roles).sort(), Object.keys(b.roles).sort())) changed.push('roles');
+	if (!same(Object.keys(a.roles), Object.keys(b.roles))) changed.push('roles');
 	if (!same(a.work, b.work)) changed.push('work');
 	if (!same(a.decisions.completion, b.decisions.completion)) changed.push('done');
 	if (!same(a.decisions.selection, b.decisions.selection)) changed.push('final answer');
 	if (!same(a.decisions.finish, b.decisions.finish)) changed.push('finish');
-	if (a.context.guidance !== b.context.guidance) changed.push('advice');
+	if (!same(a.context.guidance, b.context.guidance)) changed.push('advice');
 	if (!same(a.context.inputs, b.context.inputs)) changed.push('starting material');
 	if (!same(a.task_types, b.task_types)) changed.push('task types');
 	if (!same(a.flow, b.flow)) changed.push('stages');

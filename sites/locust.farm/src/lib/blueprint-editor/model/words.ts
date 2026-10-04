@@ -94,12 +94,20 @@ export function doneClause(rule: CompletionRule): string {
 
 export const EVIDENCE_WORDS: Record<
 	EvidenceKind,
-	{ short: string; when: (stage: string) => string }
+	{ short: string; arrow: string; when: (stage: string) => string }
 > = {
-	publication: { short: 'has a published result', when: (s) => `"${s}" has a published result` },
-	review: { short: 'has a review', when: (s) => `"${s}" has a review` },
-	completion: { short: 'is complete', when: (s) => `"${s}" is complete` },
-	selection: { short: 'has a picked result', when: (s) => `a result of "${s}" is picked` }
+	publication: {
+		short: 'has a published result',
+		arrow: 'when published',
+		when: (s) => `"${s}" has a published result`
+	},
+	review: { short: 'has a review', arrow: 'after a review', when: (s) => `"${s}" has a review` },
+	completion: { short: 'is complete', arrow: 'when complete', when: (s) => `"${s}" is complete` },
+	selection: {
+		short: 'has a picked result',
+		arrow: 'when one is picked',
+		when: (s) => `a result of "${s}" is picked`
+	}
 };
 
 export const EVIDENCE_ORDER: readonly EvidenceKind[] = [
