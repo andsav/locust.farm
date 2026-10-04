@@ -32,10 +32,11 @@ satisfy their rule. A unique choice requires explicit scoped selection authority
 continue with its required proofs. Administrator changes wait; absence cannot
 mint permission or reassign authority.
 
-**Does the daemon advance a pipeline automatically?** The accepted target drives
+**Does the daemon advance a pipeline automatically?** The daemon drives
 explicitly configured transitions and durably delivers ready work. It does not
 invent transitions, launch without a local grant or promise to wake any closed
-remote harness. This runtime replacement is still being implemented.
+remote harness. Local tests exercise restart and logical effect deduplication; actual native
+launch still requires client-specific evidence.
 
 ## Glossary
 
@@ -54,7 +55,9 @@ remote harness. This runtime replacement is still being implemented.
 
 ## Development release notes
 
-The first documentation foundation adds manifest-selected reader articles, raw
-Markdown, contract/version inventory and local search. The first organization
-source slice exposes offline JSON authoring. No published release, completed
-replacement runtime, native Polaris editor or public deployment is claimed.
+The development runtime now uses API 2 / protocol 2 with organization rules,
+private drafts/publication, taskless contributions, independent attempts, scoped
+completion and durable flow. The site includes raw Markdown, versioned inventories,
+search and generated CLI/API/MCP/event references. Public software publication and
+website deployment remain unavailable. See the
+[implementation ledger](../organization-blueprints-status.md) for current evidence.

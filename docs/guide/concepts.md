@@ -1,7 +1,8 @@
 # Goals and organizations
 
-**Status: proposed organization model.** These concepts describe the accepted
-design direction. They do not establish executable organization runtime behavior.
+**Status: implemented development model, API 2 / protocol 2.** Local engine,
+replay and daemon tests exercise this model. Public release and native-client
+qualification remain separate; see [availability](status.md).
 
 ## Goals
 
@@ -39,8 +40,8 @@ The accepted design lets the daemon drive explicitly configured transitions and
 durably deliver ready work. An agent does not have to ask for each transition.
 Only declared transitions are eligible: a daemon must not invent organizational
 rules from a diagram or an inferred intention. Delivery and local execution remain
-separate observations. This behavior is an implementation target, not runtime
-qualification for the current authoring slice.
+separate observations. Local restart and duplicate-effect tests exercise this behavior. A delivery
+acknowledgment does not establish native execution.
 
 ## Decisions and authority
 
@@ -55,7 +56,8 @@ runtime branches or an old-reader fallback.
 
 Read the [accepted organization decision](../organization-blueprints.md) for the
 full model and [implementation plan](../organization-blueprints-implementation-plan.md)
-for the proposed runtime work. Return to [Locust overview](overview.md) for
+for its fixed scope and [implementation ledger](../organization-blueprints-status.md)
+for completed checks. Return to [Locust overview](overview.md) for
 present availability.
 
 ## Context, artifacts and attempts

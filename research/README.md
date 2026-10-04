@@ -143,3 +143,5 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Organization formal models](tla/organization.md): current governance, completion, scoped proof, local attempt and daemon-effect safety/mutation checks with explicit finite limits.
 
 - [Organization model verification evidence](evidence/tla/organization/README.md): all54 registered outcomes, full checker traces, bounded safety counts and precise verification limits.
+
+- [Current manual recipe qualification](documentation-qualification.md): exact executable Markdown journeys, binary/recipe hashes and local daemon/application evidence.

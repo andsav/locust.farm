@@ -1,18 +1,13 @@
 # Organization blueprint semantics and removal inventory
 
-Date: 2026-10-04. **Status: accepted authority approach with proposed protocol
-scenarios and outstanding engineering proofs.** Implementation is authorized.
+Date: 2026-10-04. **Status: accepted signed semantics and replacement inventory.**
 This document develops [the accepted direction](organization-blueprints.md) and
-[implementation plan](organization-blueprints-implementation-plan.md); it does
-not freeze a signed protocol or claim completed O0 qualification.
-
-The initial implementation slice is offline JSON authoring: types, validation,
-explanation, schema export, presets and CLI. A valid document is a structurally
-supported arrangement, not proof of membership, available authorities, durable
-publication, or a running goal. The currently executable
-[protocol 1](protocol-v1.md) remains unchanged by offline authoring. That temporary
-implementation boundary does not authorize retaining it when its replacement
-lands, adding a second runtime, or supporting old formats.
+[implementation plan](organization-blueprints-implementation-plan.md). API 2 /
+protocol 2 is implemented. The [execution ledger](organization-blueprints-status.md)
+records exact source checks and remaining qualification; this specification is
+not itself proof that every acceptance campaign has passed. The removal inventory
+records the inspected pre-cutover source and required replacements, not active
+legacy runtime support.
 
 ## Accepted authority boundaries
 

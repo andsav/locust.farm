@@ -1,8 +1,9 @@
 # Architecture and local boundaries
 
-**Status: accepted design; organization runtime replacement is in progress.**
+**Status: implemented development architecture, API 2 / protocol 2.**
 The daemon, local harness and distributed participants have separate duties.
-This page describes those boundaries rather than claiming runtime qualification.
+The [verification ledger](../organization-blueprints-status.md) names the tests
+and external boundaries for this implementation.
 
 ## The daemon is the authority
 

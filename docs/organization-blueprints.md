@@ -1,13 +1,13 @@
 # Organization blueprints: accepted direction
 
-Date: 2026-10-04. **Status: accepted product direction and authoring requirements;
-runtime not implemented.** The [implementation plan](organization-blueprints-implementation-plan.md)
-now sequences the runtime, agent authoring, Polaris, and complete public manual.
-Implementation is authorized. The first implemented slice is offline JSON authoring,
-validation, explanation, schema export, and six presets; it does not activate the
-new distributed runtime. Exact signed decision semantics remain engineering
-obligations with explicit proof gates. The current
-[protocol-1 coordinator behavior](protocol-v1.md) remains enforced until replaced.
+Date: 2026-10-04. **Status: accepted product direction and authoring requirements.**
+API 2 / protocol 2 now implements the standalone organization runtime, private
+catalog and agent operations. The [implementation plan](organization-blueprints-implementation-plan.md)
+remains the frozen delivery scope. The separate
+[execution ledger](organization-blueprints-status.md) records completed checks
+and remaining formal, native/client, transport and publication boundaries. The
+historical [protocol-1 coordinator behavior](protocol-v1.md) has been replaced;
+it is not available as a fallback.
 
 The installed `locust blueprint contract` command exports the schema, command
 catalog and examples without connecting to a daemon. Validation rejects unknown

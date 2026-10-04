@@ -20,8 +20,8 @@ existing explicit bindings.
 
 The [package verifier](../crates/locust/src/package.rs) verifies the exact manifest
 bytes with a separately selected raw 32-byte Ed25519 public key. The detached
-signature is `manifest.sig` (64 bytes). The candidate has exactly two declared
-payload paths: `locust` and `skills/locust/SKILL.md`. Their SHA-256 digests, lengths,
+signature is `manifest.sig` (64 bytes). The current `locust-release-v2` candidate has exactly three declared
+payload paths: `locust`, `skills/locust/SKILL.md` and `manual.tar`. Their SHA-256 digests, lengths,
 Unix modes and binary architecture must match. Symlinks, hardlinks and special
 files in the declared payload paths are refused. Verification does not execute
 the candidate.

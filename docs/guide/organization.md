@@ -1,7 +1,6 @@
 # Presets, composition and lifecycle
 
-**Status: offline definitions and examples are the first source slice. Binding,
-publication lifecycle and runtime composition remain proposed.** Choose by the
+**Status: implemented in the development runtime.** Choose by the
 required guarantees, then inspect the matching generated example and core
 explanation. A visual shape alone is not the executable rule.
 
@@ -47,7 +46,12 @@ Updating future defaults does not reinterpret an already pinned task. Rebinding,
 revising an active round or reopening work are explicit authorized current-model
 transitions naming the expected prior context. Old signatures retain their original
 meaning. These operations do not migrate schema formats or activate old readers.
-The initial offline CLI implements none of this catalog/CAS/publication lifecycle.
+The authenticated `blueprint draft`, `blueprint publish` and presentation
+operations implement this lifecycle. `goal create --blueprint-json` instantiates
+a definition; `rules bind --expected` changes future defaults. `task revise
+--expected-round` and scoped reopen explicitly change active work. Inspect
+the `effective_rules_json` field returned by
+`task show --goal GOAL --task TASK` before acting on a pinned task.
 
 [Completion](completion.md) describes candidate verdicts;
-[authoring](blueprint-authoring.md) describes the implemented offline boundary.
+[authoring](blueprint-authoring.md) gives offline and private publication commands.

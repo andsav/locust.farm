@@ -1,6 +1,6 @@
 # Completion, review and selection
 
-**Status: accepted semantics; runtime qualification is pending.** Submission,
+**Status: implemented development semantics, exercised by signed replay tests.** Submission,
 approval, criterion satisfaction, selection, closure and local application are
 different observations. None means a remote process has stopped.
 
@@ -23,6 +23,24 @@ different observations. None means a remote process has stopped.
    dependency. The daemon materializes and durably delivers the configured
    child-task/handoff effect. Receipt, acceptance, local permission and observed
    execution start remain separate.
+
+The CLI operations reflect these separate outcomes:
+
+```sh
+locust contribution publish --goal GOAL 'Exact finding'
+locust completion declare --goal GOAL --subject CONTRIBUTION
+locust review record --goal GOAL --subject CONTRIBUTION --verdict approve 'Review of these bytes'
+locust contributions --goal GOAL
+locust scope select --goal GOAL --subject CONTRIBUTION
+```
+
+Each mutation is available only when that exact subject's pinned rule and the
+caller's local grants authorize it. The sequence is a command reference, not a
+universal workflow: Open uses declaration and has no selector; peer review uses
+eligible reviews and may also have no selector. In a configured selection scope,
+replace a decision only with its current event as `--expected`. For task work,
+`task show` returns the current round and `effective_rules_json`; `pending`
+returns caller-specific review/start/delivery obligations.
 
 ## Count admissible evidence
 

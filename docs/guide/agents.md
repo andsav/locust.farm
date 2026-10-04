@@ -47,7 +47,7 @@ was seen. A historical PID is correlation, not process authority.
 
 ## Pending work and stop requests
 
-The target runtime durably delivers configured ready work without an agent
+The daemon durably materializes configured ready work without an agent
 requesting every transition. Closed-client wake and native launch/resume remain
 adapter-specific capabilities requiring local grants and separate qualification.
 An active session can inspect durable pending state even if a notification was

@@ -31,6 +31,6 @@ and its source/schema identity together. These artifacts contain public test dat
 not credentials or invitations.
 
 The generated sections below expose every offline operation, root schema field
-and shipped example from the same current export. The broader CLI/API/MCP event
-reference will be generated alongside the runtime replacement; this authoring
-reference does not claim to cover those still-changing runtime operations.
+and shipped example from the same current export. The [runtime reference](runtime-reference.md) separately generates the current
+CLI/API/MCP and signed-event surfaces. Use [authoring](blueprint-authoring.md)
+for private publication and binding procedures.

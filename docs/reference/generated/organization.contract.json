@@ -360,6 +360,12 @@
       "summary": "Explain effective rules and required bindings offline"
     },
     {
+      "input": "two_json_paths",
+      "name": "diff",
+      "output": "semantic_diff",
+      "summary": "Compare normalized semantic definitions offline with hashes and JSON Pointer changes"
+    },
+    {
       "input": "json_path_or_stdin",
       "name": "normalize",
       "output": "blueprint_or_invalid_inspection",

@@ -1,6 +1,6 @@
 # Offline recovery and conflicts
 
-**Status: accepted replacement-runtime obligations; qualification is pending.**
+**Status: implemented current-model recovery with explicit evidence limits.**
 Preserve the state and exact evidence before taking corrective action. Missing,
 invalid, unsatisfied, satisfied and disputed evidence are different conditions.
 
@@ -55,7 +55,7 @@ terminated.
 Collect format/source identity, scope/round, exact subject IDs, missing proof
 categories and redacted error text. Exclude credentials, tickets, private prompts,
 provider environment values and raw transcripts. Keep retained evidence needed
-to reproduce a verdict. No backup format is promised by this foundation: preserve
+to reproduce a verdict. No general online backup command is provided: preserve
 state and use only an actually supported backup/restore procedure when available;
 do not copy a live database and describe it as qualified recovery.
 

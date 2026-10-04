@@ -1,5 +1,11 @@
 # Crates and workstreams
 
+> **Historical pre-organization document.** Its protocol-1 commands, source
+> snapshots and qualification claims do not apply to API 2 / protocol 2. Read
+> [the current manual](guide/overview.md) and
+> [implementation status](organization-blueprints-status.md) for current behavior.
+> No legacy reader, migration or old-runtime support is provided.
+
 **Greenfield direction, 2026-10-04:** follow the
 [organization blueprints implementation plan](organization-blueprints-implementation-plan.md)
 and [AGENTS.md](../AGENTS.md). The owner requires no migrations, backward

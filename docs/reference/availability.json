@@ -13,10 +13,29 @@
     "stdio-mcp",
     "candidate-installation",
     "resumable-onboarding",
-    "offline-blueprint-authoring"
+    "offline-blueprint-authoring",
+    "private-blueprint-catalog",
+    "organization-rules",
+    "taskless-contributions",
+    "independent-attempts",
+    "scoped-completion-and-selection",
+    "durable-logical-flow",
+    "explicit-local-patch-choice"
   ],
-  "organizationRuntime": "replacement-in-progress",
+  "organizationRuntime": "implemented-development-api-2-protocol-2",
   "qualification": [
+    {
+      "platform": "macOS arm64",
+      "scope": "Current API 2/protocol 2 Rust workspace gates, persistent local CLI/daemon acceptance and executable manual recipes",
+      "limits": "No public release, external provider, native-model, physical-machine or packaged Polaris claim. Key-only local multicast discovery currently fails independently of the goal engine.",
+      "evidence": [
+        "docs/organization-blueprints-status.md",
+        "docs/guide/collaboration.md",
+        "docs/guide/blueprint-authoring.md",
+        "docs/guide/apply.md"
+      ],
+      "track": "current-organization-development"
+    },
     {
       "platform": "macOS arm64",
       "scope": "Local signed candidate installation and launchd cases; disposable Codex and Claude onboarding profiles and authenticated daemon readiness",
@@ -51,5 +70,5 @@
       "publicRoute": false
     }
   },
-  "runtimeQualification": "protocol-2-and-api-2-not-qualified"
+  "runtimeQualification": "deterministic-and-local-cli-daemon-verified; native-client-and-distributed-qualification-incomplete"
 }

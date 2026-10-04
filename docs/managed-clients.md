@@ -1,7 +1,8 @@
 # Explicit managed client sessions
 
 Status: implemented local foreground launcher for Codex, Claude Code, Factory
-Droid and Pi. Qualification results are recorded separately in the
+Droid and Pi. The current binding uses task/attempt identities. Historical qualification
+results are recorded separately in the
 [production qualification findings](../research/t2-production-qualification.md).
 This is not unattended activation, a worker sandbox, or release installation.
 
@@ -18,8 +19,8 @@ locust --home /ABSOLUTE/DAEMON/HOME \
   --session /ABSOLUTE/SESSION/SECRET \
   client run --client codex --executable /ABSOLUTE/PATH/TO/codex \
   --workspace /ABSOLUTE/WORKSPACE --profile /ABSOLUTE/CLIENT/HOME \
-  --client-version OBSERVED_VERSION --goal GOAL_ID --assignment ASSIGNMENT_ID \
-  --arg=--skip-git-repo-check --prompt 'Inspect the assigned Locust task.'
+  --client-version OBSERVED_VERSION --goal GOAL_ID --attempt ATTEMPT_EVENT_ID \
+  --arg=--skip-git-repo-check --prompt 'Inspect the bound Locust attempt.'
 ```
 
 `--arg` repeats client run arguments; `--global-arg` repeats arguments placed
@@ -33,7 +34,7 @@ write; deliberate permissive qualification is recorded separately.
 Native stdout and stderr stream to Locust's stderr. `--json` leaves stdout for one
 result envelope after the managed invocation ends. A successful lifecycle report
 does not mean the client completed its task: inspect the native exit evidence and
-the daemon's task/result state.
+the daemon's attempt/contribution state.
 
 ## Identity and recovery
 
@@ -44,16 +45,16 @@ and a matching authenticated production MCP tools-ready receipt. A configured
 server or prose startup message is insufficient. Structured native permission
 denials can record `Blocked`; owned-child exit records `Exited`.
 
-The binding contains the principal, Locust session, optional goal and exact task,
-assignment and attempt. A claim generation is copied only from the daemon's
+The binding contains the principal, Locust session, optional goal and exact task/attempt identity. A claim generation is copied only from the daemon's
 authenticated session view. Launch intent, native identity, notification state,
-claim ownership, result submission and result acceptance remain separate facts.
+claim ownership, contribution publication, rule completion and scoped selection
+remain separate facts.
 
 Use `client status` to inspect that record. Resume requires `client run --resume
-NATIVE_SESSION_ID` with the same client, paths, goal and assignment. Pi uses the
+NATIVE_SESSION_ID` with the same client, paths, goal and attempt. Pi uses the
 same `--native-session` file as well. A known exited session with no outstanding
 claim can be explicitly launched afresh with a new binding. A stale or occupied
-assignment is rejected before spawn.
+attempt is rejected before spawn.
 
 `client recover` marks an interrupted non-exited record `Unknown` without
 spawning or signaling anything. A persisted PID is historical correlation, not
@@ -65,7 +66,7 @@ unreaped child; repeated explicit signals are forwarded until that child is
 reaped. Native exit is observed independently of output-pipe EOF. Readers then
 drain the bytes already buffered and close, so a descendant retaining a pipe
 does not keep the launcher alive. This does not prove descendant termination;
-no remote assignment or cancellation signals a process.
+no remote offer or cancellation signals a process.
 
 ## Pending work and cancellation
 

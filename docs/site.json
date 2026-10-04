@@ -1,6 +1,6 @@
 {
   "track": "next",
-  "label": "Development · unreleased",
+  "label": "Development \u00b7 unreleased",
   "repository": "https://github.com/andsav/locust.farm",
   "versions": {
     "software": "unreleased",
@@ -26,27 +26,27 @@
       "source": "docs/guide/concepts.md",
       "slug": "concepts",
       "title": "Goals and organizations",
-      "description": "The proposed goal, organization, participant and authority model.",
+      "description": "The current goal, organization, participant and authority model.",
       "group": "Understand Locust",
       "order": 2,
       "audience": [
         "people",
         "agents"
       ],
-      "status": "proposed"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/blueprint-authoring.md",
       "slug": "blueprint-authoring",
       "title": "Blueprint authoring",
-      "description": "Offline definition checks and the boundary between authoring and runtime readiness.",
+      "description": "Offline checks, private publication and contextual runtime readiness.",
       "group": "Author definitions",
       "order": 3,
       "audience": [
         "people",
         "agents"
       ],
-      "status": "development"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/architecture.md",
@@ -59,7 +59,7 @@
         "people",
         "agents"
       ],
-      "status": "proposed"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/status.md",
@@ -98,7 +98,7 @@
         "people",
         "agents"
       ],
-      "status": "proposed"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/apply.md",
@@ -111,7 +111,7 @@
         "people",
         "agents"
       ],
-      "status": "proposed"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/completion.md",
@@ -124,7 +124,7 @@
         "people",
         "agents"
       ],
-      "status": "proposed"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/organization.md",
@@ -137,7 +137,7 @@
         "people",
         "agents"
       ],
-      "status": "development"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/agents.md",
@@ -163,7 +163,7 @@
         "people",
         "agents"
       ],
-      "status": "proposed"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/operations.md",
@@ -176,7 +176,7 @@
         "people",
         "agents"
       ],
-      "status": "development"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/recovery.md",
@@ -189,7 +189,7 @@
         "people",
         "agents"
       ],
-      "status": "proposed"
+      "status": "implemented"
     },
     {
       "source": "docs/guide/polaris.md",
@@ -241,7 +241,7 @@
         "people",
         "agents"
       ],
-      "status": "development"
+      "status": "implemented"
     }
   ],
   "artifacts": [
@@ -334,7 +334,8 @@
     "docs/organization-blueprints.md",
     "docs/organization-blueprints-implementation-plan.md",
     "docs/organization-blueprints-semantics.md",
-    "research/onboarding-qualification.md"
+    "research/onboarding-qualification.md",
+    "docs/organization-blueprints-status.md"
   ],
   "routes": [
     {

@@ -9,11 +9,29 @@ reviewed machine-readable source for these facts.
 
 The existing source includes a local daemon, CLI, stdio MCP bridge, signed
 candidate installation, user-session service support and resumable onboarding.
-The first organization slice adds offline blueprint discovery, schema export,
-examples, validation, normalization and explanation. Organization runtime
-replacement is in progress; a validated definition is not a running organization.
+API 2 / protocol 2 adds organization rules, offline authoring and semantic diff,
+private revisioned drafts and immutable publication, taskless contributions,
+independent attempts, exact completion/review, scoped decisions and durable flow.
+The current [implementation ledger](../organization-blueprints-status.md)
+links the code, tests and qualification boundaries. Publishing a definition does
+not instantiate a goal or authorize local execution.
 
 ## What local qualification establishes
+
+The current runtime passes workspace formatting, clippy and tests. Real CLI/daemon
+fixtures exercise persistent identity, taskless findings, two participants,
+independent attempts, exact reviewed selection/application, owner choice of an
+unselected patch, catalog conflicts and restart. Three Markdown tutorials execute
+against the local binary through `scripts/check_documentation.py`; they do not
+launch models or contact external providers.
+
+Key-only multicast peer discovery failed independently of the goal engine on the
+qualification host. Invitation-hint routes worked, but the three-process workflow
+could not form the worker-to-worker route after its administrator stopped. This
+is a current qualification failure, not proof of remote convergence. Native
+four-client, physical-machine and packaged Polaris evidence remain separately
+required. See the ledger for current updates.
+
 
 Retained pre-organization-cutover macOS evidence covers identified signed candidates, local installation
 and launchd cases, and disposable Codex and Claude onboarding profiles with

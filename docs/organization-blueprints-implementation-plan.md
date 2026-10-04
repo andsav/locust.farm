@@ -1,5 +1,9 @@
 # Organization blueprints implementation plan
 
+Execution progress is recorded separately in the
+[implementation status](organization-blueprints-status.md). The scope and gates
+below remain frozen through implementation.
+
 Date: 2026-10-04. **Status: implementation plan for the accepted product direction;
 not an implementation or a claim of qualification.** Baseline inspected:
 `6d74f2384009ef1b52e2660c9fc03bf46fc0ebf8`. The

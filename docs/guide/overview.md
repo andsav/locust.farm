@@ -1,6 +1,6 @@
 # Locust overview
 
-Locust coordinates work between people and agents. Its development direction is a
+Locust coordinates work between people and agents. It provides a
 standalone local daemon with explicit identities, goals, shared material and
 organization rules. Each participant uses its own agent harness. Polaris is a
 planned visual interface; Locust does not require Polaris to be available.
@@ -23,9 +23,10 @@ organization replacement. The [onboarding evidence](../onboarding.md) records th
 ## Development direction
 
 The [organization model](concepts.md) introduces declarative blueprints for rules,
-roles and decision authority. Runtime execution of these blueprints is proposed.
-The initial authoring work supports offline schema, validation, explanations and
-examples; it does not create a running organization.
+roles and decision authority. API 2 / protocol 2 implements these rules in the daemon. The CLI supports offline
+schema, validation, explanations and examples, private draft/publication operations,
+and explicit goal creation with role/input bindings. Publishing a blueprint alone
+does not create a goal or launch a process.
 
 Read [Blueprint authoring](blueprint-authoring.md) to understand what a successful
 definition check establishes and what still requires contextual runtime checks.
@@ -40,4 +41,7 @@ definition check establishes and what still requires contextual runtime checks.
   and onboarding evidence, rather than treating this manual as a download offer.
 
 The accepted direction is recorded in the [organization decision](../organization-blueprints.md).
-This manual is a documentation foundation, not the complete operating manual.
+The [implementation ledger](../organization-blueprints-status.md) records current
+checks and remaining qualification. Start with the executable
+[two-participant tutorial](collaboration.md), then inspect
+[effective rules and completion](completion.md).

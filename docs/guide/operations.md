@@ -1,9 +1,7 @@
 # Services, fresh state and durable flow
 
-**Status: user-session service source exists; new organization state and durable
-flow implementation are pending.** A running process and a ready authenticated
-API are separate observations. A proposed flow record does not establish an
-executed task.
+**Status: implemented development runtime and user-session services.** A running process and a ready authenticated
+API are separate observations. A committed flow record does not establish an executed task.
 
 ## Own only explicitly selected services
 
@@ -19,12 +17,28 @@ readiness. A missing GUI domain or user bus is unavailable, not stopped.
 Software upgrades need an explicit restart to replace running code. Use the
 [canonical service commands](../installation.md) for the implemented route.
 
+For a separately managed macOS service, use the same explicit selection on each
+call; substitute `systemd` only on the supported Linux user-manager route:
+
+```sh
+locust --json service plan --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
+locust --json service apply --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust --expect-plan PLAN_SHA256
+locust --json service start --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
+locust --json service status --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
+locust --home /DATA/locust --owner --json doctor
+```
+
+Use `service stop`, observe stopped/absent state, then `service remove-plan` and
+`service remove --expect-plan PLAN_SHA256` with the same selection to remove an
+owned unit. Removal preserves daemon state and logs. An unowned or modified unit
+is a refusal requiring inspection.
+
 ## Initialize fresh current-model state
 
-For the replacement runtime, select a new empty absolute state location
-explicitly, review its identity and initialize directly to the supported schema.
-This is a future procedure until that runtime exists, not authorization to erase
-an existing directory. Separate software, state, profile and workspace paths.
+Select a new empty absolute state location explicitly and initialize it directly
+with `locust --home /absolute/new-state daemon run`. The process stays in the
+foreground; use a reviewed service plan for unattended operation. Starting with a
+new path does not erase or convert an existing directory. Separate software, state, profile and workspace paths.
 
 Restart reopens that same supported format and replays durable decisions and
 proofs. Unsupported state, definitions, events or peers receive a clear refusal
@@ -39,17 +53,19 @@ child-task, review-request or handoff effect. The daemon drives this loop after
 replay/ingestion/local action without asking an agent for every next step.
 
 Its logical effect identity binds rule context, trigger, scope, action and target.
-Event, retained proof, effect deduplication record and recipient outbox commit
-atomically. Only committed effects are sent. A recipient durably records its
-inbox entry before acknowledgment; lost acknowledgment causes a retry with the
-same identity, not another task.
+The signed effect and its request/feed state commit atomically. The retained
+event log projects the logical outbox/inbox; replicas synchronize that committed
+effect. `pending --goal GOAL` exposes its stable delivery ID. The recipient uses
+`delivery acknowledge --goal GOAL --effect ID` to persist acknowledgment.
+Lost acknowledgment leaves the same logical delivery pending, not another task.
 
 ## Read delivery and execution separately
 
 Restart resumes pending effects and unacknowledged deliveries. Equivalent
-threshold witnesses do not mint different logical actions. Readiness,
-materialization, delivery, receipt, acceptance, local session claim and observed
-process start remain separately visible.
+threshold witnesses do not mint different logical actions. The pending view distinguishes effect kind, recipient and acknowledgment.
+Work offers, local attempt claims and managed-session process observations are
+separate records. It does not provide a transport receipt or prove a remote
+process started merely because the effect is visible.
 
 An unavailable materializer blocks its configured transition; other replicas do
 not impersonate it. A recipient without local permission retains ready work

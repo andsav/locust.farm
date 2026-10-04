@@ -1,7 +1,6 @@
 # Visibility, membership and trust
 
-**Status: accepted organization security semantics; replacement runtime checks
-are pending.** Installing Locust grants no goal membership, shares no local files
+**Status: implemented development membership and artifact boundaries.** Installing Locust grants no goal membership, shares no local files
 and does not publish private chats, hidden reasoning, credentials or unrestricted
 harness access.
 

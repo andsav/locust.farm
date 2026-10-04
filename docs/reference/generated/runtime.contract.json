@@ -298,6 +298,15 @@
                 "positional": false,
                 "required": false,
                 "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Requires --owner and --as: owner chooses an effective contribution for local application without shared selection or approval",
+                "long": "local-choice",
+                "name": "local-choice",
+                "positional": false,
+                "required": false,
+                "short": null
               }
             ],
             "commands": [],
@@ -2300,6 +2309,31 @@
             "arguments": [
               {
                 "action": "Set",
+                "help": "Before JSON document path",
+                "long": null,
+                "name": "before",
+                "positional": true,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "After JSON document path",
+                "long": null,
+                "name": "after",
+                "positional": true,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "diff",
+            "summary": "Compare normalized semantic definitions offline with hashes and JSON Pointer changes"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
                 "help": "JSON document path, or - for standard input",
                 "long": null,
                 "name": "source",
@@ -2533,7 +2567,7 @@
           }
         ],
         "name": "blueprint",
-        "summary": "Discover and inspect organization blueprints offline; does not configure the runtime"
+        "summary": "Author local blueprints and inspect organization definitions offline"
       },
       {
         "arguments": [],

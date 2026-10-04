@@ -22,8 +22,26 @@ key qualifies only that local test; it is not a production trust root.
 Use the canonical [candidate procedure](../installation.md) to inspect its
 read-only plan. Review every selected path and retain the plan digest. Applying
 rechecks those inputs under a prefix lock; a stale plan requires fresh review.
-Inspect install status afterward. Installation chooses a verified `current`
+The signed `manual.tar` payload carries the exact source-identified manual,
+contract exports, examples and availability record. Read its `manual.json` and
+raw Markdown directly with `tar -tf` / `tar -xOf`; no checkout or extraction is
+required. Inspect install status afterward. Installation chooses a verified `current`
 software link; it does not edit shell startup files or grant work permission.
+
+Use independently trusted paths for the verifier, bundle, trust key and signed
+withdrawal registry. These placeholders are deliberately not download URLs:
+
+```sh
+/TRUSTED/locust --json package verify --bundle /CANDIDATE --trust-key /TRUST/public.key --withdrawals /TRUST/withdrawals.json
+/TRUSTED/locust --json install plan --prefix /SOFTWARE/locust --bundle /CANDIDATE --trust-key /TRUST/public.key --withdrawals /TRUST/withdrawals.json
+/TRUSTED/locust --json install apply --prefix /SOFTWARE/locust --bundle /CANDIDATE --trust-key /TRUST/public.key --withdrawals /TRUST/withdrawals.json --expect-plan PLAN_SHA256
+/TRUSTED/locust --json install status --prefix /SOFTWARE/locust
+```
+
+Read the plan before substituting its exact digest into `apply`. Reinstall uses
+the same reviewed path: unchanged verified content is reused, while withdrawal,
+tampering, ownership conflicts or changed plan inputs are refused. This procedure
+activates software without erasing state or restarting an existing daemon.
 
 ## Select profile, workspace and service
 
@@ -37,6 +55,20 @@ an existing daemon and creates no service. Software prefix, profile, daemon home
 service profile and logs are separate choices. Unsupported custom client layout
 or owned-file collisions stop rather than silently relocating configuration.
 Use the [canonical onboarding procedure](../onboarding.md) for exact commands.
+
+Review onboarding with explicit existing profile/workspace directories:
+
+```sh
+/SOFTWARE/locust/current/locust --home /DATA/locust up --client codex --profile-home /PROFILE --workspace /WORKSPACE --plan
+```
+
+Repeat the same selections without `--plan` in an interactive terminal to review
+and apply each change. Deliberate unattended application uses `--yes`; it must
+still name the client. Select `claude` or `pi` for their supported installed routes.
+For an already running daemon, add `--service none`. Readiness waits indefinitely
+for a selected service unless you supply `--wait-ms N`; interrupting the command
+does not erase its recovery journal. On Linux, service source exists but native
+acceptance still needs its own evidence.
 
 ## Verify four separate observations
 
@@ -61,6 +93,13 @@ Remove owned client configuration and an observed stopped service before removin
 software they reference. Review uninstall's plan separately. Modified releases
 and unknown files remain; daemon data, credentials, sessions, logs and trust
 watermarks are preserved. Software removal is not a data purge.
+
+Software removal is separately reviewable:
+
+```sh
+/TRUSTED/locust --json install uninstall-plan --prefix /SOFTWARE/locust
+/TRUSTED/locust --json install uninstall --prefix /SOFTWARE/locust --expect-plan PLAN_SHA256
+```
 
 [Services and state](operations.md) explains fresh-state selection and unsupported
 state refusal. Consult [availability](status.md) for exact platform limits.
