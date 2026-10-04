@@ -33,10 +33,10 @@ repository root. Untracked drafts are excluded from the check.
 
 ### TLA+ verification
 
-- [Version-1 bounded models](tla/version-1.md): canonical branch selection, accepted display, local departure, current source mapping and verification limits.
+- [Historical version-1 bounded models](tla/version-1.md): retained canonical branch, accepted-display and local-departure evidence with pinned superseded source links.
 
 - [Model and runner guide](tla/README.md): pinned tools, reproducible bounded checks, input snapshots, result classification and evidence limits.
-- [Property and implementation map](tla/property-map.md): rules mapped to code/tests, current versus desired semantics, assumptions and deferred findings.
+- [Historical property and implementation map](tla/property-map.md): protocol-0 rules, original findings and pinned superseded source links.
 - [Upstream version-1 modeling impact](tla/upstream-impact-2026-10-04.md): merge assessment, changed rules, historical model boundaries and required rebaselining.
 - [Stages 0 and 1 evidence](evidence/tla/README.md): bounded result summaries, retained counterexamples/witnesses, Rust fixture correspondence, development failures and unverified CI qualification.
 
@@ -139,3 +139,7 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Linux installation qualification](linux-installation-qualification.md): exact Debian/QEMU environment, completed static checks, incomplete workspace tests and the observed process-spawn blocker; native artifact and installation outcomes recorded separately.
 
 - [Organization runtime performance comparison](organization-protocol2-performance.md): paired task/selection replay and ingestion measurements, exact proof indexing, and the remaining regression.
+
+- [Organization formal models](tla/organization.md): current governance, completion, scoped proof, local attempt and daemon-effect safety/mutation checks with explicit finite limits.
+
+- [Organization model verification evidence](evidence/tla/organization/README.md): all54 registered outcomes, full checker traces, bounded safety counts and precise verification limits.

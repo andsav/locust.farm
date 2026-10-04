@@ -172,6 +172,18 @@ The depth of the complete state graph search is 17.
             with self.assertRaises(tla.CheckError):
                 tla.validate_cases(registry, root)
 
+    def test_no_implicit_deadline_without_a_requested_timeout(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(tla.subprocess, "Popen") as spawn:
+            process = spawn.return_value
+            process.communicate.return_value = (PASS, None)
+            process.returncode = 0
+            case = {"id": "unbounded", "module": "fixtures/RunnerFixture.tla",
+                    "config": "fixtures/pass.cfg", "expect": "pass"}
+            result = tla.run_case(case, Path("java"), Path("tlc.jar"), Path(directory))
+            process.communicate.assert_called_once_with(timeout=None)
+            self.assertIsNone(result["timeout_seconds"])
+            self.assertTrue(result["matched_expectation"])
+
     def test_process_timeout_kills_and_records_incomplete_run(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -1,5 +1,11 @@
 # Protocol/API version-1 bounded models
 
+**Historical protocol-0/1 evidence.** These executable model revisions and
+configurations were removed by the organization protocol cutover. Links below
+pin their source to `28a34f0368818e373edfdcdaf9454b5f403ceb90`; current checks are described
+in the [organization model map](organization.md). They do not qualify protocol 2.
+
+
 Date: 2026-10-04 (work began 2026-10-03; runs use UTC timestamps).
 **Status: implemented; verification results are recorded in the
 [version-1 evidence](../evidence/tla/version-1.json).**
@@ -8,11 +14,11 @@ The executed-input and Rust source hashes in the evidence identify the checked
 bytes. These finite model checks do not prove the Rust implementation or
 qualify transport, storage durability, or a physical multi-machine run.
 
-The [historical GoalLog](GoalLog.tla), [historical Sessions](Sessions.tla),
+The [historical GoalLog](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/research/tla/GoalLog.tla), [historical Sessions](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/research/tla/Sessions.tla),
 their configurations and original evidence remain unchanged. The separate
-[GoalLogV1](GoalLogV1.tla) and [SessionsV1](SessionsV1.tla) implement the Stage 1
+[GoalLogV1](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/research/tla/GoalLogV1.tla) and [SessionsV1](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/research/tla/SessionsV1.tla) implement the Stage 1
 rebaselining identified by the [integration assessment](upstream-impact-2026-10-04.md).
-The [case registry](cases.json) gives every version-1 case an explicit protocol,
+The [case registry](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/research/tla/cases.json) gives every version-1 case an explicit protocol,
 API and source baseline; legacy cases inherit the historical registry baseline.
 Mixed-suite reports preserve both identities. No run claims Rust refinement.
 
@@ -47,12 +53,12 @@ trace predicates; arbitrary checker failure never counts as success.
 
 | Version-1 behavior | Model and corresponding Rust seam |
 |---|---|
-| Canonical decisions select exact member branches from the held set, independent of arrival history. | `Select` considers decisions in chain order, checks target kind, prior anchor and membership, and evaluates a tentative `ReplayWith`. This maps to [Commitments::build](../../crates/locust-core/src/goal/commitments.rs). |
+| Canonical decisions select exact member branches from the held set, independent of arrival history. | `Select` considers decisions in chain order, checks target kind, prior anchor and membership, and evaluates a tentative `ReplayWith`. This maps to [Commitments::build](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/goal/commitments.rs). |
 | Selection follows predecessor and semantic dependencies transitively. | `Closure` follows member event predecessors, assignment/result/cancellation references and proposal dependencies. It stops at coordinator events, whose history is never selected through a fork. `Compatible` rejects conflicting positions and held malformed predecessor links. Missing evidence remains eligible for later delivery. |
-| Only validated branches become usable. | Effective trial decisions publish pins. Pending trials record a pending decision without publishing tentative pins; excluded trials publish neither. Every earlier validated decision must stay effective. `SelectedPrefix`, `PreStanding` and `Walk` map to [scan and fold_with_commitments](../../crates/locust-core/src/goal/fold.rs). |
+| Only validated branches become usable. | Effective trial decisions publish pins. Pending trials record a pending decision without publishing tentative pins; excluded trials publish neither. Every earlier validated decision must stay effective. `SelectedPrefix`, `PreStanding` and `Walk` map to [scan and fold_with_commitments](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/goal/fold.rs). |
 | Referenced headers can prove a decision invalid before ancestry arrives. | `ReferenceStatus` checks kind, anchor, removal and membership before accepting a pending reference. Wrong-kind and semantically invalid targets cannot resurrect a forked branch. |
 | A late submission remains evidence without replacing accepted display. | `Apply` changes the displayed result only before acceptance, matching [record](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/goal/transition.rs). `AcceptedResultDisplayed` is checked throughout, and the IR-12 completion assertion requires both the accepted display and the retained late result. |
-| Fork protection does not override removals. | IR-5 requires all three heads after the fork, then only the first head after the explicit empty removal cutoff. A separate nonempty-cutoff case retains the accepted branch while revoking its assignment. These map to [chain cutoffs](../../crates/locust-core/src/goal/chain.rs) and the corrected IR-5 Rust fixture. |
+| Fork protection does not override removals. | IR-5 requires all three heads after the fork, then only the first head after the explicit empty removal cutoff. A separate nonempty-cutoff case retains the accepted branch while revoking its assignment. These map to [chain cutoffs](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/goal/chain.rs) and the corrected IR-5 Rust fixture. |
 | Incremental and canonical projections agree. | `Increment` retains a direct append path with conservative guards; any held fork forces replay. `IncrementalEqualsReplay` compares it to full replay, including standings and canonical task/result order. Both paths share transition algebra, so this is not independent validation of that algebra. |
 
 Most goal cases explore every delivery order/subset for their finite transcript,
@@ -81,20 +87,20 @@ Coordinator self-removal and arbitrary malformed transcripts are not represented
 
 ## Sessions mapping
 
-[SessionsV1](SessionsV1.tla) preserves the historical claim/generation/commit
+[SessionsV1](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/research/tla/SessionsV1.tla) preserves the historical claim/generation/commit
 abstraction and adds durable local departure. Canonical membership is supplied
 as an external Boolean. A worker's new claim/progress write requires active
 credentials, membership, no departure and the current assignment/claim. Removing
 membership, revoking credentials and leaving are distinct transitions.
 
 The source mapping was rechecked against
-[claims](../../crates/locust-core/src/node/requests/claims.rs),
-[session binding](../../crates/locust-core/src/node/sessions.rs),
-[member access](../../crates/locust-core/src/node/access.rs),
-[signing](../../crates/locust-core/src/node/authoring.rs),
-[local departure](../../crates/locust-core/src/node/requests/goals.rs),
-[request dispatch](../../crates/locust-core/src/node/requests/mod.rs) and
-[commit handling](../../crates/locust-core/src/node/commit.rs).
+[claims](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/requests/claims.rs),
+[session binding](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/sessions.rs),
+[member access](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/access.rs),
+[signing](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/authoring.rs),
+[local departure](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/requests/goals.rs),
+[request dispatch](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/requests/mod.rs) and
+[commit handling](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/commit.rs).
 Principal-scoped keyed progress replay occurs after credential validation and
 before member/claim checks. Therefore a retry after departure may return an
 already committed success, but cannot sign a new event. Directed witnesses
@@ -116,7 +122,7 @@ otherwise. Atomic storage cannot establish staging, flush or power-loss safety.
 
 ## Concrete regression correspondence
 
-The existing [goal tests](../../crates/locust-core/src/goal/tests.rs) include
+The existing [goal tests](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/goal/tests.rs) include
 `tla_ir5_member_fork_preserves_the_committed_accepted_heads`,
 `tla_ir12_later_submission_preserves_the_accepted_display`,
 `canonical_acceptance_pins_transitive_author_ancestry_across_arrivals_and_reopen`,
@@ -124,11 +130,11 @@ The existing [goal tests](../../crates/locust-core/src/goal/tests.rs) include
 `incomplete_canonical_branch_waits_then_recovers_through_a_full_variant_quota`.
 The two named TLA goal fixtures retain their original symbolic transcripts.
 
-The [session fixture](../../crates/locust-core/src/node/tests/formal.rs) replays
+The [session fixture](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/tests/formal.rs) replays
 A-B-A, delayed writes, keyed retry and reopen. Additional
-[authorization tests](../../crates/locust-core/src/node/tests/authorization.rs)
+[authorization tests](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/tests/authorization.rs)
 cover canonical admission, local departure, read epochs and shutdown retry;
-[failure tests](../../crates/locust-core/src/node/tests/failure.rs) cover fencing
+[failure tests](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/crates/locust-core/src/node/tests/failure.rs) cover fencing
 and recovery around an uncertain atomic commit. The recorded crate test run
 checks these concrete behaviors. This remains hand-reviewed correspondence,
 not a generic trace importer or a mechanically proved refinement relation.

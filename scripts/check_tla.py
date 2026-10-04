@@ -296,7 +296,7 @@ def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_ro
     process = subprocess.Popen(command, cwd=model_root, env=clean_java_env(), stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, text=True, start_new_session=True)
     timed_out = False
-    deadline = timeout if timeout is not None else case.get("timeout_seconds", 120)
+    deadline = timeout if timeout is not None else case.get("timeout_seconds")
     try:
         output, _ = process.communicate(timeout=deadline)
     except subprocess.TimeoutExpired:
@@ -321,9 +321,9 @@ def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_ro
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bootstrap", action="store_true", help="fetch verified private tool cache")
-    parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended", "v1"))
+    parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended", "organization", "sessions", "effects"))
     parser.add_argument("--case", action="append", help="run only specified case IDs")
-    parser.add_argument("--timeout", type=float, help="override per-case seconds (timeout never passes)")
+    parser.add_argument("--timeout", type=float, help="optional wall-time deadline in seconds; no implicit deadline")
     parser.add_argument("--memory-mb", type=int, default=4096)
     args = parser.parse_args(argv)
     if (args.timeout is not None and args.timeout <= 0) or args.memory_mb <= 0:

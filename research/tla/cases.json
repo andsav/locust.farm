@@ -1,5 +1,11 @@
 {
   "schema": 1,
+  "model_baseline": {
+    "source_commit": "c88e3bc960de79eb990b3185a653bd982e587ed6",
+    "protocol_version": 2,
+    "api_version": 2,
+    "status": "current-organization-subset"
+  },
   "source_paths": [
     "crates/locust-core/src/goal",
     "crates/locust-core/src/node",
@@ -25,7 +31,6 @@
       "config": "fixtures/pass.cfg",
       "expect": "pass",
       "kind": "runner-fixture",
-      "timeout_seconds": 30,
       "properties": [
         "TypeOK",
         "BelowLimit"
@@ -42,7 +47,6 @@
       "config": "fixtures/violation.cfg",
       "expect": "violation",
       "kind": "runner-fixture",
-      "timeout_seconds": 30,
       "properties": [
         "TypeOK",
         "BelowLimit"
@@ -55,492 +59,894 @@
       ]
     },
     {
-      "id": "goal-authority-anchor",
+      "id": "organization-base",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-authority-anchor.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-base.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 180,
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
       ]
     },
     {
-      "id": "goal-broken-anchor",
+      "id": "organization-taskless",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-broken-anchor.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-taskless.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 180,
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
       ]
     },
     {
-      "id": "goal-cancel-accept",
+      "id": "organization-fork",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-cancel-accept.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-fork.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 180,
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
       ]
     },
     {
-      "id": "goal-cancel-reassign",
+      "id": "organization-review-fork",
       "suite": [
-        "extended"
+        "fast",
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-cancel-reassign.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-review-fork.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 900,
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
       ]
     },
     {
-      "id": "goal-canonical-order",
+      "id": "organization-scope-conflict",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-canonical-order.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-scope-conflict.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 180,
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
       ]
     },
     {
-      "id": "goal-coordinator-fork",
+      "id": "organization-authority-fork",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-coordinator-fork.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-authority-fork.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 180,
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
       ]
     },
     {
-      "id": "goal-ir12-current",
+      "id": "organization-duplicate-review",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-ir12-current.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-duplicate-review.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 180,
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
       ]
     },
     {
-      "id": "goal-ir12",
+      "id": "organization-rule-change",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-ir12.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-rule-change.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-cutoff",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-cutoff.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-remove-empty",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-remove-empty.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-governance-fork",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-governance-fork.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-forged-selection",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-forged-selection.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-wrong-scope",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-wrong-scope.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-two-scopes",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-two-scopes.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-incompatible",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-incompatible.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-missing-definition",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-missing-definition.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld"
+      ]
+    },
+    {
+      "id": "organization-taskless-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-taskless-witness.cfg",
       "expect": "violation",
-      "kind": "finding",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
       ],
-      "violation": "AcceptedResultDisplayed",
+      "violation": "NeverWitness",
       "trace_require": [
         {
-          "lastDelivery": "9",
-          "displayedAcceptedMismatch": "TRUE"
+          "witnessReached": "TRUE"
         }
       ]
     },
     {
-      "id": "goal-ir5-current",
+      "id": "organization-fork-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-ir5-current.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 180,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
-      ]
-    },
-    {
-      "id": "goal-ir5",
-      "suite": [
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-ir5.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-fork-witness.cfg",
       "expect": "violation",
-      "kind": "finding",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedHeadsPermanent"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
       ],
-      "violation": "AcceptedHeadsPermanent",
+      "violation": "NeverWitness",
       "trace_require": [
         {
-          "lastDelivery": "20",
-          "acceptedHeadCount": "1",
-          "acceptedHeadsLost": "TRUE",
-          "hasFork": "TRUE"
-        }
-      ],
-      "trace_prefix": [
-        {
-          "lastDelivery": "19",
-          "acceptedHeadCount": "3",
-          "acceptedHeadsLost": "FALSE"
+          "witnessReached": "TRUE"
         }
       ]
     },
     {
-      "id": "goal-member-fork",
+      "id": "organization-review-fork-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-member-fork.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 180,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
-      ]
-    },
-    {
-      "id": "goal-removal-readmission",
-      "suite": [
-        "extended"
-      ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-removal-readmission.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 900,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
-      ]
-    },
-    {
-      "id": "goal-safety",
-      "suite": [
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-safety.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 180,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments"
-      ]
-    },
-    {
-      "id": "goal-witness-acceptance",
-      "suite": [
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-witness-acceptance.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-review-fork-witness.cfg",
       "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "NoAcceptance"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
       ],
-      "violation": "NoAcceptance",
+      "violation": "NeverWitness",
       "trace_require": [
         {
-          "lastDelivery": "8",
-          "hasAcceptance": "TRUE"
+          "witnessReached": "TRUE"
         }
       ]
     },
     {
-      "id": "goal-witness-append",
+      "id": "organization-scope-conflict-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-witness-append.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-scope-conflict-witness.cfg",
       "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "NoAppendContribution"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
       ],
-      "violation": "NoAppendContribution",
+      "violation": "NeverWitness",
       "trace_require": [
         {
-          "lastDelivery": "4",
-          "hasAppendContribution": "TRUE"
+          "witnessReached": "TRUE"
         }
       ]
     },
     {
-      "id": "goal-witness-cancellation",
+      "id": "organization-two-scopes-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-witness-cancellation.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-two-scopes-witness.cfg",
       "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "NoCancellation"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
       ],
-      "violation": "NoCancellation",
+      "violation": "NeverWitness",
       "trace_require": [
         {
-          "lastDelivery": "7",
-          "hasCancellation": "TRUE"
+          "witnessReached": "TRUE"
         }
       ]
     },
     {
-      "id": "goal-witness-fork",
+      "id": "organization-incompatible-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-witness-fork.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-incompatible-witness.cfg",
       "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "NoForkDetection"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
       ],
-      "violation": "NoForkDetection",
+      "violation": "NeverWitness",
       "trace_require": [
         {
-          "lastDelivery": "9",
-          "hasFork": "TRUE"
+          "witnessReached": "TRUE"
         }
       ]
     },
     {
-      "id": "goal-witness-removal",
+      "id": "organization-missing-definition-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "GoalLog.tla",
-      "config": "configs/goal-witness-removal.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-missing-definition-witness.cfg",
       "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "NoRemoval"
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
       ],
-      "violation": "NoRemoval",
+      "violation": "NeverWitness",
       "trace_require": [
         {
-          "lastDelivery": "8",
-          "hasRemoval": "TRUE"
+          "witnessReached": "TRUE"
         }
       ]
     },
     {
-      "id": "session-aba-witness",
+      "id": "organization-cutoff-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "organization"
       ],
-      "module": "Sessions.tla",
-      "config": "configs/session-aba-witness.cfg",
+      "module": "Organization.tla",
+      "config": "configs/organization-cutoff-witness.cfg",
       "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-remove-empty-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-remove-empty-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-pin-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-pin-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "ScopedProofSurvivesFork"
+      ],
+      "violation": "ScopedProofSurvivesFork",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-isolation-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-isolation-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "NoGlobalForkAuthority"
+      ],
+      "violation": "NoGlobalForkAuthority",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-cutoff-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-cutoff-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "CutoffFencesEvidence"
+      ],
+      "violation": "CutoffFencesEvidence",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-distinct-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-distinct-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "DistinctPinnedQuorum"
+      ],
+      "violation": "DistinctPinnedQuorum",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-scope-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-scope-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "ExactScope"
+      ],
+      "violation": "ExactScope",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-authority-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-authority-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "NamedAuthority"
+      ],
+      "violation": "NamedAuthority",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-rules-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-rules-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "DistinctPinnedQuorum"
+      ],
+      "violation": "DistinctPinnedQuorum",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "organization-definition-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-definition-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "MissingDefinitionWaits"
+      ],
+      "violation": "MissingDefinitionWaits",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "attempt-aba-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "sessions"
+      ],
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-aba-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
         "StaleWritesCannotAuthor",
-        "WitnessABADelayedReject"
-      ],
-      "violation": "WitnessABADelayedReject",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ]
-    },
-    {
-      "id": "session-cancellation-witness",
-      "suite": [
-        "fast",
-        "extended"
-      ],
-      "module": "Sessions.tla",
-      "config": "configs/session-cancellation-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
-      "properties": [
-        "TypeOK",
-        "OnlyCurrentAuthorizedWrites",
-        "WitnessCancellationFence"
-      ],
-      "violation": "WitnessCancellationFence",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ]
-    },
-    {
-      "id": "session-failure-after-witness",
-      "suite": [
-        "fast",
-        "extended"
-      ],
-      "module": "Sessions.tla",
-      "config": "configs/session-failure-after-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
-      "properties": [
-        "TypeOK",
-        "UncertainCommitFencesSigning",
+        "OnlyAuthorizedWrites",
         "IdempotentRequestsAuthorOnce",
-        "WitnessFailureAfterRecovery"
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "NeverWitness"
       ],
-      "violation": "WitnessFailureAfterRecovery",
+      "violation": "NeverWitness",
       "trace_require": [
         {
           "witnessReached": "TRUE"
@@ -548,23 +954,30 @@
       ]
     },
     {
-      "id": "session-failure-before-witness",
+      "id": "attempt-replay-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "sessions"
       ],
-      "module": "Sessions.tla",
-      "config": "configs/session-failure-before-witness.cfg",
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-replay-witness.cfg",
       "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
       "properties": [
         "TypeOK",
-        "UncertainCommitFencesSigning",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyAuthorizedWrites",
         "IdempotentRequestsAuthorOnce",
-        "WitnessFailureBeforeRecovery"
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "NeverWitness"
       ],
-      "violation": "WitnessFailureBeforeRecovery",
+      "violation": "NeverWitness",
       "trace_require": [
         {
           "witnessReached": "TRUE"
@@ -572,16 +985,202 @@
       ]
     },
     {
-      "id": "session-generation-mutation",
+      "id": "attempt-failure-before-witness",
       "suite": [
         "fast",
-        "extended"
+        "extended",
+        "sessions"
       ],
-      "module": "Sessions.tla",
-      "config": "configs/session-generation-mutation.cfg",
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-failure-before-witness.cfg",
       "expect": "violation",
-      "kind": "mutation",
-      "timeout_seconds": 180,
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "attempt-failure-after-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "sessions"
+      ],
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-failure-after-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "attempt-cancel-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "sessions"
+      ],
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-cancel-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "attempt-principal-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "sessions"
+      ],
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-principal-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "attempt-independent-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "sessions"
+      ],
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-independent-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "attempt-permissions-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "sessions"
+      ],
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-permissions-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "attempt-generation-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "sessions"
+      ],
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-generation-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
       "properties": [
         "TypeOK",
         "StaleWritesCannotAuthor"
@@ -589,76 +1188,28 @@
       "violation": "StaleWritesCannotAuthor",
       "trace_require": [
         {
-          "staleWriteSigned": "TRUE",
-          "staleWriteAuthored": "TRUE"
+          "staleSigned": "TRUE",
+          "phase": "6"
         }
       ]
     },
     {
-      "id": "session-principal-witness",
+      "id": "attempt-single-safety",
       "suite": [
-        "fast",
-        "extended"
+        "extended",
+        "sessions"
       ],
-      "module": "Sessions.tla",
-      "config": "configs/session-principal-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
-      "properties": [
-        "TypeOK",
-        "NoCrossPrincipalEvents",
-        "WitnessPrincipalBoundary"
-      ],
-      "violation": "WitnessPrincipalBoundary",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ]
-    },
-    {
-      "id": "session-restart-replay-witness",
-      "suite": [
-        "fast",
-        "extended"
-      ],
-      "module": "Sessions.tla",
-      "config": "configs/session-restart-replay-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 180,
-      "properties": [
-        "TypeOK",
-        "StaleWritesCannotAuthor",
-        "IdempotentRequestsAuthorOnce",
-        "WitnessRestartReplay"
-      ],
-      "violation": "WitnessRestartReplay",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ]
-    },
-    {
-      "id": "session-safety",
-      "suite": [
-        "fast",
-        "extended"
-      ],
-      "module": "Sessions.tla",
-      "config": "configs/session-safety.cfg",
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-single-safety.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 900,
       "properties": [
         "TypeOK",
         "ClaimHolderBound",
         "GenerationsNeverDecrease",
         "NoCrossPrincipalEvents",
         "StaleWritesCannotAuthor",
-        "OnlyCurrentAuthorizedWrites",
+        "OnlyAuthorizedWrites",
         "IdempotentRequestsAuthorOnce",
         "IdempotencyMatchesEvent",
         "UncertainCommitFencesSigning",
@@ -666,1165 +1217,237 @@
       ]
     },
     {
-      "id": "v1-goal-safety",
+      "id": "attempt-independent-safety",
       "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-safety.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-ir12",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-ir12.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-member-fork",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-member-fork.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected",
-        "AcceptedHeadsPermanent"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-conflicting",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-conflicting.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected",
-        "AcceptedHeadsPermanent"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-invalid",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-invalid.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-wrong-kind",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-wrong-kind.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-dependencies",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-dependencies.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-cutoff",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-cutoff.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-coordinator-fork",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-coordinator-fork.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-broken-anchor",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-broken-anchor.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-authority",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-authority.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-canonical-order",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-canonical-order.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-cancel-accept",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-cancel-accept.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-cancel",
-      "suite": [
-        "v1",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-cancel.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 900,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-removal",
-      "suite": [
-        "v1",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-removal.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 900,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-conflicting-reverse-keys",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-conflicting-reverse-keys.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected",
-        "AcceptedHeadsPermanent"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-dependencies-reverse-keys",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-dependencies-reverse-keys.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-canonical-order-reverse-keys",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-canonical-order-reverse-keys.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-ir5",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-ir5.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-ir5-reverse-keys",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-ir5-reverse-keys.cfg",
-      "expect": "pass",
-      "kind": "current-safety",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-goal-fork-witness",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-fork-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected",
-        "NoV1Completion"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      },
-      "violation": "NoV1Completion",
-      "trace_require": [
-        {
-          "lastDelivery": "9",
-          "acceptedHeadCount": "1",
-          "hasFork": "TRUE"
-        }
-      ]
-    },
-    {
-      "id": "v1-goal-removal-witness",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-removal-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected",
-        "NoV1Completion"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      },
-      "violation": "NoV1Completion",
-      "trace_require": [
-        {
-          "lastDelivery": "21",
-          "acceptedHeadCount": "1",
-          "acceptedHeadsLost": "TRUE"
-        }
-      ],
-      "trace_prefix": [
-        {
-          "lastDelivery": "20",
-          "acceptedHeadCount": "3",
-          "acceptedHeadsLost": "FALSE"
-        }
-      ]
-    },
-    {
-      "id": "v1-goal-pending-witness",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-pending-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected",
-        "NoPendingCommitment"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      },
-      "violation": "NoPendingCommitment",
-      "trace_require": [
-        {
-          "hasAcceptance": "FALSE",
-          "hasFork": "TRUE",
-          "lastDelivery": "9",
-          "acceptedHeadCount": "0"
-        }
-      ]
-    },
-    {
-      "id": "v1-goal-commitment-mutation",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-commitment-mutation.cfg",
-      "expect": "violation",
-      "kind": "mutation",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      },
-      "violation": "V1Outcomes",
-      "trace_require": [
-        {
-          "lastDelivery": "9",
-          "acceptedHeadCount": "0",
-          "acceptedHeadsLost": "TRUE"
-        }
-      ]
-    },
-    {
-      "id": "v1-goal-display-mutation",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-display-mutation.cfg",
-      "expect": "violation",
-      "kind": "mutation",
-      "timeout_seconds": 600,
-      "properties": [
-        "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      },
-      "violation": "AcceptedResultDisplayed",
-      "trace_require": [
-        {
-          "lastDelivery": "9",
-          "displayedAcceptedMismatch": "TRUE"
-        }
-      ]
-    },
-    {
-      "id": "v1-session-aba-witness",
-      "suite": [
-        "v1",
         "extended",
-        "fast"
+        "sessions"
       ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-aba-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "StaleWritesCannotAuthor",
-        "WitnessABADelayedReject"
-      ],
-      "violation": "WitnessABADelayedReject",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-session-cancellation-witness",
-      "suite": [
-        "v1",
-        "extended",
-        "fast"
-      ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-cancellation-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "OnlyCurrentAuthorizedWrites",
-        "WitnessCancellationFence"
-      ],
-      "violation": "WitnessCancellationFence",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-session-failure-after-witness",
-      "suite": [
-        "v1",
-        "extended",
-        "fast"
-      ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-failure-after-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "UncertainCommitFencesSigning",
-        "IdempotentRequestsAuthorOnce",
-        "WitnessFailureAfterRecovery"
-      ],
-      "violation": "WitnessFailureAfterRecovery",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-session-failure-before-witness",
-      "suite": [
-        "v1",
-        "extended",
-        "fast"
-      ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-failure-before-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "UncertainCommitFencesSigning",
-        "IdempotentRequestsAuthorOnce",
-        "WitnessFailureBeforeRecovery"
-      ],
-      "violation": "WitnessFailureBeforeRecovery",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-session-generation-mutation",
-      "suite": [
-        "v1",
-        "extended",
-        "fast"
-      ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-generation-mutation.cfg",
-      "expect": "violation",
-      "kind": "mutation",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "StaleWritesCannotAuthor"
-      ],
-      "violation": "StaleWritesCannotAuthor",
-      "trace_require": [
-        {
-          "staleWriteSigned": "TRUE",
-          "staleWriteAuthored": "TRUE"
-        }
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-session-principal-witness",
-      "suite": [
-        "v1",
-        "extended",
-        "fast"
-      ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-principal-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "NoCrossPrincipalEvents",
-        "WitnessPrincipalBoundary"
-      ],
-      "violation": "WitnessPrincipalBoundary",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-session-restart-replay-witness",
-      "suite": [
-        "v1",
-        "extended",
-        "fast"
-      ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-restart-replay-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "StaleWritesCannotAuthor",
-        "IdempotentRequestsAuthorOnce",
-        "WitnessRestartReplay"
-      ],
-      "violation": "WitnessRestartReplay",
-      "trace_require": [
-        {
-          "witnessReached": "TRUE"
-        }
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-session-safety",
-      "suite": [
-        "v1",
-        "extended"
-      ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-safety.cfg",
+      "module": "AttemptSessions.tla",
+      "config": "configs/attempt-independent-safety.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 1800,
       "properties": [
         "TypeOK",
         "ClaimHolderBound",
         "GenerationsNeverDecrease",
         "NoCrossPrincipalEvents",
         "StaleWritesCannotAuthor",
-        "OnlyCurrentAuthorizedWrites",
+        "OnlyAuthorizedWrites",
         "IdempotentRequestsAuthorOnce",
         "IdempotencyMatchesEvent",
         "UncertainCommitFencesSigning",
         "HealthyMemoryMatchesStore"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
-    },
-    {
-      "id": "v1-session-departure-witness",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-departure-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "ClaimHolderBound",
-        "GenerationsNeverDecrease",
-        "NoCrossPrincipalEvents",
-        "StaleWritesCannotAuthor",
-        "OnlyCurrentAuthorizedWrites",
-        "IdempotentRequestsAuthorOnce",
-        "IdempotencyMatchesEvent",
-        "UncertainCommitFencesSigning",
-        "HealthyMemoryMatchesStore",
-        "WitnessDepartureFence"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      },
-      "violation": "WitnessDepartureFence",
-      "trace_require": [
-        {
-          "phase": "8",
-          "lastOutcome": "\"Denied\"",
-          "reopened": "TRUE"
-        }
       ]
     },
     {
-      "id": "v1-session-departure-replay-witness",
+      "id": "effects-safety",
       "suite": [
-        "v1",
-        "fast",
-        "extended"
+        "extended",
+        "effects"
       ],
-      "module": "SessionsV1.tla",
-      "config": "configs/v1/v1-session-departure-replay-witness.cfg",
-      "expect": "violation",
-      "kind": "witness",
-      "timeout_seconds": 60,
-      "properties": [
-        "TypeOK",
-        "ClaimHolderBound",
-        "GenerationsNeverDecrease",
-        "NoCrossPrincipalEvents",
-        "StaleWritesCannotAuthor",
-        "OnlyCurrentAuthorizedWrites",
-        "IdempotentRequestsAuthorOnce",
-        "IdempotencyMatchesEvent",
-        "UncertainCommitFencesSigning",
-        "HealthyMemoryMatchesStore",
-        "WitnessDepartureReplay"
-      ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      },
-      "violation": "WitnessDepartureReplay",
-      "trace_require": [
-        {
-          "phase": "7",
-          "lastOutcome": "\"Replayed\""
-        }
-      ]
-    },
-    {
-      "id": "v1-goal-pending-recovery",
-      "suite": [
-        "v1",
-        "fast",
-        "extended"
-      ],
-      "module": "GoalLogV1.tla",
-      "config": "configs/v1/v1-goal-pending-recovery.cfg",
+      "module": "FlowEffects.tla",
+      "config": "configs/effects-safety.cfg",
       "expect": "pass",
       "kind": "current-safety",
-      "timeout_seconds": 600,
       "properties": [
         "TypeOK",
-        "IncrementalEqualsReplay",
-        "CoordinatorAuthority",
-        "AssignmentAttempts",
-        "AcceptedPreconditions",
-        "RemovalFencesAssignments",
-        "AcceptedResultDisplayed",
-        "V1Outcomes",
-        "IR5ForkProtected"
+        "LogicalTaskDeduplication",
+        "OnlyPermittedStarts",
+        "OutboxHasDurableSource",
+        "AcknowledgmentHasMaterialization",
+        "RoundsHaveDistinctIdentity",
+        "HealthyMemoryMatchesStore",
+        "UncertainCommitFencesSigning"
+      ]
+    },
+    {
+      "id": "effects-ack-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "effects"
       ],
-      "model_baseline": {
-        "status": "current-bounded",
-        "source_commit": "15399466160d7ffc4a19de19e7af5ea7a1c3015a",
-        "protocol_version": 1,
-        "api_version": 1
-      }
+      "module": "FlowEffects.tla",
+      "config": "configs/effects-ack-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "LogicalTaskDeduplication",
+        "OnlyPermittedStarts",
+        "OutboxHasDurableSource",
+        "AcknowledgmentHasMaterialization",
+        "RoundsHaveDistinctIdentity",
+        "HealthyMemoryMatchesStore",
+        "UncertainCommitFencesSigning",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "effects-duplicate-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "effects"
+      ],
+      "module": "FlowEffects.tla",
+      "config": "configs/effects-duplicate-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "LogicalTaskDeduplication",
+        "OnlyPermittedStarts",
+        "OutboxHasDurableSource",
+        "AcknowledgmentHasMaterialization",
+        "RoundsHaveDistinctIdentity",
+        "HealthyMemoryMatchesStore",
+        "UncertainCommitFencesSigning",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "effects-failure-before-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "effects"
+      ],
+      "module": "FlowEffects.tla",
+      "config": "configs/effects-failure-before-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "LogicalTaskDeduplication",
+        "OnlyPermittedStarts",
+        "OutboxHasDurableSource",
+        "AcknowledgmentHasMaterialization",
+        "RoundsHaveDistinctIdentity",
+        "HealthyMemoryMatchesStore",
+        "UncertainCommitFencesSigning",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "effects-failure-after-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "effects"
+      ],
+      "module": "FlowEffects.tla",
+      "config": "configs/effects-failure-after-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "LogicalTaskDeduplication",
+        "OnlyPermittedStarts",
+        "OutboxHasDurableSource",
+        "AcknowledgmentHasMaterialization",
+        "RoundsHaveDistinctIdentity",
+        "HealthyMemoryMatchesStore",
+        "UncertainCommitFencesSigning",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "effects-retraction-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "effects"
+      ],
+      "module": "FlowEffects.tla",
+      "config": "configs/effects-retraction-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "LogicalTaskDeduplication",
+        "OnlyPermittedStarts",
+        "OutboxHasDurableSource",
+        "AcknowledgmentHasMaterialization",
+        "RoundsHaveDistinctIdentity",
+        "HealthyMemoryMatchesStore",
+        "UncertainCommitFencesSigning",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "effects-duplicate-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "effects"
+      ],
+      "module": "FlowEffects.tla",
+      "config": "configs/effects-duplicate-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "LogicalTaskDeduplication"
+      ],
+      "violation": "LogicalTaskDeduplication",
+      "trace_require": [
+        {
+          "lastOutcome": "\"DuplicateSignature\""
+        }
+      ]
+    },
+    {
+      "id": "effects-ack-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "effects"
+      ],
+      "module": "FlowEffects.tla",
+      "config": "configs/effects-ack-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "OnlyPermittedStarts"
+      ],
+      "violation": "OnlyPermittedStarts",
+      "trace_require": [
+        {
+          "lastOutcome": "\"Acknowledged\""
+        }
+      ]
     }
-  ],
-  "model_baseline": {
-    "status": "historical",
-    "source_commit": "86980594acee708b2f9bf303afc9ee636dc55337",
-    "protocol_version": 0,
-    "api_version": 0,
-    "evidence_commit": "4fc3079df29da4d2c4b503b2478c5ed75250c037",
-    "rebaseline_required_for_protocol": 1
-  }
+  ]
 }

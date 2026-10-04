@@ -1,0 +1,11 @@
+{
+  "cases": 54,
+  "kinds": {
+    "runner-fixture": 2,
+    "current-safety": 19,
+    "reachability-witness": 22,
+    "deliberate-mutation": 11
+  },
+  "all_matched": true,
+  "source_changed_during_runs": false
+}
