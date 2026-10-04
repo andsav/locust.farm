@@ -10,11 +10,12 @@ new and old protocols implement identical work.
 
 The executable [current-protocol measurement harness](../crates/locust-core/tests/organization_performance.rs)
 is an ignored integration test. It has correctness assertions and no numerical
-pass/fail threshold. The [final raw output](evidence/organization-performance/protocol2-final-output.txt)
+pass/fail threshold. The earlier [cutover candidate raw output](evidence/organization-performance/protocol2-final-output.txt)
 records every minimum, median and maximum. The
 [source digest manifest](evidence/organization-performance/protocol2-source-sha256.txt)
-identifies the measured files from the uncommitted runtime candidate; the
-subsequent engine commit records those files in Git. The shared checkout had
+identifies the measured files from the runtime candidate later committed as
+`c88e3bc960de79eb990b3185a653bd982e587ed6`. The final runtime measurement below
+uses a separate exact commit and source manifest. The shared checkout had
 other cutover work in progress, so this was not an isolated release build.
 
 Use the repository's pinned Rust toolchain on the same macOS arm64 Apple M5 Pro
@@ -57,7 +58,7 @@ ingestion, and canonical wire decode/signature verification plus batch ingestion
 They exclude SQLite/disk durability, network delivery, daemon scheduling, encrypted
 content and fetching. They do not qualify those systems' performance.
 
-## Results
+## Cutover candidate results
 
 Times are median milliseconds. Exact minimum/maximum values are in raw evidence.
 
@@ -104,3 +105,46 @@ checks would invalidate the comparison. Forked replay is faster on this workload
 but the changed evidence/authorization contract prevents generalizing that to a
 protocol-wide speed claim. No production latency, throughput or capacity claim
 follows from these measurements.
+
+
+## Final runtime qualification
+
+The final run measured committed runtime
+`1b81bef7a3caafa219f5a4096a01b3a49d505c56`, including child delegation checks,
+causal closure positions and the durable delivery implementation. The
+[qualified raw output](evidence/organization-performance/protocol2-qualified-output.txt)
+retains all samples' minimum/median/maximum results and the successful correctness
+assertions. The [qualified source manifest](evidence/organization-performance/protocol2-qualified-source-sha256.txt)
+records SHA-256 for all 123 tracked core/protocol/Cargo/toolchain files; every hash
+was checked unchanged after the run. Concurrent later documentation commits do
+not change the measured runtime revision.
+
+This run uses the same command, workload sizes, one warmup, seven samples and
+128-event batch sizes described above. The current signed attempt includes its
+optional typed closure position. This workload configures selection without a
+closure authority, so it does not measure traversing an observed close/reopen
+history. It also does not exercise the network delivery worker: that code is in
+the measured revision but remains outside this pure `Goal`/`MemStore` harness.
+Compilation took 22.62 seconds and is excluded from the timings; the test completed
+in 14.24 seconds. The host continued other development work, so contention and
+thermal conditions remain uncontrolled. No repeated run or selected best run was
+used for this qualification.
+
+Times below are median milliseconds, comparing the historical protocol-1
+baseline with this final runtime. The changed authorization workload caveats above
+still apply.
+
+| Tasks | History | Events | Replay (old → final) | Decoded batches (old → final) | Wire + batches (old → final) |
+| --- | --- | --- | --- | --- | --- |
+| 16 | Healthy | 84 | 0.038 → 0.750 | 0.030 → 0.747 | 1.982 → 3.104 |
+| 16 | Member fork, exact selection | 85 | 0.184 → 0.646 | 0.185 → 0.561 | 2.144 → 2.910 |
+| 128 | Healthy | 644 | 0.236 → 6.710 | 0.213 → 23.666 | 16.172 → 42.751 |
+| 128 | Member fork, exact selection | 645 | 9.949 → 5.841 | 9.725 → 22.752 | 25.950 → 42.002 |
+| 512 | Healthy | 2564 | 1.081 → 35.695 | 0.910 → 345.119 | 64.114 → 425.772 |
+| 512 | Member fork, exact selection | 2565 | 170.567 → 32.269 | 170.401 → 343.576 | 234.646 → 416.833 |
+
+The remaining healthy-path and batch-ingestion regressions persist in the final
+runtime. The 512-task forked replay is faster in this finite comparison, while
+its decoded and wire ingestion paths are slower. These results neither establish
+a protocol-wide improvement nor qualify network, disk, daemon or production
+performance. No numerical acceptance threshold was supplied or added.
