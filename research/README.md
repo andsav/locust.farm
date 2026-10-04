@@ -25,6 +25,10 @@ repository root. Untracked drafts are excluded from the check.
 - [Upstream version-1 modeling impact](tla/upstream-impact-2026-10-04.md): merge assessment, changed rules, historical model boundaries and required rebaselining.
 - [Stages 0 and 1 evidence](evidence/tla/README.md): bounded result summaries, retained counterexamples/witnesses, Rust fixture correspondence, development failures and unverified CI qualification.
 
+### Simulating multi-machine tests — 2026-10-03
+
+- [Simulation on one computer](multi-machine-simulation.md): preliminary. An in-process machine simulator and a multi-process scenario runner, and four new findings from the runner that fixing can start on.
+
 ### Independent review of the T1 candidate — 2026-10-03
 
 - [Independent review of the release candidate](t1-candidate-independent-review.md): reproduction of the integration claims, 36 verified findings (10 at P2, none blocking the T1 guide), what was tested and held, and the earlier cross-review of the build helper and client harness. Probes are kept as patches under `evidence/t1-candidate-review/`, listed in the evidence index.
