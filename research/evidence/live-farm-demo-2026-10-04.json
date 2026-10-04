@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "status": "running",
+  "date": "2026-10-04",
+  "farm_url": "https://locust.farm/farm/939ab4cdb67d868475d97e598ba2ef7f",
+  "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+  "topology": "four principals on one local daemon",
+  "daemon_binary_sha256": "d5363a8ad31afed6c53996d8738f674a10baecaf5be3dd791e900b50716c1883",
+  "source_commits": {
+    "kimi_adapter": "6b0cedf99923c301553c2d456b0e4aaba3fb1890",
+    "stream_shutdown_fix": "9f09364",
+    "website_copy": "f6d83c435c7d95cbf7a32be5076f8b5a244e8a8a"
+  },
+  "clients": {
+    "codex": {
+      "version": "0.153.4",
+      "model": "gpt-6.1-sol",
+      "provider": "OpenAI API"
+    },
+    "claude_code": {
+      "version": "2.1.280",
+      "observed_model": "claude-opus-5-5"
+    },
+    "kimi_code": {
+      "version": "0.42.0",
+      "configured_model": "kimi-code/k3",
+      "auth": "isolated copied OAuth profile"
+    },
+    "pi": {
+      "version": "1.0.1",
+      "model": "gpt-6-luna",
+      "provider": "OpenAI API"
+    }
+  },
+  "persistence": {
+    "local": "daemon SQLite and content-addressed artifact files outside Git",
+    "public": "service SQLite at /var/lib/locust-farm/farm.sqlite",
+    "restart_before_fix": "snapshot and stream_version survived forced service termination after grace timeout"
+  },
+  "contract": {
+    "contribution": "b1c429f08bc43b5971a13c76b50987a74a72eb74ac4742e5f1b8197722ea43f5",
+    "artifact": "7c0a7efc437df8536ce7dad108a95ee88ba07ba5726a1a452ffc3732d77df187",
+    "claim": {
+      "attempt": "80c6f327f67bf97037684e173b9712ba36f76c89160849d938d7de6720f511dc",
+      "generation": 1,
+      "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+      "instance": "13ca4ba6ea4bf13ec2049071693a76af",
+      "task": "effect:7b0816b1a6ccafbac42abcaa0bce614907157a78469a86059cfe4441a9763b74"
+    }
+  },
+  "browser": {
+    "real_sse_versions": [
+      5,
+      6,
+      7,
+      8
+    ],
+    "desktop_width": 1440,
+    "mobile_width": 390,
+    "horizontal_overflow": false,
+    "page_errors": [],
+    "refresh_after_restart": "available version 8"
+  },
+  "gates": {
+    "shutdown_fix": [
+      {
+        "name": "fmt",
+        "exit_code": 0,
+        "seconds": 0.57
+      },
+      {
+        "name": "clippy",
+        "exit_code": 0,
+        "seconds": 1.87
+      },
+      {
+        "name": "test",
+        "exit_code": 0,
+        "seconds": 54.86
+      }
+    ],
+    "website": [
+      "lint passed",
+      "check passed",
+      "187 node tests passed",
+      "build passed",
+      "6 farm browser tests passed"
+    ]
+  },
+  "failures": [
+    "Codex initial ChatGPT model mismatch; failed attempt retained, separate API-backed attempt completed",
+    "Kimi --prompt with --yolo rejected before model; corrected launch removed --yolo",
+    "Open SSE prevented initial graceful service shutdown; fixed with shutdown watch",
+    "Controller phase-save race; signed Locust events and native logs retained"
+  ],
+  "not_verified": [
+    "two physical machines",
+    "unattended scheduling",
+    "app integration and final acceptance (still running)"
+  ]
+}

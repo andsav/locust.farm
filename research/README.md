@@ -170,3 +170,5 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Organization protocol 2 native package qualification](organization-native-qualification.md): exact native candidate installation, three supported persistent setups, four managed recovery clients, executable manual and installed offline discovery, with explicit unrun boundaries.
 
 - [Farm development qualification](farm-qualification.md): local daemon/service recovery, browser/proxy evidence, and explicit discovery/real-harness boundaries.
+
+- [Live four-client farm rehearsal](live-farm-demo.md): real native clients, public SSE and persistent storage, retained failures and exact qualification limits.

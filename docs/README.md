@@ -13,6 +13,8 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
+- [Live four-client farm demo](live-farm-demo.md): persistent native-client phase runner, public farm, local storage and rehearsal boundaries.
+
 - [Published macOS terminal preview](public-preview-release.md): public curl installer, exact API-4 binary/signatures, native and public-download verification, and remaining readiness boundaries.
 - [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 5/protocol 5 runtime and authoring are implemented; current qualification is tracked separately.
 - [Formation implementation status](formations-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.

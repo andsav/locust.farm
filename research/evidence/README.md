@@ -37,3 +37,5 @@ Read the [MoltMesh validation report](../moltmesh-validation.md) or [hcom dissec
 - [Live Codex and Merak collaboration](collaboration-live-codex-merak-2026-10-04.json): four retained attempts through permission recovery, a late private finding, artifact revision, peer review and separate-workspace application; corrected cumulative token accounting and all material failures, interpreted in [simulation findings](../collaboration-followups.md).
 
 - [Farm development qualification](../farm-qualification.md) records local farm checks; [passing pipeline results](farm/local-pipeline.json) and [ephemeral discovery failures](farm/ephemeral-discovery-failures.json) preserve the separate post-restart transport limitation.
+
+- [Live farm rehearsal evidence](live-farm-demo-2026-10-04.json): native clients, public deployment, real streaming observations and retained failures; interpreted in [the rehearsal findings](../live-farm-demo.md).
