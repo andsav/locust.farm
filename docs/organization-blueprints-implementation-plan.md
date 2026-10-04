@@ -23,8 +23,9 @@ site implementation, verification, and publication gates. It is a required
 workstream of this plan, not a post-release cleanup task.
 
 This plan supersedes the universal-coordinator target in the older
-[implementation plan](implementation-plan.md). It does not change existing
-protocol-1 behavior or erase historical evidence. The
+[implementation plan](implementation-plan.md). Writing it changes no behavior;
+implementing it replaces protocol 1 under D3, and historical evidence stays as a
+labeled record. The
 [last-mile plan](last-mile-implementation-plan.md) still supplies installation,
 permission, and delivery work; organization-sensitive portions must use this
 plan's new identities and state model. Publishing software/site content, paid
@@ -382,8 +383,11 @@ Source owners: [store schema](../crates/locust-store/src/schema.rs),
    publish idempotent and retain definitions referenced by active or historical
    goals within the current contract.
 3. Define the current local-record encoding and direct SQL schema initialization.
-   Remove historical upgrade steps and old record decoders; test crash/reopen and
-   recovery for this schema. Existing schema numbers do not create a migration API.
+   The store has one schema entry and untagged postcard local records, so a
+   protocol-1 home holding enrolled agents but no events passes the event-version
+   preflight. Give the new schema a distinct marker and refuse every other
+   nonzero value before reading local records. Test crash/reopen and recovery
+   for this schema. Schema numbers do not create a migration API.
 4. Use one current contract through event/invitation codecs, local hello, network
    hello/framing and diagnostics. Reject unsupported markers before decoding or
    mutating state. Do not add old-goal dispatch, fallback codecs or conversion.
@@ -410,9 +414,9 @@ Source owners: [event contract](../crates/locust-proto/src/event.rs),
    administration, and independent rule/binding/content-key revisions.
 2. Build governance validation for invitations, admission/removal, role grants,
    future-rule revisions, and authority delegation. Separate these from task actions.
-3. Replace the global coordinator check/classification for new-version work with
-   typed scoped authorization. Use the same evaluator for authored and received
-   events; enforce authority at replay, not merely in tool descriptions.
+3. Replace the global coordinator check/classification with typed scoped
+   authorization. Use the same evaluator for authored and received events;
+   enforce authority at replay, not merely in tool descriptions.
 4. Specify evidence closure and author-fork handling from O0. Retain referenced
    definitions, role proofs, contributions, and decisions. Distinguish unknown,
    missing, excluded, invalid, and conflicted evidence without inventing validity.
