@@ -202,7 +202,7 @@
         "people",
         "agents"
       ],
-      "status": "proposed"
+      "status": "development"
     },
     {
       "source": "docs/guide/help.md",
@@ -335,7 +335,8 @@
     "docs/organization-blueprints-implementation-plan.md",
     "docs/organization-blueprints-semantics.md",
     "research/onboarding-qualification.md",
-    "docs/organization-blueprints-status.md"
+    "docs/organization-blueprints-status.md",
+    "docs/packaging.md"
   ],
   "routes": [
     {

@@ -2,8 +2,9 @@
 
 Updated 2026-10-04. This records execution of the frozen
 [implementation plan](organization-blueprints-implementation-plan.md); it does
-not change its scope. The current runtime is API 2 / protocol 2, introduced by
-`c88e3bc960de79eb990b3185a653bd982e587ed6`. It is a local development candidate,
+not change its scope. The current runtime is API 2 / protocol 2. The integrated
+runtime and exported contract are committed at `1b81bef7a3caafa219f5a4096a01b3a49d505c56`, following
+the initial engine cutover at `c88e3bc`. It is a local development candidate,
 not a published or fully qualified release.
 
 ## Current package status
@@ -16,12 +17,12 @@ not a published or fully qualified release.
 | O3: governance and work separation | Verified in deterministic and local daemon tests | One shared evaluator at authoring, receive and replay; [goal tests](../crates/locust-core/src/goal/tests.rs), [replica tests](../crates/locust-core/src/node/replica_tests.rs); key-only peer discovery qualification blocked on this host |
 | O4: contributions and attempts | Verified locally | Taskless findings, independent attempts, explicit offers, cancellation and local generation fencing; [API acceptance](../crates/locust-core/tests/organizations.rs) |
 | O5: completion and scoped decisions | Verified in deterministic tests | Exact distinct eligible evidence, competing approved candidates, scope-specific selection and retained proof; [goal tests](../crates/locust-core/src/goal/tests.rs), [read projection regression](../crates/locust-core/src/node/tests/content.rs) |
-| O6: composition and daemon flow | Audit corrections in progress | Materialization, logical effect identity and acknowledgment tests pass. Independent audit found missing parent-rule narrowing/inheritance and explicit durable receipt-driven outbox/inbox delivery; these are being completed before qualification. [Flow evaluator](../crates/locust-core/src/goal/flow.rs), [daemon flow](../crates/locust-core/src/node/flow.rs) |
+| O6: composition and daemon flow | Verified in deterministic and local API tests | Parent delegation cannot widen; children retain pinned rules. Durable event/outbox/inbox/receipt commits, retries and withdrawal pass fault tests. Separate-goal export preserves membership and parent review. [Delegation](../crates/locust-core/src/goal/delegation.rs), [delivery](../crates/locust-core/src/node/delivery.rs), [peer tests](../crates/locust-core/src/node/tests/delivery.rs), [subgroup evidence](../research/subgroup-qualification.md) |
 | O7: CLI, MCP and agent guidance | Implemented; installed-client qualification pending | Current typed CLI/MCP, offline contract/diff, private authoring and updated skill pass; exact installed/client campaigns remain O11 |
-| O8: workspace and managed clients | Implemented; package qualification in progress | Exact selected-patch application, owner local choice for unselected Open contributions, attempt/session lifecycle and policy guards pass; manual snapshot packaging and installed current-model checks are being completed |
-| O9: full public manual | Standalone articles implemented; Polaris article pending | Versioned site, generated references and current operating articles; three executable Markdown tutorials; site checks and manual snapshot qualification tracked separately |
-| O10: Polaris | In progress | Typed native adapter and forms-first library/editor under development in Merak; native/package qualification outstanding; dependency revision has not been published |
-| O11: qualification | In progress | Rust gates pass; current Python recipes and formal models in progress; native four-client, physical-machine and authorized provider campaigns outstanding |
+| O8: workspace and managed clients | Implemented; exact candidate qualification in progress | Selected and owner-chosen Open patch application, attempt/session guards and signed three-payload packaging pass. The package includes the binary, operating skill and deterministic manual snapshot. Installed candidate checks are recorded separately |
+| O9: full public manual | Implemented and verified locally | Eighteen articles cover standalone use and Polaris; generated references, six blueprint examples and four executable Markdown tutorials pass. The production build verifies 88 routes and ten exact assets. Publication remains O12 |
+| O10: Polaris | Implemented; final native/package qualification in progress | Merak `aaaf62ae3` pins Locust `1b81bef` and adds the typed native adapter and forms-based organization library/editor. Generated schemas match exactly; native daemon round trips and focused UI checks pass. Packaged UI checks remain separate. The dependency revision has not been published |
+| O11: qualification | In progress | Final cleanup gates pass 624 Rust tests with 12 explicit ignores; Python helpers pass 193 tests; all 54 finite-model cases and four manual tutorials pass. Exact installed/native candidates, physical-machine and authorized provider campaigns remain separate gates |
 | O12: release | Not started | Public hosting, artifact signing/publication and independent download/live journey remain separate authorized release gates |
 | O13: exclusive reservations | Deferred | Not selected for this delivery; local attempt claims are not distributed reservations |
 
@@ -34,8 +35,8 @@ not a published or fully qualified release.
   retains only the exact accepted proof branch in its decision scope. It does not
   make unrelated forked work effective or eligible to start.
 - [The commit path](../crates/locust-core/src/node/commit.rs) persists event,
-  feed, local claim and request receipt atomically. Failed commits stop further
-  writes until restart. Revision exhaustion is refused before changing memory.
+  feed, recipient delivery records, local claim and request receipt atomically.
+  Failed commits stop further writes until restart. Revision exhaustion is refused before changing memory.
 - [Goal-scoped definition loading](../crates/locust-core/src/node/definitions.rs)
   checks signed sealed-object hash, size, epoch, decryption and semantic identity;
   a private catalog entry is not a substitute for the referenced goal object.
@@ -99,4 +100,77 @@ witnesses, 11 deliberate safety mutations and two runner fixtures). See the
 executable models were removed; source-history references preserve prior findings.
 
 The [manual qualification record](../research/documentation-qualification.md)
-retains the exact local binary and three recipe hashes and their passing results.
+retains the earlier local binary and three recipe hashes and their passing
+results. The four-recipe exact-candidate campaign is recorded separately when
+completed.
+
+## Correctness audit and final runtime gates
+
+The audit corrections are committed independently:
+
+- `9d0487f` enforces inherited parent work/decision constraints and rejects
+  widening or weaker completion. `ee9ede9` retains child rule pins across future
+  default changes and binds attempt starts to authenticated closure positions.
+  Concurrent offline starts remain valid; observing Close forbids a new start
+  until an eligible Reopen. [Delegation tests](../crates/locust-core/src/goal/tests.rs)
+  and [public API tests](../crates/locust-core/tests/organizations.rs) cover these rules.
+- `0feae33` verifies different memberships, chosen-byte export and fresh parent
+  review in [separate goals](../research/subgroup-qualification.md).
+- `1b81bef` commits one effect and its recipient records atomically, records the
+  recipient inbox before a transport receipt, and retires retries only after
+  durably storing that receipt. Agent acknowledgment and process start remain
+  separate. Tests inject failure before and after all three commit boundaries,
+  lose receipts, restart both nodes and retract forked authority. Failed nodes
+  expose no replica and sign nothing until reopen resolves durable state.
+
+At `1b81bef`, formatting, strict workspace clippy and all workspace tests passed:
+**623 passed, zero failed, 12 explicitly ignored**. The separate ignored release
+performance harness also passed and records current replay/batch costs against the
+historical baseline. Its [final measurements](../research/organization-protocol2-performance.md)
+retain the remaining regressions and exact source digests. No latency or capacity
+budget is inferred.
+
+The final greenfield cleanup (`4bc417d`, `c731e71`) removes the unused proposal
+limit and older setup ownership/journal readers. Unsupported setup formats are
+refused before mutation. Its combined gates passed **624 Rust tests with 12
+explicit ignores**, strict workspace Clippy, formatting and **193 Python tests**.
+The package now includes Apache-2.0 license text inside its hashed manual payload.
+
+The final public API export includes typed causal closure and separate durable
+receipt/availability fields. Six exported blueprints validate. Site lint, Svelte
+checks (zero errors/warnings), 37 site tests and all 88 prerendered routes passed.
+The four exact tutorial fences cover private authoring, collaboration, Open patch
+application and separate-goal context export. This is local development evidence;
+it does not close physical-machine, provider-account or public-release gates.
+
+## Verification scenario ledger
+
+The implementation commits and package owners above apply to this map. A
+`verified` row names its exercised boundary; it does not promote deterministic or
+same-host evidence to a physical-machine, real-provider or public-release claim.
+O13 was not selected, so V04 is conditional and deferred.
+
+| Scenario | Status | Owner / implementation | Evidence and remaining boundary |
+| --- | --- | --- | --- |
+| V01: open templates and taskless findings | Verified locally | O1/O4/O7; `c88e3bc`, `b08d797` | [Authoring tests](../crates/locust-core/src/organization/tests.rs), [API journeys](../crates/locust-core/tests/organizations.rs) and [Open patch tutorial](guide/apply.md) |
+| V02: scoped coordinator behavior | Verified in deterministic/local tests | O3/O5; `c88e3bc` | [Goal tests](../crates/locust-core/src/goal/tests.rs) include coordinator assignment, exact selection and shared-document evidence; [production workflows](../scripts/client_qualification/production.py) use current primitives |
+| V03: independent disconnected attempts | Verified in deterministic replay | O4; `c88e3bc` | [Goal tests](../crates/locust-core/src/goal/tests.rs) preserve attempts/contributions under reverse arrival and restart; physical transport qualification remains V18 |
+| V04: exclusive reservations | Deferred, not selected | O13 | Independent attempts and local generation fencing do not claim distributed exclusivity |
+| V05: distinct eligible review | Verified in deterministic tests | O5; `c88e3bc` | [Goal tests](../crates/locust-core/src/goal/tests.rs) and [finite models](../research/tla/organization.md) enforce exact subjects, distinct eligible principals, tenure cutoffs and pinned rules |
+| V06: competing approvals and scoped selection | Verified in deterministic tests | O5; `c88e3bc` | [Goal tests](../crates/locust-core/src/goal/tests.rs) retain exact accepted proof branches while keeping unrelated scopes separate |
+| V07: offline administrator | Verified at evaluator boundary; transport blocked locally | O3/O5/O11; `c88e3bc` | [Goal tests](../crates/locust-core/src/goal/tests.rs) need no administrator decision for authorized Open work. [Discovery results](../research/organization-local-discovery.md) retain the failed worker-to-worker route after administrator exit |
+| V08: membership, forks and missing proofs | Verified in deterministic tests | O3/O5; `c88e3bc` | [Goal tests](../crates/locust-core/src/goal/tests.rs), [replica tests](../crates/locust-core/src/node/replica_tests.rs) and [models](../research/tla/organization.md) |
+| V09: composition and durable daemon flow | Verified in deterministic/local peer tests | O6; `9d0487f`, `ee9ede9`, `1b81bef` | [Delegation](../crates/locust-core/src/goal/delegation.rs), [delivery/restart tests](../crates/locust-core/src/node/tests/delivery.rs) and [commit failures](../crates/locust-core/src/node/tests/failure.rs) |
+| V10: separate-member explicit export | Verified with a local daemon | O6; `0feae33` | [Subgroup qualification](../research/subgroup-qualification.md) and [executable export tutorial](guide/sharing.md); no topic-level isolation claim |
+| V11: shared evaluation and atomic state | Verified in deterministic/local tests | O2–O8; `c88e3bc`, `1b81bef` | [Core API tests](../crates/locust-core/tests/organizations.rs), [failure injection](../crates/locust-core/src/node/tests/failure.rs) and [catalog tests](../crates/locust-core/src/organization/catalog/tests.rs) |
+| V12: stale local session | Verified in local API tests | O4/O8; `c88e3bc` | [Independent attempt and ABA takeover tests](../crates/locust-core/tests/organizations.rs); cancellation and fencing do not assert physical process termination |
+| V13: private draft and publication races | Verified in local API tests | O2/O7; `c88e3bc` | [Catalog tests](../crates/locust-core/src/organization/catalog/tests.rs) and [private author capability tests](../crates/locust-core/tests/organizations.rs) |
+| V14: agent/visual/source round trip | In progress | O7/O10; Merak `aaaf62ae3` | [Polaris evidence](guide/polaris.md): schema parity, native adapter/daemon and browser UI fixtures pass; packaged native UI remains separate |
+| V15: fresh/current-only persistence | Verified locally | O2/O8; `c88e3bc`, `c731e71` | [Store format tests](../crates/locust-store/src/tests.rs) and [setup refusal tests](../crates/locust/src/installation/setup/tests.rs) refuse unsupported formats without conversion or mutation |
+| V16: reviewed and owner-chosen application | Verified with a local daemon/checkout | O8; `b08d797` | [Production workflows](../scripts/client_qualification/production.py) and [executable application tutorial](guide/apply.md); dirty files, conflicts and idempotent receipts remain explicit |
+| V17: installed discovery and four clients | In progress | O7/O8/O11 | Current CLI/MCP exports and offline skill are implemented. Exact installed-candidate scripted client checks are pending; natural-language/provider campaigns need authorized accounts and spending |
+| V18: physical transport and recovery | Blocked on external qualification inputs | O11 | [Current discovery limitation](../research/organization-local-discovery.md); two physical machines, independent accounts and sleep/wake evidence are required |
+| V19: manual routes, examples and tutorials | Verified locally; exact-candidate run in progress | O9/O11; `ca17249`, final manual changes | Eighteen articles, 88 routes, six examples and four executable fences. [Retained manual evidence](../research/documentation-qualification.md) identifies its earlier three-recipe candidate; no deployment claim |
+| V20: independent public downloads | Blocked on release authorization and inputs | O12 | Software and website remain unpublished; signing custody, public origin and continuity policy remain owner decisions |
+| V21: superseded executable removal | Verified by source inventory and refusal tests | All implementation owners; `4bc417d`, `c731e71` | [Semantics removal inventory](organization-blueprints-semantics.md), [current setup refusal tests](../crates/locust/src/installation/setup/tests.rs) and [runtime contract](reference/generated/runtime.contract.json); historical evidence stays explicitly historical |
+| V22: measured replay and ingestion costs | Verified measurements; regression retained | O0/O3/O5; `10e5872` | [Paired performance record](../research/organization-protocol2-performance.md) contains exact inputs, source digests and remaining workload/host caveats; it supplies no invented capacity budget |

@@ -6,8 +6,8 @@ This document develops [the accepted direction](organization-blueprints.md) and
 protocol 2 is implemented. The [execution ledger](organization-blueprints-status.md)
 records exact source checks and remaining qualification; this specification is
 not itself proof that every acceptance campaign has passed. The removal inventory
-records the inspected pre-cutover source and required replacements, not active
-legacy runtime support.
+records the completed replacements and their enforcing sources. Historical
+protocol-1 findings remain labeled evidence rather than active runtime support.
 
 ## Accepted authority boundaries
 
@@ -461,29 +461,33 @@ before editing consumers. No lane needs an old decoder or fallback runtime.
 
 ## Source-based replacement inventory
 
-Inspected against the pre-authoring runtime on 2026-10-04. These paths are active
-now, not necessarily dead code. Remove the superseded assumptions in the same
-logical changes as their replacements; do not delete the only current runtime
-because an offline authoring module exists. Adapt reusable invariants and tests
-to the current design and remove obsolete variants, interfaces and fixtures.
+The runtime cutover at `c88e3bc` replaced the pre-authoring implementation. The
+final source audit, including `4bc417d` and `c731e71`, found no remaining item in
+this superseded-executable inventory. Existing filenames are sometimes retained
+for a reusable invariant; they contain the current implementation, not a second
+runtime. Current recovery and unsupported-format refusal are tested separately
+from successful decoding of old state, which is not supported.
 
-| Package | Actual source and obsolete assumption | Replacement/removal obligation |
+| Package | Completed replacement | Enforcing source / evidence |
 | --- | --- | --- |
-| O3/O5 | [event.rs](../crates/locust-proto/src/event.rs): coordinator `prev` chain and decision classification; `TaskAssigned`, `ResultAccepted`, `RevisionAccepted`; comments still refer to version 0 | Replace signed contracts directly with scoped governance/work/decision semantics; remove stale version comments and superseded variants/decoders when switching protocol |
-| O3/O5 | [chain.rs](../crates/locust-core/src/goal/chain.rs), [fold.rs](../crates/locust-core/src/goal/fold.rs): coordinator usable prefix, `NotCoordinator`, universal decision placement | Separate administrator history from rule-authorized work and scoped authority streams; no retained coordinator-only alternate fold |
-| O3/O5 | [commitments.rs](../crates/locust-core/src/goal/commitments.rs): exact ancestry pins derive from coordinator assignments/acceptance | Replace typed proof roots and retention with explicit new semantics; preserve evidence safety without making every approval a coordinator commitment |
-| O4/O5 | [state.rs](../crates/locust-core/src/goal/state.rs): current assignment/result, coordinator identity and `accepted_heads` | Replace projection with contributions, attempts, explicit approval and scoped selection; remove universal accepted-head assumptions |
-| O3/O4 | [access.rs](../crates/locust-core/src/node/access.rs): `coordinator()` gate; [claims.rs](../crates/locust-core/src/node/requests/claims.rs): assigned task requirement | Replace operation authority checks with explicit effective rules; retain local fencing invariants under new attempt/session identities |
-| O3/O4 | [content_graph.rs](../crates/locust-core/src/node/content_graph.rs), [content requests](../crates/locust-core/src/node/requests/content.rs): existing typed admissibility roots | Add current definition/contribution/evidence roots and remove superseded root variants; do not bypass admission for arbitrary blobs |
-| O2/O8 | [schema.rs](../crates/locust-store/src/schema.rs): current schema 2 direct initialization; [connection.rs](../crates/locust-store/src/connection.rs), [store.rs](../crates/locust-store/src/store.rs): schema/open sequencing | Implemented: direct atomic initialization, unsupported-format preflight and current-format restart tests; migration runner removed. Node record replacement remains part of the runtime cutover |
-| O2/O8 | [records.rs](../crates/locust-core/src/node/records.rs), [sessions.rs](../crates/locust-core/src/node/sessions.rs): persisted local identities and assignment bindings | Replace record layout directly, identify supported current state and test its recovery; no postcard fallback decoders for previous records |
-| O7/O8 | [API registry](../crates/locust-proto/src/api.rs), [CLI arguments](../crates/locust/src/cli/args.rs), [MCP schema](../crates/locust/src/mcp/schema.rs) | Remove replaced coordinator/assignment-only operations and flags across every exported surface; generate and verify current references |
-| O8 | [workspace CLI](../crates/locust/src/cli/workspace.rs): required assignment/generation submission; [apply.rs](../crates/locust-workspace/src/apply.rs): accepted-head parameter | Submit explicit contributions under applicable rules; allow explicit local application of selected/taskless outputs without universal goal accepted head |
-| O9/O11 | [protocol 1](protocol-v1.md), [managed clients](managed-clients.md), [T2 workflow](t2-workflow.md), exported examples and qualification fixtures | Rewrite active documentation/tests for replaced behavior, remove executable obsolete-format fixtures and compatibility aliases; retain useful findings only as labeled history |
+| O3/O5 | Removed coordinator assignment/acceptance event variants and global decision classification | [Current signed events](../crates/locust-proto/src/event.rs), [wire tests](../crates/locust-proto/src/vectors.rs), [exported runtime contract](reference/generated/runtime.contract.json) |
+| O3/O5 | Separated administrator membership/rules history from scoped work and decisions | [Governance chain](../crates/locust-core/src/goal/chain.rs), [single fold](../crates/locust-core/src/goal/fold.rs), [goal tests](../crates/locust-core/src/goal/tests.rs) |
+| O3/O5 | Replaced coordinator commitment roots with exact scope-local evidence and authenticated closure | [Proof closure](../crates/locust-core/src/goal/commitments.rs), [decision rules](../crates/locust-core/src/goal/rules.rs), [fork/closure tests](../crates/locust-core/src/goal/tests.rs) |
+| O4/O5 | Replaced universal assignment/result/accepted-head projection with independent attempts, contributions, completion and scoped selection | [State](../crates/locust-core/src/goal/state.rs), [projection](../crates/locust-core/src/goal/projection.rs), [API tests](../crates/locust-core/tests/organizations.rs) |
+| O3/O4 | Replaced coordinator-only work authorization and assignment-only claims | [Access](../crates/locust-core/src/node/access.rs), [attempt claims](../crates/locust-core/src/node/requests/claims.rs), [session fencing tests](../crates/locust-core/tests/organizations.rs) |
+| O3/O4 | Replaced content roots with current definition/contribution/evidence admission | [Content graph](../crates/locust-core/src/node/content_graph.rs), [content requests](../crates/locust-core/src/node/requests/content.rs), [content tests](../crates/locust-core/src/node/tests/content.rs) |
+| O2/O8 | Removed the migration runner; initialize the sole current schema directly and refuse unsupported markers | [Schema](../crates/locust-store/src/schema.rs), [open sequencing](../crates/locust-store/src/connection.rs), [store tests](../crates/locust-store/src/tests.rs) |
+| O2/O8 | Replaced local bindings and records directly; no old-record fallback decoder | [Record codec](../crates/locust-core/src/node/records.rs), [sessions](../crates/locust-core/src/node/sessions.rs), [durable delivery](../crates/locust-core/src/node/delivery.rs), [failure/recovery tests](../crates/locust-core/src/node/tests/failure.rs) |
+| O7/O8 | Removed obsolete assignment-only API/CLI/MCP operations and aliases | [API registry](../crates/locust-proto/src/api.rs), [CLI arguments](../crates/locust/src/cli/args.rs), [MCP schema](../crates/locust/src/mcp/schema.rs), [generated current contract](reference/generated/runtime.contract.json) |
+| O8 | Replaced assignment-only submission and mandatory distributed selection before local application | [Workspace CLI](../crates/locust/src/cli/workspace.rs), [application](../crates/locust-workspace/src/apply.rs), [Open tutorial](guide/apply.md). The internal `accepted_head` application input names an exact artifact, not a universal goal head |
+| O8 | Removed setup-v1 ownership and pending-journal readers; package one current strict three-payload format | [Setup parser](../crates/locust/src/installation/setup.rs), [non-mutation refusal tests](../crates/locust/src/installation/setup/tests.rs), [package contract](packaging.md) |
+| O9/O11 | Rewrote active guides, examples, formal models and qualification fixtures; removed unused proposal limit | [Current manual manifest](site.json), [models](../research/tla/organization.md), [client workflows](../scripts/client_qualification/production.py), [current limits](../crates/locust-proto/src/limits.rs) |
 
-This is the starting inventory, not V21 completion. Before closing each replacing
-package, trace callers and tests, inspect manifests/lockfile for newly unused
-dependencies, and check CLI/MCP/generated schemas and active docs for superseded
-names. Before O11/O12, the remaining inventory must be empty and supported-state
-recovery plus unsupported-format refusal must be verified. No removal audit or
-runtime qualification is claimed by this document.
+The audit checked current source names and callers, Rust module declarations,
+CLI/MCP/generated schemas, dependency manifests and active guide claims.
+Refusal tests deliberately contain unsupported markers; historical research and
+[protocol-1 documentation](protocol-v1.md) retain their historical names. Neither
+is an executable compatibility path. The final combined cleanup checks passed
+formatting, strict workspace Clippy, 624 Rust tests (12 explicit ignores), 193
+Python tests and documentation checks. This inventory closes V21's source-removal
+boundary; it does not qualify physical networking, providers or public releases.

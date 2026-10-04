@@ -1,6 +1,21 @@
 # October 4 release evidence ledger
 
-**Status: production-client campaigns and managed-session implementation have local evidence; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is deferred by the owner. Operational workflows have retained local results; native macOS packaging and prioritized local installed-client campaigns have passed and precede the final two-Mac, sleep/wake and independent-account acceptance pass, deferred until the owner is available. Droid follow-up is lower priority. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace detailed M0–M6 exit evidence or the conformance matrix.
+**Current status: API 2 / protocol 2 is implemented and locally verified; release
+qualification remains open.** The
+[organization implementation ledger](organization-blueprints-status.md) tracks
+the current runtime, full manual, native integration and V01–V22 scenarios. Current
+formatting, strict workspace Clippy and Rust tests pass (624 tests, 12 explicit
+ignores); finite models, actual local daemon workflows and executable tutorial
+checks have their own retained evidence. Key-only local discovery currently
+fails. Physical-machine, independent-account, real-provider, immutable native
+package and public-download claims require their identified campaigns.
+
+The R1–R10 table and dated records below preserve the earlier implementation
+plan's evidence. **Pre-organization-cutover candidates do not qualify the current
+API 2 / protocol 2 runtime.** Their historical version/hash, old operation names
+and format descriptions are retained as evidence rather than current operating
+instructions. Public release remains deferred by the owner; no complete release
+gate is recorded as passed.
 
 The repository owner decides release go/no-go and changes to required scope or support claims. Agents record failures and remediate them; they cannot waive requirements. The [review response](implementation-plan-review-response.md) explains the changes that introduced this register.
 

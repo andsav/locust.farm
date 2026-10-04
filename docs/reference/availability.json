@@ -20,7 +20,10 @@
     "independent-attempts",
     "scoped-completion-and-selection",
     "durable-logical-flow",
-    "explicit-local-patch-choice"
+    "explicit-local-patch-choice",
+    "durable-flow-inboxes-and-receipts",
+    "packaged-offline-manual",
+    "polaris-native-organization-authoring"
   ],
   "organizationRuntime": "implemented-development-api-2-protocol-2",
   "qualification": [
@@ -32,9 +35,19 @@
         "docs/organization-blueprints-status.md",
         "docs/guide/collaboration.md",
         "docs/guide/blueprint-authoring.md",
-        "docs/guide/apply.md"
+        "docs/guide/apply.md",
+        "docs/guide/sharing.md"
       ],
       "track": "current-organization-development"
+    },
+    {
+      "platform": "macOS arm64",
+      "scope": "Polaris source integration at aaaf62ae3bbdd3f280eb7fd1db343b690ebb330e pins the Locust 1b81bef typed SDK with exact generated schema parity; focused native adapter, real local daemon and browser fixture checks pass",
+      "limits": "Packaged native UI remains unqualified. The remote dependency revision is not published; local Cargo verification used an explicitly seeded cache. Broader Merak gates have unresolved failures.",
+      "evidence": [
+        "docs/guide/polaris.md"
+      ],
+      "track": "current-polaris-source-integration"
     },
     {
       "platform": "macOS arm64",

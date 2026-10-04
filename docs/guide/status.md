@@ -21,7 +21,7 @@ not instantiate a goal or authorize local execution.
 The current runtime passes workspace formatting, clippy and tests. Real CLI/daemon
 fixtures exercise persistent identity, taskless findings, two participants,
 independent attempts, exact reviewed selection/application, owner choice of an
-unselected patch, catalog conflicts and restart. Three Markdown tutorials execute
+unselected patch, catalog conflicts and restart. Four Markdown tutorials execute
 against the local binary through `scripts/check_documentation.py`; they do not
 launch models or contact external providers.
 
