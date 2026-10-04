@@ -69,7 +69,7 @@ def sleep(c):
 
 
 def burst(c, machine, goal, threads=4, kill_after=12, per_thread=40):
-    """Concurrent `note add` calls on one daemon; kill -9 it mid-burst.
+    """Concurrent `contribution publish` calls on one daemon; kill -9 it mid-burst.
     Returns (acknowledged {event: text}, error codes seen)."""
     acked, errors, lock, killed = {}, [], threading.Lock(), threading.Event()
 
