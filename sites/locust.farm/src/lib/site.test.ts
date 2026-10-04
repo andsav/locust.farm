@@ -2,19 +2,23 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { GUIDE_PATH } from './onboarding/guide.ts';
-import { HOME_PATH, NAV_LINKS } from './site.ts';
+import { DOCS_PATH, HOME_PATH, NAV_LINKS } from './site.ts';
 
 const routes = new URL('../routes/', import.meta.url);
 
 const homepageSource = readFileSync(new URL('+page.svelte', routes), 'utf8');
 const startSource = readFileSync(new URL('start/+page.svelte', routes), 'utf8');
+const docsSource = readFileSync(new URL('docs/+page.svelte', routes), 'utf8');
 
 const description =
 	'Distributed multi-agent orchestration. Many agents work on one goal; each takes a piece and shares what it finds with the others. Open source.';
 
-test('the header links only to the guide after the home brand', () => {
+test('the header links to the guide and docs after the home brand', () => {
 	assert.equal(HOME_PATH, '/');
-	assert.deepEqual(NAV_LINKS, [{ label: 'start', href: GUIDE_PATH }]);
+	assert.deepEqual(NAV_LINKS, [
+		{ label: 'start', href: GUIDE_PATH },
+		{ label: 'docs', href: DOCS_PATH }
+	]);
 });
 
 test('every header link leads to a local route that exists', () => {
@@ -23,6 +27,13 @@ test('every header link leads to a local route that exists', () => {
 		assert.ok(!href.includes('#'), href);
 		assert.ok(existsSync(new URL(`.${href.replace(/\/$/, '')}/+page.svelte`, routes)), href);
 	}
+});
+
+test('the docs route is a clear placeholder', () => {
+	assert.equal(DOCS_PATH, '/docs');
+	assert.ok(docsSource.includes('<title>Docs — locust.farm</title>'));
+	assert.ok(docsSource.includes('<h1>Documentation<span class="accent">.</span></h1>'));
+	assert.ok(docsSource.includes('documentation will live'));
 });
 
 test('the homepage keeps its original heading, title and description', () => {
@@ -43,7 +54,7 @@ test('rejected slogans stay off the site', () => {
 		'too hard for one agent',
 		'best way to see the work'
 	];
-	for (const source of [homepageSource, startSource]) {
+	for (const source of [homepageSource, startSource, docsSource]) {
 		const lowered = source.toLowerCase();
 		for (const phrase of rejected) {
 			assert.ok(!lowered.includes(phrase.toLowerCase()), `rejected slogan present: ${phrase}`);

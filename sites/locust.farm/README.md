@@ -1,9 +1,9 @@
 # locust.farm
 
-The Locust marketing site: two prerendered SvelteKit pages over a WebGL2 swarm
-animation. `/` says what Locust is for and links to `/start`, the first-contact
-guide with the entry prompt. It is a self-contained npm project with its own
-`package.json` and `node_modules`.
+The Locust marketing site: three prerendered SvelteKit pages over a WebGL2 swarm
+animation. `/` says what Locust is for, `/start` is the first-contact guide with
+the entry prompt, and `/docs` is a placeholder for future documentation. It is a
+self-contained npm project with its own `package.json` and `node_modules`.
 
 ```sh
 npm install
@@ -21,7 +21,7 @@ npm prunes the generated `node_modules/$app` directory that `tsconfig.json` exte
 ## Layout
 
 ```text
-src/routes/          The homepage, the /start guide, and the root layout that loads fonts and global styles
+src/routes/          The homepage, the /start guide, the /docs placeholder, and the root layout that loads fonts and global styles
 src/lib/styles/      Design tokens and element defaults
 src/lib/components/  Svelte components
 src/lib/onboarding/  The guide's content and the clipboard helper, in plain TypeScript
