@@ -19,7 +19,6 @@
 		<p>{description}</p>
 		<div class="actions">
 			<a class="start" href={GUIDE_PATH}>Start with one prompt <span aria-hidden="true">→</span></a>
-			<p class="status">Early development: nothing to install yet.</p>
 		</div>
 	</main>
 </div>
@@ -98,11 +97,6 @@
 
 	.start:active {
 		scale: 0.96;
-	}
-
-	.status {
-		color: var(--color-text-faint);
-		font: var(--text-label);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
