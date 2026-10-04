@@ -9,9 +9,7 @@ use serde_json::{Value, json};
 
 pub(super) fn commands() -> Command {
     let mut command = Command::new("blueprint")
-        .about(
-            "Discover and inspect organization blueprints offline; does not configure the runtime",
-        )
+        .about("Author local blueprints and inspect organization definitions offline")
         .subcommand_required(true)
         .arg_required_else_help(true);
     for operation in OPERATIONS {
@@ -29,6 +27,17 @@ pub(super) fn commands() -> Command {
                     .help("JSON document path, or - for standard input")
                     .allow_hyphen_values(true),
             ),
+            "two_json_paths" => child
+                .arg(
+                    Arg::new("before")
+                        .required(true)
+                        .help("Before JSON document path"),
+                )
+                .arg(
+                    Arg::new("after")
+                        .required(true)
+                        .help("After JSON document path"),
+                ),
             _ => unreachable!("authoring catalog has an unsupported input shape"),
         };
         command = command.subcommand(child);
@@ -64,6 +73,34 @@ pub(super) fn run(operation: &str, args: &ArgMatches) -> Result<Output, Failure>
                     )
                 })?;
             rendered(json!(preset.blueprint))
+        }
+        "blueprint.diff" => {
+            let read = |name| {
+                let path = args
+                    .get_one::<String>(name)
+                    .expect("required document path");
+                std::fs::read_to_string(path)
+                    .map_err(|error| Failure::invalid(format!("{path}: {error}")))
+            };
+            let diff = locust_core::organization::diff::compare(&read("before")?, &read("after")?);
+            let valid = diff.valid;
+            let status = if valid {
+                0
+            } else if diff
+                .before
+                .diagnostics
+                .iter()
+                .chain(&diff.after.diagnostics)
+                .any(|diagnostic| diagnostic.code == "unsupported_version")
+            {
+                10
+            } else {
+                6
+            };
+            let mut output = rendered(json!(diff))?;
+            output.ok = valid;
+            output.status = status;
+            Ok(output)
         }
         "blueprint.validate" | "blueprint.explain" | "blueprint.normalize" => {
             let path = args.get_one::<String>("source").expect("required source");

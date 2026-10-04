@@ -247,3 +247,54 @@ fn runtime_contract_discovers_requests_responses_events_and_cli_without_state() 
             .any(|operation| operation["name"] == "task.assign")
     );
 }
+
+#[test]
+fn semantic_diff_uses_normalized_definitions_and_retains_invalid_side_diagnostics() {
+    let directory = tempfile::tempdir().unwrap();
+    let before = directory.path().join("before.json");
+    let after = directory.path().join("after.json");
+    std::fs::write(&before, r#"{"schema_version":1}"#).unwrap();
+    let normalized = value(&output(&["blueprint", "example", "open"], None), 0);
+    std::fs::write(&after, serde_json::to_string_pretty(&normalized).unwrap()).unwrap();
+    let arguments = [
+        "--json",
+        "blueprint",
+        "diff",
+        before.to_str().unwrap(),
+        after.to_str().unwrap(),
+    ];
+    let same = value(&output(&arguments, None), 0);
+    assert_eq!(same["result"]["equivalent"], true);
+    assert_eq!(same["result"]["changes"], json!([]));
+    assert_eq!(
+        same["result"]["before"]["semantic_hash"],
+        same["result"]["after"]["semantic_hash"]
+    );
+    std::fs::write(
+        &after,
+        r#"{"schema_version":1,"context":{"guidance":"different"}}"#,
+    )
+    .unwrap();
+    let changed = value(&output(&arguments, None), 0);
+    assert_eq!(changed["result"]["equivalent"], false);
+    assert_eq!(changed["result"]["changes"][0]["path"], "/context/guidance");
+    assert_eq!(changed["result"]["changes"][0]["after"], "different");
+    std::fs::write(&after, r#"{"schema_version":2}"#).unwrap();
+    let unsupported = value(&output(&arguments, None), 10);
+    assert_eq!(unsupported["ok"], false);
+    assert_eq!(unsupported["result"]["equivalent"], Value::Null);
+    assert_eq!(unsupported["result"]["before"]["diagnostics"], json!([]));
+    assert_eq!(
+        unsupported["result"]["after"]["diagnostics"][0]["code"],
+        "unsupported_version"
+    );
+    std::fs::write(&after, "{").unwrap();
+    let invalid = value(&output(&arguments, None), 6);
+    assert_eq!(invalid["result"]["changes"], json!([]));
+    assert!(
+        !invalid["result"]["after"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}

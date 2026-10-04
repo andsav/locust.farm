@@ -141,3 +141,5 @@ struct References {
 mod tests;
 
 pub mod catalog;
+
+pub mod diff;

@@ -49,6 +49,12 @@ pub const OPERATIONS: &[Operation] = &[
         summary: "Explain effective rules and required bindings offline",
     },
     Operation {
+        name: "diff",
+        input: "two_json_paths",
+        output: "semantic_diff",
+        summary: "Compare normalized semantic definitions offline with hashes and JSON Pointer changes",
+    },
+    Operation {
         name: "normalize",
         input: "json_path_or_stdin",
         output: "blueprint_or_invalid_inspection",

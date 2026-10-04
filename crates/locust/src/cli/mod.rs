@@ -171,6 +171,7 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             | "blueprint.validate"
             | "blueprint.explain"
             | "blueprint.normalize"
+            | "blueprint.diff"
     ) {
         return blueprint::run(&operation, selected);
     }
