@@ -1,0 +1,1275 @@
+--- a/crates/locust-core/Cargo.toml
++++ b/crates/locust-core/Cargo.toml
+@@ -11,3 +11,4 @@
+ 
+ [dev-dependencies]
+ locust-proto = { workspace = true, features = ["testkit"] }
++locust-store.workspace = true
+--- a/crates/locust-core/src/node/replica_tests.rs
++++ b/crates/locust-core/src/node/replica_tests.rs
+@@ -740,3 +740,590 @@
+     );
+     assert!(peers[1].store.blob_len(&hash).unwrap().is_none());
+ }
++
++/// Review probe: one member answers a BlobRequest with chunks claiming a
++/// larger total than the object has. The receiver stages them; afterwards
++/// every honest member is asked at the staged length, which is past the
++/// object's end, and answers BlobUnavailable forever.
++#[test]
++fn review_staged_prefix_longer_than_the_object_wedges_the_transfer() {
++    use crate::sync::{Host, Initiator};
++    use locust_proto::limits::BLOB_CHUNK_BYTES;
++    use locust_proto::sync::SyncMessage;
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let goal = found(&mut peers);
++    peers[0].call(Request::NoteAdd {
++        goal,
++        about: None,
++        supersedes: None,
++        text: "short note whose payload is a small sealed object".into(),
++    });
++    let note = peers[0]
++        .store
++        .log(&goal, 0, usize::MAX)
++        .unwrap()
++        .into_iter()
++        .map(|(_, event)| event)
++        .rfind(|event| event.header().payload.is_some())
++        .unwrap();
++    let payload = note.header().payload.unwrap();
++    let hash = payload.hash;
++    eprintln!("payload len {}", payload.len);
++    // Peer 1 learns the event (as from any member) but not the object yet.
++    let replica = Host::replica(&mut peers[1].node, &goal).unwrap();
++    assert_eq!(replica.receive(vec![note.to_wire()]), Ok(1));
++    // An exchange with a faulty member (peer 2's endpoint): drive the real
++    // initiator over peer 1's replica with that member's frames.
++    let replica = Host::replica(&mut peers[1].node, &goal).unwrap();
++    let mut initiator = Initiator::new(goal);
++    let mut out = Vec::new();
++    initiator.start(replica, &mut out);
++    initiator.writable(replica, &mut out);
++    initiator.writable(replica, &mut out);
++    let frontier = replica.frontier();
++    out.clear();
++    initiator.receive(replica, SyncMessage::Frontier(frontier), &mut out);
++    for _ in 0..4 {
++        initiator.writable(replica, &mut out);
++    }
++    let asked = out
++        .iter()
++        .find_map(|frame| match frame {
++            SyncMessage::BlobRequest { hash: h, offset } if *h == hash => Some(*offset),
++            _ => None,
++        })
++        .expect("the initiator asks for the payload");
++    assert_eq!(asked, 0);
++    let claimed = 4 * BLOB_CHUNK_BYTES as u64;
++    initiator.receive(
++        replica,
++        SyncMessage::BlobChunk {
++            hash,
++            offset: 0,
++            total: claimed,
++            bytes: vec![0; BLOB_CHUNK_BYTES],
++        },
++        &mut out,
++    );
++    // The faulty member's link drops here.
++    drop(initiator);
++    let staged = peers[1].store.staged_len(&hash).unwrap();
++    eprintln!("staged after faulty chunk: {staged}");
++    assert!(staged > u64::from(payload.len));
++    // Honest members serve it from now on, across restarts and hours.
++    let mut sent = Vec::new();
++    for round in 0..6u64 {
++        if round == 3 {
++            peers[1].restart();
++        }
++        sent.extend(reconcile(&mut peers, 100_000 + round * 40_000));
++    }
++    let requests: Vec<_> = sent
++        .iter()
++        .filter_map(|frame| match frame {
++            SyncMessage::BlobRequest { hash: h, offset } if *h == hash => Some(*offset),
++            _ => None,
++        })
++        .collect();
++    let unavailable = sent
++        .iter()
++        .filter(|frame| matches!(frame, SyncMessage::BlobUnavailable(h) if *h == hash))
++        .count();
++    eprintln!("requests for the object at offsets {requests:?}, BlobUnavailable answers {unavailable}");
++    let held = peers[1].store.blob_len(&hash).unwrap();
++    eprintln!("peer 1 holds the object: {:?}; staged {}", held, peers[1].store.staged_len(&hash).unwrap());
++    let Response::Notes(notes) = peers[1].call(Request::Notes { goal, about: None }) else {
++        panic!("notes");
++    };
++    eprintln!("peer 1 note text: {:?}", notes.iter().map(|n| n.text.clone()).collect::<Vec<_>>());
++    assert!(held.is_some(), "the object never arrives from honest members");
++}
++
++/// Like `reconcile`, but every stream is cut after `cut` delivered frames:
++/// both sides see `Closed` and nothing more of it.
++fn reconcile_cut(peers: &mut [Peer], now: u64, cut: Option<usize>) -> usize {
++    let mut queue: VecDeque<_> = (0..peers.len()).map(|i| (i, PeerInput::Poll)).collect();
++    let mut routes: HashMap<(usize, ExchangeId), (usize, ExchangeId)> = HashMap::new();
++    let mut delivered: HashMap<(usize, ExchangeId), usize> = HashMap::new();
++    let mut closed: std::collections::HashSet<(usize, ExchangeId)> = Default::default();
++    let mut accepted = 1_000_000 + now * 1000;
++    let mut steps = 0;
++    let mut frames = 0;
++    while let Some((i, input)) = queue.pop_front() {
++        steps += 1;
++        assert!(steps < 1_000_000, "network does not quiesce");
++        if !peers[i].online {
++            continue;
++        }
++        let mut outputs = vec![];
++        peers[i].node.peer(input, now, &mut outputs);
++        for output in outputs {
++            match output {
++                PeerOutput::Open {
++                    exchange, endpoint, ..
++                } => {
++                    if let Some(j) = peers
++                        .iter()
++                        .position(|peer| peer.online && peer.endpoint == endpoint)
++                    {
++                        let incoming = ExchangeId::Accepted(accepted);
++                        accepted += 1;
++                        routes.insert((i, exchange), (j, incoming));
++                        routes.insert((j, incoming), (i, exchange));
++                        queue.push_back((
++                            j,
++                            PeerInput::Accepted {
++                                exchange: incoming,
++                                remote: peers[i].endpoint,
++                            },
++                        ));
++                        queue.push_back((i, PeerInput::Opened(exchange)));
++                    } else {
++                        queue.push_back((i, PeerInput::OpenFailed(exchange)));
++                    }
++                }
++                PeerOutput::Send { exchange, frame } => {
++                    if closed.contains(&(i, exchange)) {
++                        continue;
++                    }
++                    let (j, incoming) = routes[&(i, exchange)];
++                    let peer_count = delivered.get(&(j, incoming)).copied().unwrap_or(0);
++                    let count = delivered.entry((i, exchange)).or_default();
++                    if cut.is_some_and(|cut| *count + peer_count >= cut) {
++                        closed.insert((i, exchange));
++                        closed.insert((j, incoming));
++                        queue.push_back((i, PeerInput::Closed(exchange)));
++                        queue.push_back((j, PeerInput::Closed(incoming)));
++                        continue;
++                    }
++                    *count += 1;
++                    frames += 1;
++                    queue.push_back((
++                        j,
++                        PeerInput::Frame {
++                            exchange: incoming,
++                            frame,
++                        },
++                    ));
++                    queue.push_back((i, PeerInput::Writable(exchange)));
++                }
++                PeerOutput::Admit(_) => {}
++                PeerOutput::Finish(exchange) => {
++                    if !closed.contains(&(i, exchange)) {
++                        queue.push_back((i, PeerInput::Finished(exchange)));
++                    }
++                }
++            }
++        }
++    }
++    frames
++}
++
++fn note_texts(peer: &mut Peer, goal: GoalId) -> Vec<Option<String>> {
++    let Response::Notes(notes) = peer.call(Request::Notes { goal, about: None }) else {
++        panic!("notes");
++    };
++    let mut texts: Vec<_> = notes.into_iter().map(|note| note.text).collect();
++    texts.sort();
++    texts
++}
++
++/// Review probe: real nodes found, invite, join and write under exchanges
++/// cut after every possible frame count, then converge once whole.
++#[test]
++fn review_real_nodes_converge_under_every_cut() {
++    for cut in 0..60usize {
++        let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++        let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
++            title: "cut goal".into(),
++        }) else {
++            panic!("create");
++        };
++        for index in 1..3 {
++            let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
++                goal,
++                expires_ms: None,
++            }) else {
++                panic!("invite");
++            };
++            peers[index].call(Request::GoalJoin { ticket });
++        }
++        let mut now = 1000;
++        for _ in 0..4 {
++            reconcile_cut(&mut peers, now, Some(cut));
++            now += 61_000;
++        }
++        for (index, peer) in peers.iter_mut().enumerate() {
++            if peer.node.goals[&goal].is_member(&peer.principal) {
++                peer.call(Request::NoteAdd {
++                    goal,
++                    about: None,
++                    supersedes: None,
++                    text: format!("note by {index}"),
++                });
++            }
++        }
++        for _ in 0..4 {
++            reconcile_cut(&mut peers, now, Some(cut));
++            now += 61_000;
++        }
++        for _ in 0..3 {
++            reconcile_cut(&mut peers, now, None);
++            now += 61_000;
++        }
++        for (index, peer) in peers.iter_mut().enumerate() {
++            if peer.node.goals[&goal].is_member(&peer.principal)
++                && note_texts(peer, goal).len() < 3
++            {
++                peer.call(Request::NoteAdd {
++                    goal,
++                    about: None,
++                    supersedes: None,
++                    text: format!("note by {index}"),
++                });
++            }
++        }
++        for _ in 0..3 {
++            reconcile_cut(&mut peers, now, None);
++            now += 61_000;
++        }
++        let logs: Vec<_> = peers
++            .iter()
++            .map(|peer| {
++                peer.store
++                    .log(&goal, 0, usize::MAX)
++                    .unwrap()
++                    .into_iter()
++                    .map(|(_, event)| event.id())
++                    .collect::<std::collections::BTreeSet<_>>()
++            })
++            .collect();
++        let texts: Vec<_> = peers.iter_mut().map(|peer| note_texts(peer, goal)).collect();
++        let members: Vec<_> = peers
++            .iter()
++            .map(|peer| peer.node.goals[&goal].is_member(&peer.principal))
++            .collect();
++        let ok = logs.iter().all(|log| log == &logs[0])
++            && texts.iter().all(|t| t == &texts[0] && t.iter().all(Option::is_some))
++            && members.iter().all(|m| *m);
++        if cut % 10 == 0 || !ok {
++            eprintln!(
++                "cut {cut}: log sizes {:?}, members {:?}, texts {:?}",
++                logs.iter().map(|l| l.len()).collect::<Vec<_>>(),
++                members,
++                texts
++            );
++        }
++        assert!(ok, "cut {cut}");
++    }
++}
++
++/// Review probe (real nodes): cost of a peer catching up on N notes, and of
++/// pushing one more note to a peer that holds the rest.
++#[test]
++fn review_real_node_catch_up_and_push_costs() {
++    use locust_proto::sync::SyncMessage;
++    for count in [250usize, 500, 1000, 2000] {
++        let mut peers = [Peer::new(1), Peer::new(2)];
++        let goal = found(&mut peers);
++        peers[1].online = false;
++        for n in 0..count {
++            peers[0].call(Request::NoteAdd {
++                goal,
++                about: None,
++                supersedes: None,
++                text: format!("note {n}"),
++            });
++        }
++        peers[1].online = true;
++        let started = std::time::Instant::now();
++        let sent = reconcile(&mut peers, 100_000);
++        let catch_up = started.elapsed();
++        let requests = sent
++            .iter()
++            .filter(|f| matches!(f, SyncMessage::BlobRequest { .. }))
++            .count();
++        reconcile(&mut peers, 200_000);
++        assert_eq!(note_texts(&mut peers[1], goal).len(), count);
++        peers[0].call(Request::NoteAdd {
++            goal,
++            about: None,
++            supersedes: None,
++            text: "one more".into(),
++        });
++        let started = std::time::Instant::now();
++        let sent = reconcile(&mut peers, 300_000);
++        let push = started.elapsed();
++        let inventory_points: usize = sent
++            .iter()
++            .map(|f| match f {
++                SyncMessage::Inventory { points, .. } => points.len(),
++                _ => 0,
++            })
++            .sum();
++        let bytes: usize = sent
++            .iter()
++            .map(|f| locust_proto::codec::encode(f).unwrap().len())
++            .sum();
++        eprintln!(
++            "notes {count}: catch-up {catch_up:?} ({requests} blob requests); \
++             pushing one note: {} frames, {bytes} bytes, {inventory_points} inventory points, {push:?}",
++            sent.len()
++        );
++    }
++}
++
++/// Review probe: cost of one `next_wanted_blob` call as the goal grows.
++#[test]
++fn review_next_wanted_blob_cost_grows_with_the_goal() {
++    use crate::sync::Host;
++    for count in [500usize, 1000, 2000, 4000] {
++        let mut peers = [Peer::new(1), Peer::new(2)];
++        let goal = found(&mut peers);
++        for n in 0..count {
++            peers[0].call(Request::NoteAdd {
++                goal,
++                about: None,
++                supersedes: None,
++                text: format!("note {n}"),
++            });
++        }
++        let replica = Host::replica(&mut peers[0].node, &goal).unwrap();
++        let started = std::time::Instant::now();
++        for _ in 0..20 {
++            assert!(replica.next_wanted_blob(None).is_none());
++        }
++        let wanted = started.elapsed() / 20;
++        let started = std::time::Instant::now();
++        for _ in 0..20 {
++            let _ = replica.wanted_keys();
++        }
++        let keys = started.elapsed() / 20;
++        eprintln!("notes {count}: one next_wanted_blob {wanted:?}, one wanted_keys {keys:?}");
++    }
++}
++
++/// Review probe (real node): a stranger's exchange about a held goal and
++/// about an unknown goal produce identical outputs, for every request kind.
++#[test]
++fn review_real_node_stranger_learns_nothing() {
++    use locust_proto::id::{BlobHash, EventId};
++    use locust_proto::invite::JoinRequest;
++    use locust_proto::sync::{Frontier, SyncMessage};
++    let mut peers = [Peer::new(1), Peer::new(2)];
++    let goal = found(&mut peers);
++    let stranger = EndpointId([77; 32]);
++    let member_endpoint = peers[1].endpoint;
++    let key = locust_proto::testkit::keypair(55);
++    let secret: locust_proto::invite::InviteSecret = locust_proto::codec::decode(&[9u8; 32]).unwrap();
++    let unknown = GoalId([0x42; 32]);
++    let mut number = 5_000_000u64;
++    let mut run = |peer: &mut Peer, remote: EndpointId, frames: Vec<SyncMessage>| {
++        number += 1;
++        let exchange = ExchangeId::Accepted(number);
++        let mut all = Vec::new();
++        let mut out = Vec::new();
++        peer.node.peer(PeerInput::Accepted { exchange, remote }, 50_000, &mut out);
++        all.extend(out.drain(..));
++        for frame in frames {
++            peer.node.peer(PeerInput::Frame { exchange, frame }, 50_000, &mut out);
++            all.extend(out.drain(..));
++            for _ in 0..4 {
++                peer.node.peer(PeerInput::Writable(exchange), 50_000, &mut out);
++                all.extend(out.drain(..));
++            }
++        }
++        peer.node.peer(PeerInput::Closed(exchange), 50_000, &mut out);
++        all.extend(out.drain(..));
++        all.into_iter()
++            .map(|output| match output {
++                PeerOutput::Send { frame, .. } => format!("{frame:?}"),
++                other => format!("{:?}", std::mem::discriminant(&other)),
++            })
++            .collect::<Vec<_>>()
++    };
++    let requests = |g: GoalId| {
++        vec![
++            SyncMessage::Frontier(Frontier::default()),
++            SyncMessage::InventoryRequest { author: peers_principal(), after: None },
++            SyncMessage::EventRequest(vec![EventId([1; 32])]),
++            SyncMessage::KeyRequest { epoch: 0 },
++            SyncMessage::BlobRequest { hash: BlobHash([1; 32]), offset: 0 },
++            SyncMessage::Events(vec![]),
++            SyncMessage::Join(JoinRequest::sign(g, stranger, secret, &key)),
++            SyncMessage::Join(JoinRequest::sign(g, EndpointId([78; 32]), secret, &key)),
++            SyncMessage::Hello { version: locust_proto::PROTOCOL_VERSION, goal: g },
++        ]
++    };
++    fn peers_principal() -> PublicKey {
++        locust_proto::testkit::keypair(3).public()
++    }
++    for (known, other) in requests(goal).into_iter().zip(requests(unknown)) {
++        let hello = |g| SyncMessage::Hello { version: locust_proto::PROTOCOL_VERSION, goal: g };
++        let a = run(&mut peers[0], stranger, vec![hello(goal), known.clone()]);
++        let b = run(&mut peers[0], stranger, vec![hello(unknown), other]);
++        eprintln!("{:.40}: held goal {a:?} / unknown goal {b:?}", format!("{known:?}"));
++        assert_eq!(a, b);
++    }
++    // A member's hello is admitted; a member asking about an unknown goal is not.
++    let hello = |g| SyncMessage::Hello { version: locust_proto::PROTOCOL_VERSION, goal: g };
++    let a = run(&mut peers[0], member_endpoint, vec![hello(unknown), SyncMessage::Frontier(Frontier::default())]);
++    eprintln!("member about unknown goal: {a:?}");
++}
++
++/// Review probe (real node over the SQLite store): one `next_wanted_blob`
++/// call, which the initiator makes once per object it fetches.
++#[test]
++fn review_sqlite_next_wanted_blob_cost() {
++    use crate::sync::Host;
++    use locust_store::SqliteStore;
++    let base = std::env::var("REVIEW_SQLITE_DIR").expect("REVIEW_SQLITE_DIR");
++    for count in [500usize, 1000, 2000, 4000] {
++        let dir = std::path::Path::new(&base).join(format!("n{count}"));
++        let _ = std::fs::remove_dir_all(&dir);
++        std::fs::create_dir_all(&dir).unwrap();
++        let mut node = Node::open(
++            SqliteStore::open(&dir).unwrap(),
++            Random(77),
++            OWNER.digest(),
++            "test".into(),
++            0,
++        )
++        .unwrap();
++        assert!(matches!(
++            node.connect(
++                ConnId(1),
++                &ClientHello {
++                    api_version: locust_proto::API_VERSION,
++                    credential: OWNER,
++                    session: None
++                },
++                0
++            ),
++            ServerHello::Welcome { .. }
++        ));
++        node.peer(
++            PeerInput::Endpoint {
++                endpoint: EndpointId([5; 32]),
++                hints: vec![],
++            },
++            0,
++            &mut vec![],
++        );
++        let mut call = |node: &mut Node<SqliteStore, Random>, on_behalf, request| match node
++            .request(
++                ConnId(1),
++                RequestFrame {
++                    id: 1,
++                    idempotency: None,
++                    on_behalf,
++                    request,
++                },
++                10,
++            ) {
++            Step::Reply(reply) => reply.result.expect("ok"),
++            Step::Park(_) => panic!("park"),
++        };
++        let Response::AgentEnrolled { agent } = call(
++            &mut node,
++            None,
++            Request::AgentEnroll {
++                name: "a".into(),
++                grants: Grants { manage_goals: true },
++                credential: Credential([5; 32]).digest(),
++            },
++        ) else {
++            panic!()
++        };
++        let Response::GoalCreated { goal } =
++            call(&mut node, Some(agent), Request::GoalCreate { title: "t".into() })
++        else {
++            panic!()
++        };
++        let started = std::time::Instant::now();
++        for n in 0..count {
++            call(
++                &mut node,
++                Some(agent),
++                Request::NoteAdd {
++                    goal,
++                    about: None,
++                    supersedes: None,
++                    text: format!("note {n}"),
++                },
++            );
++        }
++        let authoring = started.elapsed();
++        let replica = Host::replica(&mut node, &goal).unwrap();
++        let started = std::time::Instant::now();
++        for _ in 0..10 {
++            assert!(replica.next_wanted_blob(None).is_none());
++        }
++        let one = started.elapsed() / 10;
++        eprintln!(
++            "sqlite, notes {count}: one next_wanted_blob {one:?} (authoring took {authoring:?}); \
++             fetching all {count} payloads makes {count} such calls: about {:?}",
++            one * count as u32
++        );
++    }
++}
++
++/// Review probe (real nodes): one node fetches the same multi-chunk object
++/// from two peers in two concurrent exchanges whose chunks interleave.
++#[test]
++fn review_concurrent_transfers_of_one_object_from_two_peers() {
++    use crate::node::requests::content::{BlobRecord, blob_write};
++    use locust_proto::limits::BLOB_CHUNK_BYTES;
++    use locust_proto::store::Commit;
++    use locust_proto::sync::SyncMessage;
++    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
++    let goal = found(&mut peers);
++    let plain: Vec<u8> = (0..3 * BLOB_CHUNK_BYTES + 17).map(|n| (n % 251) as u8).collect();
++    let Response::BlobStored { hash } = peers[0].call(Request::BlobPut {
++        goal,
++        bytes: plain.clone(),
++    }) else {
++        panic!("put");
++    };
++    let want = |peer: &mut Peer| {
++        peer.store
++            .commit(&Commit {
++                local: vec![blob_write(
++                    &goal,
++                    &hash,
++                    &BlobRecord {
++                        wanted: true,
++                        withdrawn: false,
++                    },
++                )],
++                ..Commit::default()
++            })
++            .unwrap();
++        peer.restart();
++    };
++    want(&mut peers[2]);
++    peers[1].online = false;
++    reconcile(&mut peers, 40_000);
++    assert!(peers[2].store.blob_len(&hash).unwrap().is_some());
++    peers[1].online = true;
++    want(&mut peers[1]);
++    let sent = reconcile(&mut peers, 80_000);
++    let requests = sent
++        .iter()
++        .filter(|f| matches!(f, SyncMessage::BlobRequest { hash: h, .. } if *h == hash))
++        .count();
++    let chunks = sent
++        .iter()
++        .filter(|f| matches!(f, SyncMessage::BlobChunk { hash: h, .. } if *h == hash))
++        .count();
++    eprintln!(
++        "requests {requests}, chunks {chunks}, held {:?}, staged {}",
++        peers[1].store.blob_len(&hash).unwrap(),
++        peers[1].store.staged_len(&hash).unwrap()
++    );
++    let Response::Blob { bytes } = peers[1].call(Request::BlobGet { goal, hash }) else {
++        panic!("get");
++    };
++    assert_eq!(bytes, plain);
++    assert_eq!(peers[1].store.staged_len(&hash).unwrap(), 0);
++}
+--- a/crates/locust-core/src/sync/tests/mod.rs
++++ b/crates/locust-core/src/sync/tests/mod.rs
+@@ -9,6 +9,8 @@
+ mod machines;
+ mod net;
+ mod replica;
++mod review;
++mod review2;
+ 
+ use locust_proto::event::{Body, Event};
+ use locust_proto::id::{EndpointId, EventId, GoalId};
+--- a/crates/locust-core/src/sync/tests/review.rs
++++ b/crates/locust-core/src/sync/tests/review.rs
+@@ -0,0 +1,486 @@
++//! Independent review probes of the exchange machines and driver.
++
++use std::collections::BTreeSet;
++
++use locust_proto::PROTOCOL_VERSION;
++use locust_proto::codec;
++use locust_proto::engine::{ExchangeId, PeerInput, PeerOutput};
++use locust_proto::event::{AuthorPoint, Body, Event};
++use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
++use locust_proto::limits::{MAX_EVENTS_PER_BATCH, MAX_INVENTORY_POINTS, MAX_PEER_FRAME_BYTES};
++use locust_proto::store::{Blob, Store};
++use locust_proto::sync::{Frontier, Refusal, SyncMessage};
++use locust_proto::testkit::Author;
++
++use super::host::TestHost;
++use super::net::Net;
++use super::{Founded, endpoint, host};
++use crate::sync::{Driver, Ended, Initiator, Responder};
++
++fn hello(goal: GoalId) -> SyncMessage {
++    SyncMessage::Hello {
++        version: PROTOCOL_VERSION,
++        goal,
++    }
++}
++
++fn respond(
++    host: &mut TestHost,
++    remote: u8,
++    frames: Vec<SyncMessage>,
++) -> (Responder, Vec<SyncMessage>) {
++    let mut responder = Responder::new(endpoint(remote));
++    let mut out = Vec::new();
++    for frame in frames {
++        responder.receive(host, frame, 0, &mut out);
++        loop {
++            let before = out.len();
++            responder.writable(host, &mut out);
++            if out.len() == before {
++                break;
++            }
++        }
++    }
++    (responder, out)
++}
++
++#[test]
++fn review_event_request_frame_counts() {
++    let founded = Founded::new();
++    let notes = founded.notes(&mut Author::new(2), 4096);
++    let ids: Vec<EventId> = notes.iter().map(Event::id).collect();
++    let mut host = host(1, founded.replica(&notes), &[1, 2]);
++    let mut report = Vec::new();
++    for n in [0usize, 1, 255, 256, 257, 512, 513, 4096] {
++        let (responder, out) = respond(
++            &mut host,
++            2,
++            vec![
++                hello(founded.goal),
++                SyncMessage::EventRequest(ids[..n].to_vec()),
++            ],
++        );
++        assert!(!responder.is_finished());
++        for frame in &out {
++            let SyncMessage::Events(events) = frame else {
++                panic!("{frame:?}")
++            };
++            assert!(events.len() <= MAX_EVENTS_PER_BATCH);
++            assert!(codec::encode(frame).unwrap().len() <= MAX_PEER_FRAME_BYTES);
++        }
++        report.push((n, out.len(), n.div_ceil(MAX_EVENTS_PER_BATCH)));
++    }
++    eprintln!("(requested, frames sent, frames the grammar implies): {report:?}");
++    for (n, sent, implied) in report {
++        assert_eq!(sent, implied, "EventRequest of {n} ids");
++    }
++}
++
++#[test]
++fn review_inventory_pages_respect_limit_and_resume_after() {
++    let founded = Founded::new();
++    // A forked author with 9000 variants at position 0: inventory pages.
++    let fork: Vec<Event> = (0..9000u32)
++        .map(|n| {
++            let mut a = Author::new(2);
++            a.event(
++                founded.goal,
++                founded.anchor(),
++                Body::Note {
++                    about: Some(EventId([(n % 251) as u8; 32])),
++                    supersedes: Some(EventId([(n / 251) as u8; 32])),
++                },
++            )
++        })
++        .collect();
++    let author = Author::new(2).key.public();
++    let mut host = host(1, founded.replica(&fork), &[1, 2]);
++    let mut after = None;
++    let mut seen = Vec::new();
++    loop {
++        let (_, out) = respond(
++            &mut host,
++            2,
++            vec![
++                hello(founded.goal),
++                SyncMessage::InventoryRequest { author, after },
++            ],
++        );
++        assert_eq!(out.len(), 1);
++        let SyncMessage::Inventory {
++            author: a,
++            points,
++            more,
++        } = &out[0]
++        else {
++            panic!()
++        };
++        assert_eq!(*a, author);
++        assert!(points.len() <= MAX_INVENTORY_POINTS);
++        assert!(codec::encode(&out[0]).unwrap().len() <= MAX_PEER_FRAME_BYTES);
++        seen.extend_from_slice(points);
++        if !more {
++            break;
++        }
++        after = points.last().copied();
++    }
++    assert_eq!(seen.len(), 9000);
++    assert!(seen.is_sorted());
++}
++
++/// A peer that pipelines requests without reading answers: how much does the
++/// responder queue before the transport reports capacity?
++#[test]
++fn review_responder_queue_under_unread_pipelined_requests() {
++    let founded = Founded::new();
++    let notes = founded.notes(&mut Author::new(2), 10);
++    let ids: Vec<EventId> = notes.iter().map(Event::id).collect();
++    let mut host = host(1, founded.replica(&notes), &[1, 2]);
++    let mut responder = Responder::new(endpoint(2));
++    let mut out = Vec::new();
++    responder.receive(&mut host, hello(founded.goal), 0, &mut out);
++    let request = SyncMessage::EventRequest(vec![ids[0]; MAX_INVENTORY_POINTS]);
++    let request_bytes = codec::encode(&request).unwrap().len();
++    for _ in 0..1000 {
++        responder.receive(&mut host, request.clone(), 0, &mut out);
++    }
++    // Only one frame left; the rest is queued as work.
++    eprintln!(
++        "frames emitted: {}, request bytes received: {}, queued answers owed: {}",
++        out.len(),
++        1000 * request_bytes,
++        format!("{:?}", responder).len()
++    );
++    // Every answer is still owed: drain and count.
++    let mut frames = out.len();
++    loop {
++        let before = out.len();
++        responder.writable(&mut host, &mut out);
++        if out.len() == before {
++            break;
++        }
++        frames = out.len();
++    }
++    eprintln!("frames owed in total: {frames}");
++}
++
++#[test]
++fn review_initiator_refuses_frames_out_of_grammar() {
++    let founded = Founded::new();
++    let notes = founded.notes(&mut Author::new(2), 5);
++    let mut host = host(1, founded.replica(&notes), &[1, 2]);
++    let author = Author::new(2).key.public();
++    let start = |host: &mut TestHost| {
++        let replica = host.replica_mut(&founded.goal);
++        let mut initiator = Initiator::new(founded.goal);
++        let mut out = Vec::new();
++        initiator.start(replica, &mut out);
++        initiator.writable(replica, &mut out);
++        initiator.writable(replica, &mut out);
++        initiator
++    };
++    let empty_inventory = |more: bool, points: Vec<AuthorPoint>| SyncMessage::Inventory {
++        author,
++        points,
++        more,
++    };
++    let point = |seq| AuthorPoint {
++        seq,
++        id: EventId([seq as u8; 32]),
++    };
++    let cases: Vec<(&str, Vec<SyncMessage>)> = vec![
++        ("done from responder", vec![SyncMessage::Done]),
++        ("hello from responder", vec![hello(founded.goal)]),
++        (
++            "same author inventoried twice",
++            vec![
++                empty_inventory(false, vec![]),
++                empty_inventory(false, vec![]),
++            ],
++        ),
++        ("more with no points", vec![empty_inventory(true, vec![])]),
++        (
++            "event request from responder",
++            vec![SyncMessage::EventRequest(vec![])],
++        ),
++        (
++            "follow-up page for another author",
++            vec![
++                empty_inventory(true, vec![point(0)]),
++                SyncMessage::Frontier(Frontier::default()),
++                SyncMessage::Inventory {
++                    author: PublicKey([9; 32]),
++                    points: vec![point(1)],
++                    more: false,
++                },
++            ],
++        ),
++        (
++            "follow-up page not after the cursor",
++            vec![
++                empty_inventory(true, vec![point(3)]),
++                SyncMessage::Frontier(Frontier::default()),
++                // Events answering the request for point(3), then the page.
++                SyncMessage::Events(vec![]),
++                empty_inventory(false, vec![point(3)]),
++            ],
++        ),
++        (
++            "unasked blob chunk",
++            vec![
++                SyncMessage::Frontier(Frontier::default()),
++                SyncMessage::BlobChunk {
++                    hash: BlobHash([1; 32]),
++                    offset: 0,
++                    total: 1,
++                    bytes: vec![1],
++                },
++            ],
++        ),
++    ];
++    for (name, frames) in cases {
++        let mut initiator = start(&mut host);
++        let mut out = Vec::new();
++        for frame in frames {
++            let replica = host.replica_mut(&founded.goal);
++            initiator.receive(replica, frame, &mut out);
++            loop {
++                let before = out.len();
++                initiator.writable(replica, &mut out);
++                if out.len() == before {
++                    break;
++                }
++            }
++        }
++        eprintln!("{name}: ended {:?}, last {:?}", initiator.ended(), out.last());
++        assert_eq!(
++            initiator.ended(),
++            Some(Ended::Refused(Refusal::ProtocolError)),
++            "{name}"
++        );
++    }
++}
++
++/// A goal that changes while its exchange is in flight is synchronized
++/// again once it ends, without waiting for anti-entropy.
++#[test]
++fn review_change_during_flight_resyncs_promptly() {
++    let founded = Founded::new();
++    let mut net = Net::new(vec![
++        host(1, founded.replica(&[]), &[1, 2]),
++        host(2, founded.replica(&[]), &[1, 2]),
++    ]);
++    net.poll(&[0, 1]);
++    net.tick(31_000);
++    // Open an exchange from node 0 and add an event before any frame moves.
++    net.tick(31_000);
++    net.poll_without_settling(&[0]);
++    let late = founded.notes(&mut Author::new(5), 1);
++    net.host(0).replica_mut(&founded.goal).insert(&late);
++    net.settle();
++    // One poll a second later must carry it.
++    net.tick(1_000);
++    net.tick(1_000);
++    assert!(net.host(1).ids(&founded.goal).contains(&late[0].id()));
++}
++
++/// An unreachable member does not delay synchronization with another.
++#[test]
++fn review_unreachable_peer_does_not_delay_others() {
++    let founded = Founded::new();
++    let mut net = Net::new(vec![
++        host(1, founded.replica(&[]), &[1, 2, 3]),
++        host(2, founded.replica(&[]), &[1, 2, 3]),
++        host(3, founded.replica(&[]), &[1, 2, 3]),
++    ]);
++    net.set_online(2, false);
++    for _ in 0..200 {
++        net.tick(1_000);
++    }
++    let late = founded.notes(&mut Author::new(5), 1);
++    net.host(0).replica_mut(&founded.goal).insert(&late);
++    net.tick(1_000);
++    assert!(net.host(1).ids(&founded.goal).contains(&late[0].id()));
++}
++
++/// Driver backoff doubles per endpoint, and every exchange opened is one
++/// per (goal, endpoint).
++#[test]
++fn review_backoff_sequence_for_unreachable_endpoint() {
++    let founded = Founded::new();
++    let mut host = host(1, founded.replica(&[]), &[1, 2]);
++    let mut driver = Driver::new();
++    let mut opens = Vec::new();
++    for second in 0..400u64 {
++        let now = second * 1000;
++        let mut out = Vec::new();
++        driver.handle(&mut host, PeerInput::Poll, now, &mut out);
++        for output in out {
++            if let PeerOutput::Open { exchange, .. } = output {
++                opens.push(second);
++                let mut more = Vec::new();
++                driver.handle(&mut host, PeerInput::OpenFailed(exchange), now, &mut more);
++                assert!(more.is_empty());
++            }
++        }
++    }
++    let gaps: Vec<u64> = opens.windows(2).map(|w| w[1] - w[0]).collect();
++    eprintln!("open gaps (s): {gaps:?}");
++    assert!(gaps.iter().all(|gap| *gap <= 60));
++}
++
++/// The accepted side reports completion only after the transport confirms.
++#[test]
++fn review_accepted_completion_needs_finished() {
++    let founded = Founded::new();
++    let mut host = host(1, founded.replica(&[]), &[1, 2]);
++    let mut driver = Driver::new();
++    let exchange = ExchangeId::Accepted(7);
++    let mut out = Vec::new();
++    driver.handle(
++        &mut host,
++        PeerInput::Accepted {
++            exchange,
++            remote: endpoint(2),
++        },
++        0,
++        &mut out,
++    );
++    driver.handle(
++        &mut host,
++        PeerInput::Frame {
++            exchange,
++            frame: hello(founded.goal),
++        },
++        0,
++        &mut out,
++    );
++    assert_eq!(out, [PeerOutput::Admit(exchange)]);
++    out.clear();
++    driver.handle(
++        &mut host,
++        PeerInput::Frame {
++            exchange,
++            frame: SyncMessage::Done,
++        },
++        0,
++        &mut out,
++    );
++    assert_eq!(out, [PeerOutput::Finish(exchange)]);
++    assert!(host.reports.is_empty());
++    driver.handle(&mut host, PeerInput::Closed(exchange), 0, &mut out);
++    assert_eq!(host.reports.len(), 1);
++    assert_eq!(host.reports[0].ended, Ended::Aborted);
++}
++
++/// Duplicated, overlapping exchanges over many frames, with cuts, converge
++/// for two replicas holding interleaved gaps in a long log.
++#[test]
++fn review_cut_and_overlap_convergence_with_paged_inventories() {
++    let founded = Founded::new();
++    let mut writer = Author::new(2);
++    let log = founded.notes(&mut writer, 9000);
++    let left: Vec<Event> = log
++        .iter()
++        .enumerate()
++        .filter(|(i, _)| i % 7 != 3)
++        .map(|(_, e)| e.clone())
++        .collect();
++    let right: Vec<Event> = log
++        .iter()
++        .enumerate()
++        .filter(|(i, _)| i % 11 != 5)
++        .map(|(_, e)| e.clone())
++        .collect();
++    let all: BTreeSet<EventId> = left
++        .iter()
++        .chain(&right)
++        .map(Event::id)
++        .chain([founded.genesis.id()])
++        .collect();
++    let log: Vec<Event> = log
++        .into_iter()
++        .filter(|e| all.contains(&e.id()))
++        .collect();
++    for cut in [0usize, 1, 2, 3, 4, 5, 7, 9, 13, 20, 40, 41, 42, 43, 60] {
++        let mut net = Net::new(vec![
++            host(1, founded.replica(&left), &[1, 2]),
++            host(2, founded.replica(&right), &[1, 2]),
++        ]);
++        net.cut = Some(cut);
++        net.poll_without_settling(&[0, 1]);
++        net.poll_without_settling(&[1, 0]);
++        net.settle();
++        for _ in 0..3 {
++            net.tick(61_000);
++        }
++        for node in &net.nodes {
++            assert!(node.host.ids(&founded.goal).is_subset(&all));
++        }
++        net.cut = None;
++        net.tick(61_000);
++        net.quiesce();
++        let mut bad = false;
++        for (i, node) in net.nodes.iter().enumerate() {
++            let held = node.host.ids(&founded.goal);
++            let missing: Vec<usize> = log
++                .iter()
++                .enumerate()
++                .filter(|(_, e)| !held.contains(&e.id()))
++                .map(|(i, _)| i)
++                .collect();
++            if !missing.is_empty() {
++                bad = true;
++                eprintln!(
++                    "cut {cut}: node {i} holds {} of {}, missing seqs (first 10) {:?} count {}",
++                    held.len(),
++                    all.len(),
++                    &missing[..missing.len().min(10)],
++                    missing.len()
++                );
++            }
++        }
++        assert_eq!(net.oversized, 0);
++        assert!(!bad, "cut {cut}");
++    }
++}
++
++/// Object staging with a total larger than the object, then an honest peer.
++#[test]
++fn review_test_replica_blob_resume_after_cut() {
++    let founded = Founded::new();
++    let blob = Blob::new((0..3 * 1024 * 1024 + 11).map(|n| n as u8).collect());
++    let hash = blob.hash();
++    let len = blob.bytes().len() as u64;
++    let mut left = founded.replica(&[]);
++    left.wants.insert(hash, len);
++    let mut right = founded.replica(&[]);
++    right.add_blob(blob);
++    for cut in 0..12 {
++        let mut net = Net::new(vec![
++            host(1, founded.replica(&[]), &[1, 2]),
++            host(2, founded.replica(&[]), &[1, 2]),
++        ]);
++        let mut l = founded.replica(&[]);
++        l.wants.insert(hash, len);
++        net.host(0).replicas.insert(founded.goal, l);
++        let mut r = founded.replica(&[]);
++        r.add_blob(Blob::new((0..3 * 1024 * 1024 + 11).map(|n| n as u8).collect()));
++        net.host(1).replicas.insert(founded.goal, r);
++        net.cut = Some(cut);
++        net.poll(&[0]);
++        let staged = net
++            .host(0)
++            .replica_mut(&founded.goal)
++            .store
++            .staged_len(&hash)
++            .unwrap();
++        net.cut = None;
++        net.tick(61_000);
++        assert!(
++            net.host(0).replica_mut(&founded.goal).holds_blob(&hash),
++            "cut {cut} staged {staged}"
++        );
++    }
++    let _ = (left, right);
++}
+--- a/crates/locust-core/src/sync/tests/review2.rs
++++ b/crates/locust-core/src/sync/tests/review2.rs
+@@ -0,0 +1,172 @@
++//! Second set of independent review probes.
++
++use locust_proto::PROTOCOL_VERSION;
++use locust_proto::codec;
++use locust_proto::event::{AuthorPoint, Event};
++use locust_proto::id::{EventId, GoalId};
++use locust_proto::limits::MAX_INVENTORY_POINTS;
++use locust_proto::sync::{Frontier, SyncMessage};
++use locust_proto::testkit::Author;
++
++use super::net::Net;
++use super::{Founded, endpoint, host};
++use crate::sync::Responder;
++
++fn hello(goal: GoalId) -> SyncMessage {
++    SyncMessage::Hello {
++        version: PROTOCOL_VERSION,
++        goal,
++    }
++}
++
++/// A member pipelines InventoryRequests and never grants capacity: how many
++/// bytes of answer frames does the responder hold for it?
++#[test]
++fn review2_inventory_request_amplification() {
++    let founded = Founded::new();
++    let mut writer = Author::new(2);
++    let notes = founded.notes(&mut writer, MAX_INVENTORY_POINTS + 10);
++    let author = writer.key.public();
++    let mut host = host(1, founded.replica(&notes), &[1, 2]);
++    let mut responder = Responder::new(endpoint(2));
++    let mut out = Vec::new();
++    responder.receive(&mut host, hello(founded.goal), 0, &mut out);
++    let request = SyncMessage::InventoryRequest {
++        author,
++        after: None,
++    };
++    let request_bytes = codec::encode(&request).unwrap().len();
++    let n = 200;
++    for _ in 0..n {
++        responder.receive(&mut host, request.clone(), 0, &mut out);
++    }
++    assert_eq!(out.len(), 1, "one frame sent, the rest waits for capacity");
++    // Drain to count what was owed (held in memory before any capacity).
++    loop {
++        let before = out.len();
++        responder.writable(&mut host, &mut out);
++        if out.len() == before {
++            break;
++        }
++    }
++    let owed: usize = out.iter().map(|f| codec::encode(f).unwrap().len()).sum();
++    eprintln!(
++        "{n} InventoryRequests of {request_bytes} bytes ({} bytes in) were answered by {} frames, \
++         {owed} encoded bytes, all materialized before the first Writable: amplification {}x",
++        n * request_bytes,
++        out.len(),
++        owed / (n * request_bytes)
++    );
++}
++
++/// Same, with a single frontier listing diverging entries for the authors
++/// the responder holds: one frame in, materialized inventories out.
++#[test]
++fn review2_frontier_answer_materializes_inventories() {
++    let founded = Founded::new();
++    let mut events = Vec::new();
++    let mut authors = Vec::new();
++    for seed in 2..10u8 {
++        let mut writer = Author::new(seed);
++        events.extend(founded.notes(&mut writer, 3000));
++        authors.push(writer.key.public());
++    }
++    authors.sort();
++    let mut host = host(1, founded.replica(&events), &[1, 2]);
++    let mut responder = Responder::new(endpoint(2));
++    let mut out = Vec::new();
++    responder.receive(&mut host, hello(founded.goal), 0, &mut out);
++    let frontier = SyncMessage::Frontier(Frontier {
++        authors: authors
++            .iter()
++            .map(|author| locust_proto::sync::AuthorFrontier {
++                author: *author,
++                next_seq: 1,
++                digest: [7; 32],
++            })
++            .collect(),
++    });
++    let in_bytes = codec::encode(&frontier).unwrap().len();
++    let mut total_in = 0;
++    for _ in 0..50 {
++        responder.receive(&mut host, frontier.clone(), 0, &mut out);
++        total_in += in_bytes;
++    }
++    loop {
++        let before = out.len();
++        responder.writable(&mut host, &mut out);
++        if out.len() == before {
++            break;
++        }
++    }
++    let inv: usize = out
++        .iter()
++        .filter(|f| matches!(f, SyncMessage::Inventory { .. }))
++        .map(|f| codec::encode(f).unwrap().len())
++        .sum();
++    eprintln!(
++        "50 frontiers ({total_in} bytes in) owed {} frames; inventory bytes materialized eagerly {inv}",
++        out.len()
++    );
++}
++
++/// The common live case: an author writes one event and dials a peer that
++/// holds every earlier event of that author. What does the exchange carry?
++#[test]
++fn review2_cost_of_pushing_one_event_to_a_peer_one_behind() {
++    for count in [10usize, 1_000, 10_000] {
++        let founded = Founded::new();
++        let mut writer = Author::new(2);
++        let notes: Vec<Event> = founded.notes(&mut writer, count);
++        let behind = &notes[..count - 1];
++        let mut net = Net::new(vec![
++            host(1, founded.replica(&notes), &[1, 2]),
++            host(2, founded.replica(behind), &[1, 2]),
++        ]);
++        // Only node 0 dials.
++        net.poll(&[0]);
++        let inventory_points: usize = net
++            .log
++            .iter()
++            .map(|(_, f)| match f {
++                SyncMessage::Inventory { points, .. } => points.len(),
++                _ => 0,
++            })
++            .sum();
++        let inventory_frames = net
++            .log
++            .iter()
++            .filter(|(_, f)| matches!(f, SyncMessage::Inventory { .. }))
++            .count();
++        let inventory_requests = net
++            .log
++            .iter()
++            .filter(|(_, f)| matches!(f, SyncMessage::InventoryRequest { .. }))
++            .count();
++        let bytes: usize = net
++            .log
++            .iter()
++            .map(|(_, f)| codec::encode(f).unwrap().len())
++            .sum();
++        let events: usize = net
++            .log
++            .iter()
++            .map(|(_, f)| match f {
++                SyncMessage::Events(e) => e.len(),
++                _ => 0,
++            })
++            .sum();
++        eprintln!(
++            "author log {count}, peer one behind: {} frames, {bytes} bytes, {events} events carried, \
++             {inventory_frames} inventory frames with {inventory_points} points, \
++             {inventory_requests} inventory requests (extra round trips)",
++            net.log.len()
++        );
++        let last: EventId = notes[count - 1].id();
++        assert!(net.host(1).ids(&founded.goal).contains(&last));
++        let _ = AuthorPoint {
++            seq: 0,
++            id: last,
++        };
++    }
++}

@@ -1,0 +1,389 @@
+--- a/crates/locust-store/tests/verify.rs
++++ b/crates/locust-store/tests/verify.rs
+@@ -0,0 +1,386 @@
++//! Probes for the verify-store review. Each step runs in a child process with
++//! the DYLD interposer, which traces F_FULLFSYNC/rename/unlink and can kill
++//! the process or fail a flush with EIO while an arm file exists.
++
++use std::env;
++use std::fs;
++use std::io::Write;
++use std::path::{Path, PathBuf};
++use std::process::{Command, Output};
++
++use locust_proto::event::Body;
++use locust_proto::id::BlobHash;
++use locust_proto::limits::BLOB_CHUNK_BYTES;
++use locust_proto::store::{Blob, Commit, MemStore, Store};
++use locust_proto::testkit::Author;
++use locust_store::{INLINE_MAX_BYTES, SqliteStore};
++
++const STEP: &str = "VERIFY_STEP";
++const DIR: &str = "VERIFY_DIR";
++const ARM: &str = "VERIFY_ARM";
++
++fn dylib() -> String {
++    env::var("VERIFY_DYLIB").expect("VERIFY_DYLIB")
++}
++
++fn mark(text: &str) {
++    eprintln!("MARK {text}");
++    std::io::stderr().flush().unwrap();
++}
++
++fn object(len: usize, salt: u8) -> Blob {
++    Blob::new((0..len).map(|n| (n % 251) as u8 ^ salt).collect())
++}
++
++fn files(dir: &Path) -> Vec<String> {
++    let mut names: Vec<String> = fs::read_dir(dir.join("blobs"))
++        .unwrap()
++        .map(|e| e.unwrap().file_name().into_string().unwrap())
++        .collect();
++    names.sort();
++    names
++}
++
++fn arm(on: bool) {
++    let path = env::var(ARM).unwrap();
++    if on {
++        fs::write(&path, b"").unwrap();
++    } else {
++        let _ = fs::remove_file(&path);
++    }
++}
++
++/// Runs `step` in a child process with the interposer and the given probe env.
++fn run(step: &str, dir: &Path, probe: &[(&str, &str)]) -> Output {
++    let armfile = dir.with_extension("arm");
++    let _ = fs::remove_file(&armfile);
++    let mut command = Command::new(env::current_exe().unwrap());
++    command
++        .args(["child_step", "--exact", "--ignored", "--nocapture", "--test-threads=1"])
++        .env(STEP, step)
++        .env(DIR, dir)
++        .env(ARM, &armfile)
++        .env("DYLD_INSERT_LIBRARIES", dylib())
++        .env("PROBE_TRACE", "1");
++    for (key, value) in probe {
++        let value = value.replace("{ARM}", armfile.to_str().unwrap());
++        command.env(key, value);
++    }
++    let output = command.output().unwrap();
++    println!("===== step {step}: status {:?}", output.status);
++    println!("--- stdout\n{}", String::from_utf8_lossy(&output.stdout));
++    println!("--- stderr\n{}", String::from_utf8_lossy(&output.stderr));
++    let _ = fs::remove_file(&armfile);
++    output
++}
++
++#[test]
++#[ignore = "child"]
++fn child_step() {
++    let Ok(step) = env::var(STEP) else { return };
++    let dir = PathBuf::from(env::var_os(DIR).unwrap());
++    match step.as_str() {
++        "p1_writer" => p1_writer(&dir),
++        "p1_reader" => p1_reader(&dir),
++        "p2_writer_kill" => p2_writer(&dir, true),
++        "p2_writer_eio" => p2_writer(&dir, false),
++        "p2_resume" => p2_resume(&dir),
++        "p3_wal_fail" => p3_wal_fail(&dir),
++        "p3_after" => p3_after(&dir),
++        "p4_dir_fail" => p4_dir_fail(&dir),
++        other => panic!("unknown step {other}"),
++    }
++}
++
++// ---------- p1: open serves unflushed WAL frames ----------
++
++fn p1_large() -> Blob {
++    object(INLINE_MAX_BYTES + 100, 7)
++}
++
++fn p1_writer(dir: &Path) {
++    let mut store = SqliteStore::open(dir).unwrap();
++    let mut author = Author::new(1);
++    let genesis = author.genesis();
++    let goal = genesis.header().goal;
++    store
++        .commit(&Commit {
++            events: vec![genesis.clone()],
++            blobs: vec![p1_large()],
++            ..Commit::default()
++        })
++        .unwrap();
++    println!("ack A");
++    let note = author.event(
++        goal,
++        Some(genesis.id()),
++        Body::Note {
++            about: None,
++            supersedes: None,
++        },
++    );
++    arm(true);
++    mark("commit B start");
++    let result = store.commit(&Commit {
++        events: vec![note],
++        drop_blobs: vec![p1_large().hash()],
++        ..Commit::default()
++    });
++    println!("commit B returned {result:?}");
++}
++
++fn p1_reader(dir: &Path) {
++    mark("open start");
++    let store = SqliteStore::open(dir).unwrap();
++    mark("open done");
++    let goal = Author::new(1).genesis().header().goal;
++    let log = store.log(&goal, 0, 100).unwrap();
++    let positions: Vec<u64> = log.iter().map(|(p, _)| *p).collect();
++    println!("log positions {positions:?}");
++    println!("large blob_len {:?}", store.blob_len(&p1_large().hash()));
++    println!("files after open {:?}", files(dir));
++    mark("reads done");
++}
++
++#[test]
++fn p1_open_serves_unflushed_wal_frames() {
++    let root = PathBuf::from(env::var("VERIFY_ROOT").unwrap()).join("p1");
++    let _ = fs::remove_dir_all(&root);
++    fs::create_dir_all(&root).unwrap();
++    let dir = root.join("state");
++    let w = run(
++        "p1_writer",
++        &dir,
++        &[("PROBE_KILL_SUB", "locust.db-wal"), ("PROBE_KILL_ARM", "{ARM}")],
++    );
++    let r = run("p1_reader", &dir, &[]);
++    assert!(r.status.success());
++    let _ = w;
++}
++
++// ---------- p2: finish promotes staged bytes never flushed ----------
++
++fn p2_object() -> Blob {
++    object(2 * BLOB_CHUNK_BYTES, 3)
++}
++
++fn p2_writer(dir: &Path, kill: bool) {
++    let mut store = SqliteStore::open(dir).unwrap();
++    let blob = p2_object();
++    let (hash, bytes) = (blob.hash(), blob.bytes());
++    let first = store.stage_blob(&hash, 0, &bytes[..BLOB_CHUNK_BYTES]);
++    println!("stage first {first:?}");
++    arm(true);
++    mark("stage last start");
++    let last = store.stage_blob(&hash, BLOB_CHUNK_BYTES as u64, &bytes[BLOB_CHUNK_BYTES..]);
++    arm(false);
++    println!("stage last {last:?} (kill={kill})");
++    println!("staged_len now {:?}", store.staged_len(&hash));
++}
++
++fn p2_resume(dir: &Path) {
++    let mut store = SqliteStore::open(dir).unwrap();
++    let blob = p2_object();
++    let hash = blob.hash();
++    println!("staged_len after reopen {:?}", store.staged_len(&hash));
++    mark("resume start");
++    let staged = store.stage_blob(&hash, 2 * BLOB_CHUNK_BYTES as u64, &[]);
++    println!("stage empty at total {staged:?}");
++    let finished = store.finish_blob(&hash);
++    mark("finish done");
++    println!("finish_blob {finished:?}");
++    println!("blob_len {:?}", store.blob_len(&hash));
++    println!("files {:?}", files(dir));
++}
++
++#[test]
++fn p2_finish_promotes_unflushed_staged_bytes() {
++    let root = PathBuf::from(env::var("VERIFY_ROOT").unwrap()).join("p2");
++    let _ = fs::remove_dir_all(&root);
++    fs::create_dir_all(&root).unwrap();
++    for (writer, sub) in [("p2_writer_kill", "PROBE_KILL"), ("p2_writer_eio", "PROBE_FAIL")] {
++        let dir = root.join(writer);
++        let sub_key = format!("{sub}_SUB");
++        let arm_key = format!("{sub}_ARM");
++        run(writer, &dir, &[(&sub_key, ".staged"), (&arm_key, "{ARM}")]);
++        let r = run("p2_resume", &dir, &[]);
++        assert!(r.status.success());
++    }
++}
++
++// ---------- p3: finish consumes the staged copy before the row commits ----------
++
++fn p3_object() -> Blob {
++    object(INLINE_MAX_BYTES + 5, 9)
++}
++
++fn p3_wal_fail(dir: &Path) {
++    let mut store = SqliteStore::open(dir).unwrap();
++    let blob = p3_object();
++    let hash = blob.hash();
++    println!("stage {:?}", store.stage_blob(&hash, 0, blob.bytes()));
++    arm(true);
++    mark("finish start");
++    let finished = store.finish_blob(&hash);
++    arm(false);
++    mark("finish done");
++    println!("finish_blob {finished:?}");
++    println!("files {:?}", files(dir));
++    drop(store);
++    mark("dropped");
++}
++
++fn p3_after(dir: &Path) {
++    let mut store = SqliteStore::open(dir).unwrap();
++    let hash = p3_object().hash();
++    println!(
++        "after reopen: blob_len {:?} staged_len {:?} files {:?}",
++        store.blob_len(&hash),
++        store.staged_len(&hash),
++        files(dir)
++    );
++    println!("finish again {:?}", store.finish_blob(&hash));
++}
++
++#[test]
++fn p3_finish_consumes_staged_copy_on_failed_commit() {
++    let root = PathBuf::from(env::var("VERIFY_ROOT").unwrap()).join("p3");
++    let _ = fs::remove_dir_all(&root);
++    fs::create_dir_all(&root).unwrap();
++    let dir = root.join("state");
++    run(
++        "p3_wal_fail",
++        &dir,
++        &[("PROBE_FAIL_SUB", "locust.db-wal"), ("PROBE_FAIL_ARM", "{ARM}")],
++    );
++    run("p3_after", &dir, &[]);
++}
++
++/// Insert failure via a trigger installed while the store is closed.
++#[test]
++fn p3b_finish_consumes_staged_copy_on_failed_insert() {
++    let root = PathBuf::from(env::var("VERIFY_ROOT").unwrap()).join("p3b");
++    let _ = fs::remove_dir_all(&root);
++    fs::create_dir_all(&root).unwrap();
++    let dir = root.join("state");
++    let blob = p3_object();
++    let hash = blob.hash();
++    {
++        let mut store = SqliteStore::open(&dir).unwrap();
++        assert_eq!(
++            store.stage_blob(&hash, 0, blob.bytes()),
++            Ok(blob.bytes().len() as u64)
++        );
++    }
++    {
++        let raw = rusqlite_open(&dir);
++        raw.execute_batch(&format!(
++            "CREATE TRIGGER inj BEFORE INSERT ON blobs WHEN NEW.hash = X'{hash}' \
++             BEGIN SELECT RAISE(ABORT, 'injected insert failure'); END;"
++        ))
++        .unwrap();
++    }
++    let mut store = SqliteStore::open(&dir).unwrap();
++    let finished = store.finish_blob(&hash);
++    println!("p3b finish_blob {finished:?}");
++    println!(
++        "p3b after failure: staged_len {:?} blob_len {:?} files {:?}",
++        store.staged_len(&hash),
++        store.blob_len(&hash),
++        files(&dir)
++    );
++    println!("p3b retry finish_blob {:?}", store.finish_blob(&hash));
++    println!("p3b files after retry {:?}", files(&dir));
++    drop(store);
++    rusqlite_open(&dir).execute_batch("DROP TRIGGER inj;").unwrap();
++    let store = SqliteStore::open(&dir).unwrap();
++    println!(
++        "p3b after reopen: staged_len {:?} blob_len {:?} files {:?}",
++        store.staged_len(&hash),
++        store.blob_len(&hash),
++        files(&dir)
++    );
++}
++
++fn rusqlite_open(dir: &Path) -> rusqlite::Connection {
++    rusqlite::Connection::open(dir.join("locust.db")).unwrap()
++}
++
++// ---------- p4: stage and discard acknowledge without a directory flush ----------
++
++fn p4_dir_fail(dir: &Path) {
++    let mut store = SqliteStore::open(dir).unwrap();
++    let blob = p2_object();
++    let (hash, bytes) = (blob.hash(), blob.bytes());
++    arm(true);
++    mark("first stage (dir flush fails)");
++    println!("first stage {:?}", store.stage_blob(&hash, 0, &bytes[..BLOB_CHUNK_BYTES]));
++    arm(false);
++    mark("repeat same chunk");
++    println!("repeat stage {:?}", store.stage_blob(&hash, 0, &bytes[..BLOB_CHUNK_BYTES]));
++    mark("next chunk");
++    println!(
++        "next stage {:?}",
++        store.stage_blob(&hash, BLOB_CHUNK_BYTES as u64, &bytes[BLOB_CHUNK_BYTES..])
++    );
++    mark("next chunk done");
++    let other = object(1000, 11);
++    println!("stage other {:?}", store.stage_blob(&other.hash(), 0, other.bytes()));
++    arm(true);
++    mark("discard (dir flush fails)");
++    println!("discard {:?}", store.discard_staged_blob(&other.hash()));
++    arm(false);
++    mark("discard again");
++    println!("discard again {:?}", store.discard_staged_blob(&other.hash()));
++    mark("discard again done");
++}
++
++#[test]
++fn p4_stage_and_discard_without_dir_flush() {
++    let root = PathBuf::from(env::var("VERIFY_ROOT").unwrap()).join("p4");
++    let _ = fs::remove_dir_all(&root);
++    fs::create_dir_all(&root).unwrap();
++    let dir = root.join("state");
++    run(
++        "p4_dir_fail",
++        &dir,
++        &[("PROBE_FAIL_SUB", "$/blobs"), ("PROBE_FAIL_ARM", "{ARM}")],
++    );
++}
++
++// ---------- p5: reopen drops a staged copy of a held object ----------
++
++#[test]
++fn p5_reopen_drops_staged_copy_of_held_object() {
++    let root = PathBuf::from(env::var("VERIFY_ROOT").unwrap()).join("p5");
++    let _ = fs::remove_dir_all(&root);
++    fs::create_dir_all(&root).unwrap();
++    let dir = root.join("state");
++    let blob = object(19, 1);
++    let hash = blob.hash();
++    let commit = Commit {
++        blobs: vec![blob.clone()],
++        ..Commit::default()
++    };
++    {
++        let mut store = SqliteStore::open(&dir).unwrap();
++        store.commit(&commit).unwrap();
++        println!("sqlite stage {:?}", store.stage_blob(&hash, 0, blob.bytes()));
++    }
++    let mut store = SqliteStore::open(&dir).unwrap();
++    println!(
++        "sqlite after reopen: staged_len {:?} finish {:?}",
++        store.staged_len(&hash),
++        store.finish_blob(&hash)
++    );
++    let mut mem = MemStore::new();
++    mem.commit(&commit).unwrap();
++    println!("mem stage {:?}", mem.stage_blob(&hash, 0, blob.bytes()));
++    let mut mem = mem.reopen();
++    println!(
++        "mem after reopen: staged_len {:?} finish {:?}",
++        mem.staged_len(&hash),
++        mem.finish_blob(&hash)
++    );
++    let _: Option<BlobHash> = None;
++}

@@ -14,6 +14,10 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+### Independent review of the T1 candidate — 2026-10-03
+
+- [Independent review of the release candidate](t1-candidate-independent-review.md): reproduction of the integration claims, 36 verified findings (10 at P2, none blocking the T1 guide), what was tested and held, and the earlier cross-review of the build helper and client harness. Probes are kept as patches under `evidence/t1-candidate-review/`, listed in the evidence index.
+
 ### T1 runtime integration — 2026-10-03
 
 - [Runtime integration and discovery findings](t1-integration-2026-10-03.md): reviewed runtime fixes, the failed multicast-only run, passing default-network three-process flow and exact evidence boundaries.
