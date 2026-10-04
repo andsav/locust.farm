@@ -10,6 +10,7 @@ import {
 	ROUTING_QUESTIONS,
 	SETUP_ARTIFACT
 } from './guide.ts';
+import { articleFor, artifactFor } from '../docs/content.ts';
 import { LLMS_PATH, llmsText, SUMMARY } from './llms.ts';
 
 const routes = new URL('../../routes/', import.meta.url);
@@ -33,7 +34,10 @@ test('llms.txt links only to pages the site serves', () => {
 		const url = new URL(link);
 		assert.equal(url.origin, origin, link);
 		assert.ok(
-			existsSync(new URL(`.${url.pathname.replace(/\/$/, '')}/+page.svelte`, routes)),
+			existsSync(new URL(`.${url.pathname.replace(/\/$/, '')}/+page.svelte`, routes)) ||
+				url.pathname === '/docs/next/index.json' ||
+				Boolean(articleFor(url.pathname.replace('/docs/next/', ''))) ||
+				Boolean(artifactFor(url.pathname)),
 			link
 		);
 	}

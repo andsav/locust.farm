@@ -4,6 +4,7 @@
  */
 
 import {
+	AVAILABILITY,
 	AGENT_INTRO,
 	AGENT_RULE,
 	AGENT_STEPS,
@@ -49,11 +50,19 @@ export function llmsText(): string {
 
 ${status}
 
+Availability reviewed ${AVAILABILITY.reviewed}; organization runtime: ${AVAILABILITY.organizationRuntime}.
+
 ## Pages
 
 - [Home](${ORIGIN}/): what Locust is for
 - [Start](${GUIDE_URL}): the first-contact guide, with the entry prompt for people and the instructions for agents
-- [Docs](${ORIGIN}/docs): placeholder; documentation is not written yet
+- [Docs](${ORIGIN}/docs): unreleased development documentation
+- [Development inventory](${ORIGIN}/docs/next/index.json): source commit, contract versions, page status and raw Markdown URLs
+- [Blueprint authoring](${ORIGIN}/docs/next/blueprint-authoring): offline checks; organization runtime remains proposed
+- [Blueprint schema](${ORIGIN}/docs/next/reference/organization.schema.json): current exported JSON shape
+- [Authoring contract](${ORIGIN}/docs/next/reference/organization.contract.json): exact offline operations, examples and capability boundaries
+- [Peer-review example](${ORIGIN}/docs/next/examples/peer-review.json): exact checked definition; not a running organization
+- [Availability](${ORIGIN}/docs/next/reference/availability.json): reviewed publication and qualification facts
 
 ## Entry prompt
 

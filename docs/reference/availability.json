@@ -1,0 +1,55 @@
+{
+  "format": "locust-availability-v1",
+  "reviewed": "2026-10-04",
+  "publication": {
+    "software": "unpublished",
+    "installerUrl": null,
+    "website": "local-build-only",
+    "releasedManual": null
+  },
+  "sourceCapabilities": [
+    "daemon",
+    "cli",
+    "stdio-mcp",
+    "candidate-installation",
+    "resumable-onboarding",
+    "offline-blueprint-authoring"
+  ],
+  "organizationRuntime": "replacement-in-progress",
+  "qualification": [
+    {
+      "platform": "macOS arm64",
+      "scope": "Local signed candidate installation and launchd cases; disposable Codex and Claude onboarding profiles and authenticated daemon readiness",
+      "limits": "Not public distribution, physical-machine acceptance or native real-model end-to-end qualification; this earlier candidate evidence does not qualify the API 2/protocol 2 replacement",
+      "evidence": [
+        "docs/installation.md",
+        "docs/onboarding.md",
+        "research/onboarding-qualification.md"
+      ],
+      "track": "historical-pre-organization-cutover-local-candidate"
+    }
+  ],
+  "clients": {
+    "codex": {
+      "status": "local-onboarding-component-verified",
+      "publicRoute": false
+    },
+    "claude-code": {
+      "status": "local-onboarding-component-verified",
+      "publicRoute": false
+    },
+    "pi": {
+      "status": "configuration-component",
+      "publicRoute": false
+    },
+    "droid": {
+      "status": "managed-foreground-component",
+      "publicRoute": false
+    },
+    "other": {
+      "status": "capability-review-required",
+      "publicRoute": false
+    }
+  },
+  "runtimeQualification": "protocol-2-and-api-2-not-qualified"
+}

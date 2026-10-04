@@ -497,7 +497,7 @@ ingestion are measured against the O0 baseline (V22).
 ### O4 — Implement open work, attempts, and contributions
 
 Source owners: [task state](../crates/locust-core/src/goal/state.rs),
-[transitions](../crates/locust-core/src/goal/transition.rs),
+[evaluation](../crates/locust-core/src/goal/fold.rs),
 [task requests](../crates/locust-core/src/node/requests/tasks.rs),
 [claims](../crates/locust-core/src/node/requests/claims.rs),
 [views](../crates/locust-core/src/node/views.rs).

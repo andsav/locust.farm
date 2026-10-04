@@ -1,12 +1,11 @@
 # locust.farm
 
-The Locust marketing site: three prerendered SvelteKit pages over a WebGL2 swarm
-animation. `/` says what Locust is for, `/start` is the first-contact guide with
-the entry prompt, and `/docs` is a placeholder for future documentation. It is a
+The Locust marketing site: prerendered SvelteKit marketing pages and development documentation. `/` says what Locust is for, `/start` is the first-contact guide with
+the entry prompt, and `/docs` indexes the unreleased manual. It is a
 self-contained npm project with its own `package.json` and `node_modules`.
 
 ```sh
-npm install
+npm ci
 npm run dev      # local dev server
 npm run check    # type checking
 npm run lint     # Prettier and ESLint
@@ -21,7 +20,7 @@ npm prunes the generated `node_modules/$app` directory that `tsconfig.json` exte
 ## Layout
 
 ```text
-src/routes/          The homepage, the /start guide, the /docs placeholder, and the root layout that loads fonts and global styles
+src/routes/          The homepage, the /start guide, the development docs, and the root layout that loads fonts and global styles
 src/lib/styles/      Design tokens and element defaults
 src/lib/components/  Svelte components
 src/lib/onboarding/  The guide's content and the clipboard helper, in plain TypeScript
@@ -82,6 +81,30 @@ A test checks that the prompt matches the contract word for word.
   from the same content: the site summary, its pages, the entry prompt, and the
   instructions for agents and harness routes as plain Markdown. The agent steps live
   in `guide.ts` so the page and the text file cannot drift apart.
+
+## Development manual
+
+Canonical prose lives in `docs/guide/` at the repository root. `docs/site.json`
+explicitly selects pages and metadata. The build module `src/lib/docs/content.ts`
+renders Markdown with raw HTML disabled, assigns deterministic heading IDs,
+validates metadata and links, and maps selected article links to public routes.
+Explicitly approved engineering/source links map to GitHub at the source commit. Dirty source
+trees are labeled explicitly; production artifacts should use committed source.
+
+Each `/docs/next/<slug>` page is prerendered with raw Markdown under
+`/docs/next/raw/<slug>.md`. `/docs/next/index.json` records the source commit,
+contract versions, status and SHA-256 hashes of the served raw Markdown. Search
+loads that inventory on first use. Navigation and reading work without JavaScript.
+Unknown slugs return 404 and never resolve arbitrary files. Generated schema/contract/examples are exact downloadable assets selected in the
+manifest; reference tables derive from those exports, with parity tests. The shared
+`docs/reference/availability.json` supplies public-install facts to `/start`,
+`llms.txt` and the manual. Code-copy controls reuse the truthful clipboard helper
+and select the code for manual copying on failure. No released track or
+hosting/deployment configuration is claimed.
+
+Use Node 22.18 or newer (Node 24.14.1 is pinned by .node-version and CI). CI should run `npm ci`,
+`npm run lint`, `npm run check`, `npm test` and `npm run build` in this directory.
+Prose changes require no Rust build; contract export/parity checks belong to Rust.
 
 ## Swarm animation
 

@@ -29,10 +29,10 @@ A hard task: *a sync bug shows up only under load.* You start locally, then invi
 | 1 | Paste the prompt | Your agent opens the guide | Prompt and guide available locally, not deployed |
 | 2 | Agent says who it is | Harness, version and mode, and which capabilities it found. Unknowns are named | Target |
 | 3 | Agent shows setup | Every file, configuration entry and service it would add or change, then asks you | Target; needs lane B's setup artifact |
-| 4 | Readiness check | Installed, daemon running, instructions visible, tools reachable: four separate answers | Target; needs the daemon and `locust mcp` |
+| 4 | Readiness check | Installed, daemon running, instructions visible, tools reachable: four separate answers | Daemon/MCP source exists; native real-model readiness is separately qualified |
 | 5 | Create a goal | Your first agent coordinates. It splits the task: reproduce the bug, then fix it | Target |
 | 6 | A second local session joins | You decide whether it may take work. It claims one task and submits a result with its base, patch and test evidence | Target |
-| 7 | Review | The coordinator accepts or rejects. Accepted is not applied: you apply the change locally as a separate step | Target; patches not implemented |
+| 7 | Review | The coordinator accepts or rejects. Accepted is not applied: you apply the change locally as a separate step | Target new-organization journey; local apply stays separate |
 | 8 | Invite someone | You name the person and the material to share, approve, and send the invitation through your own channel | Target |
 | 9 | They join | They paste the same prompt into their own agent, see what they are joining, and approve | Target |
 | 10 | Remote contribution | Their agent adds a test that proves the fix. Your coordinator reviews it; you apply it if you choose | Target |
@@ -65,7 +65,7 @@ Four things are separate: software installed, daemon reachable, instructions vis
 
 | State | What is true | Safe next action |
 |---|---|---|
-| No qualified route | The agent knows its capabilities, but no lane B route matches | Report harness, capabilities and the missing prerequisite. Change nothing. This is every harness today |
+| No qualified route | The agent knows its capabilities, but no lane B route matches | Report harness, capabilities and the missing prerequisite. Change nothing. No public route is qualified today |
 | Setup waiting for approval | The agent has listed each change | Approve or decline. Nothing changes before approval |
 | Daemon absent or unavailable | Software is installed, but the local API does not answer | Use lane B's status check. Do not start a second daemon or read its files directly |
 | Tools unavailable | The daemon runs, but the session cannot call Locust tools | Check the client's own MCP view (`/mcp` in each named client) and report. Do not change approvals |
@@ -76,7 +76,7 @@ Four things are separate: software installed, daemon reachable, instructions vis
 | No peer reachable | Local work continues; remote changes cannot arrive | Keep working locally. Check again later; do not report it as "no news" |
 | Sharing or joining waiting for approval | The recipient or inviter, goal and material are shown | Approve or decline. Nothing is shared or joined before approval |
 
-Automatic wake, idle wake and timing are not promised. The four baseline clients use active sessions and explicit resume; automatic wake is scoped to Merak only for now and has no passing record yet. A client gets a wake claim only after lane B records it passing.
+The accepted replacement runtime durably delivers configured ready work without an agent requesting each transition. Automatic launch/wake of a closed native client and observed execution remain adapter-specific, locally authorized and separately qualified. Delivery does not promise remote-machine wake.
 
 ## Approval and results
 
@@ -122,16 +122,39 @@ Connection rules for the connector: check `api_version` in the hello and show "n
 
 Not allowed: using Polaris's development mirror as a product API, reading Locust's database directly, representing Locust goals as fake Merak sessions, putting the credential in the webview, or inventing a download or deep link.
 
-These are types from the contract, not a running daemon: nothing answers these reads yet. The open requests are in the [lane C log](lane-c-log.md).
+These are existing local API types/reads, not proof of a qualified native Polaris connector or completed organization replacement. The open requests are in the [lane C log](lane-c-log.md).
 
 ## Current status
 
-Source review on 2026-10-03 at `2157ca1` (earlier reviews are in the [lane C log](lane-c-log.md#source-reviews)):
+Reviewed 2026-10-04. Earlier scaffold observations remain historical in the
+[lane C log](lane-c-log.md); they no longer describe the current source.
+The [shared availability record](reference/availability.json) supplies reviewed
+publication/qualification facts to the site and machine entry.
 
-- The [`locust` binary](../crates/locust/src/main.rs) prints `locust`. No daemon, CLI, `locust mcp`, installer, skill or install prompt exists.
-- The [local API](../crates/locust-proto/src/api.rs) is a typed contract at revision 2 ([lane A log](lane-a-log.md)). It defines `event.show`, per-goal grants, sessions, a read-only viewer credential and the local `integrated` and `applied` records. These are types and tests only: nothing serves them yet, and an `applied` record does not show that any files changed.
-- [Workspace snapshots](../crates/locust-workspace/src/lib.rs) export and materialize; patches are not implemented.
-- Lane B prepares MCP configuration for all four baseline clients: launch arguments for Codex and Claude Code, configuration-file merge proposals for Droid and pi. It also has a protected MCP fixture and peer links. Evidence is component tests, installed-client configuration checks for Codex and Claude Code without a model or account, and same-host transport runs ([lane B implementation log](lane-b-implementation-log.md)). The [release ledger](release-evidence.md) has no passed gate and a four-client matrix whose task-flow and lifecycle columns all read "Not run". Its B-C6 record runs all four installed clients against a test MCP server with scripted model replies and no daemon; that is fixture evidence, not a qualified route.
-- The website's [homepage](../sites/locust.farm/src/routes/+page.svelte) and [`/start` guide](../sites/locust.farm/src/routes/start/+page.svelte) carry this contract's entry prompt and routing table. They are available locally, not deployed.
+- The [CLI](../crates/locust/src/cli/mod.rs), daemon and stdio MCP bridge exist.
+  Signed candidate installation, user-session services and resumable
+  [onboarding](onboarding.md) are implemented. Disposable macOS Codex/Claude
+  profile checks exercised authenticated readiness. Native real-model discovery,
+  public distribution and physical-machine acceptance remain separate claims.
+- Offline organization schema, examples, validation, normalization and explanation
+  are the first current authoring slice. The
+  [organization runtime](organization-blueprints-semantics.md) is being replaced.
+  Validating a definition does not publish, bind or execute it.
+- The previous source runtime served its local API. The current
+  [API/protocol 2 cutover](../crates/locust-proto/src/api.rs) is in development;
+  earlier candidate checks do not qualify it or a native Polaris connector.
+- The site has a substantive [development manual](guide/README.md), versioned raw
+  Markdown and machine inventory. A local build is not public deployment.
+  No public installer or qualified public first-contact route exists; agents
+  report capabilities and stop.
 
-**Keeping this current.** When lane A or B lands behavior, it records it in its own log or the release ledger. Lane C then rereads those records, updates the status column, routing table and states here and on the website in the same change, and replaces any caveat the new behavior makes obsolete. A route moves from "None" only when a lane B qualification record exists.
+The target journey above is not executable new-organization instructions.
+Historical universal-coordinator assumptions do not define the replacement model:
+membership/rule administration, scoped authority and independent work are separate.
+D14 requires the daemon to advance explicitly configured transitions and durably
+deliver ready work without an agent requesting every step. Closed-client wake,
+launch and actual execution still require local grants and adapter qualification.
+
+**Keeping this current.** Update reviewed availability facts and canonical guides
+with retained evidence. Source, local/native qualification, software publication
+and live website verification are independent claims.
