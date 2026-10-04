@@ -1398,5 +1398,15 @@
     "installed_binary_sha256": "b577709eb981544b4bcf5bdcc5efd677a6133d24e474ab274a1fe500215450b3",
     "manifest_sha256": "66a8cc1e2ff87e9ced966c9343214d8ce3663165ea99665aa1a592896370ca62",
     "test_signed_private_install": true
+  },
+  "final_cleanup": {
+    "verified": true,
+    "referenced_private_roots": 15,
+    "remaining_private_roots": 0,
+    "held_installations_removed": 3,
+    "held_test_signing_keys_removed": true,
+    "owned_client_daemon_provider_processes_remaining": 0,
+    "preexisting_user_processes_untouched": true,
+    "inert_candidate_bundle_archive_manual_retained": true
   }
 }
