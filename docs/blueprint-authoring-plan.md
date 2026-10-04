@@ -1,7 +1,8 @@
 # Blueprint editor on locust.farm: implementation plan
 
-Date: 2026-10-04. **Status: proposed implementation plan; implementation in
-progress, nothing verified yet.** Baseline: Locust `74ec9fb`, after the
+Date: 2026-10-04. **Status: implemented in the site at `/blueprints`; checked by
+unit tests, conformance vectors and a browser walkthrough. Not yet tried with
+real agents or first-time users (section 8).** Baseline: Locust `74ec9fb`, after the
 organization implementation landed (`809bbbe`) and the contract rename. The
 Polaris checkout read for the canvas fork is `dreamcolor10` at `01d8aa3c4`.
 
@@ -94,8 +95,9 @@ On a laptop the page has three areas under the site header:
 - **Right: What this means and Copy.** A plain summary, problems, and the copy
   button.
 
-Selecting a stage on the map slides in a settings panel from the right, over
-the map, as Polaris does. The map pans so the selected stage stays visible.
+Selecting a stage slides in a settings panel from the right, as Polaris does.
+It covers the right-hand column rather than the map, because the map column is
+narrow on a laptop; the map pans if the selected stage is out of view.
 On tablets the right area becomes a drawer under the map. On phones the page
 is one column: way of working, questions, stages as a list, summary, and a
 sticky copy button.
@@ -298,14 +300,14 @@ each forked file with its source path and commit.
 
 | Forked | Change |
 | --- | --- |
-| `components/blueprint/nodes/NodeCapsule.svelte` | Site tokens; no run status classes; no inline rename; chips as plain text badges |
-| `components/blueprint/InspectorPanel.svelte` | Site tokens; labelled close button |
-| `components/blueprint/panelCamera.svelte.ts`, `canvasCamera.ts`, `canvasConstants.ts` | Bounds over stage nodes only; no loop or run padding |
-| `components/blueprint/FitViewBridge.svelte`, `CanvasViewportControls.svelte` | Labelled buttons with inline SVG icons |
-| `components/blueprint/canvasAlignSnap.ts`, `connectionPreviewQueue.ts` | Unchanged except imports |
-| `components/blueprint/nodes/CanvasEdgeVisual.svelte`, generic parts of `edgePresentation.ts` | No run animation |
-| `workflow/layout.ts` | Generic nodes on `@dagrejs/dagre`, left to right |
-| Placement and text-edit guards from `components/blueprint/editorInteractions.ts` | Storage prefix `locust:blueprint-editor:` |
+| `components/blueprint/nodes/NodeCapsule.svelte` | Became `StageNode.svelte`: same pill, disc, rims, ports and selected overlay; site tokens; no run states, inline rename or tooltips |
+| `components/blueprint/InspectorPanel.svelte` | Became `SidePanel.svelte`: same header, body and footer; site tokens; a labelled Close button |
+| `components/blueprint/FitViewBridge.svelte` | Became `FlowBridge.svelte`, trimmed to the hooks the map uses |
+| `workflow/layout.ts` | Became `layout.ts`: stages only, on `@dagrejs/dagre`, left to right |
+
+The map itself, its edges, the camera nudge and the viewport controls are
+written for the site; the Polaris versions carried run, loop and depth
+behaviour the stage map does not need.
 
 Not forked: everything tied to Merak's step graph, runs, loops, depth, the dock,
 haptics, the frame bar and the icon set. Any forked module that ends up unused
@@ -390,6 +392,11 @@ Each step is committed when its checks pass.
 | 6 | Page: ways of working with diagrams, rules panel, summary, problems, copy, saved blueprints, links, import | The six ways copy without edits; browser tests pass |
 | 7 | Site integration: header link, `llms.txt`, site README, docs page under "Author definitions", sitemap | Site checks pass |
 | 8 | Browser walkthrough of the first visit, a preset, a pipeline and copying, from a first-time user's point of view; fixes | Findings recorded in the research note |
+
+Status: steps 1 to 7 are done (commits `17f9c96` to the site integration commit).
+Step 8 has started: a walkthrough in the browser found and fixed a misleading
+change count, an awkward arrow label, the way cards' grid and the panel
+covering the map.
 
 Testing with real first-time users is for the owner to run; the research note
 holds the script.

@@ -331,6 +331,7 @@
     "docs/onboarding.md",
     "docs/managed-clients.md",
     "docs/first-contact.md",
+    "docs/blueprint-prompt.md",
     "docs/organization-blueprints.md",
     "docs/organization-blueprints-implementation-plan.md",
     "docs/organization-blueprints-semantics.md",

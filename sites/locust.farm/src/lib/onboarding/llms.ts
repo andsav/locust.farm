@@ -56,6 +56,7 @@ Availability reviewed ${AVAILABILITY.reviewed}; organization runtime: ${AVAILABI
 
 - [Home](${ORIGIN}/): what Locust is for
 - [Start](${GUIDE_URL}): the first-contact guide, with the entry prompt for people and the instructions for agents
+- [Blueprints](${ORIGIN}/blueprints): an editor for blueprints, the rules a goal follows. It needs Locust on the person's computer and copies a prompt that follows docs/blueprint-prompt.md: the agent checks the blueprint with Locust, saves a private draft and asks before publishing
 - [Docs](${ORIGIN}/docs): unreleased development documentation
 - [Development inventory](${ORIGIN}/docs/next/index.json): source commit, contract versions, page status and raw Markdown URLs
 - [Blueprint authoring](${ORIGIN}/docs/next/blueprint-authoring): offline checks, private drafts/publication and explicit runtime bindings
