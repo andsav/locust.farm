@@ -1,6 +1,6 @@
 # October 4 release evidence ledger
 
-**Status: component evidence is accumulating; no complete release gate is recorded as passed.** Target: October 4, 2026, at night, America/Los_Angeles. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace the detailed M0–M6 exit evidence or conformance matrix.
+**Status: component evidence is accumulating; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is now deferred by the owner. Immediate priority: T1 on the two available Macs. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace the detailed M0–M6 exit evidence or conformance matrix.
 
 The repository owner decides release go/no-go and changes to required scope or support claims. Agents record failures and remediate them; they cannot waive requirements. The [review response](implementation-plan-review-response.md) explains the changes that introduced this register.
 
@@ -44,17 +44,19 @@ Exact reproduction commands, observations and remaining boundaries are in the [i
 
 ## T1 preparation and run status
 
-The first integrated run uses one binary on the owner's three Apple Silicon Macs; the full sequence is in [workstreams](workstreams.md). The owner has deferred publication. Local implementation and verification do not wait on a publishing decision; three-Mac, sleep/wake and later public-download claims still require their own evidence.
+**Owner update, October 3:** start the physical run on the two available Apple Silicon Macs using the same local candidate. Publication remains deferred; AirDrop or a shared folder can carry the executable bundle. Each Mac initializes independent state. The [T1 run guide](t1-run.md) defines the first pass and optional third-peer extension. No physical-machine run is recorded yet.
 
 | Required record | Current evidence |
 |---|---|
-| One identified `aarch64-apple-darwin` binary | Candidate from `3422c7b` passes all 21 local workflow checks; version and SHA-256 verified; see [candidate record](t1-build.md) |
-| Published pre-release and first-run fetch/verify/start path | Deferred by owner; draft retained for later, with no host selection or publication required now |
-| Matching candidate version, commit and SHA-256 on all three Macs | Not run; publication is deferred and local candidate identity is verified |
-| Three members; observed peer routes | Exact release candidate passes locally; three-Mac run pending |
-| Propose → assign → claim → submit → inspect → accept; third peer observes history | Exact release candidate passes locally; three-Mac run pending |
-| Coordinator offline while other peers exchange notes; catch-up | Exact candidate passes after M3 restart, relay paths observed; three-Mac run pending |
-| Restart each daemon and sleeping-laptop reconnect | Exact candidate passes local process restarts; physical restart/reconnect and OS sleep/wake pending |
+| One identified `aarch64-apple-darwin` binary | Candidate from `3422c7b` passes all 21 local three-process checks; version and SHA-256 verified; see [candidate record](t1-build.md) |
+| Matching candidate identity on two Macs | Not run; verify both after local bundle transfer |
+| Two members, observed routes and encrypted task completion | Local-process evidence only; two-Mac first pass pending |
+| Offline note authored with coordinator stopped; catch-up on restart | Two-Mac first pass pending; must not be described as exchange between two surviving peers |
+| Restart each daemon and OS sleep/wake reconnect | Candidate passes local process restarts; physical-machine restart/reconnect and OS sleep/wake pending |
+| Passive third replica and surviving-peer exchange with coordinator offline | Passed with three local processes; optional three-daemon/two-Mac extension or later third-Mac run remains separate and unqualified |
+| Published pre-release and first-run fetch/verify/start | Deferred by owner; no host selection or publication required now |
+
+A successful two-Mac run will not close the complete release gates, the four-client baseline or the independent-accounts collaboration requirement. Preserve the original three-process evidence and label every new result with its actual process/host topology.
 
 
 ## Evidence record format

@@ -13,14 +13,14 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-- [Locust implementation plan](implementation-plan.md): proposed architecture, coordination and task contracts, Locust-owned Rust client adapters, one-prompt installation, milestones and acceptance tests.
+- [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
 - [Protocol contract, version 0](protocol-v0.md): encoding, hashing and signature decisions, the signed event header and event kinds, invitations, sync frames, local API and storage seam; implemented types and runtime invariants; complete release qualification remains open.
 - [Crates and workstreams](workstreams.md): accepted crate split, lane responsibilities and current shared A/B ownership, cross-review, and the rules for sharing one checkout.
 - [Lane A log](lane-a-log.md): contract notices, answers to lane B and reviews of lane B's commits.
 - [Lane B log](lane-b-log.md): requests to lane A, reviews of lane A's commits and replies.
 - [Lane B implementation log](lane-b-implementation-log.md): product objective, implemented slices, verification boundaries and useful client/transport observations.
-- [T1 CLI run](t1-run.md): three-Mac command sequence, network operators, restart evidence and the local three-process harness.
-- [T1 build](t1-build.md): prepare one identified Apple Silicon artifact; publication and first-run download remain open for the three-Mac test.
+- [T1 CLI run](t1-run.md): two-Mac command sequence, optional third-peer extension, network operators, restart/sleep evidence and the local three-process harness.
+- [T1 build](t1-build.md): identified Apple Silicon artifact for local transfer to the two Macs; publication and public-download qualification are deferred.
 - [Client qualification harness](client-qualification.md): isolated four-client scripted-provider checks, policy distinctions and recovery evidence boundaries.
 - [Transport probe](transport-probe.md): runnable direct, relay-only and automatic transport qualification, local process checks and two-machine instructions.
 - [Implementation plan review](implementation-plan-review.md): adversarial review of the proposed plan with prioritized objections, strengths and pre-implementation gates.

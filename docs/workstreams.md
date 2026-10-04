@@ -1,6 +1,6 @@
 # Crates and workstreams
 
-Date: 2026-10-03. **Status: the persistent daemon, CLI, core, store and peer synchronization are integrated in `885b372`; the exact release candidate from `3422c7b` passes all 21 local three-process T1 checks. Publication is deferred by the owner; the three-Mac run remains open.** The repository owner approved the crate split and shared checkout without worktrees. One orchestrator now owns lanes A and B; lane C remains independent. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
+Date: 2026-10-03. **Status: the persistent daemon, CLI, core, store and peer synchronization are integrated in `885b372`; the exact release candidate from `3422c7b` passes all 21 local three-process T1 checks. Publication is deferred by the owner; the next physical run starts on the two Macs currently available. Neither that run nor OS sleep/wake is yet qualified.** The repository owner approved the crate split and shared checkout without worktrees. One orchestrator now owns lanes A and B; lane C remains independent. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
 
 **Ownership update, October 3:** the owner has now assigned Lane A to Lane B's
 orchestrating session, including responsibility for completing and integrating
@@ -15,9 +15,9 @@ The takeover used disjoint subagent scopes for Goal/local Node behavior, sync an
 peer integration, and bounded storage/export/CLI work. The orchestrator owns
 contract changes, integration, release preparation and full-workspace checks.
 Each reassignment is explicit; agents do not commit another scope's work. T1
-remains the first milestone, with three local processes preceding the run on the
-owner's three Macs. The owner has now deferred publication; it is not an immediate
-prerequisite. The three-Mac and sleep/wake evidence requirements remain open.
+remains the first milestone. Three local processes passed; the owner now has two
+Macs and wants to start there. Publication is deferred. Record the two-Mac run and
+sleep/wake first, with any third-daemon or third-Mac extension qualified separately.
 
 ## Why the workspace is split
 
@@ -90,29 +90,30 @@ These are conventions; nothing enforces them except the checks named below.
 
 ## Integration order
 
-The owner's priority, set on 2026-10-03: as soon as the scaffolding links into a daemon that can found, join and synchronize a goal, cut a binary and test it on the owner's three machines. Work that the first three-machine test does not need waits until that test has run.
+The owner's updated priority, set on 2026-10-03: test the integrated binary on the **two Macs currently available**, rather than wait for a third. Start with the [two-Mac run guide](t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
 
 **Scaffolding** is done when these exist together: contract revision 2 complete (lane A); the core state machine and the SQLite store (lane A); the daemon shell with its socket and a CLI for the operations below (lane A); a transport that the daemon can bind and dial with contract types, with the hello-then-peer frame limit and delivery of a final frame (lane B; findings A-R1, A-R2 and A-R4 in the [lane A log](lane-a-log.md)).
 
-### T1: the first binary on three machines
+### T1: the first binary on two Macs, then a third-peer extension
 
-- **Binary.** The owner's three machines are Apple Silicon Macs, so one release build for `aarch64-apple-darwin` serves all three. **Owner update, October 3: publication is not needed now.** The identified local candidate remains available for implementation and verification; no public repository or release is to be created for the current work. The earlier first-time-user download requirement is deferred, including host selection and public fetch/verify/start qualification. Publication can be revisited when the owner requests it. Every runtime record still identifies the exact binary by version, source commit and SHA-256; a local check does not establish public-download or three-Mac behavior. Lane A provides the daemon and CLI. Linux x86_64 stays a release target and is not part of T1.
-- **Network.** Not a variable of the test. Peers find and reach each other the way BitTorrent peers do (see the owner's direction in the [implementation plan](implementation-plan.md), section 3), so the run is the same wherever the machines are. The three machines happen to share a local network; the route each peer reports is recorded as a fact.
-- **Operations in the binary.** `daemon run`, `status`, `agent enroll`, `goal create`, `goal invite`, `goal join`, `goal status`, `note add`, `notes`, `task propose`, `task assign`, `task claim`, `task submit`, `event show`, `result accept`, `board`, `pending`. Content is sealed, so key exchange and single-chunk content transfer between daemons are included.
-- **Run, driven from the CLI on each machine.**
-  1. Machine 1 founds a goal and issues two invitations; machines 2 and 3 join. All three list three members and show the route to each peer.
-  2. Machine 1 proposes and assigns a task to machine 2, which claims and submits; machine 1 reads the result and accepts it; machine 3 holds the whole history without having taken part.
-  3. Machine 1's daemon is stopped. Machines 2 and 3 exchange notes with each other. Machine 1 starts again and catches up.
-  4. Each daemon is restarted in turn and keeps its state; a sleeping laptop wakes and reconnects.
-- **Evidence.** Commit and binary hash per machine, operating system and architecture, the commands, event identifiers, routes and every failure, recorded in the [release evidence ledger](release-evidence.md). A failure is recorded and fixed before anything else is added.
-- **Not in T1.** The MCP bridge with real coding clients, workspace snapshots in the task flow, member removal and key rotation, document revisions, managed client sessions, content larger than one chunk, the installer and signed artifacts.
+- **Binary.** The identified `aarch64-apple-darwin` candidate can serve both Apple Silicon Macs. Copy the executable bundle through AirDrop or a shared folder and verify the same version, source commit and SHA-256 on each. Each Mac creates its own state and credentials; never clone a participant's home. Publication is not required or authorized. Linux x86_64 remains a later release target.
+- **Network.** Use daemon-default discovery and relays wherever the machines are. Record direct/relay routes as observations; a same-LAN run does not qualify separate-network operation.
+- **Operations.** `daemon run`, `status`, `agent enroll`, `goal create`, `goal invite`, `goal join`, `goal status`, `note add`, `notes`, `task propose`, `task assign`, `task authorize`, `session create`, `task claim`, `task submit`, `event show`, `result accept`, `board`, `pending`. The initial task carries sealed text within one content chunk.
+- **Two-Mac first pass.**
+  1. M1 creates a goal and one invitation; M2 joins. Both list two members and the same title, and record peer routes.
+  2. M1 proposes and assigns; M2 authorizes, claims and submits; M1 inspects and accepts. Both retain the accepted task and readable result.
+  3. Stop M1. M2 writes a local note while disconnected. Restart M1 and verify catch-up. This establishes offline authoring and later replication, not exchange between two surviving peers.
+  4. Restart each daemon independently with its existing home, then test laptop sleep/wake while the other Mac writes a note. Check stable identity, retained history and reconnection.
+- **Third-peer extension.** To test a passive replica and two surviving peers exchanging while M1 is offline, add M3 with an independent home and identity. It can run as a separate daemon on either available Mac; label that evidence as three daemons on two Macs. A later third physical Mac is another topology check. Neither is silently claimed by a two-peer pass.
+- **Evidence.** Record hash/version, OS/architecture, exact topology, commands, event identifiers, observed routes and failures in the [release ledger](release-evidence.md). The two-Mac and sleep/wake checks are not yet run. Existing three-process checks do not close these physical-machine checks.
+- **Outside this first pass.** Real coding clients/MCP, workspace snapshot/patch flow, member-removal/key-rotation workflow, document-revision workflow, managed sessions, large-content qualification, installer and signed artifacts. Several underlying runtime features already have component tests; this list limits the test scope, not the implementation.
 
 ### T2: coding agents on the same machines
 
-`locust mcp` and the operating skill in default-profile client sessions on the three machines, a real task with a workspace snapshot and a patch, and wait, interruption and explicit resume. Baseline clients are Codex, Claude Code, Factory Droid and Pi; start with a runnable pair.
+`locust mcp` and the operating skill in default-profile client sessions on the two available Macs, a real task with a workspace snapshot and a patch, and wait, interruption and explicit resume. Baseline clients are Codex, Claude Code, Factory Droid and Pi; start with a runnable pair.
 
 ### After T2
 
-Member removal and key rotation, cancellation delivery, document revisions, content larger than one chunk, managed client sessions, then packaging and the one-prompt install against the release candidate.
+Complete workflow and qualification work for member removal/key rotation, cancellation delivery, document revisions, content larger than one chunk and managed client sessions, then packaging and the one-prompt install against the release candidate. Reuse existing core implementations and tests; deferred qualification does not mean those components are absent. Publication still requires the owner to reopen it.
 
 Deterministic tests do not wait for the machines: the core's shuffled-delivery and multi-node tests and the store's conformance and crash tests run as their crates land.

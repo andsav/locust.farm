@@ -1,10 +1,10 @@
-# T1: one binary for three Apple Silicon Macs
+# T1: one binary, starting on two Apple Silicon Macs
 
-Date: 2026-10-03. **Status: identified Apple Silicon candidate passes all 21 local workflow checks; publication is deferred by the owner and the three-Mac run remains unqualified.** The [current T1 direction](workstreams.md) no longer requires publication now. The local artifact remains available for implementation and verification. The prepared public-download command below is retained for later use and has not been executed against a published release. Network routes are observations of the run.
+Date: 2026-10-03. **Status: identified Apple Silicon candidate passes all 21 local three-process workflow checks. The owner will start the physical run on the two available Macs; no two-Mac runtime or sleep/wake result is recorded yet.** Publication remains deferred. The [current T1 direction](workstreams.md) and [run guide](t1-run.md) retain a third-participant extension for later. The prepared public-download command below is historical preparation and has not been executed against a published release.
 
 ## Build identity
 
-From the repository root:
+The identified candidate below is already built; use it unchanged for the two-Mac run. To prepare a new candidate when source changes require one, run from the repository root:
 
 ```sh
 python3 scripts/build_t1.py
@@ -24,6 +24,22 @@ The pinned release build succeeded for source commit `3422c7b51948a409481cf2cd9d
 - Local bundle: `output/t1/3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1/` with `locust`, `SHA256SUMS` and build-only `metadata.json`.
 
 The checksum and embedded identity were verified independently after the helper completed. The executable has an ad hoc linker signature, without a Developer ID signature or notarization. Its metadata's `qualification: not_run` describes the build helper's scope; subsequent runtime checks are recorded separately in the [evidence ledger](release-evidence.md).
+
+## Copy to the second Mac
+
+Use AirDrop or a shared folder to copy the local bundle's `locust`, `SHA256SUMS` and `metadata.json` together into a folder on the second Mac. If the bundle arrives as an archive, extract it first. A copy of the run guide may travel with it. Only the binary bundle is shared: leave each Mac's `~/.locust-t1` daemon state on that Mac so each creates a distinct identity.
+
+On each Mac, open Terminal in the bundle folder and verify before starting:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+chmod u+x ./locust
+./locust --version
+uname -m
+sw_vers -productVersion
+```
+
+Both copies must match the version, source commit and SHA-256 above, and `uname -m` must report `arm64`. Keep those results with the run evidence. Set `LOCUST` to that copy's absolute executable path and continue with the [two-Mac CLI sequence](t1-run.md). No public release, Rust installation or independent rebuild on the second Mac is needed.
 
 ## Deferred publication draft
 
@@ -52,7 +68,7 @@ The owner has said publication is not needed now. The following is a retained dr
 )
 ```
 
-The digest is pinned in the command rather than fetched from a peer. Publication still needs a fresh public fetch/check before this becomes a verified first-contact path. Once downloaded, continue with the [three-Mac CLI sequence](t1-run.md).
+The digest is pinned in the command rather than fetched from a peer. Publication still needs a fresh public fetch/check before this becomes a verified first-contact path. Once downloaded, continue with the [T1 CLI sequence](t1-run.md).
 
 ## Later public-download qualification
 
@@ -68,7 +84,7 @@ uname -m
 sw_vers -productVersion
 ```
 
-Record the same commit and SHA-256 on all three machines before running the [T1 CLI sequence](workstreams.md). Retain event identifiers, observed routes, restart/sleep results and every failure in the [evidence ledger](release-evidence.md). The build helper does not run that sequence or attest to its outcomes.
+Record the same commit and SHA-256 on every participating machine before running the [T1 CLI sequence](t1-run.md). Retain the number of physical machines and daemon identities, event identifiers, observed routes, restart/sleep results and every failure in the [evidence ledger](release-evidence.md). The build helper does not run that sequence or attest to its outcomes.
 
 ## Verification and current boundary
 
@@ -78,4 +94,4 @@ The helper's tests cover dirty/untracked input rejection, allowed unrelated edit
 python3 -m unittest discover -s scripts/tests -p test_build_t1.py
 ```
 
-The runtime and version contract are committed in `885b372`; publication and the public first-run path are deferred. The [release-candidate local workflow](../research/t1-integration-2026-10-03.md) passed all 21 checks against this exact artifact in 12.53 seconds. The three-Mac runtime check, including sleeping-laptop recovery, remains unqualified. No public-download qualification is claimed.
+The runtime and version contract are committed in `885b372`; publication and the public first-run path are deferred. The [release-candidate local workflow](../research/t1-integration-2026-10-03.md) passed all 21 checks against this exact artifact in 12.53 seconds. The planned two-Mac runtime check, sleeping-laptop recovery and the later third-participant extension remain unqualified. Three local processes are the existing evidence, not three physical Macs. No public-download qualification is claimed.

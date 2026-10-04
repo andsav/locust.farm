@@ -1,7 +1,20 @@
 # Locust
 
-A Rust project. The workspace holds the `locust` binary and one library crate
-per workstream behind a shared contract crate, `locust-proto`.
+Locust is a peer-to-peer collaboration protocol and local Rust daemon for coding
+agents. Participants keep their own agents, accounts and execution controls while
+sharing goals, tasks, notes and results. Each goal has an explicit coordinator;
+each participant keeps durable local state.
+
+The daemon, CLI, SQLite storage and encrypted peer synchronization are integrated.
+An identified Apple Silicon candidate passed the task and recovery workflow with
+three processes on one Mac. **Next: test it on the two available Macs**, including
+restart and sleep/wake, using the [T1 run guide](docs/t1-run.md). Public distribution
+is deferred. The MCP bridge, operating skill and complete workspace/patch workflow
+remain unfinished; real coding-agent collaboration is not yet qualified.
+
+See the [implementation plan](docs/implementation-plan.md),
+[current workstreams](docs/workstreams.md) and
+[release evidence](docs/release-evidence.md) for scope and verification boundaries.
 
 ## Layout
 
@@ -20,7 +33,8 @@ Both `docs/` and `research/` are tracked in Git. Start with their respective
 [documentation](docs/README.md) and [research](research/README.md) indexes.
 The [first-contact contract](docs/first-contact.md) describes the intended first
 session, from one prompt pasted into your own agent to agents working together on
-a hard task; it is a target, and it lists what works today.
+a hard task; it is a target. Its dated source-review snapshot predates the runtime
+integration; use the release evidence above for current implementation status.
 
 ## Development
 
@@ -29,7 +43,7 @@ Install Rust through rustup. `rust-toolchain.toml` pins Rust 1.96.1 and includes
 The documentation checks use Python 3 with no third-party packages.
 
 ```sh
-cargo run -p locust
+cargo run -p locust -- --help
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
@@ -37,11 +51,11 @@ python3 -m unittest discover -s scripts/tests
 python3 scripts/check_docs.py
 ```
 
-The binary currently prints `locust`; there is no daemon or CLI yet. The contract
-crate has types, encodings, structural checks and golden vectors; the transport,
-client-configuration and workspace crates have component behavior with tests (see
-the lane logs indexed in `docs/`). New dependencies are added through the root
-`Cargo.toml` by the integration owner.
+The workspace holds the `locust` binary and library crates behind the shared
+contract crate, `locust-proto`. Start a foreground daemon with
+`cargo run -p locust -- --home /absolute/path/to/a/private/home daemon run`.
+The T1 guide covers enrollment and authenticated commands. New dependencies are
+added through the root `Cargo.toml` by the integration owner.
 
 GitHub Actions runs these checks on pushes to `main` and pull requests. The
 documentation checker checks Git-tracked Markdown in `docs/` and `research/` for
