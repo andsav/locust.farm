@@ -1,6 +1,15 @@
 # Crates and workstreams
 
-Date: 2026-10-03. **Status: the persistent daemon, CLI, core, store and peer synchronization are integrated in `885b372`; the exact release candidate from `3422c7b` passes all 21 local three-process T1 checks. Publication is deferred by the owner; the next physical run starts on the two Macs currently available. Neither that run nor OS sleep/wake is yet qualified.** The repository owner approved the crate split and shared checkout without worktrees. One orchestrator now owns lanes A and B; lane C remains independent. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
+Date: 2026-10-03. **Current execution: T2 MCP, operating skill and snapshot/contribution workflow are implemented and locally verified; the owner handles live client and physical-machine testing separately. See [T2 workflow](t2-workflow.md). Managed sessions and installation remain after T2.**
+
+**T1 baseline:** runtime remediation is implemented in `d253a07`; its identified
+protocol-1 artifact passes all 21 local three-process checks. The owner handles
+further physical-machine testing separately; publication remains deferred. See
+[the candidate record](t1-build.md) for exact identity and qualified boundaries.
+The repository owner approved the crate split and shared checkout without
+worktrees. One orchestrator owns lanes A and B; lane C remains independent.
+This supersedes the earlier guidance in the
+[implementation plan](implementation-plan.md) to keep every module inside one crate.
 
 **Ownership update, October 3:** the owner has now assigned Lane A to Lane B's
 orchestrating session, including responsibility for completing and integrating
@@ -90,7 +99,7 @@ These are conventions; nothing enforces them except the checks named below.
 
 ## Integration order
 
-The owner's updated priority, set on 2026-10-03: test the integrated binary on the **two Macs currently available**, rather than wait for a third. Start with the [two-Mac run guide](t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
+The owner's current implementation priority is **T2 below**, with live testing handled separately. The T1 physical-run instructions remain: test the integrated binary on the **two Macs currently available**, rather than wait for a third. Start with the [two-Mac run guide](t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
 
 **Scaffolding** is done when these exist together: contract revision 2 complete (lane A); the core state machine and the SQLite store (lane A); the daemon shell with its socket and a CLI for the operations below (lane A); a transport that the daemon can bind and dial with contract types, with the hello-then-peer frame limit and delivery of a final frame (lane B; findings A-R1, A-R2 and A-R4 in the [lane A log](lane-a-log.md)).
 
@@ -110,7 +119,7 @@ The owner's updated priority, set on 2026-10-03: test the integrated binary on t
 
 ### T2: coding agents on the same machines
 
-`locust mcp` and the operating skill in default-profile client sessions on the two available Macs, a real task with a workspace snapshot and a patch, and wait, interruption and explicit resume. Baseline clients are Codex, Claude Code, Factory Droid and Pi; start with a runnable pair.
+Implement [the T2 MCP and workspace flow](t2-workflow.md), then qualify `locust mcp` and the operating skill in default-profile client sessions on the two available Macs, a real task with a workspace snapshot and a patch, and wait, interruption and explicit resume. Baseline clients are Codex, Claude Code, Factory Droid and Pi; start with a runnable pair.
 
 ### After T2
 

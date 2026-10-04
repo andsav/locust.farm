@@ -973,3 +973,6 @@ fn coordinator_halt_reaches_a_historical_contact_without_history_or_key_admissio
     );
     assert!(Host::take_changed(&mut peers[1].node).is_empty());
 }
+
+#[path = "content_graph_tests.rs"]
+mod content_graph;

@@ -1,4 +1,4 @@
-//! Materialization failures: each leaves no destination behind.
+//! Publication, retained private stages, and concurrent destination safety.
 
 mod support;
 
@@ -46,6 +46,24 @@ fn is_case_insensitive(dir: &Path) -> bool {
     insensitive
 }
 
+fn cause(result: &Result<(), MaterializeError>) -> &MaterializeError {
+    let mut error = result.as_ref().unwrap_err();
+    while let MaterializeError::Staging { error: inner, .. } = error {
+        error = inner;
+    }
+    error
+}
+fn assert_retained_stages(parent: &Path) {
+    assert!(!parent.join("out").exists());
+    let names = list_dir(parent);
+    assert!(!names.is_empty());
+    assert!(
+        names
+            .iter()
+            .all(|name| name.starts_with(".locust-apply-materialize-"))
+    );
+}
+
 #[test]
 fn an_existing_destination_is_refused_and_left_alone() {
     let parent = tempfile::tempdir().unwrap();
@@ -73,7 +91,7 @@ fn an_existing_destination_is_refused_and_left_alone() {
 }
 
 #[test]
-fn a_missing_object_fails_and_leaves_nothing() {
+fn a_missing_object_retains_a_private_stage_without_a_destination() {
     let parent = tempfile::tempdir().unwrap();
     let mut store = MemBlobs::default();
     let mut manifest = manifest_of(&mut store, &FILES);
@@ -82,14 +100,14 @@ fn a_missing_object_fails_and_leaves_nothing() {
 
     let result = materialize(&manifest, &mut store, &parent.path().join("out"));
     assert!(
-        matches!(&result, Err(MaterializeError::MissingObject { path, content }) if path == "b/run.sh" && *content == absent),
+        matches!(cause(&result), MaterializeError::MissingObject { path, content } if path == "b/run.sh" && *content == absent),
         "{result:?}"
     );
-    assert!(list_dir(parent.path()).is_empty());
+    assert_retained_stages(parent.path());
 }
 
 #[test]
-fn an_object_of_the_wrong_size_fails_and_leaves_nothing() {
+fn a_wrong_size_object_retains_a_private_stage_without_a_destination() {
     let parent = tempfile::tempdir().unwrap();
     let mut store = MemBlobs::default();
     let mut manifest = manifest_of(&mut store, &FILES);
@@ -97,14 +115,14 @@ fn an_object_of_the_wrong_size_fails_and_leaves_nothing() {
 
     let result = materialize(&manifest, &mut store, &parent.path().join("out"));
     assert!(
-        matches!(&result, Err(MaterializeError::WrongSize { path, expected: 7, actual: 6 }) if path == "c.txt"),
+        matches!(cause(&result), MaterializeError::WrongSize { path, expected: 7, actual: 6 } if path == "c.txt"),
         "{result:?}"
     );
-    assert!(list_dir(parent.path()).is_empty());
+    assert_retained_stages(parent.path());
 }
 
 #[test]
-fn a_failing_source_leaves_nothing() {
+fn a_failing_source_retains_a_private_stage_without_a_destination() {
     let parent = tempfile::tempdir().unwrap();
     let mut store = MemBlobs::default();
     let manifest = manifest_of(&mut store, &FILES);
@@ -116,14 +134,14 @@ fn a_failing_source_leaves_nothing() {
 
     let result = materialize(&manifest, &mut source, &parent.path().join("out"));
     assert!(
-        matches!(result, Err(MaterializeError::Source(_))),
+        matches!(cause(&result), MaterializeError::Source(_)),
         "{result:?}"
     );
-    assert!(list_dir(parent.path()).is_empty());
+    assert_retained_stages(parent.path());
 }
 
 #[test]
-fn an_interrupted_run_leaves_no_destination_and_the_next_run_replaces_its_leftover() {
+fn an_interrupted_run_retains_its_stage_and_the_next_run_leaves_it_alone() {
     let parent = tempfile::tempdir().unwrap();
     let destination = parent.path().join("out");
     let mut store = MemBlobs::default();
@@ -145,7 +163,8 @@ fn an_interrupted_run_leaves_no_destination_and_the_next_run_replaces_its_leftov
     assert!(!read_tree(&parent.path().join(&leftover[0])).is_empty());
 
     materialize(&manifest, &mut store, &destination).unwrap();
-    assert_eq!(list_dir(parent.path()), ["out"]);
+    assert_eq!(list_dir(parent.path()).len(), 2);
+    assert!(parent.path().join(&leftover[0]).exists());
     let expected = FILES
         .iter()
         .map(|&(path, contents, executable)| (path.to_owned(), (contents.to_vec(), executable)))
@@ -179,10 +198,10 @@ fn names_this_filesystem_folds_together_are_collisions() {
         let manifest = manifest_of(&mut store, files);
         let result = materialize(&manifest, &mut store, &parent.path().join("out"));
         assert!(
-            matches!(&result, Err(MaterializeError::Collision(path)) if path == colliding),
+            matches!(cause(&result), MaterializeError::Collision(path) if path == colliding),
             "{files:?}: {result:?}"
         );
-        assert!(list_dir(parent.path()).is_empty());
+        assert_retained_stages(parent.path());
     }
 
     // Normalization-insensitive filesystems (APFS) also fold composed and
@@ -198,10 +217,10 @@ fn names_this_filesystem_folds_together_are_collisions() {
         );
         let result = materialize(&manifest, &mut store, &parent.path().join("out"));
         assert!(
-            matches!(&result, Err(MaterializeError::Collision(path)) if path == composed),
+            matches!(cause(&result), MaterializeError::Collision(path) if path == composed),
             "{result:?}"
         );
-        assert!(list_dir(parent.path()).is_empty());
+        assert_retained_stages(parent.path());
     }
 }
 
@@ -229,4 +248,192 @@ fn an_invalid_manifest_is_refused_before_anything_is_written() {
     }
     assert!(list_dir(parent.path()).is_empty());
     assert!(!parent.path().parent().unwrap().join("escape.txt").exists());
+}
+
+#[test]
+fn concurrent_materializations_publish_one_exact_manifest_without_mixing() {
+    use std::os::unix::fs::PermissionsExt;
+    use std::sync::mpsc;
+    use std::time::Duration;
+    struct Paused {
+        store: MemBlobs,
+        calls: usize,
+        ready: mpsc::Sender<()>,
+        resume: mpsc::Receiver<()>,
+    }
+    impl BlobSource for Paused {
+        fn fetch(&mut self, hash: &BlobHash) -> io::Result<Option<Vec<u8>>> {
+            self.calls += 1;
+            if self.calls == 2 {
+                self.ready.send(()).unwrap();
+                self.resume.recv_timeout(Duration::from_secs(5)).unwrap();
+            }
+            self.store.fetch(hash)
+        }
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let destination = temp.path().join("out");
+    let mut a_store = MemBlobs::default();
+    let a = manifest_of(&mut a_store, &[("a1", b"A1", false), ("a2", b"A2", false)]);
+    let mut b_store = MemBlobs::default();
+    let b = manifest_of(&mut b_store, &[("b1", b"B1", false), ("b2", b"B2", false)]);
+    let (ready, received) = mpsc::channel();
+    let (a_resume, a_wait) = mpsc::channel();
+    let (b_resume, b_wait) = mpsc::channel();
+    let a_destination = destination.clone();
+    let a_ready = ready.clone();
+    let a_thread = std::thread::spawn(move || {
+        materialize(
+            &a,
+            &mut Paused {
+                store: a_store,
+                calls: 0,
+                ready: a_ready,
+                resume: a_wait,
+            },
+            &a_destination,
+        )
+    });
+    let b_destination = destination.clone();
+    let b_thread = std::thread::spawn(move || {
+        materialize(
+            &b,
+            &mut Paused {
+                store: b_store,
+                calls: 0,
+                ready,
+                resume: b_wait,
+            },
+            &b_destination,
+        )
+    });
+    received.recv_timeout(Duration::from_secs(5)).unwrap();
+    received.recv_timeout(Duration::from_secs(5)).unwrap();
+    let stages = list_dir(temp.path());
+    assert_eq!(stages.len(), 2);
+    for stage in &stages {
+        assert_eq!(
+            fs::metadata(temp.path().join(stage))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
+        assert_eq!(list_dir(&temp.path().join(stage)).len(), 1);
+    }
+    a_resume.send(()).unwrap();
+    b_resume.send(()).unwrap();
+    let a_result = a_thread.join().unwrap();
+    let b_result = b_thread.join().unwrap();
+    assert_ne!(a_result.is_ok(), b_result.is_ok());
+    let winner = if a_result.is_ok() {
+        ["a1", "a2"]
+    } else {
+        ["b1", "b2"]
+    };
+    assert_eq!(list_dir(&destination), winner);
+    let loser = if a_result.is_err() {
+        a_result
+    } else {
+        b_result
+    };
+    assert!(matches!(
+        cause(&loser),
+        MaterializeError::DestinationExists(_)
+    ));
+    assert_eq!(
+        list_dir(temp.path()).len(),
+        2,
+        "winner destination and loser stage remain"
+    );
+}
+
+#[test]
+fn a_destination_created_during_fetch_is_never_replaced() {
+    struct CreateDestination {
+        store: MemBlobs,
+        destination: std::path::PathBuf,
+    }
+    impl BlobSource for CreateDestination {
+        fn fetch(&mut self, hash: &BlobHash) -> io::Result<Option<Vec<u8>>> {
+            fs::create_dir(&self.destination)?;
+            self.store.fetch(hash)
+        }
+    }
+    let parent = tempfile::tempdir().unwrap();
+    let destination = parent.path().join("out");
+    let mut store = MemBlobs::default();
+    let manifest = manifest_of(&mut store, &[("a", b"approved", false)]);
+    let result = materialize(
+        &manifest,
+        &mut CreateDestination {
+            store,
+            destination: destination.clone(),
+        },
+        &destination,
+    );
+    assert!(
+        matches!(cause(&result), MaterializeError::DestinationExists(_)),
+        "{result:?}"
+    );
+    assert!(
+        list_dir(&destination).is_empty(),
+        "concurrently created empty directory was replaced"
+    );
+    let MaterializeError::Staging { path, .. } = result.unwrap_err() else {
+        panic!("stage not reported");
+    };
+    assert_eq!(fs::read(path.join("a")).unwrap(), b"approved");
+}
+
+#[test]
+fn a_staging_ancestor_replaced_with_a_symlink_is_never_followed() {
+    struct ReplaceAncestor {
+        store: MemBlobs,
+        parent: std::path::PathBuf,
+        outside: std::path::PathBuf,
+        calls: usize,
+    }
+    impl BlobSource for ReplaceAncestor {
+        fn fetch(&mut self, hash: &BlobHash) -> io::Result<Option<Vec<u8>>> {
+            self.calls += 1;
+            if self.calls == 2 {
+                let stage = fs::read_dir(&self.parent)?
+                    .map(|item| item.unwrap().path())
+                    .find(|path| {
+                        path.file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .starts_with(".locust-apply-materialize-")
+                    })
+                    .unwrap();
+                fs::rename(stage.join("nested"), stage.join("original-nested"))?;
+                std::os::unix::fs::symlink(&self.outside, stage.join("nested"))?;
+            }
+            self.store.fetch(hash)
+        }
+    }
+    let parent = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("keep"), b"private").unwrap();
+    let mut store = MemBlobs::default();
+    let manifest = manifest_of(
+        &mut store,
+        &[("nested/a", b"A", false), ("nested/b", b"B", false)],
+    );
+    let result = materialize(
+        &manifest,
+        &mut ReplaceAncestor {
+            store,
+            parent: parent.path().into(),
+            outside: outside.path().into(),
+            calls: 0,
+        },
+        &parent.path().join("out"),
+    );
+    assert!(result.is_err());
+    assert!(!parent.path().join("out").exists());
+    assert_eq!(list_dir(outside.path()), ["keep"]);
+    assert_eq!(fs::read(outside.path().join("keep")).unwrap(), b"private");
 }

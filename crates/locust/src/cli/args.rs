@@ -284,10 +284,20 @@ pub(super) fn command() -> Command {
                 .help("Retry key: 16 bytes in hexadecimal, scoped to the caller")
                 .global(true),
         )
+        .subcommands(super::workspace::commands())
         .subcommand(group(
             "daemon",
             &[("run", "daemon.run"), ("stop", "daemon.stop")],
         ))
+        .subcommand(
+            Command::new("mcp")
+                .about("Serve authenticated model tools over MCP standard input/output")
+                .arg(
+                    Arg::new("lifecycle-receipt")
+                        .long("lifecycle-receipt")
+                        .help("Existing private absolute file for passive tools-ready receipts"),
+                ),
+        )
         .subcommand(operation("status", "status"))
         .subcommand(
             Command::new("doctor").about("Check local paths, credentials and daemon readiness"),

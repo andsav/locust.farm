@@ -1,6 +1,8 @@
 # Locust implementation plan
 
-Updated: 2026-10-03. **Status: persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. Next: the owner's two available Macs.** The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass is the current execution priority; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.
+Updated: 2026-10-03. **Current execution: T2 MCP, operating skill and snapshot/contribution flow are implemented and locally verified; the owner is handling live client and physical-machine testing separately. See [T2 workflow](t2-workflow.md). Managed sessions and installation follow T2.**
+
+**Prior T1 checkpoint:** persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. The physical-machine qualification uses the owner's two available Macs. The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass remains a separate qualification activity; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.
 
 ## 1. Outcome and scope
 

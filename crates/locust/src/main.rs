@@ -1,8 +1,10 @@
 //! The `locust` binary: the daemon and its command-line client.
 use std::process::ExitCode;
 mod cli;
+mod connection;
 mod daemon;
 mod failure;
+mod mcp;
 mod secret;
 #[cfg(test)]
 mod testdir;

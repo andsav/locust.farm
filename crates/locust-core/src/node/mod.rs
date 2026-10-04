@@ -17,6 +17,7 @@ mod access;
 mod authoring;
 mod callers;
 mod commit;
+mod content_graph;
 mod entry;
 mod feed;
 mod identity;
@@ -81,7 +82,7 @@ pub struct Node<S, E> {
     peer_driver: crate::sync::Driver,
     peer_connections: BTreeSet<locust_proto::id::EndpointId>,
     replica_goal: Option<GoalId>,
-    blob_index: replica::BlobIndex,
+    blob_index: content_graph::BlobIndex,
     failed: bool,
     stop: bool,
 }
@@ -134,7 +135,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             peer_driver: crate::sync::Driver::default(),
             peer_connections: BTreeSet::new(),
             replica_goal: None,
-            blob_index: replica::BlobIndex::default(),
+            blob_index: content_graph::BlobIndex::default(),
             failed: false,
             stop: false,
         };
@@ -174,6 +175,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 if let Some(value) = value {
                     let content_key = records::read(value)?;
                     self.entry_mut(goal).keys.insert(epoch, content_key);
+                } else {
+                    self.entry_mut(goal).keys.remove(&epoch);
                 }
                 Ok(())
             }

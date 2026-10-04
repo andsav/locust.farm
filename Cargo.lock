@@ -1741,6 +1741,7 @@ dependencies = [
  "locust-proto",
  "locust-store",
  "locust-workspace",
+ "rustix",
  "serde",
  "serde_json",
  "tempfile",
@@ -1804,6 +1805,7 @@ name = "locust-workspace"
 version = "0.1.0"
 dependencies = [
  "locust-proto",
+ "rustix",
  "serde",
  "tempfile",
 ]

@@ -6,8 +6,8 @@ use std::io;
 use std::path::Path;
 
 use locust_proto::id::BlobHash;
-use locust_proto::limits::MAX_BLOB_BYTES;
 use locust_proto::manifest::{Entry, Manifest, ManifestError, is_safe_path};
+use locust_proto::seal::MAX_PLAINTEXT_BYTES;
 
 use crate::{BlobSink, git, select};
 
@@ -73,14 +73,14 @@ impl fmt::Display for ExportError {
             }
             Self::TooLarge { path, size } => write!(
                 f,
-                "{path} is {size} bytes, over the {MAX_BLOB_BYTES}-byte object limit"
+                "{path} is {size} bytes, over the {MAX_PLAINTEXT_BYTES}-byte object limit"
             ),
             Self::Manifest(error) => {
                 write!(f, "the selected files are not a valid manifest: {error}")
             }
             Self::ManifestTooLarge { bytes } => write!(
                 f,
-                "the manifest encodes to {bytes} bytes, over the {MAX_BLOB_BYTES}-byte object limit"
+                "the manifest encodes to {bytes} bytes, over the {MAX_PLAINTEXT_BYTES}-byte object limit"
             ),
             Self::Sink(error) => write!(f, "storing an object failed: {error}"),
             Self::Io(error) => write!(f, "running git failed: {error}"),
@@ -151,7 +151,7 @@ pub fn export(
                 });
             }
         };
-        if item.size > MAX_BLOB_BYTES as u64 {
+        if item.size > MAX_PLAINTEXT_BYTES as u64 {
             return Err(ExportError::TooLarge {
                 path,
                 size: item.size,
@@ -173,7 +173,7 @@ pub fn export(
     // Check the manifest before moving any bytes. Identifiers have a fixed
     // width, so the encoded size is already final.
     let planned = manifest.encode().map_err(ExportError::Manifest)?.len();
-    if planned > MAX_BLOB_BYTES {
+    if planned > MAX_PLAINTEXT_BYTES {
         return Err(ExportError::ManifestTooLarge { bytes: planned });
     }
 

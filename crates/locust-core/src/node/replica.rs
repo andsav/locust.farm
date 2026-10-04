@@ -1,6 +1,6 @@
 //! Durable reconciliation adapter. The driver selects one goal before each
 //! call; received event batches use the node's single transactional write path.
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::ops::Bound::{Excluded, Unbounded};
 
 use locust_proto::crypto::ContentKey;
@@ -9,101 +9,15 @@ use locust_proto::event::{AuthorPoint, Body, Event, WireEvent};
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::limits::MAX_BLOB_BYTES;
 use locust_proto::seal;
-use locust_proto::store::{Commit, LocalWrite, Space, Store, StoreError};
+use locust_proto::store::{Store, StoreError};
 use locust_proto::sync::{AuthorFrontier, Frontier, Refusal};
 
 use super::commit::Tx;
-use super::requests::content::{BlobRecord, blob_record, blob_write};
-use super::{Node, entry, local, records};
+use super::requests::content::blob_record;
+use super::{Node, entry, local};
 use crate::sync::{Replica, Staged};
 
-/// Missing objects, derived solely from committed headers and local wants.
-/// Hash ordering lets one unavailable object be skipped without rescanning
-/// the history for every subsequent object.
-#[derive(Default)]
-pub(super) struct BlobIndex(BTreeMap<GoalId, BTreeSet<BlobHash>>);
-
 impl<S: Store, E: Entropy> Node<S, E> {
-    pub(super) fn rebuild_blob_index(&mut self) -> Result<(), StoreError> {
-        self.blob_index.0.clear();
-        let mut candidates = BTreeSet::new();
-        for (goal, entry) in &self.goals {
-            for author in entry.goal.authors() {
-                for point in entry.goal.points(author) {
-                    if let Some(event) = entry.goal.event(&point.id) {
-                        candidates
-                            .extend(event.header().blobs().into_iter().map(|hash| (*goal, hash)));
-                    }
-                }
-            }
-        }
-        for (key, _) in self.store.scan(Space::Blob, &[])? {
-            if let Some(pair) = blob_subject(&key) {
-                candidates.insert(pair);
-            }
-        }
-        for (goal, hash) in candidates {
-            self.refresh_blob_candidate(goal, hash)?;
-        }
-        Ok(())
-    }
-
-    pub(super) fn update_blob_index(&mut self, commit: &Commit) -> Result<(), StoreError> {
-        let mut candidates = BTreeSet::new();
-        for event in &commit.events {
-            candidates.extend(
-                event
-                    .header()
-                    .blobs()
-                    .into_iter()
-                    .map(|hash| (event.header().goal, hash)),
-            );
-        }
-        for write in &commit.local {
-            let (space, key) = match write {
-                LocalWrite::Put { space, key, .. } | LocalWrite::Delete { space, key } => {
-                    (space, key)
-                }
-            };
-            if *space == Space::Blob
-                && let Some(pair) = blob_subject(key)
-            {
-                candidates.insert(pair);
-            }
-        }
-        for blob in &commit.blobs {
-            for wanted in self.blob_index.0.values_mut() {
-                wanted.remove(&blob.hash());
-            }
-        }
-        for hash in &commit.drop_blobs {
-            for goal in self.goals.keys() {
-                candidates.insert((*goal, *hash));
-            }
-        }
-        for (goal, hash) in candidates {
-            self.refresh_blob_candidate(goal, hash)?;
-        }
-        Ok(())
-    }
-
-    fn refresh_blob_candidate(&mut self, goal: GoalId, hash: BlobHash) -> Result<(), StoreError> {
-        let record = blob_record(&self.store, &goal, &hash)?;
-        let named = self
-            .goals
-            .get(&goal)
-            .is_some_and(|entry| entry.names(&hash));
-        let wanted = !record.is_some_and(|record| record.withdrawn)
-            && (named || record.is_some_and(|record| record.wanted))
-            && self.store.blob_len(&hash)?.is_none();
-        let set = self.blob_index.0.entry(goal).or_default();
-        if wanted {
-            set.insert(hash);
-        } else {
-            set.remove(&hash);
-        }
-        Ok(())
-    }
     fn replica_id(&self) -> GoalId {
         self.replica_goal.expect("Host selected a goal")
     }
@@ -113,58 +27,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let Ok(record) = blob_record(&self.store, &entry.id(), hash) else {
             return false;
         };
-        !record.is_some_and(|record| record.withdrawn) && (entry.names(hash) || record.is_some())
-    }
-
-    /// Checks goal-scoped reference metadata without reading full objects.
-    /// A conflicting reference never invalidates another matching reference.
-    pub(in crate::node) fn blob_metadata_admitted(
-        &self,
-        goal: &GoalId,
-        hash: &BlobHash,
-        len: u64,
-        prefix: &[u8],
-    ) -> bool {
-        let Ok(epoch) = seal::epoch_of(prefix) else {
-            return false;
-        };
-        if len < seal::OVERHEAD_BYTES as u64 || len > MAX_BLOB_BYTES as u64 {
-            return false;
-        }
-        let Some(entry) = self.goals.get(goal) else {
-            return false;
-        };
-        if !entry.names(hash) {
-            return epoch <= entry.state().epoch
-                && blob_record(&self.store, goal, hash)
-                    .ok()
-                    .flatten()
-                    .is_some();
-        }
-        entry
-            .goal
-            .authors()
-            .flat_map(|author| entry.goal.points(author))
-            .filter_map(|point| entry.goal.event(&point.id))
-            .any(|event| {
-                let header = event.header();
-                if header.payload.is_some_and(|payload| {
-                    payload.hash == *hash
-                        && u64::from(payload.len) == len
-                        && payload.key_epoch == epoch
-                }) {
-                    return true;
-                }
-                header
-                    .blobs()
-                    .into_iter()
-                    .skip(usize::from(header.payload.is_some()))
-                    .any(|named| named == *hash)
-                    && entry
-                        .goal
-                        .epoch_of(&event.id())
-                        .is_some_and(|event_epoch| epoch <= event_epoch)
-            })
+        !record.is_some_and(|record| record.withdrawn)
+            && (self.names_content(entry, hash) || record.is_some())
     }
 
     fn held_metadata_admitted(&self, hash: &BlobHash) -> bool {
@@ -182,30 +46,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
         self.blob_metadata_admitted(&self.replica_id(), hash, len, &prefix)
     }
 
-    /// A bare object association carries no length. Otherwise at least one
-    /// signed payload association must admit the advertised length before
-    /// even a partial object can consume durable staging.
     fn blob_length_admitted(&self, hash: &BlobHash, total: u64) -> bool {
-        let entry = &self.goals[&self.replica_id()];
-        if !entry.names(hash) {
-            return true;
-        }
-        entry
-            .goal
-            .authors()
-            .flat_map(|author| entry.goal.points(author))
-            .filter_map(|point| entry.goal.event(&point.id))
-            .any(|event| {
-                let header = event.header();
-                header
-                    .payload
-                    .is_some_and(|payload| payload.hash == *hash && u64::from(payload.len) == total)
-                    || header
-                        .blobs()
-                        .into_iter()
-                        .skip(usize::from(header.payload.is_some()))
-                        .any(|named| named == *hash)
-            })
+        let goal = self.replica_id();
+        self.blob_index.admits_length(&goal, hash, total)
+            || (!self.names_content(&self.goals[&goal], hash)
+                && blob_record(&self.store, &goal, hash)
+                    .ok()
+                    .flatten()
+                    .is_some())
     }
 
     fn stage_bytes(
@@ -245,13 +93,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         self.store.stage_blob(hash, offset, bytes).map(Some)
     }
-}
-
-fn blob_subject(key: &[u8]) -> Option<(GoalId, BlobHash)> {
-    Some((
-        GoalId(records::part(key, 0)?),
-        BlobHash(records::part(key, GoalId::LEN)?),
-    ))
 }
 
 impl<S: Store, E: Entropy> Replica for Node<S, E> {
@@ -377,7 +218,7 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
         result
     }
     fn next_wanted_blob(&self, after: Option<BlobHash>) -> Option<(BlobHash, u64)> {
-        let set = self.blob_index.0.get(&self.replica_id())?;
+        let set = self.blob_index.wanted(&self.replica_id())?;
         let hash = *set
             .range((after.map_or(Unbounded, Excluded), Unbounded))
             .next()?;
@@ -449,16 +290,18 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
         }
         match self.store.finish_blob(hash) {
             Ok(true) => {
-                for wanted in self.blob_index.0.values_mut() {
-                    wanted.remove(hash);
-                }
+                // A received descendant is authorized by its path, never by
+                // a new independent local publication record.
                 let mut tx = Tx::none();
-                tx.local(blob_write(&self.replica_id(), hash, &BlobRecord::default()))
-                    .touch(self.replica_id());
-                if self.land(tx).is_ok() {
-                    Staged::Complete
-                } else {
+                tx.touch(self.replica_id());
+                if self.land(tx).is_err() {
+                    return Staged::Rejected;
+                }
+                if self.content_arrived(*hash).is_err() {
+                    self.failed = true;
                     Staged::Rejected
+                } else {
+                    Staged::Complete
                 }
             }
             Ok(false) => Staged::Rejected,
