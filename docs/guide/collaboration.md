@@ -1,6 +1,6 @@
 # First collaboration journeys
 
-**Status: implemented development CLI, API 2 / protocol 2.** The local tutorial
+**Status: implemented development CLI, API 3 / protocol 3.** The local tutorial
 below uses two enrolled participants and separate execution sessions on one
 isolated daemon. It exercises real CLI requests and persistent state. It does not
 establish discovery between machines or native model behavior.
@@ -108,11 +108,40 @@ The explicit timeout is a test watchdog, not a runtime work limit.
 ## Invite a person
 
 An administrator runs `goal invite --goal GOAL` and shares the returned ticket
-through a channel they deliberately choose. The recipient uses their own enrolled
-credential with `goal join --ticket TICKET`. Treat the ticket as a capability;
-keep it out of public pages, source control and diagnostic transcripts. A remote
-join may initially report `joining`; inspect `goal status` until the signed
-admission is held. Joining does not grant local execution permission.
+through a channel they deliberately choose. Treat the ticket as a capability;
+keep it out of command history, public pages, source control and diagnostic
+transcripts. The recipient runs `invitation inspect --ticket -` with the ticket
+on standard input, or `invitation inspect --ticket-file /private/invitation`.
+A ticket file must be an owner-only regular file with mode `0600` or `0400`.
+Inspection works offline and does not redeem the invitation or change membership.
+
+The preview verifies the administrator's signature over the goal, title,
+endpoint/contact hints, capability, expiry and whole-goal sharing boundary. The
+title is administrator-signed presentation, and the key fingerprint does not
+verify a person's identity. Inspection cannot establish current issuer
+availability, revocation or admission. Available history and shared goal content
+become readable on admission; local files and private chats are not shared
+automatically.
+
+To accept, use `locust --owner invitation join --principal NAME --ticket-file
+/private/invitation --review REVIEW_IDENTIFIER`, where `NAME` is an existing
+enrolled local principal and the full review identifier comes from inspecting
+that exact ticket. Standard input via `--ticket -` also works. A changed ticket
+requires another review. To decline, take no action. A remote join may initially
+report `joining`; `locust --owner status` shows joining/refused state and `goal status`
+becomes readable when signed admission arrives. Retrying the same reviewed ticket
+recovers the pending or admitted result. Expired or refused invitations require a
+fresh invitation; an unresolved pending join rejects ticket substitution. Joining grants no
+local execution, provider spending or workspace permission.
+
+The issuer can run `locust --owner invitation list --goal GOAL` to see pending,
+expired, revoked and redeemed invitations without their capabilities. Use
+`locust --owner invitation revoke --goal GOAL --invitation IDENTIFIER` to revoke
+an unused invitation. Revocation survives restart and repeated requests are
+idempotent. A redeemed invitation requires `member remove` to end membership;
+neither action retracts copies already received. Invitation operations are
+excluded from the model tool surface; an otherwise authorized CLI/API caller
+retains its existing authority.
 
 Before sending, identify the recipient, goal and shared content. Topics and roles
 do not create private channels. Use a separate goal with separate membership for

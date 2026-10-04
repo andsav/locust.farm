@@ -142,7 +142,7 @@ fn the_database_is_opened_for_power_loss_durability_under_an_exclusive_lock() {
 
 #[test]
 fn every_unsupported_schema_is_refused_without_mutating_state() {
-    for version in [-1, 0, 1, 3, 999] {
+    for version in (-1..crate::schema::VERSION).chain([crate::schema::VERSION + 1, 999]) {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("locust.db");
         let raw = Connection::open(&path).unwrap();
@@ -157,7 +157,7 @@ fn every_unsupported_schema_is_refused_without_mutating_state() {
             SqliteStore::open(dir.path()).unwrap_err(),
             OpenError::UnsupportedSchema {
                 found: version,
-                known: 2
+                known: crate::schema::VERSION
             }
         );
         assert_eq!(fs::read(&path).unwrap(), before);
@@ -192,7 +192,7 @@ fn fresh_initialization_is_atomic_and_current_state_reopens() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
             .unwrap(),
-        2
+        crate::schema::VERSION
     );
     let (dir, mut store) = scratch();
     store

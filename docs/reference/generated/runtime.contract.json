@@ -1,5 +1,5 @@
 {
-  "api_version": 2,
+  "api_version": 3,
   "blueprint_schema_version": 1,
   "cli": {
     "arguments": [
@@ -68,6 +68,271 @@
       }
     ],
     "commands": [
+      {
+        "arguments": [],
+        "commands": [
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Enrolled local name or full principal key",
+                "long": "agent",
+                "name": "agent",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "inspect",
+            "summary": "Show standing permissions and task-specific execution authorizations"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Enrolled local name or full principal key",
+                "long": "agent",
+                "name": "agent",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Limit this change to one task's local execution authorization",
+                "long": "task",
+                "name": "task",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Independent local permission names; other permissions stay unchanged",
+                "long": null,
+                "name": "permissions",
+                "positional": true,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "allow",
+            "summary": "Allow only the named permissions; --task requires execute, optionally takeover"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Enrolled local name or full principal key",
+                "long": "agent",
+                "name": "agent",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Limit this change to one task's local execution authorization",
+                "long": "task",
+                "name": "task",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Independent local permission names; other permissions stay unchanged",
+                "long": null,
+                "name": "permissions",
+                "positional": true,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "revoke",
+            "summary": "Revoke named permissions or one task's authorizations; does not stop a client process"
+          }
+        ],
+        "name": "permission",
+        "summary": "Inspect or change explicit local permissions; membership and client tool approval are separate"
+      },
+      {
+        "arguments": [],
+        "commands": [],
+        "name": "inbox",
+        "summary": "Show the owner's local participants needing permission, action, or review across goals without acknowledgment"
+      },
+      {
+        "arguments": [
+          {
+            "action": "Set",
+            "help": "Goal identifier or unique prefix",
+            "long": "goal",
+            "name": "goal",
+            "positional": false,
+            "required": true,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Maximum wait in milliseconds; 0 checks immediately",
+            "long": "timeout-ms",
+            "name": "timeout-ms",
+            "positional": false,
+            "required": false,
+            "short": null
+          }
+        ],
+        "commands": [],
+        "name": "watch",
+        "summary": "Observe one goal until its next change or the explicit timeout; never acknowledges work or context"
+      },
+      {
+        "arguments": [],
+        "commands": [
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Owner-only regular file containing the invitation; never echoed",
+                "long": "ticket-file",
+                "name": "ticket-file",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Use - to read standard input; use --ticket-file for a saved invitation",
+                "long": "ticket",
+                "name": "ticket",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "inspect",
+            "summary": "Verify and preview an invitation offline without redeeming it"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "list",
+            "summary": "Show issued invitation states without capabilities"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Full invitation identifier from invitation list",
+                "long": "invitation",
+                "name": "invitation",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "revoke",
+            "summary": "Revoke an unused invitation; requires --owner"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Existing enrolled local principal name or full key",
+                "long": "principal",
+                "name": "principal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Full review identifier shown by invitation inspect",
+                "long": "review",
+                "name": "review",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Owner-only regular file containing the invitation; never echoed",
+                "long": "ticket-file",
+                "name": "ticket-file",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Use - to read standard input; use --ticket-file for a saved invitation",
+                "long": "ticket",
+                "name": "ticket",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "join",
+            "summary": "Join as an existing local principal after reviewing the exact ticket; requires --owner"
+          }
+        ],
+        "name": "invitation",
+        "summary": "Inspect signed sharing facts, review joining, and manage issued invitations"
+      },
       {
         "arguments": [],
         "commands": [
@@ -2718,6 +2983,99 @@
               {
                 "action": "Set",
                 "help": "JSON value matching blueprint contract or the API schema",
+                "long": "after",
+                "name": "after",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "JSON value matching blueprint contract or the API schema",
+                "long": "limit",
+                "name": "limit",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "JSON value matching blueprint contract or the API schema",
+                "long": "preview-chars",
+                "name": "preview_chars",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "task",
+                "name": "task",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "JSON value matching blueprint contract or the API schema",
+                "long": "unread-only",
+                "name": "unread_only",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "read",
+            "summary": "Read a coherent goal or task brief with attributed findings, progress, review reasons and pending actions; reads do not acknowledge content"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "JSON value matching blueprint contract or the API schema",
+                "long": "receipt",
+                "name": "receipt",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "acknowledge",
+            "summary": "Acknowledge the complete content delivered to this execution session using its exact receipt; other sessions remain unread"
+          }
+        ],
+        "name": "context",
+        "summary": null
+      },
+      {
+        "arguments": [],
+        "commands": [
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "JSON value matching blueprint contract or the API schema",
                 "long": "artifacts",
                 "name": "artifacts",
                 "positional": false,
@@ -5086,7 +5444,7 @@
     {
       "audience": "agent",
       "goal_scoped": false,
-      "mcp_tool": "locust_goal_join",
+      "mcp_tool": null,
       "name": "goal.join",
       "read_only": false,
       "summary": "goal join"
@@ -5094,7 +5452,7 @@
     {
       "audience": "administrator",
       "goal_scoped": true,
-      "mcp_tool": "locust_goal_invite",
+      "mcp_tool": null,
       "name": "goal.invite",
       "read_only": false,
       "summary": "goal invite"
@@ -5482,9 +5840,105 @@
       "name": "blueprint.explain",
       "read_only": true,
       "summary": "blueprint explain"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_context_read",
+      "name": "context.read",
+      "read_only": true,
+      "summary": "Read a coherent goal or task brief with attributed findings, progress, review reasons and pending actions; reads do not acknowledge content"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_context_acknowledge",
+      "name": "context.acknowledge",
+      "read_only": false,
+      "summary": "Acknowledge the complete content delivered to this execution session using its exact receipt; other sessions remain unread"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": false,
+      "mcp_tool": null,
+      "name": "invitation.inspect",
+      "read_only": true,
+      "summary": "Verify a signed invitation and preview its issuer, goal and sharing boundary without joining"
+    },
+    {
+      "audience": "administrator",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "invitation.list",
+      "read_only": true,
+      "summary": "List issued invitations and their current redemption, expiry or revocation state without revealing ticket secrets"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "invitation.revoke",
+      "read_only": false,
+      "summary": "Revoke an issued invitation; existing membership remains a separate decision"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": false,
+      "mcp_tool": null,
+      "name": "invitation.join",
+      "read_only": false,
+      "summary": "Join as the selected enrolled principal after reviewing this exact signed invitation; grants remain unchanged"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "permission.inspect",
+      "read_only": true,
+      "summary": "Inspect an enrolled principal's explicit local permissions and membership"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "permission.allow",
+      "read_only": false,
+      "summary": "Allow only the selected local goal permissions for an enrolled principal"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "permission.task.allow",
+      "read_only": false,
+      "summary": "Allow local execution for this task, preserving existing takeover permission"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "permission.task.revoke",
+      "read_only": false,
+      "summary": "Remove every local execution authorization for this agent and task; running processes are not terminated"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "permission.revoke",
+      "read_only": false,
+      "summary": "Revoke only the selected local goal permissions; this does not terminate a running process"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": false,
+      "mcp_tool": null,
+      "name": "inbox",
+      "read_only": true,
+      "summary": "Show local participants and work needing permission, action or review across goals without acknowledging it"
     }
   ],
-  "protocol_version": 2,
+  "protocol_version": 3,
   "request_schema": {
     "$defs": {
       "AttemptStatus": {
@@ -5508,6 +5962,118 @@
           "uncertain"
         ],
         "type": "string"
+      },
+      "ContextCursor": {
+        "description": "A continuation for exactly one observed revision and query. If the goal\nchanges, restart the read; pages from different revisions are never joined.\nSession acknowledgments do not change this revision. The offset addresses\nrelevant events before unread filtering, so acknowledging each page is safe.",
+        "properties": {
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "offset": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstanceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "task": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unread_only": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "goal",
+          "revision",
+          "unread_only",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "ContextReceipt": {
+        "description": "A daemon-signed receipt bound to the hello session. Only complete, available\nevent texts are listed. Missing or previewed text cannot be acknowledged.\nReceipts survive daemon restart and remain valid after unrelated changes.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/$defs/ContextSeen"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "principal": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "session": {
+            "$ref": "#/$defs/InstanceId"
+          },
+          "signature": {
+            "$ref": "#/$defs/Signature"
+          }
+        },
+        "required": [
+          "goal",
+          "principal",
+          "session",
+          "revision",
+          "entries",
+          "signature"
+        ],
+        "type": "object"
+      },
+      "ContextSeen": {
+        "description": "One immutable event version delivered with its entire text.",
+        "properties": {
+          "event": {
+            "$ref": "#/$defs/EventId"
+          },
+          "version": {
+            "$ref": "#/$defs/BlobHash",
+            "description": "Binds the event's current standing, local feed position and payload availability."
+          }
+        },
+        "required": [
+          "event",
+          "version"
+        ],
+        "type": "object"
       },
       "Doc": {
         "enum": [
@@ -5562,6 +6128,19 @@
       },
       "GoalId": {
         "pattern": "^[0-9a-fA-F]{64}$",
+        "type": "string"
+      },
+      "GoalPermission": {
+        "description": "Independent local permission categories. Membership and organization roles\nremain separate conditions for an operation to be effective.",
+        "enum": [
+          "administer",
+          "contribute",
+          "execute",
+          "review",
+          "select",
+          "flow",
+          "takeover"
+        ],
         "type": "string"
       },
       "Grants": {
@@ -5740,6 +6319,10 @@
           }
         ]
       },
+      "Signature": {
+        "pattern": "^[0-9a-fA-F]{128}$",
+        "type": "string"
+      },
       "TaskId": {
         "pattern": "^(task|effect):[0-9a-f]{64}$",
         "type": "string"
@@ -5808,7 +6391,8 @@
           "daemon.stop",
           "sessions",
           "blueprint.drafts",
-          "blueprint.list"
+          "blueprint.list",
+          "inbox"
         ],
         "type": "string"
       },
@@ -7521,6 +8105,337 @@
           "blueprint.explain"
         ],
         "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "context.read": {
+            "additionalProperties": false,
+            "properties": {
+              "after": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ContextCursor"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "limit": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "preview_chars": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "task": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/TaskId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "unread_only": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "goal",
+              "limit",
+              "unread_only"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "context.read"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "context.acknowledge": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "receipt": {
+                "$ref": "#/$defs/ContextReceipt"
+              }
+            },
+            "required": [
+              "goal",
+              "receipt"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "context.acknowledge"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "invitation.inspect": {
+            "additionalProperties": false,
+            "properties": {
+              "ticket": {
+                "$ref": "#/$defs/Ticket"
+              }
+            },
+            "required": [
+              "ticket"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "invitation.inspect"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "invitation.list": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "invitation.list"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "invitation.revoke": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "invitation": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "goal",
+              "invitation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "invitation.revoke"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "invitation.join": {
+            "additionalProperties": false,
+            "properties": {
+              "principal": {
+                "$ref": "#/$defs/PublicKey"
+              },
+              "review": {
+                "type": "string"
+              },
+              "ticket": {
+                "$ref": "#/$defs/Ticket"
+              }
+            },
+            "required": [
+              "principal",
+              "ticket",
+              "review"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "invitation.join"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "permission.inspect": {
+            "additionalProperties": false,
+            "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal",
+              "agent"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "permission.inspect"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "permission.allow": {
+            "additionalProperties": false,
+            "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "permissions": {
+                "items": {
+                  "$ref": "#/$defs/GoalPermission"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "goal",
+              "agent",
+              "permissions"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "permission.allow"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "permission.task.allow": {
+            "additionalProperties": false,
+            "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "takeover": {
+                "type": "boolean"
+              },
+              "task": {
+                "$ref": "#/$defs/TaskId"
+              }
+            },
+            "required": [
+              "goal",
+              "agent",
+              "task",
+              "takeover"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "permission.task.allow"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "permission.task.revoke": {
+            "additionalProperties": false,
+            "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "task": {
+                "$ref": "#/$defs/TaskId"
+              }
+            },
+            "required": [
+              "goal",
+              "agent",
+              "task"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "permission.task.revoke"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "permission.revoke": {
+            "additionalProperties": false,
+            "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "permissions": {
+                "items": {
+                  "$ref": "#/$defs/GoalPermission"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "goal",
+              "agent",
+              "permissions"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "permission.revoke"
+        ],
+        "type": "object"
       }
     ],
     "title": "Request"
@@ -7564,6 +8479,57 @@
           "uncertain"
         ],
         "type": "string"
+      },
+      "AttentionEntry": {
+        "description": "An owner's view of a local principal's obligations. Reading does not claim,\nacknowledge, consume a context cursor, or authorize anything.",
+        "properties": {
+          "agent": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "grants": {
+            "$ref": "#/$defs/GoalGrants"
+          },
+          "halted": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Halt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "pending": {
+            "$ref": "#/$defs/PendingWork"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskView"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "goal",
+          "agent",
+          "name",
+          "grants",
+          "pending",
+          "tasks"
+        ],
+        "type": "object"
       },
       "AuthorPoint": {
         "properties": {
@@ -8290,6 +9256,298 @@
         ],
         "type": "object"
       },
+      "ContextAcknowledgment": {
+        "description": "Durable local acknowledgment of these exact event versions. Repeating a\nreceipt returns the same acknowledgment and cannot consume later versions.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/$defs/ContextSeen"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "principal": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "session": {
+            "$ref": "#/$defs/InstanceId"
+          }
+        },
+        "required": [
+          "goal",
+          "principal",
+          "session",
+          "entries"
+        ],
+        "type": "object"
+      },
+      "ContextCursor": {
+        "description": "A continuation for exactly one observed revision and query. If the goal\nchanges, restart the read; pages from different revisions are never joined.\nSession acknowledgments do not change this revision. The offset addresses\nrelevant events before unread filtering, so acknowledging each page is safe.",
+        "properties": {
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "offset": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstanceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "task": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unread_only": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "goal",
+          "revision",
+          "unread_only",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "ContextDocument": {
+        "description": "Current document selection and candidates; the attributed text and reviews\nare in the paginated items, including in task-specific context.",
+        "properties": {
+          "doc": {
+            "$ref": "#/$defs/Doc"
+          },
+          "revisions": {
+            "items": {
+              "$ref": "#/$defs/EventId"
+            },
+            "type": "array"
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "doc",
+          "revisions"
+        ],
+        "type": "object"
+      },
+      "ContextItem": {
+        "properties": {
+          "acknowledged": {
+            "description": "None for an observer without a session. Never principal-wide.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "event": {
+            "$ref": "#/$defs/EventDetail"
+          },
+          "text_complete": {
+            "description": "False for missing text or an explicitly requested preview. Read again\nwith preview_chars omitted for full text; the same event remains unread.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "event",
+          "text_complete"
+        ],
+        "type": "object"
+      },
+      "ContextNews": {
+        "description": "News for this execution session at a normal pending-work checkpoint.",
+        "properties": {
+          "unacknowledged": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unavailable": {
+            "description": "Included in unacknowledged; text is not currently readable here.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "unacknowledged",
+          "unavailable"
+        ],
+        "type": "object"
+      },
+      "ContextReceipt": {
+        "description": "A daemon-signed receipt bound to the hello session. Only complete, available\nevent texts are listed. Missing or previewed text cannot be acknowledged.\nReceipts survive daemon restart and remain valid after unrelated changes.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/$defs/ContextSeen"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "principal": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "session": {
+            "$ref": "#/$defs/InstanceId"
+          },
+          "signature": {
+            "$ref": "#/$defs/Signature"
+          }
+        },
+        "required": [
+          "goal",
+          "principal",
+          "session",
+          "revision",
+          "entries",
+          "signature"
+        ],
+        "type": "object"
+      },
+      "ContextSeen": {
+        "description": "One immutable event version delivered with its entire text.",
+        "properties": {
+          "event": {
+            "$ref": "#/$defs/EventId"
+          },
+          "version": {
+            "$ref": "#/$defs/BlobHash",
+            "description": "Binds the event's current standing, local feed position and payload availability."
+          }
+        },
+        "required": [
+          "event",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ContextView": {
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/$defs/ContextDocument"
+            },
+            "type": "array"
+          },
+          "effective_rules_json": {
+            "description": "The requested scope's pinned rules, including a task's type.",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/$defs/BlobHash"
+            },
+            "description": "Named inputs of the requested goal or task scope.",
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/$defs/ContextItem"
+            },
+            "type": "array"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ContextCursor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending": {
+            "$ref": "#/$defs/PendingWork",
+            "description": "Goal-wide obligations from the same observation as all other fields."
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ContextReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None for owner/viewer observation without an acting execution session,\nor when no complete, available items were delivered on this page."
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/$defs/GoalStatus"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "revision",
+          "status",
+          "effective_rules_json",
+          "inputs",
+          "documents",
+          "pending",
+          "items"
+        ],
+        "type": "object"
+      },
       "ContributionView": {
         "properties": {
           "approved": {
@@ -8875,6 +10133,51 @@
         "pattern": "^[0-9a-fA-F]{64}$",
         "type": "string"
       },
+      "GoalPermissions": {
+        "properties": {
+          "agent": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "grants": {
+            "$ref": "#/$defs/GoalGrants"
+          },
+          "membership": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Membership"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "description": "Local display label; the public key identifies the principal.",
+            "type": "string"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "task_authorizations": {
+            "items": {
+              "$ref": "#/$defs/TaskAuthorization"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "goal",
+          "agent",
+          "name",
+          "revoked",
+          "grants",
+          "task_authorizations"
+        ],
+        "type": "object"
+      },
       "GoalStatus": {
         "properties": {
           "administrator": {
@@ -9034,6 +10337,180 @@
         "pattern": "^[0-9a-fA-F]{32}$",
         "type": "string"
       },
+      "InvitationPreview": {
+        "description": "Authenticated ticket facts, without the bearer capability. Signature\nverification attributes the presentation to a key, not a human identity.",
+        "properties": {
+          "administrator": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "admission_status": {
+            "description": "Inspection is offline; it does not promise admission or contact an issuer.",
+            "type": "string"
+          },
+          "endpoint": {
+            "$ref": "#/$defs/EndpointId"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "expires_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "goal_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "identity_provenance": {
+            "type": "string"
+          },
+          "review": {
+            "description": "Digest of this complete signed invitation; confirmation must echo it.",
+            "type": "string"
+          },
+          "sharing": {
+            "$ref": "#/$defs/InvitationSharing"
+          },
+          "sharing_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "signature_verified": {
+            "type": "boolean"
+          },
+          "title_provenance": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal",
+          "administrator",
+          "endpoint",
+          "hints",
+          "expired",
+          "sharing",
+          "review",
+          "signature_verified",
+          "title_provenance",
+          "identity_provenance",
+          "admission_status",
+          "sharing_facts"
+        ],
+        "type": "object"
+      },
+      "InvitationSharing": {
+        "description": "The sharing boundary signed into every invitation. A topic or role is\nnever a confidential subset of a goal.",
+        "enum": [
+          "whole_goal"
+        ],
+        "type": "string"
+      },
+      "InvitationState": {
+        "enum": [
+          "pending",
+          "expired",
+          "revoked",
+          "redeemed"
+        ],
+        "type": "string"
+      },
+      "InvitationSummary": {
+        "description": "Issuer-local inventory. The identifier is a one-way capability digest;\nnone of these fields can redeem an invitation.",
+        "properties": {
+          "administrator": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "created_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expires_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "goal": {
+            "$ref": "#/$defs/GoalId"
+          },
+          "goal_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invitation": {
+            "type": "string"
+          },
+          "redeemed_by": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "redeemed_endpoint": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EndpointId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "redeemed_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "revoked_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/InvitationState"
+          }
+        },
+        "required": [
+          "invitation",
+          "goal",
+          "administrator",
+          "created_ms",
+          "state"
+        ],
+        "type": "object"
+      },
       "MemberView": {
         "description": "One current member of a goal.",
         "properties": {
@@ -9144,6 +10621,17 @@
               "$ref": "#/$defs/Claim"
             },
             "type": "array"
+          },
+          "context_news": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ContextNews"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Shared content not yet acknowledged by this execution session."
           },
           "deliveries": {
             "items": {
@@ -9528,6 +11016,10 @@
         ],
         "type": "object"
       },
+      "Signature": {
+        "pattern": "^[0-9a-fA-F]{128}$",
+        "type": "string"
+      },
       "Standing": {
         "description": "How an event stands in the goal's replicated state.",
         "oneOf": [
@@ -9552,6 +11044,35 @@
             "type": "string"
           }
         ]
+      },
+      "TaskAuthorization": {
+        "properties": {
+          "current": {
+            "type": "boolean"
+          },
+          "round": {
+            "$ref": "#/$defs/EventId"
+          },
+          "takeover": {
+            "type": "boolean"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "round",
+          "current",
+          "takeover"
+        ],
+        "type": "object"
       },
       "TaskBinding": {
         "properties": {
@@ -10331,6 +11852,120 @@
         },
         "required": [
           "blueprint_inspection"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "$ref": "#/$defs/ContextView"
+          }
+        },
+        "required": [
+          "context"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "context_acknowledged": {
+            "$ref": "#/$defs/ContextAcknowledgment"
+          }
+        },
+        "required": [
+          "context_acknowledged"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "invitation_inspected": {
+            "properties": {
+              "preview": {
+                "$ref": "#/$defs/InvitationPreview"
+              }
+            },
+            "required": [
+              "preview"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "invitation_inspected"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "invitations": {
+            "properties": {
+              "invitations": {
+                "items": {
+                  "$ref": "#/$defs/InvitationSummary"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "invitations"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "invitations"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "invitation_revoked": {
+            "properties": {
+              "invitation": {
+                "$ref": "#/$defs/InvitationSummary"
+              }
+            },
+            "required": [
+              "invitation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "invitation_revoked"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "permissions": {
+            "$ref": "#/$defs/GoalPermissions"
+          }
+        },
+        "required": [
+          "permissions"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "inbox": {
+            "items": {
+              "$ref": "#/$defs/AttentionEntry"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "inbox"
         ],
         "type": "object"
       }

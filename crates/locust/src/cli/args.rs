@@ -170,6 +170,8 @@ pub(super) fn command() -> Command {
                 .global(true)
                 .help("Caller-owned 16-byte retry key in hex"),
         )
+        .subcommands(super::permissions::commands())
+        .subcommand(super::invitations::command())
         .subcommands(super::workspace::commands())
         .subcommand(super::client::commands())
         .subcommand(super::package::commands())
@@ -207,10 +209,14 @@ pub(super) fn command() -> Command {
     let mut groups: BTreeMap<&'static str, Vec<Command>> = BTreeMap::new();
     for api in OPERATIONS {
         // Offline authoring owns these names; authenticated inspection is available through call/MCP.
-        if matches!(
-            api.name,
-            "blueprint.validate" | "blueprint.explain" | "agent.enroll" | "author.enroll"
-        ) {
+        if api.name.starts_with("invitation.")
+            || api.name.starts_with("permission.")
+            || api.name == "inbox"
+            || matches!(
+                api.name,
+                "blueprint.validate" | "blueprint.explain" | "agent.enroll" | "author.enroll"
+            )
+        {
             continue;
         }
         if let Some((group, leaf)) = api.name.split_once('.') {

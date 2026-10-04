@@ -5,13 +5,12 @@ use locust_proto::api::{ApiError, ErrorCode, MAX_FEED_PAGE, Response, ResponseFr
 use locust_proto::engine::{ConnId, Entropy, Parked, Step};
 use locust_proto::event::{Scope, TaskId};
 use locust_proto::id::{EventId, GoalId};
-use locust_proto::store::{Space, Store};
+use locust_proto::store::Store;
 
-use super::{Plan, Planned, answer};
+use super::{Plan, answer};
+use crate::node::Node;
 use crate::node::access::not_found;
 use crate::node::callers::{Actor, ParkedWait};
-use crate::node::commit::Tx;
-use crate::node::{Node, feed, records};
 
 impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn board(&self, actor: &Actor, goal: GoalId) -> Plan {
@@ -113,9 +112,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
         answer(Response::Pending(self.pending_work(entry, actor)))
     }
 
-    /// `events`: the feed after a position. `after: Some(p)` stores `p` as
-    /// the reader's cursor; `None` resumes from the stored one. A viewer
-    /// stores nothing and has no cursor.
+    /// `events`: an observational feed read. None starts at the beginning;
+    /// a continuation never acknowledges content for any session.
     pub(super) fn events(
         &self,
         actor: &Actor,
@@ -124,24 +122,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         limit: u32,
     ) -> Plan {
         let entry = self.readable(actor, &goal)?;
-        let reader = actor.principal.as_ref();
-        let mut tx = Tx::none();
-        let from = match after {
-            Some(position) => {
-                if !actor.is_viewer() {
-                    tx.local(feed::cursor_write(&goal, reader, position));
-                }
-                position
-            }
-            None if actor.is_viewer() => 0,
-            None => match self
-                .store
-                .get(Space::Cursor, &feed::cursor_key(&goal, reader))?
-            {
-                Some(stored) => records::read(&stored)?,
-                None => 0,
-            },
-        };
+        let from = after.unwrap_or(0);
         let page = limit.min(MAX_FEED_PAGE) as usize;
         let views = entry
             .feed
@@ -154,10 +135,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 })
             })
             .collect();
-        Ok(Planned {
-            response: Response::Events(views),
-            tx,
-        })
+        answer(Response::Events(views))
     }
 
     /// How a wait that saw no change ends when its time is up.

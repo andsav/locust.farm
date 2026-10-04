@@ -3,7 +3,7 @@
 use crate::error::{OpenError, sql};
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 2;
+pub(crate) const VERSION: i64 = 3;
 
 /// Every table is `STRICT`, so a value of the wrong type is refused when it
 /// is written rather than misread later.

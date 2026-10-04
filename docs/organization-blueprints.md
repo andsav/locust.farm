@@ -1,7 +1,7 @@
 # Organization blueprints: accepted direction
 
 Date: 2026-10-04. **Status: accepted product direction and authoring requirements.**
-API 2 / protocol 2 now implements the standalone organization runtime, private
+API 3 / protocol 3 now implements the standalone organization runtime, private
 catalog and agent operations. The [implementation plan](organization-blueprints-implementation-plan.md)
 remains the frozen delivery scope. The separate
 [execution ledger](organization-blueprints-status.md) records completed checks

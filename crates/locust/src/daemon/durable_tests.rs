@@ -309,6 +309,169 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
 }
 
 #[test]
+fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
+    use locust_proto::api::{ErrorCode, InvitationState, Membership};
+    let first = short_dir();
+    let second = short_dir();
+    let issuer = Running::start(first.path());
+    let mut recipient = Running::start(second.path());
+    issuer.enroll(1);
+    let principal = recipient.enroll(2);
+    let mut administrator = issuer.client(Credential([1; 32]), None);
+    let mut owner = recipient.owner();
+    owner
+        .call(Request::AgentGrant {
+            agent: principal,
+            grants: Grants::default(),
+        })
+        .unwrap();
+    let goal = goal(&mut administrator);
+    let Response::Invited { ticket: revoked } = administrator
+        .call(Request::GoalInvite {
+            goal,
+            expires_ms: None,
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    let review = Invitation::from_ticket(revoked.as_str())
+        .unwrap()
+        .preview(0)
+        .unwrap()
+        .review;
+    let Response::Invitations { invitations } = issuer
+        .owner()
+        .call(Request::GoalInvitations { goal })
+        .unwrap()
+    else {
+        panic!()
+    };
+    issuer
+        .owner()
+        .call(Request::InvitationRevoke {
+            goal,
+            invitation: invitations[0].invitation.clone(),
+        })
+        .unwrap();
+    let refused_join = Request::InvitationJoin {
+        principal,
+        ticket: revoked,
+        review,
+    };
+    assert!(matches!(
+        owner.call(refused_join.clone()).unwrap(),
+        Response::Joined {
+            membership: Membership::Joining,
+            ..
+        }
+    ));
+    eventually(|| match owner.call(Request::Status) {
+        Ok(Response::Status(status))
+            if status
+                .goals
+                .iter()
+                .any(|entry| entry.goal == goal && entry.membership == Membership::Refused) =>
+        {
+            Some(())
+        }
+        _ => None,
+    });
+    assert!(
+        matches!(owner.call(refused_join), Err(locust_proto::client::ClientError::Api(error)) if error.code == ErrorCode::Denied)
+    );
+    assert!(
+        matches!(recipient.client(Credential([2; 32]), None).call(Request::GoalStatus { goal }), Err(locust_proto::client::ClientError::Api(error)) if error.code == ErrorCode::Denied)
+    );
+    let Response::Invited { ticket } = administrator
+        .call(Request::GoalInvite {
+            goal,
+            expires_ms: None,
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    let Response::InvitationInspected { preview } = owner
+        .call(Request::InvitationInspect {
+            ticket: ticket.clone(),
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(preview.goal_title.as_deref(), Some("Durable lifecycle"));
+    let join = Request::InvitationJoin {
+        principal,
+        ticket,
+        review: preview.review,
+    };
+    assert!(matches!(
+        owner.call(join.clone()).unwrap(),
+        Response::Joined {
+            membership: Membership::Joining,
+            ..
+        }
+    ));
+    let mut member = recipient.client(Credential([2; 32]), None);
+    eventually(|| match member.call(Request::GoalStatus { goal }) {
+        Ok(Response::GoalStatus(status))
+            if status.members.iter().any(|entry| entry.member == principal) =>
+        {
+            assert_eq!(status.grants, GoalGrants::default());
+            assert!(status.workspace.is_none());
+            Some(())
+        }
+        _ => None,
+    });
+    assert!(matches!(
+        owner.call(join.clone()).unwrap(),
+        Response::Joined {
+            membership: Membership::Member,
+            ..
+        }
+    ));
+    let Response::Invitations { invitations } = issuer
+        .owner()
+        .call(Request::GoalInvitations { goal })
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(invitations.len(), 2);
+    assert!(
+        invitations
+            .iter()
+            .any(|invitation| invitation.state == InvitationState::Revoked)
+    );
+    let redeemed = invitations
+        .iter()
+        .find(|invitation| invitation.state == InvitationState::Redeemed)
+        .unwrap();
+    assert_eq!(redeemed.redeemed_by, Some(principal));
+    drop(member);
+    drop(owner);
+    recipient.stop();
+    let recipient = Running::start(second.path());
+    assert!(matches!(
+        recipient.owner().call(join).unwrap(),
+        Response::Joined {
+            membership: Membership::Member,
+            ..
+        }
+    ));
+    let Response::GoalStatus(status) = recipient
+        .client(Credential([2; 32]), None)
+        .call(Request::GoalStatus { goal })
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(status.grants, GoalGrants::default());
+    assert!(status.workspace.is_none());
+}
+
+#[test]
 fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let first = short_dir();
     let second = short_dir();
@@ -543,15 +706,16 @@ fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
         .block_on(async {
             let inviter = local_endpoint([93; 32]).await.unwrap();
             let goal = GoalId([94; 32]);
-            let ticket = Invitation {
-                version: locust_proto::PROTOCOL_VERSION,
+            let ticket = Invitation::signed(
                 goal,
-                administrator: locust_proto::crypto::Keypair::from_seed([95; 32]).public(),
-                endpoint: inviter.id(),
-                hints: inviter.hints(),
-                secret: InviteSecret([96; 32]),
-                expires_ms: None,
-            }
+                Some("Join recovery".into()),
+                inviter.id(),
+                inviter.hints(),
+                InviteSecret([96; 32]),
+                None,
+                &locust_proto::crypto::Keypair::from_seed([95; 32]),
+            )
+            .unwrap()
             .to_ticket()
             .unwrap();
             agent.call(Request::GoalJoin { ticket }).unwrap();

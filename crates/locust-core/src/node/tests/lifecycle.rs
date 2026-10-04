@@ -369,7 +369,7 @@ fn cancellation_requires_holder_generation_and_is_not_completion_evidence() {
 }
 
 #[test]
-fn viewer_reads_do_not_move_agent_cursor_or_write_and_revocation_is_immediate() {
+fn viewer_reads_are_observational_and_revocation_is_immediate() {
     let (mut d, p, owner, a, goal) = setup();
     let (task, _) = offered(&mut d, a, goal, p);
     d.ok(

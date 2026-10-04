@@ -1,7 +1,10 @@
 //! Tests of the node, as transcripts through the two seams of
 //! `locust_proto::engine`.
 
+mod context;
 mod daemon;
+mod invitations;
+mod permissions;
 
 use locust_proto::API_VERSION;
 use locust_proto::api::{
