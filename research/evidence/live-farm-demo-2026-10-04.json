@@ -85,17 +85,168 @@
       "187 node tests passed",
       "build passed",
       "6 farm browser tests passed"
-    ]
+    ],
+    "python": {
+      "tests": 253,
+      "skipped": 3,
+      "result": "passed"
+    }
   },
   "failures": [
     "Codex initial ChatGPT model mismatch; failed attempt retained, separate API-backed attempt completed",
     "Kimi --prompt with --yolo rejected before model; corrected launch removed --yolo",
     "Open SSE prevented initial graceful service shutdown; fixed with shutdown watch",
-    "Controller phase-save race; signed Locust events and native logs retained"
+    "Controller phase-save race; signed Locust events and native logs retained",
+    "Pi rejected first frontend contribution for stale POST completion effects after channel switch; Claude correction launched"
   ],
   "not_verified": [
     "two physical machines",
     "unattended scheduling",
     "app integration and final acceptance (still running)"
-  ]
+  ],
+  "deployment": {
+    "status": "deployed and independently verified",
+    "verified_at_utc": "2026-10-04T23:37:30.288997+00:00",
+    "source_commit": "9f093642f924fbf1a3ee7c41a1e46db42d1a9e7b",
+    "binary_sha256": "9baa5cfbf756b425bbd5d00995b1c6bee4efc50435dfffd959acde9c36c28fd1",
+    "build": {
+      "toolchain": "Rust 1.96.1",
+      "cargo_zigbuild": "0.23.0",
+      "zig": "0.16.0",
+      "target": "x86_64-unknown-linux-gnu.2.28",
+      "locked": true
+    },
+    "deployment": {
+      "host": "96.126.103.38",
+      "native_platform": "Linux x86_64, Debian glibc 2.31",
+      "release_directory": "/opt/locust-farm/releases/9f093642f924fbf1a3ee7c41a1e46db42d1a9e7b",
+      "current_symlink_verified": true,
+      "native_help_succeeded": true,
+      "remote_sha256_verified": true,
+      "systemd_active": true,
+      "systemd_enabled": true,
+      "bind": "127.0.0.1:4319",
+      "database": "/var/lib/locust-farm/farm.sqlite",
+      "database_mode": "0600",
+      "database_schema_version": 1,
+      "public_enrollment": false,
+      "allowlist_count": 3,
+      "allowlist_other_entries_preserved": true,
+      "retention_days": 30,
+      "abuse_contact": "https://github.com/andsav/locust.farm/issues"
+    },
+    "farm": {
+      "farm_id": "939ab4cdb67d868475d97e598ba2ef7f",
+      "url": "https://locust.farm/farm/939ab4cdb67d868475d97e598ba2ef7f",
+      "scope": "Actual demo on one physical Mac with four agent principals; backend on Linux server",
+      "public_snapshot": {
+        "stream_version": 21,
+        "received_at_ms": 1791156984138,
+        "agent_count": 4,
+        "group_count": 1,
+        "visibility": "listed",
+        "goal_state": "open",
+        "harnesses": [
+          "claude_code",
+          "codex",
+          "kimi_code",
+          "pi"
+        ]
+      }
+    },
+    "native_active_sse_graceful_restart": {
+      "verified_at_utc": "2026-10-04T23:36:29.542712+00:00",
+      "held_sse_during_stop": true,
+      "stop_elapsed_seconds": 0.04,
+      "systemd_result": [
+        "Result=success",
+        "ExecMainCode=1",
+        "ExecMainStatus=0"
+      ],
+      "before_stream_version": 21,
+      "after_stream_version": 21,
+      "durable_snapshot_available": true,
+      "agent_count": 4
+    },
+    "public_checks": {
+      "/": {
+        "status": 401,
+        "cache_control": "private, no-store",
+        "referrer_policy": null,
+        "csp": null
+      },
+      "/start": {
+        "status": 401,
+        "cache_control": "private, no-store",
+        "referrer_policy": null,
+        "csp": null
+      },
+      "/docs": {
+        "status": 401,
+        "cache_control": "private, no-store",
+        "referrer_policy": null,
+        "csp": null
+      },
+      "/downloads/latest.json": {
+        "status": 200,
+        "cache_control": "public, max-age=300",
+        "referrer_policy": null,
+        "csp": null
+      },
+      "/farms": {
+        "status": 200,
+        "cache_control": "private, no-store",
+        "referrer_policy": "no-referrer",
+        "csp": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+      },
+      "/farm/939ab4cdb67d868475d97e598ba2ef7f": {
+        "status": 200,
+        "cache_control": "private, no-store",
+        "referrer_policy": "no-referrer",
+        "csp": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+      },
+      "unknown_farm": {
+        "status": 404,
+        "cleared": true
+      },
+      "actual_snapshot": {
+        "stream_version": 21,
+        "received_at_ms": 1791156984138,
+        "agent_count": 4,
+        "group_count": 1,
+        "visibility": "listed",
+        "goal_state": "open",
+        "harnesses": [
+          "claude_code",
+          "codex",
+          "kimi_code",
+          "pi"
+        ]
+      },
+      "gallery": {
+        "status": 200,
+        "contains_actual_farm": true
+      },
+      "sse": {
+        "event": "state",
+        "id": "21",
+        "stream_version": 21,
+        "full_snapshot": true
+      }
+    },
+    "nginx": {
+      "syntax_test_passed": true,
+      "original_backup": "/var/backups/locust-farm/20261005-initial/nginx-locust.farm",
+      "original_sha256": "5fadb8e11e3a417bac5bcb1444bb2e9aa3721f84b008d724ca725528d3dc5844",
+      "deployed_sha256": "de85cd7daea621674a888b0add108edaeca8ed113fe63e815a12cb2ff0faadee",
+      "unchanged_other_configs": 18,
+      "preexisting_duplicate_3cf_warnings_preserved": true,
+      "scope": "Farm, gallery, required shared assets and API proxy only; existing TLS, preview auth, ACME and downloads preserved"
+    },
+    "rollback_document": "output/farm-deploy/rollback.md",
+    "proof_boundaries": [
+      "Native backend startup, graceful restart, durable public state and HTTPS API/SSE verified",
+      "Provider work execution and visual browser fidelity are separately verified by the root and UI agents"
+    ]
+  }
 }
