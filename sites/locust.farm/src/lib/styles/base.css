@@ -21,12 +21,34 @@ body {
 }
 
 h1,
+h2,
+h3,
 p {
 	margin: 0;
 }
 
-code {
-	font: inherit;
+h1 {
+	font: var(--text-display);
+	letter-spacing: var(--tracking-display);
+	text-wrap: balance;
+}
+
+h2 {
+	font: var(--text-subtitle);
+}
+
+h3 {
+	font: var(--text-ui-heading);
+}
+
+code,
+pre {
+	font: var(--text-code);
+}
+
+/* Code inside a sentence follows the size of the text around it. */
+:where(p, li, dd, td, th) code {
+	font-size: 0.85em;
 }
 
 a {
@@ -34,8 +56,16 @@ a {
 	text-decoration: none;
 }
 
-a:hover {
+/* :where keeps this below any class, so a component sets its own hover colour. */
+a:where(:hover) {
 	color: var(--color-accent);
+}
+
+/* A link inside running text is underlined; one that stands alone is not. */
+:where(p, li, dd, td) a {
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+	text-underline-offset: 0.2em;
 }
 
 :focus-visible {

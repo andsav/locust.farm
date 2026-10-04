@@ -3,6 +3,8 @@
 	import '#lib/styles/fonts.css';
 	import '#lib/styles/tokens.css';
 	import '#lib/styles/base.css';
+	import '#lib/styles/components.css';
+	import '#lib/styles/prose.css';
 	import martianMonoLatin from '@fontsource-variable/martian-mono/files/martian-mono-latin-wght-normal.woff2?url';
 	import geistLatin from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url';
 	import majorMonoLatin from '@fontsource/major-mono-display/files/major-mono-display-latin-400-normal.woff2?url';

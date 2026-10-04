@@ -2,7 +2,11 @@
 	import { page } from '$app/state';
 	import { HOME_PATH, NAV_LINKS } from '#lib/site.ts';
 
-	const current = (href: string) => (page.url.pathname === href ? 'page' : undefined);
+	/** A section's link stays current on the pages beneath it. */
+	const current = (href: string) =>
+		page.url.pathname === href || (href !== HOME_PATH && page.url.pathname.startsWith(`${href}/`))
+			? 'page'
+			: undefined;
 </script>
 
 <header>
@@ -27,7 +31,7 @@
 
 	/* The wordmark stays in mono, as the name is written everywhere else. */
 	.brand {
-		font: var(--text-body);
+		font: var(--text-code);
 		font-weight: 500;
 	}
 

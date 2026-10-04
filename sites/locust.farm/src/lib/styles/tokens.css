@@ -27,8 +27,8 @@
 	--color-text-faint: var(--neutral-500);
 	--color-border: var(--neutral-800);
 	--color-accent: var(--ember-500);
-	/* The formation editor's layers: the panel it sits on, raised controls, menus and
-	   cards on that panel, and a raised surface under the pointer. */
+	/* Layers above the page: a card or panel, then raised controls, menus and the cards
+	   on a panel, then a raised surface under the pointer. */
 	--color-panel: var(--neutral-925);
 	--color-surface: var(--neutral-900);
 	--color-surface-hover: var(--neutral-800);
@@ -41,20 +41,25 @@
 	--swarm-cell-leg: var(--neutral-850);
 	--swarm-cell-eye: var(--ember-900);
 
-	/* Typography. Mono for text, Major Mono Display for the display headline and Geist
-	   for interface text, in the site header and the formation editor; text styles are `font` shorthands plus
-	   tracking. */
+	/* Typography. Geist for text, Major Mono Display for each page's headline, and mono
+	   for code, identifiers, the wordmark and labels; text styles are `font` shorthands
+	   plus tracking. */
 	--font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 	--font-display: 'Major Mono Display', var(--font-mono);
 	/* 46px, shrinking on narrow screens so the longest word of the headline still fits. */
 	--text-display: 400 clamp(1.25rem, (100vw - 2 * var(--gutter-inline)) / 9, 2.875rem) / 1.15
 		var(--font-display);
-	--text-body: 400 0.8125rem / 1.7 var(--font-mono);
-	--text-code: 400 0.75rem / 1.25 var(--font-mono);
+	/* Headings below the headline: an article's title, then a section's. */
+	--text-title: 600 1.75rem / 1.2 var(--font-sans);
+	--text-subtitle: 600 1.25rem / 1.35 var(--font-sans);
+	/* Running text on a page. */
+	--text-body: 400 1rem / 1.65 var(--font-sans);
+	--text-code: 400 0.8125rem / 1.6 var(--font-mono);
+	/* A short uppercase label above or beside content, set with `--tracking-label`. */
 	--text-label: 400 0.6875rem / 1.25 var(--font-mono);
-	/* Interface text: header links and the formation editor's controls and form text,
-	   then the editor's headings, and its notes and hints. */
+	/* Interface text: controls, navigation and forms, then small headings, then notes
+	   and hints. */
 	--text-ui: 400 0.875rem / 1.5 var(--font-sans);
 	--text-ui-heading: 600 0.875rem / 1.4 var(--font-sans);
 	--text-ui-small: 400 0.8125rem / 1.5 var(--font-sans);
@@ -75,14 +80,14 @@
 	--measure-display: 51.25rem;
 	--measure-body: 32.5rem;
 
-	/* Motion in the formation editor; reduced motion sets both to 0s. */
+	/* Motion; reduced motion sets both to 0s. */
 	--duration-fast: 120ms;
 	--duration-slow: 240ms;
 
 	/* Borders. */
 	--border-hairline: 1px solid var(--color-border);
 
-	/* Corners: the formation editor's panels, and controls there and in the site header. */
+	/* Corners: cards and panels, then controls. Menus and tooltips cast the shadow. */
 	--radius-panel: 0.75rem;
 	--radius-control: 0.5rem;
 	--shadow-popover: 0 16px 40px -16px rgb(0 0 0 / 0.7);

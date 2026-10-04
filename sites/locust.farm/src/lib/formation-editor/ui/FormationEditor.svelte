@@ -481,7 +481,7 @@
 	</button>
 {/snippet}
 
-<div class="formation-editor">
+<div class="formation-editor ui">
 	{#if banner}
 		<div class="banner" role="status">
 			<Icon name="warning" />
@@ -500,7 +500,7 @@
 
 	<WayPicker current={way} onpick={pickWay} />
 
-	<div class="frame">
+	<div class="frame card">
 		<div class="bar">
 			<div class="name">
 				<input
@@ -768,12 +768,6 @@
 		flex: 1;
 	}
 
-	.frame {
-		border: var(--border-hairline);
-		border-radius: var(--radius-panel);
-		background: var(--color-panel);
-	}
-
 	.bar {
 		position: relative;
 		display: flex;
@@ -906,7 +900,7 @@
 		margin-left: auto;
 	}
 	/* The copy button and the options toggle read as one split button. */
-	.prompt-actions :global(.copy .primary) {
+	.prompt-actions :global(.copy .button) {
 		border-radius: var(--radius-control) 0 0 var(--radius-control);
 	}
 	.prompt-options {

@@ -117,7 +117,7 @@
 		</section>
 
 		<footer>
-			<a href={HOME_PATH}><span aria-hidden="true">←</span> back to locust.farm</a>
+			<a href={HOME_PATH}><span aria-hidden="true">←</span> Back to locust.farm</a>
 		</footer>
 	</main>
 </div>
@@ -146,24 +146,9 @@
 		gap: var(--space-22);
 	}
 
-	h1 {
-		font: var(--text-display);
-		letter-spacing: var(--tracking-display);
-		text-wrap: balance;
-	}
-
-	.accent {
-		color: var(--color-accent);
-	}
-
 	h2 {
-		margin: 0;
 		padding-top: var(--space-18);
 		border-top: var(--border-hairline);
-		color: var(--color-text-subtle);
-		font: var(--text-label);
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
 	}
 
 	p,
@@ -249,9 +234,7 @@
 		padding-top: var(--space-18);
 		border-top: var(--border-hairline);
 		color: var(--color-text-subtle);
-		font: var(--text-label);
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
+		font: var(--text-ui);
 	}
 
 	footer a {
