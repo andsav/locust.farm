@@ -29,6 +29,7 @@ pub enum Client {
     Codex,
     ClaudeCode,
     FactoryDroid,
+    KimiCode,
     Pi,
 }
 
@@ -167,11 +168,13 @@ pub fn mcp_arguments(
             // consuming a following positional prompt as a second config file.
             Ok(vec![format!("--mcp-config={configuration}").into()])
         }
-        Client::FactoryDroid | Client::Pi => Err(ConfigError::ConfigurationFileRequired),
+        Client::FactoryDroid | Client::KimiCode | Client::Pi => {
+            Err(ConfigError::ConfigurationFileRequired)
+        }
     }
 }
 
-/// Merge one server into user-level Droid/Pi configuration. Existing root
+/// Merge one server into user-level Droid/Kimi/Pi configuration. Existing root
 /// fields and unrelated servers survive; a collision is rejected. These files
 /// do not bypass organization policy or Pi's project trust. Pi's default
 /// codemode exposure is preserved: discovery/direct tools need qualification.
@@ -185,6 +188,7 @@ pub fn mcp_file_overlay(
     let relative_path = match client {
         Client::FactoryDroid => ".factory/mcp.json",
         Client::Pi => ".pi/agent/mcp.json",
+        Client::KimiCode => ".kimi-code/mcp.json",
         Client::Codex | Client::ClaudeCode => return Err(ConfigError::LaunchArgumentsRequired),
     };
     let (executable, environment) = validate(client, name, server, occupied_names)?;
@@ -203,7 +207,11 @@ pub fn mcp_file_overlay(
     {
         return Err(ConfigError::ServerNameOccupied);
     }
-    servers.insert(name.to_owned(), definition(executable, server, environment));
+    let mut entry = definition(executable, server, environment);
+    if client == Client::KimiCode {
+        entry.as_object_mut().unwrap().remove("type");
+    }
+    servers.insert(name.to_owned(), entry);
     Ok(ConfigFileOverlay {
         relative_path: relative_path.into(),
         document,

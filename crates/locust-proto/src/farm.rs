@@ -60,6 +60,7 @@ public_enum!(Harness {
     Codex,
     ClaudeCode,
     FactoryDroid,
+    KimiCode,
     Pi,
     Unknown,
     Multiple

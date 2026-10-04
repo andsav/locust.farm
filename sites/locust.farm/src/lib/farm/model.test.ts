@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { associations, farmMode, stageColumns } from './model.ts';
-import type { FarmSnapshot } from './types.ts';
+import { associations, farmMode, harnessName, stageColumns } from './model.ts';
+import type { FarmSnapshot, Harness } from './types.ts';
 const fixture: FarmSnapshot = JSON.parse(
 	readFileSync(
 		new URL('../../../../../crates/locust-proto/fixtures/farm-snapshot.json', import.meta.url),
@@ -43,4 +43,10 @@ test('service availability overrides closure and closure overrides receipt age',
 		'ended'
 	);
 	assert.equal(farmMode({ ...view, status: 'unavailable' }, 1001), 'unavailable');
+});
+
+test('canonical Kimi Code reports display their approved harness label', () => {
+	const reported: Harness = 'kimi_code';
+	assert.equal(harnessName(reported), 'Kimi Code');
+	assert.equal(harnessName('Kimi Code'), 'Harness unknown');
 });

@@ -48,6 +48,7 @@ fn all_clients_prepare_new_resume_without_permission_bypass() {
         Client::Codex,
         Client::ClaudeCode,
         Client::FactoryDroid,
+        Client::KimiCode,
         Client::Pi,
     ] {
         let plan = prepare(
@@ -188,6 +189,10 @@ fn all_native_formats_and_blocked_state_require_structured_evidence() {
         (
             Client::FactoryDroid,
             json!({"type":"system","subtype":"init","session_id":"native"}),
+        ),
+        (
+            Client::KimiCode,
+            json!({"role":"meta","type":"session.resume_hint","session_id":"native"}),
         ),
         (Client::Pi, json!({"type":"session","id":"native"})),
     ] {
@@ -339,4 +344,113 @@ fn manual_resume_capability_requires_exact_successful_resume_readiness() {
         }
         owned.child_mut().wait().unwrap();
     }
+}
+
+#[test]
+fn kimi_uses_native_prompt_and_mcp_format_with_explicit_permission_flags() {
+    let dir = tempfile::tempdir().unwrap();
+    let plan = prepare(
+        spec(Client::KimiCode, dir.path().into()),
+        &[],
+        &json!({"unrelated":true}),
+    )
+    .unwrap();
+    assert_eq!(
+        plan.arguments,
+        vec![
+            OsString::from("--output-format"),
+            "stream-json".into(),
+            "--prompt".into(),
+            "PRIVATE PROMPT".into(),
+        ]
+    );
+    let overlay = plan.configuration.unwrap();
+    assert_eq!(overlay.relative_path, PathBuf::from(".kimi-code/mcp.json"));
+    assert_eq!(overlay.document["unrelated"], true);
+    let server = &overlay.document["mcpServers"]["locust"];
+    assert!(server.get("type").is_none());
+    assert_eq!(server["command"], "/bin/echo");
+    assert_eq!(server["args"], json!(["mcp"]));
+    assert_eq!(server["env"]["LOCUST_HOME"], "/tmp/daemon");
+    let mut resume = spec(Client::KimiCode, dir.path().into());
+    resume.mode = Mode::Resume("session_native".into());
+    resume.arguments = vec!["--auto".into()];
+    let plan = prepare(resume, &[], &json!({})).unwrap();
+    assert_eq!(
+        plan.arguments,
+        vec![
+            OsString::from("--output-format"),
+            "stream-json".into(),
+            "--auto".into(),
+            "--session".into(),
+            "session_native".into(),
+            "--prompt".into(),
+            "PRIVATE PROMPT".into(),
+        ]
+    );
+    for flag in [
+        "--session",
+        "--session=native",
+        "-S",
+        "-Snative",
+        "--continue",
+        "-c",
+    ] {
+        let mut candidate = spec(Client::KimiCode, dir.path().into());
+        candidate.arguments = vec![flag.into()];
+        assert!(prepare(candidate, &[], &json!({})).is_err(), "{flag}");
+    }
+    assert!(
+        prepare(
+            spec(Client::KimiCode, dir.path().into()),
+            &["locust".into()],
+            &json!({})
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn kimi_native_completion_identity_is_separate_from_tool_readiness() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut candidate = spec(Client::KimiCode, dir.path().into());
+    candidate.mode = Mode::Resume("session_native".into());
+    let mut owned = launch(
+        prepare(candidate, &[], &json!({})).unwrap(),
+        100,
+        |_| Ok(()),
+    )
+    .unwrap();
+    for event in [
+        json!({"role":"meta","type":"system.version"}),
+        json!({"role":"assistant","type":"session.resume_hint","session_id":"session_native"}),
+        json!({"role":"meta","type":"session.resume_hint","session_id":""}),
+        json!({"role":"meta","type":"session.resume_hint","session_id":42}),
+    ] {
+        assert!(!owned.observe_native(&event).unwrap());
+    }
+    owned.observe_tools(&json!({"schema":1,"event":"tools_ready","instance":InstanceId([1;16]).to_string(),"pid":123})).unwrap();
+    assert_eq!(owned.record().state, SessionState::Started);
+    assert!(
+        owned
+            .observe_native(
+                &json!({"role":"meta","type":"session.resume_hint","session_id":"session_native"})
+            )
+            .unwrap()
+    );
+    assert_eq!(owned.record().state, SessionState::Ready);
+    assert_eq!(
+        owned.record().harness,
+        locust_proto::farm::Harness::KimiCode
+    );
+    assert!(owned.record().capabilities.manual_resume);
+    assert!(
+        owned
+            .observe_native(
+                &json!({"role":"meta","type":"session.resume_hint","session_id":"different"})
+            )
+            .is_err()
+    );
+    assert_eq!(owned.record().state, SessionState::Unknown);
+    owned.child_mut().wait().unwrap();
 }

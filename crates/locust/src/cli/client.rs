@@ -28,7 +28,7 @@ fn opt(name: &'static str, required: bool) -> Arg {
 pub(super) fn commands() -> Command {
     Command::new("client").about("Explicit local client launch, status and pending recovery; native run output goes to stderr").subcommand_required(true)
         .subcommand(Command::new("run").disable_version_flag(true).about("Launch a chosen client locally; never triggered by peer events")
-            .arg(opt("client",true).value_parser(["codex","claude-code","factory-droid","pi"]))
+            .arg(opt("client",true).value_parser(["codex","claude-code","factory-droid","kimi-code","pi"]))
             .arg(opt("executable",true)).arg(opt("workspace",true)).arg(opt("profile",true))
             .arg(opt("client-version",true).help("Exact observed client version retained as qualification context"))
             .arg(opt("prompt",true).allow_hyphen_values(true))
@@ -103,6 +103,7 @@ fn client(value: &str) -> Client {
         "codex" => Client::Codex,
         "claude-code" => Client::ClaudeCode,
         "factory-droid" => Client::FactoryDroid,
+        "kimi-code" => Client::KimiCode,
         "pi" => Client::Pi,
         _ => unreachable!(),
     }
@@ -355,8 +356,13 @@ pub(super) fn run(
         "PI_CODING_AGENT_DIR".into(),
         profile_path.join(".pi/agent").into_os_string(),
     );
+    environment.insert(
+        "KIMI_CODE_HOME".into(),
+        profile_path.join(".kimi-code").into_os_string(),
+    );
     let relative = match chosen {
         Client::FactoryDroid => Some(Path::new(".factory/mcp.json")),
+        Client::KimiCode => Some(Path::new(".kimi-code/mcp.json")),
         Client::Pi => Some(Path::new(".pi/agent/mcp.json")),
         _ => None,
     };
@@ -507,6 +513,7 @@ fn occupied_names(
         ],
         Client::ClaudeCode => vec![profile.join(".claude.json"), workspace.join(".mcp.json")],
         Client::FactoryDroid => vec![workspace.join(".factory/mcp.json")],
+        Client::KimiCode => vec![workspace.join(".kimi-code/mcp.json")],
         Client::Pi => vec![workspace.join(".pi/mcp.json")],
     };
     for path in sources {

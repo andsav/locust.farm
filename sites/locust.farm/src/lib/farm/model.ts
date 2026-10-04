@@ -5,6 +5,7 @@ export const harnessName = (harness: string) =>
 	({
 		codex: 'Codex',
 		claude_code: 'Claude Code',
+		kimi_code: 'Kimi Code',
 		pi: 'Pi',
 		unknown: 'Harness unknown',
 		multiple: 'Multiple harnesses'
