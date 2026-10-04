@@ -263,7 +263,7 @@ The fork keeps Polaris's shapes and behaviour and uses the site's tokens:
 | --- | --- | --- |
 | Stage node | `NodeCapsule.svelte`: 216×46 capsule, round accent disc, title, right slot; selected nodes grow an overlay with chips; hover and selection light the rim | Same shapes; fill `--neutral-900`, rim `--neutral-800`, text `--color-text`, accent disc and selected rim in ember; Martian Mono |
 | Settings panel | `InspectorPanel.svelte`: slide-over, header with the 40px accent disc and title, scrolling body, footer band with Delete and save state | Same structure; panel background `--neutral-950` with a hairline `--color-border`; labels in the site's label style |
-| Camera | `panelCamera.svelte.ts`: pans so the selected node stays visible beside the panel | Forked as is |
+| Camera | `panelCamera.svelte.ts`: pans so the selected node stays visible beside the panel | Not kept: the owner wants the map to move only when they pan or zoom it. Each blueprint is framed once when it loads, and Fit frames it again |
 | Map ground | Dot grid, viewport controls | Dot grid in `--neutral-850`; a floating plate of icon buttons for zoom, fit and tidy |
 | Icons | Phosphor, regular weight | The same Phosphor icons, copied into `ui/icons.ts`, with a tooltip on every icon control |
 | Focus | Polaris's background change | The site's 1px ember outline |
@@ -317,9 +317,10 @@ each forked file with its source path and commit.
 | `components/blueprint/FitViewBridge.svelte` | Became `FlowBridge.svelte`, trimmed to the hooks the map uses |
 | `workflow/layout.ts` | Became `layout.ts`: stages only, on `@dagrejs/dagre`, left to right |
 
-The map itself, its edges, the camera nudge and the viewport controls are
-written for the site; the Polaris versions carried run, loop and depth
-behaviour the stage map does not need.
+The map itself, its edges and the viewport controls are written for the site;
+the Polaris versions carried run, loop and depth behaviour the stage map does
+not need. There is no camera nudge: the map moves only when the person moves
+it.
 
 Not forked: everything tied to Merak's step graph, runs, loops, depth, the dock,
 haptics, the frame bar and the icon set. Any forked module that ends up unused

@@ -147,55 +147,46 @@
 		);
 	});
 
-	// Frame the stages when the map first has some.
-	let framed = $state(false);
+	// The view moves only when the person pans, zooms, presses Fit or opens the map
+	// full screen. Each blueprint loaded is framed once; while the page settles
+	// just after that, a change of size frames it again. Editing, selecting and the
+	// side panel never move it.
+	let framedFor = -1;
+	let framedAt = 0;
+	let moved = false;
+
+	function frameAll(duration = 0) {
+		bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration });
+	}
+
 	$effect(() => {
-		if (!bridge || order.length === 0 || framed) return;
-		framed = true;
-		requestAnimationFrame(() => bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration: 0 }));
-	});
-	$effect(() => {
-		if (order.length === 0 || frame >= 0) framed = false;
+		if (!bridge || framedFor === frame) return;
+		framedFor = frame;
+		framedAt = performance.now();
+		moved = false;
+		if (order.length > 0) requestAnimationFrame(() => frameAll());
 	});
 
-	// Frame them again when the map changes size, such as when the window is resized.
 	$effect(() => {
 		const element = container;
 		if (!element) return;
 		let width = element.clientWidth;
 		let height = element.clientHeight;
-		let frame = 0;
+		let next = 0;
 		const observer = new ResizeObserver(() => {
 			if (element.clientWidth === width && element.clientHeight === height) return;
 			width = element.clientWidth;
 			height = element.clientHeight;
-			cancelAnimationFrame(frame);
-			frame = requestAnimationFrame(() => {
-				if (order.length > 0) bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration: 0 });
+			cancelAnimationFrame(next);
+			next = requestAnimationFrame(() => {
+				if (!moved && performance.now() - framedAt < 1500 && order.length > 0) frameAll();
 			});
 		});
 		observer.observe(element);
 		return () => {
 			observer.disconnect();
-			cancelAnimationFrame(frame);
+			cancelAnimationFrame(next);
 		};
-	});
-
-	// Keep the selected stage visible beside the side panel, as Polaris's panel camera does.
-	$effect(() => {
-		const name = selected;
-		const open = panelOpen;
-		if (!bridge || !container || !name || !open || !positions[name]) return;
-		const rect = container.getBoundingClientRect();
-		const point = positions[name];
-		const right = bridge.flowToScreenPosition({ x: point.x + NODE_WIDTH, y: point.y });
-		const left = bridge.flowToScreenPosition({ x: point.x, y: point.y });
-		const visibleRight = rect.right - panelWidth - 24;
-		const viewport = bridge.getViewport();
-		let shift = 0;
-		if (right.x > visibleRight) shift = visibleRight - right.x;
-		if (left.x + shift < rect.left + 24) shift = rect.left + 24 - left.x;
-		if (shift !== 0) bridge.setViewport({ ...viewport, x: viewport.x + shift }, { duration: 220 });
 	});
 
 	// Connecting two stages asks what the later stage waits for.
@@ -303,11 +294,12 @@
 
 	function tidy() {
 		onchange({ ...structuredClone(document), layout: { ...document.layout, stages: {} } });
-		requestAnimationFrame(() => bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration: 220 }));
+		requestAnimationFrame(() => frameAll(220));
 	}
 
 	function zoom(factor: number) {
 		if (!bridge) return;
+		moved = true;
 		const viewport = bridge.getViewport();
 		const nextZoom = Math.min(2, Math.max(0.5, viewport.zoom * factor));
 		if (!container) return;
@@ -334,13 +326,7 @@
 	aria-label="Stage map"
 >
 	{#if order.length === 0}
-		<svg
-			class="diagram picture"
-			style:--covered={`${panelOpen ? panelWidth : 0}px`}
-			viewBox="0 0 320 180"
-			aria-hidden="true"
-			use:draw={picture}
-		></svg>
+		<svg class="diagram picture" viewBox="0 0 320 180" aria-hidden="true" use:draw={picture}></svg>
 	{/if}
 
 	<div class="toolbar" role="toolbar" aria-label="Stage map controls">
@@ -363,7 +349,10 @@
 				type="button"
 				aria-label={fullScreen ? 'Close the map' : 'Open the map full screen'}
 				use:tip={fullScreen ? 'Close the map' : 'Full screen'}
-				onclick={() => (fullScreen = !fullScreen)}
+				onclick={() => {
+					fullScreen = !fullScreen;
+					requestAnimationFrame(() => frameAll());
+				}}
 			>
 				<Icon name={fullScreen ? 'corners-in' : 'corners-out'} />
 			</button>
@@ -387,7 +376,10 @@
 				type="button"
 				aria-label="Fit"
 				use:tip={'Fit to the map'}
-				onclick={() => bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration: 180 })}
+				onclick={() => {
+					moved = false;
+					frameAll(180);
+				}}
 			>
 				<Icon name="frame-corners" size={16} />
 			</button>
@@ -438,11 +430,15 @@
 		onnodeclick={({ node }) => onselect(node.id)}
 		onedgeclick={({ edge }) => onselect(edge.target)}
 		onpaneclick={() => onselect(null)}
+		onmovestart={(event) => {
+			if (event) moved = true;
+		}}
 		onconnect={connect}
 		onconnectend={connectEnd}
-		onnodedragstop={({ nodes: moved }) => {
+		onnodedragstop={({ nodes: dragged }) => {
+			moved = true;
 			let next = document;
-			for (const node of moved) {
+			for (const node of dragged) {
 				const before = positions[node.id];
 				if (!before || before.x !== node.position.x || before.y !== node.position.y) {
 					next = moveStage(next, node.id, {
@@ -589,15 +585,12 @@
 	.picture {
 		position: absolute;
 		top: 50%;
-		left: calc(50% - var(--covered) / 2);
-		width: min(46rem, calc(86% - var(--covered)));
+		left: 50%;
+		width: min(46rem, 86%);
 		height: auto;
 		max-height: 80%;
 		transform: translate(-50%, -50%);
 		pointer-events: none;
-		transition:
-			left var(--duration-slow) cubic-bezier(0.16, 1, 0.3, 1),
-			width var(--duration-slow) cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
 	/* The picture is drawn at twice its size or more; keep its words small. */

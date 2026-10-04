@@ -89,6 +89,22 @@ test('the pipeline shows its stages, arrow and list', async ({ page }) => {
 	);
 });
 
+test('the map stays where it is while stages are selected and edited', async ({ page }) => {
+	await open(page);
+	await page.locator('.ways .way', { hasText: 'Pipeline' }).click();
+	const viewport = page.locator('.svelte-flow__viewport');
+	await page.waitForTimeout(1600);
+	const before = await viewport.getAttribute('style');
+	await page.locator('.svelte-flow__node[data-id="review"]').click();
+	await expect(page.locator('.panel.open h2')).toHaveText('review');
+	await page
+		.locator('.panel.open select[aria-label="What it waits for"]')
+		.selectOption('publication');
+	await page.getByRole('radio', { name: 'Own rule' }).click();
+	await page.waitForTimeout(400);
+	expect(await viewport.getAttribute('style')).toBe(before);
+});
+
 test('dropping a connection on empty map adds a stage that waits for it', async ({ page }) => {
 	await open(page);
 	await page.locator('.ways .way', { hasText: 'Pipeline' }).click();
