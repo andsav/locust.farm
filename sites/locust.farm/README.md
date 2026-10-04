@@ -134,6 +134,7 @@ prompt's fixed text in [`docs/blueprint-prompt.md`](../../docs/blueprint-prompt.
   | `canvas/StageNode.svelte`  | `components/blueprint/nodes/NodeCapsule.svelte`, adapted for stages |
   | `canvas/layout.ts`         | `workflow/layout.ts`, adapted for stages                            |
   | `ui/SidePanel.svelte`      | `components/blueprint/InspectorPanel.svelte`, adapted               |
+  | `ui/icons.ts`              | The Phosphor icons Polaris uses, from `@phosphor-icons/core` 2.1.1  |
 
   The rest of the map is written for this site. Fixes cross between the two by
   hand, only when they matter here.

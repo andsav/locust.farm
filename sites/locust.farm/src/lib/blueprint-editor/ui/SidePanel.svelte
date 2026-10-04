@@ -6,17 +6,21 @@
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Icon from './Icon.svelte';
+	import type { IconName } from './icons.ts';
+	import { tip } from './tooltip.ts';
 
 	let {
 		open,
-		number,
+		mark,
 		title,
 		onclose,
 		children,
 		footer
 	}: {
 		open: boolean;
-		number: number;
+		/** The stage's number, or an icon for the other panels. */
+		mark: number | IconName;
 		title: string;
 		onclose: () => void;
 		children: Snippet;
@@ -28,9 +32,19 @@
 
 <section class="panel" class:open aria-labelledby={titleId} inert={!open}>
 	<header>
-		<span class="disc" aria-hidden="true">{number}</span>
+		<span class="disc" aria-hidden="true">
+			{#if typeof mark === 'number'}{mark}{:else}<Icon name={mark} size={18} />{/if}
+		</span>
 		<h2 id={titleId}>{title}</h2>
-		<button type="button" class="close" onclick={onclose}>Close</button>
+		<button
+			type="button"
+			class="close"
+			aria-label="Close"
+			use:tip={'Close (Esc)'}
+			onclick={onclose}
+		>
+			<Icon name="x" size={18} />
+		</button>
 	</header>
 	<div class="content">
 		{@render children()}
@@ -49,7 +63,7 @@
 		z-index: 20;
 		display: flex;
 		flex-direction: column;
-		width: min(24rem, 100%);
+		width: min(25rem, 100%);
 		border-left: 1px solid var(--color-border);
 		background: var(--color-bg);
 		box-shadow: -18px 0 40px -24px rgb(0 0 0 / 0.9);
@@ -93,8 +107,11 @@
 	}
 
 	.close {
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
 		min-height: 2.25rem;
-		padding: 0 0.75rem;
+		padding: 0;
 		border: var(--border-hairline);
 		background: transparent;
 		color: var(--color-text-muted);

@@ -2,17 +2,27 @@
 <script lang="ts">
 	import type { Authority } from '../contract/types.ts';
 	import { shortKey } from '../model/words.ts';
+	import Icon from './Icon.svelte';
+	import type { IconName } from './icons.ts';
+	import { tip } from './tooltip.ts';
 
 	let {
 		value,
 		roles,
 		label,
+		icon,
+		text,
+		description,
 		noneLabel = null,
 		onchange
 	}: {
 		value: Authority | null;
 		roles: string[];
 		label: string;
+		icon: IconName;
+		/** A short visible label beside the icon, for the side panel. */
+		text?: string;
+		description?: string;
 		/** The choice for "nobody"; null when a decider is required. */
 		noneLabel?: string | null;
 		onchange: (value: Authority | null) => void;
@@ -31,25 +41,35 @@
 	}
 </script>
 
-<label class="field" for={id}>
-	<span class="label">{label}</span>
+<div class="field inline" class:labelled={text}>
+	<label
+		for={id}
+		use:tip={{
+			label,
+			description:
+				roles.length === 0
+					? 'To choose someone, first add a role.'
+					: (description ?? 'The role must have exactly one person when a goal starts.')
+		}}
+	>
+		<Icon name={icon} size={16} />
+		{#if text}
+			<span class="short" aria-hidden="true">{text}</span>
+		{/if}
+		<span class="visually-hidden">{label}</span>
+	</label>
 	<select {id} value={current} onchange={select}>
 		{#if noneLabel !== null}
 			<option value="none">{noneLabel}</option>
 		{/if}
 		{#each roles as role (role)}
-			<option value={`role:${role}`}>The person in the "{role}" role</option>
+			<option value={`role:${role}`}>{role}</option>
 		{/each}
 		{#if value?.kind === 'role' && !roles.includes(value.name)}
-			<option value={`role:${value.name}`}>The "{value.name}" role (not in the list)</option>
+			<option value={`role:${value.name}`}>{value.name} (missing role)</option>
 		{/if}
 		{#if value?.kind === 'participant'}
-			<option value="kept">A specific person (key {shortKey(value.key)}), kept as it is</option>
+			<option value="kept">A specific person (key {shortKey(value.key)})</option>
 		{/if}
 	</select>
-	{#if roles.length === 0 && value === null && noneLabel !== null}
-		<span class="help">To choose someone, first add a role under "Who is involved?".</span>
-	{:else}
-		<span class="help">This role must have exactly one person when a goal starts.</span>
-	{/if}
-</label>
+</div>

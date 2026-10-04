@@ -11,6 +11,7 @@ export type Place =
 			id:
 				| 'roles'
 				| 'work'
+				| 'sharing'
 				| 'done'
 				| 'final-answer'
 				| 'finish'
@@ -41,7 +42,10 @@ export function placeOf(path: string): Place | null {
 		case 'roles':
 			return { kind: 'section', id: 'roles' };
 		case 'work':
-			return { kind: 'section', id: 'work' };
+			return {
+				kind: 'section',
+				id: parts[1] === 'propose' || parts[1] === 'publish' ? 'sharing' : 'work'
+			};
 		case 'decisions':
 			if (parts[1] === 'selection') return { kind: 'section', id: 'final-answer' };
 			if (parts[1] === 'finish') return { kind: 'section', id: 'finish' };

@@ -98,6 +98,41 @@ five people who do not know Locust:
    ask about, and whether their description afterwards matches "What this
    means".
 
+## Visual-first redesign, 2026-10-04
+
+The owner looked at the built editor and said it was very busy, with too many
+words: "Show, don't tell. The canvas needs to be bigger. Icons, not words, hide
+descriptions in tooltips if descriptions are necessary at all." The animated
+pictures of the ways of working were the part that worked. They also asked for
+merak's impeccable design guidance (`.impeccable.md` and the impeccable
+frontend-design and distill skills) with Locust's colours, and pointed to their
+Catalyst canvas (`~/Projects26/catalyst_demo`) as another example.
+
+Decisions, recorded in [plan](../docs/blueprint-authoring-plan.md) section 3:
+
+- The ways of working stay at the top as a strip of pictures with names only;
+  sentences moved to tooltips.
+- One framed editor fills the rest of the window: a toolbar of icon buttons, a
+  narrow rules rail of icon choices, and the map. With no stages, the map shows
+  a large animated picture chosen from the current rules, so changing a rule
+  visibly changes the picture.
+- Everything wordy moved to the side panel on demand: More rules, problems, the
+  blueprint in words, the prompt, open and saved. Modal dialogs were removed.
+- Icons are Phosphor, the set Polaris uses. Tooltips are one shared element
+  placed beside the control, since native titles are slow and Catalyst has no
+  tooltip component to reuse.
+- From Catalyst: dropping a connection on empty map creates a stage that waits
+  for the first and opens it, without moving other stages; a wider connection
+  radius; floating control plates with one shadow; a standing save mark instead
+  of a save message.
+- A Locust `.impeccable.md` at the repository root records the design context
+  for future design work.
+
+Not yet checked with people: whether icons alone are clear enough on first
+use. The first-time-user script below still applies; add "find who reviews
+work" and "find the prompt before copying" to see whether people discover the
+tooltips and the side panel.
+
 ## Question
 
 The owner asked for a plan, 2026-10-04: someone who has Locust authors a

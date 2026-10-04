@@ -1,16 +1,18 @@
-/* Form styles shared by the blueprint editor's panels. Scoped under .blueprint-editor. */
+/*
+ * Form styles shared by the blueprint editor's panels, scoped under .blueprint-editor.
+ * Element selectors sit inside :where() so a component's own styles always win.
+ */
 
 .blueprint-editor {
 	font: var(--text-ui);
 }
 
-.blueprint-editor h2,
-.blueprint-editor h3 {
+.blueprint-editor :where(h2, h3) {
 	margin: 0;
 	font: 500 0.8125rem / 1.5 var(--font-mono);
 }
 
-.blueprint-editor section {
+.blueprint-editor :where(section) {
 	display: grid;
 	gap: 0.625rem;
 }
@@ -36,14 +38,39 @@
 	gap: 0.25rem;
 }
 
+/* An icon in place of a written label; the question is in the icon's tooltip. */
+.blueprint-editor .field.inline {
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.blueprint-editor .field.inline > label {
+	display: grid;
+	place-items: center;
+	width: 1.5rem;
+	color: var(--color-text-subtle);
+	cursor: help;
+}
+
+.blueprint-editor .field.inline.labelled {
+	grid-template-columns: 8.5rem minmax(0, 1fr);
+}
+
+.blueprint-editor .field.inline.labelled > label {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	width: auto;
+	place-items: initial;
+	color: var(--color-text-muted);
+}
+
 .blueprint-editor .label {
 	color: var(--color-text-muted);
 }
 
-.blueprint-editor input[type='text'],
-.blueprint-editor input[type='number'],
-.blueprint-editor select,
-.blueprint-editor textarea {
+.blueprint-editor :where(input[type='text'], input[type='number'], select, textarea) {
 	width: 100%;
 	min-height: 2.25rem;
 	padding: 0.375rem 0.5rem;
@@ -54,22 +81,20 @@
 	font: var(--text-ui);
 }
 
-.blueprint-editor textarea {
+.blueprint-editor :where(textarea) {
 	resize: vertical;
 }
 
-.blueprint-editor input[type='number'] {
+.blueprint-editor :where(input[type='number']) {
 	width: 6rem;
 }
 
-.blueprint-editor input:focus-visible,
-.blueprint-editor select:focus-visible,
-.blueprint-editor textarea:focus-visible {
+.blueprint-editor :where(input:focus-visible, select:focus-visible, textarea:focus-visible) {
 	outline: 1px solid var(--color-accent);
 	outline-offset: 0;
 }
 
-.blueprint-editor button {
+.blueprint-editor :where(button) {
 	min-height: 2.25rem;
 	padding: 0 0.75rem;
 	border: var(--border-hairline);
@@ -79,13 +104,30 @@
 	cursor: pointer;
 }
 
-.blueprint-editor button:hover:not(:disabled) {
+.blueprint-editor :where(button:hover:not(:disabled)) {
 	border-color: var(--color-text-faint);
 }
 
-.blueprint-editor button:disabled {
+.blueprint-editor :where(button:disabled) {
 	color: var(--color-text-faint);
 	cursor: not-allowed;
+}
+
+.blueprint-editor :where(button:focus-visible) {
+	outline: 1px solid var(--color-accent);
+	outline-offset: 1px;
+}
+
+.blueprint-editor .icon-button {
+	display: grid;
+	place-items: center;
+	width: 2.25rem;
+	padding: 0;
+	color: var(--color-text-muted);
+}
+
+.blueprint-editor .icon-button:hover:not(:disabled) {
+	color: var(--color-text);
 }
 
 .blueprint-editor button.quiet {
@@ -96,36 +138,6 @@
 	text-decoration: underline;
 }
 
-.blueprint-editor .question {
-	display: grid;
-	gap: 0.5rem;
-	margin: 0;
-	padding: 0;
-	border: 0;
-}
-
-.blueprint-editor .question > legend {
-	margin-bottom: 0.25rem;
-	font-weight: 500;
-}
-
-.blueprint-editor .choice {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: 0.5rem;
-	align-items: start;
-	cursor: pointer;
-}
-
-.blueprint-editor .choice input {
-	margin: 0.3rem 0 0;
-	accent-color: var(--color-accent);
-}
-
-.blueprint-editor .choice-title {
-	display: block;
-}
-
 .blueprint-editor .check {
 	display: flex;
 	gap: 0.5rem;
@@ -134,14 +146,6 @@
 
 .blueprint-editor .check input {
 	accent-color: var(--color-accent);
-}
-
-.blueprint-editor .nested {
-	display: grid;
-	gap: 0.625rem;
-	margin-left: 1.5rem;
-	padding-left: 0.75rem;
-	border-left: var(--border-hairline);
 }
 
 .blueprint-editor .items {
@@ -181,25 +185,102 @@
 	align-items: end;
 }
 
-.blueprint-editor .more > summary {
-	padding: 0.5rem 0;
-	cursor: pointer;
+.blueprint-editor .diagram .d-edge {
+	fill: none;
+	stroke: var(--color-border);
+	stroke-width: 1;
 }
 
-.blueprint-editor .more[open] {
+.blueprint-editor .diagram .d-node,
+.blueprint-editor .diagram .d-stage {
+	fill: var(--color-surface);
+	stroke: var(--color-text-faint);
+	stroke-width: 1;
+}
+
+.blueprint-editor .diagram .d-lead {
+	stroke: var(--color-accent);
+}
+
+.blueprint-editor .diagram .d-label {
+	fill: var(--color-text-faint);
+	font: 400 8.5px var(--font-mono);
+	letter-spacing: 0.04em;
+}
+
+.blueprint-editor .diagram .d-note {
+	fill: var(--color-accent);
+}
+
+.blueprint-editor .diagram .d-stage-label {
+	fill: var(--color-text-muted);
+	font: 400 9px var(--font-mono);
+}
+
+.blueprint-editor .diagram .d-dot.d-work {
+	fill: var(--color-text-subtle);
+}
+
+.blueprint-editor .diagram .d-dot.d-result {
+	fill: var(--color-text);
+}
+
+.blueprint-editor .diagram .d-dot.d-decision {
+	fill: var(--color-accent);
+}
+
+.blueprint-editor .diagram .d-ring {
+	fill: none;
+	stroke-width: 1.2;
+}
+
+.blueprint-editor .diagram .d-ring.d-decision {
+	stroke: var(--color-accent);
+}
+
+.blueprint-editor .diagram .d-ring.d-busy {
+	stroke: var(--color-text-faint);
+}
+
+.blueprint-editor .diagram .d-chosen {
+	fill: none;
+	stroke: var(--color-accent);
+	stroke-width: 1.4;
+}
+
+.blueprint-editor .diagram .d-stage-active {
+	fill: none;
+	stroke: var(--color-accent);
+	stroke-width: 1.2;
+}
+
+.blueprint-editor .diagram .d-arrow {
+	fill: none;
+	stroke: var(--color-text-faint);
+	stroke-width: 1;
+}
+
+/* The tooltip shared by every icon control. It lives on <body>, outside the editor. */
+.bp-tip {
+	position: fixed;
+	z-index: 100;
 	display: grid;
-	gap: 1rem;
-}
-
-.blueprint-editor .not-possible {
-	display: grid;
-	gap: 0.5rem;
-	margin: 0;
-	padding-left: 1rem;
-	color: var(--color-text-muted);
-}
-
-.blueprint-editor .not-possible strong {
+	gap: 0.25rem;
+	max-width: 18rem;
+	padding: 0.5rem 0.625rem;
+	border: 1px solid var(--color-border);
+	background: var(--color-surface);
+	box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.9);
 	color: var(--color-text);
-	font-weight: 500;
+	font: var(--text-label);
+	line-height: 1.5;
+	pointer-events: none;
+}
+
+.bp-tip[hidden] {
+	display: none;
+}
+
+.bp-tip-description {
+	color: var(--color-text-subtle);
 }

@@ -88,19 +88,27 @@ schema's shapes, and the research note lists the quirks for lane A.
 
 ### 3.1 Layout
 
-On a laptop the page has three areas under the site header:
+The page shows, tells little. Under the site header and the headline it has the
+six ways of working as a strip of animated pictures, then one framed editor
+that fills the rest of the window:
 
-- **Left: Rules.** The chosen way of working and plain questions that adjust it.
-- **Centre: Stages.** The map of stages. Empty unless the blueprint has stages.
-- **Right: What this means and Copy.** A plain summary, problems, and the copy
-  button.
+- **Toolbar.** The blueprint's name, a save mark, icon buttons (undo, redo,
+  open, saved, copy link, download, start over; problems, in words, see the
+  prompt, manual, set up) and the copy controls.
+- **Rules rail** on the left: roles, how work starts, when a task is done, and
+  More.
+- **Map** filling the rest: the stages, or, with no stages, a large animated
+  picture of the current rules.
 
-Selecting a stage slides in a settings panel from the right, as Polaris does.
-It covers the right-hand column rather than the map, because the map column is
-narrow on a laptop; the map pans if the selected stage is out of view.
-On tablets the right area becomes a drawer under the map. On phones the page
-is one column: way of working, questions, stages as a list, summary, and a
-sticky copy button.
+Every icon has a tooltip with its name and, where needed, one sentence. Longer
+text lives in one side panel that slides over the right of the map, as in
+Polaris: stage and role settings, More rules, problems, the blueprint in words,
+the prompt, open and saved blueprints. There are no modal dialogs. On phones the
+page is one column: ways, toolbar, rules, the map as a preview that opens full
+screen, and the stages as a list; the side panel covers the screen.
+
+The design context, shared with the impeccable design skills, is in
+[.impeccable.md](../.impeccable.md).
 
 ### 3.2 First visit
 
@@ -116,16 +124,20 @@ with its animated diagram (from the approved draft), a name and one sentence:
 | Independent attempts | Several people try the same task in their own way. A judge picks the result to use, and the other attempts are kept. | `independent-attempts` |
 | Pipeline | Work moves through steps in order. Each step starts when the one before it is done. | `pipeline` |
 
-Open is selected on arrival, so the copy button works straight away. Choosing a
-card loads that preset as one undoable change. A line under the cards says:
-"You can change any of this below. Nothing is sent anywhere until you copy the
-prompt into your agent."
+Each card shows only its picture and name; the sentence is its tooltip and is
+read to screen readers. Open is selected on arrival, so the copy button works
+straight away. Choosing a card loads that preset as one undoable change. Once
+the rules differ from the chosen way, its card says "changed"; clicking it again
+goes back to the way, and undo keeps the changes.
 
-### 3.3 Rules panel
+### 3.3 Rules rail
 
-The chosen way's card stays at the top with "Change". Below it, plain
-questions. Each answer is a set of radio buttons with one line of explanation
-under each choice, never only in a tooltip.
+Each question is an icon heading with one word (Roles, Start, Done) and the
+question in its tooltip. Answers are rows of icon choices with one word each
+and a sentence in each choice's tooltip. Roles are chips; a chip opens the
+role's settings and "+" adds one. Details of the chosen answer, such as who
+reviews and how many approvals, appear under it as icon-labelled fields. The
+less common rules are under More, in the side panel.
 
 | Question | Contract |
 | --- | --- |
@@ -156,17 +168,19 @@ drawn from the earlier stage to the later one and labelled in plain words:
 complete", "when a result of draft is picked" (evidence `publication`,
 `review`, `completion`, `selection`). Nothing else is drawn.
 
-- **Empty map.** "This blueprint has no stages. Work isn't done in a fixed
-  order. Add a stage if work should move from one step to the next." with an
-  "Add a stage" button.
-- **Adding.** "Add a stage" places a new node and opens its settings. Dragging
+- **Empty map.** A large animated picture of the current rules, chosen by
+  `pictureFor` in [presets](../sites/locust.farm/src/lib/blueprint-editor/model/presets.ts):
+  handed-out work, then one final answer, then reviews. Changing a rule changes
+  the picture.
+- **Adding.** The round "+" places a new node and opens its settings. Dragging
   from one node's handle to another opens a small menu: "Start review when
-  draft is…" with the four choices. A connection that would make a loop is
-  refused at drop time: "That would make draft wait for itself."
+  draft is…" with the four choices. Dropping on empty map adds a stage that
+  waits for the first one to be complete and opens it, as in Catalyst; other
+  stages keep their places. A connection that would make a loop is refused at
+  drop time: "That would make draft wait for itself."
 - **Node.** A Polaris capsule: a round accent disc, the stage name, and while
-  selected a row of chips such as "follows review rules", "work goes to
-  everyone", "run by coordinator". Problems show as a count on the node, in
-  text.
+  selected a row of icon chips (work goes to, run by, own rule) with tooltips.
+  Problems show as a warning icon and count on the node.
 - **Settings panel.** Polaris's settings panel: a header with the node's disc
   and name, one scrolling body, and a footer with Delete and the save state.
   Fields, in order: Name; "Starts when" (the prerequisites as a list, each with
@@ -184,49 +198,46 @@ complete", "when a result of draft is picked" (evidence `publication`,
   in that record are kept. Missing positions are filled by an automatic left to
   right layout. Renaming a stage renames its layout key and every reference to
   it in one undoable change.
-- **Keyboard and screen readers.** Every stage and arrow is also listed under
-  the map as text, with the same edit actions. Tab moves between stages, Enter
+- **Keyboard and screen readers.** Every stage has a spoken description, and
+  on phones every stage is also listed under the map as text. Tab moves between stages, Enter
   opens settings, C starts a connection from the focused stage and asks for
   the target and the choice. Backspace on the page never deletes anything
   unless a stage has focus.
 
-### 3.5 What this means
+### 3.5 Problems and the blueprint in words
 
-A plain summary written by the page from the current blueprint, in short
-sentences, for example: "Anyone in the goal can start work. A task is done when
-one other person approves it. Nobody can close the goal; it stays open."
-Below it, a disclosure "What Locust will say" shows Locust's own explanation
-lines, produced by the TypeScript port, which is what the agent will show.
+The toolbar's status button is a check when nothing is wrong and an ember
+warning with a count otherwise. It opens the problems in the side panel: a plain
+sentence first, then "Show me", which selects the field or node, and "Details"
+with the code and path. Problems block nothing: copying with problems produces a
+prompt that saves an unfinished draft and does not publish.
 
-Problems are listed under the summary with a plain sentence first, then
-"Show me", which selects the field or node, and "Technical details" with the
-code and path. Problems block nothing: copying with problems produces a prompt
-that saves an unfinished draft and does not publish.
-
-Under the summary, one fixed sentence: "When a step is ready, the Locust of the
-person who runs it creates the task and sends it out. Locust never starts an
-agent."
+"In words" opens a plain summary written by the page from the current
+blueprint, then "What Locust will say": Locust's own explanation lines,
+produced by the TypeScript port, which is what the agent will show.
 
 ### 3.6 Copy
 
-The orange button "Copy prompt" is always visible. Above it, "What should your
-agent do?" with two choices:
+The ember "Copy prompt" button is the page's one primary action and is always
+in the toolbar. Beside it, two choices for what the agent should do, each with
+its sentence in the tooltip:
 
-- **Check it.** "Your agent checks it with Locust and explains it. Nothing is
-  saved."
-- **Add it to my Locust** (default). "Your agent saves it as a private draft and
+- **Add** (default). "Your agent adds it to your Locust as a private draft and
   asks you before publishing."
+- **Check.** "Your agent checks it with Locust and explains it. Nothing is
+  saved."
 
-Under the button: "Needs Locust on this computer. Not set up yet? Start here."
-linking to `/start`. "See the prompt" opens the full prompt with its size.
-After copying: "Copied. Paste it into your agent." Copy failures select the
-prompt text, as the site's existing copy component does.
+After copying, the button says "Copied" and a note says "Copied. Paste it into
+your agent." The eye button shows the full prompt with its size; a failed copy
+opens it with the text selected. The set-up icon links to `/start`.
 
 ### 3.7 Keeping work
 
 - The browser keeps a list of saved blueprints (local storage, one record per
   blueprint). Opening a link, importing or starting over creates a new record;
-  nothing is replaced silently. "Saved in this browser" lists them with Delete.
+  nothing is replaced silently. "Saved in this browser" lists them with Delete,
+  in the side panel. A check beside the name means saved; an ember warning
+  means this browser is not keeping it.
 - "Copy link" puts the blueprint and its layout in the address after `#`,
   compressed. The part after `#` is not sent to any server. Opening such a link
   creates a new record and shows "Opened from a link. Read its names and advice
@@ -237,12 +248,12 @@ prompt text, as the site's existing copy component does.
 
 ### 3.8 Wording
 
-Contract words appear only under "Technical details" and in the prompt's data.
+Contract words appear only under a problem's "Details" and in the prompt's data.
 The page says: "task type" only where named rule sets are listed; "runs" or
 "run by" for `runner`; "say the goal is finished" for `finish`; "pick one
 final answer" for `selection`; "advice" for `guidance`; "starting material"
-for `inputs`. Headings are literal: "How does your team work?", "Rules",
-"Stages", "What this means", "Copy prompt".
+for `inputs`. Visible words are kept to names and one-word labels; sentences
+are in tooltips and the side panel.
 
 ## 4. Look and feel
 
@@ -253,7 +264,8 @@ The fork keeps Polaris's shapes and behaviour and uses the site's tokens:
 | Stage node | `NodeCapsule.svelte`: 216×46 capsule, round accent disc, title, right slot; selected nodes grow an overlay with chips; hover and selection light the rim | Same shapes; fill `--neutral-900`, rim `--neutral-800`, text `--color-text`, accent disc and selected rim in ember; Martian Mono |
 | Settings panel | `InspectorPanel.svelte`: slide-over, header with the 40px accent disc and title, scrolling body, footer band with Delete and save state | Same structure; panel background `--neutral-950` with a hairline `--color-border`; labels in the site's label style |
 | Camera | `panelCamera.svelte.ts`: pans so the selected node stays visible beside the panel | Forked as is |
-| Map ground | Dot grid, viewport controls | Dot grid in `--neutral-850`; labelled Zoom in, Zoom out and Fit buttons |
+| Map ground | Dot grid, viewport controls | Dot grid in `--neutral-850`; a floating plate of icon buttons for zoom, fit and tidy |
+| Icons | Phosphor, regular weight | The same Phosphor icons, copied into `ui/icons.ts`, with a tooltip on every icon control |
 | Focus | Polaris's background change | The site's 1px ember outline |
 
 New tokens are added to [tokens](../sites/locust.farm/src/lib/styles/tokens.css)

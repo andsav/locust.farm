@@ -61,3 +61,17 @@ export function presetBlueprint(id: string): Blueprint {
 export function wayOfWorking(id: string | null): WayOfWorking | undefined {
 	return WAYS_OF_WORKING.find((way) => way.id === id);
 }
+
+/**
+ * The way of working whose picture best shows a blueprint's rules: stages,
+ * then handed-out work, then one final answer, then reviews. Used to draw the
+ * map when a blueprint has no stages, so the picture follows the rules.
+ */
+export function pictureFor(blueprint: Blueprint): string {
+	if (Object.keys(blueprint.flow).length > 0) return 'pipeline';
+	if (blueprint.work.starts.some((start) => start.kind === 'offered')) return 'coordinator';
+	if (blueprint.decisions.selection !== null) return 'independent-attempts';
+	const completion = blueprint.decisions.completion;
+	if (completion.kind === 'reviews') return completion.count > 1 ? 'review-panel' : 'peer-review';
+	return 'open';
+}

@@ -3,17 +3,25 @@
 	(crates/polaris/frontend/src/lib/components/blueprint/nodes/NodeCapsule.svelte at
 	dreamcolor10 01d8aa3c4): the same 216×46 pill with a round accent disc, rims that
 	light on hover and selection, ports on the rim and an overlay that grows when the
-	stage is selected, in the site's colours and font. Run states, inline renaming and
-	tooltips are not carried over.
+	stage is selected, in the site's colours and font. The chips use icons with
+	tooltips. Run states and inline renaming are not carried over.
 -->
 <script lang="ts" module>
 	import type { Node } from '@xyflow/svelte';
+	import type { IconName } from '../ui/icons.ts';
+
+	export interface StageChip {
+		icon: IconName;
+		text: string;
+		/** What the chip means, shown as its tooltip. */
+		tip: string;
+	}
 
 	export type StageNodeData = {
 		name: string;
 		/** Position in the order of stages, shown in the disc. */
 		number: number;
-		chips: string[];
+		chips: StageChip[];
 		problems: number;
 		panelOpen: boolean;
 	};
@@ -22,6 +30,8 @@
 
 <script lang="ts">
 	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
+	import Icon from '../ui/Icon.svelte';
+	import { tip } from '../ui/tooltip.ts';
 
 	let { data, selected }: NodeProps<StageNodeType> = $props();
 </script>
@@ -38,15 +48,22 @@
 			<span class="disc" aria-hidden="true">{data.number}</span>
 			<span class="name">{data.name}</span>
 			{#if data.problems > 0}
-				<span class="problems"
-					>{data.problems === 1 ? '1 problem' : `${data.problems} problems`}</span
+				<span
+					class="problems"
+					use:tip={data.problems === 1 ? '1 problem' : `${data.problems} problems`}
 				>
+					<Icon name="warning" size={14} />
+					{data.problems}
+				</span>
 			{/if}
 		</div>
 		<div class="expansion">
 			<div class="chips">
-				{#each data.chips as chip (chip)}
-					<span class="chip">{chip}</span>
+				{#each data.chips as chip (chip.tip)}
+					<span class="chip" use:tip={{ label: chip.tip, description: chip.text }}>
+						<Icon name={chip.icon} size={12} />
+						<span>{chip.text}</span>
+					</span>
 				{/each}
 			</div>
 		</div>
@@ -148,11 +165,14 @@
 	}
 
 	.problems {
+		display: flex;
 		flex: none;
+		gap: 4px;
+		align-items: center;
+		color: var(--accent);
 		padding: 2px 6px;
 		border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
 		border-radius: 999px;
-		color: var(--color-text);
 		font: 400 10px / 1.2 var(--font-mono);
 		white-space: nowrap;
 	}
@@ -173,6 +193,9 @@
 	}
 
 	.chip {
+		display: inline-flex;
+		gap: 4px;
+		align-items: center;
 		max-width: 100%;
 		overflow: hidden;
 		padding: 2px 8px;
@@ -182,6 +205,11 @@
 		font: 400 10px / 1.4 var(--font-mono);
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.chip span {
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	/* Ports sit on the rim and show on hover, on selection and while connecting. */

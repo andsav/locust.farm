@@ -2,11 +2,17 @@
 <script lang="ts">
 	import type { Selector } from '../contract/types.ts';
 	import { who } from '../model/words.ts';
+	import Icon from './Icon.svelte';
+	import type { IconName } from './icons.ts';
+	import { tip } from './tooltip.ts';
 
 	let {
 		value,
 		roles,
 		label,
+		icon,
+		text,
+		description,
 		allowTaskCreator = false,
 		allowAuthor = false,
 		allowNobody = false,
@@ -14,7 +20,12 @@
 	}: {
 		value: Selector;
 		roles: string[];
+		/** The question. Shown in the tooltip and read by screen readers. */
 		label: string;
+		icon: IconName;
+		/** A short visible label beside the icon, for the side panel. */
+		text?: string;
+		description?: string;
 		allowTaskCreator?: boolean;
 		allowAuthor?: boolean;
 		allowNobody?: boolean;
@@ -39,18 +50,24 @@
 	}
 </script>
 
-<label class="field" for={id}>
-	<span class="label">{label}</span>
+<div class="field inline" class:labelled={text}>
+	<label for={id} use:tip={{ label, description }}>
+		<Icon name={icon} size={16} />
+		{#if text}
+			<span class="short" aria-hidden="true">{text}</span>
+		{/if}
+		<span class="visually-hidden">{label}</span>
+	</label>
 	<select {id} value={current} onchange={select}>
-		<option value="members">Everyone in the goal</option>
+		<option value="members">Everyone</option>
 		{#each roles as role (role)}
-			<option value={`role:${role}`}>People in the "{role}" role</option>
+			<option value={`role:${role}`}>{role}</option>
 		{/each}
 		{#if value.kind === 'role' && !roles.includes(value.name)}
-			<option value={`role:${value.name}`}>The "{value.name}" role (not in the list)</option>
+			<option value={`role:${value.name}`}>{value.name} (missing role)</option>
 		{/if}
 		{#if allowTaskCreator || value.kind === 'task_creator'}
-			<option value="task_creator">The person who created the task</option>
+			<option value="task_creator">Whoever created the task</option>
 		{/if}
 		{#if allowAuthor || value.kind === 'contribution_author'}
 			<option value="contribution_author">The author of the work</option>
@@ -62,4 +79,4 @@
 			<option value="kept">{who(value)} (kept as it is)</option>
 		{/if}
 	</select>
-</label>
+</div>

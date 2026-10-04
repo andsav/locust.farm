@@ -21,7 +21,7 @@ import {
 	wouldLoop
 } from './edit.ts';
 import { record, redo, startHistory, undo } from './history.ts';
-import { WAYS_OF_WORKING } from './presets.ts';
+import { pictureFor, WAYS_OF_WORKING } from './presets.ts';
 import { summarize } from './words.ts';
 
 test('every way of working is a valid blueprint with Locust and with the page', () => {
@@ -30,6 +30,22 @@ test('every way of working is a valid blueprint with Locust and with the page', 
 		assert.ok(inspectBlueprint(document.blueprint).valid, way.id);
 		assert.ok(inspect(blueprintText(document.blueprint)).valid, way.id);
 	}
+});
+
+test('each way of working is drawn with its own picture, and the picture follows the rules', () => {
+	for (const way of WAYS_OF_WORKING) {
+		assert.equal(pictureFor(newDocument(way.id).blueprint), way.id);
+	}
+	const open = newDocument('open');
+	const reviewed = setDoneAnswer(open, {
+		kind: 'review',
+		by: { kind: 'members' },
+		count: 1,
+		excludeAuthor: true
+	});
+	assert.equal(pictureFor(reviewed.blueprint), 'peer-review');
+	const handedOut = setStartAnswer(open, { kind: 'handed-out', by: { kind: 'members' } });
+	assert.equal(pictureFor(handedOut.blueprint), 'coordinator');
 });
 
 test('the blueprint text round-trips through the strict loader', () => {

@@ -11,6 +11,7 @@
 		MarkerType,
 		SvelteFlow,
 		type Connection,
+		type OnConnectEnd,
 		type NodeTypes,
 		type EdgeTypes
 	} from '@xyflow/svelte';
@@ -25,11 +26,15 @@
 		stageOrder,
 		wouldLoop
 	} from '../model/edit.ts';
+	import { pictureFor } from '../model/presets.ts';
 	import { EVIDENCE_ORDER, EVIDENCE_WORDS, who } from '../model/words.ts';
+	import { drawDiagram } from '../ui/diagrams.ts';
+	import Icon from '../ui/Icon.svelte';
+	import { tip } from '../ui/tooltip.ts';
 	import FlowBridge, { type FlowBridge as Bridge } from './FlowBridge.svelte';
 	import { NODE_HEIGHT, NODE_WIDTH, placeStages } from './layout.ts';
 	import StageEdge, { type StageEdgeType } from './StageEdge.svelte';
-	import StageNode, { type StageNodeType } from './StageNode.svelte';
+	import StageNode, { type StageChip, type StageNodeType } from './StageNode.svelte';
 
 	let {
 		document,
@@ -38,6 +43,7 @@
 		panelWidth,
 		problems,
 		compact,
+		frame,
 		onchange,
 		onselect,
 		onannounce
@@ -50,6 +56,8 @@
 		problems: Record<string, number>;
 		/** Phones: the map is a preview until opened full screen. */
 		compact: boolean;
+		/** Changes when a different blueprint is loaded, so the map frames it afresh. */
+		frame: number;
 		onchange: (next: EditorDocument) => void;
 		onselect: (name: string | null) => void;
 		onannounce: (message: string) => void;
@@ -74,16 +82,25 @@
 		})
 	);
 
-	function chips(name: string): string[] {
+	function chips(name: string): StageChip[] {
 		const stage = document.blueprint.flow[name];
-		const out = [`work goes to ${who(stage.recipients)}`];
-		out.push(
-			stage.runner.kind === 'role'
-				? `run by the "${stage.runner.name}" role`
-				: 'run by a specific person'
-		);
-		if (stage.task_type !== null) out.push(`own done rule`);
+		const out: StageChip[] = [
+			{ icon: 'tray-arrow-down', text: who(stage.recipients), tip: 'Work goes to' },
+			{
+				icon: 'play-circle',
+				text: stage.runner.kind === 'role' ? stage.runner.name : 'a specific person',
+				tip: 'Run by'
+			}
+		];
+		if (stage.task_type !== null) out.push({ icon: 'stack', text: 'own rule', tip: 'Done rule' });
 		return out;
+	}
+
+	const picture = $derived(pictureFor(document.blueprint));
+
+	function draw(svg: SVGSVGElement, id: string) {
+		drawDiagram(svg, id);
+		return { update: (next: string) => drawDiagram(svg, next) };
 	}
 
 	function startsText(name: string): string {
@@ -135,10 +152,33 @@
 	$effect(() => {
 		if (!bridge || order.length === 0 || framed) return;
 		framed = true;
-		requestAnimationFrame(() => bridge?.fitView({ padding: 0.35, maxZoom: 1.1, duration: 0 }));
+		requestAnimationFrame(() => bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration: 0 }));
 	});
 	$effect(() => {
-		if (order.length === 0) framed = false;
+		if (order.length === 0 || frame >= 0) framed = false;
+	});
+
+	// Frame them again when the map changes size, such as when the window is resized.
+	$effect(() => {
+		const element = container;
+		if (!element) return;
+		let width = element.clientWidth;
+		let height = element.clientHeight;
+		let frame = 0;
+		const observer = new ResizeObserver(() => {
+			if (element.clientWidth === width && element.clientHeight === height) return;
+			width = element.clientWidth;
+			height = element.clientHeight;
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => {
+				if (order.length > 0) bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration: 0 });
+			});
+		});
+		observer.observe(element);
+		return () => {
+			observer.disconnect();
+			cancelAnimationFrame(frame);
+		};
 	});
 
 	// Keep the selected stage visible beside the side panel, as Polaris's panel camera does.
@@ -188,6 +228,27 @@
 		pending = null;
 	}
 
+	/** The document with every stage pinned where it is now, so adding one moves no other. */
+	function pinned(): EditorDocument {
+		return { ...document, layout: { ...document.layout, stages: { ...positions } } };
+	}
+
+	// Dropping a connection on empty map adds a stage that waits for the first one, as in Catalyst.
+	const connectEnd: OnConnectEnd = (event, state) => {
+		if (!bridge || !state.fromNode || state.toNode || state.isValid) return;
+		const point = 'changedTouches' in event ? event.changedTouches[0] : event;
+		const at = bridge.screenToFlowPosition({ x: point.clientX, y: point.clientY });
+		const from = state.fromNode.id;
+		const name = freeStageName(document.blueprint);
+		const added = addStage(pinned(), name, {
+			x: Math.round(at.x),
+			y: Math.round(at.y - NODE_HEIGHT / 2)
+		});
+		onchange(addRequirement(added, from, name, 'completion'));
+		onselect(name);
+		onannounce(`Added stage "${name}". It starts when "${from}" is complete.`);
+	};
+
 	let keyboardTarget = $state<string>('');
 
 	function onkeydown(event: KeyboardEvent) {
@@ -235,14 +296,14 @@
 			);
 			if (taken) position = null;
 		}
-		onchange(addStage(document, name, position));
+		onchange(addStage(position ? pinned() : document, name, position));
 		onselect(name);
 		onannounce(`Added stage "${name}". Its settings are open.`);
 	}
 
 	function tidy() {
 		onchange({ ...structuredClone(document), layout: { ...document.layout, stages: {} } });
-		requestAnimationFrame(() => bridge?.fitView({ padding: 0.35, maxZoom: 1.1, duration: 220 }));
+		requestAnimationFrame(() => bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration: 220 }));
 	}
 
 	function zoom(factor: number) {
@@ -272,28 +333,71 @@
 	role="group"
 	aria-label="Stage map"
 >
+	{#if order.length === 0}
+		<svg
+			class="diagram picture"
+			style:--covered={`${panelOpen ? panelWidth : 0}px`}
+			viewBox="0 0 320 180"
+			aria-hidden="true"
+			use:draw={picture}
+		></svg>
+	{/if}
+
 	<div class="toolbar" role="toolbar" aria-label="Stage map controls">
-		{#if order.length > 0}
-			<button type="button" onclick={addAStage}>Add a stage</button>
-		{/if}
-		{#if order.length > 1}
-			<button type="button" onclick={tidy}>Tidy</button>
-		{/if}
-		<span class="spacer"></span>
-		<button type="button" onclick={() => zoom(1 / 1.25)}>Zoom out</button>
-		<button type="button" onclick={() => zoom(1.25)}>Zoom in</button>
 		<button
 			type="button"
-			onclick={() => bridge?.fitView({ padding: 0.35, maxZoom: 1.1, duration: 180 })}
+			class="add-stage"
+			aria-label="Add a stage"
+			use:tip={{
+				label: 'Add a stage',
+				description:
+					'Stages are steps that work moves through in order, such as draft, then review. Drag from a stage to connect it, or drop on empty space for a new stage.'
+			}}
+			onclick={addAStage}
 		>
-			Fit
+			<Icon name="plus" size={20} />
 		</button>
 		{#if compact}
-			<button type="button" onclick={() => (fullScreen = !fullScreen)}>
-				{fullScreen ? 'Close the map' : 'Open the map full screen'}
+			<span class="spacer"></span>
+			<button
+				type="button"
+				aria-label={fullScreen ? 'Close the map' : 'Open the map full screen'}
+				use:tip={fullScreen ? 'Close the map' : 'Full screen'}
+				onclick={() => (fullScreen = !fullScreen)}
+			>
+				<Icon name={fullScreen ? 'corners-in' : 'corners-out'} />
 			</button>
 		{/if}
 	</div>
+
+	{#if order.length > 0 && interactive}
+		<div class="zoom" role="toolbar" aria-label="Zoom">
+			<button type="button" aria-label="Zoom in" use:tip={'Zoom in'} onclick={() => zoom(1.25)}>
+				<Icon name="plus" size={16} />
+			</button>
+			<button
+				type="button"
+				aria-label="Zoom out"
+				use:tip={'Zoom out'}
+				onclick={() => zoom(1 / 1.25)}
+			>
+				<Icon name="minus" size={16} />
+			</button>
+			<button
+				type="button"
+				aria-label="Fit"
+				use:tip={'Fit to the map'}
+				onclick={() => bridge?.fitView({ padding: 0.35, maxZoom: 1.25, duration: 180 })}
+			>
+				<Icon name="frame-corners" size={16} />
+			</button>
+			{#if order.length > 1}
+				<button type="button" aria-label="Tidy" use:tip={'Tidy'} onclick={tidy}>
+					<Icon name="magic-wand" size={16} />
+				</button>
+			{/if}
+		</div>
+	{/if}
 
 	<p class="help visually-hidden" id="stage-map-help">
 		Tab moves between stages. Enter opens a stage's settings. C connects it to another stage. Delete
@@ -319,7 +423,7 @@
 		zoomOnPinch={interactive}
 		preventScrolling={interactive}
 		edgesFocusable={false}
-		connectionRadius={40}
+		connectionRadius={80}
 		proOptions={{ hideAttribution: true }}
 		ariaLabelConfig={{
 			'node.a11yDescription.default':
@@ -335,6 +439,7 @@
 		onedgeclick={({ edge }) => onselect(edge.target)}
 		onpaneclick={() => onselect(null)}
 		onconnect={connect}
+		onconnectend={connectEnd}
 		onnodedragstop={({ nodes: moved }) => {
 			let next = document;
 			for (const node of moved) {
@@ -357,16 +462,6 @@
 			patternColor="var(--color-grid)"
 		/>
 	</SvelteFlow>
-
-	{#if order.length === 0}
-		<div class="empty">
-			<p>
-				This blueprint has no stages. Work isn't done in a fixed order. Add a stage if work should
-				move from one step to the next.
-			</p>
-			<button type="button" onclick={addAStage}>Add a stage</button>
-		</div>
-	{/if}
 
 	{#if refusal}
 		<p class="refusal" role="status">{refusal}</p>
@@ -423,12 +518,12 @@
 		left: 0.75rem;
 		z-index: 5;
 		display: flex;
-		flex-wrap: wrap;
 		gap: 0.375rem;
 		pointer-events: none;
 	}
 
-	.toolbar > * {
+	.toolbar > *,
+	.zoom > * {
 		pointer-events: auto;
 	}
 
@@ -437,45 +532,91 @@
 	}
 
 	button {
-		min-height: 2.25rem;
-		padding: 0 0.75rem;
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0;
 		border: var(--border-hairline);
 		background: var(--color-surface);
-		color: var(--color-text);
+		color: var(--color-text-muted);
 		font: var(--text-ui);
 		cursor: pointer;
 	}
 
 	button:hover {
 		border-color: var(--color-text-faint);
+		color: var(--color-text);
 	}
 
-	.empty {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		place-content: center;
-		justify-items: center;
-		gap: 1rem;
-		padding: 3.5rem 1.5rem 1.5rem;
-		text-align: center;
-		pointer-events: none;
+	button:focus-visible {
+		outline: 1px solid var(--color-accent);
+		outline-offset: 1px;
 	}
 
-	.empty p {
-		max-width: 28rem;
-		color: var(--color-text-muted);
-	}
-
-	.empty button {
-		pointer-events: auto;
+	.add-stage {
+		width: 2.75rem;
+		height: 2.75rem;
+		box-shadow: 0 6px 20px rgb(0 0 0 / 0.55);
 		border-color: var(--color-accent);
+		border-radius: 50%;
+		color: var(--color-accent);
+	}
+
+	.add-stage:hover {
+		border-color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+		color: var(--color-text);
+	}
+
+	.zoom {
+		position: absolute;
+		bottom: 0.75rem;
+		left: 0.75rem;
+		z-index: 5;
+		display: grid;
+		grid-template-columns: repeat(2, 2.25rem);
+		gap: 1px;
+		border: var(--border-hairline);
+		background: var(--color-border);
+		box-shadow: 0 6px 20px rgb(0 0 0 / 0.55);
+	}
+
+	.zoom button {
+		border: 0;
+	}
+
+	.picture {
+		position: absolute;
+		top: 50%;
+		left: calc(50% - var(--covered) / 2);
+		width: min(46rem, calc(86% - var(--covered)));
+		height: auto;
+		max-height: 80%;
+		transform: translate(-50%, -50%);
+		pointer-events: none;
+		transition:
+			left var(--duration-slow) cubic-bezier(0.16, 1, 0.3, 1),
+			width var(--duration-slow) cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	/* The picture is drawn at twice its size or more; keep its words small. */
+	.picture :global(.d-label) {
+		font-size: 5px;
+	}
+
+	.picture :global(.d-edge),
+	.picture :global(.d-node),
+	.picture :global(.d-stage),
+	.picture :global(.d-arrow) {
+		vector-effect: non-scaling-stroke;
 	}
 
 	.refusal {
 		position: absolute;
 		bottom: 0.75rem;
-		left: 0.75rem;
+		left: 50%;
+		transform: translateX(-50%);
 		z-index: 5;
 		padding: 0.375rem 0.75rem;
 		border: 1px solid var(--color-accent);
@@ -514,11 +655,18 @@
 		gap: 0.375rem;
 	}
 
-	.choices button {
+	.choices button,
+	.connect .quiet {
+		display: block;
+		width: auto;
+		height: auto;
+		min-height: 2.25rem;
+		padding: 0 0.75rem;
+		color: var(--color-text);
 		text-align: left;
 	}
 
-	.quiet {
+	.connect .quiet {
 		justify-self: start;
 		border-color: transparent;
 		background: transparent;

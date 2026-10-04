@@ -27,19 +27,7 @@
 <div class="page">
 	<SiteHeader />
 	<main>
-		<section class="intro" aria-labelledby="blueprints-title">
-			<h1 id="blueprints-title">How does your team work?</h1>
-			<p>
-				A blueprint is the set of rules for a goal: who takes part, how work starts, and what counts
-				as done. A goal is shared work that follows one blueprint. Choose a way of working, adjust
-				it, then copy one prompt into your coding agent. Your agent adds the blueprint to the Locust
-				on your computer and asks you before publishing it.
-			</p>
-			<p class="note">
-				Needs Locust on your computer. <a href="/start">Not set up yet? Start here.</a>
-				<a href="/docs/next/blueprint-authoring">Read about blueprints in the manual.</a>
-			</p>
-		</section>
+		<h1 id="blueprints-title">How does your team work?</h1>
 
 		{#if Editor}
 			<Editor />
@@ -48,27 +36,44 @@
 		{:else}
 			<p class="note loading">Loading the editor…</p>
 			<noscript>
-				<p class="note">
-					The editor needs JavaScript. Without it, you can describe how your team works to your
-					coding agent, and it can write the blueprint with Locust.
-				</p>
+				<div class="intro">
+					<p>
+						A blueprint is the set of rules for a goal: who takes part, how work starts, and what
+						counts as done. This page lets you choose a way of working, adjust it, and copy one
+						prompt that adds it to the Locust on your computer.
+					</p>
+					<p>
+						The editor needs JavaScript. Without it, you can describe how your team works to your
+						coding agent, and it can write the blueprint with Locust.
+					</p>
+					<p class="note">
+						<a href="/start">Not set up yet? Start here.</a>
+						<a href="/docs/next/blueprint-authoring">Read about blueprints in the manual.</a>
+					</p>
+				</div>
 			</noscript>
 		{/if}
 	</main>
 </div>
 
 <style>
+	/* The editor fills the rest of the window, so the whole map is in view on a laptop. */
 	.page {
-		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		min-height: 100dvh;
 		padding: 0 var(--gutter-inline) var(--gutter-block-end);
 	}
 
 	main {
-		display: grid;
-		gap: 2rem;
-		max-width: 92rem;
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		gap: 1.25rem;
+		width: 100%;
+		max-width: 110rem;
 		margin: 0 auto;
-		padding-top: 2.5rem;
+		padding-top: 1.5rem;
 	}
 
 	.intro {
@@ -84,6 +89,7 @@
 	}
 
 	.intro p {
+		margin-bottom: 0.75rem;
 		color: var(--color-text-muted);
 		text-wrap: pretty;
 	}
