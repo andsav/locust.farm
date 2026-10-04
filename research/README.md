@@ -118,3 +118,4 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Operational qualification evidence](operational-qualification-evidence.json): retained structured results for the six operational cases.
 
 - [Local installation qualification](installation-qualification.md): trusted bootstrap, signed native install, upgrade, launchd lifecycle, failure/retry, data preservation and resource measurement harness.
+- [Installed-client qualification](installed-client-qualification.md): persistent skill/MCP discovery, native task/workspace execution, policy denials and cleanup through test-signed installed candidates.

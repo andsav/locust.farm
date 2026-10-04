@@ -30,8 +30,9 @@ def planned_call(step):
 
 
 class Provider:
-    def __init__(self, plan):
+    def __init__(self, plan, request_observer=None):
         self.plan = list(plan)
+        self.request_observer = request_observer
         self.index = 0
         self.requests = []
         self.backend_requests = []
@@ -87,6 +88,11 @@ class Provider:
                         self.backend("/<prefix>/count_tokens", 200, "scripted token count")
                         self.reply({"input_tokens": 32})
                         return
+                    # Optional qualification observer receives the request transiently.
+                    # It must retain only its own redacted/projection evidence, never
+                    # the complete prompt or model request body.
+                    if provider.request_observer is not None:
+                        provider.request_observer(body)
                     tools = body.get("tools", [])
                     names = [tool.get("name") or tool.get("function", {}).get("name") for tool in tools]
                     with provider.lock:
