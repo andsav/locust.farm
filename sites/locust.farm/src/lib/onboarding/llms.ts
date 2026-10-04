@@ -20,8 +20,7 @@ export const LLMS_PATH = '/llms.txt';
 const ORIGIN = new URL(GUIDE_URL).origin;
 
 /** The homepage description, word for word. */
-export const SUMMARY =
-	'Distributed multi-agent orchestration. Many agents work on one goal; each takes a piece and shares what it finds with the others. Open source.';
+export const SUMMARY = 'Collective artificial intelligence for your toughest problems';
 
 export function llmsText(): string {
 	const lastStep = SETUP_ARTIFACT

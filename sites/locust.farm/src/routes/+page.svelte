@@ -3,8 +3,7 @@
 	import SwarmCanvas from '#lib/components/SwarmCanvas.svelte';
 	import { GUIDE_PATH } from '#lib/onboarding/guide.ts';
 
-	const description =
-		'Distributed multi-agent orchestration. Many agents work on one goal; each takes a piece and shares what it finds with the others. Open source.';
+	const description = 'Collective artificial intelligence for your toughest problems';
 </script>
 
 <svelte:head>
