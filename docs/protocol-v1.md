@@ -1,8 +1,15 @@
 # Locust protocol contract, version 1
 
+**Replacement scope, 2026-10-04:** this document describes the pre-blueprint
+implementation. The [accepted greenfield constraint](organization-blueprints.md)
+requires replacing it without migrations, backward compatibility or dead code.
+Version-1 enum ordering and byte fixtures describe this contract only; they do
+not require dead variants, old decoders, retained binaries or a parallel engine
+in its replacement. Useful historical evidence remains labeled as such.
+
 Date: 2026-10-03. **Status: implemented protocol/API version 1, with source and local regression verification tracked in the [remediation record](../research/t1-remediation.md).** The types and encoding live in [locust-proto](../crates/locust-proto/src/lib.rs), authority and state projection in [locust-core](../crates/locust-core/src/lib.rs), persistence in [locust-store](../crates/locust-store/src/lib.rs), and CLI/transport assembly in [locust](../crates/locust/src/main.rs). The production MCP bridge and client lifecycle remain separate implementation work. Component checks do not close packaged, physical-machine or release gates.
 
-This revision accepts the changes motivated by the [independent T1 review](../research/t1-candidate-independent-review.md) and [assessment](../research/t1-candidate-review-response.md). `PROTOCOL_VERSION` (signed events, invitations and peer frames) and `API_VERSION` (the local socket) are both **1**. Version 0 is [archived](protocol-v0.md). Version-0 peers, tickets and local clients are explicitly refused. Homes containing version-0 events are refused with `unsupported_version` before schema migration, stored node-identity changes or garbage collection; exclusive WAL recovery may checkpoint physical pages. Daemon home preparation may create a missing owner credential before store preflight. No event migration is implemented. Preserve old binaries/homes and start fresh version-1 goals for new qualification.
+This revision accepts the changes motivated by the [independent T1 review](../research/t1-candidate-independent-review.md) and [assessment](../research/t1-candidate-review-response.md). `PROTOCOL_VERSION` (signed events, invitations and peer frames) and `API_VERSION` (the local socket) are both **1**. Version 0 is [archived](protocol-v0.md). Version-0 peers, tickets and local clients are explicitly refused. Homes containing version-0 events are refused with `unsupported_version` before schema migration, stored node-identity changes or garbage collection; exclusive WAL recovery may checkpoint physical pages. Daemon home preparation may create a missing owner credential before store preflight. No event migration is implemented. The former recommendation to retain old binaries/homes is superseded by the greenfield replacement requirement above.
 
 The cryptographic context strings containing `locust v0` below remain fixed domain identifiers. Version 1 changes the signed header version and resulting event identifiers/signatures, not those primitive domains or the sealed-object layout. [Golden vectors](../crates/locust-proto/src/vectors.rs) pin the new bytes and explicit version-0 rejection. Existing enum indices are preserved; new variants are appended. Crate ownership is in [workstreams](workstreams.md).
 

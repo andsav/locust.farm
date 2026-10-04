@@ -1,5 +1,13 @@
 # Crates and workstreams
 
+**Greenfield direction, 2026-10-04:** follow the
+[organization blueprints implementation plan](organization-blueprints-implementation-plan.md)
+and [AGENTS.md](../AGENTS.md). The owner requires no migrations, backward
+compatibility or dead code. Retain useful current components; replace and remove
+superseded implementations, APIs, fixtures and dependencies. Earlier contract
+stability/reuse guidance below describes the prior implementation and must not
+force legacy readers, enum tombstones, fallback modes or a second runtime.
+
 Date: 2026-10-03. **Current execution: T2 production-client campaigns and managed launch, recovery, ordinary-tool delivery and cancellation are implemented and locally exercised. The retained [production findings](../research/t2-production-qualification.md) distinguish passing paths from Droid failures and unrun account/approval/install gates. Operational workflows and packaging are next; owner-operated physical-machine and independent-account testing are deferred to final acceptance. See [managed sessions](managed-clients.md) and section 10 of the [implementation plan](implementation-plan.md).**
 
 **T1 baseline:** runtime remediation is implemented in `d253a07`; its identified
@@ -70,7 +78,7 @@ Lane A makes each integration commit that wires crates together, including the o
 
 ### Continuing lane B
 
-Read, in order: this document, the [version 1 contract](protocol-v1.md), sections 6 to 10 of the [implementation plan](implementation-plan.md), the [T2 implementation record](t2-workflow.md), the [hcom assessment](../research/hcom-dissection.md) and the client findings in the [independent review](../research/implementation-plan-independent-review.md). The work packages below retain their scope; existing transport, configuration, fixture-harness and skill implementations must be reused. Section 10 of the plan gives the current execution sequence.
+Read the [organization blueprint direction](organization-blueprints.md) and its [implementation plan](organization-blueprints-implementation-plan.md) first. Use the [version 1 contract](protocol-v1.md), [T2 implementation record](t2-workflow.md), [hcom assessment](../research/hcom-dissection.md) and client findings in the [independent review](../research/implementation-plan-independent-review.md) as source evidence. Reuse transport, configuration, harness and skill components only where they remain useful under the new model; remove superseded pieces. The organization-blueprint plan supplies the execution sequence.
 
 1. **Transport probe.** Two machines on separate networks connect with Iroh 1.3 at the pinned version; the direct and the forced-relay path are both observed; an alternate relay works; the default relay and address-lookup operator and what each observes are written down. Deliver in `locust-net` a framed link that carries `locust_proto::sync::SyncMessage` frames using `locust_proto::codec`, exposes the authenticated remote `EndpointId` of each link, and has an in-memory twin for tests. Evaluate the blob layer separately at pinned versions, including unauthorized fetch and push and crash durability. The transport decides nothing about membership: the daemon feeds received frames to the state machine and writes back what it returns.
 2. **Default-profile client qualification.** In isolated, default-configured profiles (never the owner's own, which are permissive), establish for Codex, Claude Code, Factory Droid and Pi: whether a registered stdio MCP server reaches a Unix socket under `$LOCUST_HOME`, which tool calls prompt, how a blocking wait behaves at each client's limits, what interruption and explicit resume look like, and which hooks deliver between tool calls. Run scripted-provider checks without real credentials where the selected client supports that path; real-account checks need the owner to sign in to those isolated profiles. Record client/version, effective permissions, provider/authentication mode and any missing capability separately in the [client matrix](release-evidence.md).

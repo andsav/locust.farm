@@ -24,6 +24,11 @@ in `research/`; do not leave their only copy in ignored `output/` or agent state
 
 ## Implementation and verification
 
+- Locust is greenfield: implement the current design directly, with no migrations,
+  backward-compatibility layers, legacy readers, or parallel old/new runtimes.
+- Remove superseded code, APIs, flags, dependencies, tests and documentation as
+  part of each completed replacement. Do not leave dead code or dormant fallback
+  paths. Adapt tests for still-required invariants to the current design.
 - Inspect Git status and relevant code before editing; preserve unrelated work.
 - Keep changes scoped. Prefer straightforward Rust and standard tooling.
 - Add dependencies or abstractions only when the current task needs them.

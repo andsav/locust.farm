@@ -3,7 +3,7 @@
 Date: 2026-10-04. **Status: accepted product direction and authoring requirements;
 not implemented.** The [implementation plan](organization-blueprints-implementation-plan.md)
 now sequences the runtime, agent authoring, Polaris, and complete public manual.
-The concrete schema, distributed decision semantics, and migration strategy
+The concrete schema and distributed decision semantics
 remain proposed choices with explicit decision gates. The current
 [protocol-1 coordinator behavior](protocol-v1.md) remains enforced until replaced.
 
@@ -15,6 +15,22 @@ protocol mechanism or example field name in that research or the conversation.
 The [public documentation plan](public-documentation-plan.md) specifies the full
 locust.farm manual required alongside implementation, including versioned human
 and agent references, tested tutorials, and publication verification.
+
+## Greenfield implementation constraint
+
+The owner explicitly selected a clean replacement on 2026-10-04: no migrations,
+backward compatibility, retained legacy runtime, or dead code. Implement the new
+contract directly and remove superseded code, interfaces, flags, dependencies,
+fixtures and active documentation in the same completed logical changes.
+Existing goals/data do not require conversion or continued runtime support.
+Initialize fresh state for the new design; unsupported formats must fail clearly
+before mutation rather than being interpreted through compatibility paths.
+
+Historical evidence can remain labeled in research or Git history. Definition
+revisions and evidence retention within the supported current model remain product
+features; neither requires retaining obsolete schema/protocol implementations.
+This is an accepted implementation requirement; code enforcement and removal
+checks are specified in the implementation plan and have not run yet.
 
 ## Accepted model
 
@@ -105,5 +121,6 @@ These are future acceptance criteria, not checks already run:
 
 The research's unresolved questions still need concrete answers: reservation and
 decision finality, membership/rule epochs, proof retention, default templates,
-protocol-1 compatibility, and the exact declarative schema. Acceptance of the
+and the exact declarative schema. Earlier compatibility/migration proposals are
+superseded by the greenfield constraint above. Acceptance of the
 product direction does not establish protocol correctness or runtime readiness.

@@ -7,7 +7,14 @@ not an implementation or a claim of qualification.** Baseline inspected:
 organization, easy agent authoring, and a Polaris visual editor over one contract.
 The [research](../research/organization-blueprints.md) supplies source mappings
 and alternatives. Recommendations in the decision register below are proposed
-implementation choices until resolved at their dependent package.
+implementation choices until resolved at their dependent package, except D3,
+which the owner resolved as a greenfield replacement.
+
+**Owner clarification, 2026-10-04:** no migrations, backward compatibility, or
+dead code. Replace the current implementation directly; remove superseded paths
+as their replacements land. Old goals, formats and runtimes have no continuity
+requirement. This supersedes every earlier migration/compatibility proposal in
+the linked plans and research.
 
 **Full scope includes public documentation on locust.farm.** The companion
 [public documentation plan](public-documentation-plan.md) specifies the complete
@@ -43,8 +50,8 @@ The complete delivery includes:
   results; explicit completion and optional output selection.
 - Agent-friendly CLI/MCP/skill flows and honest information about available
   actions, pending evidence, local permissions, and disconnected peers.
-- Workspace and managed-client integration, upgrade/recovery tools, and a
-  deliberate path for existing protocol-1 goals.
+- Workspace and managed-client integration, fresh-state installation and recovery
+  for the current model, with all superseded implementation paths removed.
 - Polaris authoring and goal inspection with scoped credentials and the same
   contract/validator as Locust.
 - A complete, versioned public manual and a working agent-readable entry path
@@ -100,26 +107,27 @@ provide. Inspect status and relevant diffs again at each implementation package.
 Resolve each decision before its dependent work, without blocking independent
 schema, documentation, or fixture work. Record decisions in the accepted-direction
 document or a linked protocol contract. Do not substitute a silent implementation
-choice for a product-visible change in authority or compatibility.
+choice for a product-visible change in authority. The greenfield decision is
+settled and does not need another approval.
 
 | ID | Recommended choice | Resolve before |
 | --- | --- | --- |
 | D1 — Definition language | Typed declarative JSON contract; offer YAML as a restricted authoring representation if its parser round-trip/diagnostic prototype passes. One normalized semantic representation. No arbitrary scripts or model calls in evaluation | O1 schema freeze |
 | D2 — Organization/governance | Separate administration, work organization, evaluation, and local execution. Initially one explicit membership/rule administrator; it does not approve each work event. Open collaboration is the proposed default | O0 transcript acceptance, O3 |
-| D3 — Existing goals | Baseline proposal: side-by-side protocol-1 and protocol-2 homes/runtimes plus explicit export/import of selected artifacts into new goals. Preserve old homes, identities, services, and binaries. No automatic rewrite or cloning of private identities. If one-daemon mixed-version continuity is required, design/version that path before O2; do not imply a constant bump supports it | O2 compatibility implementation |
+| D3 — Greenfield replacement (resolved) | No migrations, backward compatibility, old-format readers, parallel runtimes or dead code. Initialize current state directly; remove superseded implementation and fixtures; refuse unsupported formats without interpreting/converting them | Enforce in every package, especially O2/O8 |
 | D4 — Completion/finality | Positive review evidence can satisfy a non-exclusive completion condition without a central finalizer. Exactly-one selection and authoritative closure use a named scope-specific decision authority initially. Threshold approval does not imply threshold consensus on one winner | O0 model, O5 |
 | D5 — Exclusive reservations | Optional named task-scoped single-writer reservation authority, with durable generations and explicit release/replacement; new exclusive claims wait when it is unreachable. Independent attempts remain available when the blueprint allows them. No clock-only reassignment | O5 reservation implementation |
-| D6 — Rule revisions | Pin definition, bindings, and completion context for active work. Amend future defaults explicitly under current authority; migrate/reopen existing work through an explicit transition, never reinterpret past signatures | O1/O3/O6 |
+| D6 — Rule revisions | Pin definition, bindings, and completion context for active work. Amend future defaults explicitly under current authority; revise/reopen work through an explicit current-model transition, never reinterpret past signatures. No old-format conversion | O1/O3/O6 |
 | D7 — Sharing | Initial goal membership remains the read boundary. Topics/roles organize attention but do not grant confidentiality. Different membership means a separate goal with explicit shared inputs | O3/O6 and public privacy docs |
 | D8 — Editor authority | Local private draft ownership and scoped authoring credentials. Polaris retains credentials in native Rust and uses Locust APIs; viewers remain read-only. Publishing a definition is distinct from creating/changing a goal | O7/O10 |
 | D9 — Public documentation | One canonical manual, versioned release snapshots, generated contract references, checked examples, and distinct released/development views. Implementation detail in [site plan](public-documentation-plan.md) | O9a |
 | D10 — Qualification/release | Keep the four-client baseline. Preserve the current Linux build-only boundary until explicitly expanded. Select actual model/account/spend inputs for paid tests and public hosting/signing inputs before executing those campaigns | O11/O12 |
 
-D3 is a real product choice, not a small migration detail. The baseline protects
-old data but creates new goal/principal identities and requires invitations and
-authorization to be re-established. If that interruption is unacceptable, budget
-dual-version decoding, dispatch, handshake routing, and store preflight explicitly.
-Neither strategy is implemented by this plan.
+D3 removes the former side-by-side and mixed-version options from scope. Version
+markers identify supported formats and permit clear rejection; they do not imply
+decoders, negotiation fallbacks or conversion for older formats. Current-model
+crash recovery, durable evidence, definition revisions and repeat installation
+remain required. Rejecting unsupported local state does not silently delete it.
 
 ## 4. Target contracts
 
@@ -266,23 +274,23 @@ not claims that new CLI commands or modules already exist.
 | --- | --- | --- | --- |
 | O0 | Semantic decisions, golden scenarios, protocol/model obligations | Accepted direction | Protocol/integration |
 | O1 | Definition types, canonicalization, schema, pure validator/explainer | O0 vocabulary; D1 | Contract/core |
-| O2 | Version strategy, persistence, local draft/published catalog | O1; D3 | Storage/integration |
+| O2 | Current storage schema, local draft/published catalog, obsolete-path removal | O1; resolved D3 | Storage/integration |
 | O3 | New governance references, admission, typed content and peer validation | O0/O1/O2 | Protocol/core/network |
 | O4 | Open contributions, tasks, independent attempts, local execution bindings | O3 | Core/clients |
 | O5 | Completion/reviews, selections, exclusive reservation | O0/O4; D4/D5 | Core/protocol |
 | O6 | Task variations, dependencies, handoff, deduplicated flow | O4/O5; D6/D7 | Core/integration |
 | O7 | Agent authoring and operating CLI/MCP/skill | O1/O2 early; O3–O6 integration | Agent experience |
-| O8 | Workspace, managed clients, installed packages, transition tooling | O4–O7 | Runtime/release |
+| O8 | Workspace, managed clients, installed packages, integration cleanup | O4–O7 | Runtime/release |
 | O9a | Documentation content/build/navigation infrastructure | O1 contracts; D9 | Site/docs |
 | O9b | Complete manual, generated reference and tested tutorials | O3–O8; O9a; O10 for Polaris pages | Site/docs with feature owners |
 | O10 | Polaris native adapter and visual authoring/inspection | O1/O2/O7 stable API; runtime for live flows | Polaris/Merak |
 | O11 | Integrated deterministic, real-client, multi-machine qualification | O3–O10 incrementally | Integration/qualification |
-| O12 | Release/transition readiness, public site and artifact verification | O8/O9b/O11; D10 | Release/site |
+| O12 | Release readiness, public site and artifact verification | O8/O9b/O11; D10 | Release/site |
 
 ```mermaid
 flowchart TD
     O0[O0 semantics and scenarios] --> O1[O1 contract and validator]
-    O1 --> O2[O2 catalog and compatibility]
+    O1 --> O2[O2 catalog and current storage]
     O2 --> O3[O3 protocol and governance]
     O3 --> O4[O4 open work and attempts]
     O4 --> O5[O5 decisions and reservations]
@@ -310,7 +318,8 @@ Avoid parallel edits to shared contract registries without an integration owner.
 ### O0 — Specify the semantics with executable examples
 
 1. Resolve the register entries needed for the first signed contract, particularly
-   D2–D6. Record a new protocol contract and retain protocol 1 unchanged as history.
+   D2 and D4–D6; D3 is resolved. Record the current protocol contract and mark old
+   contracts as historical evidence, with no obligation to keep their runtime.
 2. Write plaintext stories and fixture transcripts for every arrangement in
    section 4.4, plus one goal mixing open research, reviewed coding, and competing
    benchmarks. Include a no-task contribution and a human/external contribution.
@@ -318,10 +327,12 @@ Avoid parallel edits to shared contract registries without an integration owner.
    outcomes before implementing their event shapes. Document availability/trust
    assumptions for the optional reservation and decision authorities.
 4. Extend the existing TLA+ work with models for governance/work separation,
-   completion evidence, and reservation/session interaction. Preserve old models
-   and identify bounds, omitted behaviors, and source mappings.
-5. Define exact compatibility and local-service transition expectations. No
-   destructive home migration or user-service replacement is implied by setup.
+   completion evidence, and reservation/session interaction. Replace superseded
+   executable models and fixtures; retain useful findings as labeled historical
+   evidence with source commits. Identify bounds, omissions and source mappings.
+5. Inventory code, APIs, CLI flags, schemas, fixtures and dependencies made obsolete
+   by the new contract, assign each removal to its replacing package, and define
+   fresh-state setup plus clear unsupported-format refusal. No conversion path.
 
 **Exit:** reviewed state-transition tables and scenario expectations; every
 exclusive/finalizing operation names its conflict rule; finite models cover the
@@ -358,7 +369,7 @@ produce identical semantic hashes; layout changes preserve those hashes; generat
 contract drift fails CI; completion explanations identify which facts would satisfy a task.
 Offline validation needs no daemon, model account, or network.
 
-### O2 — Persist drafts/definitions and implement compatibility boundaries
+### O2 — Persist drafts/definitions in the current schema
 
 Source owners: [store schema](../crates/locust-store/src/schema.rs),
 [store preflight](../crates/locust-store/src/connection.rs),
@@ -368,25 +379,24 @@ Source owners: [store schema](../crates/locust-store/src/schema.rs),
 1. Add principal-owned draft catalog records with compare-and-swap revisions;
    give presentation its own revision. Preserve both drafts on a conflict.
 2. Store immutable published definitions and dependency closure by hash. Make
-   publish idempotent and retain versions referenced by active or historical goals.
-3. Version local-record envelopes as well as SQL migrations; define crash/reopen,
-   forward-version refusal, and recovery behavior before changing stored layouts.
-4. Implement D3's protocol distinction in storage preflight, event/invitation
-   codecs, local hello, network hello/framing, and diagnostics. Preserve exact
-   signed version-1 bytes; do not deserialize then resign them as new decisions.
-5. For the baseline side-by-side strategy, make a reviewed transition plan with
-   distinct home/prefix/service/profile ownership. Export selected artifacts plus
-   provenance; create new identities/goals only explicitly. Historical approvals,
-   grants, and membership are not portable permissions.
-6. Pin and retain a usable protocol-1 runtime when required for old goals. Refuse
-   accidental version-2 open/migration of the old home before logical mutation.
-   A restore must use the correct runtime, not downgrade a newly written store.
+   publish idempotent and retain definitions referenced by active or historical
+   goals within the current contract.
+3. Define the current local-record encoding and direct SQL schema initialization.
+   Remove historical upgrade steps and old record decoders; test crash/reopen and
+   recovery for this schema. Existing schema numbers do not create a migration API.
+4. Use one current contract through event/invitation codecs, local hello, network
+   hello/framing and diagnostics. Reject unsupported markers before decoding or
+   mutating state. Do not add old-goal dispatch, fallback codecs or conversion.
+5. Initialize fresh goals, principals and grants through current setup. Remove
+   v1 transition/import tooling from scope; normal sharing within the current
+   model remains supported.
+6. Delete superseded persistence/codecs/tests/dependencies with their replacements.
+   Keep regression coverage for current invariants, using current-model fixtures.
 
-**Exit:** concurrent edits, interrupted publish, crash after durable commit, newer
-schema refusal, and v1/v2 mismatch tests pass. The documented transition and
-rollback paths preserve the original usable home; no silent reset or credential
-cloning occurs. If D3 selects mixed-version operation, add per-goal dispatch and
-live old-peer coexistence tests before calling O2 complete.
+**Exit:** concurrent edits, interrupted publish, durable-commit recovery, fresh
+schema initialization and unsupported-format refusal tests pass. Only the current
+schema/codec path remains. No converter, old reader, parallel runtime or dormant
+compatibility switch is retained; rejected state is not silently overwritten.
 
 ### O3 — Separate governance from work validation
 
@@ -479,7 +489,7 @@ Proof-based non-exclusive completion works without a hidden central finalizer.
    parallel work and collection, and explicit mapping into child task definitions.
 4. Add durable logical-effect deduplication and retry/authority rules for
    materialized work/review requests. Avoid generating work repeatedly on replay.
-5. Implement explicit future-default amendment and active-work migration/reopen
+5. Implement explicit future-default amendment and active-work revision/reopen
    paths where supported. Preserve historical rule identity and finalized records.
 6. Keep different-member subgoals separate, with deliberate exported inputs and
    returned outputs. Do not leak all parent context through nesting.
@@ -553,15 +563,15 @@ Source owners: [workspace CLI](../crates/locust/src/cli/workspace.rs),
    managed-client recovery for independent attempts and scoped decisions. Do not
    label a delivered offer as running or a cancellation request as stopped.
 4. Carry the new schema/skill/capability version through Codex, Claude Code, Pi,
-   and Factory Droid enrollment. Preserve existing profile/configuration ownership,
-   approval policy, principals and grants except where D3 explicitly creates a
-   new protocol-2 profile. Never widen permissions to make a demonstration pass.
-5. Implement the reviewed v1 transition/export journey and recovery commands from
-   O2. Preview selected content, destination, changed identities, and required new
-   invitations/grants. A failed import leaves the original usable.
+   and Factory Droid enrollment. Preserve unrelated client configuration and
+   approval policy. Create current-model profiles/principals/grants directly;
+   never widen permissions to make a demonstration pass.
+5. Remove old assignment-only workspace routes, obsolete API/MCP operations and
+   flags, adapter fallbacks, fixtures and dependencies as their replacements land.
+   Keep coordinator behavior through the new primitives, with no retained v1 engine.
 6. Version and package all required offline authoring material. If adding payload
    files to the current strict package format, update builder, manifest/signature,
-   verifier, activation, upgrade and removal together. Prove discovery after
+   verifier, activation, repeat installation and removal together. Prove discovery after
    installation without a checkout or development environment.
 7. Reconcile the organization-sensitive W4–W9 items in the
    [last-mile plan](last-mile-implementation-plan.md) with this model. Preserve its
@@ -572,8 +582,8 @@ Source owners: [workspace CLI](../crates/locust/src/cli/workspace.rs),
 **Exit:** an installed candidate completes a reviewed coding task through actual
 CLI/MCP/native-client boundaries; an open artifact can be shared with no task;
 restart and uncertain replies preserve claims, submissions and application
-receipts. Old protocol-1 homes remain usable by their retained runtime. Packaging,
-local execution and public-download claims have separate evidence.
+receipts. Only current-contract integration paths remain. Packaging, local
+execution and public-download claims have separate evidence.
 
 ### O9a/O9b — Deliver the complete manual on locust.farm
 
@@ -597,7 +607,7 @@ Development content must show its version/status. A labeled stub does not satisf
 the complete-manual gate.
 
 **Exit:** humans and agents can discover, install, author, collaborate, review,
-apply, upgrade and recover using only the appropriate version's public manual.
+apply, reinstall and recover using only the current contract's public manual.
 Commands/examples are validated against that version. All required pages exist,
 site checks and accessibility/navigation tests pass, and release artifacts include
 the matching manual snapshot. O12 proves actual public availability.
@@ -674,15 +684,16 @@ machine and public-download results remain separately identified.
 
 ### O12 — Publish a coherent release and verify it live
 
-1. Review remaining D3/D10 choices, supported capabilities, evidence ledger, known
-   limitations, v1 transition, artifact origin/signing, hosting and rollback. A
+1. Review remaining D10 choices, supported capabilities, evidence ledger, known
+   limitations, obsolete-code removal, artifact origin/signing and hosting. A
    proposed plan is not authorization to publish software or modify a public site.
 2. Build software, operating skill, schemas/examples, references and immutable
    documentation snapshot from the identified committed candidate. Record their
    hashes and version relationship. Separate source builds from signed artifacts.
-3. Rehearse installation/upgrade and docs/site deployment in disposable/preview
-   environments. Keep the old docs snapshot and compatible runtime accessible;
-   test the rollback route without writing older software over newer state.
+3. Rehearse fresh and repeat installation, current-service recovery, and docs/site
+   deployment in disposable/preview environments. Website rollback must not
+   imply runtime/data downgrades or maintaining old binaries. Retain historical
+   evidence separately from active product instructions.
 4. Once publication is authorized, upload the exact verified artifacts, deploy
    the site, and switch the current documentation/support pointers only after
    their targets exist. Follow the concrete deployment checklist in the site plan.
@@ -702,12 +713,19 @@ existing [workstream rules](workstreams.md) for shared contracts, cross-review a
 commit ownership. Work in small verified logical commits; preserve unrelated work
 and avoid changing another lane's contract without coordination.
 
+Each completed replacement removes the code and public surface it supersedes.
+The O0 removal inventory must be empty before release: obsolete variants, aliases,
+fallbacks, feature flags, unused dependencies, old schema/model fixtures and
+misleading active docs are deleted. The Coordinator preset uses the same new
+evaluator as other arrangements. Do not preserve a second engine behind it or
+keep dead enum positions just to preserve old serialization.
+
 | Milestone | Reviewable delivery | Gate |
 | --- | --- | --- |
-| M0 — Contract ready | State tables, compatibility choice, JSON/YAML decision, fixtures, typed schema and validator | O0/O1; implementation blockers resolved for the first slice |
+| M0 — Contract ready | State tables, greenfield removal inventory, JSON/YAML decision, fixtures, typed schema and validator | O0/O1; implementation blockers resolved for the first slice |
 | M1 — Open collaboration | New-version admission/content/proofs, no-task findings, independent attempts, first installed agent flow | O2–O4 plus minimal O7/O8; administrator-offline scenario |
 | M2 — Selectable organization | All arrangements, explicit completion, reservations/selection where configured, composition and contextual actions | O5–O7 and mixed-goal tests |
-| M3 — Standalone candidate | Full workspace/install/transition flow, four-client qualification, full standalone public manual in preview | O8, standalone pages of O9b, standalone portion of O11 |
+| M3 — Standalone candidate | Full workspace/fresh-install/recovery flow, four-client qualification, full standalone public manual in preview | O8, standalone pages of O9b, standalone portion of O11 |
 | M4 — Polaris candidate | Native adapter and complete visual/agent round trip, matching editor manual | O10 and remaining O11 |
 | M5 — Complete release | Matching public artifacts, full manual, supported-platform evidence and verified live journey | O12; all definition-of-done items |
 
@@ -742,12 +760,13 @@ These are tests to implement/run, not results already established by this plan.
 | V12 | Replaced local session cannot submit on its old generation; distributed reservation does not assert the old process physically stopped | O4/O8 |
 | V13 | Template save/publish does not launch work or change pinned instances; concurrent draft edits preserve work and give a revision conflict | O2/O7 |
 | V14 | Agent/visual/source round trips preserve semantics; layout edits preserve semantic hash; stale validations and publish races cannot select wrong source | O7/O10 |
-| V15 | Unknown schema/capability and protocol mismatch yield actionable refusal; source is preserved; old home remains usable with the correct runtime | O1/O2/O8 |
+| V15 | Fresh state initializes directly; current state reopens after restart; unsupported schema/protocol markers fail clearly before mutation, with no old decoder or conversion | O1/O2/O8 |
 | V16 | Reviewed and owner-selected open/taskless contributions both support explicit local application against the intended base/checkout; the open case needs no goal-wide accepted head; dirty state, conflicts and retry preserve work | O8 |
 | V17 | Installed CLI/MCP discover schema, examples and skill without repository files; all four clients complete the current required journey | O7/O8/O11 |
 | V18 | Two-machine transport, reconnect and restart converge with identified evidence; no live/remote claim derives solely from local fixtures | O11 |
 | V19 | Every documentation example validates; required routes/anchors/raw assets work; version support claims match release evidence; tutorials actually execute | O9/O11 |
-| V20 | Independent public download and deployed manual match recorded hashes/versions; fresh setup and rollback instructions match shipped behavior | O12 |
+| V20 | Independent public download and deployed manual match recorded hashes/versions; fresh setup and website rollback match shipped behavior without an old-runtime support promise | O12 |
+| V21 | Removal inventory is empty: no superseded code/API/CLI/MCP path, compatibility flag/alias, unused dependency, old-format executable fixture, or stale active documentation remains | Every replacement; O11/O12 |
 
 Use the pinned Rust toolchain and run `cargo fmt --all --check`,
 `cargo clippy --locked --workspace --all-targets -- -D warnings`, and
@@ -790,7 +809,7 @@ buttons. Source/visual parity does not require shipping every Merak graph featur
 | --- | --- |
 | Completion accidentally becomes universal coordinator acceptance | Require V01/V03/V07 early; separate candidate approval, scoped selection and local application |
 | New fold loses current fork-proof guarantees | Specify evidence/authority rules in O0; extend typed proof retention and adversarial replay tests before O5 |
-| Existing v1 data cannot open after upgrade | Resolve D3 before store writes; retain original home/runtime and test transition/rollback |
+| Obsolete implementation survives behind the new design | Enforce resolved D3 and V21; remove old paths with replacements; use fresh state and explicit unsupported-format refusal |
 | Single-writer reservation mistaken for distributed consensus | Expose named dependency and unavailable/fork states; make independent attempts explicit |
 | Rules appear to grant execution or confidential topic access | Enforce local grants separately and document goal membership as read boundary |
 | Agent, UI and website diverge | One types/validator/export pipeline and checked fixtures; fail drift checks |
@@ -800,8 +819,9 @@ buttons. Source/visual parity does not require shipping every Merak graph featur
 
 The accepted product model is sufficient to begin O0 and prototype O1/O9a.
 It is not sufficient to freeze the signed protocol or promise a release date.
-The blocking design decisions are D2–D6's exact authority, evidence, revision and
-compatibility rules. Language/representation, editor credentials, public build and
+The blocking design decisions are D2 and D4–D6's exact authority, evidence and revision
+rules. D3 is settled: greenfield, no migrations/backward compatibility/dead code.
+Language/representation, editor credentials, public build and
 qualification inputs have their own later gates. Prototype reversible work while
 those decisions are made; do not declare a placeholder implementation complete.
 
@@ -810,7 +830,8 @@ those decisions are made; do not declare a placeholder implementation complete.
 The project is complete when all six arrangements plus the mixed scenario work;
 no-task collaboration and human participation are first-class; authority and
 evidence are enforced at every ingress; completion/selection/application remain
-distinct; compatibility/recovery are tested; four-client standalone use and the
+distinct; fresh initialization/recovery are tested; superseded code and active
+documentation are removed; four-client standalone use and the
 Polaris round trip have the stated evidence; and the full matching public manual
 and software have passed independent publication checks.
 
@@ -820,7 +841,8 @@ and qualification boundary. A merged implementation and a passed release gate
 are different facts. Store useful findings in tracked `research/` with its index;
 accepted behavior and enforcing code/test links belong in `docs/`.
 
-**Status at creation:** O0–O12 and V01–V20 are planned. This document records a
-code-backed implementation sequence and future verification obligations only.
+**Current status:** O0–O12 and V01–V21 are planned; D3 is resolved by the owner.
+This document records a code-backed implementation sequence and future
+verification obligations only.
 No organization-blueprint runtime, Polaris connector, site manual or public
 release is implemented or qualified by the documentation change itself.

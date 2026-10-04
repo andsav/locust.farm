@@ -8,6 +8,11 @@ historical qualification below remain documented for that version. Future work m
 support selectable organization, agent/Polaris authoring, and the
 [complete public manual](public-documentation-plan.md).
 
+**Greenfield constraint, 2026-10-04:** the owner requires no migrations, backward
+compatibility or dead code. This supersedes all older continuity/upgrade proposals
+below. Build one current implementation, initialize fresh state and remove obsolete
+paths as replacements land. Historical qualification remains evidence only.
+
 Updated: 2026-10-04. **Current execution: operational workflows, native macOS installation/upgrade/services and the installed Codex/Claude/Pi experience have retained local results against identified source `5bb254d`. Managed lifecycle and recovery were refreshed against the same installed artifact. Linux x86_64 has a completed cross-build; runtime testing is outside the owner's current build-only scope. Physical-machine, sleep/wake, interactive approval and independent-account acceptance stay at the end, when the owner is available. Production signing and publication remain deferred. See [installation](installation.md), [installed-client findings](../research/installed-client-qualification.md) and section 10.**
 
 **Prior T1 checkpoint:** persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. The physical-machine qualification uses the owner's two available Macs. The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass remains a separate qualification activity; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.
@@ -305,7 +310,7 @@ The installer must:
 6. Run `doctor` and a harmless real API roundtrip through the invoking client's intended CLI/MCP path. Check binary/API/skill compatibility and actual tool usability; report denied setup or pending reload accurately.
 7. Report separately: binary installed, daemon running, skill discoverable in this/new session, and participation ready. Installation alone neither enrolls in a remote goal nor exports local files.
 
-The prompt should be short and stable; the installer implements the actual work. Publish a manual installation path using the same artifacts. Support repeat installation, interrupted-install recovery, upgrade and uninstall. Preserve identity and goal data across normal upgrades; uninstall distinguishes removing software from an explicit data purge. Schema migrations require a recoverable pre-migration state; rollback must not reuse an older binary against an incompatible migrated database or resume signing from an old frontier after newer events were issued. Each participant authenticates their own coding client; the Locust daemon does not receive or distribute provider/account credentials. Record authentication mode, never secrets, in qualification evidence.
+The prompt should be short and stable; the installer implements the actual work. Publish a manual installation path using the same artifacts. Support fresh and repeat installation, interrupted-install recovery and uninstall for the current contract. Refuse unsupported state before mutation; no schema conversion or old runtime is maintained. Uninstall distinguishes removing software from an explicit data purge. Current-model recovery must not resume signing from an old frontier after newer events were issued. Each participant authenticates their own coding client; the Locust daemon does not receive or distribute provider/account credentials. Record authentication mode, never secrets, in qualification evidence.
 
 Test client reload requirements instead of claiming they are uniform. Current references include [Claude Code skill loading](https://code.claude.com/docs/en/skills#edit-a-skill-during-a-session) and [Cursor skills](https://cursor.com/docs/skills). Verify each supported client's exact version and paths during implementation. A newly installed CLI can be usable immediately even if native skill/tool discovery requires a reload.
 
@@ -362,7 +367,7 @@ These are execution priorities, not passing records. The two-Mac first pass repl
 
 ### M1 — Durable local daemon, CLI and stdio bridge
 
-**Interface dependency:** M0 event/API contracts. **Deliverables:** daemon lifecycle, local authenticated IPC, identity/client enrollment, SQLite migrations, durable event append, deterministic projections, recoverable outbound intent, CLI query/doctor operations and thin stdio MCP bridge. Expose the path early for the agent-workflow stream. Start installer/skill/MCP configuration against development artifacts without representing them as a public release.
+**Interface dependency:** M0 event/API contracts. **Deliverables:** daemon lifecycle, local authenticated IPC, identity/client enrollment, direct current-schema initialization, durable event append, deterministic projections, recoverable outbound intent, CLI query/doctor operations and thin stdio MCP bridge. Expose the path early for the agent-workflow stream. Start installer/skill/MCP configuration against development artifacts without representing them as a public release.
 
 **Exit evidence:** local CLI and MCP roundtrips work; unauthorized/missing credentials and wrong-goal operations are rejected; request-digest idempotency works; state and recoverable outbound intent commit together; restart rebuilds the same projection without duplicate application; cursors cannot lose work; process shutdown/concurrent startup and restored-state signing restrictions behave correctly. Crash-inject before/after durable acknowledgments. Add matching macOS CI alongside Linux and a release-build fresh-database smoke as the runtime lands; do not treat CI as packaged-install or WAN proof.
 
@@ -392,7 +397,7 @@ Connect the client adapters to this same task flow: persist attempt/session mapp
 
 **Begins:** with the initial command/install contract and development artifacts. **Public qualification depends on:** integrated M1–M4. **Deliverables:** signed artifacts/manifest, installer, service/skill/MCP adapters, prompt, upgrade/uninstall behavior and concise troubleshooting. Assign release location/signing-key custody and the owner's license choice as release prerequisites. Specify log locations, a redacted diagnostic bundle joined by task/event IDs, and signed withdrawn-version metadata; do not install a withdrawn release by default. Website release information must refer to real artifacts.
 
-**Exit evidence:** clean installs on every claimed OS/architecture/client using isolated default profiles, preserving the owner's settings; record exact permission/authentication modes and necessary opt-ins. Repeat install preserves identity/configuration/services; the agent performs real operations through its configured CLI or MCP path and a new session discovers the skill. Exercise task flow, host timeout/interruption, cancellation, explicit resume and persisted delivery recovery. Qualify Locust-managed launch/session behavior separately from existing-session CLI/MCP use, and record active-session hook results per client/profile and automatic-wake results only for Merak. Test denied permissions, reload, interrupted installation, failed service start, restore-safe migration and uninstall preservation, including Locust-owned hook/configuration artifacts without deleting unrelated settings. Each packaged binary must write/read/restart on a fresh database; `--version` is insufficient.
+**Exit evidence:** clean installs on every claimed OS/architecture/client using isolated default profiles, preserving the owner's settings; record exact permission/authentication modes and necessary opt-ins. Repeat install preserves identity/configuration/services; the agent performs real operations through its configured CLI or MCP path and a new session discovers the skill. Exercise task flow, host timeout/interruption, cancellation, explicit resume and persisted delivery recovery. Qualify Locust-managed launch/session behavior separately from existing-session CLI/MCP use, and record active-session hook results per client/profile and automatic-wake results only for Merak. Test denied permissions, reload, interrupted installation, failed service start, current-format crash recovery and uninstall preservation, including Locust-owned hook/configuration artifacts without deleting unrelated settings. Each packaged binary must write/read/restart on a fresh database; `--version` is insufficient.
 
 Do not advertise “any coding agent” from one successful install. Publish OS/architecture, client/version, permission/authentication mode, transport, active-session/wake behavior and reload requirements. Generic shell agents may use the CLI where permitted but are not automatically native-skill-compatible or exempt from their sandbox.
 
@@ -443,7 +448,7 @@ Build tests around invariants and boundary failures, not copies of implementatio
 | Gossip and DHT are replaceable hints | Missed gossip, expired discovery records, bootstrap unavailable | M0/M2 |
 | Replication retains usable objects | Original source offline; all peers restart; interrupted transfer | M2 |
 | Workspace integration preserves local ownership | Out-of-scope export, unsafe types/path escapes, Git filters, dirty checkout and accepted-but-not-integrated recovery | M4 |
-| Packaged runtime actually works | Fresh install/database, repeat install, migration and service restart | M5 |
+| Packaged runtime actually works | Fresh install/database, repeat install, current-schema recovery, unsupported-format refusal and service restart | M5 |
 | Agent integration actually works | Default-profile roundtrip through the configured CLI or MCP path, skill discovery, interrupted wait, explicit resume, machine sleep/recovery and durable work recovery | M1/M5/M6 |
 
 Keep unit/state-machine tests deterministic and exercise delayed, reordered, partitioned and clock-skewed inputs through a small controllable harness. Add real database crash tests as storage lands. Automate two-peer tests and use three local daemon instances where coordinator outage/revoked-author ancestry requires them; a third physical laptop is unnecessary. Run separate-network and actual coding-agent tests as soon as their paths exist. A new simulation framework is not a prerequisite. Link commands/raw evidence in the ledger; intermittent failures remain failures to investigate and are not erased by a rerun.
@@ -515,8 +520,9 @@ and Pi. This changes work order, not the evidence already recorded.
    [local prompt](install-prompt.md) composes reviewed software, service and
    profile operations. The [Linux cross-build](../research/linux-installation-qualification.md)
    passed; the owner chose to skip Linux runtime qualification for this scope.
-   Schema migration, production trust and physical-machine acceptance remain
-   separate. CI declarations do not establish a hosted run. Apache-2.0 is
+   Schema migration is excluded by the later greenfield decision; production
+   trust and physical-machine acceptance remain separate. CI declarations do not
+   establish a hosted run. Apache-2.0 is
    selected; signing custody and public origin remain owner choices.
 6. **Prioritized local installed experience exercised.** Actual Codex 0.153.4,
    Claude Code 2.1.280 and Pi 1.0.1 passed persistent skill metadata discovery,

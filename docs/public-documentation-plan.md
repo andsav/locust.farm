@@ -13,6 +13,14 @@ public release and live verification. Documentation grows alongside the runtime
 packages. A few blueprint pages, a generated API table, or a collection of
 placeholders does not complete this workstream.
 
+**Greenfield constraint:** the delivered product supports one current contract.
+Do not build migration guides, compatibility layers, old-schema readers,
+side-by-side runtimes, or legacy-support matrices. Use fresh state for the new
+implementation and reject unsupported input explicitly. Updating this plan
+does not delete or reset any existing local state. Historical evidence and
+immutable documentation artifacts may remain as labeled records; their retention
+does not promise that the current runtime supports their formats or behavior.
+
 ## 1. Outcome and evidence boundaries
 
 A person arriving at locust.farm can understand what Locust does, find the route
@@ -70,9 +78,11 @@ claims. Public distribution remains deferred; local qualification must not be
 turned into a public installation promise.
 
 The accepted [organization direction](organization-blueprints.md) is also
-explicitly unimplemented. Until its runtime packages land, current coordinator
-restrictions remain part of protocol-1 documentation. New blueprint examples
-belong to a visibly identified development version until they run.
+explicitly unimplemented. The inspected coordinator runtime is starting-point
+evidence, not a legacy system to support alongside the replacement. New blueprint
+examples belong to visibly identified development documentation until they run.
+At cutover, remove superseded operating instructions, examples, reference exports,
+and routes from the current manual rather than carrying both designs forward.
 
 ## 3. Canonical content and ownership
 
@@ -93,8 +103,9 @@ Each public article has one canonical prose source. A page may explain a
 protocol decision in user terms and link its engineering rationale, but must
 not maintain a second copy of the same installation sequence or reference table.
 If an existing document becomes the public source, move it deliberately and
-retain an index or redirect note at its old location; do not silently break
-repository links.
+update its incoming links and indexes. Remove obsolete pages and routes instead
+of keeping redirect stubs or parallel instructions solely to preserve legacy
+behavior. Historical findings belong in clearly identified evidence records.
 
 The existing checker recursively examines tracked Markdown under `docs/` and
 requires every document to be indexed once in the root `docs/README.md`.
@@ -145,7 +156,7 @@ Use these proposed public addresses:
 
 | Route | Purpose |
 | --- | --- |
-| `/docs` | Documentation landing page, current publication state, available versions, and entry paths |
+| `/docs` | Documentation landing page, current publication state and supported entry paths; separate links to historical records if retained |
 | `/docs/next/<slug>` | Development manual tied to an identified source commit and visibly labeled unreleased |
 | `/docs/versions/<release>/<slug>` | Immutable manual artifact for an exact software release |
 | `/docs/versions/<release>/index.json` | Machine-readable page/reference/example inventory for that release |
@@ -159,16 +170,19 @@ references. The route manifest must enumerate these outputs; unknown slugs
 return a genuine 404 rather than the landing page.
 
 Build each release's documentation from its identified release source, alongside
-the corresponding schemas/examples. Preserve immutable build artifacts and old
-version prefixes when publishing subsequent releases. Do not duplicate every
-historical manual into the active source tree. A mutable current-release pointer
-may choose the default landing-page links; command instructions, schemas, and
-agent-generated definitions can pin an immutable release URL.
+the corresponding schemas/examples. Immutable build artifacts may remain as
+historical records without duplicating their prose in the active source tree.
+Mark a superseded artifact as historical and exclude it from current navigation,
+default search and agent entry instructions. A mutable current-release pointer
+chooses the supported manual; command instructions, schemas, and agent-generated
+definitions can pin its immutable release URL. Keeping an old URL does not
+require old readers, commands, or runtime compatibility.
 
 Every page and machine index records the documentation release/source commit
 and applicable API, protocol, and schema versions. These version numbers are
-separate dimensions. An updated documentation site cannot make an old runtime
-understand a new organization schema.
+separate dimensions. Document the currently supported values and the explicit
+refusal of unsupported values. Version identification is not a negotiation,
+conversion, or backward-compatibility promise.
 
 Until software is published, `/docs` points to clearly labeled development and
 local-candidate instructions. A downloadable public installer is not invented
@@ -176,10 +190,11 @@ to make the quickstart look complete. An unimplemented feature may have design
 documentation in the development track, but cannot appear as a working release
 instruction.
 
-Version switching keeps the equivalent slug when present, and otherwise explains
-that the topic is unavailable in the selected version. Preserve redirected
-article slugs deliberately; do not silently redirect a protocol-1 instruction
-to a different protocol's command sequence.
+If historical documentation is retained, its entry explains that it is a record
+of an obsolete release, not an alternative supported setup. Do not silently
+redirect an obsolete command sequence to a different current behavior. A removed
+current article returns a real 404 unless its topic still exists at an explicitly
+maintained current route.
 
 ## 5. Complete manual inventory
 
@@ -194,16 +209,16 @@ path. Each reference names its version and authoritative source.
 | --- | --- | --- |
 | Introduction | `overview`, `architecture`, `status` | Understand the installation-to-result journey, daemon/harness/transport/optional Polaris boundary, current publication and qualification state |
 | Installation | `install`, `install/local-candidate`, `install/macos`, `install/linux` | Choose a supported route, supply actual trust/prerequisite inputs, verify the candidate, and understand platform evidence boundaries |
-| Onboarding and maintenance | `install/onboarding`, `install/verify`, `install/upgrade-remove` | Use reviewed `up`/profile/workspace/service choices, distinguish setup from skill/tool readiness, upgrade/restart/remove without losing retained identity/data |
+| Onboarding and maintenance | `install/onboarding`, `install/verify`, `install/fresh-state`, `install/remove` | Use reviewed profile/workspace/service choices, distinguish setup from skill/tool readiness, initialize explicitly selected fresh state, reject unsupported existing state, and remove software through its supported procedure |
 | First collaboration | `quickstarts/two-local-agents`, `quickstarts/invite-a-person` | Create or join a goal, select a valid arrangement, bind actual participants, grant local work intentionally, and observe the first shared result |
 | Working with code | `quickstarts/share-a-snapshot`, `quickstarts/contribute-and-review`, `quickstarts/apply-a-patch` | Select exactly what is shared, publish a contribution, inspect evidence/review, and apply an explicitly chosen patch with base/dirty-work protection |
 | Core model | `concepts/goals-tasks`, `concepts/participants-roles`, `concepts/context-artifacts`, `concepts/attempts-contributions` | Understand optional tasks/roles, independent attempts, unattached findings, immutable artifacts, and identity without assuming a universal coordinator |
 | Outcomes and authority | `concepts/decisions-completion`, `concepts/local-permissions`, `concepts/events-sync` | Distinguish submission, approval, criterion satisfaction, selection, closure, local application, and the age/completeness of a replica's view |
 | Organization | `organization/blueprints`, `organization/presets`, `organization/composition` | Choose/pin a blueprint, understand the shipped presets, specialize tasks within parent authority, and compose optional dependencies or child work |
-| Completion and change | `organization/completion`, `organization/lifecycle` | Read exact evidence/judgment requirements, understand multiple qualifying outputs, and distinguish draft, published definition, instance, revision, reopen, and migration |
+| Completion and change | `organization/completion`, `organization/lifecycle` | Read exact evidence/judgment requirements, understand multiple qualifying outputs, and distinguish draft, published definition, instance, authorized semantic revision, and reopen within the current model |
 | Agent authoring | `authoring/with-your-agent`, `authoring/schema`, `authoring/examples` | Turn a plain-language request into a draft, validate, explain defaults/effects, publish locally, and instantiate deliberately using the real schema and examples |
 | Authoring diagnostics | `authoring/diagnostics`, `authoring/testing`, `authoring/custom-patterns` | Correct syntax/semantic/binding/capability errors, test representative event traces, and combine supported rules without inventing executable policy |
-| Polaris | `polaris/overview`, `polaris/visual-authoring`, `polaris/round-trip`, `polaris/observe-work` | Understand actual desktop availability, edit the shared contract visually, distinguish semantic/layout changes, preserve newer constructs, handle concurrent edits, and inspect fresh/stale goal state |
+| Polaris | `polaris/overview`, `polaris/visual-authoring`, `polaris/round-trip`, `polaris/observe-work` | Understand actual desktop availability, edit the current shared contract visually, distinguish semantic/layout changes, refuse unsupported input without rewriting it, handle concurrent edits, and inspect fresh/stale goal state |
 | Harnesses | `agents/overview`, `agents/codex`, `agents/claude-code`, `agents/pi`, `agents/droid`, `agents/other-harnesses` | Check transport/instruction/approval capabilities, follow version-specific configuration/refresh steps, and distinguish adapter preparation from qualified real-client use |
 | Agent lifecycle | `agents/managed-sessions`, `agents/authoring-contract` | Understand exact native/Locust identity bindings, resume, pending work, cancellation, closed-client limitations, and machine-readable authoring discovery |
 | Information sharing | `sharing/visibility`, `sharing/snapshots`, `sharing/membership` | Know what goal members can read, which exact files/history are shared, and what invitations, leave/removal, key epochs, and separate goals mean |
@@ -211,8 +226,8 @@ path. Each reference names its version and authoritative source.
 | Operations | `operations/services`, `operations/offline-recovery`, `operations/conflicts` | Run supported service modes and interpret reconnect, restart, sleep/wake, missing content, conflicting drafts/attempts/decisions, stale bases, and dirty checkouts |
 | Recovery and diagnostics | `operations/cancellation`, `operations/diagnostics`, `operations/backup-recovery` | Distinguish requested from observed stop, collect redacted diagnostics, preserve state, and use only supported backup/recovery procedures |
 | Command and integration reference | `reference/cli`, `reference/local-api`, `reference/mcp` | Find exact commands, audiences/effects, flags, request/result shapes, transport behavior, pagination, errors, and version handling |
-| Contract reference | `reference/blueprint-schema`, `reference/events`, `reference/errors`, `reference/configuration`, `reference/compatibility`, `reference/protocol` | Look up normalization, defaults, unsupported constructs, event/proof identity, errors, configuration ownership, wire constraints, and compatibility rules |
-| Migration and help | `migration/protocol-1`, `migration/blueprints`, `troubleshooting`, `faq`, `glossary`, `release-notes` | Understand the chosen upgrade path, preserve legacy goals/data, resolve symptom-specific failures, and find precise terminology and release changes |
+| Contract reference | `reference/blueprint-schema`, `reference/events`, `reference/errors`, `reference/configuration`, `reference/formats`, `reference/protocol` | Look up the current schema/API/protocol identifiers, normalization, defaults, unsupported-input errors, event/proof identity, configuration ownership, and wire constraints |
+| Help | `troubleshooting`, `faq`, `glossary`, `release-notes` | Resolve symptom-specific failures, understand fresh-state setup and unsupported-input refusal, and find precise terminology and changes to the current product |
 
 The preset guide covers the arrangements delivered by the main plan: Open
 collaboration, Coordinator, shared pool with peer review, independent attempts,
@@ -241,10 +256,13 @@ private chats, hidden reasoning, credentials, or unrestricted harness access.
 Document actual local access boundaries without describing Locust as a sandbox
 around another agent's existing tools.
 
-Migration articles follow the main plan's resolved D3 decision. Under the
-proposed side-by-side baseline, explain separate homes/runtimes, selected
-artifact export/import, new goal/principal bindings and re-established grants.
-Do not document an in-place conversion or mixed-version daemon until it exists.
+The fresh-state article documents explicit selection of a new empty state
+location and initialization under the current contract. Unsupported state,
+definitions, events, or peers receive a clear error; do not offer a converter,
+old-format reader, mixed-version daemon, or legacy command path. This is a future
+setup procedure, not authorization to erase a person's existing directory.
+Organization rule revisions within the supported model remain documented; they
+do not imply schema-format migration or support for retired readers.
 
 ## 6. Build and site implementation
 
@@ -265,7 +283,8 @@ uses ordinary JavaScript rendering, and its
 [package metadata](https://github.com/markdown-it/markdown-it/blob/master/package.json)
 provides ESM and TypeScript exports. Select and lock an actual release only after
 the O9a one-page prototype passes with this site's Node/SvelteKit setup. These
-upstream observations do not prove this repository's compatibility.
+upstream observations do not prove that the selected package works in this
+repository's build.
 
 Disable raw HTML, keep code escaped, validate link schemes, and derive heading
 IDs deterministically. No arbitrary Svelte/JavaScript execution inside Markdown,
@@ -316,7 +335,8 @@ the version/status of each result. Begin with a small deterministic search
 implementation over this index; profile the real manual before adding a search
 service or index library. Provide a useful no-results state and a browsable
 index without JavaScript. Do not silently mix released and proposed behavior in
-results; let readers deliberately search another version.
+results. If archived documentation is searchable, require an explicit historical
+search and label every such result as unsupported by the current product.
 
 Verify keyboard operation, skip-to-content, visible focus, mobile navigation,
 heading hierarchy, link names, screen-reader status announcements, contrast,
@@ -394,7 +414,7 @@ not the complete manual or a public deployment.
 ### O9b — Full manual and executable documentation qualification
 
 Dependencies: each article's corresponding runtime/authoring package; O7
-CLI/MCP/skill contracts; O8 integration/migration work as defined in the main
+CLI/MCP/skill contracts; O8 integration and fresh-state work as defined in the main
 plan; O10 Polaris implementation for its actual interaction guide; O11 evidence
 for final qualification claims. Content drafting proceeds before all dependencies
 finish, but working instructions cannot outrun the implementation.
@@ -411,7 +431,8 @@ finish, but working instructions cannot outrun the implementation.
    documentation-only path that bypasses the real product.
 5. Verify failures as well as success: stale draft, unsupported rule, unavailable
    authority, denied local action, missing content, offline participant, dirty
-   apply and incompatible version must lead to documented observations/remedies.
+   apply and unsupported input versions must lead to documented observations
+   and current-model remedies, never a fallback legacy reader.
 6. Add actual Polaris authoring/round-trip/inspection instructions and diagrams
    only after matching browser and native integration evidence is available.
 7. Review the full production build for readability, mobile use, search quality,
@@ -420,7 +441,10 @@ finish, but working instructions cannot outrun the implementation.
 Exit evidence: every inventory requirement has substantive content; no required
 page is a stub; all examples match the candidate and schema; tutorials carry
 specific verification scope; all public support claims have retained evidence;
-and human/agent journeys find the correct version and reach observable results.
+and human/agent journeys find the current contract and reach observable results.
+Remove retired articles, examples, generated reference entries, navigation/search
+entries and routes from the supported manual. There are no migration instructions,
+compatibility shims, or old runtime branches hidden behind documentation links.
 Unverified platform behavior remains labeled and cannot be counted as a passed
 qualification gate.
 
@@ -432,20 +456,21 @@ has no configured website host or deployment procedure.
 
 1. Establish the hosting target, domain/DNS/TLS ownership, build identity,
    credential location, preview path, deployment/rollback procedure, and
-   preservation of immutable version prefixes. Choose the concrete SvelteKit
+   handling of retained historical artifacts. Choose the concrete SvelteKit
    adapter after the host is known; do not assume `adapter-auto` targets every
    static host.
 2. Build the site/manual and contract exports from the exact identified release
    source. Record the artifact digest and preserve the artifact used in preview.
-3. Verify download links, signature/trust instructions and compatibility against
+3. Verify download links, signature/trust instructions and current format IDs against
    actual published software inputs. Site publication and software publication
    are separate operations whose cross-links must resolve before claiming the
    public install journey works.
 4. Publish the approved artifact through the established path and verify it
    independently from the public origin.
 5. Record public URLs, deployed commit/build identity, digests, checks and any
-   remaining evidence boundaries in the release ledger. Retain a rollback that
-   does not remove already published immutable documentation versions.
+   remaining evidence boundaries in the release ledger. A site deployment
+   rollback must not silently present obsolete operating instructions as current
+   or imply that an older runtime can read newly created state.
 
 Live checks cover HTTPS, canonical/redirect behavior, representative and indexed
 article routes, version navigation, real 404s, search assets, raw Markdown,
@@ -470,7 +495,7 @@ Add meaningful checks for:
   no owner-only operation accidentally presented as an agent tool.
 - Example validation, normalization/explanation equivalence, and documented
   unsupported examples producing the expected diagnostic categories.
-- No split between `/start`, public status, agent instructions, compatibility
+- No split between `/start`, public status, agent instructions, current-format
   pages, and their evidence-backed availability record.
 - Production-build browser journeys: navigation/search/version switch, mobile
   layout, keyboard use, copy success/failure, and reading without JavaScript.
@@ -486,14 +511,19 @@ rebuild merely because the manual describes Rust code.
 
 For every behavior change, update the canonical article, generated references
 or examples, availability evidence when applicable, and release notes in the
-same logical change. A release check verifies that the required pages and
-artifacts apply to the exact candidate. CI cannot prove that prose is correct;
+same logical change. Delete obsolete documentation, examples, generated reference
+entries and routes, and remove their links from navigation, search and agent
+indexes. Do not keep dead examples or former contracts as a supported path.
+A release check verifies that the remaining pages and artifacts apply to the
+exact current candidate. CI cannot prove that prose is correct;
 contract-owner review and executed reader journeys remain required.
 
 Public search/navigation must keep proposed features visibly distinct. Remove
 obsolete caveats when evidence changes, preserve useful historical qualification
 records, and never turn a source observation into a broader runtime/support claim.
 Report exactly which documentation, browser, candidate, native-client, and live
-site checks ran. The workstream is complete only when the full manual is accurate,
-usable by people and agents, versioned with the product, and verified at the
-authorized public origin.
+site checks ran. The workstream is complete only when the full manual describes
+supported current behavior, contains no obsolete operating paths or migration
+requirements, is usable by people and agents, identifies the current contract,
+and is verified at the authorized public origin. Historical records remain
+clearly separated evidence, not a runtime-support commitment.

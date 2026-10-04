@@ -14,7 +14,7 @@ the repository root to check coverage and local link paths.
 ## Index
 
 - [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements over one declarative contract; exact schema and protocol changes remain unimplemented.
-- [Organization blueprints implementation plan](organization-blueprints-implementation-plan.md): phased runtime, compatibility, agent authoring, Polaris, qualification and release work with explicit decision gates and verification scenarios; proposed work only.
+- [Organization blueprints implementation plan](organization-blueprints-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; proposed work with explicit verification gates.
 - [Public documentation implementation plan](public-documentation-plan.md): complete locust.farm manual inventory, versioned human/agent references, site architecture, checked examples, CI and live publication gates; required organization-blueprint delivery workstream.
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
