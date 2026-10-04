@@ -315,12 +315,12 @@ print(json.dumps({'workspace_driver':'completed','result':rid,'head':head}))
 '''
 
 
-def workspace_driver(profile, daemon, work, timeout):
+def workspace_driver(profile, daemon, work, timeout, *, cli=None):
     script = profile.workspace / "exercise_workspace.py"
     settings = profile.workspace / "workspace-settings.json"
     receipt = profile.logs / "workspace-result.json"
     private_write(script, WORKSPACE_DRIVER)
-    private_write(settings, json.dumps({"cli": daemon.command([]), "work": work, "timeout": timeout,
+    private_write(settings, json.dumps({"cli": daemon.command([]) if cli is None else cli, "work": work, "timeout": timeout,
                                        "receipt": str(receipt)}))
     return shlex.join([sys.executable, str(script), str(settings)]), receipt
 

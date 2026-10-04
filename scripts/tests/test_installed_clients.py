@@ -127,6 +127,23 @@ class InstalledClientTests(unittest.TestCase):
             self.assertFalse(harness.registration_removed(client,config,skill,dict(status,pending=True)))
             skill.symlink_to("missing-target")
             self.assertFalse(harness.registration_removed(client,config,skill,status));skill.unlink()
+            launcher = skill.with_name("locust-cli")
+            launcher.write_text("leftover launcher")
+            self.assertFalse(harness.registration_removed(client,config,skill,status));launcher.unlink()
+            launcher.symlink_to("missing-target")
+            self.assertFalse(harness.registration_removed(client,config,skill,status));launcher.unlink()
+
+    def test_installed_workspace_driver_uses_only_setup_launcher(self):
+        base = Path(self.temp.name)
+        profile = Mock(workspace=base, logs=base)
+        daemon = Mock()
+        daemon.command.side_effect = AssertionError("must not reconstruct the agent binding")
+        launcher = base / "skill with spaces" / "locust-cli"
+        harness.workflow.workspace_driver(profile, daemon, {"goal": "fixture"}, 30,
+                                          cli=[str(launcher), "--json"])
+        settings = json.loads((base / "workspace-settings.json").read_text())
+        self.assertEqual(settings["cli"], [str(launcher), "--json"])
+        daemon.command.assert_not_called()
 
     def test_persistent_invocations_do_not_override_registration_or_disable_skills(self):
         profile = Mock(home=Path(self.temp.name))

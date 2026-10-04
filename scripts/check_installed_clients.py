@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Actual client discovery and task flow through a test-signed installed Locust.
 
-Only setup plan/apply installs the MCP entry and skill. Native client JSON
+Only setup plan/apply installs the MCP entry, skill and bound CLI. Native client JSON
 receipts and independent durable daemon reads are required; provider-selected
 calls alone never pass. Private profiles use dummy loopback providers and the
 macOS OS network guard. Interactive human approval and real models are not tested.
@@ -33,6 +33,7 @@ SKILLS = {"codex": ".agents/skills/locust/SKILL.md", "claude-code": ".claude/ski
           "pi": ".pi/agent/skills/locust/SKILL.md"}
 CONFIGS = {"codex": ".codex/config.toml", "claude-code": ".claude.json", "pi": ".pi/agent/mcp.json"}
 ASSERTIONS = ("test_signed_install", "persistent_setup", "setup_idempotent", "network_isolation",
+              "bound_cli_launcher",
               "automatic_skill_metadata", "native_skill_read", "registered_mcp_roundtrip", "default_read",
               "default_write", "permissive_read", "permissive_write", "claim", "progress",
               "workspace_native_tool", "contribution_flow", "accepted_before_integrated", "dirty_work_preserved",
@@ -223,7 +224,8 @@ def persisted_note(receipts, daemon, text, tool=workflow.WRITE, assignment=None)
 
 def registration_removed(client, config, skill, status):
     """Check remaining client bytes independently of the ownership status API."""
-    if status.get("owned") is not False or status.get("pending") is not False or os.path.lexists(skill):
+    if (status.get("owned") is not False or status.get("pending") is not False
+            or os.path.lexists(skill) or os.path.lexists(skill.with_name("locust-cli"))):
         return False
     if not os.path.lexists(config):
         return True
@@ -359,17 +361,23 @@ def qualify(client, binary, args):
                 local_status = setup(profile, daemon, prefix, installed, client, "status", timeout)
                 result["setup"] = {"plan": plan, "applied": applied, "repeat": repeated, "status": local_status}
                 checks["persistent_setup"] = fixture.assertion("pass" if local_status["configured"] and local_status["binding_matches"] else "fail",
-                    "Installed setup API owns the skill and persistent MCP entry; actual client discovery tested separately")
+                    "Installed setup API owns the skill, bound launcher and persistent MCP entry; actual client discovery tested separately")
                 checks["setup_idempotent"] = fixture.assertion("pass" if repeated["changed"] is False else "fail", "Second reviewed apply changes no owned file")
                 skill_path = profile.home / SKILLS[client]
+                launcher = skill_path.with_name("locust-cli")
+                require(local_status.get("launcher") == str(launcher) and local_status.get("launcher_ready") is True,
+                        "Setup did not return a ready bound CLI at the skill's installed path")
                 observer = SkillObserver(skill_path)
+                require(str(launcher) in observer.contents and os.access(launcher, os.X_OK),
+                        "Installed skill must name its executable bound CLI")
                 guard = workflow.network_preflight(profile, env, provider, timeout)
                 result["network_guard_check"] = guard
                 require(guard["exit_code"] == 0 and not guard["timed_out"], "Network guard preflight failed")
                 checks["network_isolation"] = fixture.assertion("pass", "OS guard permits loopback and denies external raw-IP connection; daemon has separate loopback/Unix guard")
                 work = workflow.prepare_work(profile, daemon, client)
                 result["work"] = work
-                native_command, workspace_receipt = workflow.workspace_driver(profile, daemon, work, timeout)
+                native_command, workspace_receipt = workflow.workspace_driver(profile, daemon, work, timeout,
+                                                                              cli=[str(launcher), "--json"])
 
                 def execute(label, steps, permissive=False):
                     start = len(observer.observations)
@@ -432,6 +440,11 @@ def qualify(client, binary, args):
                 checks["claim"] = fixture.assertion("pass" if claim else "fail", "Native claim matches fixed fixture instance and independently observed claim generation")
                 checks["progress"] = fixture.assertion("pass" if persisted_note(ae, daemon, "installed-progress-" + client, workflow.PROGRESS, work["assignment"]) else "fail", "Native progress event independently resolves to exact event ID, progress kind, assignment, text and author")
                 workflow.validate_workspace(checks, daemon, profile, work, workspace_receipt)
+                checks["bound_cli_launcher"] = fixture.assertion(
+                    "pass" if all(checks[key]["status"] == "pass" for key in
+                                  ("workspace_native_tool", "contribution_flow", "accepted_before_integrated", "dirty_work_preserved")) else "fail",
+                    "Native client workspace driver used only setup's launcher and --json; no executable/home/credential/session prefix supplied by the harness",
+                    {"path": str(launcher), "sha256": digest(launcher), "skill_sha256": observer.sha256})
                 before = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
                 endpoint = daemon.endpoint
                 daemon.restart()
@@ -452,7 +465,7 @@ def qualify(client, binary, args):
                 removed = setup(profile, daemon, prefix, installed, client, "remove", timeout, remove_plan["plan_sha256"])
                 result["removal"] = removed
                 removed_status = setup(profile, daemon, prefix, installed, client, "status", timeout)
-                checks["setup_removal"] = fixture.assertion("pass" if registration_removed(client, config, skill_path, removed_status) else "fail", "Independent config parse finds no Locust entry; skill, owner and pending journal are absent")
+                checks["setup_removal"] = fixture.assertion("pass" if registration_removed(client, config, skill_path, removed_status) else "fail", "Independent config parse finds no Locust entry; skill, launcher, owner and pending journal are absent")
                 if client == "codex":
                     import tomllib
                     retained = tomllib.loads(config.read_text())

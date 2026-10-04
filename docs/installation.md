@@ -147,8 +147,9 @@ logs. No root daemon, system service or login account is created.
 
 ## Client skill and MCP setup
 
-The [setup implementation](../crates/locust/src/installation/setup.rs) installs the
-signed operating skill and one `locust` stdio server into an explicitly selected
+The [setup implementation](../crates/locust/src/installation/setup.rs) installs a
+bound CLI launcher, a local copy of the signed skill with its launcher prefix,
+and one `locust` stdio server into an explicitly selected
 client profile. Supported targets are Codex (`.codex/config.toml` and
 `.agents/skills/locust`), Claude Code (`.claude.json` and `.claude/skills/locust`),
 and Pi (`.pi/agent/mcp.json` and `.pi/agent/skills/locust`). Those are the clients'
@@ -172,6 +173,22 @@ not treat multiple native conversations sharing that profile as independently
 identified Locust sessions. [Managed launch](managed-clients.md) has separate
 native-session binding and lifecycle checks.
 
+The generated `locust-cli` executable lives beside the installed `SKILL.md` at
+mode 0700. It invokes the absolute installed executable with fixed home,
+credential and session paths; it contains no secret bytes and needs no PATH or
+`LOCUST_*` environment setup. The installed skill preserves the signed source's
+frontmatter and body and inserts the shell-quoted launcher prefix. The signed
+release itself stays unchanged; setup records and reviews the generated files.
+`setup plan`, `apply` and `status` return the launcher path; `launcher_ready`
+checks its owned content and mode, not native-client execution.
+
+The [launcher](../crates/locust/src/installation/setup/launcher.rs) refuses
+`--home`, `--credential`, `--session`, `--owner` and `--as`, including their
+`--flag=value` forms anywhere in its arguments. Literal note/result text equal
+to one of those reserved arguments can be supplied on standard input. It does
+not change daemon grants or client policy, and is not isolation from another
+process able to read the owner credential. Rebinding requires reviewed setup.
+
 Close clients that write the selected profile while applying or removing setup.
 Review the actual paths and generated Locust registration, then apply its digest:
 
@@ -186,9 +203,18 @@ unrelated modifications. Reapplying can update owned content while preserving
 unrelated settings. `setup remove-plan` and `setup remove --expect-plan ...` use
 the same selection arguments. Removal restores the exact original configuration
 when the installed document is otherwise unchanged, or removes just the owned
-entry from a document with unrelated edits. A modified owned entry or skill is
+entry from a document with unrelated edits. A modified owned entry, skill or launcher is
 preserved and reported as a conflict. Removal remains available after software
 uninstall; credentials and session files remain.
+
+Setup ownership/plans now use version 2 for the fourth owned path. Reapplying
+upgrades an intact version-1 installation without replacing its principal or
+session. Old pending three-path operations can finish or be removed with their
+original review; after finishing an old apply, `reapply_required` reports that
+a fresh plan/apply is needed to add the launcher. Older binaries refuse the new
+ownership format. Unknown launcher files are never adopted or deleted. The
+[setup tests](../crates/locust/src/installation/setup/tests.rs) cover legacy
+upgrade, interruption at every write, quoted paths, overrides and owned edits.
 
 Restart the client so it discovers the registration and skill. Setup reports
 `reload_required`, with discovery and API readiness unobserved. Only the actual

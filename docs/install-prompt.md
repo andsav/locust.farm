@@ -39,7 +39,7 @@ withdrawn candidate, unsupported host or ownership conflict as an explicit block
 
 Use install plan, service plan and setup plan as applicable. Show their concrete
 paths and changes. My authorization covers installing this verified candidate,
-the selected user service, its operating skill and one scoped MCP registration
+the selected user service, its operating skill, bound CLI launcher and one scoped MCP registration
 at the listed destinations. Apply each unchanged plan using its returned digest.
 If a plan changes, inspect the fresh plan; stop for my decision only if it exceeds
 these destinations or permissions. Do not replace another tool's files or alter
@@ -60,7 +60,7 @@ permission denials and state the action it requires. Do not create/join a goal,
 share workspace files or execute an assignment under setup authorization alone.
 
 Give the installed version, full source commit and manifest hash, the service and
-profile paths, the observed readiness results, and exact stop/remove commands.
+profile paths, the bound launcher path, the observed readiness results, and exact stop/remove commands.
 Retain my daemon identity and data during software/service/configuration removal.
 ```
 

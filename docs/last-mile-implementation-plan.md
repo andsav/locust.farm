@@ -1,8 +1,10 @@
 # Last-mile implementation plan
 
-Date: 2026-10-04. **Status: proposed implementation plan; no work package below is implemented or verified by this document.** The owner requested this plan and the amendments to its source research. That does not select the remaining distribution, permission, protocol, publication or paid-run decisions. Apache-2.0 was separately selected and is already present.
+Date: 2026-10-04. **Status: implementation plan; work packages remain proposed except for the partial W3 implementation noted below.** The owner requested this plan and the amendments to its source research. That does not select the remaining distribution, permission, protocol, publication or paid-run decisions. Apache-2.0 was separately selected and is already present.
 
 This plan sequences work from the revised [last-mile research](../research/last-mile-experience.md). It supplements the [main implementation plan](implementation-plan.md), [protocol-1 contract](protocol-v1.md), [installation contract](installation.md) and [coding workflow](t2-workflow.md). Their implemented authorization and recovery rules remain authoritative until a specific replacement is accepted and tested. All command names and data shapes introduced below are proposed interfaces, not commands to run today.
+
+**Implementation update, 2026-10-04:** W3's bound launcher and installed-skill prefix are implemented, including legacy setup upgrade and recovery tests; see [installation](installation.md). `up`, enrollment orchestration and the rest of W3 remain proposed. Native client qualification is separate from those component tests.
 
 ## 1. Outcome and scope
 

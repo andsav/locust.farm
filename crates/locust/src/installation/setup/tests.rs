@@ -104,6 +104,7 @@ fn all_clients_roundtrip_preserves_original_and_readiness_boundary() {
         remove(&s, &remove_plan.digest().unwrap()).unwrap();
         assert_eq!(fs::read(&p.config).unwrap(), baseline);
         assert!(!p.skill.exists());
+        assert!(!p.launcher.exists());
     }
 }
 #[test]
@@ -143,7 +144,7 @@ fn remove_preserves_unrelated_edits_and_rejects_owned_edits() {
 }
 #[test]
 fn interrupted_writes_resume_original_review_and_reject_unknown_state() {
-    for stop in 0..3 {
+    for stop in 0..4 {
         let (_d, s) = fixture(Client::Codex);
         let a = plan(&s, false).unwrap();
         let digest = a.digest().unwrap();
@@ -279,6 +280,7 @@ fn interrupted_apply_rechecks_source_binding_and_project_dependencies() {
         assert!(p.intent.exists());
         assert_eq!(fs::read(&p.config).unwrap(), before);
         assert!(!p.skill.exists());
+        assert!(!p.launcher.exists());
     }
 }
 #[test]
@@ -295,7 +297,7 @@ fn unowned_removal_keeps_empty_skill_directory_and_missing_client_directories() 
 }
 #[test]
 fn interrupted_removal_resumes_after_every_write() {
-    for stop in 0..3 {
+    for stop in 0..4 {
         let (_d, s) = fixture(Client::Pi);
         let p = paths(&s).unwrap();
         let a = plan(&s, false).unwrap();
@@ -314,6 +316,7 @@ fn interrupted_removal_resumes_after_every_write() {
         remove(&s, &digest).unwrap();
         assert!(!p.config.exists());
         assert!(!p.skill.exists());
+        assert!(!p.launcher.exists());
         assert!(!p.record.exists());
     }
 }
@@ -337,7 +340,7 @@ fn status_separates_owned_integrity_from_requested_binding_match() {
 
 #[test]
 fn interrupted_apply_can_be_removed_after_uninstall_without_old_secrets() {
-    for stop in 0..3 {
+    for stop in 0..4 {
         let (_d, s) = fixture(Client::Claude);
         let p = paths(&s).unwrap();
         let baseline = b"{\"unrelated\":\"keep\"}";
@@ -370,6 +373,7 @@ fn interrupted_apply_can_be_removed_after_uninstall_without_old_secrets() {
         remove(&s, &digest).unwrap();
         assert_eq!(fs::read(&p.config).unwrap(), baseline);
         assert!(!p.skill.exists());
+        assert!(!p.launcher.exists());
         assert!(!p.record.exists());
         assert!(!p.intent.exists());
     }
@@ -455,4 +459,280 @@ fn generated_mcp_command_matches_actual_cli_definition() {
             .unwrap();
         assert_eq!(matches.subcommand_name(), Some("mcp"));
     }
+}
+
+#[test]
+fn launcher_is_owned_executable_and_skill_preserves_signed_frontmatter() {
+    for client in [Client::Codex, Client::Claude, Client::Pi] {
+        let (_d, s) = fixture(client);
+        let p = paths(&s).unwrap();
+        let source = fs::read(&s.skill_source).unwrap();
+        let a = plan(&s, false).unwrap();
+        assert_eq!(a.review["launcher"], p.launcher.to_str().unwrap());
+        assert_eq!(a.review["files"].as_array().unwrap().len(), 4);
+        let result = apply(&s, &a.digest().unwrap()).unwrap();
+        assert_eq!(result["launcher_ready"], true);
+        assert_eq!(result["launcher"], p.launcher.to_str().unwrap());
+        assert_eq!(fs::metadata(&p.launcher).unwrap().mode() & 0o777, 0o700);
+        let skill = fs::read_to_string(&p.skill).unwrap();
+        assert!(skill.contains(p.launcher.to_str().unwrap()));
+        assert!(skill.ends_with(std::str::from_utf8(&source).unwrap()));
+        assert_eq!(fs::read(&s.skill_source).unwrap(), source);
+        assert!(!skill.contains(s.credential.to_str().unwrap()));
+        assert!(!skill.contains(s.session.to_str().unwrap()));
+    }
+    for newline in ["\n", "\r\n"] {
+        let frontmatter = ["---", "name: locust", "description: Keep me", "---", ""].join(newline);
+        let body = "\n# Original body\nAn unchanged command and example.\n";
+        let source = format!("{frontmatter}{body}");
+        let installed = String::from_utf8(
+            launcher::skill(source.as_bytes(), Path::new("/profile/locust-cli")).unwrap(),
+        )
+        .unwrap();
+        assert!(installed.starts_with(&frontmatter));
+        assert!(installed.ends_with(body));
+        assert!(
+            installed.find("# Installed Locust CLI").unwrap()
+                < installed.find("# Original body").unwrap()
+        );
+    }
+    assert!(launcher::skill(b"---\nname: locust\n", Path::new("/cli")).is_err());
+    assert!(launcher::skill(&[0xff], Path::new("/cli")).is_err());
+}
+
+#[test]
+fn launcher_quotes_paths_and_preserves_arguments_without_environment_binding() {
+    let (_d, mut s) = fixture(Client::Codex);
+    let base = s.profile_home.parent().unwrap().to_path_buf();
+    s.executable = base.join("cli ' $(touch injected) `touch injected`");
+    s.daemon_home = base.join("daemon ' $HOME `uname`");
+    s.credential = base.join("credential ' with spaces");
+    s.session = base.join("session $value");
+    package::create_file(&s.executable, b"#!/bin/sh\nprintf '%s\\0' \"$@\"\n", 0o700).unwrap();
+    let script = base.join("launcher");
+    package::create_file(&script, &launcher::render(&s).unwrap(), 0o700).unwrap();
+    let arguments = [
+        "note",
+        "add",
+        "--goal",
+        &"ab".repeat(32),
+        "a 'quoted' $value; `not a command`\nnext line",
+    ];
+    let output = std::process::Command::new(&script)
+        .args(arguments)
+        .env_clear()
+        .env("PATH", "/unavailable")
+        .env("LOCUST_HOME", "/wrong-home")
+        .env("LOCUST_CREDENTIAL", "/wrong-credential")
+        .env("LOCUST_SESSION", "/wrong-session")
+        .current_dir(&base)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let values: Vec<_> = output
+        .stdout
+        .split(|b| *b == 0)
+        .filter(|s| !s.is_empty())
+        .map(|s| std::str::from_utf8(s).unwrap())
+        .collect();
+    let mut expected = vec![
+        "--home",
+        s.daemon_home.to_str().unwrap(),
+        "--credential",
+        s.credential.to_str().unwrap(),
+        "--session",
+        s.session.to_str().unwrap(),
+    ];
+    expected.extend(arguments);
+    assert_eq!(values, expected);
+    assert!(!base.join("injected").exists());
+    let parsed = crate::cli::command_for_test()
+        .try_get_matches_from(std::iter::once("locust").chain(values))
+        .unwrap();
+    assert_eq!(
+        parsed.get_one::<String>("home").unwrap(),
+        s.daemon_home.to_str().unwrap()
+    );
+    assert_eq!(
+        parsed.get_one::<String>("credential").unwrap(),
+        s.credential.to_str().unwrap()
+    );
+    assert_eq!(
+        parsed.get_one::<String>("session").unwrap(),
+        s.session.to_str().unwrap()
+    );
+}
+
+#[test]
+fn launcher_refuses_authority_and_binding_overrides_anywhere() {
+    let (_d, mut s) = fixture(Client::Claude);
+    let base = s.profile_home.parent().unwrap();
+    s.executable = base.join("probe");
+    package::create_file(
+        &s.executable,
+        b"#!/bin/sh\nprintf 'unexpected invocation'\n",
+        0o700,
+    )
+    .unwrap();
+    let script = base.join("launcher");
+    package::create_file(&script, &launcher::render(&s).unwrap(), 0o700).unwrap();
+    for flag in ["--owner", "--as", "--home", "--credential", "--session"] {
+        for argument in [flag.to_owned(), format!("{flag}=/override")] {
+            for prefix in [
+                vec![],
+                vec!["status"],
+                vec!["task", "show"],
+                vec!["client", "run", "--prompt", "--"],
+            ] {
+                let output = std::process::Command::new(&script)
+                    .args(prefix)
+                    .arg(&argument)
+                    .output()
+                    .unwrap();
+                assert_eq!(output.status.code(), Some(2), "{argument}");
+                assert!(output.stdout.is_empty());
+                assert!(String::from_utf8_lossy(&output.stderr).contains("fixed agent binding"));
+            }
+        }
+    }
+}
+
+#[test]
+fn modified_launcher_and_unowned_legacy_collision_are_preserved() {
+    for mode_only in [false, true] {
+        let (_d, s) = fixture(Client::Pi);
+        let p = paths(&s).unwrap();
+        let a = plan(&s, false).unwrap();
+        apply(&s, &a.digest().unwrap()).unwrap();
+        if mode_only {
+            fs::set_permissions(&p.launcher, fs::Permissions::from_mode(0o600)).unwrap();
+        } else {
+            put(&p.launcher, b"user launcher");
+        }
+        let before = snapshot(&p.launcher).unwrap();
+        assert_eq!(status(&s).unwrap()["configured"], false);
+        assert_eq!(status(&s).unwrap()["launcher_ready"], false);
+        assert!(plan(&s, false).is_err());
+        assert!(plan(&s, true).is_err());
+        assert_eq!(snapshot(&p.launcher).unwrap(), before);
+    }
+    let (_d, s) = fixture(Client::Claude);
+    let p = paths(&s).unwrap();
+    let legacy = legacy_transaction(&s);
+    for change in &legacy.changes {
+        write_change(&s, change).unwrap();
+    }
+    put(&p.launcher, b"unowned");
+    assert!(plan(&s, false).is_err());
+    let cleanup = plan(&s, true).unwrap();
+    remove(&s, &cleanup.digest().unwrap()).unwrap();
+    assert_eq!(fs::read(&p.launcher).unwrap(), b"unowned");
+    assert!(!p.skill.exists());
+}
+
+// Reproduce the actual v1 three-path ownership/journal shape, whose skill was
+// copied verbatim. This lets upgrades exercise the same decoding as old installs.
+fn legacy_transaction(s: &SetupSpec) -> Transaction {
+    let p = paths(s).unwrap();
+    let mut tx = prepare(s, false).unwrap();
+    tx.changes.retain(|c| c.path != p.launcher);
+    let skill = tx.changes.iter_mut().find(|c| c.path == p.skill).unwrap();
+    skill.after.bytes = Some(fs::read(&s.skill_source).unwrap());
+    let legacy_skill = skill.after.clone();
+    let owned = tx.changes.iter_mut().find(|c| c.path == p.record).unwrap();
+    let mut r: Record = serde_json::from_slice(owned.after.bytes.as_ref().unwrap()).unwrap();
+    r.format = "locust-setup-owner-v1".into();
+    r.skill = legacy_skill;
+    r.launcher = None;
+    owned.after.bytes = Some(encode(&r).unwrap());
+    tx.plan.review["format"] = json!("locust-setup-plan-v1");
+    tx.plan.review.as_object_mut().unwrap().remove("launcher");
+    tx.plan.review["files"] = json!(
+        tx.changes
+            .iter()
+            .map(|c| json!({"path":c.path,"before":c.before.summary(),"after":c.after.summary()}))
+            .collect::<Vec<_>>()
+    );
+    tx
+}
+
+#[test]
+fn legacy_setup_upgrades_without_changing_signed_source_or_identity_files() {
+    for client in [Client::Codex, Client::Claude, Client::Pi] {
+        let (_d, s) = fixture(client);
+        let legacy = legacy_transaction(&s);
+        for change in &legacy.changes {
+            write_change(&s, change).unwrap();
+        }
+        let source = fs::read(&s.skill_source).unwrap();
+        let credential = fs::read(&s.credential).unwrap();
+        let session = fs::read(&s.session).unwrap();
+        let before = status(&s).unwrap();
+        assert_eq!(before["owned"], true);
+        assert_eq!(before["configured"], false);
+        assert_eq!(before["reapply_required"], true);
+        let upgrade = plan(&s, false).unwrap();
+        apply(&s, &upgrade.digest().unwrap()).unwrap();
+        assert_eq!(status(&s).unwrap()["configured"], true);
+        assert_eq!(status(&s).unwrap()["reapply_required"], false);
+        assert_eq!(fs::read(&s.skill_source).unwrap(), source);
+        assert_eq!(fs::read(&s.credential).unwrap(), credential);
+        assert_eq!(fs::read(&s.session).unwrap(), session);
+    }
+}
+
+#[test]
+fn legacy_interrupted_setup_can_finish_or_be_removed_without_owning_a_launcher() {
+    for remove_pending in [false, true] {
+        for stop in 0..3 {
+            let (_d, s) = fixture(Client::Codex);
+            let p = paths(&s).unwrap();
+            let legacy = legacy_transaction(&s);
+            private_dir(&s.prefix.join("setup"), true).unwrap();
+            atomic(&p.intent, &encode(&legacy).unwrap()).unwrap();
+            for change in &legacy.changes[..=stop] {
+                write_change(&s, change).unwrap();
+            }
+            if remove_pending {
+                let cleanup = plan(&s, true).unwrap();
+                remove(&s, &cleanup.digest().unwrap()).unwrap();
+                assert!(!p.record.exists());
+                assert!(!p.skill.exists());
+            } else {
+                let completed = apply(&s, &legacy.plan.digest().unwrap()).unwrap();
+                assert_eq!(completed["configured"], false);
+                assert_eq!(completed["reapply_required"], true);
+            }
+            assert!(!p.launcher.exists());
+            assert!(!p.intent.exists());
+            let upgrade = plan(&s, false).unwrap();
+            apply(&s, &upgrade.digest().unwrap()).unwrap();
+            assert_eq!(status(&s).unwrap()["configured"], true);
+        }
+    }
+}
+
+#[test]
+fn launcher_binding_changes_require_a_new_plan_and_update_only_owned_content() {
+    let (_d, mut s) = fixture(Client::Codex);
+    let p = paths(&s).unwrap();
+    let old_plan = plan(&s, false).unwrap();
+    apply(&s, &old_plan.digest().unwrap()).unwrap();
+    let old_launcher = fs::read(&p.launcher).unwrap();
+    let old_session = s.session.clone();
+    s.session = s.session.with_file_name("new session");
+    package::create_file(&s.session, &[81; 32], 0o600).unwrap();
+    assert!(apply(&s, &old_plan.digest().unwrap()).is_err());
+    assert_eq!(fs::read(&p.launcher).unwrap(), old_launcher);
+    let new_plan = plan(&s, false).unwrap();
+    apply(&s, &new_plan.digest().unwrap()).unwrap();
+    let new_launcher = fs::read_to_string(&p.launcher).unwrap();
+    assert!(new_launcher.contains(s.session.to_str().unwrap()));
+    assert!(old_session.exists());
+    assert_eq!(status(&s).unwrap()["binding_matches"], true);
+    assert_eq!(status(&s).unwrap()["launcher_ready"], true);
 }

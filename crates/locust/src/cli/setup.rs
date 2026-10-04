@@ -13,7 +13,7 @@ fn path(name: &'static str) -> Arg {
 }
 pub(super) fn commands() -> Command {
     let mut command = Command::new("setup")
-        .about("Install the operating skill and one scoped MCP registration")
+        .about("Install the operating skill, bound CLI launcher and scoped MCP registration")
         .subcommand_required(true)
         .arg_required_else_help(true);
     for operation in ["plan", "apply", "remove-plan", "remove", "status"] {

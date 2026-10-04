@@ -50,8 +50,10 @@ scope is sufficient; ask only when it is missing or the scope changes.
    member. State acceptance criteria in the task text. A snapshot is immutable;
    later local edits do not update it.
 
-The CLI uses the same credential/session environment as MCP. Use `--json` when
-reading command results programmatically. Default exclusions are a safeguard,
+The CLI must use the same daemon, credential and session as MCP. If setup added
+an installed CLI prefix to this skill, use that bound launcher for every command;
+it supplies those paths without environment setup. Use `--json` when reading
+command results programmatically. Default exclusions are a safeguard,
 not a substitute for reviewing the content selected for sharing.
 
 ## Carry out an assignment
