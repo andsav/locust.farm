@@ -11,6 +11,7 @@ npm run check    # type checking
 npm run lint     # Prettier and ESLint
 npm test         # unit tests, using Node's built-in runner
 npm run build
+npm run test:e2e # browser tests of /blueprints with Playwright (Chromium), against a production build
 ```
 
 Tests need Node 22.18 or newer, which runs TypeScript directly. After installing or
@@ -136,6 +137,12 @@ prompt's fixed text in [`docs/blueprint-prompt.md`](../../docs/blueprint-prompt.
 
   The rest of the map is written for this site. Fixes cross between the two by
   hand, only when they matter here.
+
+- `e2e/blueprints.spec.ts` drives the built page in Chromium: the first visit,
+  stages, keyboard connection, problems, share links, a phone viewport and the
+  page without JavaScript. When `target/debug/locust` exists it also checks that
+  the copied prompt's blueprint passes `locust blueprint validate`. Install the
+  browser once with `npx playwright install chromium`.
 
 ## Swarm animation
 
