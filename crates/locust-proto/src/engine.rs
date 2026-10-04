@@ -9,9 +9,15 @@
 //!
 //! The engine never reads a clock or a random source. The shell passes the
 //! time into every call and supplies randomness through [`Entropy`].
+//!
+//! Two traits make the seam. [`Engine`] is the local socket's side: requests
+//! in, answers out. [`PeerEngine`] is the transport's side: what happened on
+//! the network in, what to open and send out. Both are plain values in and
+//! out, so a test drives several engines against each other with no sockets.
 
 use crate::api::{ClientHello, RequestFrame, ResponseFrame, ServerHello};
-use crate::id::GoalId;
+use crate::id::{EndpointId, GoalId};
+use crate::sync::SyncMessage;
 
 /// One accepted local connection, numbered by the shell. Numbers are never
 /// reused while the daemon runs.
@@ -74,4 +80,91 @@ pub trait Engine {
 
     /// True once an owner asked the daemon to stop.
     fn stop_requested(&self) -> bool;
+}
+
+/// One exchange with a peer daemon: one bidirectional stream of
+/// [`SyncMessage`] frames (see [`crate::sync`]). The side that creates an
+/// exchange numbers it, so the two number spaces never collide. Numbers are
+/// never reused while the daemon runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ExchangeId {
+    /// Opened by this daemon; numbered by the engine.
+    Dialed(u64),
+    /// Opened by a peer; numbered by the shell.
+    Accepted(u64),
+}
+
+/// What the shell tells the engine about the network.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PeerInput {
+    /// The transport is running under the engine's endpoint secret, or its
+    /// contact hints changed. `hints` are what an invitation should carry.
+    Endpoint {
+        endpoint: EndpointId,
+        hints: Vec<String>,
+    },
+    /// An exchange the engine asked for is open and may be written to.
+    Opened(ExchangeId),
+    /// An exchange the engine asked for could not be opened. Nothing more
+    /// arrives for it.
+    OpenFailed(ExchangeId),
+    /// A peer opened an exchange. `remote` is the endpoint the transport
+    /// authenticated, which is not yet a member of anything.
+    Accepted {
+        exchange: ExchangeId,
+        remote: EndpointId,
+    },
+    /// The next frame of an exchange, in order.
+    Frame {
+        exchange: ExchangeId,
+        frame: SyncMessage,
+    },
+    /// The exchange is over: the peer ended it, the link failed, or the shell
+    /// finished it as asked. Nothing more arrives for it, and anything still
+    /// queued for it was dropped.
+    Closed(ExchangeId),
+    /// Nothing happened on the network. The shell sends this after local
+    /// requests changed a goal and at least once a second, so the engine can
+    /// start exchanges and act on its own deadlines.
+    Poll,
+}
+
+/// What the engine asks of the transport. The shell carries out the outputs
+/// of one call in order; frames for one exchange are sent in the order given.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PeerOutput {
+    /// Open an exchange with this endpoint. `hints` may be empty: finding an
+    /// endpoint by its key is the transport's job. Answered by
+    /// [`PeerInput::Opened`] or [`PeerInput::OpenFailed`].
+    Open {
+        exchange: ExchangeId,
+        endpoint: EndpointId,
+        hints: Vec<String>,
+    },
+    /// Send one frame.
+    Send {
+        exchange: ExchangeId,
+        frame: SyncMessage,
+    },
+    /// The remote endpoint of this accepted exchange speaks for a member:
+    /// read its later frames with the peer frame limit instead of the hello
+    /// limit. Exchanges this daemon opened are read at the peer limit from
+    /// the start.
+    Admit(ExchangeId),
+    /// End the exchange once everything sent on it was delivered, waiting
+    /// under the shell's deadline for the transport's acknowledgement.
+    /// Answered by [`PeerInput::Closed`].
+    Finish(ExchangeId),
+}
+
+/// The state machine as the transport sees it.
+pub trait PeerEngine {
+    /// The 32-byte secret the transport's endpoint identity is derived from.
+    /// The engine creates it on first start and keeps it in its store.
+    fn endpoint_secret(&self) -> [u8; 32];
+
+    /// Handles one input and appends what the transport should do to `out`.
+    /// The shell calls [`Engine::take_changed`] afterwards, because a frame
+    /// from a peer can answer a parked wait.
+    fn peer(&mut self, input: PeerInput, now_ms: u64, out: &mut Vec<PeerOutput>);
 }
