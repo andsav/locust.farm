@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "source_paths": [
+    "crates/locust-core/src/goal",
+    "crates/locust-core/src/node",
+    "crates/locust-proto/src/event.rs",
+    "crates/locust-proto/src/store.rs"
+  ],
+  "cases": [
+    {
+      "id": "fixture-pass", "suite": ["fixtures", "fast"],
+      "module": "fixtures/RunnerFixture.tla", "config": "fixtures/pass.cfg",
+      "expect": "pass", "kind": "runner-fixture", "timeout_seconds": 30,
+      "properties": ["TypeOK", "BelowLimit"]
+    },
+    {
+      "id": "fixture-violation", "suite": ["fixtures", "fast"],
+      "module": "fixtures/RunnerFixture.tla", "config": "fixtures/violation.cfg",
+      "expect": "violation", "kind": "runner-fixture", "timeout_seconds": 30,
+      "properties": ["TypeOK", "BelowLimit"], "violation": "BelowLimit",
+      "trace_require": [{"x": "2"}]
+    }
+  ]
+}
