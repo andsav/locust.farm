@@ -50,6 +50,36 @@
     },
     {
       "platform": "macOS arm64",
+      "scope": "Separate Codex builder and Merak researcher principals using GPT-6 Luna passed ten live behavioral assertions: safe missing-permission stop, same-native-thread recovery after person grant, valid initial signed patch, later finding read/acknowledgment, signed sources, revised private behavior, real peer approval and separate-workspace application preserving unrelated tracked/untracked work and Git HEAD. Four attempts and their failures are retained.",
+      "limits": "One host and production daemon with private permissive synthetic workspaces, frozen API-4 runtime02 predating the final invitation-refusal fix. Exact artifact checks cover the fourteen-case fixture, not arbitrary programs. Corrected per-phase model tokens are measured; Merak dollar fields have no explicit cost source, Codex dollars and provider invoices are unavailable. No paired cost improvement claim.",
+      "evidence": [
+        "research/collaboration-followups.md",
+        "research/evidence/collaboration-live-codex-merak-2026-10-04.json"
+      ],
+      "track": "current-api-4-native-codex-merak-live"
+    },
+    {
+      "platform": "macOS arm64",
+      "scope": "Native Pi/Claude real-provider workflows completed in both directions, including exact patch review, native-session coordinator continuation and application, unchanged five-test oracle, and unrelated-work/Git-HEAD preservation. Original Pi terminal-before-submit failure retained; retry used clarified skill.",
+      "limits": "One enrolled principal with separate sessions, one host, permissive synthetic workspaces, frozen API-4 debug runtime02 predating the final invitation-refusal fix. Claude omitted two requested compact checkpoints. No live paginated context arose. Costs are client-reported list/catalog estimates with cumulative resume counters handled explicitly, not provider invoices.",
+      "evidence": [
+        "research/collaboration-followups.md",
+        "research/evidence/collaboration-live-pi-claude-2026-10-04.json"
+      ],
+      "track": "current-api-4-native-pi-claude-live"
+    },
+    {
+      "platform": "macOS arm64",
+      "scope": "Polaris source 4917caf396 pins Locust c50a43f typed API-4 SDK with exact generated schema parity. Three native adapter tests, the real-daemon author/edit/publish/goal/restart/revocation component test, frontend type and boundary checks, eight organization tests and fifteen observer tests passed.",
+      "limits": "Local source component evidence only. Exact Git dependency resolved from explicitly seeded local Cargo cache. No new packaged app, full Tauri workspace build, public dependency fetch or release. Historical package evidence remains API 2.",
+      "evidence": [
+        "docs/guide/polaris.md",
+        "research/collaboration-followups.md"
+      ],
+      "track": "current-api-4-polaris-source"
+    },
+    {
+      "platform": "macOS arm64",
       "scope": "API 3/protocol 3 collaboration UX source: workspace formatting, strict Clippy, 663 Rust tests (12 explicit ignores), generated contracts, four executable manual recipes, integrated CLI/MCP shared findings and permission controls, and two real local SQLite/Unix/Iroh daemons for reviewed invitation admission/revocation/restart",
       "limits": "Local development source only. No updated installed native client or Polaris package, natural-language real-model uptake, two physical machines, or published release qualification.",
       "evidence": [

@@ -1,11 +1,11 @@
 # Polaris authoring and observation
 
-**Status: implemented development slice with isolated native package
-qualification; public release remains open.** Polaris has a forms-first
+**Status: API-4 source integration with verified native adapter components;
+the earlier isolated native package remains API 2.** Polaris has a forms-first
 organization library/editor at
 `/organizations` and a typed Rust adapter to the local Locust daemon. The verified
 local source commit is
-[`aaaf62ae3bbdd3f280eb7fd1db343b690ebb330e`](https://github.com/33CCFF/dreamcolor10/commit/aaaf62ae3bbdd3f280eb7fd1db343b690ebb330e).
+[`4917caf3963900c5ebaa6819eaa034663e589d64`](https://github.com/33CCFF/dreamcolor10/commit/4917caf3963900c5ebaa6819eaa034663e589d64).
 It has not been pushed or published; the link identifies the configured repository
 and locally verified commit, not a publicly available build. Locust remains
 independently usable. The native qualification uses a separately identified QA
@@ -29,8 +29,9 @@ native window/webview. A browser without a desktop backend shows the
 desktop-required interstitial.
 
 The adapter pins immutable remote `locust-proto` Git revision
-`1b81bef7a3caafa219f5a4096a01b3a49d505c56`, including causal closure and durable
-delivery receipts. Generated request, response and Blueprint schemas match that
+`c50a43f54a6168a631351c6500b44ccd1167d27c`, including API-4 context views,
+acknowledgments, signed contribution sources and own-permission inspection.
+Generated request, response and Blueprint schemas match that
 revision exactly. It was tested from Cargo's locally seeded Git cache; remote
 fetchability has not been established. No sibling path dependency or copied Rust
 protocol is used.
@@ -89,7 +90,25 @@ swarm map. Contributions, completion, selection, delivery and actual local
 application remain distinct facts; an empty obligation list does not mean the
 goal is complete. The observer does not start work or move a feed cursor.
 
-## Verification boundaries
+## Current source verification
+
+The API-4 refresh passed three focused native adapter/channel tests and an
+isolated real-daemon author/edit/publish/goal/restart/revocation test. A standalone
+Cargo harness compiled the actual native adapter module against the exact Git
+SDK pin, with no path override; the complete Tauri host was not rebuilt.
+Workspace dependency resolution passed with `cargo metadata --locked --offline`.
+Frontend type checking reported zero errors/warnings, facade boundary lint and
+eight organization tests passed, and generated contract drift checks passed.
+The diagnostic observer passed fifteen tests for current wire shapes. Agent
+connections now explicitly reject owner-only reads such as the inbox.
+
+These checks used the API-4 development daemon, whose runtime source is committed
+as `c50a43f54a6168a631351c6500b44ccd1167d27c`. They do not update the package
+described below. The [current source evidence record](https://github.com/33CCFF/dreamcolor10/blob/eb3d28e7f6a9d7e4c4288b839ac62cc91d0346ae/docs/LOCUST_ORGANIZATION_AUTHORING_2026-10-04.md)
+retains exact schema hashes and the historical results. Both source commits are
+local; no push, public release or packaged-app rebuild occurred in this refresh.
+
+## Historical API-2 package verification
 
 Three focused native adapter/channel tests passed. A separate isolated test used
 a real local Locust daemon and typed native clients to exercise agent-authored
@@ -100,7 +119,8 @@ restart/readback and revocation. It passed against immutable Locust candidate
 `b577709eb981544b4bcf5bdcc5efd677a6133d24e474ab274a1fe500215450b3`.
 The agent in this fixture is an API caller, not an AI provider acceptance run.
 
-The signed local Polaris package also passed an automated native UI journey
+The signed local Polaris package from Merak commit
+`aaaf62ae3bbdd3f280eb7fd1db343b690ebb330e` also passed an automated native UI journey
 against those exact daemon bytes: create a fresh draft, edit context through
 forms, save revision 2, explain, review and publish, create a goal through the
 separate agent, and read back its state. After daemon restart, the draft,
@@ -117,7 +137,7 @@ QA archive SHA-256 is
 This verifies the isolated Developer ID signed local package. Canonical-identity
 installed release, notarization and public fetchability remain separate.
 
-Frontend type checking passed with zero errors/warnings, the production build
+At that earlier checkpoint, frontend type checking passed with zero errors/warnings, the production build
 passed, and eight focused organization tests passed. Additional browser checks
 used synthetic IPC for dirty edits, external revisions and scope invalidation.
 The broader frontend suite reported 132 failures outside the organization tests

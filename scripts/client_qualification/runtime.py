@@ -41,7 +41,7 @@ class Profile:
     def __init__(self, output, client):
         # macOS Unix socket paths have a small fixed limit. Runtime profiles
         # live under a short system temp path; evidence is retained in output.
-        self.root = Path(tempfile.mkdtemp(prefix="lq-")).resolve()
+        self.root = Path(tempfile.mkdtemp(prefix="lq-", dir="/tmp")).resolve()
         for name in ("home", "config", "tmp", "workspace", "fixture", "logs"):
             setattr(self, name, self.root / name)
             getattr(self, name).mkdir(mode=0o700)

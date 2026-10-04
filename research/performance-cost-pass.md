@@ -151,3 +151,11 @@ source review found no blocker in the indexes, schema closure or CLI changes.
 
 These are source and local release-binary checks. No new installed-client,
 physical-machine, packaged-release or real-model qualification is claimed.
+
+## Subsequent collaboration work
+
+The [collaboration follow-up](collaboration-followups.md) implements short client
+receipt references, explicit compact context and pending pages, signed source
+inspection and invitation lifecycle fixes. It also records a later live-model
+campaign and its failures. These new observations do not change the API-3 paired
+measurements above or establish a paired model-cost improvement.

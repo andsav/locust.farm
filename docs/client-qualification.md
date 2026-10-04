@@ -69,6 +69,20 @@ client flags as above:
   tools. Real clients need provider networking, so the scripted clients'
   external-network-denial claim does not apply. Retained output redaction is not
   native tool or secret containment.
+- [check_collaboration_acceptance.py](../scripts/check_collaboration_acceptance.py)
+  uses separate Codex builder and Merak researcher principals on one production
+  daemon. It checks safe stopping without execute authority, person-granted
+  recovery in the same native thread, a valid first patch, a later private
+  deployment finding, exact acknowledgment and signed source declarations,
+  a revised artifact, actual peer review, and person-driven application in a
+  separate workspace preserving unrelated work. It requires Python 3.12+, an
+  empty `--output`, identified `--locust`, `--config-probe`, `--merak`, `--codex`
+  binaries and an available `--model`. `--rpc-timeout` covers RPC/startup/cleanup;
+  agent execution has no imposed deadline. Each phase checkpoints evidence,
+  including failures. Codex resume counters are cumulative; per-phase accounting
+  requires the preceding counter from the same native thread. Client estimates
+  and provider billing remain distinct. See the
+  [simulation findings](../research/collaboration-followups.md).
 - [check_managed_clients.py](../scripts/check_managed_clients.py) takes
   `--locust`, `--output`, `--timeout-ms` and client paths. It runs the
   [explicit managed CLI](managed-clients.md), independently checks readiness and
@@ -86,7 +100,8 @@ only with the same native identifier and extended original history. Codex
 0.153.4's documented exit 1 after an intentional interrupt is version-qualified;
 the harness still rejects arbitrary nonzero exits and unexpected signals.
 
-The current campaigns use one host and principal, private profiles, explicit
-permission modes and local debug artifacts. Independent people/accounts,
+The T2 campaigns use one host and principal with separate sessions; the later
+collaboration case uses separate principals on one host. Both use private
+profiles, explicit permission modes and identified local artifacts. Independent people/accounts,
 physical networks, default interactive approval, qualified active hooks,
 confinement and packaged installation remain separate evidence requirements.

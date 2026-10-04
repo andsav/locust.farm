@@ -25,7 +25,7 @@ import subprocess
 import sys
 
 from client_qualification.provider import Provider
-from client_qualification.runtime import Process, Profile, SocketFixture, private_write, records
+from client_qualification.runtime import GUARD, Process, Profile, SocketFixture, private_write, records
 
 
 CLIENTS = ("codex", "claude-code", "factory-droid", "pi")
@@ -337,6 +337,73 @@ def _qualify(name, binary, args, result, profile):
     return result
 
 
+def execute_probe_outcome(run, command, marker):
+    """A successful client exit alone does not prove its native child ran."""
+    events = records(run["stdout"], strict=True)
+    calls = [event for event in events if event.get("type") == "tool_call"
+             and event.get("toolId") == "Execute"
+             and event.get("parameters", {}).get("command") == command]
+    replies = [event for event in events if event.get("type") == "tool_result"
+               and event.get("toolId") == "Execute"
+               and any(call.get("id") == event.get("id") for call in calls)]
+    success = (run["exit_code"] == 0 and not run["timed_out"] and not run["forced_cleanup"]
+               and len(calls) == len(replies) == 1 and replies[0].get("isError") is False
+               and marker in str(replies[0].get("value", "")))
+    return {"executed": success, "calls": len(calls), "replies": len(replies),
+            "error": replies[0].get("error") if len(replies) == 1 else None,
+            "tool_elapsed_ms": replies[0].get("timestamp", 0) - calls[0].get("timestamp", 0)
+            if len(calls) == len(replies) == 1 else None}
+
+
+def droid_execute_probe(binary, args):
+    """Minimum native child diagnostic: no Locust daemon, MCP or workspace driver."""
+    if not binary or sys.platform != "darwin" or not Path("/usr/bin/sandbox-exec").is_file():
+        raise ValueError("Droid Execute diagnostics need an installed Droid and macOS sandbox-exec")
+    timeout = args.timeout_ms / 1000
+    report = {"schema": "locust-droid-execute-diagnostic", "schema_version": 1,
+              "created_at": datetime.now(timezone.utc).isoformat(),
+              "binary_sha256": hashlib.sha256(Path(binary).read_bytes()).hexdigest(),
+              "scope": "Native echo only; no Locust daemon, MCP, driver or workflow qualification",
+              "provider": "scripted loopback; dummy credentials; private profile",
+              "timeout_ms": args.timeout_ms, "runs": []}
+    modes = [("qualification_guard", GUARD)]
+    if args.droid_execute_no_guard_control:
+        modes += [("allow_default_guard", '(version 1)(allow default)'), ("no_guard", None)]
+    for mode, guard in modes:
+        profile = Profile(args.output, "droid-execute")
+        try:
+            marker = "locust-native-child-probe"
+            command = "/bin/echo " + marker
+            prefix = ["/usr/bin/sandbox-exec", "-p", guard] if guard else []
+            with Provider([{"tool": "Execute", "arguments": {
+                    "command": command, "timeout": timeout, "riskLevel": "low",
+                    "summary": "Print the synthetic native child diagnostic marker"}}]) as provider:
+                env = profile.environment(binary)
+                env.update(provider_settings("factory-droid", profile, provider.url))
+                direct = Process([*prefix, "/bin/echo", marker], env, profile.workspace,
+                                 profile.logs, mode + "-direct", timeout, guarded=False).wait()
+                native = invocation("factory-droid", binary, [], True, profile=profile)
+                native[-1] = "Run the authored synthetic native child diagnostic and finish."
+                run = Process([*prefix, *native], env, profile.workspace, profile.logs,
+                              mode + "-native", timeout, guarded=False).wait()
+                report["runs"].append({"mode": mode,
+                    "external_network_denial": mode == "qualification_guard",
+                    "direct_control": {"exit_code": direct["exit_code"],
+                        "marker_observed": marker in Path(direct["stdout"]).read_text()},
+                    "native": run, "outcome": execute_probe_outcome(run, command, marker),
+                    "provider_errors": list(provider.errors)})
+        finally:
+            profile.close()
+    report["conclusion"] = "Diagnostic outcomes only; a no-guard success cannot qualify isolated native execution"
+    path = args.output / "droid-execute-report.json"
+    if path.exists():
+        old = path.read_bytes()
+        private_write(args.output / ("droid-execute-report-" + hashlib.sha256(old).hexdigest() + ".json"), old)
+    private_write(path, json.dumps(report, indent=2) + "\n")
+    print(json.dumps({"report": str(path), "runs": [{"mode": row["mode"],
+        "direct_control": row["direct_control"], "outcome": row["outcome"]} for row in report["runs"]]}, indent=2))
+
+
 def main(argv=None):
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
@@ -344,15 +411,24 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, default=root / "output/client-qualification")
     parser.add_argument("--config-probe", default=str(root / "target/debug/examples/config_probe"))
     parser.add_argument("--stdio-probe", default=str(root / "target/debug/examples/stdio_probe"))
+    parser.add_argument("--droid-execute-probe", action="store_true",
+                        help="Diagnose a native Droid echo under the qualification guard; no Locust components")
+    parser.add_argument("--droid-execute-no-guard-control", action="store_true",
+                        help="Explicit diagnostic controls with allow-default and absent OS guards; loopback dummy provider only")
     for client in CLIENTS:
         parser.add_argument("--" + client, help="Absolute installed executable; omitted means explicit not_run")
     args = parser.parse_args(argv)
     if args.timeout_ms <= 0:
         parser.error("--timeout-ms must be positive")
+    if args.droid_execute_no_guard_control and not args.droid_execute_probe:
+        parser.error("--droid-execute-no-guard-control requires --droid-execute-probe")
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=True, mode=0o700)
     try:
         binaries = {client: checked_binary(getattr(args, client.replace("-", "_"))) for client in CLIENTS}
+        if args.droid_execute_probe:
+            droid_execute_probe(binaries["factory-droid"], args)
+            return
         args.config_probe = checked_binary(args.config_probe)
         args.stdio_probe = checked_binary(args.stdio_probe)
         if not args.config_probe or not args.stdio_probe:

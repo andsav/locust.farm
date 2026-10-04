@@ -31,3 +31,5 @@ These files preserve local characterization probes and captured results from 202
 Read the [MoltMesh validation report](../moltmesh-validation.md) or [hcom dissection](../hcom-dissection.md) for interpretation and test limits, and the [research index](../README.md) for findings.
 
 - [Collaboration runtime follow-ups](collaboration-runtime-2026-10-04.json): source fingerprints and checks, interpreted in [simulation findings](../collaboration-followups.md).
+- [Live Pi and Claude collaboration](collaboration-live-pi-claude-2026-10-04.json): reciprocal native workflows, the retained premature-terminal failure, skill-guided retry, context observations and per-client accounting scopes; interpreted in [simulation findings](../collaboration-followups.md).
+- [Live Codex and Merak collaboration](collaboration-live-codex-merak-2026-10-04.json): four retained attempts through permission recovery, a late private finding, artifact revision, peer review and separate-workspace application; corrected cumulative token accounting and all material failures, interpreted in [simulation findings](../collaboration-followups.md).

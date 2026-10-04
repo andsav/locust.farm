@@ -124,7 +124,7 @@ def seed(research_workspace: Path, builder_workspace: Path) -> dict:
     }
 
 
-def verify(builder_workspace: Path) -> dict:
+def verify(builder_workspace: Path, *, oracle=ORACLE, case_count=9) -> dict:
     """Run the hidden, independent behavior oracle against the builder artifact."""
     builder_workspace = Path(builder_workspace).resolve()
     artifact = builder_workspace / "safe_member.py"
@@ -141,7 +141,7 @@ def verify(builder_workspace: Path) -> dict:
     env = {"PATH": os.defpath, "PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1"}
     try:
         result = subprocess.run(
-            [sys.executable, "-I", "-c", ORACLE, str(artifact)],
+            [sys.executable, "-I", "-c", oracle, str(artifact)],
             cwd=builder_workspace,
             env=env,
             capture_output=True,
@@ -157,16 +157,19 @@ def verify(builder_workspace: Path) -> dict:
             "reason": type(error).__name__,
         }
 
-    passed = result.returncode == 0 and "passed 9 archive path cases" in result.stdout
+    marker = "passed " + str(case_count) + " archive path cases"
+    passed = result.returncode == 0 and marker in result.stdout
     assertions.append({
         "name": "behavior_oracle",
         "passed": passed,
-        "case_count": 9,
-        "success_marker_observed": "passed 9 archive path cases" in result.stdout,
+        "case_count": case_count,
+        "success_marker_observed": marker in result.stdout,
         "stdout_bytes": len(result.stdout.encode("utf-8")),
         "stderr_bytes": len(result.stderr.encode("utf-8")),
         "stdout_sha256": hashlib.sha256(result.stdout.encode("utf-8")).hexdigest(),
         "stderr_sha256": hashlib.sha256(result.stderr.encode("utf-8")).hexdigest(),
+        "stdout": result.stdout,
+        "stderr": result.stderr,
         "exit_code": result.returncode,
     })
     return {

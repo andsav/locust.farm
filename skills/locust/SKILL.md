@@ -114,7 +114,10 @@ an input with `locust workspace materialize --goal GOAL --manifest INPUT
 running project commands within the authorized local execution scope.
 
 Report execution using `locust_attempt_report` with the exact attempt and
-generation. Contributions are distinct from execution reports. A standalone
+generation. A `completed` or `failed` report ends the attempt and releases its
+claim. Publish task-backed contributions and submit patches while the attempt
+is active, before any terminal report; an ended attempt cannot be reused.
+Contributions are distinct from execution reports. A standalone
 finding uses `locust_contribution_publish` with no task, attempt or generation.
 An attempt-backed contribution supplies all three, plus summary and any exact
 base, patch and artifacts.

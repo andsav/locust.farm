@@ -154,5 +154,37 @@
       }
     ],
     "binary_unchanged": true
+  },
+  "runtime_source_commit": "c50a43f54a6168a631351c6500b44ccd1167d27c",
+  "live_harness_verification": {
+    "python_tests": 230,
+    "result": "passed",
+    "elapsed_seconds": 20.632,
+    "log": {
+      "name": "locust-collaboration-python-tests-complete.log",
+      "bytes": 358,
+      "sha256": "f5d77f96a3c5235e3d79f97b3f980a37409616c91028f6e0a35ceb8257044a87"
+    },
+    "source_files_sha256": {
+      "scripts/check_clients.py": "19b39862eea85153d0ee2ce54d0a2f9c33724146650bc042c3995bced4703fa4",
+      "scripts/check_collaboration_acceptance.py": "566aadb62f3535452557cfa46091ba90a0447a8dbb7753e5195842d2262da540",
+      "scripts/check_shared_context_models.py": "37f81c57bbbedcf22563ff41969e1f648672a9186fabb5a52dd4d8b17a37094b",
+      "scripts/client_qualification/acceptance_case.py": "da59fe8048d12546040a1c275876818c3634db186532b414bf3130c626e72b07",
+      "scripts/client_qualification/acceptance_evidence.py": "296bfd41e807fd4955da2af6a4214716c32a28498a22f7353c562e15e86a0383",
+      "scripts/client_qualification/collaboration_case.py": "6eb84e9d7e90960a967424880f9ba26f78c09d01235d9555320bcae718f5332a",
+      "scripts/client_qualification/collaboration_evidence.py": "0cff5b2b7c1111b7f4e38859d588b0b1d54a3bf7267e84480b56b23a68fd3b15",
+      "scripts/client_qualification/runtime.py": "efb836983ee2d2372e686dbdbff485643ef96d2e660936379ad5dabf532fc71a",
+      "scripts/tests/test_client_qualification.py": "9f05f57d245316472bafe0ad131144cdbcb2c17e8159592478ebefb39561994c",
+      "scripts/tests/test_collaboration_acceptance.py": "60a6b8277a2392c003c284a52be493dad19d5101d704a05abdda07ea96d98cad",
+      "scripts/tests/test_shared_context_models.py": "836804206745124b1bb73fa49e1438075c4f16ae36da45850fd1eb6716dfaad1"
+    },
+    "independent_review": "Three identified evidence defects corrected: valid initial implementation, cumulative resume accounting, exact peer review response. Focused 24-test suite passed independently; no remaining scoped blocker reported.",
+    "fixture_policy_smoke": {
+      "path": "output/collaboration-acceptance-review-policy-smoke/report.json",
+      "sha256": "800947ca29a16a496c9f35282aa4ddf6702a8ad6a89f8dbb59fbf1f931d14b02",
+      "result": "passed",
+      "boundary": "Scripted production daemon, independent-principal review and dirty-workspace application; no model invocation"
+    },
+    "additional_evidence_check": "Whole transcript may be a partial page only when the retained relevant effect is complete and its full returned JSON equals the independent authenticated review; 25 focused tests pass."
   }
 }
