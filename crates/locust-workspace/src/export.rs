@@ -25,7 +25,8 @@ pub struct ExportReport {
     pub files: usize,
     /// Sum of the files' sizes.
     pub total_bytes: u64,
-    /// Paths the default-deny selection left out.
+    /// Paths relative to the export root that the default-deny selection
+    /// left out, including files beneath denied repository ancestors.
     pub left_out: Vec<String>,
     /// Paths a manifest cannot carry: not UTF-8 (shown lossily), or refused
     /// by [`is_safe_path`].
@@ -118,6 +119,7 @@ pub fn export(
     sink: &mut dyn BlobSink,
 ) -> Result<ExportReport, ExportError> {
     let prefix = git::work_tree_prefix(root)?;
+    let denied_root = select::has_denied_directory(&prefix);
     let commit = git::resolve_commit(root, commit)?;
 
     let mut selected = Vec::new();
@@ -135,7 +137,7 @@ pub fn export(
                 continue;
             }
         };
-        if select::is_denied(&path) {
+        if denied_root || select::is_denied(&path) {
             left_out.push(path);
             continue;
         }

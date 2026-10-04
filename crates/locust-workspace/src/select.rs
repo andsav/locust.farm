@@ -49,12 +49,20 @@ const SUFFIXES: &[&str] = &[
 pub(crate) fn is_denied(path: &str) -> bool {
     let path = path.to_ascii_lowercase();
     let (directories, name) = path.rsplit_once('/').unwrap_or(("", &path));
-    directories
-        .split('/')
-        .any(|directory| DIRECTORIES.contains(&directory))
+    has_denied_directory(directories.as_bytes())
         || NAMES.contains(&name)
         || PREFIXES.iter().any(|prefix| name.starts_with(prefix))
         || SUFFIXES.iter().any(|suffix| name.ends_with(suffix))
+}
+
+/// Checks repository-relative directory ancestry before paths are rebased
+/// to the export root. Git paths may contain non-UTF-8 directory names.
+pub(crate) fn has_denied_directory(path: &[u8]) -> bool {
+    path.split(|&byte| byte == b'/').any(|directory| {
+        DIRECTORIES
+            .iter()
+            .any(|denied| directory.eq_ignore_ascii_case(denied.as_bytes()))
+    })
 }
 
 #[cfg(test)]

@@ -209,6 +209,53 @@ fn credentials_and_private_material_are_left_out_and_reported() {
 }
 
 #[test]
+fn denied_repository_ancestors_are_kept_when_export_paths_are_rebased() {
+    // Separate repositories also exercise ASCII-case variants on macOS's
+    // case-insensitive filesystem.
+    for (aws, kube) in [(".aws", ".kube"), (".AWS", ".KuBe")] {
+        let repo = TestRepo::new();
+        repo.write(&format!("{aws}/credentials"), b"FAKE_AWS_SECRET");
+        repo.write(&format!("{aws}/nested/credentials"), b"FAKE_NESTED_SECRET");
+        repo.write(&format!("{kube}/config"), b"FAKE_KUBE_SECRET");
+        repo.write(&format!("app/{aws}/credentials"), b"FAKE_APP_SECRET");
+        repo.write("app/src/main.rs", b"fn main() {}\n");
+        repo.commit_all();
+
+        for (root, excluded) in [
+            (aws.to_owned(), vec!["credentials", "nested/credentials"]),
+            (format!("{aws}/nested"), vec!["credentials"]),
+            (kube.to_owned(), vec!["config"]),
+            (format!("app/{aws}"), vec!["credentials"]),
+        ] {
+            let mut store = MemBlobs::default();
+            let report = export(&repo.path().join(&root), "HEAD", &mut store).unwrap();
+            assert!(report.manifest.entries.is_empty(), "{root}");
+            assert_eq!(report.files, 0, "{root}");
+            assert_eq!(report.total_bytes, 0, "{root}");
+            assert_eq!(report.left_out, excluded, "{root}");
+            assert!(report.refused.is_empty(), "{root}");
+            assert_eq!(store.objects.len(), 1, "only the empty manifest: {root}");
+            assert_eq!(
+                Manifest::decode(&store.objects[&report.manifest_id]).unwrap(),
+                report.manifest
+            );
+        }
+
+        let mut store = MemBlobs::default();
+        let report = export(&repo.path().join("app"), "HEAD", &mut store).unwrap();
+        assert_eq!(report.manifest.entries.len(), 1);
+        assert_eq!(report.manifest.entries[0].path, "src/main.rs");
+        assert_eq!(report.left_out, [format!("{aws}/credentials")]);
+        assert!(
+            store
+                .objects
+                .values()
+                .all(|bytes| { !bytes.windows(4).any(|window| window == b"FAKE") })
+        );
+    }
+}
+
+#[test]
 fn paths_a_manifest_cannot_carry_are_refused_and_reported() {
     let repo = TestRepo::new();
     let blob = repo.hash_object(b"content\n");
