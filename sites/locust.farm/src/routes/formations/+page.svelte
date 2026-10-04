@@ -27,11 +27,7 @@
 <div class="page">
 	<SiteHeader />
 	<main>
-		<h1 id="formations-title">How does your team work?</h1>
-		<p class="lede">
-			A formation is the rules for one shared goal. Pick a way of working, change any of its four
-			points, then copy the prompt.
-		</p>
+		<h1 id="formations-title">How does your swarm work?</h1>
 
 		{#if Editor}
 			<Editor />
@@ -88,13 +84,6 @@
 		font: var(--text-display);
 		letter-spacing: var(--tracking-display);
 		text-wrap: balance;
-	}
-
-	.lede {
-		max-width: 46rem;
-		margin: -0.5rem 0 0;
-		color: var(--color-text-muted);
-		text-wrap: pretty;
 	}
 
 	.intro p {

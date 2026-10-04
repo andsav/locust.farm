@@ -1,4 +1,4 @@
-<!-- "How does your team work?": six ways of working, each with its picture. The sentence is the tooltip. -->
+<!-- "How does your swarm work?": six ways of working, each with its picture. The sentence is the tooltip. -->
 <script lang="ts">
 	import { WAYS_OF_WORKING } from '../model/presets.ts';
 	import { drawDiagram } from './diagrams.ts';

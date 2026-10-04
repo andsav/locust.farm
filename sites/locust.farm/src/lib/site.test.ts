@@ -24,7 +24,7 @@ test('the header links to the guide, the formation editor and docs after the hom
 test('the formation editor page explains formations before the editor loads', () => {
 	const source = readFileSync(new URL('formations/+page.svelte', routes), 'utf8');
 	assert.ok(source.includes('<title>Formations — locust.farm</title>'));
-	assert.ok(source.includes('How does your team work?'));
+	assert.ok(source.includes('How does your swarm work?'));
 	assert.ok(source.includes('href="/start"'));
 	assert.doesNotMatch(source, /Polaris/);
 });
