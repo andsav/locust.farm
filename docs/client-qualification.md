@@ -1,6 +1,6 @@
 # Client qualification harness
 
-Date: 2026-10-03. **Status: implemented test harness for actual client binaries with a scripted local provider and a fixture MCP server. It does not establish a working Locust daemon, real-model collaboration or release support.** The [evidence ledger](release-evidence.md) tracks those separate requirements; [retained findings](../research/client-qualification.md) record measured behavior.
+Date: 2026-10-03. **Status: separate fixture, production-daemon, real-model and managed-session harnesses are implemented. Each establishes only its recorded scope; none closes release support.** The [evidence ledger](release-evidence.md) tracks the separate requirements; the original [fixture findings](../research/client-qualification.md), [production findings](../research/t2-production-qualification.md), and [real-model findings](../research/t2-real-model-qualification.md) retain measured behavior.
 
 ## What it does
 
@@ -48,3 +48,45 @@ Actual daemon authentication/task flow, interactive approval, own-account sign-i
 Follow-up to the [candidate assessment](../research/t1-candidate-review-response.md) corrected the earlier interruption predicate: group-wide SIGINT and a later forced child cleanup could previously still produce a passing interruption row. Historical client records retain their exact observations; the [corrected rerun](../research/evidence/client-qualification-remediation-2026-10-03.json) supersedes their interruption-success claim. All four clients pass the scoped interruption/resume/restart checks without forced cleanup. Pi took 30.391 seconds, consistent with the fixture I/O timeout, so immediate bridge cancellation remains unverified. Default Claude read/write and Droid write denials remain explicit not-run results. The correction has subprocess regressions for a leaking child, a child that changes process group, natural cleanup and protection against signaling an unrelated session.
 
 Every scripted backend path, including rejected HTTP verbs/routes, now produces a redacted receipt. Accepted model paths are canonical route names; arbitrary path prefixes, request text and authorization headers are not retained. These receipts remain separate from model request numbering and session-fallback assertions. This change improves test evidence; it does not add production client lifecycle behavior.
+
+## Production and managed qualification
+
+Build and copy the selected binary/probe into an immutable output directory before
+a campaign; record their hashes and source state. Concurrent rebuilds must not
+replace an artifact under test. These harnesses accept the same four absolute
+client flags as above:
+
+- [check_t2_clients.py](../scripts/check_t2_clients.py) takes `--locust`,
+  `--config-probe`, `--output` and `--timeout-ms`. Its scripted-provider calls use
+  production scoped credentials, SQLite and MCP. Native client tools execute an
+  authored workspace driver, with independently read task/event/file results.
+  Default permission denial, lifecycle opt-ins, held wait, natural cleanup,
+  daemon restart and native-session resume are separate assertions.
+- [check_t2_models.py](../scripts/check_t2_models.py) runs the synthetic coding
+  workflow with selected real provider credentials and models. Use its `--help`
+  for pair/provider selection. Skill use requires an actual native read, and
+  target workspace operations must be performed by the model through native
+  tools. Real clients need provider networking, so the scripted clients'
+  external-network-denial claim does not apply. Retained output redaction is not
+  native tool or secret containment.
+- [check_managed_clients.py](../scripts/check_managed_clients.py) takes
+  `--locust`, `--output`, `--timeout-ms` and client paths. It runs the
+  [explicit managed CLI](managed-clients.md), independently checks readiness and
+  binding, interrupts an outstanding wait, restarts the daemon, then resumes to
+  observe and acknowledge durable cancellation.
+- [check_managed_recovery.py](../scripts/check_managed_recovery.py) uses the same
+  flags. It observes default-policy blocking and deliberately kills only an
+  owned launcher. Recovery must remain `Unknown` without spawning or signaling;
+  a duplicate launch must be rejected. Its deliberate fault cleanup is recorded
+  as forced cleanup and never substituted for a natural-exit assertion.
+
+Use nested Pi native session paths under `.pi/agent/sessions/`; Pi 1.0.1 migrates
+JSONL files placed directly in the agent directory on startup. A resume passes
+only with the same native identifier and extended original history. Codex
+0.153.4's documented exit 1 after an intentional interrupt is version-qualified;
+the harness still rejects arbitrary nonzero exits and unexpected signals.
+
+The current campaigns use one host and principal, private profiles, explicit
+permission modes and local debug artifacts. Independent people/accounts,
+physical networks, default interactive approval, qualified active hooks,
+confinement and packaged installation remain separate evidence requirements.

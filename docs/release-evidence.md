@@ -1,6 +1,6 @@
 # October 4 release evidence ledger
 
-**Status: T2 implementation is locally verified; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is now deferred by the owner. Managed sessions are the next implementation checkpoint; production-client qualification and the owner's two-Mac testing proceed separately. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace the detailed M0–M6 exit evidence or conformance matrix.
+**Status: production-client campaigns and managed-session implementation have local evidence; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is deferred by the owner. Operational workflows are next. Remaining client/account/installation qualification and the owner's two-Mac testing stay separate. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace detailed M0–M6 exit evidence or the conformance matrix.
 
 The repository owner decides release go/no-go and changes to required scope or support claims. Agents record failures and remediate them; they cannot waive requirements. The [review response](implementation-plan-review-response.md) explains the changes that introduced this register.
 
@@ -10,11 +10,11 @@ The repository owner decides release go/no-go and changes to required scope or s
 |---|---|---|---|
 | R1 — Protocol and identity | M0–M3: byte/signature fixtures, authority, goal scoping, restore/copy and per-goal conflict behavior | Partial; gate open | A-C1; A-C3 |
 | R2 — Authorization and confidentiality | M1/M2: scoped local API, membership, event/blob admission, encryption/key changes and malformed/member-input controls | Partial; gate open | A-C1; A-C3 |
-| R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Partial; gate open | A-C1; A-C3; A-C5/B-C9 (typed content-graph component coverage) |
-| R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Partial; gate open | A-C1; A-C3; A-C5/B-C9 (local MCP/CLI task and pipe-cancellation checks) |
-| R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Partial; gate open | A-C1; A-C5/B-C9 (complete local snapshot/contribution command flow and recovery tests) |
-| R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2; B-C5; B-C8 (scripted fixture); A-C5/B-C9 (production bridge/skill implemented; actual-client qualification still open) |
-| R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2; B-C5; B-C8 (scripted fixture only) |
+| R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Partial; gate open | A-C1; A-C3; A-C5/B-C9 (content graph); A-C7/B-C11 (pending/cancellation survives daemon restart) |
+| R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Partial; gate open | A-C1; A-C3; A-C5/B-C9; A-C6/B-C10; A-C7/B-C11 (actual-client claims, explicit cancellation acknowledgment and conservative crash recovery) |
+| R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Partial; gate open | A-C1; A-C5/B-C9; A-C6/B-C10 (four real-model mixed-client pairs, preserved dirty work and separately observed acceptance/application) |
+| R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2; B-C5; B-C8; A-C5/B-C9; A-C6/B-C10 (real-model production flows; Droid resume, automatic discovery, interactive approval and independent accounts remain open) |
+| R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2; B-C5; B-C8; A-C7/B-C11 (actual scripted clients with production managed launch, ordinary-tool delivery, restart/resume and fault recovery) |
 | R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7; A-C2; A-C4 (identified protocol-1 T1 candidate; installation and T2 packaging still unqualified) |
 | R8 — Real collaboration | M6: two people/machines, mixed-client flows covering all four baseline clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
 | R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3; B-C4; A-C1; A-C2; A-C3/A-C4 (same-host component/artifact evidence); M1 observation and T1-M2-S1/S2 (mixed-build two-Mac join, note and assignment) |
@@ -67,6 +67,48 @@ qualification or Linux execution proof. The owner handles live qualification
 separately; a parallel lane can pin this commit for production-client checks.
 Managed launch, installation and publication remain outside this checkpoint.
 
+**A-C6 / B-C10, relevant to T2 and R4/R5/R6:** `040da11` implements the
+[production client campaign](../research/t2-production-qualification.md) exercises
+actual Codex 0.153.4, Claude Code 2.1.280, Droid 0.218.1 and Pi 1.0.1 with scoped
+production daemon/MCP sessions. Scripted-provider MCP lifecycle checks passed in
+all four; native workspace execution under the external-network guard failed in
+Droid and passed in the other three. Separate real-provider pairs completed the
+workspace task with every client as coordinator and worker, including native
+skill reads, independent acceptance-before-integration checks and preserved
+HEAD/unrelated work. Droid's provider-key-only native coordinator continuation
+failed; an explicitly fresh session applied the accepted result successfully.
+The [scripted record](../research/evidence/t2-production-clients-2026-10-03.json)
+and [real-model record](../research/evidence/t2-real-model-qualification-2026-10-03.json)
+retain exact differing debug artifacts, clients, public task/session IDs,
+permissions and failed attempts. `2ec3f13` fixes unsafe MCP numeric-schema maxima
+discovered by the real OpenAI/Droid run. Pi's harness native-session path and
+qualification receipt/exit predicates were also corrected. A real-model native
+tool exposed its provider key; retained files were scrubbed, but this is not
+worker confinement or prevention of provider-visible tool disclosure. These
+same-host, same-principal experiments do not qualify independent accounts,
+automatic skill discovery, interactive approvals, installation or real networks.
+
+**A-C7 / B-C11, relevant to R3/R4/R6L:** the
+[managed launcher](managed-clients.md) implements locally selected foreground
+launch, authenticated readiness, exact session/claim binding, native resume,
+ordinary-tool pending delivery and explicit cancellation handling. Durable
+uncertain launch recovery refuses a duplicate and never signals a historical
+PID. The [managed campaign record](../research/evidence/managed-client-qualification-2026-10-03.json)
+records thirteen passing normal checks per actual client and deliberate
+launcher-crash checks for all four. Default headless blocking was observed in
+Codex, Claude and Droid; Pi allows the tested operation. Normal runs had natural
+cleanup; Codex, Claude and Droid recovery experiments required forced cleanup
+after observations. Pi's observed processes exited after the deliberate fault without
+additional forced cleanup. Final normal and recovery campaigns both used debug
+artifact SHA-256 `205169864dc78dca8d7c51c484b7d44bafab1cb69b619816bc577344b5c38c51`,
+reporting `locust 0.1.0 (040da1187719-dirty) api 1 protocol 1`. Its recorded source
+matches the final verified tree, including repeated-interrupt and retained-pipe
+fixes. Earlier campaign artifacts and failures remain separate. Formatting,
+strict Clippy and all **511 Rust tests** passed (nine explicit ignores); all
+**137 Python tests** and documentation checks passed. This evidence uses scripted
+providers, one host and isolated profiles. Active hooks, automatic wake,
+confinement, physical/account and installed-artifact qualification remain open.
+
 ## T1 preparation and run status
 
 **Owner update, October 3:** start the physical run on the two available Apple Silicon Macs. Publication remains deferred; AirDrop or a shared folder can carry the executable bundle. Each Mac initializes independent state. The [T1 run guide](t1-run.md) defines the first pass and optional third-peer extension. The owner subsequently authorized a mixed-build smoke test when M2 lacked the original bundle and verified matching Rust/build inputs; identical-artifact qualification remains pending.
@@ -112,12 +154,16 @@ Prior-art tests, reviewer-reported probes and documentation-check success do not
 
 | Client | Current Locust configuration evidence | Daemon task flow and recovery | Locust-managed lifecycle |
 |---|---|---|---|
-| Codex | B-C5/B-C8: 0.153.4 configuration, actual MCP fixture and scripted native resume passed | Not run | Not run |
-| Claude Code | B-C5/B-C8: 2.1.280 actual MCP fixture and scripted resume passed; `--bare` and policy opt-ins explicit | Not run | Not run |
-| Factory Droid | B-C5/B-C8: 0.218.1 actual MCP fixture and scripted local-session fallback passed | Not run | Not run |
-| Pi | B-C5/B-C8: 1.0.1 actual MCP fixture and scripted native resume passed under default policy | Not run | Not run |
+| Codex | 0.153.4; explicit lifecycle permission opt-in; default write denied | Both real-model roles and native resume passed | Scripted normal/recovery campaign passed |
+| Claude Code | 2.1.280; `--bare` and permission opt-in explicit; default headless read/write denied | Both real-model roles and native resume passed | Scripted normal/recovery campaign passed |
+| Factory Droid | 0.218.1; explicit permission opt-in; default write denied | Both roles completed; real native coordinator resume failed, fresh-session apply passed; guarded scripted workspace execution failed | Scripted provider/backend normal/recovery campaign passed; this does not qualify real-account native resume |
+| Pi | 1.0.1; native default policy | Both real-model roles and exact nested-path resume passed | Scripted normal/recovery campaign passed; default-blocking scenario not run |
 
-The [lane A review](lane-a-log.md) records configuration findings against B-C2; the [lane B replies](lane-b-log.md) map corrections to later commits. The current client rows report scripted fixture behavior only; they do not qualify daemon task flow or Locust-managed lifecycle.
+The [lane A review](lane-a-log.md) records early configuration findings; the
+[lane B replies](lane-b-log.md) map their corrections. Current rows use A-C6/B-C10
+and A-C7/B-C11 with the exact limitations above. No row closes default interactive
+approval, automatic skill discovery, independent-account, packaged or physical
+network qualification.
 
 Apply the same required scenarios to each client:
 

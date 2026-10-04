@@ -1,6 +1,6 @@
 # Crates and workstreams
 
-Date: 2026-10-03. **Current execution: T2 MCP, operating skill and snapshot/contribution workflow are implemented and locally verified at `8a7d170`. Managed sessions are the next implementation checkpoint; production-client qualification can run in parallel, and the owner handles physical-machine testing separately. See [T2 workflow](t2-workflow.md) and the remaining sequence in section 10 of the [implementation plan](implementation-plan.md).**
+Date: 2026-10-03. **Current execution: T2 production-client campaigns and managed launch, recovery, ordinary-tool delivery and cancellation are implemented and locally exercised. The retained [production findings](../research/t2-production-qualification.md) distinguish passing paths from Droid failures and unrun account/approval/install gates. Operational workflows are next; the owner handles physical-machine testing separately. See [managed sessions](managed-clients.md) and section 10 of the [implementation plan](implementation-plan.md).**
 
 **T1 baseline:** runtime remediation is implemented in `d253a07`; its identified
 protocol-1 artifact passes all 21 local three-process checks. The owner handles
@@ -57,7 +57,7 @@ The lane labels retain functional ownership under the current shared orchestrato
 | [`crates/locust-workspace`](../crates/locust-workspace/src/lib.rs) | A | Manifest export, materialization, patches; runs in the CLI, never in the daemon | Plain directories and Git object reads |
 | [`crates/locust-net`](../crates/locust-net/src/lib.rs) | B | Endpoint, relay and address configuration, framed links, in-memory link; the two-machine transport probe | An in-memory link; then two machines |
 | [`crates/locust-adapter`](../crates/locust-adapter/src/lib.rs) | B | Per-client configuration, launch, session binding, hooks, diagnostics | Scripted provider fixtures |
-| Real-client qualification harness | B | Default-profile Codex, Claude Code, Factory Droid and Pi runs: tool reach, approvals, wait, interruption, resume, hook delivery | Existing fixture MCP records; next qualify the implemented production daemon and `locust mcp` |
+| Real-client qualification harness | B | Codex, Claude Code, Factory Droid and Pi: tool reach, approvals, wait, interruption, resume, hook delivery | Fixture, production scripted, real-model and managed lifecycle records now exist; default interactive approval, independent accounts and claimed hooks remain open |
 | `scripts/`, skill and installer files | B | Installer, operating skill, client configuration, user-service units, install prompt | The development binary |
 | `.github/`, release manifest and signing | B | macOS and Linux CI, release-build smoke test on a fresh database, artifacts | — |
 | [`release-evidence.md`](release-evidence.md) | B | Keeps the gate ledger; lane A supplies records for its own gates | — |
@@ -100,7 +100,7 @@ These are conventions; nothing enforces them except the checks named below.
 
 ## Integration order
 
-**T2 implementation below is complete; managed sessions are the next implementation checkpoint.** Production-client qualification and owner-operated physical testing can proceed in parallel. The T1 physical-run instructions remain: test an identified integrated binary on the **two Macs currently available**, rather than wait for a third. Use the [two-Mac run guide](t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
+**T2 and managed-session implementation below have retained local campaign results; operational workflows are the next checkpoint.** Remaining client qualification and owner-operated physical testing can proceed in parallel. The T1 physical-run instructions remain: test an identified integrated binary on the **two Macs currently available**, rather than wait for a third. Use the [two-Mac run guide](t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
 
 **Scaffolding** is done when these exist together: contract revision 2 complete (lane A); the core state machine and the SQLite store (lane A); the daemon shell with its socket and a CLI for the operations below (lane A); a transport that the daemon can bind and dial with contract types, with the hello-then-peer frame limit and delivery of a final frame (lane B; findings A-R1, A-R2 and A-R4 in the [lane A log](lane-a-log.md)).
 
@@ -120,10 +120,10 @@ These are conventions; nothing enforces them except the checks named below.
 
 ### T2: coding agents on the same machines
 
-[The T2 MCP and workspace flow](t2-workflow.md) is implemented and locally verified at `8a7d170` (A-C5/B-C9). Remaining work is to qualify the production daemon, `locust mcp` and operating skill in actual default-profile clients, then on the two available Macs: a real task with a workspace snapshot and a patch, wait, interruption and explicit resume. Baseline clients are Codex, Claude Code, Factory Droid and Pi; start with a runnable pair. Pin source and artifact identity for each run; the earlier identified T1 artifact does not contain T2.
+[The T2 MCP and workspace flow](t2-workflow.md) is implemented and locally verified at `8a7d170` (A-C5/B-C9). Subsequent production campaigns cover all four clients in both real-model roles, plus scripted managed lifecycle and crash recovery (A-C6/B-C10 and A-C7/B-C11). Exact artifacts, permission modes, explicit skill reads, failed Droid paths and unrun cases are retained in the [production findings](../research/t2-production-qualification.md). Continue with independent accounts, default interactive approval, automatic skill discovery and the two available Macs. Pin source and artifact identity for each run; the earlier identified T1 artifact does not contain T2.
 
 ### After T2
 
-Complete workflow and qualification work for member removal/key rotation, cancellation delivery, document revisions, content larger than one chunk and managed client sessions, then packaging and the one-prompt install against the release candidate. Reuse existing core implementations and tests; deferred qualification does not mean those components are absent. Publication still requires the owner to reopen it.
+Complete workflow and qualification work for member removal/key rotation, document revisions, content larger than one chunk, retained replicas and competing workspace changes, then packaging and the one-prompt install against the release candidate. Managed ordinary-tool cancellation delivery has local four-client evidence; qualified active hooks and installed lifecycle behavior remain separate. Reuse existing core implementations and tests; deferred qualification does not mean those components are absent. Publication still requires the owner to reopen it.
 
 Deterministic tests do not wait for the machines: the core's shuffled-delivery and multi-node tests and the store's conformance and crash tests run as their crates land.

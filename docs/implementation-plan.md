@@ -1,6 +1,6 @@
 # Locust implementation plan
 
-Updated: 2026-10-03. **Current execution: T2 MCP, operating skill and snapshot/contribution flow are implemented and locally verified at `8a7d170`; production-client and physical-machine qualification remain open. Managed client sessions are the next implementation checkpoint, followed by installation. The owner handles live testing separately. See [T2 workflow](t2-workflow.md) and the concrete remaining sequence in section 10.**
+Updated: 2026-10-03. **Current execution: production-client campaigns and managed launch, recovery, delivery and cancellation are implemented and locally exercised. All four clients completed the real-model workspace flow in both roles; Droid required a fresh coordinator session after native resume failed. Four-client scripted managed lifecycle/recovery checks passed. Default interactive approval, automatic skill discovery, independent accounts and physical-machine qualification remain open. Next: operational workflows, then packaging. See [production findings](../research/t2-production-qualification.md), [managed sessions](managed-clients.md) and section 10.**
 
 **Prior T1 checkpoint:** persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. The physical-machine qualification uses the owner's two available Macs. The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass remains a separate qualification activity; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.
 
@@ -59,9 +59,9 @@ The runtime was integrated in `885b372`. The [application](../crates/locust/src/
 
 | Area | Implemented and retained evidence | Still needed |
 |---|---|---|
-| Runtime, protocol and persistence | Protocol/API 1 remediation at `d253a07`; integrated T2 source at `8a7d170` passes 483 Rust tests, with nine explicit ignores, formatting and strict Clippy | Complete gate coverage and physical-machine qualification; the ignored checks are not passes |
+| Runtime, protocol and persistence | Protocol/API 1 remediation at `d253a07`; initial T2 at `8a7d170`; current managed-session source passes 511 Rust tests with nine explicit ignores, formatting and strict Clippy | Complete gate coverage and physical-machine qualification; the ignored checks are not passes |
 | Peer task and recovery flow | Identified protocol-1 Apple Silicon artifact `d253a07` passed 21 checks with three processes on one Mac; older mixed-build two-Mac evidence records join, note and assignment readiness | Complete task/recovery/sleep checks on two physical Macs using one identified current artifact; third-peer and separate-network checks separately |
-| Coding clients | Four-client configuration and actual binaries with scripted providers/fixture MCP; production `locust mcp` and operating-skill source now implemented, with local pipe and real-core integration tests | Production bridge/skill qualification in actual clients, real-model task flow and Locust-managed client lifecycle |
+| Coding clients | Four actual clients with production MCP, explicit operating-skill reads and real-model workspace flows; managed launch/readiness/binding/resume/recovery with ordinary pending tools and durable cancellation | Droid provider-key-only native resume and externally guarded native execution failures; default interactive approvals, automatic skill discovery, independent accounts, claimed hooks and installed-client qualification |
 | Workspace | Named preview/export/materialize and base-bound patch create/review/submit/accept/apply; typed manifest/contribution descendants replicate; local safety and recovery tests pass | Multi-peer retained-content and conflicting-worker workflow qualification through real clients and identified artifacts |
 | Later runtime features | Document revisions, member removal/key rotation and multi-chunk transfer have implementation and component tests | Their complete workflow and release qualification; inclusion in core tests does not close those gates |
 | Delivery | Identified local arm64 T1 candidate, build helper, Linux source-check CI configuration, local website and entry guide | Identified T2 artifact, macOS CI, platform runtime checks, installer/services, signed platform artifacts and public-download qualification; publication is deferred |
@@ -235,8 +235,8 @@ Command status below is checked against the [CLI command tree](../crates/locust/
 | Area | Current surface and remaining work |
 |---|---|
 | Lifecycle | Implemented: `locust daemon run`, `locust daemon stop`, `locust status`, `locust doctor`; managed service installation remains open |
-| Client bridge | Implemented: `locust mcp` over stdio with scoped authority, typed tools and interruption/output-closure cleanup; actual-client qualification and lifecycle hooks remain open |
-| Managed client sessions | Protected session-file creation and local session API exist; client launch/readiness/resume integration remains open |
+| Client bridge | Implemented and exercised in four actual clients: `locust mcp`, scoped authority, typed tools and interruption/output-closure cleanup; approval/account/hook and installation boundaries remain open |
+| Managed client sessions | Implemented `client run/status/recover/pending`, foreground process ownership, authenticated readiness, exact binding and explicit resume; uncertain crash recovery refuses duplicate launch. See [contract](managed-clients.md) |
 | Identity and enrollment | `agent enroll` plus typed local API operations through `call`; full lifecycle qualification remains open |
 | Goals | Implemented named create, invite, join, status and leave commands |
 | Board | Implemented `board`, `pending`, `events`, `event show`, `wait` and `task show` |
@@ -248,7 +248,7 @@ Provide human-readable output plus versioned `--json` responses, stable error co
 
 Explicit resume is the supported baseline. Hooks may surface pending-work/cancellation IDs at qualified lifecycle points; their elevated output contains daemon-authored identifiers/status, not peer-written instructions. Hook polling is nonblocking and uses ordinary authorization. Idle wake, mid-tool interruption and closed-session activation are separate capabilities, never inferred from a successful wait or MCP handshake. The daemon enforces collaboration authority; the participant's adapter/runner enforces local execution policy. Automatic wake is scoped only to Merak for now; Codex, Claude Code, Factory Droid and Pi use active sessions and explicit resume. Deeper execution/sandbox extensions remain separate; baseline Pi participation is required. A supervised external client is another option. [Agent-agnostic integration](../research/agent-agnostic-integration.md).
 
-The [operating skill](../skills/locust/SKILL.md) now teaches enrollment and goal joining, context inspection, typed coordination operations, attempt recovery, progress reporting, patch/result submission and the distinction between completion, acceptance and integration. Its coordinator and worker playbooks name review criteria and exact assignments. Source validation and independent review passed; installation, discovery and actual-model use still need qualification. Exercise both playbooks in real-agent runs. Peer content remains untrusted task data under the host's existing permission/sandbox controls. Skill prose does not enforce security. The daemon enforces collaboration permissions; the selected client or runner enforces local execution restrictions.
+The [operating skill](../skills/locust/SKILL.md) now teaches enrollment and goal joining, context inspection, typed coordination operations, attempt recovery, progress reporting, patch/result submission and the distinction between completion, acceptance and integration. Its coordinator and worker playbooks name review criteria and exact assignments. Source validation, independent review and explicit native reads/use by real models passed; automatic skill discovery and installed experience remain unqualified. Peer content remains untrusted task data under the host's existing permission/sandbox controls. Skill prose does not enforce security. The daemon enforces collaboration permissions; the selected client or runner enforces local execution restrictions.
 
 The [Agent Skills specification](https://agentskills.io/specification) supports instructions and optional scripts. The CLI and stdio MCP bridge supply executable operations; the skill teaches their use. Qualify the bridge early on isolated default configurations for all four baseline clients, testing actual daemon reachability and each client's permission behavior. [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), [Claude Code MCP](https://code.claude.com/docs/en/mcp).
 
@@ -335,9 +335,9 @@ Module/file ownership should be explicit before concurrent edits. Shared event t
 |---|---|---|
 | Completed local foundation | Protocol/API 1 daemon, CLI, core, store and peer transport; identified candidate passes the three-process workflow | A-C3/A-C4; historical A-C1/A-C2 remain attributable to their earlier source/artifacts |
 | Completed T2 implementation | Production MCP bridge, operating skill, workspace snapshots and manifest-bound contribution review/accept/apply | A-C5/B-C9 at `8a7d170`: 483 passing Rust tests, nine explicit ignores, independent review and local real-core MCP/CLI integration |
-| Parallel: production-client qualification | Pin T2 source/artifact; extend actual-client harness from fixture MCP to production daemon/MCP; run a real code task with a mixed-client pair, then all four clients | Exact client/profile/account modes, skill discovery, workspace tool access, wait/interruption/resume and artifact/event IDs; production-client results not yet recorded |
+| Local production-client campaigns completed | Scripted production MCP and real-provider synthetic workspace task; all four clients in both roles | A-C6/B-C10: exact versions, artifacts, policies, explicit skill reads and public object IDs. Droid native resume and guarded native execution remain failed; broader account/approval/install gates remain open |
 | Parallel: physical qualification | Use one identified current artifact on two Macs; complete task acceptance, offline catch-up, restart and OS sleep/wake; add a third daemon for coordinator-offline exchange and retained-content fetch | Historical mixed-build join/note/assignment-readiness evidence exists; complete current-artifact qualification remains open. Retain hash/version, OS, routes and exact process/host topology |
-| Next implementation: managed sessions | Locally authorized launch, readiness, session/attempt binding, explicit resume, active-session delivery and crash/cancellation recovery for four clients | Per-client capability records and actual-binary tests; no baseline-client automatic wake claim |
+| Managed implementation and local campaigns completed | Locally authorized launch/readiness/binding, explicit resume, ordinary-tool pending delivery, cancellation and conservative crash recovery for four clients | A-C7/B-C11: actual-binary normal and fault checks with exact separate artifact identities; no active hook, automatic wake or confinement claim |
 | Remaining product and release work | Complete operational workflows, diagnostics, platform packaging, installer/services and independent-collaborator qualification | Section 10 sequence, full M0–M6 exit evidence and exact artifact/platform/client matrix |
 | Publication: deferred | Revisit only when requested by the owner and after go/no-go | Public-artifact verification against the exact tested candidate |
 
@@ -442,41 +442,38 @@ Keep unit/state-machine tests deterministic and exercise delayed, reordered, par
 ## 10. Concrete remaining sequence
 
 T2 implementation is complete at `8a7d170`; `aaf1b5b` records its verification.
-The sequence below tracks remaining work, not authorization to publish or a
-replacement for the M0–M6 acceptance criteria. The ledger is the authority for
-what has actually been qualified. Fix failures at the affected checkpoint and
-retain the failed observation alongside the correction.
+Steps 1–3 now have implemented harnesses/runtime and retained local campaign
+results in A-C6/B-C10 and A-C7/B-C11. Failed and unrun qualification cases remain
+open. Step 4 is the next implementation/workflow checkpoint. This sequence does
+not authorize publication or replace M0–M6 acceptance criteria.
 
-1. **Qualify the production T2 path now, in parallel with implementation.** Pin
-   `8a7d170` or an explicitly identified successor. Extend the existing
-   [client harness](client-qualification.md) to the actual daemon and `locust mcp`
-   in isolated Codex, Claude Code, Factory Droid and Pi profiles. Check scoped
-   credentials, tool schemas, approval/denial, held wait, interruption, bridge
-   cleanup and native-session resume. Separately run real models through the
-   operating skill: export, assign, claim, materialize, edit, submit, review,
-   accept and apply. Workspace I/O uses the trusted CLI, so qualify that access
-   as well as MCP. Start with a mixed-client pair, then cover each baseline
-   client as coordinator and worker. Done means retained production-path
-   evidence with exact versions, permission/account modes and immutable IDs;
-   scripted-provider and real-model records remain distinct.
-2. **Implement managed client launch and recovery.** Start with one complete
-   client path, then cover all four. Compose the existing configuration and local
-   session APIs with durable launch intent, explicit argv/environment, readiness
-   observations and process/native-session bindings to the exact
-   assignment/attempt/generation. Implement locally initiated new/resume/rebind,
-   preserving the participant's permission policy. Reconcile crashes before and
-   after spawn; an unknown launch outcome must not create a second worker.
-   Done means actual-binary tests for ready, blocked, exited, resumed and
-   uncertain states, with no launch triggered by a remote assignment.
-3. **Connect managed sessions to delivery and cancellation.** Surface
-   daemon-authored pending-work/cancellation IDs through qualified client hooks
-   or ordinary tools. Recover work from durable task state after lost or
-   duplicated notifications, client exit and daemon restart. Exercise stale
-   sessions, claim takeover and cancellation/result races; distinguish requested
-   cancellation from an observed executor outcome. Done means per-client
-   active-session and explicit-resume evidence with honest capability reporting.
-   Automatic wake remains a separate Merak-only option; it is not a fifth
-   required client or a prerequisite for the four-client baseline.
+1. **Production T2 campaigns executed; broader qualification remains open.**
+   [Scripted and real-model harnesses](client-qualification.md) exercise the
+   production daemon and MCP in four isolated clients. Real models explicitly
+   read the skill and perform the native workspace/task/review/accept/apply flow,
+   with each client in both roles. Retained records distinguish accepted state
+   from integrated files and preserve unrelated dirty work. Droid's native
+   command under the external guard and real-provider native coordinator resume
+   remain failed; explicit fresh-session application passed. Automatic skill
+   discovery, default interactive approval, independent accounts and installed
+   experience remain unqualified. See [findings](../research/t2-production-qualification.md).
+2. **Managed launch and recovery implemented and locally exercised.**
+   [The foreground launcher](managed-clients.md) preserves explicit client policy,
+   persists launch intent, requires native identity plus authenticated MCP
+   readiness, and binds the exact local session/assignment/attempt. Four actual
+   clients passed scripted ready, exited and resumed checks, plus uncertain crash
+   recovery and duplicate-launch refusal. Default headless denial was observed
+   for Codex, Claude and Droid; Pi permits the tested operation. Recovery stays
+   `Unknown` when the process outcome is uncertain; it neither signals a saved PID
+   nor launches another worker. Qualified recovery is conservative reconciliation,
+   not automatic continuation.
+3. **Ordinary-tool delivery and cancellation implemented and exercised.**
+   Pending IDs remain daemon-authored and queryable after lost/duplicate notices,
+   client exit and daemon restart. Four managed clients resumed to observe and
+   explicitly acknowledge durable cancellation. Generation fencing and outcome
+   races have component coverage. A notification or client exit never implies a
+   stopped/completed outcome. Qualified active hooks, automatic wake and worker
+   confinement remain false capabilities. Optional Merak wake is separate.
 4. **Complete the operational workflows using existing core behavior.** Exercise
    member removal/key rotation with an offline member, conflicting document
    revisions, cancellation acknowledgment, and multi-chunk snapshot/patch
@@ -525,9 +522,9 @@ retain the failed observation alongside the correction.
    and first-install path. No public repository or release is created merely
    to complete the local steps above.
 
-**Parallel ownership:** a qualification lane can own the production-client
-harness and its research evidence while the A/B orchestrator owns managed-session
-integration. Assign disjoint files before both touch `locust-adapter`, the CLI or
+**Parallel ownership:** production-client harness and managed-session changes
+have landed together with separate research evidence. Follow-up owners should
+keep qualification and runtime changes coordinated. Assign disjoint files before both touch `locust-adapter`, the CLI or
 shared types. Operational workflow tests and packaging can run in separate
 scopes against pinned interfaces; the owner retains physical/account testing,
 and lane C retains website/first-contact copy. None of these lanes silently

@@ -1,11 +1,12 @@
 # T2 coding-agent workflow
 
-Status: implemented and locally verified, October 3, 2026. This document records the
-T2 scope from [workstreams](workstreams.md): the real stdio MCP bridge, operating
-skill and snapshot/contribution workflow. Managed client launch, installation,
-signed packaging and automatic wake remain later work. The owner is running
-live client and physical-machine qualification separately; component and CLI
-fixture checks here do not replace it.
+Status: implemented and locally verified, October 3, 2026. This document records
+the initial T2 checkpoint at `8a7d170`: the real stdio MCP bridge, operating skill
+and snapshot/contribution workflow. Subsequent [production client campaigns](../research/t2-production-qualification.md)
+and [managed-session implementation](managed-clients.md) have separate evidence.
+Installation, signed packaging and automatic wake remain later work. The owner
+handles physical-machine qualification; component and CLI fixture checks here
+do not replace it.
 
 ## Local MCP server
 
@@ -14,7 +15,8 @@ create a protected session using the existing CLI. Register `locust mcp` with
 absolute `LOCUST_HOME`, `LOCUST_CREDENTIAL` and `LOCUST_SESSION` environment
 values, or pass the corresponding command flags. Keep session and credential
 files private. The [adapter configuration library](../crates/locust-adapter/src/config.rs)
-already emits references to these paths; T2 does not install or launch a client.
+emits references to these paths. This initial T2 path does not install or launch
+a client; the later managed CLI supplies explicit foreground launch.
 
 The [bridge](../crates/locust/src/mcp.rs) implements newline-delimited JSON-RPC
 with MCP negotiation for 2025-11-25, 2025-06-18 and 2025-03-26. It checks the
@@ -126,6 +128,7 @@ The suite includes nine graph regressions, 32 workspace tests, four MCP binary
 pipe tests, three workspace CLI fixtures and the real-core MCP/CLI workflow.
 Independent Sol review covered the workspace implementation, CLI failure/retry
 behavior, content graph and operating-skill steps. These checks exercise
-production code with local deterministic fixtures. Real default-profile coding clients, a real task across physical
-machines, interruption/resume and separate-account behavior remain the owner's
+production code with local deterministic fixtures. Subsequent actual-client and
+interruption/resume campaigns are recorded in the [production findings](../research/t2-production-qualification.md).
+Default interactive approval, physical machines and separate accounts remain
 qualification work. No T2 release gate is closed by a component pass.

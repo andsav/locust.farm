@@ -1,5 +1,6 @@
 //! Command-line client: explicit authority, one JSON envelope, typed API.
 mod args;
+mod client;
 mod connection;
 mod doctor;
 mod workspace;
@@ -152,6 +153,9 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let (operation, selected) = args::selected(matches);
     if operation.starts_with("workspace.") || operation.starts_with("patch.") {
         return workspace::run(matches, &operation, selected);
+    }
+    if operation.starts_with("client.") {
+        return client::run(matches, &operation, selected);
     }
     let named_enrollment = operation == "agent.enroll";
     let generic_call = operation == "call";
