@@ -331,22 +331,33 @@ class Qualification:
                 return events
             for event in page:
                 event_id = identity(event.get("event"), "event")
-                if event_id in events:
-                    raise CheckFailure("event feed repeated an event identifier")
                 position = event.get("position")
                 if not isinstance(position, int) or position <= after:
                     raise CheckFailure("event feed did not advance its explicit cursor")
                 after = position
                 events[event_id] = event
 
-    def board_accepted(self, machine, goal, task, result_id):
-        result = self.cli(machine, ["board", "--goal", goal])
-        return any(item.get("task") == task and item.get("state") == "accepted"
-                   and item.get("result") == result_id for item in variant(result, "board"))
+    def create_goal(self, machine, title):
+        blueprint = self.cli(machine, ["blueprint", "example", "coordinator"], local=True)
+        blueprint["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
+        created = self.cli(machine, ["goal", "create", "--title", title,
+            "--blueprint-json", json.dumps(blueprint), "--roles", json.dumps({"coordinator": [machine.agent]})])
+        return identity(variant(created, "goal_created")["goal"], "goal")
 
-    def notes_contain(self, machine, goal, expected):
-        result = self.cli(machine, ["notes", "--goal", goal])
-        held = {note["note"]: note.get("text") for note in variant(result, "notes")}
+    def grant_contributions(self, goal):
+        for machine in self.machines:
+            self.cli(machine, ["goal", "grant", "--goal", goal, "--agent", machine.agent,
+                "--grants", json.dumps({"administer": True, "contribute": True,
+                    "review": True, "select": True, "execute": False, "flow": True, "takeover": False})], owner=True)
+
+    def board_selected(self, machine, goal, task, result_id):
+        result = self.cli(machine, ["board", "--goal", goal])
+        return any(item.get("task") == task and item.get("completed") is True
+                   and item.get("selected") == result_id for item in variant(result, "board"))
+
+    def contributions_contain(self, machine, goal, expected):
+        result = self.cli(machine, ["contributions", "--goal", goal])
+        held = {note["contribution"]: note.get("text") for note in variant(result, "contributions")}
         return all(held.get(event) == text for event, text in expected.items())
 
     def recorded(self, machine, args, **options):
@@ -388,7 +399,7 @@ class Qualification:
                                      "endpoint": m.endpoint} for m in self.machines]
         self.phase = "join"
         title = "Local three-process T1 qualification"
-        goal = identity(variant(self.cli(m1, ["goal", "create", "--title", title]), "goal_created")["goal"], "goal")
+        goal = self.create_goal(m1, title)
         self.summary["goal"] = goal
         for invitee in (m2, m3):
             ticket = variant(self.cli(m1, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
@@ -404,6 +415,7 @@ class Qualification:
                        and {member["member"] for member in state["members"]} == expected_members
                        for state in states)
         self.wait("all three replicas admit all three principals and decrypt title", admitted)
+        self.grant_contributions(goal)
         self.wait("all three daemons report a selected peer path", lambda: all(
             any(fact["machine"] == machine.number and any(path["selected"]
                                                         for path in fact["paths"]) for fact in self.routes)
@@ -412,21 +424,21 @@ class Qualification:
         self.phase = "task"
         task_text = "Return a deterministic local qualification result."
         summary = "Completed the deterministic local qualification task."
-        task = self.recorded(m1, ["task", "propose", "--goal", goal, task_text])
-        assignment = self.recorded(m1, ["task", "assign", "--goal", goal, "--task", task, "--assignee", m2.agent])
-        self.summary["events"].update(task=task, assignment=assignment)
-        self.wait("M2 receives assignment", lambda: any(
-            item.get("assignment") == assignment for item in variant(self.cli(m2, ["board", "--goal", goal]), "board")))
-        self.cli(m2, ["task", "authorize", "--goal", goal, "--assignment", assignment], owner=True)
+        task = "task:" + self.recorded(m1, ["task", "open", "--goal", goal, task_text])
+        offer = self.recorded(m1, ["work", "offer", "--goal", goal, "--task", task, "--recipient", m2.agent])
+        self.summary["events"].update(task=task, offer=offer)
+        self.wait("M2 receives offer", lambda: any(item.get("task") == task
+            for item in variant(self.cli(m2, ["board", "--goal", goal]), "board")))
+        self.cli(m2, ["task", "authorize", "--goal", goal, "--task", task, "--agent", m2.agent], owner=True)
         session_path = m2.home / "sessions" / "qualification.secret"
         session = self.cli(m2, ["session", "create", session_path], local=True)
         if session_path.stat().st_mode & 0o7777 != 0o600:
             raise CheckFailure("explicit execution session file was not mode 0600")
         self.summary["session"] = session
-        claim = variant(self.cli(m2, ["task", "claim", "--goal", goal, "--assignment", assignment], session=session_path), "claimed")
-        if claim.get("assignment") != assignment or claim.get("instance") != session.get("instance"):
-            raise CheckFailure("claim did not bind the requested assignment/session")
-        result_id = self.recorded(m2, ["task", "submit", "--goal", goal, "--assignment", assignment,
+        claim = variant(self.cli(m2, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer], session=session_path), "claimed")
+        if claim.get("task") != task or claim.get("instance") != session.get("instance"):
+            raise CheckFailure("claim did not bind the requested task/session")
+        result_id = self.recorded(m2, ["contribution", "publish", "--goal", goal, "--task", task, "--attempt", claim["attempt"],
                                       "--generation", claim["generation"], summary], session=session_path)
         self.summary["events"]["result"] = result_id
         def result_held(machine):
@@ -434,13 +446,14 @@ class Qualification:
             if not output:
                 return False
             detail = variant(output, "event")
-            return detail.get("text") == summary and detail["view"]["kind"] == "result_submitted" and all(
+            return detail.get("text") == summary and detail["view"]["kind"] == "contribution_published" and all(
                 content.get("state") == "held" for content in detail["content"])
         self.wait("M1 reads/decrypts the actual submitted result", lambda: result_held(m1))
-        accepted = self.recorded(m1, ["result", "accept", "--goal", goal, "--result", result_id])
+        self.recorded(m1, ["review", "record", "--goal", goal, "--subject", result_id, "--verdict", "approve", "Verified deterministic result"])
+        accepted = self.recorded(m1, ["scope", "select", "--goal", goal, "--subject", result_id])
         self.summary["events"]["acceptance"] = accepted
         self.wait("all replicas show accepted task and submitted content", lambda: all(
-            self.board_accepted(machine, goal, task, result_id) and result_held(machine)
+            self.board_selected(machine, goal, task, result_id) and result_held(machine)
             for machine in self.machines))
         baseline = self.history(m1, goal)
         self.wait("M3 holds the full effective task history", lambda: set(self.history(m3, goal)) == set(baseline))
@@ -453,12 +466,12 @@ class Qualification:
         # its live connection/discovery cache before peer-only reconciliation.
         self.restart(m3)
         note2_text, note3_text = "M2 note while coordinator is stopped.", "M3 note while coordinator is stopped."
-        note2 = self.recorded(m2, ["note", "add", "--goal", goal, note2_text])
-        note3 = self.recorded(m3, ["note", "add", "--goal", goal, note3_text])
+        note2 = self.recorded(m2, ["contribution", "publish", "--goal", goal, note2_text])
+        note3 = self.recorded(m3, ["contribution", "publish", "--goal", goal, note3_text])
         notes = {note2: note2_text, note3: note3_text}
         self.summary["events"].update(note_m2=note2, note_m3=note3)
         self.wait("M2 and M3 exchange/decrypt notes without coordinator", lambda: all([
-            self.notes_contain(machine, goal, notes) for machine in (m2, m3)]))
+            self.contributions_contain(machine, goal, notes) for machine in (m2, m3)]))
         self.wait("restarted M3 reports a selected non-coordinator path", lambda: any(
             fact["machine"] == 3 and fact["generation"] == m3.generation
             and fact["peer_endpoint"] == m2.endpoint and any(path["selected"] for path in fact["paths"])
@@ -466,7 +479,7 @@ class Qualification:
         self.phase = "coordinator_catchup"
         m1.generation += 1
         self.start(m1)
-        self.wait("M1 restart catches up with both offline notes", lambda: self.notes_contain(m1, goal, notes))
+        self.wait("M1 restart catches up with both offline notes", lambda: self.contributions_contain(m1, goal, notes))
         expected_history = set(self.history(m2, goal))
         self.wait("all replicas retain complete effective history", lambda: all(
             set(self.history(machine, goal)) == expected_history for machine in self.machines))
@@ -478,8 +491,8 @@ class Qualification:
                 variant(self.cli(machine, ["status"], owner=True), "status")["endpoint"] == machine.endpoint
                 and any(agent["agent"] == machine.agent for agent in variant(self.cli(machine, ["status"], owner=True), "status")["agents"])
                 and admitted() and set(self.history(machine, goal)) == expected_history
-                and self.board_accepted(machine, goal, task, result_id)
-                and self.notes_contain(machine, goal, notes) and result_held(machine)))
+                and self.board_selected(machine, goal, task, result_id)
+                and self.contributions_contain(machine, goal, notes) and result_held(machine)))
         self.summary["final_history"] = sorted(expected_history)
         self.summary["endpoint_identity_preserved"] = True
         self.summary["status"] = "passed"

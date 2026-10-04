@@ -1,5 +1,6 @@
 """Reusable steps of the T1 guide, driven only through the CLI of each daemon."""
 
+import json
 import re
 import time
 
@@ -32,9 +33,15 @@ def boot(cluster, machines):
          "endpoint": m.endpoint, "env": m.env} for m in cluster.machines]
 
 
+def grant(cluster, machine, goal):
+    cluster.cli(machine, ["goal", "grant", "--goal", goal, "--agent", machine.agent,
+        "--grants", json.dumps({"administer": True, "contribute": True, "review": True,
+            "select": True, "flow": True, "execute": False, "takeover": False})], owner=True)
+
+
 def found(cluster, coordinator, title):
-    goal = identity(variant(cluster.cli(coordinator, ["goal", "create", "--title", title]),
-                            "goal_created")["goal"], "goal")
+    goal = cluster.create_goal(coordinator, title)
+    grant(cluster, coordinator, goal)
     cluster.summary["goal"] = goal
     return goal
 
@@ -63,6 +70,8 @@ def invite_join(cluster, coordinator, joiner, goal, title, everyone, timeout=Non
     expected = {m.agent for m in everyone}
     cluster.wait(f"M{joiner.number} join admitted on all of {[m.number for m in everyone]}",
                  lambda: members_ok(cluster, everyone, goal, title, expected), timeout)
+    for machine in everyone:
+        grant(cluster, machine, goal)
     seconds = round(time.monotonic() - sent, 2)
     cluster.summary.setdefault("join_seconds", {})[f"M{joiner.number}"] = seconds
     return seconds
@@ -74,55 +83,56 @@ def result_held(cluster, machine, goal, result_id, text):
     if not output:
         return False
     detail = variant(output, "event")
-    return (detail.get("text") == text and detail["view"]["kind"] == "result_submitted"
+    return (detail.get("text") == text and detail["view"]["kind"] == "contribution_published"
             and all(content.get("state") == "held" for content in detail["content"]))
 
 
-def pending_has(cluster, machine, goal, bucket, assignment):
+def pending_has(cluster, machine, goal, bucket, task):
     pending = variant(cluster.cli(machine, ["pending", "--goal", goal]), "pending")
-    return any(item.get("assignment") == assignment for item in pending.get(bucket, []))
+    return any(item.get("task") == task for item in pending.get(bucket, []))
 
 
 def complete_task(cluster, coordinator, worker, goal, observers, timeout=None, label="T1"):
-    """Propose, assign, authorize, claim, submit, read, accept; acceptance seen everywhere."""
+    """Open, offer, authorize, start, publish, review and select across replicas."""
     task_text = f"Return the text: {label} task completed."
     summary = f"{label} task completed."
-    task = cluster.recorded(coordinator, ["task", "propose", "--goal", goal, task_text])
-    assignment = cluster.recorded(coordinator, ["task", "assign", "--goal", goal, "--task", task,
-                                                "--assignee", worker.agent])
-    cluster.wait(f"M{worker.number} receives assignment {label}", lambda: pending_has(
-        cluster, worker, goal, "to_authorize", assignment), timeout)
-    cluster.cli(worker, ["task", "authorize", "--goal", goal, "--assignment", assignment], owner=True)
+    task = "task:" + cluster.recorded(coordinator, ["task", "open", "--goal", goal, task_text])
+    offer = cluster.recorded(coordinator, ["work", "offer", "--goal", goal, "--task", task,
+                                                "--recipient", worker.agent])
+    cluster.wait(f"M{worker.number} receives offer {label}", lambda: pending_has(
+        cluster, worker, goal, "to_authorize", task), timeout)
+    cluster.cli(worker, ["task", "authorize", "--goal", goal, "--task", task, "--agent", worker.agent], owner=True)
     session_path = worker.home / "sessions" / f"{label.lower()}.secret"
     session = cluster.cli(worker, ["session", "create", session_path], local=True)
     if session_path.stat().st_mode & 0o7777 != 0o600:
         raise CheckFailure("execution session file was not mode 0600")
-    if not pending_has(cluster, worker, goal, "to_claim", assignment):
-        raise CheckFailure("authorized assignment is not listed to_claim")
-    claim = variant(cluster.cli(worker, ["task", "claim", "--goal", goal, "--assignment", assignment],
+    if not pending_has(cluster, worker, goal, "to_start", task):
+        raise CheckFailure("authorized task is not listed to_start")
+    claim = variant(cluster.cli(worker, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer],
                                 session=session_path), "claimed")
-    if claim.get("assignment") != assignment or claim.get("instance") != session.get("instance"):
-        raise CheckFailure("claim did not bind the requested assignment/session")
-    result_id = cluster.recorded(worker, ["task", "submit", "--goal", goal, "--assignment", assignment,
+    if claim.get("task") != task or claim.get("instance") != session.get("instance"):
+        raise CheckFailure("claim did not bind the requested task/session")
+    result_id = cluster.recorded(worker, ["contribution", "publish", "--goal", goal, "--task", task, "--attempt", claim["attempt"],
                                           "--generation", claim["generation"], summary], session=session_path)
     cluster.wait(f"M{coordinator.number} reads the submitted result {label}",
                  lambda: result_held(cluster, coordinator, goal, result_id, summary), timeout)
-    acceptance = cluster.recorded(coordinator, ["result", "accept", "--goal", goal, "--result", result_id])
+    cluster.recorded(coordinator, ["review", "record", "--goal", goal, "--subject", result_id, "--verdict", "approve", "Verified deterministic contribution"])
+    selection = cluster.recorded(coordinator, ["scope", "select", "--goal", goal, "--subject", result_id])
     cluster.cli(coordinator, ["pending", "--goal", goal])
-    cluster.wait(f"acceptance {label} visible on {[m.number for m in observers]}", lambda: all(
-        cluster.board_accepted(m, goal, task, result_id) and result_held(cluster, m, goal, result_id, summary)
+    cluster.wait(f"selection {label} visible on {[m.number for m in observers]}", lambda: all(
+        cluster.board_selected(m, goal, task, result_id) and result_held(cluster, m, goal, result_id, summary)
         for m in observers), timeout)
-    events = dict(task=task, assignment=assignment, result=result_id, acceptance=acceptance)
+    events = dict(task=task, offer=offer, attempt=claim["attempt"], result=result_id, selection=selection)
     cluster.summary["events"][label] = events
     return events
 
 
-def add_note(cluster, machine, goal, text, **options):
-    return cluster.recorded(machine, ["note", "add", "--goal", goal, text], **options)
+def add_finding(cluster, machine, goal, text, **options):
+    return cluster.recorded(machine, ["contribution", "publish", "--goal", goal, text], **options)
 
 
-def notes_everywhere(cluster, machines, goal, notes, label, timeout=None):
-    cluster.wait(label, lambda: all(cluster.notes_contain(m, goal, notes) for m in machines), timeout)
+def findings_everywhere(cluster, machines, goal, notes, label, timeout=None):
+    cluster.wait(label, lambda: all(cluster.contributions_contain(m, goal, notes) for m in machines), timeout)
 
 
 def same_history(cluster, machines, goal, label, timeout=None):

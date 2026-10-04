@@ -17,8 +17,8 @@ def two_machine_flow(c, m1, m2, title="Two Mac T1", restarts=True, timeout=None)
     flows.invite_join(c, m1, m2, goal, title, [m1, m2], timeout)
     c.summary["join_paths"] = {f"M{m.number}": c.selected_kinds(m) for m in (m1, m2)}
     c.phase = "note"
-    first = {flows.add_note(c, m1, goal, "Coordination note from M1."): "Coordination note from M1."}
-    flows.notes_everywhere(c, [m2], goal, first, "M2 decrypts M1's coordination note", timeout)
+    first = {flows.add_finding(c, m1, goal, "Coordination note from M1."): "Coordination note from M1."}
+    flows.findings_everywhere(c, [m2], goal, first, "M2 decrypts M1's coordination note", timeout)
     c.phase = "task"
     events = flows.complete_task(c, m1, m2, goal, [m1, m2], timeout)
     c.mark("task_accepted_everywhere")
@@ -27,11 +27,11 @@ def two_machine_flow(c, m1, m2, title="Two Mac T1", restarts=True, timeout=None)
     c.phase = "coordinator_offline"
     c.stop(m1)
     text = "M2 wrote this while M1 was offline"
-    offline = {flows.add_note(c, m2, goal, text): text}
-    if not c.notes_contain(m2, goal, offline):
+    offline = {flows.add_finding(c, m2, goal, text): text}
+    if not c.contributions_contain(m2, goal, offline):
         raise CheckFailure("M2 cannot read its own offline note")
     c.relaunch(m1)
-    flows.notes_everywhere(c, [m1], goal, offline, "M1 catches up with M2's offline note", timeout)
+    flows.findings_everywhere(c, [m1], goal, offline, "M1 catches up with M2's offline note", timeout)
     c.phase = "sequential_restarts"
     history = flows.same_history(c, [m1, m2], goal, "M1 and M2 hold one history", timeout)
     for machine in (m2, m1):
@@ -41,8 +41,8 @@ def two_machine_flow(c, m1, m2, title="Two Mac T1", restarts=True, timeout=None)
             any(a["agent"] == machine.agent for a in variant(c.cli(machine, ["status"], owner=True), "status")["agents"])
             and flows.members_ok(c, [machine], goal, title, {m1.agent, m2.agent})
             and set(c.history(machine, goal)) == history
-            and c.board_accepted(machine, goal, events["task"], events["result"])
-            and c.notes_contain(machine, goal, {**first, **offline})), timeout)
+            and c.board_selected(machine, goal, events["task"], events["result"])
+            and c.contributions_contain(machine, goal, {**first, **offline})), timeout)
         other = m2 if machine is m1 else m1
         c.wait(f"restarted M{machine.number} reconnects to M{other.number}",
                lambda: flows.peer_connected(c, machine, goal, other), timeout)

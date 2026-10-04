@@ -99,8 +99,8 @@ def new_address(c):
                 notes = {}
                 for writer in machines:
                     text = f"{name}: M{writer.number} after M{mover.number} moved"
-                    notes[flows.add_note(c, writer, goal, text)] = text
-                flows.notes_everywhere(c, machines, goal, notes, f"{name}: notes flow after M{mover.number} moved", 120)
+                    notes[flows.add_finding(c, writer, goal, text)] = text
+                flows.findings_everywhere(c, machines, goal, notes, f"{name}: notes flow after M{mover.number} moved", 120)
                 move["route_kinds_after_move"] = {
                     f"M{m.number}": [p["kind"] for fact in c.routes[mark:] if fact["machine"] == m.number
                                      and fact["peer_endpoint"] in {mover.endpoint} | ({o.endpoint for o in others}

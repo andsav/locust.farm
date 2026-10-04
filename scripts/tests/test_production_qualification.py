@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from client_qualification.production import ProductionDaemon, ProductionError, NETWORK, redact
 from client_qualification.runtime import Profile, private_write
 
-BINARY = Path(__file__).resolve().parents[2] / "target/product-root/debug/locust"
+BINARY = Path(__file__).resolve().parents[2] / "target/debug/locust"
 
 
 class ProductionTests(unittest.TestCase):
@@ -63,7 +63,7 @@ class ProductionTests(unittest.TestCase):
                 response = subprocess.CompletedProcess([], 1, stdout, "")
                 with patch.object(daemon, "_guard", return_value=[]), patch("client_qualification.production.subprocess.run", return_value=response):
                     with self.assertRaises(ProductionError) as error:
-                        daemon._invoke(["note", "add", "PRIVATE-PAYLOAD"])
+                        daemon._invoke(["contribution", "publish", "PRIVATE-PAYLOAD"])
                 self.assertNotIn("PRIVATE", str(error.exception))
             self.assertNotIn("PRIVATE", daemon.events.read_text())
 
@@ -100,13 +100,13 @@ class ProductionTests(unittest.TestCase):
             with daemon:
                 self.assertTrue((daemon.home / "locust.db").is_file())
                 original = (daemon.principal, daemon.goal, daemon.endpoint, daemon.instance)
-                daemon.call(["note", "add", "--goal", daemon.goal, "Persistent private qualification note"])
+                daemon.call(["contribution", "publish", "--goal", daemon.goal, "Persistent private qualification note"])
                 daemon.restart()
                 self.assertEqual((daemon.principal, daemon.goal, daemon.endpoint, daemon.instance), original)
-                notes = daemon.call(["notes", "--goal", daemon.goal])
+                notes = daemon.call(["contributions", "--goal", daemon.goal])
                 self.assertIn("Persistent private qualification note", json.dumps(notes))
                 status = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
-                self.assertEqual(status["coordinator"], daemon.principal)
+                self.assertEqual(status["administrator"], daemon.principal)
                 self.assertFalse(status["grants"]["execute"])
                 secrets = daemon._secrets()
             self.assertIsNone(daemon._process)
@@ -117,6 +117,66 @@ class ProductionTests(unittest.TestCase):
             exits = [json.loads(line) for line in evidence.splitlines() if json.loads(line)["event"] == "daemon_exit"]
             self.assertEqual(len(exits), 2)
             self.assertTrue(all(item["exit_code"] == 0 and item["socket_removed"] and not item["forced_cleanup"] for item in exits))
+
+    @unittest.skipUnless(platform.system() == "Darwin" and Path("/usr/bin/sandbox-exec").exists() and BINARY.is_file(), "compiled production binary and macOS guard required")
+    def test_actual_current_workspace_recipe_selects_then_applies(self):
+        from check_t2_clients import prepare_work, workspace_driver
+        import shlex
+        with tempfile.TemporaryDirectory() as output:
+            profile = Profile(output, "workspace-recipe")
+            self.addCleanup(profile.close)
+            with ProductionDaemon(profile, BINARY, 15) as daemon:
+                work = prepare_work(profile, daemon, "scripted")
+                daemon.call(["attempt", "start", "--goal", daemon.goal, "--task", work["task"], "--offer", work["offer"]])
+                command, receipt = workspace_driver(profile, daemon, work, 15)
+                result = subprocess.run(shlex.split(command), cwd=profile.workspace,
+                    env=profile.environment(sys.executable), capture_output=True, text=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(json.loads(receipt.read_text())["selected_before_integrated"])
+                self.assertEqual((Path(work["source"]) / "code.txt").read_text(), work["expected"])
+
+    @unittest.skipUnless(platform.system() == "Darwin" and Path("/usr/bin/sandbox-exec").exists() and BINARY.is_file(), "compiled production binary and macOS guard required")
+    def test_owner_local_choice_applies_unselected_open_finding(self):
+        from check_t2_clients import git
+        with tempfile.TemporaryDirectory() as output:
+            profile = Profile(output, "owner-local-choice")
+            self.addCleanup(profile.close)
+            with ProductionDaemon(profile, BINARY, 15) as daemon:
+                goal = daemon.call(["goal", "create", "--title", "Open local choice"])["goal_created"]["goal"]
+                grants = {"administer": True, "contribute": True, "execute": False, "review": False,
+                    "select": False, "flow": False, "takeover": False}
+                daemon.call(["goal", "grant", "--goal", goal, "--agent", daemon.principal, "--grants", json.dumps(grants)], owner=True)
+                source = profile.workspace / "source"
+                source.mkdir()
+                git(profile, source, ["init", "-q"])
+                git(profile, source, ["config", "user.name", "Locust fixture"])
+                git(profile, source, ["config", "user.email", "fixture@example.invalid"])
+                (source / "code.txt").write_text("before\n")
+                git(profile, source, ["add", "code.txt"])
+                git(profile, source, ["commit", "-qm", "fixture"])
+                commit = git(profile, source, ["rev-parse", "HEAD"])
+                base = daemon.call(["workspace", "export", "--goal", goal, "--root", source, "--commit", commit])["manifest"]
+                destination = profile.workspace / "worker"
+                daemon.call(["workspace", "materialize", "--goal", goal, "--manifest", base, "--destination", destination])
+                (destination / "code.txt").write_text("after\n")
+                patch = daemon.call(["patch", "create", "--goal", goal, "--base", base, "--root", destination, "--path", "code.txt"])
+                subject = daemon.call(["contribution", "publish", "--goal", goal, "--base", base,
+                    "--patch", patch["contribution_id"], "--artifacts", json.dumps([patch["contribution"]["head"]]), "Unselected finding"])["recorded"]["event"]
+                apply = ["patch", "apply", "--goal", goal, "--subject", subject, "--patch", patch["contribution_id"],
+                    "--root", source, "--expected-base", base, "--expected-git-head", commit]
+                with self.assertRaises(ProductionError):
+                    daemon.call(apply)
+                with self.assertRaises(ProductionError):
+                    daemon.call(apply + ["--local-choice"])
+                self.assertEqual((source / "code.txt").read_text(), "before\n")
+                daemon.call(["--as", daemon.principal, *apply, "--local-choice"], owner=True)
+                self.assertEqual((source / "code.txt").read_text(), "after\n")
+                contributions = daemon.call(["contributions", "--goal", goal])["contributions"]
+                finding = next(item for item in contributions if item["contribution"] == subject)
+                self.assertFalse(finding["selected"])
+                self.assertFalse(finding["approved"])
+                state = daemon.call(["goal", "status", "--goal", goal])["goal_status"]
+                self.assertEqual(state["workspace"]["integrated"], patch["contribution"]["head"])
 
 
 if __name__ == "__main__":

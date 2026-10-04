@@ -71,7 +71,7 @@ def qualify(client, binary, args):
                     raise ProductionError("Expected lifecycle state not observed")
                 return {"goal":daemon.goal}
             with provider.lock:
-                provider.plan = [step("locust_note_add",lambda:dict(await_event(ready),text="default-policy-recovery")),
+                provider.plan = [step("locust_contribution_publish",lambda:dict(await_event(ready),summary="default-policy-recovery",artifacts=[])),
                                  step("locust_goal_status",lambda:await_event(blocked))]
                 provider.index = 0
             parent = Process(command(False),env,profile.workspace,profile.logs,"default",timeout)

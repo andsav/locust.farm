@@ -2,7 +2,9 @@
 use super::{LocalClient, Output, connection, resolve_goal, resolve_principal};
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
-use locust_proto::api::{ErrorCode, GoalStatus, Request, Response, WorkspaceBinding};
+use locust_proto::api::{
+    Caller, ErrorCode, GoalStatus, Request, Response, Standing, WorkspaceBinding,
+};
 use locust_proto::crypto::content_hash;
 use locust_proto::event::Body;
 use locust_proto::id::{BlobHash, GoalId, PublicKey};
@@ -56,7 +58,8 @@ pub(super) fn commands() -> [Command; 2] {
             .arg(goal()).arg(option("subject", "Full contribution event identifier", true)).arg(option("expected", "Current scope selection decision identifier", false)).arg(patch()))
         .subcommand(Command::new("apply").about("Apply a selected contribution to a recorded root; preserve originals for recovery")
             .arg(goal()).arg(root()).arg(patch()).arg(option("subject", "Exact selected contribution event identifier", true)).arg(option("expected-base", "Exact manifest the local changes are expected to start from", true))
-            .arg(option("expected-git-head", "Full expected Git HEAD; required when applying to an exported Git root", false)))]
+            .arg(option("expected-git-head", "Full expected Git HEAD; required when applying to an exported Git root", false))
+            .arg(Arg::new("local-choice").long("local-choice").action(ArgAction::SetTrue).help("Requires --owner and --as: owner chooses an effective contribution for local application without shared selection or approval")))]
 }
 
 pub(super) fn run(
@@ -75,6 +78,9 @@ pub(super) fn run(
             .map_err(workspace_error)?;
         let result = export_json(&report, false);
         return output(result);
+    }
+    if operation == "patch.apply" && args.get_flag("local-choice") {
+        require_local_choice_owner(matches)?;
     }
     let home = connection::home(matches)?;
     let socket = local::socket_path(&home)?;
@@ -241,7 +247,14 @@ pub(super) fn run(
             let subject = value(args, "subject")
                 .parse()
                 .map_err(|_| Failure::usage("--subject requires a full event identifier"))?;
-            require_selected(&mut api, subject, patch)?;
+            let local_choice = args.get_flag("local-choice");
+            if local_choice && (api.client.caller() != Caller::Owner || api.on_behalf.is_none()) {
+                return Err(Failure::new(
+                    ErrorCode::Denied,
+                    "local choice requires an authenticated owner and --as acting principal",
+                ));
+            }
+            require_application_subject(&mut api, subject, patch, expected_base, local_choice)?;
             let review =
                 locust_workspace::review_contribution(patch, &mut api).map_err(workspace_error)?;
             let selected_artifact = review.head;
@@ -267,12 +280,50 @@ pub(super) fn run(
                 expected_git_head,
             )
             .map_err(workspace_error)?;
-            require_selected(&mut api, subject, patch).map_err(|error| after_action(error,"files applied; scope selection changed and integration binding was not recorded"))?;
+            require_application_subject(&mut api, subject, patch, expected_base, local_choice).map_err(|error| after_action(error,"files applied; contribution authority changed and integration binding was not recorded"))?;
             binding.integrated = Some(selected_artifact);
             api.bind(binding).map_err(|e| after_action(e, "files applied; integration binding was not recorded; retry this exact contribution"))?;
             output(serde_json::to_value(report).map_err(|e| Failure::internal(e.to_string()))?)
         }
         _ => unreachable!("workspace dispatch"),
+    }
+}
+fn require_local_choice_owner(matches: &ArgMatches) -> Result<(), Failure> {
+    if !matches.get_flag("owner") || matches.get_one::<String>("as").is_none() {
+        return Err(Failure::new(
+            ErrorCode::Denied,
+            "local choice requires --owner and --as acting principal",
+        ));
+    }
+    Ok(())
+}
+fn require_application_subject(
+    api: &mut Objects<'_>,
+    subject: locust_proto::id::EventId,
+    patch: BlobHash,
+    expected_base: BlobHash,
+    local_choice: bool,
+) -> Result<(), Failure> {
+    if !local_choice {
+        return require_selected(api, subject, patch);
+    }
+    let Response::Event(detail) = api.call(Request::Event {
+        goal: api.goal,
+        event: subject,
+    })?
+    else {
+        unreachable!()
+    };
+    if detail.view.standing == Standing::Effective
+        && matches!(detail.body, Body::ContributionPublished { base: Some(base), patch: Some(current), .. }
+            if base == expected_base && current == patch)
+    {
+        Ok(())
+    } else {
+        Err(Failure::new(
+            ErrorCode::Conflict,
+            "local choice requires the exact effective contribution, base and patch",
+        ))
     }
 }
 fn require_selected(
@@ -437,5 +488,40 @@ impl BlobSink for Objects<'_> {
 impl BlobSource for Objects<'_> {
     fn fetch(&mut self, hash: &BlobHash) -> io::Result<Option<Vec<u8>>> {
         self.bytes(*hash).map(Some).map_err(io::Error::other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn local_choice_requires_explicit_owner_and_acting_principal() {
+        let fields = [
+            "patch",
+            "apply",
+            "--goal",
+            "goal",
+            "--root",
+            "/workspace",
+            "--patch",
+            "patch",
+            "--subject",
+            "subject",
+            "--expected-base",
+            "base",
+            "--local-choice",
+        ];
+        let parse = |globals: &[&str]| {
+            super::super::args::command().try_get_matches_from(
+                std::iter::once("locust")
+                    .chain(globals.iter().copied())
+                    .chain(fields),
+            )
+        };
+        assert!(super::require_local_choice_owner(&parse(&[]).unwrap()).is_err());
+        assert!(super::require_local_choice_owner(&parse(&["--owner"]).unwrap()).is_err());
+        assert!(
+            super::require_local_choice_owner(&parse(&["--owner", "--as", "worker"]).unwrap())
+                .is_ok()
+        );
     }
 }

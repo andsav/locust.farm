@@ -44,7 +44,7 @@ class AddTests(unittest.TestCase):
 ASSERTIONS = ("worker_skill_read", "worker_mcp_inspection", "worker_scoped_claim", "worker_progress",
               "worker_materialize", "worker_fix_and_test", "worker_capture_review_submit",
               "coordinator_skill_read", "coordinator_event_review", "coordinator_diff_review",
-              "accepted_before_integrated", "coordinator_apply", "explicit_coordinator_resume", "fresh_coordinator_application",
+              "selected_before_integrated", "coordinator_apply", "explicit_coordinator_resume", "fresh_coordinator_application",
               "final_files_and_tests", "unrelated_work_and_git_head", "daemon_result_integrity",
               "real_model_completion", "client_execution_and_cleanup", "independent_collaborators", "default_approval",
               "packaged_release")
@@ -153,16 +153,16 @@ def prepare_work(profile, daemon):
         raise ProductionError("Synthetic sharing scope differs from authored files")
     base = daemon.call(["workspace", "export", "--goal", daemon.goal, "--root", source, "--commit", commit])["manifest"]
     private_write(source / "unrelated.txt", "preserve unrelated local work\n")
-    task = daemon.call(["task", "propose", "--goal", daemon.goal, "--input", base,
+    task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "--inputs", json.dumps({"snapshot": base}),
                        "Fix add(a,b) in calculator.py so the supplied five tests pass. Change only calculator.py; inspect received files before executing tests."])["recorded"]["event"]
-    assignment = daemon.call(["task", "assign", "--goal", daemon.goal, "--task", task,
-                             "--assignee", daemon.principal])["recorded"]["event"]
-    daemon.call(["task", "authorize", "--goal", daemon.goal, "--assignment", assignment], owner=True)
+    offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
+                             "--recipient", daemon.principal])["recorded"]["event"]
+    daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
     baseline = check_tests(profile, source)
     if baseline["exit_code"] == 0:
         raise ProductionError("Synthetic baseline unexpectedly passes")
     return {"source": str(source), "commit": commit, "base": base, "task": task,
-            "assignment": assignment, "goal": daemon.goal, "principal": daemon.principal,
+            "offer": offer, "goal": daemon.goal, "principal": daemon.principal,
             "preview": preview, "baseline_tests": baseline}
 
 
@@ -172,12 +172,12 @@ def model_context(daemon, role, work, binary):
     return f'''You are the {role['role']} in an explicitly authorized LOCAL synthetic Locust qualification.
 Use the Locust operating skill: FIRST read {role['skill']['path']} with your native read tool or cat.
 Use actual registered Locust MCP tools for status/task/claim operations. If tools are deferred, discover them.
-Goal: {work['goal']}; task: {work['task']}; assignment: {work['assignment']}; input manifest: {work['base']}.
+Goal: {work['goal']}; task: {work['task']}; offer: {work['offer']}; input manifest: {work['base']}.
 Use this exact scoped CLI prefix for filesystem commands: {shlex.join(prefix)}
 The API credential and session paths are capabilities: pass them to Locust only. Never read, print, upload or copy their bytes.
 Never inspect process environments (including ps eww or /proc), print environment variables, or search for credentials. If a named path is unavailable, stop and report it.
 Do not access owner credentials, other user profiles, or files outside the installed skill, assigned synthetic workspace and named Locust CLI paths.
-The harness already created the committed synthetic snapshot, exported it, proposed/assigned the task and authorized this exact assignment.
+The harness already created the committed synthetic snapshot, exported it, opened/offered the task and authorized execution for this agent and task.
 The user authorizes inspection, execution of the supplied tiny tests, this scoped edit, sharing the exact patch, review, acceptance and local application.
 Issue actual native tool calls and individual Locust CLI commands. Do not merely describe commands, and do not create a driver script to run the workflow.
 Preserve tests, unrelated local work and original Git HEAD. Do not commit, stage, reset or push.
@@ -187,11 +187,11 @@ Preserve tests, unrelated local work and original Git HEAD. Do not commit, stage
 def worker_prompt(daemon, role, work, binary):
     return model_context(daemon, role, work, binary) + f'''
 1. Call locust_status, locust_goal_status, locust_task_show and locust_pending via MCP. Inspect goal membership/halted state and exact task input/assignment.
-2. Claim this exact assignment with locust_task_claim. Retain returned generation and instance; call locust_task_progress using that generation.
+2. Start this task and exact offer with locust_attempt_start. Retain returned attempt, generation and instance; call locust_attempt_report with status progress using that attempt and generation.
 3. Run the scoped CLI workspace materialize --goal {work['goal']} --manifest {work['base']} --destination {work['destination']}; this directory must be new.
 4. Read calculator.py and test_calculator.py in that directory before executing them. Diagnose the bug, run the supplied tests, correct only calculator.py, and run {shlex.quote(sys.executable)} -B -m unittest discover -s . -v there until all five tests pass.
 5. Capture only calculator.py with CLI patch create --goal {work['goal']} --base {work['base']} --root {work['destination']} --path calculator.py.
-6. Review the returned exact patch using CLI patch review, then CLI patch submit --goal GOAL --patch PATCH --assignment ASSIGNMENT --generation RETURNED_GENERATION 'Fixed arithmetic; five supplied tests pass'. Use actual returned patch/head identifiers.
+6. Review the returned exact patch using CLI patch review, then CLI patch submit --goal GOAL --patch PATCH --attempt RETURNED_ATTEMPT --generation RETURNED_GENERATION 'Fixed arithmetic; five supplied tests pass'. Use actual returned patch/head identifiers.
 7. Stop after submission. Do not accept or apply. Briefly report the result/patch/head/generation and test outcome, without capability bytes.
 '''
 
@@ -203,8 +203,8 @@ Result: {work['result']}; patch: {work['patch']}; claimed head: {work['head']}.
 1. Inspect locust_status, locust_goal_status, locust_task_show and locust_event_show (event={work['result']}) through MCP. Confirm this exact task/assignment/base/patch/head result.
 2. Independently run CLI patch review --goal {work['goal']} --patch {work['patch']}; read and judge the actual diff. Require only calculator.py changed and the fix matches the test requirements. The worker summary is not independent test proof.
 3. Inspect original source {work['source']}: calculator.py must still have the bug, test_calculator.py unchanged, unrelated.txt preserved, and Git HEAD exactly {work['commit']}. Do not execute code until inspected.
-4. If the exact contribution is correct, run CLI patch accept --goal {work['goal']} --result {work['result']} --patch {work['patch']}.
-5. Check locust_goal_status after acceptance; accepted head must equal {work['head']} and workspace.integrated must still be null. Confirm original calculator.py unchanged.
+4. If the exact contribution is correct, first record locust_review_record with verdict approve and an evidence-based explanation for its subject, then run CLI patch select --goal {work['goal']} --subject {work['result']} --patch {work['patch']}.
+5. Check locust_task_show after selection; selected must equal {work['result']}. Check locust_goal_status: workspace.integrated must still identify base {work['base']}. Confirm original calculator.py unchanged.
 6. STOP BEFORE APPLYING. Do not edit or apply files in this turn. Report this observed acceptance/application boundary.
 '''
 
@@ -212,7 +212,7 @@ Result: {work['result']}; patch: {work['patch']}; claimed head: {work['head']}.
 def apply_prompt(daemon, role, work, binary):
     return model_context(daemon, role, work, binary) + f'''Continue the same authorized coordinator session. The harness independently verified acceptance of patch {work['patch']}, accepted head {work['head']}, no integration and unchanged original files/HEAD/WIP.
 Use the exact scoped CLI prefix supplied again above; never infer credential/session paths or inspect process environments.
-Read locust_goal_status and task via MCP to reconcile current state. Apply exactly this accepted contribution with CLI patch apply --goal {work['goal']} --patch {work['patch']} --root {work['source']} --expected-base {work['base']} --expected-git-head {work['commit']}.
+Read locust_goal_status and task via MCP to reconcile current state. Apply exactly this accepted contribution with CLI patch apply --goal {work['goal']} --subject {work['result']} --patch {work['patch']} --root {work['source']} --expected-base {work['base']} --expected-git-head {work['commit']}.
 Inspect resulting calculator.py and unchanged test_calculator.py, then run {shlex.quote(sys.executable)} -B -m unittest discover -s . -v in {work['source']}. Verify unrelated.txt still says "preserve unrelated local work" and Git HEAD remains {work['commit']}.
 Read locust_goal_status again and confirm workspace.integrated equals accepted head {work['head']}. Do not stage, commit, reset or push. Report actual outcomes.
 '''
@@ -315,18 +315,20 @@ def qualify_pair(coordinator, worker, binaries, args):
             checks["worker_skill_read"] = fixture.assertion("pass" if skill_read(calls, worker_role["skill"]["path"]) else "fail", "Completed native manifest read required")
             inspection = all(successful(events, tool) for tool in ("locust_status", "locust_goal_status", "locust_task_show", "locust_pending"))
             checks["worker_mcp_inspection"] = fixture.assertion("pass" if inspection else "fail", "Successful matched production MCP status/goal/task/pending responses required")
-            claimed = [record_result(e).get("claimed", {}) for e in successful(events, "locust_task_claim")]
-            claims = [claim for claim in claimed if claim.get("assignment") == work["assignment"] and
+            claimed = [record_result(e).get("claimed", {}) for e in successful(events, "locust_attempt_start")]
+            claims = [claim for claim in claimed if claim.get("task") == work["task"] and
                       claim.get("instance") == worker_role["instance"] and isinstance(claim.get("generation"), int)]
             checks["worker_scoped_claim"] = fixture.assertion("pass" if claims else "fail", "Exact authorized assignment, worker protected session instance and generation")
-            checks["worker_progress"] = fixture.assertion("pass" if successful(events, "locust_task_progress") else "fail", "Actual worker MCP progress call completed")
+            checks["worker_progress"] = fixture.assertion("pass" if successful(events, "locust_attempt_report") else "fail", "Actual worker MCP progress call completed")
             task = daemon.call(["task", "show", "--goal", daemon.goal, "--task", work["task"]])["task"]
-            work["result"] = task["view"].get("result")
+            work["attempt"] = claims[0]["attempt"] if claims else None
+            contributions = task["view"]["contributions"]
+            work["result"] = contributions[-1] if len(contributions) == 1 else None
             if not work["result"]:
                 raise ProductionError("Worker did not submit a production task result")
             submitted = daemon.call(["event", "show", "--goal", daemon.goal, "--event", work["result"]])["event"]
             result["worker_result_event"] = submitted
-            result_fields = submitted.get("body", {}).get("result_submitted", {})
+            result_fields = submitted.get("body", {}).get("contribution_published", {})
             work["patch"] = result_fields.get("patch")
             if not work["patch"]:
                 raise ProductionError("Submitted event did not expose exact contribution patch")
@@ -345,16 +347,17 @@ def qualify_pair(coordinator, worker, binaries, args):
             if not original_preserved(setup, work):
                 raise ProductionError("Worker changed original coordinator source, tests, HEAD or unrelated work")
             before = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
-            if before.get("head") is not None or before["workspace"]["integrated"] is not None:
+            if task["view"]["selected"] is not None or before["workspace"]["integrated"] != work["base"]:
                 raise ProductionError("Worker accepted or integrated before coordinator review")
             crun, cevents = execute(coord_role, "coordinator-review", review_prompt(daemon, coord_role, work, args.locust), daemon, args)
             ccalls = crun["native_calls"]
             checks["coordinator_skill_read"] = fixture.assertion("pass" if skill_read(ccalls, coord_role["skill"]["path"]) else "fail", "Separate coordinator client completed native skill-manifest read")
             checks["coordinator_event_review"] = fixture.assertion("pass" if any(record_result(e).get("event", {}).get("view", {}).get("event") == work["result"] for e in successful(cevents, "locust_event_show")) else "fail", "Coordinator actually read exact worker event through MCP")
-            checks["coordinator_diff_review"] = fixture.assertion("pass" if native_operation(ccalls, "patch review", args.locust) and native_operation(ccalls, "patch accept", args.locust) else "fail", "Separate coordinator native tools reviewed authenticated diff and accepted exact result")
+            checks["coordinator_diff_review"] = fixture.assertion("pass" if native_operation(ccalls, "patch review", args.locust) and native_operation(ccalls, "patch select", args.locust) else "fail", "Separate coordinator native tools reviewed authenticated diff and accepted exact result")
             accepted = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
-            boundary = accepted["head"] == work["head"] and accepted["workspace"]["integrated"] is None and original_preserved(setup, work)
-            checks["accepted_before_integrated"] = fixture.assertion("pass" if boundary else "fail", "Independent harness after review confirms accepted exact head, null integration and unchanged original source/HEAD/WIP")
+            selected = daemon.call(["task", "show", "--goal", daemon.goal, "--task", work["task"]])["task"]["view"]["selected"]
+            boundary = selected == work["result"] and accepted["workspace"]["integrated"] == work["base"] and original_preserved(setup, work)
+            checks["selected_before_integrated"] = fixture.assertion("pass" if boundary else "fail", "Independent harness after review confirms accepted exact head, null integration and unchanged original source/HEAD/WIP")
             result["accepted_boundary"] = accepted
             if not boundary:
                 raise ProductionError("Coordinator acceptance/application boundary not established")
@@ -385,10 +388,10 @@ def qualify_pair(coordinator, worker, binaries, args):
             result.update(final_goal_status=final, final_task=task_final, independent_final_tests=check_tests(setup, Path(work["source"])))
             checks["final_files_and_tests"] = fixture.assertion("pass" if original_preserved(setup, work, FIXED_CODE) and result["independent_final_tests"]["exit_code"] == 0 else "fail", "Harness independently checks exact repaired source, unchanged five-test suite and all five tests passing")
             checks["unrelated_work_and_git_head"] = fixture.assertion("pass" if original_preserved(setup, work, FIXED_CODE) else "fail", "Original Git HEAD and unrelated untracked file preserved")
-            integrity = (final["head"] == work["head"] == final["workspace"]["integrated"] and
-                         task_final["view"]["state"] == "accepted" and task_final["view"]["applied"] is True and
-                         task_final["view"]["result"] == work["result"] and submitted["view"]["author"] == daemon.principal and
-                         result_fields.get("assignment") == work["assignment"] and result_fields.get("base") == work["base"] and
+            integrity = (work["head"] == final["workspace"]["integrated"] and
+                         task_final["view"]["completed"] is True and
+                         task_final["view"]["selected"] == work["result"] and submitted["view"]["author"] == daemon.principal and
+                         result_fields.get("attempt") == work["attempt"] and result_fields.get("base") == work["base"] and
                          work["head"] in result_fields.get("artifacts", []))
             checks["daemon_result_integrity"] = fixture.assertion("pass" if integrity else "fail", "Independent authenticated daemon task/event/base/patch/head/integration identities agree")
     except Exception as error:

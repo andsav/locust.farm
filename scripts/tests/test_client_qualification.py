@@ -26,19 +26,19 @@ class QualificationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as output:
             path = Path(output) / "events.jsonl"
             denial = {"type": "item.completed", "item": {"type": "mcp_tool_call", "status": "failed",
-                "tool": "locust_note_add", "error": {"message": "MCP tool call requires approval, but approval policy is never"}}}
+                "tool": "locust_contribution_publish", "error": {"message": "MCP tool call requires approval, but approval policy is never"}}}
             path.write_text(json.dumps(denial) + "\n")
-            self.assertEqual(harness.permission_denials({"stdout": str(path)})[0]["tool_name"], "locust_note_add")
+            self.assertEqual(harness.permission_denials({"stdout": str(path)})[0]["tool_name"], "locust_contribution_publish")
             denial["item"]["type"] = "agent_message"
             path.write_text(json.dumps(denial) + "\n")
             self.assertEqual(harness.permission_denials({"stdout": str(path)}), [])
 
     def test_production_arguments_are_resolved_for_each_call_and_copied(self):
         state = {"goal": "g", "generation": 1}
-        step = {"tool": "locust_task_progress", "arguments": lambda: state}
+        step = {"tool": "locust_attempt_report", "arguments": lambda: state}
         name, first = planned_call(step)
         state["generation"] = 2
-        self.assertEqual(name, "locust_task_progress")
+        self.assertEqual(name, "locust_attempt_report")
         self.assertEqual(first["generation"], 1)
         self.assertEqual(planned_call(step)[1]["generation"], 2)
         for invalid in ({"tool": "x"}, {"tool": "x", "arguments": []}, {"tool": "", "arguments": {}}):
@@ -47,7 +47,7 @@ class QualificationTests(unittest.TestCase):
 
     def test_production_arguments_survive_pi_codemode(self):
         arguments = {"goal": "a" * 64, "text": 'A "quoted" note', "task": None}
-        with Provider([{"tool": "locust_note_add", "arguments": arguments}]) as provider:
+        with Provider([{"tool": "locust_contribution_publish", "arguments": arguments}]) as provider:
             request = Request(provider.url + "/v1/chat/completions", json.dumps({"model": "fixture", "tools": [{
                 "type": "function", "function": {"name": "codemode"}}]}).encode(),
                 {"Content-Type": "application/json"})
@@ -56,7 +56,7 @@ class QualificationTests(unittest.TestCase):
             call = body["choices"][0]["message"]["tool_calls"][0]["function"]
             self.assertEqual(call["name"], "codemode")
             self.assertEqual(json.loads(call["arguments"])["code"],
-                             "text(await tools.mcp__locust__locust_note_add(" + json.dumps(arguments) + "));" )
+                             "text(await tools.mcp__locust__locust_contribution_publish(" + json.dumps(arguments) + "));" )
 
     def profile(self, output):
         profile = Profile(output, "test")
@@ -303,7 +303,7 @@ class QualificationTests(unittest.TestCase):
                 self.assertEqual(run["cleanup_scope"], "owned_session_and_receipt_identified_bridges")
                 self.assertIn("Fully detached", run["cleanup_limitation"])
                 child_status = subprocess.run(["/bin/ps", "-p", ready.read_text(), "-o", "stat="],
-                                              capture_output=True, text=True, check=False).stdout.strip()
+                                              capture_output=True, check=False).stdout.decode("ascii").strip()
                 self.assertTrue(not child_status or child_status.startswith("Z"), child_status)
 
     @unittest.skipUnless(os.name == "posix", "Owned process sessions require Unix")

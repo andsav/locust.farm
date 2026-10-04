@@ -29,11 +29,11 @@ from client_qualification.runtime import Process, Profile, private_write, record
 
 ROOT = Path(__file__).resolve().parents[1]
 READ, WRITE, CLAIM, PROGRESS, WAIT = (
-    "locust_goal_status", "locust_note_add", "locust_task_claim", "locust_task_progress", "locust_wait")
+    "locust_goal_status", "locust_contribution_publish", "locust_attempt_start", "locust_attempt_report", "locust_wait")
 ASSERTIONS = (
     "configuration", "network_isolation", "initialize", "tools_list", "default_read", "default_write",
     "scoped_daemon_authentication", "claim", "progress", "workspace_native_tool", "contribution_flow",
-    "accepted_before_integrated", "dirty_work_preserved", "held_wait", "interruption", "explicit_resume",
+    "selected_before_integrated", "dirty_work_preserved", "held_wait", "interruption", "explicit_resume",
     "bridge_restart", "daemon_restart", "receipt_integrity", "client_execution", "default_interactive_approval",
     "real_model", "skill_discovery", "independent_accounts", "packaged_install")
 
@@ -67,27 +67,18 @@ def outstanding_wait(events):
     return any(json.dumps(item.get("id"), sort_keys=True) not in responses for item in requests)
 
 
-def expected_tools(version, evidence=None):
-    """Read registry from the binary's recorded Git revision, never moving HEAD."""
-    match = re.search(r"\(([0-9a-f]{12,40})(-dirty)?\)", version)
-    if match is None:
-        raise ProductionError("Pinned production daemon revision is unavailable")
-    source = subprocess.run(["git", "show", match[1] + ":crates/locust-proto/src/api.rs"],
-                            cwd=ROOT, capture_output=True, text=True, check=True).stdout
-    current = (ROOT / "crates/locust-proto/src/api.rs").read_bytes()
-    base = source.encode()
-    unchanged = current == base
-    if match[2] and not unchanged:
-        raise ProductionError("Dirty production revision has changed API registry source; independent build provenance required")
+def expected_tools(binary, evidence=None):
+    """Read the exact installed runtime contract without local state."""
+    result = subprocess.run([str(binary), "--json", "contract"],
+        capture_output=True, text=True, check=True)
+    envelope = json.loads(result.stdout)
+    if not envelope.get("ok"):
+        raise ProductionError("Installed runtime contract is unavailable")
+    contract = envelope["result"]
     if evidence is not None:
-        evidence.update(revision=match[1], binary_reports_dirty=bool(match[2]),
-                        registry_source_sha256=hashlib.sha256(base).hexdigest(),
-                        working_registry_sha256=hashlib.sha256(current).hexdigest(),
-                        working_registry_equals_revision=unchanged)
-    names = re.findall(r'^\s*\w+(?:\s*\{[^}]*\})?\s*=>\s*\("([^"]+)"[^\n]*,\s*TOOL,', source, re.MULTILINE)
-    if not names:
-        raise ProductionError("Pinned production tool registry is unavailable")
-    return {"locust_" + name.replace(".", "_") for name in names}
+        evidence.update(api_version=contract["api_version"], protocol_version=contract["protocol_version"],
+            contract_sha256=hashlib.sha256(result.stdout.encode()).hexdigest())
+    return {operation["mcp_tool"] for operation in contract["operations"] if operation["mcp_tool"] is not None}
 
 
 def valid_response(event, method):
@@ -190,15 +181,7 @@ def expected_interrupt_exit(run, client=None, version=None):
 def expected_client_exit(run, client, version):
     if expected_interrupt_exit(run, client, version):
         return True
-    # Measured Droid 0.218.1 default-headless behavior: this exact denied
-    # scripted write terminates exec with 1. Do not generalize to other exits,
-    # clients, versions, operations or permissive/lifecycle scenarios.
-    return (client == "factory-droid" and version == "0.218.1"
-            and run.get("scenario") == "default"
-            and run.get("permission_profile") == "default_headless"
-            and run.get("interrupted") is False and run.get("exit_code") == 1
-            and run.get("observed_policy_denials") == [
-                {"tool_name": "locust___locust_note_add", "reason": "higher autonomy required"}])
+    return False
 
 
 def exact_claim(events, observed, work, instance):
@@ -206,7 +189,7 @@ def exact_claim(events, observed, work, instance):
         claim = record_result(event).get("claimed", {})
         generation = claim.get("generation")
         if (claim.get("goal") == work["goal"] and claim.get("task") == work["task"]
-                and claim.get("assignment") == work["assignment"] and claim.get("instance") == instance
+                and claim.get("instance") == instance
                 and type(generation) is int and generation > 0 and claim in observed):
             return True
     return False
@@ -224,7 +207,7 @@ def persisted_restart(daemon, work, progress_ids):
     claims_after = daemon.call(["pending", "--goal", daemon.goal])["pending"]["claimed"]
     progress_after = [daemon.call(["event", "show", "--goal", daemon.goal, "--event", event])["event"] for event in progress_ids]
     return (endpoint == daemon.endpoint and before == after and before.get("goal") == daemon.goal
-            and before.get("coordinator") == daemon.principal and task_before == task_after
+            and before.get("administrator") == daemon.principal and task_before == task_after
             and claims_before == claims_after and progress_before == progress_after)
 
 
@@ -250,13 +233,13 @@ def prepare_work(profile, daemon, client):
     private_write(source / "unrelated.txt", "local work\n")
     base = daemon.call(["workspace", "export", "--goal", daemon.goal, "--root", source,
                         "--commit", commit])["manifest"]
-    task = daemon.call(["task", "propose", "--goal", daemon.goal, "--input", base,
+    task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "--inputs", json.dumps({"snapshot": base}),
                        "Update only code.txt in the synthetic qualification workspace"])["recorded"]["event"]
-    assignment = daemon.call(["task", "assign", "--goal", daemon.goal, "--task", task,
-                             "--assignee", daemon.principal])["recorded"]["event"]
-    daemon.call(["task", "authorize", "--goal", daemon.goal, "--assignment", assignment], owner=True)
+    offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
+                             "--recipient", daemon.principal])["recorded"]["event"]
+    daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
     return {"source": str(source), "destination": str(profile.workspace / "worker"), "commit": commit,
-            "base": base, "task": task, "assignment": assignment, "goal": daemon.goal,
+            "base": base, "task": task, "offer": offer, "goal": daemon.goal,
             "expected": "after-" + client + "\n", "principal": daemon.principal}
 
 
@@ -283,7 +266,7 @@ def call(*args):
         raise RuntimeError('Locust workspace command failed: '+body.get('error',{}).get('code','unknown'))
     return body['result']
 w=settings['work']; goal=w['goal']; source=pathlib.Path(w['source'])
-claim=next(x for x in call('pending','--goal',goal)['pending']['claimed'] if x['assignment']==w['assignment'])
+claim=next(x for x in call('pending','--goal',goal)['pending']['claimed'] if x['task']==w['task'])
 preview=call('workspace','preview','--root',w['source'],'--commit',w['commit'])
 exported=call('workspace','export','--goal',goal,'--root',w['source'],'--commit',w['commit'])
 assert exported['manifest']==w['base']
@@ -295,21 +278,23 @@ patch=call('patch','create','--goal',goal,'--base',w['base'],'--root',w['destina
 pid=patch['contribution_id']; head=patch['contribution']['head']
 review=call('patch','review','--goal',goal,'--patch',pid)
 assert len(review['changes'])==1 and '+after-' in review['changes'][0]['unified_diff']
-submitted=call('patch','submit','--goal',goal,'--patch',pid,'--assignment',w['assignment'],
+submitted=call('patch','submit','--goal',goal,'--patch',pid,'--attempt',claim['attempt'],
                '--generation',str(claim['generation']),'Verified synthetic workspace change')
 rid=submitted['recorded']['event']
-call('patch','accept','--goal',goal,'--result',rid,'--patch',pid)
+call('review','record','--goal',goal,'--subject',rid,'--verdict','approve','Verified synthetic change')
+call('patch','select','--goal',goal,'--subject',rid,'--patch',pid)
 accepted=call('goal','status','--goal',goal)['goal_status']
-assert accepted['head']==head and accepted['workspace']['integrated'] is None
+assert call('task','show','--goal',goal,'--task',w['task'])['task']['view']['selected']==rid
+assert accepted['workspace']['integrated']==w['base']
 assert (source/'code.txt').read_text()=='before\\n'
-call('patch','apply','--goal',goal,'--patch',pid,'--root',w['source'],'--expected-base',w['base'],
+call('patch','apply','--goal',goal,'--subject',rid,'--patch',pid,'--root',w['source'],'--expected-base',w['base'],
      '--expected-git-head',w['commit'])
 integrated=call('goal','status','--goal',goal)['goal_status']
 assert integrated['workspace']['integrated']==head
 assert (source/'code.txt').read_text()==w['expected']
 assert (source/'unrelated.txt').read_text()=='local work\\n'
 receipt={'patch':pid,'head':head,'result':rid,'generation':claim['generation'],
-         'accepted_before_integrated':True,'preview':preview,'review':review}
+         'selected_before_integrated':True,'preview':preview,'review':review}
 pathlib.Path(settings['receipt']).write_text(json.dumps(receipt))
 print(json.dumps({'workspace_driver':'completed','result':rid,'head':head}))
 '''
@@ -437,7 +422,7 @@ def qualify(client, binary, args):
                 return run, records(events_path, strict=True)
 
             default, de = execute("default", [step(READ, {"goal": daemon.goal}),
-                                               step(WRITE, {"goal": daemon.goal, "text": "default-" + client})])
+                                               step(WRITE, {"goal": daemon.goal, "artifacts": [], "summary": "default-" + client})])
             default["observed_policy_denials"] = fixture.permission_denials(default)
             for kind, tool in (("read", READ), ("write", WRITE)):
                 passed = bool(successful(de, tool))
@@ -448,9 +433,9 @@ def qualify(client, binary, args):
 
             def claim_args():
                 pending = daemon.call(["pending", "--goal", daemon.goal])["pending"]
-                claim = next(item for item in pending["claimed"] if item["assignment"] == work["assignment"])
+                claim = next(item for item in pending["claimed"] if item["task"] == work["task"])
                 observed_claims.append(claim.copy())
-                return {"goal": daemon.goal, "assignment": work["assignment"], "generation": claim["generation"],
+                return {"goal": daemon.goal, "attempt": claim["attempt"], "generation": claim["generation"], "status": "progress",
                         "text": "progress-" + client}
 
             def wait_args():
@@ -458,21 +443,21 @@ def qualify(client, binary, args):
                 return {"goal": daemon.goal, "seen": seen, "timeout_ms": args.timeout_ms}
 
             lifecycle, events = execute("lifecycle", [step(READ, {"goal": daemon.goal}),
-                step(CLAIM, {"goal": daemon.goal, "assignment": work["assignment"]}),
+                step(CLAIM, {"goal": daemon.goal, "task": work["task"], "offer": work["offer"]}),
                 step(PROGRESS, claim_args), native_step(client, command, args.timeout_ms), step(WAIT, wait_args)],
                 permissive=True, interrupt=True)
             combined = de + events
             result["tool_registry_source"] = {}
-            registry = expected_tools(daemon.call(["status"])["status"]["daemon_version"], result["tool_registry_source"])
+            registry = expected_tools(daemon.binary, result["tool_registry_source"])
             initialized, listed = handshake(combined, registry)
             checks["configuration"] = fixture.assertion("pass" if initialized and listed else "fail", "Actual generated registration must expose a valid production handshake and exact pinned API tool registry")
             checks["initialize"] = fixture.assertion("pass" if initialized else "fail", "Valid JSON-RPC response, supported negotiated version, Locust serverInfo and tool capability required")
             checks["tools_list"] = fixture.assertion("pass" if listed else "fail", "Exact pinned API tool names, structured object schemas and coherent schema digest required")
             reads = successful(events, READ)
-            authenticated = any(record_result(e).get("goal_status", {}).get("coordinator") == daemon.principal for e in reads)
+            authenticated = any(record_result(e).get("goal_status", {}).get("administrator") == daemon.principal for e in reads)
             checks["scoped_daemon_authentication"] = fixture.assertion("pass" if authenticated else "fail", "Production bridge checked the enrolled non-owner credential; observed goal authority matches independent daemon setup")
             valid_claim = exact_claim(events, observed_claims, work, daemon.instance)
-            checks["claim"] = fixture.assertion("pass" if valid_claim else "fail", "Actual bridge returned exact assignment, session instance and generation")
+            checks["claim"] = fixture.assertion("pass" if valid_claim else "fail", "Actual bridge returned exact attempt, session instance and generation")
             progress = successful(events, PROGRESS)
             verified_progress = False
             progress_ids = []
@@ -496,9 +481,9 @@ def qualify(client, binary, args):
             pi_history = pi_path.read_bytes() if client == "pi" and pi_path.exists() else None
             if session and clean:
                 restarted = persisted_restart(daemon, work, progress_ids)
-                checks["daemon_restart"] = fixture.assertion("pass" if restarted else "fail", "Independent goal, task/assignment, claims, known progress and endpoint persist across SQLite restart; contribution head is optional")
+                checks["daemon_restart"] = fixture.assertion("pass" if restarted else "fail", "Independent goal, task/attempt, claims, known progress and endpoint persist across SQLite restart; contribution head is optional")
                 resumed, re = execute("resume", [step(READ, {"goal": daemon.goal}),
-                    step(WRITE, {"goal": daemon.goal, "text": "resumed-" + client})], permissive=True,
+                    step(WRITE, {"goal": daemon.goal, "artifacts": [], "summary": "resumed-" + client})], permissive=True,
                     resume=str(pi_path) if client == "pi" else session)
                 same = fixture.session_identifier(client, resumed, profile) == session
                 if pi_history is not None:
@@ -542,12 +527,12 @@ def validate_workspace(checks, daemon, profile, work, receipt_path):
     status = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
     task = daemon.call(["task", "show", "--goal", daemon.goal, "--task", work["task"]])["task"]
     result = daemon.call(["event", "show", "--goal", daemon.goal, "--event", receipt["result"]])["event"]
-    passed = (task["view"]["state"] == "accepted" and task["view"]["applied"] is True and
-              task["view"]["result"] == receipt["result"] and result["view"]["author"] == daemon.principal and
-              status["head"] == receipt["head"] and status["workspace"]["integrated"] == receipt["head"] and
+    passed = (task["view"]["completed"] is True and
+              task["view"]["selected"] == receipt["result"] and result["view"]["author"] == daemon.principal and
+              status["workspace"]["integrated"] == receipt["head"] and
               (Path(work["source"]) / "code.txt").read_text() == work["expected"])
     checks["contribution_flow"] = fixture.assertion("pass" if passed else "fail", "Independent task/event/head/binding and file observations agree with actual client-produced contribution", str(receipt_path))
-    checks["accepted_before_integrated"] = fixture.assertion("pass" if receipt.get("accepted_before_integrated") is True else "fail", "Client-executed driver observed accepted head while source remained unchanged and integration was null", str(receipt_path))
+    checks["selected_before_integrated"] = fixture.assertion("pass" if receipt.get("selected_before_integrated") is True else "fail", "Client-executed driver observed selected contribution while source remained unchanged and source integration still identified the base", str(receipt_path))
     untouched = ((Path(work["source"]) / "unrelated.txt").read_text() == "local work\n" and
                  git(profile, work["source"], ["rev-parse", "HEAD"]) == work["commit"])
     checks["dirty_work_preserved"] = fixture.assertion("pass" if untouched else "fail", "Independent file/HEAD checks preserve untracked local work and original commit")

@@ -119,6 +119,11 @@ def data_fingerprint(root):
 
 
 class InstallationCheck:
+    def contribution_grant(self, goal, principal):
+        self.cli(["goal", "grant", "--goal", goal, "--agent", principal, "--grants",
+            json.dumps({"administer": True, "contribute": True, "execute": False, "review": False,
+                "select": False, "flow": False, "takeover": False})], installed=True, owner=True)
+
     def __init__(self, bootstrap, bundle, output, timeout=60, sample_interval=1, samples=3, baseline_bundle=None):
         self.input_bootstrap, self.input_bundle = Path(bootstrap), Path(bundle)
         self.input_baseline = Path(baseline_bundle) if baseline_bundle is not None else None
@@ -418,8 +423,8 @@ class InstallationCheck:
         self.start_service_observed()
         self.wait("launchd restarted daemon API readiness", self.service_ready)
         status = variant(self.cli(["status"], installed=True, owner=True), "status")
-        notes = variant(self.cli(["notes", "--goal", goal], installed=True, agent=True), "notes")
-        require(status["endpoint"] == endpoint and any(item["note"] == note for item in notes),
+        notes = variant(self.cli(["contributions", "--goal", goal], installed=True, agent=True), "contributions")
+        require(status["endpoint"] == endpoint and any(item["contribution"] == note for item in notes),
                 "native service restart lost identity or durable data")
         self.cleanup_service()
         self.summary["service"] = {"status": "passed", "manager": "launchd", "synthetic_profile": True,
@@ -490,6 +495,9 @@ class InstallationCheck:
         copy_bundle(self.input_baseline, baseline)
         baseline_metadata = json.loads((baseline / "manifest.json").read_text())
         baseline_hash = digest(baseline / "manifest.json")
+        candidate_metadata = self.summary["candidate"]["manifest"]
+        require(all(baseline_metadata[field] == candidate_metadata[field] for field in ("api_version", "protocol_version")),
+                "persistent upgrade qualification requires the current API and protocol; cross-cutover stores are refused")
         require(baseline_metadata["source_commit"] != self.summary["candidate"]["manifest"]["source_commit"],
                 "upgrade requires a baseline from a distinct source commit")
         self.cli(["package", "sign", "--bundle", baseline, "--secret-key", self.secret])
@@ -501,9 +509,10 @@ class InstallationCheck:
             require(self.status()["manifest_sha256"] == baseline_hash, "upgrade baseline did not become active")
             require(digest(self.installed) == digest(baseline / "locust"), "baseline installed bytes differ")
             self.start_daemon()
-            self.cli(["agent", "enroll", "qualification", "--manage-goals"], installed=True, owner=True)
+            principal = variant(self.cli(["agent", "enroll", "qualification", "--manage-goals"], installed=True, owner=True), "agent_enrolled")["agent"]
             goal = variant(self.cli(["goal", "create", "--title", "Cross-commit upgrade"], installed=True, agent=True), "goal_created")["goal"]
-            note = variant(self.cli(["note", "add", "--goal", goal, "created by baseline release"], installed=True, agent=True), "recorded")["event"]
+            self.contribution_grant(goal, principal)
+            note = variant(self.cli(["contribution", "publish", "--goal", goal, "created by baseline release"], installed=True, agent=True), "recorded")["event"]
             before = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]
             self.stop_daemon()
             result = self.apply()
@@ -512,8 +521,8 @@ class InstallationCheck:
             require(digest(self.installed) == self.summary["candidate"]["binary_sha256"], "upgraded executable differs from candidate")
             self.start_daemon()
             after = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]
-            notes = variant(self.cli(["notes", "--goal", goal], installed=True, agent=True), "notes")
-            require(before == after and any(item["note"] == note and item["text"] == "created by baseline release" for item in notes),
+            notes = variant(self.cli(["contributions", "--goal", goal], installed=True, agent=True), "contributions")
+            require(before == after and any(item["contribution"] == note and item["text"] == "created by baseline release" for item in notes),
                     "cross-commit upgrade lost daemon identity or durable note")
             self.stop_daemon()
             self.summary["upgrade"] = {"status": "passed", "baseline_manifest_sha256": baseline_hash,
@@ -623,15 +632,16 @@ class InstallationCheck:
         idle = self.sample_idle()
         principal = variant(self.cli(["agent", "enroll", "qualification", "--manage-goals"], installed=True, owner=True), "agent_enrolled")["agent"]
         goal = variant(self.cli(["goal", "create", "--title", "Installed synthetic goal"], installed=True, agent=True), "goal_created")["goal"]
-        note = variant(self.cli(["note", "add", "--goal", goal, "persist across installed daemon restart"], installed=True, agent=True), "recorded")["event"]
+        self.contribution_grant(goal, principal)
+        note = variant(self.cli(["contribution", "publish", "--goal", goal, "persist across installed daemon restart"], installed=True, agent=True), "recorded")["event"]
         endpoint = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]
         self.stop_daemon()
         restarted = self.start_daemon()
         status = variant(self.cli(["status"], installed=True, owner=True), "status")
-        notes = variant(self.cli(["notes", "--goal", goal], installed=True, agent=True), "notes")
+        notes = variant(self.cli(["contributions", "--goal", goal], installed=True, agent=True), "contributions")
         require(status["endpoint"] == endpoint and any(a["agent"] == principal for a in status["agents"]),
                 "installed daemon identity changed after restart")
-        require(any(item["note"] == note and item["text"] == "persist across installed daemon restart" for item in notes),
+        require(any(item["contribution"] == note and item["text"] == "persist across installed daemon restart" for item in notes),
                 "installed daemon lost persisted note")
         self.stop_daemon()
         self.passed("installed_daemon_fresh_database_restart_doctor", goal=goal, note=note, endpoint=endpoint,

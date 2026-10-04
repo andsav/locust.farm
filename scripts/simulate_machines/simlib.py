@@ -293,9 +293,9 @@ class Cluster(base.Qualification):
             kinds.extend(p["kind"] for p in fact["paths"] if p["selected"])
         return kinds
 
-    def note_ids(self, machine, goal):
-        result = self.cli(machine, ["notes", "--goal", goal])
-        return {note["note"]: note.get("text") for note in variant(result, "notes")}
+    def finding_ids(self, machine, goal):
+        result = self.cli(machine, ["contributions", "--goal", goal])
+        return {note["contribution"]: note.get("text") for note in variant(result, "contributions")}
 
     def halted(self, machine, goal):
         state = self.goal_status(machine, goal)

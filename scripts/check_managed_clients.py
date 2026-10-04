@@ -157,11 +157,13 @@ def qualify(client, binary, args):
             result["locust_artifact"] = daemon.binary_metadata
             result["daemon_receipts"] = str(daemon.events)
             env.update(fixture.provider_settings(client, profile, provider.url))
-            task = daemon.call(["task", "propose", "--goal", daemon.goal, "Managed synthetic task"])["recorded"]["event"]
-            assignment = daemon.call(["task", "assign", "--goal", daemon.goal, "--task", task,
-                                      "--assignee", daemon.principal])["recorded"]["event"]
-            daemon.call(["task", "authorize", "--goal", daemon.goal, "--assignment", assignment], owner=True)
-            result["binding"] = {"goal": daemon.goal, "task": task, "assignment": assignment,
+            task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "Managed synthetic task"])["recorded"]["event"]
+            offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
+                "--recipient", daemon.principal])["recorded"]["event"]
+            daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
+            claim = daemon.call(["attempt", "start", "--goal", daemon.goal, "--task", task, "--offer", offer])["claimed"]
+            attempt = claim["attempt"]
+            result["binding"] = {"goal": daemon.goal, "task": task, "attempt": attempt,
                                  "instance": daemon.instance, "principal": daemon.principal}
             pi_file = profile.home / ".pi/agent/sessions/managed-session.jsonl"
             if client == "pi":
@@ -192,7 +194,7 @@ def qualify(client, binary, args):
                 global_args, client_args = flags(client, True)
                 command = daemon.command(["client", "run", "--client", client, "--executable", binary,
                     "--workspace", profile.workspace, "--profile", profile.home, "--client-version", result["version"],
-                    "--goal", daemon.goal, "--assignment", assignment,
+                    "--goal", daemon.goal, "--attempt", attempt,
                     "--prompt", "Perform the scripted Locust managed-session qualification in this private synthetic task."])
                 command += ["--global-arg=" + value for value in global_args]
                 command += ["--arg=" + value for value in client_args]
@@ -259,24 +261,24 @@ def qualify(client, binary, args):
                 return {"goal": daemon.goal, "seen": pending["revision"], "timeout_ms": args.timeout_ms}
 
             first, views, exited = run("launch", [step("locust_pending", {"goal": daemon.goal}),
-                step("locust_task_claim", {"goal": daemon.goal, "assignment": assignment}),
+                step("locust_attempt_start", {"goal": daemon.goal, "task": task, "offer": offer}),
                 step("locust_wait", wait_args)], interrupt=True)
             detail = metadata(exited)
             ready_views = [v for v in views if v["record"]["state"] == "ready"]
             checks["ready"] = fixture.assertion("pass" if ready_views and all(ready_evidence(v, first["stderr"]) for v in ready_views) else "fail", "Durable Ready requires structured native identity and authenticated production MCP receipt")
             bound = detail.get("binding", {})
             exact = (bound.get("instance") == daemon.instance and bound.get("principal") == daemon.principal and
-                     bound.get("goal") == daemon.goal and bound.get("assignment") == {"task": task, "assignment": assignment, "attempt": 1})
+                     bound.get("goal") == daemon.goal and bound.get("attempt") == {"task": task, "attempt": attempt})
             checks["binding"] = fixture.assertion("pass" if exact else "fail", "Persisted exact principal/session/goal/task/assignment/attempt")
             pending_before = daemon.call(["pending", "--goal", daemon.goal])["pending"]
-            claim = next((c for c in pending_before["claimed"] if c["assignment"] == assignment), None)
+            claim = next((c for c in pending_before["claimed"] if c["attempt"] == attempt), None)
             checks["claim"] = fixture.assertion("pass" if claim and bound.get("claim") == claim and claim["generation"] > 0 else "fail", "Managed metadata matches independently authenticated claim and generation")
             notice = daemon.call(["client", "pending"])
             checks["ordinary_pending"] = fixture.assertion("pass" if claim and claim in notice["notice"]["pending"]["claimed"] and notice["task_ownership_changed"] is False and notice["cancellation_acknowledged"] is False else "fail", "Read-only pending fallback retains claimed work after client exit")
             checks["held_wait"] = fixture.assertion("pass" if first["interrupted"] and bool(first["outstanding_wait_at_interrupt"]) else "fail", "Structured native wait invocation preceded leader-only interruption")
             checks["interruption"] = fixture.assertion("pass" if first["interrupted"] and clean_run(first) and first["native_exit_expected"] else "fail", "Managed parent forwarded the local interrupt and durably observed native exit without forced cleanup")
             checks["exited"] = fixture.assertion("pass" if exited["record"]["state"] == "exited" and detail.get("process", {}).get("exited") else "fail", "Owned child exit is recorded; task completion is not inferred")
-            cancel = daemon.call(["task", "cancel", "--goal", daemon.goal, "--assignment", assignment])["recorded"]["event"]
+            cancel = daemon.call(["attempt", "cancel", "--goal", daemon.goal, "--attempt", attempt])["recorded"]["event"]
             daemon.restart()
             restarted = daemon.call(["client", "status"])["session"]
             waiting = daemon.call(["client", "pending"])["notice"]["pending"]
