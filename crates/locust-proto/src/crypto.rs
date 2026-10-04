@@ -37,6 +37,29 @@ pub fn content_hash(bytes: &[u8]) -> BlobHash {
     BlobHash(*blake3::hash(bytes).as_bytes())
 }
 
+/// Hashes content in pieces: feed the bytes with `update`, then
+/// [`ContentHasher::finish`] gives what [`content_hash`] gives for the whole.
+/// For objects too large to hold in memory twice.
+#[derive(Clone, Default)]
+pub struct ContentHasher(blake3::Hasher);
+
+impl ContentHasher {
+    /// A hasher that has seen no bytes.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds the next bytes of the content.
+    pub fn update(&mut self, bytes: &[u8]) {
+        self.0.update(bytes);
+    }
+
+    /// The hash of everything added.
+    pub fn finish(&self) -> BlobHash {
+        BlobHash(*self.0.finalize().as_bytes())
+    }
+}
+
 /// The symmetric key that seals a goal's content for one key epoch. It
 /// travels only in binary frames between members and is never rendered.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -169,5 +192,16 @@ mod tests {
         let printed = format!("{key:?}");
         assert!(printed.contains(&key.public().to_string()));
         assert!(!printed.contains(&"5a".repeat(32)));
+    }
+
+    #[test]
+    fn hashing_in_pieces_equals_hashing_at_once() {
+        let bytes: Vec<u8> = (0..200_000u32).map(|n| n as u8).collect();
+        let mut hasher = ContentHasher::new();
+        for piece in bytes.chunks(4097) {
+            hasher.update(piece);
+        }
+        assert_eq!(hasher.finish(), content_hash(&bytes));
+        assert_eq!(ContentHasher::new().finish(), content_hash(&[]));
     }
 }

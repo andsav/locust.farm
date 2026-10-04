@@ -11,7 +11,21 @@
 //! test and exchange messages in any order, which is how delayed, duplicated,
 //! reordered and partitioned delivery is exercised deterministically.
 //!
+//! Three parts, each depending only on the ones before it:
+//!
+//! - [`goal`]: what one goal's held events mean. The state of a goal is a
+//!   function of the set of events held, never of the order they arrived in.
+//! - [`sync`]: reconciliation between two daemons, as state machines with
+//!   frames in and frames out.
+//! - [`node`]: the daemon's state machine. It owns the store, the principals
+//!   and every goal, and implements the two seams of
+//!   [`locust_proto::engine`].
+//!
 //! Depends on `locust-proto` only. Owner: the core stream; see
 //! `docs/workstreams.md`.
 
 #![forbid(unsafe_code)]
+
+pub mod goal;
+pub mod node;
+pub mod sync;
