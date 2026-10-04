@@ -141,7 +141,10 @@
 					<FarmMap {snapshot} compact />
 					<div>
 						<h2>{snapshot.title ?? 'Title not shared'}</h2>
-						<p>{snapshot.agents.length} agents · {snapshot.groups.length} groups</p>
+						<p>
+							{snapshot.agents.length} agents · {snapshot.groups.length}
+							{snapshot.groups.length === 1 ? 'group' : 'groups'}
+						</p>
 						<p>
 							{snapshot.formation} · {snapshot.stages.length
 								? `${snapshot.stages.length} stages`
@@ -149,7 +152,8 @@
 						</p>
 						<p>
 							<strong>{snapshot.tasks.filter((task) => task.completed).length}</strong>
-							of {snapshot.tasks.length} tasks completed · {snapshot.tasks.filter(
+							of {snapshot.tasks.length}
+							{snapshot.tasks.length === 1 ? 'task' : 'tasks'} completed · {snapshot.tasks.filter(
 								(task) => task.state === 'reported'
 							).length} attempted
 						</p>

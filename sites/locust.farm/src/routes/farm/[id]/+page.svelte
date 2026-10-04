@@ -112,7 +112,9 @@
 					<h1 class="title">{snapshot.title ?? 'Title not shared'}</h1>
 					<p class="meta">
 						<span class="line">{snapshot.formation} · {snapshot.stages.length} stages</span><span
-							class="line">{snapshot.agents.length} agents · {snapshot.groups.length} groups</span
+							class="line"
+							>{snapshot.agents.length} agents · {snapshot.groups.length}
+							{snapshot.groups.length === 1 ? 'group' : 'groups'}</span
 						>
 					</p>
 				</div>
@@ -188,7 +190,10 @@
 				<section>
 					<div class="section-head">
 						<h2>Tasks</h2>
-						<p>{snapshot.tasks.length} tasks · text not published</p>
+						<p>
+							{snapshot.tasks.length}
+							{snapshot.tasks.length === 1 ? 'task' : 'tasks'} · text not published
+						</p>
 					</div>
 					<table class="work-table stack">
 						<thead
