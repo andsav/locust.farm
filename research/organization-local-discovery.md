@@ -1,7 +1,44 @@
-# Organization local discovery qualification
+# Organization local and default-network qualification
 
-Status: measured failure on one macOS arm64 host, 2026-10-04. This is a
-transport availability boundary, not published release qualification.
+Status on 2026-10-04: **relay-free local discovery failed**, while the exact
+`0a295cdabe6a` native candidate passed both three-process T1 and all six operations
+cases using production network defaults on the same macOS arm64 host. These are
+local qualification results, not published-release or physical-machine evidence.
+
+## Production-default current candidate
+
+The [sanitized current evidence](evidence/organization-default-network/results.json)
+records commands, harness hashes, exact candidate identity, raw output hashes,
+routes, results and cleanup. Both campaigns used `--network default` and
+`--timeout-seconds 300`; this is a per-wait/command harness watchdog. Defaults were
+`LOCUST_LOOKUP=all` and `LOCUST_RELAY=n0`, with inherited overrides removed. The
+binary reports `locust 0.1.0 (0a295cdabe6a) api 2 protocol 2`, SHA-256
+`b577709eb981544b4bcf5bdcc5efd677a6133d24e474ab274a1fe500215450b3`.
+
+- T1 passed membership convergence, task offer/attempt/contribution/review/selection,
+  worker exchange while the administrator was stopped and one worker restarted,
+  administrator catch-up, and sequential SQLite restarts. Selected worker-worker
+  **relay** paths were observed during the administrator outage. The successful
+  run does not identify which lookup service resolved the peers.
+- Operations passed conflicting documents, 12 MiB snapshot recovery from a retained
+  replica with the original source offline, competing patches and guarded apply,
+  offline cancellation and acknowledgment, withdrawal/leave, and offline membership
+  rotation. Snapshot and patch interruption each observed a durable 1 MiB partial
+  object before termination, followed by successful completion.
+- The first operations run stopped on an incorrect harness assertion that the
+  exporting administrator already had `workspace.integrated=base`. Export records
+  `integrated=null`; the administrator had never materialized a workspace. The
+  rejected dirty apply preserved the files. Fix `19ced9e` now checks the initial
+  export-only binding and exact pre/post-conflict binding equality. All 195 Python
+  tests passed; the corrected campaign then passed against the unchanged binary.
+
+The failed assertion report remains recorded alongside the corrected result.
+All temporary campaign homes were removed and cleanup daemon-stop records were
+retained. No accounts, paid providers, system settings or network permissions were
+changed. No Linux execution, physical-machine, sleep/wake or public-distribution
+claim follows from these same-host runs.
+
+## Relay-free local discovery failure
 
 The [sanitized evidence](evidence/organization-local-discovery/results.json)
 retains exact observed binary identities, commands, timeouts and raw-log hashes.

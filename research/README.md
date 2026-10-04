@@ -16,7 +16,7 @@ repository root. Untracked drafts are excluded from the check.
 
 - [Separate-goal subgroup acceptance](subgroup-qualification.md): authenticated Engine tests for explicit selected-context export, membership isolation and fresh parent review of returned findings.
 
-- [Organization local discovery qualification](organization-local-discovery.md): measured macOS key-only discovery failures, observed ticket-hint routes and sanitized campaign identities.
+- [Organization local and default-network qualification](organization-local-discovery.md): exact-candidate T1 and six operations cases pass with production defaults; relay-free mDNS failure remains separate.
 
 - [Protocol-1 replay and ingestion baseline](organization-protocol1-performance.md): measured healthy and pinned-member-fork histories before the organization engine replacement; exact harness, results and measurement limits.
 
