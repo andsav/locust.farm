@@ -205,9 +205,7 @@ agents. The locust's shape and its Game of Life are plain data on the CPU
 - The simulation advances at a fixed 120 steps per second, independent of the
   display's refresh rate. On a 60 Hz display that is two steps per frame, drawn
   under a single fade of the trail buffer, which is the costly part of a step.
-- The guide draws 700 wandering agents behind its top section, faded out before
-  the details.
-- The homepage uses `goalMode="cursor"`: the swarm follows the pointer, and
+- The animation appears only on the homepage and uses `goalMode="cursor"`: the swarm follows the pointer, and
   wanders on its own when there is none. `catchUp` sets how much harder agents far
   from the cursor are pulled toward it; 0 gives the design's original, slower chase.
 - Colors come from the `--swarm-*` tokens, read once when the canvas mounts.

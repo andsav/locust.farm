@@ -1,7 +1,6 @@
 <script lang="ts">
 	import CopyPrompt from '#lib/components/CopyPrompt.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
-	import SwarmCanvas from '#lib/components/SwarmCanvas.svelte';
 	import {
 		AVAILABILITY,
 		AGENT_INTRO,
@@ -27,9 +26,6 @@
 </svelte:head>
 
 <div class="page">
-	<div class="backdrop">
-		<SwarmCanvas agents={700} />
-	</div>
 	<SiteHeader />
 	<main>
 		<section class="intro" aria-labelledby="start-title">
@@ -125,19 +121,8 @@
 
 <style>
 	.page {
-		position: relative;
-		isolation: isolate;
 		min-height: 100vh;
 		min-height: 100svh;
-	}
-
-	/* The swarm fills the top of the page and fades out before the guide's details. */
-	.backdrop {
-		position: absolute;
-		inset: 0 0 auto;
-		z-index: -1;
-		height: min(100svh, 44rem);
-		mask-image: linear-gradient(to bottom, black 55%, transparent);
 	}
 
 	main {
@@ -161,7 +146,6 @@
 	h1 {
 		font: var(--text-display);
 		letter-spacing: var(--tracking-display);
-		text-shadow: var(--text-halo);
 		text-wrap: balance;
 	}
 
@@ -183,7 +167,6 @@
 	li,
 	dd {
 		color: var(--color-text-muted);
-		text-shadow: var(--text-halo);
 		text-wrap: pretty;
 	}
 
