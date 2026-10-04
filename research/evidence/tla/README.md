@@ -1,5 +1,9 @@
 # TLA+ Stages 0 and 1 evidence
 
+**Version-1 revision:** see the [current mapping](../../tla/version-1.md) and
+[verification record](version-1.json). The original records below remain
+historical version-0 evidence.
+
 Date: 2026-10-03; runs continued into 2026-10-04 UTC. **Status: implemented and
 locally checked on macOS Arm64. Linux bootstrap CI is configured but unobserved.**
 These are bounded model checks and concrete Rust trace fixtures, not a proof of

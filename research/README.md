@@ -18,6 +18,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ### TLA+ verification
 
+- [Version-1 bounded models](tla/version-1.md): canonical branch selection, accepted display, local departure, current source mapping and verification limits.
+
 - [Model and runner guide](tla/README.md): pinned tools, reproducible bounded checks, input snapshots, result classification and evidence limits.
 - [Property and implementation map](tla/property-map.md): rules mapped to code/tests, current versus desired semantics, assumptions and deferred findings.
 - [Upstream version-1 modeling impact](tla/upstream-impact-2026-10-04.md): merge assessment, changed rules, historical model boundaries and required rebaselining.

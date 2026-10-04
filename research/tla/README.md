@@ -1,21 +1,18 @@
 # Locust TLA+ models and checks
 
-Date: 2026-10-03; integration update 2026-10-04. **Status: Stages 0 and 1
-implemented and checked locally for the historical protocol/API version-0
-baseline. The merged implementation uses version 1 and requires model
-rebaselining.** The
-[implementation plan](../../docs/tla-verification-plan.md) defines the remaining
-scope. This work checks bounded abstract behavior; it does not prove the Rust
+Date: 2026-10-03. **Status: Stages 0 and 1 have separate historical
+version-0 and current version-1 bounded models.** Start with the
+[version-1 mapping and checks](version-1.md) for GoalLogV1 and SessionsV1.
+The [implementation plan](../../docs/tla-verification-plan.md) defines later
+replication, durability, CI and proof work. These models do not prove the Rust
 implementation or qualify the running M1/M2 test.
 
-The [upstream impact assessment](upstream-impact-2026-10-04.md) identifies the
-changed rules. GoalLog retains the old rollback/display counterexamples; its
-passing configurations are not current version-1 conformance checks. The
-Sessions generation/idempotency seam remains relevant, while new membership,
-read authority and shutdown behavior need a fresh mapping. Original models,
-configurations and evidence remain available as historical results. The Rust
-trace fixtures now check corrected version-1 outcomes rather than the old
-GoalLog results.
+The [upstream impact assessment](upstream-impact-2026-10-04.md) explains why the
+historical GoalLog and Sessions models could not qualify version 1. Their
+models, configurations and evidence are preserved. The revised models check
+canonical branch commitments, accepted display and the scoped local session
+contract; invitations, read epochs, transport and physical durability remain
+outside these checks.
 
 ## Run the checks
 
@@ -29,20 +26,24 @@ every invocation; a matching version string alone cannot qualify a changed JDK.
 ```sh
 python3 -m unittest discover -s scripts/tests -p test_check_tla.py
 python3 scripts/check_tla.py --bootstrap --suite fixtures
+python3 scripts/check_tla.py --suite v1
 python3 scripts/check_tla.py --suite fast
 python3 scripts/check_tla.py --suite extended
 ```
 
 The default Java heap limit is 4096 MB (`--memory-mb` overrides it); the
-largest session case has a 900-second deadline. The extended suite checks
+historical session case has a 900-second deadline; the version-1 session
+safety case allows 1,800 seconds. The extended suite checks
 all configurations, including the fast cases.
 
 The [case registry](cases.json) names configurations, checked properties, expected
 outcomes, deadlines and counterexample state requirements. `--case <id>` selects
 a case. `--timeout <seconds>` overrides its deadline; a timed-out check fails.
-The fast suite contains 26 cases; extended adds the two largest goal scenarios
-for 28 cases in total. These include two runner fixtures, 18 GoalLog
-configurations and eight Sessions configurations. Each run snapshots its
+The historical cases comprise two runner fixtures, 18 GoalLog configurations
+and eight Sessions configurations. Version-1 cases are separately identified
+with `v1-` IDs and explicit per-case baselines; `v1` selects only that revision.
+The fast and extended suites include both revisions. The version-1 session
+safety and 13-event cancellation/removal cases run in `v1` and `extended`. Each run snapshots its
 model/config inputs before checking. See the [stage evidence](../evidence/tla/README.md)
 for measured resources, failures and results.
 
@@ -75,17 +76,15 @@ are used in any specification or fixture.
 ## Baseline and evidence boundaries
 
 The initial source baseline is `86980594acee708b2f9bf303afc9ee636dc55337`.
-The [property map](property-map.md) distinguishes intended rules, implementation
-seams, bounded models and unresolved findings. The tool pins came from the
+The [historical property map](property-map.md) and [version-1 map](version-1.md)
+distinguish intended rules, implementation seams, bounded models and limits. The tool pins came from the
 [TLC release](https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4) and
 [Temurin release](https://github.com/adoptium/temurin21-binaries/releases/tag/jdk-21.0.8%2B9).
 The JDK hashes agree with the publisher's GitHub release asset digests. The TLC
 SHA-256 was measured from the downloaded release jar.
 
 [Bootstrap CI](../../.github/workflows/tla-bootstrap.yml) runs runner tests and
-the two real TLC fixtures on Ubuntu 24.04. That workflow is added, but no remote
-CI run has been observed in this task. Docker is installed locally but its daemon
-is unavailable, so Linux execution has not been verified here. This limitation
+the two real TLC fixtures on Ubuntu 24.04. No remote CI run or Linux execution has been verified in this task. This limitation
 does not qualify Linux by inference. The Stage 4 full model CI gate remains
 separate from this bootstrap job.
 
@@ -94,7 +93,7 @@ changes. Passing a proposed model never certifies the current implementation.
 Source fixes, replication/retention models, storage flush models, liveness and
 deductive proofs are outside Stages 0 and 1.
 
-## Delivered models and Rust mapping
+## Historical models and Rust mapping
 
 [GoalLog.tla](GoalLog.tla) checks incremental projection against canonical replay
 for finite authenticated transcripts. Safety families vary event delivery order,

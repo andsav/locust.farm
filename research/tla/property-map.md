@@ -1,8 +1,11 @@
 # TLA+ property and implementation map
 
+The current version-1 mapping is in [Protocol/API version-1 bounded models](version-1.md).
+The inventory below preserves the version-0 baseline; its tables are historical.
+
 Date: 2026-10-03; integration update 2026-10-04. **Status: historical version-0
 Stage 0/1 inventory. Upstream protocol/API version 1 changes the implementation
-and requires model rebaselining.** Initial baseline
+and required the separate [version-1 revision](version-1.md).** Initial baseline
 `86980594acee708b2f9bf303afc9ee636dc55337`. This maps the
 [verification plan](../../docs/tla-verification-plan.md) to current code,
 [GoalLog](GoalLog.tla), [Sessions](Sessions.tla) and their configurations.
@@ -158,5 +161,6 @@ used to claim they are fixed.
 
 Original Stage 1 decisions: preserve version-0 runtime behavior, reproduce IR-5
 and IR-12, and record acceptance permanence/display binding as unsatisfied goals.
-Upstream version 1 subsequently adopted runtime corrections. This directory
-does not yet supply a corrected protocol model or a proof of the Rust implementation.
+Upstream version 1 subsequently adopted runtime corrections. This historical inventory supplied no corrected protocol model. The separate
+[version-1 revision](version-1.md) now checks the updated bounded rules; neither
+revision proves the Rust implementation.
