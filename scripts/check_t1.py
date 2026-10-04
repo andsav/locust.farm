@@ -338,10 +338,10 @@ class Qualification:
                 events[event_id] = event
 
     def create_goal(self, machine, title):
-        blueprint = self.cli(machine, ["blueprint", "example", "coordinator"], local=True)
-        blueprint["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
+        formation = self.cli(machine, ["formation", "example", "coordinator"], local=True)
+        formation["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
         created = self.cli(machine, ["goal", "create", "--title", title,
-            "--blueprint-json", json.dumps(blueprint), "--roles", json.dumps({"coordinator": [machine.agent]})])
+            "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [machine.agent]})])
         return identity(variant(created, "goal_created")["goal"], "goal")
 
     def grant_contributions(self, goal):

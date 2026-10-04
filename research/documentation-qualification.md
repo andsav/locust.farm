@@ -40,7 +40,7 @@ invitation values are private local inputs; retained output contains no secrets.
 - [Collaboration](../docs/guide/collaboration.md) proves same-daemon invitation and
   admission, taskless declaration, two distinct task attempts, exact peer review,
   pinned task rules after changing future defaults, and state reopening.
-- [Private authoring](../docs/guide/blueprint-authoring.md) proves exact revision/hash
+- [Private authoring](../docs/guide/formation-authoring.md) proves exact revision/hash
   publication, recovery information for a stale edit, and refusal of goal creation
   through an author-only credential.
 - [Open patch application](../docs/guide/apply.md) proves normal application refuses
@@ -52,5 +52,5 @@ ambiguous marked recipes. CI repeats the exact recipes against its built binary.
 The site gates pass lint, Svelte checks with zero errors/warnings, 37 tests and
 production prerender validation of 88 routes, 18 raw articles and ten assets.
 A site build is not a deployed website. The active implementation audit and
-[status ledger](../docs/organization-blueprints-status.md) retain remaining
+[status ledger](../docs/formations-status.md) retain remaining
 client/provider, transport and release boundaries separately.

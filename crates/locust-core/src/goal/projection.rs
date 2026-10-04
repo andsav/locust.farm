@@ -79,7 +79,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                     .or_insert_with(|| MaterializedEffect {
                         id,
                         events: BTreeSet::new(),
-                        materializer: event.header().author,
+                        runner: event.header().author,
                         effect: effect.clone(),
                         recipients: v.effect_recipients(effect),
                         acknowledged: BTreeSet::new(),

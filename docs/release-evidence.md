@@ -2,7 +2,7 @@
 
 **Current status: API 4 / protocol 4 is implemented; release
 qualification remains open.** The
-[organization implementation ledger](organization-blueprints-status.md) tracks
+[organization implementation ledger](formations-status.md) tracks
 the current runtime, full manual, native integration and V01–V22 scenarios.
 The earlier API 2 / protocol 2 baseline passed formatting, strict workspace
 Clippy, 624 Rust tests (12 explicit ignores), 195 Python tests and 54 finite-model

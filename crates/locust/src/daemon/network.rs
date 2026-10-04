@@ -1032,7 +1032,7 @@ mod tests {
         let key = joiner.enroll(tag);
         let Ok(Response::GoalCreated { goal }) = inviter.call(Request::GoalCreate {
             title: title.into(),
-            blueprint_json: None,
+            formation_json: None,
             roles: Default::default(),
             inputs: Default::default(),
         }) else {

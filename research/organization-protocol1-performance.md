@@ -3,8 +3,8 @@
 Measured 2026-10-04 before the organization runtime replacement. **Status: local
 measurement, not a performance requirement or protocol-2 result.** This records
 the O0/V22 baseline required by the
-[organization implementation plan](../docs/organization-blueprints-implementation-plan.md).
-The [semantics contract](../docs/organization-blueprints-semantics.md) identifies
+[organization implementation plan](../docs/formations-implementation-plan.md).
+The [semantics contract](../docs/formations-semantics.md) identifies
 the invariants the replacement must retain.
 
 ## Source, environment and reproduction

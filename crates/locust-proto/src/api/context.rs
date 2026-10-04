@@ -142,7 +142,7 @@ pub struct ContextDocumentSelection {
 pub struct ContextSnapshot {
     pub status: GoalStatus,
     pub task: Option<TaskDetail>,
-    /// The requested scope's pinned rules, including a task's variation.
+    /// The requested scope's pinned rules, including a task's type.
     pub effective_rules_json: String,
     /// Named inputs of the requested goal or task scope.
     pub inputs: BTreeMap<String, BlobHash>,

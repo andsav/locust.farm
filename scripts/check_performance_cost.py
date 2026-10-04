@@ -114,7 +114,7 @@ def compare(args):
         with ProductionDaemon(profile, binaries["before"], args.operation_timeout_seconds) as daemon:
             commands = {"version": ["--version"], "help": ["--help"],
                         "contract_json": ["--json", "contract"],
-                        "blueprint_contract_json": ["--json", "blueprint", "contract"],
+                        "formation_contract_json": ["--json", "formation", "contract"],
                         "pending_json": ["--home", str(daemon.home), "--credential", str(daemon.credential),
                                          "--session", str(daemon.session), "--json", "pending", "--goal", daemon.goal]}
             for name, arguments in commands.items():

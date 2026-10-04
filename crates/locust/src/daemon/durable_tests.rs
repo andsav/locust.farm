@@ -117,13 +117,13 @@ fn goal(client: &mut LocalClient) -> GoalId {
     let Response::GoalCreated { goal } = client
         .call(Request::GoalCreate {
             title: "Durable lifecycle".into(),
-            blueprint_json: Some(
+            formation_json: Some(
                 serde_json::to_string(
                     &locust_proto::organization::presets()
                         .into_iter()
                         .find(|p| p.name == "coordinator")
                         .unwrap()
-                        .blueprint,
+                        .formation,
                 )
                 .unwrap(),
             ),
@@ -149,7 +149,7 @@ fn propose(client: &mut LocalClient, goal: GoalId, text: String) -> TaskId {
             .call(Request::TaskOpen {
                 goal,
                 text,
-                variation: None,
+                task_type: None,
                 inputs: Default::default(),
                 parent: None,
             })

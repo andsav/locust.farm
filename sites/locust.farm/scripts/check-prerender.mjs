@@ -10,6 +10,7 @@ const index = JSON.parse(bytes('/docs/next/index.json'));
 const routes = [
 	'/',
 	'/start',
+	'/formations',
 	'/docs',
 	...index.pages.map((page) => page.url),
 	...index.routes.map((route) => route.url)

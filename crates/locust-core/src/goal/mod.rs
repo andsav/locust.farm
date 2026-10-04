@@ -18,7 +18,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::event::{AuthorPoint, Body, Context, Event, Scope, TaskId};
 use locust_proto::id::{DefinitionHash, EventId, GoalId, PublicKey};
-use locust_proto::organization::{Blueprint, Selector, StartRule};
+use locust_proto::organization::{Formation, Selector, StartRule};
 use locust_proto::store::{Store, StoreError};
 use locust_proto::sync::{AuthorFrontier, Frontier};
 
@@ -29,16 +29,16 @@ pub use standing::{
 pub use state::*;
 
 pub trait DefinitionLookup {
-    fn definition(&self, hash: &DefinitionHash) -> Option<&Blueprint>;
+    fn definition(&self, hash: &DefinitionHash) -> Option<&Formation>;
 }
 
-impl DefinitionLookup for BTreeMap<DefinitionHash, Blueprint> {
-    fn definition(&self, hash: &DefinitionHash) -> Option<&Blueprint> {
+impl DefinitionLookup for BTreeMap<DefinitionHash, Formation> {
+    fn definition(&self, hash: &DefinitionHash) -> Option<&Formation> {
         self.get(hash)
     }
 }
 
-fn valid_definition(hash: &DefinitionHash, definition: &Blueprint) -> bool {
+fn valid_definition(hash: &DefinitionHash, definition: &Formation) -> bool {
     let Ok(source) = serde_json::to_string(definition) else {
         return false;
     };

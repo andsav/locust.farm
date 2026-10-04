@@ -1,0 +1,72 @@
+{
+  "context": {
+    "guidance": "",
+    "inputs": {}
+  },
+  "decisions": {
+    "completion": {
+      "by": {
+        "kind": "contribution_author"
+      },
+      "kind": "declaration"
+    },
+    "finish": null,
+    "selection": null
+  },
+  "flow": {
+    "draft": {
+      "recipients": {
+        "kind": "members"
+      },
+      "requires": [],
+      "task_type": "draft"
+    },
+    "ship": {
+      "recipients": {
+        "kind": "members"
+      },
+      "requires": [
+        {
+          "evidence": "completion",
+          "stage": "draft"
+        }
+      ],
+      "task_type": null
+    }
+  },
+  "roles": {},
+  "schema_version": 1,
+  "task_types": {
+    "draft": {
+      "decisions": {
+        "completion": {
+          "by": {
+            "kind": "members"
+          },
+          "count": 1,
+          "exclude_author": true,
+          "kind": "reviews"
+        },
+        "finish": null,
+        "selection": null
+      },
+      "work": null
+    }
+  },
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "by": {
+          "kind": "members"
+        },
+        "kind": "independent"
+      }
+    ]
+  }
+}

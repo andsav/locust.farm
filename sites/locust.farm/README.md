@@ -1,7 +1,7 @@
 # locust.farm
 
 The Locust marketing site: prerendered SvelteKit marketing pages and development documentation. `/` says what Locust is for, `/start` is the first-contact guide with
-the entry prompt, and `/docs` indexes the unreleased manual. It is a
+the entry prompt, `/formations` is the formation editor, and `/docs` indexes the unreleased manual. It is a
 self-contained npm project with its own `package.json` and `node_modules`.
 
 ```sh
@@ -11,6 +11,7 @@ npm run check    # type checking
 npm run lint     # Prettier and ESLint
 npm test         # unit tests, using Node's built-in runner
 npm run build
+npm run test:e2e # browser tests of /formations with Playwright (Chromium), against a production build
 ```
 
 Tests need Node 22.18 or newer, which runs TypeScript directly. After installing or
@@ -20,7 +21,8 @@ npm prunes the generated `node_modules/$app` directory that `tsconfig.json` exte
 ## Layout
 
 ```text
-src/routes/          The homepage, the /start guide, the development docs, and the root layout that loads fonts and global styles
+src/routes/          The homepage, the /start guide, the /formations editor, the development docs, and the root layout that loads fonts and global styles
+src/lib/formation-editor/  The formation editor: checks, model, prompt and storage in plain TypeScript; the stage map and panels in Svelte
 src/lib/styles/      Design tokens and element defaults
 src/lib/components/  Svelte components
 src/lib/onboarding/  The guide's content and the clipboard helper, in plain TypeScript
@@ -39,7 +41,8 @@ CSS custom properties in two tiers: a palette of raw values, and roles that refe
 the palette. Components use roles only.
 
 - **Color**: `--color-bg`, `--color-text` and its `-muted`, `-subtle` and `-faint`
-  steps, `--color-border`, `--color-accent`. The `--swarm-*` roles color the canvas.
+  steps, `--color-border`, `--color-accent`. The formation editor adds
+  `--color-surface` for nodes and panels and `--color-grid` for its map. The `--swarm-*` roles color the canvas.
 - **Type**: two families, `--font-mono` (Martian Mono) for text and `--font-display`
   (Major Mono Display) for the headline. Each text style is a `font` shorthand
   (`--text-display`, `--text-body`, `--text-code`, `--text-label`) with a matching
@@ -146,6 +149,38 @@ The password file is `/etc/nginx/locust.farm.htpasswd`, owned by `root:www-data`
 with mode `0640`. Provision it using `htpasswd -cB` with an interactive password
 prompt or stdin; keep credentials and password hashes off Git. DNS needs an apex
 A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
+
+## Formation editor
+
+`/formations` lets a person who has Locust build a formation and copy one prompt
+that has their coding agent add it to their Locust. The plan is in
+[`docs/formation-authoring-plan.md`](../../docs/formation-authoring-plan.md) and the
+prompt's fixed text in [`docs/formation-prompt.md`](../../docs/formation-prompt.md).
+
+- The page is prerendered with its heading and explanation; the editor loads after
+  hydration, so its code stays out of every other page.
+- `contract/` ports Locust's offline checks to TypeScript. A test runs them on
+  every conformance vector that `scripts/check_formations.py` generates with the
+  real CLI and requires the same codes, paths, messages and explanations.
+- `model/` holds the document and every edit, so references stay consistent when
+  roles, steps or kinds of task are renamed or removed. `model/line.ts` reads the
+  four answers of a line (who adds a task, who works on it, when a result counts,
+  whether one result is picked) from the formation and writes them back.
+  `prompt/` builds the prompt and reads pasted prompts, replies and JSON back.
+  `storage/` keeps formations in the browser and makes share links.
+- `ui/` draws the page: the six cards, the line of four points with a picture
+  at each (`diagrams.ts`), the box of choices under a point, the rows for steps
+  and other kinds of task, and one side panel. The side panel is adapted from
+  Polaris's settings panel (dreamcolor10 at `01d8aa3c4`,
+  `crates/polaris/frontend/src/lib/components/blueprint/InspectorPanel.svelte`)
+  and restyled with this site's tokens. `ui/icons.ts` holds the Phosphor icons
+  the page shows, from `@phosphor-icons/core` 2.1.1. There is no canvas.
+- `e2e/formations.spec.ts` drives the built page in Chromium: the first visit,
+  the four points and their pictures, the card that matches the rules, roles made
+  in place, steps, other kinds of task, problems, share links, a phone viewport
+  and the page without JavaScript. When `target/debug/locust` exists it also checks that
+  the copied prompt's formation passes `locust formation validate`. Install the
+  browser once with `npx playwright install chromium`.
 
 ## Swarm animation
 

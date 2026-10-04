@@ -33,7 +33,7 @@ fn propose(peer: &mut Peer, goal: GoalId, input: BlobHash) {
     peer.call(Request::TaskOpen {
         goal,
         text: "snapshot".into(),
-        variation: None,
+        task_type: None,
         inputs: BTreeMap::from([("snapshot".into(), input)]),
         parent: None,
     });
@@ -76,7 +76,7 @@ fn root(input: BlobHash) -> Body {
     Body::TaskOpened {
         binding: locust_proto::event::TaskBinding {
             rules: EventId([0; 32]),
-            variation: None,
+            task_type: None,
             inputs: BTreeMap::from([("snapshot".into(), input)]),
             parent: None,
             stage: None,

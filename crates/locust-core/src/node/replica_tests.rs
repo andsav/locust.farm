@@ -199,7 +199,7 @@ fn reconcile_from(
 fn found(peers: &mut [Peer]) -> GoalId {
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "shared durable goal".into(),
-        blueprint_json: Some(r#"{"schema_version":1,"context":{"inputs":{"snapshot":{"kind":"artifact","required":false}}}}"#.into()),
+        formation_json: Some(r#"{"schema_version":1,"context":{"inputs":{"snapshot":{"kind":"artifact","required":false}}}}"#.into()),
         roles: BTreeMap::new(),
         inputs: BTreeMap::new(),
     }) else {
@@ -348,7 +348,7 @@ fn invitations_bind_once_to_authenticated_member_and_survive_restart() {
     let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "join checks".into(),
-        blueprint_json: None,
+        formation_json: None,
         roles: BTreeMap::new(),
         inputs: BTreeMap::new(),
     }) else {
@@ -480,7 +480,7 @@ fn refused_join_does_not_poison_another_local_principals_invitation() {
     let second = peers[1].principal.max(second);
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "independent invitations".into(),
-        blueprint_json: None,
+        formation_json: None,
         roles: BTreeMap::new(),
         inputs: BTreeMap::new(),
     }) else {
@@ -560,7 +560,7 @@ fn pending_join_has_exactly_one_status_entry_per_local_principal() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "status cardinality".into(),
-        blueprint_json: None,
+        formation_json: None,
         roles: BTreeMap::new(),
         inputs: BTreeMap::new(),
     }) else {
@@ -791,7 +791,7 @@ fn bare_object_reference_refuses_an_epoch_after_its_event() {
         Body::TaskOpened {
             binding: locust_proto::event::TaskBinding {
                 rules: locust_proto::id::EventId([0; 32]),
-                variation: None,
+                task_type: None,
                 inputs: BTreeMap::from([("snapshot".into(), hash)]),
                 parent: None,
                 stage: None,
@@ -1058,7 +1058,7 @@ fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
         title: "early readable title".into(),
-        blueprint_json: None,
+        formation_json: None,
         roles: BTreeMap::new(),
         inputs: BTreeMap::new(),
     }) else {

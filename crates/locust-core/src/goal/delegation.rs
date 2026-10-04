@@ -147,7 +147,7 @@ pub(super) fn narrows(c: &EffectiveRules, p: &EffectiveRules) -> bool {
             })
         })
         && authority(&c.decisions.selection, &p.decisions.selection)
-        && authority(&c.decisions.closure, &p.decisions.closure)
+        && authority(&c.decisions.finish, &p.decisions.finish)
         && implies(&c.decisions.completion, &p.decisions.completion, c, p)
 }
 

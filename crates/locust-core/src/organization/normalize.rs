@@ -76,23 +76,22 @@ fn decisions(value: &mut DecisionRules) {
     if let Some(value) = &mut value.selection {
         authority(value);
     }
-    if let Some(value) = &mut value.closure {
+    if let Some(value) = &mut value.finish {
         authority(value);
     }
 }
-pub(super) fn normalize(value: &mut Blueprint) {
+pub(super) fn normalize(value: &mut Formation) {
     work(&mut value.work);
     decisions(&mut value.decisions);
-    for variation in value.variations.values_mut() {
-        let rules = variation.work.get_or_insert_with(|| value.work.clone());
+    for task_type in value.task_types.values_mut() {
+        let rules = task_type.work.get_or_insert_with(|| value.work.clone());
         work(rules);
-        let rules = variation
+        let rules = task_type
             .decisions
             .get_or_insert_with(|| value.decisions.clone());
         decisions(rules);
     }
     for stage in value.flow.values_mut() {
-        authority(&mut stage.materializer);
         selector(&mut stage.recipients);
         set(&mut stage.requires);
     }

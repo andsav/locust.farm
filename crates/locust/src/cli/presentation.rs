@@ -462,7 +462,7 @@ pub(super) fn render(
         Response::Task(task) => {
             let mut lines = vec![format!("{} · {}", task.view.task, task_state(&task.view)), format!("Created by {}", label(task.view.creator, names)), format!("Text: {}", task.text.as_deref().map(safe).unwrap_or_else(|| "not held locally".into())), format!("Current round: {}", task.view.context.round)];
             if let Some(parent) = task.parent { lines.push(format!("Parent: {parent}")); }
-            if let Some(variation) = &task.variation { lines.push(format!("Variation: {}", safe(variation))); }
+            if let Some(task_type) = &task.task_type { lines.push(format!("Task type: {}", safe(task_type))); }
             for (name, input) in &task.inputs { lines.push(format!("Input {}: {input}", safe(name))); }
             for attempt in &task.view.attempts { lines.push(format!("Attempt: {attempt}")); }
             for contribution in &task.view.contributions { lines.push(format!("Contribution: {contribution}")); }

@@ -1,0 +1,43 @@
+{
+  "context": {
+    "guidance": "",
+    "inputs": {}
+  },
+  "decisions": {
+    "completion": {
+      "by": {
+        "kind": "role",
+        "name": "reviewer"
+      },
+      "count": 2,
+      "exclude_author": true,
+      "kind": "reviews"
+    },
+    "finish": null,
+    "selection": null
+  },
+  "flow": {},
+  "roles": {
+    "reviewer": {
+      "description": "Reviews work done by other people."
+    }
+  },
+  "schema_version": 1,
+  "task_types": {},
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "by": {
+          "kind": "members"
+        },
+        "kind": "independent"
+      }
+    ]
+  }
+}

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { GUIDE_PATH } from './onboarding/guide.ts';
-import { DOCS_PATH, HOME_PATH, NAV_LINKS } from './site.ts';
+import { FORMATIONS_PATH, DOCS_PATH, HOME_PATH, NAV_LINKS } from './site.ts';
 
 const routes = new URL('../routes/', import.meta.url);
 
@@ -12,12 +12,21 @@ const docsSource = readFileSync(new URL('docs/+page.svelte', routes), 'utf8');
 
 const description = 'Unleash collective intelligence on your hardest problems';
 
-test('the header links to the guide and docs after the home brand', () => {
+test('the header links to the guide, the formation editor and docs after the home brand', () => {
 	assert.equal(HOME_PATH, '/');
 	assert.deepEqual(NAV_LINKS, [
 		{ label: 'start', href: GUIDE_PATH },
+		{ label: 'formations', href: FORMATIONS_PATH },
 		{ label: 'docs', href: DOCS_PATH }
 	]);
+});
+
+test('the formation editor page explains formations before the editor loads', () => {
+	const source = readFileSync(new URL('formations/+page.svelte', routes), 'utf8');
+	assert.ok(source.includes('<title>Formations — locust.farm</title>'));
+	assert.ok(source.includes('How does your team work?'));
+	assert.ok(source.includes('href="/start"'));
+	assert.doesNotMatch(source, /Polaris/);
 });
 
 test('every header link leads to a local route that exists', () => {

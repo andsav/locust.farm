@@ -181,7 +181,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     None
                 }
             }),
-            variation: round.binding.variation.clone(),
+            task_type: round.binding.task_type.clone(),
             effective_rules_json: serde_json::to_string(
                 &entry
                     .goal

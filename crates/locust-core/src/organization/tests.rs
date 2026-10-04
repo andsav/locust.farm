@@ -11,13 +11,13 @@ fn minimal_open_template_is_valid_and_has_no_authority_binding() {
     let result = inspect(r#"{"schema_version":1}"#);
     assert!(result.valid, "{:?}", result.diagnostics);
     assert!(result.explanation.unwrap().authority_roles.is_empty());
-    assert_eq!(result.normalized, Some(Blueprint::default()));
+    assert_eq!(result.normalized, Some(Formation::default()));
 }
 
 #[test]
 fn all_presets_are_valid_reusable_templates_and_normalization_is_idempotent() {
     for preset in presets() {
-        let result = checked(serde_json::to_value(preset.blueprint).unwrap());
+        let result = checked(serde_json::to_value(preset.formation).unwrap());
         assert!(result.valid, "{}: {:?}", preset.name, result.diagnostics);
         let again = checked(serde_json::to_value(result.normalized.as_ref().unwrap()).unwrap());
         assert!(again.valid);
@@ -63,7 +63,7 @@ fn unsupported_version_and_unknown_fields_do_not_produce_a_normalized_document()
 fn effective_defaults_and_set_order_have_identical_identity() {
     assert_eq!(
         inspect(r#"{"schema_version":1}"#).semantic_hash,
-        checked(serde_json::to_value(Blueprint::default()).unwrap()).semantic_hash
+        checked(serde_json::to_value(Formation::default()).unwrap()).semantic_hash
     );
     let key = "ab".repeat(32);
     let first = checked(
@@ -120,12 +120,7 @@ fn role_key_scope_threshold_and_cycles_report_actionable_locations() {
             "/flow/b/requires/0/evidence",
         ),
     ];
-    for (mut source, code, path) in cases {
-        if let Some(flow) = source.get_mut("flow").and_then(Value::as_object_mut) {
-            for stage in flow.values_mut() {
-                stage["materializer"] = json!({"kind":"participant","key":"ab".repeat(32)});
-            }
-        }
+    for (source, code, path) in cases {
         let result = checked(source);
         assert!(!result.valid);
         assert!(

@@ -35,7 +35,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         &self,
         actor: &Actor,
         title: String,
-        blueprint_json: Option<String>,
+        formation_json: Option<String>,
         roles: BTreeMap<String, Vec<PublicKey>>,
         inputs: BTreeMap<String, BlobHash>,
         now_ms: u64,
@@ -43,7 +43,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let creator = self.manages_goals(actor)?;
         let endpoint = self.own_endpoint()?.endpoint;
         let signer = self.signer(&creator)?;
-        let source = blueprint_json.unwrap_or_else(|| "{\"schema_version\":1}".into());
+        let source = formation_json.unwrap_or_else(|| "{\"schema_version\":1}".into());
         let (definition, normalized) = checked_definition(&source)?;
         let genesis = Genesis {
             administrator: creator,
@@ -363,7 +363,7 @@ fn checked_definition(source: &str) -> Result<(DefinitionHash, String), ApiError
     if !inspection.valid {
         return Err(ApiError::new(
             ErrorCode::Invalid,
-            "the blueprint is invalid; use blueprint.validate for diagnostics",
+            "the formation is invalid; use formation.validate for diagnostics",
         ));
     }
     let hash = inspection

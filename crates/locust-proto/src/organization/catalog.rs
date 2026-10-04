@@ -1,5 +1,5 @@
 //! Owner-scoped local authoring records. Source and semantic identities differ.
-use super::Blueprint;
+use super::Formation;
 use crate::id::PublicKey;
 use serde::{Deserialize, Serialize};
 
@@ -39,14 +39,14 @@ pub struct Publication {
 
 /// Identity of exact source bytes, distinct from normalized semantic identity.
 pub fn source_hash(source: &str) -> String {
-    let mut hash = blake3::Hasher::new_derive_key("locust blueprint source v1");
+    let mut hash = blake3::Hasher::new_derive_key("locust formation source v1");
     hash.update(source.as_bytes());
     hash.finalize().to_hex().to_string()
 }
 
 impl Publication {
     /// Decode the normalized semantic definition from its wire-safe JSON source.
-    pub fn normalized(&self) -> Result<Blueprint, serde_json::Error> {
+    pub fn normalized(&self) -> Result<Formation, serde_json::Error> {
         serde_json::from_str(&self.normalized_json)
     }
 }
@@ -80,7 +80,7 @@ mod tests {
             revision: 0,
             data_json: "{\"x\":1}".into(),
         });
-        let normalized = Blueprint::default();
+        let normalized = Formation::default();
         round_trip(&Publication {
             id: "published".into(),
             owner,

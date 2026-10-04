@@ -1,7 +1,7 @@
 //! Bundled examples of the offline authoring contract.
 use super::{
-    Authority, Blueprint, CompletionRule, DecisionRules, EvidenceKind, Prerequisite, Preset, Role,
-    Selector, Stage, StartRule, TaskVariation,
+    Authority, CompletionRule, DecisionRules, EvidenceKind, Formation, Prerequisite, Preset, Role,
+    Selector, Stage, StartRule, TaskType,
 };
 
 fn role(name: &str) -> Selector {
@@ -10,31 +10,31 @@ fn role(name: &str) -> Selector {
 fn authority(name: &str) -> Authority {
     Authority::Role { name: name.into() }
 }
-fn declare_role(blueprint: &mut Blueprint, name: &str, description: &str) {
-    blueprint.roles.insert(
+fn declare_role(formation: &mut Formation, name: &str, description: &str) {
+    formation.roles.insert(
         name.into(),
         Role {
             description: description.into(),
         },
     );
 }
-fn preset(name: &str, description: &str, blueprint: Blueprint) -> Preset {
+fn preset(name: &str, description: &str, formation: Formation) -> Preset {
     Preset {
         name: name.into(),
         description: description.into(),
-        blueprint,
+        formation,
     }
 }
 
 /// Examples ship within the binary's contract dependency; no checkout is needed.
 pub fn presets() -> Vec<Preset> {
-    let open = Blueprint::default();
+    let open = Formation::default();
 
-    let mut coordinator = Blueprint::default();
+    let mut coordinator = Formation::default();
     declare_role(
         &mut coordinator,
         "coordinator",
-        "One member offers work and decides completion, selection and closure.",
+        "Hands out work, accepts results, picks the final answer and says when the goal is finished. One person.",
     );
     coordinator.work.starts = vec![StartRule::Offered {
         by: role("coordinator"),
@@ -47,40 +47,36 @@ pub fn presets() -> Vec<Preset> {
             exclude_author: false,
         },
         selection: Some(authority("coordinator")),
-        closure: Some(authority("coordinator")),
+        finish: Some(authority("coordinator")),
     };
 
-    let mut peer_review = Blueprint::default();
+    let mut peer_review = Formation::default();
     peer_review.decisions.completion = CompletionRule::Reviews {
         by: Selector::Members,
         count: 1,
         exclude_author: true,
     };
 
-    let mut independent = Blueprint::default();
+    let mut independent = Formation::default();
     declare_role(
         &mut independent,
-        "chooser",
-        "One member selects among independently completed contributions.",
+        "judge",
+        "Picks which finished attempt to use. One person.",
     );
-    independent.decisions.selection = Some(authority("chooser"));
+    independent.decisions.selection = Some(authority("judge"));
 
-    let mut panel = Blueprint::default();
-    declare_role(
-        &mut panel,
-        "reviewer",
-        "Members eligible to review contributions by other authors.",
-    );
+    let mut panel = Formation::default();
+    declare_role(&mut panel, "reviewer", "Reviews work done by other people.");
     panel.decisions.completion = CompletionRule::Reviews {
         by: role("reviewer"),
         count: 2,
         exclude_author: true,
     };
 
-    let mut pipeline = Blueprint::default();
-    pipeline.variations.insert(
-        "reviewed".into(),
-        TaskVariation {
+    let mut pipeline = Formation::default();
+    pipeline.task_types.insert(
+        "draft".into(),
+        TaskType {
             work: None,
             decisions: Some(DecisionRules {
                 completion: CompletionRule::Reviews {
@@ -89,30 +85,23 @@ pub fn presets() -> Vec<Preset> {
                     exclude_author: true,
                 },
                 selection: None,
-                closure: None,
+                finish: None,
             }),
         },
-    );
-    declare_role(
-        &mut pipeline,
-        "materializer",
-        "One member's daemon advances the configured stages and durably delivers ready work.",
     );
     pipeline.flow.insert(
         "draft".into(),
         Stage {
-            materializer: authority("materializer"),
             recipients: Selector::Members,
-            variation: None,
+            task_type: Some("draft".into()),
             requires: Vec::new(),
         },
     );
     pipeline.flow.insert(
-        "review".into(),
+        "ship".into(),
         Stage {
-            materializer: authority("materializer"),
             recipients: Selector::Members,
-            variation: Some("reviewed".into()),
+            task_type: None,
             requires: vec![Prerequisite {
                 stage: "draft".into(),
                 evidence: EvidenceKind::Completion,
@@ -138,7 +127,7 @@ pub fn presets() -> Vec<Preset> {
         ),
         preset(
             "independent-attempts",
-            "Authors complete independent attempts; a bound chooser selects contributions.",
+            "Authors complete independent attempts; a bound judge selects contributions.",
             independent,
         ),
         preset(
@@ -148,7 +137,7 @@ pub fn presets() -> Vec<Preset> {
         ),
         preset(
             "pipeline",
-            "A review stage requires completed draft evidence and uses a named peer-review variation.",
+            "A draft stage needs one review by another member; a ship stage starts when the draft is complete.",
             pipeline,
         ),
     ]

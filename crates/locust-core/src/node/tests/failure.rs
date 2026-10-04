@@ -175,7 +175,7 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
         };
         let request = Request::GoalCreate {
             title: "Atomic creation".into(),
-            blueprint_json: None,
+            formation_json: None,
             roles: Default::default(),
             inputs: Default::default(),
         };
@@ -240,7 +240,7 @@ fn exhausted_revision_refuses_before_changing_the_goal_projection() {
         Request::TaskOpen {
             goal,
             text: "must not appear".into(),
-            variation: None,
+            task_type: None,
             inputs: Default::default(),
             parent: None,
         },

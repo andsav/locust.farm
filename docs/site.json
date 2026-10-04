@@ -6,7 +6,7 @@
     "software": "unreleased",
     "api": 4,
     "protocol": 4,
-    "blueprintSchema": 1
+    "formationSchema": 1
   },
   "pages": [
     {
@@ -36,9 +36,9 @@
       "status": "implemented"
     },
     {
-      "source": "docs/guide/blueprint-authoring.md",
-      "slug": "blueprint-authoring",
-      "title": "Blueprint authoring",
+      "source": "docs/guide/formation-authoring.md",
+      "slug": "formation-authoring",
+      "title": "Formation authoring",
       "description": "Offline checks, private publication and contextual runtime readiness.",
       "group": "Author definitions",
       "order": 3,
@@ -257,7 +257,7 @@
       "id": "organization-schema",
       "source": "docs/reference/generated/organization.schema.json",
       "url": "/docs/next/reference/organization.schema.json",
-      "title": "Blueprint JSON Schema",
+      "title": "Formation JSON Schema",
       "kind": "schema",
       "status": "implemented"
     },
@@ -271,7 +271,7 @@
     },
     {
       "id": "example-open",
-      "source": "examples/blueprints/open.json",
+      "source": "examples/formations/open.json",
       "url": "/docs/next/examples/open.json",
       "title": "open",
       "kind": "example",
@@ -279,7 +279,7 @@
     },
     {
       "id": "example-coordinator",
-      "source": "examples/blueprints/coordinator.json",
+      "source": "examples/formations/coordinator.json",
       "url": "/docs/next/examples/coordinator.json",
       "title": "coordinator",
       "kind": "example",
@@ -287,7 +287,7 @@
     },
     {
       "id": "example-peer-review",
-      "source": "examples/blueprints/peer-review.json",
+      "source": "examples/formations/peer-review.json",
       "url": "/docs/next/examples/peer-review.json",
       "title": "peer-review",
       "kind": "example",
@@ -295,7 +295,7 @@
     },
     {
       "id": "example-independent-attempts",
-      "source": "examples/blueprints/independent-attempts.json",
+      "source": "examples/formations/independent-attempts.json",
       "url": "/docs/next/examples/independent-attempts.json",
       "title": "independent-attempts",
       "kind": "example",
@@ -303,7 +303,7 @@
     },
     {
       "id": "example-review-panel",
-      "source": "examples/blueprints/review-panel.json",
+      "source": "examples/formations/review-panel.json",
       "url": "/docs/next/examples/review-panel.json",
       "title": "review-panel",
       "kind": "example",
@@ -311,7 +311,7 @@
     },
     {
       "id": "example-pipeline",
-      "source": "examples/blueprints/pipeline.json",
+      "source": "examples/formations/pipeline.json",
       "url": "/docs/next/examples/pipeline.json",
       "title": "pipeline",
       "kind": "example",
@@ -329,13 +329,15 @@
   "sourceLinks": [
     "docs/installation.md",
     "docs/onboarding.md",
+    "docs/demo.md",
     "docs/managed-clients.md",
     "docs/first-contact.md",
-    "docs/organization-blueprints.md",
-    "docs/organization-blueprints-implementation-plan.md",
-    "docs/organization-blueprints-semantics.md",
+    "docs/formation-prompt.md",
+    "docs/formations.md",
+    "docs/formations-implementation-plan.md",
+    "docs/formations-semantics.md",
     "research/onboarding-qualification.md",
-    "docs/organization-blueprints-status.md",
+    "docs/formations-status.md",
     "docs/packaging.md",
     "research/organization-native-qualification.md",
     "research/linux-installation-qualification.md",
@@ -385,7 +387,7 @@
     {
       "slug": "quickstarts/two-local-agents",
       "page": "collaboration",
-      "section": "two-local-agents"
+      "section": "owner-handoff-for-installed-clients"
     },
     {
       "slug": "quickstarts/invite-a-person",
@@ -443,7 +445,7 @@
       "section": "local-permissions-and-synchronization"
     },
     {
-      "slug": "organization/blueprints",
+      "slug": "organization/formations",
       "page": "organization",
       "section": "definition-and-instance-lifecycle"
     },
@@ -469,7 +471,7 @@
     },
     {
       "slug": "authoring/with-your-agent",
-      "page": "blueprint-authoring",
+      "page": "formation-authoring",
       "section": "author-with-your-agent"
     },
     {
@@ -484,17 +486,17 @@
     },
     {
       "slug": "authoring/diagnostics",
-      "page": "blueprint-authoring",
+      "page": "formation-authoring",
       "section": "correct-diagnostics-and-test-a-custom-pattern"
     },
     {
       "slug": "authoring/testing",
-      "page": "blueprint-authoring",
+      "page": "formation-authoring",
       "section": "correct-diagnostics-and-test-a-custom-pattern"
     },
     {
       "slug": "authoring/custom-patterns",
-      "page": "blueprint-authoring",
+      "page": "formation-authoring",
       "section": "correct-diagnostics-and-test-a-custom-pattern"
     },
     {
@@ -554,7 +556,7 @@
     },
     {
       "slug": "agents/authoring-contract",
-      "page": "blueprint-authoring",
+      "page": "formation-authoring",
       "section": "author-with-your-agent"
     },
     {
@@ -628,9 +630,9 @@
       "section": "mcp-and-native-tools"
     },
     {
-      "slug": "reference/blueprint-schema",
+      "slug": "reference/formation-schema",
       "page": "schema-reference",
-      "section": "blueprint-root-fields"
+      "section": "formation-root-fields"
     },
     {
       "slug": "reference/events",

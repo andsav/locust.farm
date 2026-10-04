@@ -153,7 +153,7 @@ pub struct MaterializedEffect {
     pub id: EffectId,
     /// Multiple equivalent signatures still name one logical action.
     pub events: BTreeSet<EventId>,
-    pub materializer: PublicKey,
+    pub runner: PublicKey,
     pub effect: Effect,
     pub recipients: BTreeSet<PublicKey>,
     pub acknowledged: BTreeSet<PublicKey>,

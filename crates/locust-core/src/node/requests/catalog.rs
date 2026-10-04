@@ -28,7 +28,7 @@ fn error(error: catalog::Error) -> ApiError {
         )
         .with_details(serde_json::json!({"current_publication":current})),
         catalog::Error::InvalidDocument { diagnostics } => {
-            ApiError::new(ErrorCode::Invalid, "the blueprint is invalid")
+            ApiError::new(ErrorCode::Invalid, "the formation is invalid")
                 .with_details(serde_json::json!({"diagnostics": diagnostics}))
         }
     }
@@ -50,29 +50,29 @@ impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn catalog(&self, actor: &Actor, request: Request) -> Plan {
         let principal = actor.principal()?;
         match request {
-            Request::BlueprintDraftCreate {
+            Request::FormationDraftCreate {
                 id,
                 expected_revision,
                 source,
             } => prepared(
                 catalog::prepare_create(&self.store, principal, &id, expected_revision, source),
-                Response::BlueprintDraft,
+                Response::FormationDraft,
             ),
-            Request::BlueprintDraftUpdate {
+            Request::FormationDraftUpdate {
                 id,
                 expected_revision,
                 source,
             } => prepared(
                 catalog::prepare_update(&self.store, principal, &id, expected_revision, source),
-                Response::BlueprintDraft,
+                Response::FormationDraft,
             ),
-            Request::BlueprintDraft { id } => answer(Response::BlueprintDraft(
+            Request::FormationDraft { id } => answer(Response::FormationDraft(
                 catalog::draft(&self.store, principal, &id).map_err(error)?,
             )),
-            Request::BlueprintDrafts => answer(Response::BlueprintDrafts(
+            Request::FormationDrafts => answer(Response::FormationDrafts(
                 catalog::drafts(&self.store, principal).map_err(error)?,
             )),
-            Request::BlueprintPublish {
+            Request::FormationPublish {
                 draft,
                 id,
                 expected_revision,
@@ -86,18 +86,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     expected_revision,
                     &expected_source_hash,
                 ),
-                Response::BlueprintPublication,
+                Response::FormationPublication,
             ),
-            Request::BlueprintPublication { id } => answer(Response::BlueprintPublication(
+            Request::FormationPublication { id } => answer(Response::FormationPublication(
                 catalog::publication(&self.store, principal, &id).map_err(error)?,
             )),
-            Request::BlueprintPublications => answer(Response::BlueprintPublications(
+            Request::FormationPublications => answer(Response::FormationPublications(
                 catalog::publications(&self.store, principal).map_err(error)?,
             )),
-            Request::BlueprintPresentation { id } => answer(Response::BlueprintPresentation(
+            Request::FormationPresentation { id } => answer(Response::FormationPresentation(
                 catalog::presentation(&self.store, principal, &id).map_err(error)?,
             )),
-            Request::BlueprintPresentationUpdate {
+            Request::FormationPresentationUpdate {
                 id,
                 expected_revision,
                 data_json,
@@ -109,10 +109,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     expected_revision,
                     data_json,
                 ),
-                Response::BlueprintPresentation,
+                Response::FormationPresentation,
             ),
-            Request::BlueprintValidate { source } | Request::BlueprintExplain { source } => {
-                answer(Response::BlueprintInspection {
+            Request::FormationValidate { source } | Request::FormationExplain { source } => {
+                answer(Response::FormationInspection {
                     json: serde_json::to_string(&inspect(&source)).expect("inspection encodes"),
                 })
             }

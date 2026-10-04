@@ -28,7 +28,7 @@
 	<title>Docs — locust.farm</title>
 	<meta
 		name="description"
-		content="Locust development documentation, concepts and offline blueprint authoring."
+		content="Locust development documentation, concepts and offline formation authoring."
 	/>
 	<link rel="canonical" href="https://locust.farm/docs" />
 </svelte:head>

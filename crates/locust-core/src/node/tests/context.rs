@@ -430,24 +430,24 @@ fn acknowledging_an_older_receipt_leaves_later_findings_unread() {
 }
 
 #[test]
-fn task_brief_uses_pinned_variation_and_task_inputs_instead_of_goal_defaults() {
+fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
     use locust_proto::organization::{
-        Blueprint, CompletionRule, DecisionRules, Input, InputKind, Selector, TaskVariation,
+        CompletionRule, DecisionRules, Formation, Input, InputKind, Selector, TaskType,
     };
     use std::collections::BTreeMap;
 
     let (mut d, _, _, agent, goal) = setup();
-    let mut blueprint = Blueprint::default();
-    blueprint.context.inputs.insert(
+    let mut formation = Formation::default();
+    formation.context.inputs.insert(
         "workspace".into(),
         Input {
             kind: InputKind::Artifact,
             required: false,
         },
     );
-    blueprint.variations.insert(
+    formation.task_types.insert(
         "reviewed".into(),
-        TaskVariation {
+        TaskType {
             work: None,
             decisions: Some(DecisionRules {
                 completion: CompletionRule::Reviews {
@@ -456,7 +456,7 @@ fn task_brief_uses_pinned_variation_and_task_inputs_instead_of_goal_defaults() {
                     exclude_author: false,
                 },
                 selection: None,
-                closure: None,
+                finish: None,
             }),
         },
     );
@@ -469,7 +469,7 @@ fn task_brief_uses_pinned_variation_and_task_inputs_instead_of_goal_defaults() {
         Request::RulesBind {
             goal,
             expected,
-            blueprint_json: serde_json::to_string(&blueprint).unwrap(),
+            formation_json: serde_json::to_string(&formation).unwrap(),
             roles: BTreeMap::new(),
             inputs: BTreeMap::new(),
         },
@@ -488,7 +488,7 @@ fn task_brief_uses_pinned_variation_and_task_inputs_instead_of_goal_defaults() {
         Request::TaskOpen {
             goal,
             text: "A task with different completion rules".into(),
-            variation: Some("reviewed".into()),
+            task_type: Some("reviewed".into()),
             inputs: BTreeMap::from([("workspace".into(), hash)]),
             parent: None,
         },
@@ -496,7 +496,7 @@ fn task_brief_uses_pinned_variation_and_task_inputs_instead_of_goal_defaults() {
     let goal_view = context(&mut d, agent, goal, None, false);
     let task_view = context(&mut d, agent, goal, Some(task), false);
     let detail = full(&task_view).task.as_ref().unwrap();
-    assert_eq!(detail.variation.as_deref(), Some("reviewed"));
+    assert_eq!(detail.task_type.as_deref(), Some("reviewed"));
     assert_eq!(
         full(&task_view).effective_rules_json,
         detail.effective_rules_json
@@ -642,7 +642,7 @@ fn standing_changes_invalidate_receipts_and_reorder_context_after_restart() {
 fn pending_reviews_only_count_the_callers_effective_reviews() {
     use locust_proto::api::GoalGrants;
     use locust_proto::event::Event;
-    use locust_proto::organization::{Blueprint, CompletionRule, Selector};
+    use locust_proto::organization::{CompletionRule, Formation, Selector};
 
     fn needs_review(d: &mut Daemon, actor: ConnId, goal: GoalId, subject: EventId) -> bool {
         let Response::Pending(pending) = d.ok(actor, Request::Pending { goal }) else {
@@ -657,8 +657,8 @@ fn pending_reviews_only_count_the_callers_effective_reviews() {
         .status
         .current_rules
         .unwrap();
-    let mut blueprint = Blueprint::default();
-    blueprint.decisions.completion = CompletionRule::Reviews {
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Reviews {
         by: Selector::Members,
         count: 1,
         exclude_author: false,
@@ -668,7 +668,7 @@ fn pending_reviews_only_count_the_callers_effective_reviews() {
         Request::RulesBind {
             goal,
             expected,
-            blueprint_json: serde_json::to_string(&blueprint).unwrap(),
+            formation_json: serde_json::to_string(&formation).unwrap(),
             roles: Default::default(),
             inputs: Default::default(),
         },

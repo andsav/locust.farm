@@ -23,13 +23,13 @@ organization replacement. The [onboarding evidence](../onboarding.md) records th
 
 ## Development direction
 
-The [organization model](concepts.md) introduces declarative blueprints for rules,
+The [organization model](concepts.md) introduces declarative formations for rules,
 roles and decision authority. API 4 / protocol 4 implements these rules in the daemon. The CLI supports offline
 schema, validation, explanations and examples, private draft/publication operations,
-and explicit goal creation with role/input bindings. Publishing a blueprint alone
+and explicit goal creation with role/input bindings. Publishing a formation alone
 does not create a goal or launch a process.
 
-Read [Blueprint authoring](blueprint-authoring.md) to understand what a successful
+Read [Formation authoring](formation-authoring.md) to understand what a successful
 definition check establishes and what still requires contextual runtime checks.
 
 ## Read by capability
@@ -41,8 +41,8 @@ definition check establishes and what still requires contextual runtime checks.
 - An operator evaluating a local candidate should review retained installation
   and onboarding evidence, rather than treating this manual as a download offer.
 
-The accepted direction is recorded in the [organization decision](../organization-blueprints.md).
-The [implementation ledger](../organization-blueprints-status.md) records current
+The accepted direction is recorded in the [organization decision](../formations.md).
+The [implementation ledger](../formations-status.md) records current
 checks and remaining qualification. Start with the executable
 [two-participant tutorial](collaboration.md), then inspect
 [effective rules and completion](completion.md).

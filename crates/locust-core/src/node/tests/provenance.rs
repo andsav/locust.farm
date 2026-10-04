@@ -69,7 +69,7 @@ fn local_publish_requires_sources_held_in_the_same_goal_and_inspection_is_observ
         agent,
         Request::GoalCreate {
             title: "Other goal".into(),
-            blueprint_json: None,
+            formation_json: None,
             roles: Default::default(),
             inputs: Default::default(),
         },

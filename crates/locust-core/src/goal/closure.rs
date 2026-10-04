@@ -26,7 +26,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         }
         // A scope without a closure authority cannot contain an effective
         // closure decision. Avoid traversing unrelated ancestry in open work.
-        if self.resolve(context)?.effective.decisions.closure.is_none() {
+        if self.resolve(context)?.effective.decisions.finish.is_none() {
             return Ok(());
         }
         // Traverse exact signed author and typed dependency ancestry, never

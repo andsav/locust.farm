@@ -12,7 +12,7 @@ candidate installation, user-session service support and resumable onboarding.
 API 4 / protocol 4 contains organization rules, offline authoring and semantic diff,
 private revisioned drafts and immutable publication, taskless contributions,
 independent attempts, exact completion/review, scoped decisions and durable flow.
-The current [implementation ledger](../organization-blueprints-status.md)
+The current [implementation ledger](../formations-status.md)
 links the code, tests and qualification boundaries. Publishing a definition does
 not instantiate a goal or authorize local execution.
 
@@ -71,7 +71,7 @@ identified evidence.
   operating instructions.
 
 Each article has a status badge, source identity and separate software, API,
-protocol and blueprint-schema identifiers. A dirty local build is explicitly
+protocol and formation-schema identifiers. A dirty local build is explicitly
 marked because the displayed HEAD does not identify its uncommitted bytes.
 
 ## Choose the available entry
@@ -80,5 +80,5 @@ For first contact, [identify your harness](https://locust.farm/start), report it
 capabilities and stop while public setup is unavailable. For a reviewed local
 candidate, read [installation and onboarding](installation.md) with the exact
 candidate and independently selected trust inputs. For definition development,
-read [offline authoring](blueprint-authoring.md). None of these paths silently
+read [offline authoring](formation-authoring.md). None of these paths silently
 turns a proposal into a released product.

@@ -1,9 +1,9 @@
 //! Command-line client: explicit authority, one JSON envelope, typed API.
 mod args;
-mod blueprint;
 mod client;
 mod connection;
 mod doctor;
+mod formation;
 mod install;
 mod invitations;
 mod local_members;
@@ -173,16 +173,16 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     }
     if matches!(
         operation.as_str(),
-        "blueprint.contract"
-            | "blueprint.schema"
-            | "blueprint.examples"
-            | "blueprint.example"
-            | "blueprint.validate"
-            | "blueprint.explain"
-            | "blueprint.normalize"
-            | "blueprint.diff"
+        "formation.contract"
+            | "formation.schema"
+            | "formation.examples"
+            | "formation.example"
+            | "formation.validate"
+            | "formation.explain"
+            | "formation.normalize"
+            | "formation.diff"
     ) {
-        return blueprint::run(&operation, selected);
+        return formation::run(&operation, selected);
     }
     if operation == "up" || operation == "agent.add" {
         return onboarding::run(matches, &operation, selected);

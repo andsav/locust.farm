@@ -146,10 +146,10 @@ def main():
             raise RuntimeError('Starter unexpectedly passes private oracle')
         report['original_head'] = head
         with ProductionDaemon(setup, args.locust, args.rpc_timeout) as daemon:
-            blueprint = raw_call(daemon, ['blueprint', 'example', 'peer-review'])
-            report['review_policy'] = blueprint['decisions']['completion']
+            formation = raw_call(daemon, ['formation', 'example', 'peer-review'])
+            report['review_policy'] = formation['decisions']['completion']
             daemon.goal = raw_call(daemon, ['goal', 'create', '--title', 'Portable archive member paths',
-                '--blueprint-json', json.dumps(blueprint)])['goal_created']['goal']
+                '--formation-json', json.dumps(formation)])['goal_created']['goal']
             researcher = enroll(daemon, rp, 'researcher')
             builder = enroll(daemon, bp, 'builder', permissions=('contribute', 'review'))
             integrator = enroll(daemon, ip, 'integrator', permissions=())

@@ -268,9 +268,9 @@ def main():
         report['case'] = fixture
         report['skill_sha256'] = sha(ROOT / 'skills/locust/SKILL.md')
         with ProductionDaemon(setup, args.locust, args.rpc_timeout) as daemon:
-            blueprint = raw_call(daemon, ['blueprint', 'example', 'open'])
+            formation = raw_call(daemon, ['formation', 'example', 'open'])
             daemon.goal = raw_call(daemon, ['goal', 'create', '--title', 'Portable archive member paths',
-                '--blueprint-json', json.dumps(blueprint)])['goal_created']['goal']
+                '--formation-json', json.dumps(formation)])['goal_created']['goal']
             researcher = enroll(daemon, rp, 'researcher')
             builder = enroll(daemon, bp, 'builder')
             report['goal'] = daemon.goal

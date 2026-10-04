@@ -49,7 +49,7 @@ fn key(actor: PublicKey, kind: u8, id: &str) -> Result<Vec<u8>, Error> {
 }
 fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, Error> {
     serde_json::from_slice(bytes)
-        .map_err(|error| StoreError::Corrupted(format!("blueprint catalog record: {error}")).into())
+        .map_err(|error| StoreError::Corrupted(format!("formation catalog record: {error}")).into())
 }
 trait Record: DeserializeOwned {
     fn intact(&self, actor: PublicKey, id: &str) -> bool;
@@ -86,7 +86,7 @@ fn decode_record<T: Record>(bytes: &[u8], actor: PublicKey, id: &str) -> Result<
     let value: T = decode(bytes)?;
     if !value.intact(actor, id) {
         return Err(StoreError::Corrupted(
-            "blueprint catalog record identity or content mismatch".into(),
+            "formation catalog record identity or content mismatch".into(),
         )
         .into());
     }
@@ -94,7 +94,7 @@ fn decode_record<T: Record>(bytes: &[u8], actor: PublicKey, id: &str) -> Result<
 }
 fn read<T: Record>(store: &impl Store, actor: PublicKey, kind: u8, id: &str) -> Result<T, Error> {
     let bytes = store
-        .get(Space::Blueprint, &key(actor, kind, id)?)?
+        .get(Space::Formation, &key(actor, kind, id)?)?
         .ok_or(Error::NotFound)?;
     decode_record(&bytes, actor, id)
 }
@@ -105,7 +105,7 @@ fn existing<T: Record>(
     id: &str,
 ) -> Result<Option<T>, Error> {
     store
-        .get(Space::Blueprint, &key(actor, kind, id)?)?
+        .get(Space::Formation, &key(actor, kind, id)?)?
         .map(|bytes| decode_record(&bytes, actor, id))
         .transpose()
 }
@@ -121,7 +121,7 @@ fn write<T: Serialize>(
         value,
         commit: Commit {
             local: vec![LocalWrite::Put {
-                space: Space::Blueprint,
+                space: Space::Formation,
                 key: key(actor, kind, id)?,
                 value: bytes,
             }],
@@ -146,11 +146,11 @@ pub fn publication(store: &impl Store, actor: PublicKey, id: &str) -> Result<Pub
 fn list<T: Record>(store: &impl Store, actor: PublicKey, kind: u8) -> Result<Vec<T>, Error> {
     let prefix = prefix(actor, kind);
     store
-        .scan(Space::Blueprint, &prefix)?
+        .scan(Space::Formation, &prefix)?
         .into_iter()
         .map(|(key, bytes)| {
             let id = std::str::from_utf8(&key[prefix.len()..]).map_err(|_| {
-                StoreError::Corrupted("blueprint catalog identifier is not UTF-8".into())
+                StoreError::Corrupted("formation catalog identifier is not UTF-8".into())
             })?;
             decode_record(&bytes, actor, id)
         })

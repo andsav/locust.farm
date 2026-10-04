@@ -16,7 +16,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// authenticated goal administrator. Roles never grant that authority themselves.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct Blueprint {
+pub struct Formation {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     #[serde(default)]
@@ -29,13 +29,13 @@ pub struct Blueprint {
     pub decisions: DecisionRules,
     /// Explicitly delegated alternatives to the default task rules.
     #[serde(default)]
-    pub variations: BTreeMap<String, TaskVariation>,
+    pub task_types: BTreeMap<String, TaskType>,
     /// Optional named stages and their prerequisite evidence.
     #[serde(default)]
     pub flow: BTreeMap<String, Stage>,
 }
 
-impl Default for Blueprint {
+impl Default for Formation {
     fn default() -> Self {
         Self {
             schema_version: SCHEMA_VERSION,
@@ -43,7 +43,7 @@ impl Default for Blueprint {
             context: Context::default(),
             work: WorkRules::default(),
             decisions: DecisionRules::default(),
-            variations: BTreeMap::new(),
+            task_types: BTreeMap::new(),
             flow: BTreeMap::new(),
         }
     }
@@ -165,9 +165,9 @@ pub struct DecisionRules {
     /// Approval alone never chooses one winner among qualifying contributions.
     #[serde(default)]
     pub selection: Option<Authority>,
-    /// An optional explicit closure decision; an empty board is not closure.
+    /// An optional single decider who may declare the scope finished; an empty board is not finished.
     #[serde(default)]
-    pub closure: Option<Authority>,
+    pub finish: Option<Authority>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -210,7 +210,7 @@ impl Default for CompletionRule {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct TaskVariation {
+pub struct TaskType {
     /// Omitted groups inherit the goal definition's full corresponding group.
     #[serde(default)]
     pub work: Option<WorkRules>,
@@ -221,13 +221,11 @@ pub struct TaskVariation {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Stage {
-    /// One explicitly bound principal whose daemon materializes this stage.
-    pub materializer: Authority,
     /// Eligible recipients of durable ready-work delivery, resolved at binding.
     #[serde(default)]
     pub recipients: Selector,
     #[serde(default)]
-    pub variation: Option<String>,
+    pub task_type: Option<String>,
     #[serde(default)]
     pub requires: Vec<Prerequisite>,
 }
@@ -250,13 +248,13 @@ pub enum EvidenceKind {
 
 /// Exported from the same types used by deserialization and validation.
 pub fn schema() -> serde_json::Value {
-    serde_json::to_value(schema_for!(Blueprint)).expect("JSON Schema is JSON serializable")
+    serde_json::to_value(schema_for!(Formation)).expect("JSON Schema is JSON serializable")
 }
 
 /// The semantic identity of a normalized current-format definition. This is
 /// distinct from the hash of encrypted bytes used to share it within a goal.
-pub fn semantic_hash(normalized: &Blueprint) -> String {
-    let bytes = crate::codec::encode(normalized).expect("blueprint is canonically encodable");
+pub fn semantic_hash(normalized: &Formation) -> String {
+    let bytes = crate::codec::encode(normalized).expect("formation is canonically encodable");
     let mut hash = blake3::Hasher::new_derive_key("locust organization definition v1");
     hash.update(&bytes);
     hash.finalize().to_hex().to_string()
@@ -267,7 +265,7 @@ pub fn semantic_hash(normalized: &Blueprint) -> String {
 pub struct Preset {
     pub name: String,
     pub description: String,
-    pub blueprint: Blueprint,
+    pub formation: Formation,
 }
 
 mod presets;

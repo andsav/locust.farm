@@ -1,6 +1,5 @@
 {
   "api_version": 4,
-  "blueprint_schema_version": 1,
   "cli": {
     "arguments": [
       {
@@ -2069,7 +2068,7 @@
           },
           {
             "action": "Set",
-            "help": "JSON value matching blueprint contract or the API schema",
+            "help": "JSON value matching formation contract or the API schema",
             "long": "seen",
             "name": "seen",
             "positional": false,
@@ -2078,7 +2077,7 @@
           },
           {
             "action": "Set",
-            "help": "JSON value matching blueprint contract or the API schema",
+            "help": "JSON value matching formation contract or the API schema",
             "long": "timeout-ms",
             "name": "timeout_ms",
             "positional": false,
@@ -2094,7 +2093,7 @@
         "arguments": [
           {
             "action": "Set",
-            "help": "JSON value matching blueprint contract or the API schema",
+            "help": "JSON value matching formation contract or the API schema",
             "long": "after",
             "name": "after",
             "positional": false,
@@ -2112,7 +2111,7 @@
           },
           {
             "action": "Set",
-            "help": "JSON value matching blueprint contract or the API schema",
+            "help": "JSON value matching formation contract or the API schema",
             "long": "limit",
             "name": "limit",
             "positional": false,
@@ -2140,7 +2139,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "grants",
                 "name": "grants",
                 "positional": false,
@@ -2367,7 +2366,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "generation",
                 "name": "generation",
                 "positional": false,
@@ -2427,7 +2426,7 @@
             ],
             "commands": [],
             "name": "enroll",
-            "summary": "Enroll a private blueprint author and store its credential"
+            "summary": "Enroll a private formation author and store its credential"
           }
         ],
         "name": "author",
@@ -2440,7 +2439,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "bytes",
                 "name": "bytes",
                 "positional": false,
@@ -2499,7 +2498,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "hashes",
                 "name": "hashes",
                 "positional": false,
@@ -2544,339 +2543,6 @@
         "arguments": [],
         "commands": [
           {
-            "arguments": [],
-            "commands": [],
-            "name": "contract",
-            "summary": "Discover installed schema, operations, examples and verification boundaries"
-          },
-          {
-            "arguments": [],
-            "commands": [],
-            "name": "schema",
-            "summary": "Print the authoring JSON Schema (raw JSON unless --json)"
-          },
-          {
-            "arguments": [],
-            "commands": [],
-            "name": "examples",
-            "summary": "List bundled authoring examples"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Name from blueprint examples",
-                "long": null,
-                "name": "name",
-                "positional": true,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "example",
-            "summary": "Print a bundled example (raw JSON unless --json)"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "JSON document path, or - for standard input",
-                "long": null,
-                "name": "source",
-                "positional": true,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "validate",
-            "summary": "Validate a JSON document offline with structured diagnostics"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "JSON document path, or - for standard input",
-                "long": null,
-                "name": "source",
-                "positional": true,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "explain",
-            "summary": "Explain effective rules and required bindings offline"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Before JSON document path",
-                "long": null,
-                "name": "before",
-                "positional": true,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "After JSON document path",
-                "long": null,
-                "name": "after",
-                "positional": true,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "diff",
-            "summary": "Compare normalized semantic definitions offline with hashes and JSON Pointer changes"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "JSON document path, or - for standard input",
-                "long": null,
-                "name": "source",
-                "positional": true,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "normalize",
-            "summary": "Print normalized semantic JSON (raw JSON unless --json)"
-          },
-          {
-            "arguments": [],
-            "commands": [
-              {
-                "arguments": [
-                  {
-                    "action": "Set",
-                    "help": "JSON value matching blueprint contract or the API schema",
-                    "long": "expected-revision",
-                    "name": "expected_revision",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  },
-                  {
-                    "action": "Set",
-                    "help": "Value, or - for standard input on text fields",
-                    "long": "id",
-                    "name": "id",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  },
-                  {
-                    "action": "Set",
-                    "help": "Value, or - for standard input on text fields",
-                    "long": null,
-                    "name": "source",
-                    "positional": true,
-                    "required": true,
-                    "short": null
-                  }
-                ],
-                "commands": [],
-                "name": "create",
-                "summary": "blueprint draft create"
-              },
-              {
-                "arguments": [
-                  {
-                    "action": "Set",
-                    "help": "JSON value matching blueprint contract or the API schema",
-                    "long": "expected-revision",
-                    "name": "expected_revision",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  },
-                  {
-                    "action": "Set",
-                    "help": "Value, or - for standard input on text fields",
-                    "long": "id",
-                    "name": "id",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  },
-                  {
-                    "action": "Set",
-                    "help": "Value, or - for standard input on text fields",
-                    "long": null,
-                    "name": "source",
-                    "positional": true,
-                    "required": true,
-                    "short": null
-                  }
-                ],
-                "commands": [],
-                "name": "update",
-                "summary": "blueprint draft update"
-              },
-              {
-                "arguments": [
-                  {
-                    "action": "Set",
-                    "help": "Value, or - for standard input on text fields",
-                    "long": "id",
-                    "name": "id",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  }
-                ],
-                "commands": [],
-                "name": "show",
-                "summary": "blueprint draft show"
-              }
-            ],
-            "name": "draft",
-            "summary": null
-          },
-          {
-            "arguments": [],
-            "commands": [],
-            "name": "drafts",
-            "summary": "blueprint drafts"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "draft",
-                "name": "draft",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
-                "long": "expected-revision",
-                "name": "expected_revision",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "expected-source-hash",
-                "name": "expected_source_hash",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "id",
-                "name": "id",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "publish",
-            "summary": "blueprint publish"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "id",
-                "name": "id",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "show",
-            "summary": "blueprint show"
-          },
-          {
-            "arguments": [],
-            "commands": [],
-            "name": "list",
-            "summary": "blueprint list"
-          },
-          {
-            "arguments": [],
-            "commands": [
-              {
-                "arguments": [
-                  {
-                    "action": "Set",
-                    "help": "Value, or - for standard input on text fields",
-                    "long": "id",
-                    "name": "id",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  }
-                ],
-                "commands": [],
-                "name": "show",
-                "summary": "blueprint presentation show"
-              },
-              {
-                "arguments": [
-                  {
-                    "action": "Set",
-                    "help": "Value, or - for standard input on text fields",
-                    "long": "data-json",
-                    "name": "data_json",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  },
-                  {
-                    "action": "Set",
-                    "help": "JSON value matching blueprint contract or the API schema",
-                    "long": "expected-revision",
-                    "name": "expected_revision",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  },
-                  {
-                    "action": "Set",
-                    "help": "Value, or - for standard input on text fields",
-                    "long": "id",
-                    "name": "id",
-                    "positional": false,
-                    "required": true,
-                    "short": null
-                  }
-                ],
-                "commands": [],
-                "name": "update",
-                "summary": "blueprint presentation update"
-              }
-            ],
-            "name": "presentation",
-            "summary": null
-          }
-        ],
-        "name": "blueprint",
-        "summary": "Author local blueprints and inspect organization definitions offline"
-      },
-      {
-        "arguments": [],
-        "commands": [
-          {
             "arguments": [
               {
                 "action": "Set",
@@ -2889,7 +2555,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "generation",
                 "name": "generation",
                 "positional": false,
@@ -2948,7 +2614,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "passed",
                 "name": "passed",
                 "positional": false,
@@ -3021,7 +2687,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "after",
                 "name": "after",
                 "positional": false,
@@ -3039,7 +2705,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "limit",
                 "name": "limit",
                 "positional": false,
@@ -3048,7 +2714,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "preview-chars",
                 "name": "preview_chars",
                 "positional": false,
@@ -3066,7 +2732,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "unread-only",
                 "name": "unread_only",
                 "positional": false,
@@ -3123,7 +2789,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "artifacts",
                 "name": "artifacts",
                 "positional": false,
@@ -3150,7 +2816,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "generation",
                 "name": "generation",
                 "positional": false,
@@ -3177,7 +2843,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "sources",
                 "name": "sources",
                 "positional": false,
@@ -3398,19 +3064,352 @@
         "arguments": [],
         "commands": [
           {
+            "arguments": [],
+            "commands": [],
+            "name": "contract",
+            "summary": "Discover installed schema, operations, examples and verification boundaries"
+          },
+          {
+            "arguments": [],
+            "commands": [],
+            "name": "schema",
+            "summary": "Print the authoring JSON Schema (raw JSON unless --json)"
+          },
+          {
+            "arguments": [],
+            "commands": [],
+            "name": "examples",
+            "summary": "List bundled authoring examples"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Name from formation examples",
+                "long": null,
+                "name": "name",
+                "positional": true,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "example",
+            "summary": "Print a bundled example (raw JSON unless --json)"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "JSON document path, or - for standard input",
+                "long": null,
+                "name": "source",
+                "positional": true,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "validate",
+            "summary": "Validate a JSON document offline with structured diagnostics"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "JSON document path, or - for standard input",
+                "long": null,
+                "name": "source",
+                "positional": true,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "explain",
+            "summary": "Explain effective rules and required bindings offline"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Before JSON document path",
+                "long": null,
+                "name": "before",
+                "positional": true,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "After JSON document path",
+                "long": null,
+                "name": "after",
+                "positional": true,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "diff",
+            "summary": "Compare normalized semantic definitions offline with hashes and JSON Pointer changes"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "JSON document path, or - for standard input",
+                "long": null,
+                "name": "source",
+                "positional": true,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "normalize",
+            "summary": "Print normalized semantic JSON (raw JSON unless --json)"
+          },
+          {
+            "arguments": [],
+            "commands": [
+              {
+                "arguments": [
+                  {
+                    "action": "Set",
+                    "help": "JSON value matching formation contract or the API schema",
+                    "long": "expected-revision",
+                    "name": "expected_revision",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  },
+                  {
+                    "action": "Set",
+                    "help": "Value, or - for standard input on text fields",
+                    "long": "id",
+                    "name": "id",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  },
+                  {
+                    "action": "Set",
+                    "help": "Value, or - for standard input on text fields",
+                    "long": null,
+                    "name": "source",
+                    "positional": true,
+                    "required": true,
+                    "short": null
+                  }
+                ],
+                "commands": [],
+                "name": "create",
+                "summary": "formation draft create"
+              },
+              {
+                "arguments": [
+                  {
+                    "action": "Set",
+                    "help": "JSON value matching formation contract or the API schema",
+                    "long": "expected-revision",
+                    "name": "expected_revision",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  },
+                  {
+                    "action": "Set",
+                    "help": "Value, or - for standard input on text fields",
+                    "long": "id",
+                    "name": "id",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  },
+                  {
+                    "action": "Set",
+                    "help": "Value, or - for standard input on text fields",
+                    "long": null,
+                    "name": "source",
+                    "positional": true,
+                    "required": true,
+                    "short": null
+                  }
+                ],
+                "commands": [],
+                "name": "update",
+                "summary": "formation draft update"
+              },
+              {
+                "arguments": [
+                  {
+                    "action": "Set",
+                    "help": "Value, or - for standard input on text fields",
+                    "long": "id",
+                    "name": "id",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  }
+                ],
+                "commands": [],
+                "name": "show",
+                "summary": "formation draft show"
+              }
+            ],
+            "name": "draft",
+            "summary": null
+          },
+          {
+            "arguments": [],
+            "commands": [],
+            "name": "drafts",
+            "summary": "formation drafts"
+          },
+          {
             "arguments": [
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "blueprint-json",
-                "name": "blueprint_json",
+                "long": "draft",
+                "name": "draft",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "JSON value matching formation contract or the API schema",
+                "long": "expected-revision",
+                "name": "expected_revision",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "expected-source-hash",
+                "name": "expected_source_hash",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "id",
+                "name": "id",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "publish",
+            "summary": "formation publish"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "id",
+                "name": "id",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "show",
+            "summary": "formation show"
+          },
+          {
+            "arguments": [],
+            "commands": [],
+            "name": "list",
+            "summary": "formation list"
+          },
+          {
+            "arguments": [],
+            "commands": [
+              {
+                "arguments": [
+                  {
+                    "action": "Set",
+                    "help": "Value, or - for standard input on text fields",
+                    "long": "id",
+                    "name": "id",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  }
+                ],
+                "commands": [],
+                "name": "show",
+                "summary": "formation presentation show"
+              },
+              {
+                "arguments": [
+                  {
+                    "action": "Set",
+                    "help": "Value, or - for standard input on text fields",
+                    "long": "data-json",
+                    "name": "data_json",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  },
+                  {
+                    "action": "Set",
+                    "help": "JSON value matching formation contract or the API schema",
+                    "long": "expected-revision",
+                    "name": "expected_revision",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  },
+                  {
+                    "action": "Set",
+                    "help": "Value, or - for standard input on text fields",
+                    "long": "id",
+                    "name": "id",
+                    "positional": false,
+                    "required": true,
+                    "short": null
+                  }
+                ],
+                "commands": [],
+                "name": "update",
+                "summary": "formation presentation update"
+              }
+            ],
+            "name": "presentation",
+            "summary": null
+          }
+        ],
+        "name": "formation",
+        "summary": "Author local formations and inspect organization definitions offline"
+      },
+      {
+        "arguments": [],
+        "commands": [
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "formation-json",
+                "name": "formation_json",
                 "positional": false,
                 "required": false,
                 "short": null
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "inputs",
                 "name": "inputs",
                 "positional": false,
@@ -3419,7 +3418,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "roles",
                 "name": "roles",
                 "positional": false,
@@ -3437,9 +3436,9 @@
               },
               {
                 "action": "Set",
-                "help": "Bundled organization name from blueprint examples; no JSON required",
-                "long": "blueprint",
-                "name": "blueprint",
+                "help": "Bundled organization name from formation examples; no JSON required",
+                "long": "formation",
+                "name": "formation",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -3469,7 +3468,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "expires-ms",
                 "name": "expires_ms",
                 "positional": false,
@@ -3528,7 +3527,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "grants",
                 "name": "grants",
                 "positional": false,
@@ -3652,7 +3651,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "after",
                 "name": "after",
                 "positional": false,
@@ -3679,7 +3678,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "limit",
                 "name": "limit",
                 "positional": false,
@@ -3753,8 +3752,8 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "blueprint-json",
-                "name": "blueprint_json",
+                "long": "expected",
+                "name": "expected",
                 "positional": false,
                 "required": true,
                 "short": null
@@ -3762,8 +3761,8 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "expected",
-                "name": "expected",
+                "long": "formation-json",
+                "name": "formation_json",
                 "positional": false,
                 "required": true,
                 "short": null
@@ -3779,7 +3778,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "inputs",
                 "name": "inputs",
                 "positional": false,
@@ -3788,7 +3787,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "roles",
                 "name": "roles",
                 "positional": false,
@@ -3863,7 +3862,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "scope",
                 "name": "scope",
                 "positional": false,
@@ -3897,7 +3896,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "scope",
                 "name": "scope",
                 "positional": false,
@@ -3936,7 +3935,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "record",
                 "name": "record",
                 "positional": false,
@@ -4025,7 +4024,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "inputs",
                 "name": "inputs",
                 "positional": false,
@@ -4044,19 +4043,19 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": null,
-                "name": "text",
-                "positional": true,
-                "required": true,
+                "long": "task-type",
+                "name": "task_type",
+                "positional": false,
+                "required": false,
                 "short": null
               },
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "variation",
-                "name": "variation",
-                "positional": false,
-                "required": false,
+                "long": null,
+                "name": "text",
+                "positional": true,
+                "required": true,
                 "short": null
               }
             ],
@@ -4096,8 +4095,8 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "variation",
-                "name": "variation",
+                "long": "task-type",
+                "name": "task_type",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -4129,7 +4128,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "takeover",
                 "name": "takeover",
                 "positional": false,
@@ -4170,7 +4169,7 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "credential",
                 "name": "credential",
                 "positional": false,
@@ -4352,7 +4351,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "JSON value matching blueprint contract or the API schema",
+                "help": "JSON value matching formation contract or the API schema",
                 "long": "binding",
                 "name": "binding",
                 "positional": false,
@@ -4886,7 +4885,7 @@
               "null"
             ]
           },
-          "variation": {
+          "task_type": {
             "type": [
               "string",
               "null"
@@ -5546,6 +5545,7 @@
     ],
     "title": "Body"
   },
+  "formation_schema_version": 1,
   "operations": [
     {
       "audience": "agent",
@@ -5974,90 +5974,90 @@
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_draft_create",
-      "name": "blueprint.draft.create",
+      "mcp_tool": "locust_formation_draft_create",
+      "name": "formation.draft.create",
       "read_only": false,
-      "summary": "blueprint draft create"
+      "summary": "formation draft create"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_draft_update",
-      "name": "blueprint.draft.update",
+      "mcp_tool": "locust_formation_draft_update",
+      "name": "formation.draft.update",
       "read_only": false,
-      "summary": "blueprint draft update"
+      "summary": "formation draft update"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_draft_show",
-      "name": "blueprint.draft.show",
+      "mcp_tool": "locust_formation_draft_show",
+      "name": "formation.draft.show",
       "read_only": true,
-      "summary": "blueprint draft show"
+      "summary": "formation draft show"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_drafts",
-      "name": "blueprint.drafts",
+      "mcp_tool": "locust_formation_drafts",
+      "name": "formation.drafts",
       "read_only": true,
-      "summary": "blueprint drafts"
+      "summary": "formation drafts"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_publish",
-      "name": "blueprint.publish",
+      "mcp_tool": "locust_formation_publish",
+      "name": "formation.publish",
       "read_only": false,
-      "summary": "blueprint publish"
+      "summary": "formation publish"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_show",
-      "name": "blueprint.show",
+      "mcp_tool": "locust_formation_show",
+      "name": "formation.show",
       "read_only": true,
-      "summary": "blueprint show"
+      "summary": "formation show"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_list",
-      "name": "blueprint.list",
+      "mcp_tool": "locust_formation_list",
+      "name": "formation.list",
       "read_only": true,
-      "summary": "blueprint list"
+      "summary": "formation list"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_presentation_show",
-      "name": "blueprint.presentation.show",
+      "mcp_tool": "locust_formation_presentation_show",
+      "name": "formation.presentation.show",
       "read_only": true,
-      "summary": "blueprint presentation show"
+      "summary": "formation presentation show"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_presentation_update",
-      "name": "blueprint.presentation.update",
+      "mcp_tool": "locust_formation_presentation_update",
+      "name": "formation.presentation.update",
       "read_only": false,
-      "summary": "blueprint presentation update"
+      "summary": "formation presentation update"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_validate",
-      "name": "blueprint.validate",
+      "mcp_tool": "locust_formation_validate",
+      "name": "formation.validate",
       "read_only": true,
-      "summary": "blueprint validate"
+      "summary": "formation validate"
     },
     {
       "audience": "author",
       "goal_scoped": false,
-      "mcp_tool": "locust_blueprint_explain",
-      "name": "blueprint.explain",
+      "mcp_tool": "locust_formation_explain",
+      "name": "formation.explain",
       "read_only": true,
-      "summary": "blueprint explain"
+      "summary": "formation explain"
     },
     {
       "audience": "agent",
@@ -6335,7 +6335,7 @@
         "type": "string"
       },
       "GoalGrants": {
-        "description": "Explicit local authorization; shared blueprint eligibility never grants it.",
+        "description": "Explicit local authorization; shared formation eligibility never grants it.",
         "properties": {
           "administer": {
             "type": "boolean"
@@ -6699,15 +6699,15 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "Current greenfield API. Blueprint rules and local grants are separate.",
+    "description": "Current greenfield API. Formation rules and local grants are separate.",
     "oneOf": [
       {
         "enum": [
           "status",
           "daemon.stop",
           "sessions",
-          "blueprint.drafts",
-          "blueprint.list",
+          "formation.drafts",
+          "formation.list",
           "inbox"
         ],
         "type": "string"
@@ -6934,7 +6934,7 @@
           "goal.create": {
             "additionalProperties": false,
             "properties": {
-              "blueprint_json": {
+              "formation_json": {
                 "type": [
                   "string",
                   "null"
@@ -7124,11 +7124,11 @@
           "rules.bind": {
             "additionalProperties": false,
             "properties": {
-              "blueprint_json": {
-                "type": "string"
-              },
               "expected": {
                 "$ref": "#/$defs/EventId"
+              },
+              "formation_json": {
+                "type": "string"
               },
               "goal": {
                 "$ref": "#/$defs/GoalId"
@@ -7152,7 +7152,7 @@
             "required": [
               "goal",
               "expected",
-              "blueprint_json",
+              "formation_json",
               "roles",
               "inputs"
             ],
@@ -7285,14 +7285,14 @@
                   }
                 ]
               },
-              "text": {
-                "type": "string"
-              },
-              "variation": {
+              "task_type": {
                 "type": [
                   "string",
                   "null"
                 ]
+              },
+              "text": {
+                "type": "string"
               }
             },
             "required": [
@@ -7323,7 +7323,7 @@
               "task": {
                 "$ref": "#/$defs/TaskId"
               },
-              "variation": {
+              "task_type": {
                 "type": [
                   "string",
                   "null"
@@ -8272,7 +8272,7 @@
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.draft.create": {
+          "formation.draft.create": {
             "additionalProperties": false,
             "properties": {
               "expected_revision": {
@@ -8296,14 +8296,14 @@
           }
         },
         "required": [
-          "blueprint.draft.create"
+          "formation.draft.create"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.draft.update": {
+          "formation.draft.update": {
             "additionalProperties": false,
             "properties": {
               "expected_revision": {
@@ -8327,14 +8327,14 @@
           }
         },
         "required": [
-          "blueprint.draft.update"
+          "formation.draft.update"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.draft.show": {
+          "formation.draft.show": {
             "additionalProperties": false,
             "properties": {
               "id": {
@@ -8348,14 +8348,14 @@
           }
         },
         "required": [
-          "blueprint.draft.show"
+          "formation.draft.show"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.publish": {
+          "formation.publish": {
             "additionalProperties": false,
             "properties": {
               "draft": {
@@ -8383,14 +8383,14 @@
           }
         },
         "required": [
-          "blueprint.publish"
+          "formation.publish"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.show": {
+          "formation.show": {
             "additionalProperties": false,
             "properties": {
               "id": {
@@ -8404,14 +8404,14 @@
           }
         },
         "required": [
-          "blueprint.show"
+          "formation.show"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.presentation.show": {
+          "formation.presentation.show": {
             "additionalProperties": false,
             "properties": {
               "id": {
@@ -8425,14 +8425,14 @@
           }
         },
         "required": [
-          "blueprint.presentation.show"
+          "formation.presentation.show"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.presentation.update": {
+          "formation.presentation.update": {
             "additionalProperties": false,
             "properties": {
               "data_json": {
@@ -8456,14 +8456,14 @@
           }
         },
         "required": [
-          "blueprint.presentation.update"
+          "formation.presentation.update"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.validate": {
+          "formation.validate": {
             "additionalProperties": false,
             "properties": {
               "source": {
@@ -8477,14 +8477,14 @@
           }
         },
         "required": [
-          "blueprint.validate"
+          "formation.validate"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint.explain": {
+          "formation.explain": {
             "additionalProperties": false,
             "properties": {
               "source": {
@@ -8498,7 +8498,7 @@
           }
         },
         "required": [
-          "blueprint.explain"
+          "formation.explain"
         ],
         "type": "object"
       },
@@ -10009,7 +10009,7 @@
             "type": "array"
           },
           "effective_rules_json": {
-            "description": "The requested scope's pinned rules, including a task's variation.",
+            "description": "The requested scope's pinned rules, including a task's type.",
             "type": "string"
           },
           "inputs": {
@@ -10751,7 +10751,7 @@
         "type": "object"
       },
       "GoalGrants": {
-        "description": "Explicit local authorization; shared blueprint eligibility never grants it.",
+        "description": "Explicit local authorization; shared formation eligibility never grants it.",
         "properties": {
           "administer": {
             "type": "boolean"
@@ -12013,7 +12013,7 @@
               "null"
             ]
           },
-          "variation": {
+          "task_type": {
             "type": [
               "string",
               "null"
@@ -12047,13 +12047,13 @@
               }
             ]
           },
-          "text": {
+          "task_type": {
             "type": [
               "string",
               "null"
             ]
           },
-          "variation": {
+          "text": {
             "type": [
               "string",
               "null"
@@ -12707,19 +12707,19 @@
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint_draft": {
+          "formation_draft": {
             "$ref": "#/$defs/Draft"
           }
         },
         "required": [
-          "blueprint_draft"
+          "formation_draft"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint_drafts": {
+          "formation_drafts": {
             "items": {
               "$ref": "#/$defs/Draft"
             },
@@ -12727,26 +12727,26 @@
           }
         },
         "required": [
-          "blueprint_drafts"
+          "formation_drafts"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint_publication": {
+          "formation_publication": {
             "$ref": "#/$defs/Publication"
           }
         },
         "required": [
-          "blueprint_publication"
+          "formation_publication"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint_publications": {
+          "formation_publications": {
             "items": {
               "$ref": "#/$defs/Publication"
             },
@@ -12754,26 +12754,26 @@
           }
         },
         "required": [
-          "blueprint_publications"
+          "formation_publications"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint_presentation": {
+          "formation_presentation": {
             "$ref": "#/$defs/Presentation"
           }
         },
         "required": [
-          "blueprint_presentation"
+          "formation_presentation"
         ],
         "type": "object"
       },
       {
         "additionalProperties": false,
         "properties": {
-          "blueprint_inspection": {
+          "formation_inspection": {
             "properties": {
               "json": {
                 "type": "string"
@@ -12786,7 +12786,7 @@
           }
         },
         "required": [
-          "blueprint_inspection"
+          "formation_inspection"
         ],
         "type": "object"
       },

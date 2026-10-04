@@ -95,7 +95,7 @@ impl Standing {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DesiredEffect {
     pub id: EffectId,
-    pub materializer: PublicKey,
+    pub runner: PublicKey,
     pub recipients: BTreeSet<PublicKey>,
     pub effect: Effect,
 }

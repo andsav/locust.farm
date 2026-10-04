@@ -246,8 +246,8 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
         .into_iter()
         .find(|preset| preset.name == "independent-attempts")
         .unwrap()
-        .blueprint;
-    let fields = json!({"title":"T2 real core", "blueprint_json":serde_json::to_string(&definition).unwrap(), "roles":{"chooser":[agent]}, "inputs":{}}).to_string();
+        .formation;
+    let fields = json!({"title":"T2 real core", "formation_json":serde_json::to_string(&definition).unwrap(), "roles":{"judge":[agent]}, "inputs":{}}).to_string();
     let created = p.cli(&authority, &["call", "goal.create", &fields]);
     let goal = created["goal_created"]["goal"].as_str().unwrap();
     let root = tempfile::tempdir().unwrap();
@@ -278,7 +278,7 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
     p.cli(&["--owner"], &["call", "goal.grant", &grants]);
     let opened = mcp.tool(
         "locust_task_open",
-        json!({"goal":goal,"text":"change code.txt","variation":null,"inputs":{},"parent":null}),
+        json!({"goal":goal,"text":"change code.txt","task_type":null,"inputs":{},"parent":null}),
     );
     let task = format!("task:{}", opened["recorded"]["event"].as_str().unwrap());
     let authorize = json!({"goal":goal,"task":task,"agent":agent,"takeover":false}).to_string();
@@ -633,7 +633,7 @@ fn reviewed_local_membership_uses_names_without_tickets_or_hidden_work_grants() 
             "create",
             "--title",
             "Demo work",
-            "--blueprint",
+            "--formation",
             "peer-review",
         ],
     );

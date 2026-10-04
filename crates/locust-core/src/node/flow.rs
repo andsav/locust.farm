@@ -20,11 +20,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .values()
                 .find(|desired| {
                     !entry.state().effects.contains_key(&desired.id)
-                        && entry.local.grants(&desired.materializer).flow
-                        && entry.local.part.get(&desired.materializer) != Some(&true)
-                        && entry.is_member(&desired.materializer)
-                        && self.principals.active(&desired.materializer).is_some()
-                        && entry.goal.next(&desired.materializer).is_some()
+                        && entry.local.grants(&desired.runner).flow
+                        && entry.local.part.get(&desired.runner) != Some(&true)
+                        && entry.is_member(&desired.runner)
+                        && self.principals.active(&desired.runner).is_some()
+                        && entry.goal.next(&desired.runner).is_some()
                 })
                 .cloned();
             let Some(desired) = next else {
@@ -35,7 +35,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             // authority depend on the authenticated trigger and pinned rules.
             self.author(
                 entry,
-                &desired.materializer,
+                &desired.runner,
                 Body::EffectMaterialized {
                     effect: desired.effect,
                 },

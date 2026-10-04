@@ -2,7 +2,7 @@
 
 **Status: implemented development architecture, API 4 / protocol 4.**
 The daemon, local harness and distributed participants have separate duties.
-The [verification ledger](../organization-blueprints-status.md) names the tests
+The [verification ledger](../formations-status.md) names the tests
 and external boundaries for this implementation.
 
 ## The daemon is the authority
@@ -47,5 +47,5 @@ qualified; none follows from this site build.
 Locust remains independently usable. Read [Polaris](polaris.md) for its intended
 round-trip and unsupported-input behavior.
 
-The exact [protocol obligations](../organization-blueprints-semantics.md) describe
+The exact [protocol obligations](../formations-semantics.md) describe
 the signed context and durable delivery required by this architecture.

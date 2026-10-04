@@ -170,7 +170,7 @@ fn task(r: &mut Run) -> Result<(), Fail> {
     let open = Request::TaskOpen {
         goal,
         text: TASK_TEXT.into(),
-        variation: None,
+        task_type: None,
         inputs: BTreeMap::new(),
         parent: None,
     };
@@ -345,13 +345,13 @@ pub fn create(r: &mut Run) -> Result<(), Fail> {
     r.step = "create the goal";
     let create = Request::GoalCreate {
         title: TITLE.into(),
-        blueprint_json: Some(
+        formation_json: Some(
             serde_json::to_string(
                 &locust_proto::organization::presets()
                     .into_iter()
                     .find(|preset| preset.name == "coordinator")
                     .unwrap()
-                    .blueprint,
+                    .formation,
             )
             .unwrap(),
         ),

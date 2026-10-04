@@ -33,8 +33,8 @@ fn tool(operation: &Operation) -> Value {
             | "doc.revise"
             | "delivery.acknowledge"
             | "context.acknowledge"
-            | "blueprint.draft.create"
-            | "blueprint.publish"
+            | "formation.draft.create"
+            | "formation.publish"
     );
     let destructive = !operation.read_only && !additive;
     let idempotent = operation.read_only || operation.name == "context.acknowledge";
@@ -209,7 +209,7 @@ mod tests {
             "scope.select",
             "scope.close",
             "blob.withdraw",
-            "blueprint.draft.update",
+            "formation.draft.update",
         ] {
             let operation = OPERATIONS
                 .iter()

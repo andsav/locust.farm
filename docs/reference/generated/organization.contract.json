@@ -1,25 +1,26 @@
 {
   "examples": [
     {
-      "blueprint": {
+      "description": "Members contribute and independently start work; authors declare completion.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "contribution_author"
             },
             "kind": "declaration"
           },
+          "finish": null,
           "selection": null
         },
         "flow": {},
         "roles": {},
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -37,20 +38,16 @@
           ]
         }
       },
-      "description": "Members contribute and independently start work; authors declare completion.",
       "name": "open"
     },
     {
-      "blueprint": {
+      "description": "A coordinator offers work, reviews completion, selects contributions and closes the goal.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
         },
         "decisions": {
-          "closure": {
-            "kind": "role",
-            "name": "coordinator"
-          },
           "completion": {
             "by": {
               "kind": "role",
@@ -60,6 +57,10 @@
             "exclude_author": false,
             "kind": "reviews"
           },
+          "finish": {
+            "kind": "role",
+            "name": "coordinator"
+          },
           "selection": {
             "kind": "role",
             "name": "coordinator"
@@ -68,11 +69,11 @@
         "flow": {},
         "roles": {
           "coordinator": {
-            "description": "One member offers work and decides completion, selection and closure."
+            "description": "Hands out work, accepts results, picks the final answer and says when the goal is finished. One person."
           }
         },
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -94,17 +95,16 @@
           ]
         }
       },
-      "description": "A coordinator offers work, reviews completion, selects contributions and closes the goal.",
       "name": "coordinator"
     },
     {
-      "blueprint": {
+      "description": "Members independently start work; completion requires one review by another member.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "members"
@@ -113,12 +113,13 @@
             "exclude_author": true,
             "kind": "reviews"
           },
+          "finish": null,
           "selection": null
         },
         "flow": {},
         "roles": {},
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -136,36 +137,36 @@
           ]
         }
       },
-      "description": "Members independently start work; completion requires one review by another member.",
       "name": "peer-review"
     },
     {
-      "blueprint": {
+      "description": "Authors complete independent attempts; a bound judge selects contributions.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "contribution_author"
             },
             "kind": "declaration"
           },
+          "finish": null,
           "selection": {
             "kind": "role",
-            "name": "chooser"
+            "name": "judge"
           }
         },
         "flow": {},
         "roles": {
-          "chooser": {
-            "description": "One member selects among independently completed contributions."
+          "judge": {
+            "description": "Picks which finished attempt to use. One person."
           }
         },
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -183,17 +184,16 @@
           ]
         }
       },
-      "description": "Authors complete independent attempts; a bound chooser selects contributions.",
       "name": "independent-attempts"
     },
     {
-      "blueprint": {
+      "description": "Completion requires two distinct reviews from the reviewer role, excluding the author.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "role",
@@ -203,16 +203,17 @@
             "exclude_author": true,
             "kind": "reviews"
           },
+          "finish": null,
           "selection": null
         },
         "flow": {},
         "roles": {
           "reviewer": {
-            "description": "Members eligible to review contributions by other authors."
+            "description": "Reviews work done by other people."
           }
         },
         "schema_version": 1,
-        "variations": {},
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -230,42 +231,34 @@
           ]
         }
       },
-      "description": "Completion requires two distinct reviews from the reviewer role, excluding the author.",
       "name": "review-panel"
     },
     {
-      "blueprint": {
+      "description": "A draft stage needs one review by another member; a ship stage starts when the draft is complete.",
+      "formation": {
         "context": {
           "guidance": "",
           "inputs": {}
         },
         "decisions": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "contribution_author"
             },
             "kind": "declaration"
           },
+          "finish": null,
           "selection": null
         },
         "flow": {
           "draft": {
-            "materializer": {
-              "kind": "role",
-              "name": "materializer"
-            },
             "recipients": {
               "kind": "members"
             },
             "requires": [],
-            "variation": null
+            "task_type": "draft"
           },
-          "review": {
-            "materializer": {
-              "kind": "role",
-              "name": "materializer"
-            },
+          "ship": {
             "recipients": {
               "kind": "members"
             },
@@ -275,19 +268,14 @@
                 "stage": "draft"
               }
             ],
-            "variation": "reviewed"
+            "task_type": null
           }
         },
-        "roles": {
-          "materializer": {
-            "description": "One member's daemon advances the configured stages and durably delivers ready work."
-          }
-        },
+        "roles": {},
         "schema_version": 1,
-        "variations": {
-          "reviewed": {
+        "task_types": {
+          "draft": {
             "decisions": {
-              "closure": null,
               "completion": {
                 "by": {
                   "kind": "members"
@@ -296,6 +284,7 @@
                 "exclude_author": true,
                 "kind": "reviews"
               },
+              "finish": null,
               "selection": null
             },
             "work": null
@@ -318,7 +307,6 @@
           ]
         }
       },
-      "description": "A review stage requires completed draft evidence and uses a named peer-review variation.",
       "name": "pipeline"
     }
   ],
@@ -344,7 +332,7 @@
     {
       "input": "example_name",
       "name": "example",
-      "output": "blueprint",
+      "output": "formation",
       "summary": "Print a bundled example (raw JSON unless --json)"
     },
     {
@@ -368,7 +356,7 @@
     {
       "input": "json_path_or_stdin",
       "name": "normalize",
-      "output": "blueprint_or_invalid_inspection",
+      "output": "formation_or_invalid_inspection",
       "summary": "Print normalized semantic JSON (raw JSON unless --json)"
     }
   ],
@@ -561,7 +549,16 @@
       "DecisionRules": {
         "additionalProperties": false,
         "properties": {
-          "closure": {
+          "completion": {
+            "$ref": "#/$defs/CompletionRule",
+            "default": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            }
+          },
+          "finish": {
             "anyOf": [
               {
                 "$ref": "#/$defs/Authority"
@@ -571,16 +568,7 @@
               }
             ],
             "default": null,
-            "description": "An optional explicit closure decision; an empty board is not closure."
-          },
-          "completion": {
-            "$ref": "#/$defs/CompletionRule",
-            "default": {
-              "by": {
-                "kind": "contribution_author"
-              },
-              "kind": "declaration"
-            }
+            "description": "An optional single decider who may declare the scope finished; an empty board is not finished."
           },
           "selection": {
             "anyOf": [
@@ -770,10 +758,6 @@
       "Stage": {
         "additionalProperties": false,
         "properties": {
-          "materializer": {
-            "$ref": "#/$defs/Authority",
-            "description": "One explicitly bound principal whose daemon materializes this stage."
-          },
           "recipients": {
             "$ref": "#/$defs/Selector",
             "default": {
@@ -788,7 +772,7 @@
             },
             "type": "array"
           },
-          "variation": {
+          "task_type": {
             "default": null,
             "type": [
               "string",
@@ -796,9 +780,6 @@
             ]
           }
         },
-        "required": [
-          "materializer"
-        ],
         "type": "object"
       },
       "StartRule": {
@@ -844,7 +825,7 @@
           }
         ]
       },
-      "TaskVariation": {
+      "TaskType": {
         "additionalProperties": false,
         "properties": {
           "decisions": {
@@ -922,13 +903,13 @@
       "decisions": {
         "$ref": "#/$defs/DecisionRules",
         "default": {
-          "closure": null,
           "completion": {
             "by": {
               "kind": "contribution_author"
             },
             "kind": "declaration"
           },
+          "finish": null,
           "selection": null
         }
       },
@@ -953,9 +934,9 @@
         "minimum": 1,
         "type": "integer"
       },
-      "variations": {
+      "task_types": {
         "additionalProperties": {
-          "$ref": "#/$defs/TaskVariation"
+          "$ref": "#/$defs/TaskType"
         },
         "default": {},
         "description": "Explicitly delegated alternatives to the default task rules.",
@@ -984,7 +965,7 @@
     "required": [
       "schema_version"
     ],
-    "title": "Blueprint",
+    "title": "Formation",
     "type": "object"
   },
   "schema_version": 1,

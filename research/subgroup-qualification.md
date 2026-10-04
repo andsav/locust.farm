@@ -32,7 +32,7 @@ Observed result: one test passed, zero failed, zero ignored, test execution
 not edit Store records directly. Full workspace gate results are reported with
 the implementation commit, separately from this focused observation.
 
-The [accepted implementation plan](../docs/organization-blueprints-implementation-plan.md)
+The [accepted implementation plan](../docs/formations-implementation-plan.md)
 tracks the O6.6 separate-goal subgroup boundary. PeerEngine transfer and physical
 machine discovery need separate evidence. The
 [local discovery qualification](organization-local-discovery.md) records why the

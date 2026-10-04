@@ -138,7 +138,7 @@ publication/qualification facts to the site and machine entry.
   public distribution and physical-machine acceptance remain separate claims.
 - Offline organization schema, examples, validation, normalization and explanation
   are the first current authoring slice. The
-  [organization runtime](organization-blueprints-semantics.md) is being replaced.
+  [organization runtime](formations-semantics.md) is being replaced.
   Validating a definition does not publish, bind or execute it.
 - The previous source runtime served its local API. The current
   [API/protocol 2 cutover](../crates/locust-proto/src/api.rs) is in development;

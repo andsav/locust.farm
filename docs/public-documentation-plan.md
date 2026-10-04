@@ -3,14 +3,14 @@
 Date: 2026-10-04. **Status: proposed implementation plan; no documentation system,
 new public manual, hosting configuration, or deployment is implemented by this
 document.** This is the public-documentation workstream of the
-[organization blueprints implementation plan](organization-blueprints-implementation-plan.md).
+[formations implementation plan](formations-implementation-plan.md).
 It covers the whole Locust product, including installation, collaboration,
-operations, agent integrations, and Polaris, as well as organization blueprints.
+operations, agent integrations, and Polaris, as well as formations.
 
 The proposed packages are O9a, the documentation foundation; O9b, the complete
 manual and its qualification; and the documentation portion of O12, authorized
 public release and live verification. Documentation grows alongside the runtime
-packages. A few blueprint pages, a generated API table, or a collection of
+packages. A few formation pages, a generated API table, or a collection of
 placeholders does not complete this workstream.
 
 **Greenfield constraint:** the delivered product supports one current contract.
@@ -35,7 +35,7 @@ Polaris user can understand the same model through the visual editor guide.
 Locust remains independently usable when Polaris is unavailable.
 
 Every published instruction must identify the applicable software/API/protocol
-or blueprint-schema version. Separate these claims throughout the site:
+or formation-schema version. Separate these claims throughout the site:
 
 - **Implemented:** behavior exists in the identified source.
 - **Verified:** a named check exercised it under stated platform, client,
@@ -77,9 +77,9 @@ labeled and linked to their dated logs, and replace obsolete present-tense
 claims. Public distribution remains deferred; local qualification must not be
 turned into a public installation promise.
 
-The accepted [organization direction](organization-blueprints.md) is also
+The accepted [organization direction](formations.md) is also
 explicitly unimplemented. The inspected coordinator runtime is starting-point
-evidence, not a legacy system to support alongside the replacement. New blueprint
+evidence, not a legacy system to support alongside the replacement. New formation
 examples belong to visibly identified development documentation until they run.
 At cutover, remove superseded operating instructions, examples, reference exports,
 and routes from the current manual rather than carrying both designs forward.
@@ -123,7 +123,7 @@ not a substitute for the site check.
 
 Propose `docs/reference/generated/` for generated JSON contract data. Generate
 command metadata, API operation names/effects/audiences, MCP descriptions/input
-schemas, response/error reference data, and the blueprint schema from the
+schemas, response/error reference data, and the formation schema from the
 implemented contract. Render reference pages from those exports plus small
 authored explanations. Do not hand-edit generated signatures or field tables.
 
@@ -135,7 +135,7 @@ existing registry already generates the entire reference. The public local-API
 reference describes the actual transport/envelopes; do not label it an HTTP API
 or generate an OpenAPI facade without an implemented HTTP contract.
 
-Propose `examples/blueprints/` for canonical definitions and their expected
+Propose `examples/formations/` for canonical definitions and their expected
 validation/explanation fixtures. Publish the exact tested files. Article code
 blocks that demonstrate a shipped preset or schema construct must be extracted
 from these files or checked against them. Keep placeholder identifiers visibly
@@ -214,7 +214,7 @@ path. Each reference names its version and authoritative source.
 | Working with code | `quickstarts/share-a-snapshot`, `quickstarts/contribute-and-review`, `quickstarts/apply-a-patch` | Select exactly what is shared, publish a contribution, inspect evidence/review, and apply an explicitly chosen patch with base/dirty-work protection |
 | Core model | `concepts/goals-tasks`, `concepts/participants-roles`, `concepts/context-artifacts`, `concepts/attempts-contributions` | Understand optional tasks/roles, independent attempts, unattached findings, immutable artifacts, and identity without assuming a universal coordinator |
 | Outcomes and authority | `concepts/decisions-completion`, `concepts/local-permissions`, `concepts/events-sync` | Distinguish submission, approval, criterion satisfaction, selection, closure, local application, and the age/completeness of a replica's view |
-| Organization | `organization/blueprints`, `organization/presets`, `organization/composition` | Choose/pin a blueprint, understand the shipped presets, specialize tasks within parent authority, and compose optional dependencies or child work |
+| Organization | `organization/formations`, `organization/presets`, `organization/composition` | Choose/pin a formation, understand the shipped presets, specialize tasks within parent authority, and compose optional dependencies or child work |
 | Completion and change | `organization/completion`, `organization/lifecycle` | Read exact evidence/judgment requirements, understand multiple qualifying outputs, and distinguish draft, published definition, instance, authorized semantic revision, and reopen within the current model |
 | Agent authoring | `authoring/with-your-agent`, `authoring/schema`, `authoring/examples` | Turn a plain-language request into a draft, validate, explain defaults/effects, publish locally, and instantiate deliberately using the real schema and examples |
 | Authoring diagnostics | `authoring/diagnostics`, `authoring/testing`, `authoring/custom-patterns` | Correct syntax/semantic/binding/capability errors, test representative event traces, and combine supported rules without inventing executable policy |
@@ -226,7 +226,7 @@ path. Each reference names its version and authoritative source.
 | Operations | `operations/services`, `operations/offline-recovery`, `operations/conflicts` | Run supported service modes and interpret reconnect, restart, sleep/wake, missing content, conflicting drafts/attempts/decisions, stale bases, and dirty checkouts |
 | Recovery and diagnostics | `operations/cancellation`, `operations/diagnostics`, `operations/backup-recovery` | Distinguish requested from observed stop, collect redacted diagnostics, preserve state, and use only supported backup/recovery procedures |
 | Command and integration reference | `reference/cli`, `reference/local-api`, `reference/mcp` | Find exact commands, audiences/effects, flags, request/result shapes, transport behavior, pagination, errors, and version handling |
-| Contract reference | `reference/blueprint-schema`, `reference/events`, `reference/errors`, `reference/configuration`, `reference/formats`, `reference/protocol` | Look up the current schema/API/protocol identifiers, normalization, defaults, unsupported-input errors, event/proof identity, configuration ownership, and wire constraints |
+| Contract reference | `reference/formation-schema`, `reference/events`, `reference/errors`, `reference/configuration`, `reference/formats`, `reference/protocol` | Look up the current schema/API/protocol identifiers, normalization, defaults, unsupported-input errors, event/proof identity, configuration ownership, and wire constraints |
 | Help | `troubleshooting`, `faq`, `glossary`, `release-notes` | Resolve symptom-specific failures, understand fresh-state setup and unsupported-input refusal, and find precise terminology and changes to the current product |
 
 The preset guide covers the arrangements delivered by the main plan: Open
@@ -359,8 +359,8 @@ For each version, publish:
 | --- | --- |
 | Documentation inventory | Manifest-derived `index.json` with page descriptions, source commit, status, raw URLs and content hashes |
 | Raw articles | Same canonical Markdown as human pages, with correctly resolved versioned links |
-| Blueprint schema | Export of the actual normalized definition shape, schema version and capability vocabulary |
-| Blueprint examples | Exact validated files, expected effective-rule explanations, and available conformance fixtures |
+| Formation schema | Export of the actual normalized definition shape, schema version and capability vocabulary |
+| Formation examples | Exact validated files, expected effective-rule explanations, and available conformance fixtures |
 | CLI/API/MCP reference data | Exported command and operation metadata, input/output/error definitions, transport and effect distinctions |
 | Operating instructions | Exact release-matching packaged `skills/locust/SKILL.md` |
 | Authoring instructions | Concise discover/read/draft/validate/explain/diff/publish/bind sequence using actual operations and structured diagnostics |
@@ -396,7 +396,7 @@ required to build the documentation shell.
 2. Add canonical content directory, publication manifest, availability record,
    and ownership/index checks.
 3. Prototype one tutorial, one conceptual article, one generated reference page,
-   and one downloadable blueprint example through the existing production build.
+   and one downloadable formation example through the existing production build.
    Lock the renderer only after this passes.
 4. Build the docs layout, dynamic-route enumeration, link/anchor mapping,
    machine inventory/raw outputs, initial search and version navigation.
@@ -423,7 +423,7 @@ finish, but working instructions cannot outrun the implementation.
    current limits. Have the owner of each contract review the relevant articles.
 2. Generate full command/API/MCP/schema references, including responses, effects,
    errors and version behavior. Make regeneration drift a CI failure.
-3. Validate every published blueprint and shared source snippet using the real
+3. Validate every published formation and shared source snippet using the real
    core validator; check explanation outputs against the expected semantics.
 4. Execute the quickstarts against identified candidates in disposable homes,
    profiles and workspaces. Reuse the existing installation/client/workspace

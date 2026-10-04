@@ -89,7 +89,7 @@ export function validateManifest(input: Manifest) {
 			throw new Error(`Invalid or duplicate artifact: ${artifact.id}`);
 		if (
 			artifact.source.includes('..') ||
-			!/^(docs\/reference|examples\/blueprints)\//.test(artifact.source) ||
+			!/^(docs\/reference|examples\/formations)\//.test(artifact.source) ||
 			!existsSync(resolve(root, artifact.source))
 		)
 			throw new Error(`Invalid or missing artifact source: ${artifact.source}`);
@@ -210,7 +210,7 @@ function generatedReference() {
 		artifactFor('/docs/next/reference/organization.contract.json')!.bytes
 	);
 	if (
-		contract.schema_version !== manifest.versions.blueprintSchema ||
+		contract.schema_version !== manifest.versions.formationSchema ||
 		JSON.stringify(schema) !== JSON.stringify(contract.schema)
 	)
 		throw new Error('Schema/contract/version export drift');
@@ -220,12 +220,12 @@ function generatedReference() {
 		output: string;
 		summary: string;
 	}[];
-	const examples = contract.examples as { name: string; description: string; blueprint: unknown }[];
+	const examples = contract.examples as { name: string; description: string; formation: unknown }[];
 	for (const example of examples) {
 		const artifact = artifactFor(`/docs/next/examples/${example.name}.json`);
 		if (
 			!artifact ||
-			JSON.stringify(JSON.parse(artifact.bytes)) !== JSON.stringify(example.blueprint)
+			JSON.stringify(JSON.parse(artifact.bytes)) !== JSON.stringify(example.formation)
 		)
 			throw new Error(`Example export drift: ${example.name}`);
 	}
@@ -238,10 +238,10 @@ function generatedReference() {
 		operations
 			.map(
 				(op) =>
-					`| \`locust blueprint ${cell(op.name)}\` | ${cell(op.input)} | ${cell(op.output)} | ${cell(op.summary)} |`
+					`| \`locust formation ${cell(op.name)}\` | ${cell(op.input)} | ${cell(op.output)} | ${cell(op.summary)} |`
 			)
 			.join('\n') +
-		'\n\n## Blueprint root fields\n\n| Field | Required | Shape | Description |\n| --- | --- | --- | --- |\n' +
+		'\n\n## Formation root fields\n\n| Field | Required | Shape | Description |\n| --- | --- | --- | --- |\n' +
 		fields
 			.map(
 				([name, field]) =>

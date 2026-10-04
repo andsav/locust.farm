@@ -17,6 +17,14 @@ impl Entropy for Random {
         }
     }
 }
+fn preset_formation(name: &str) -> locust_proto::organization::Formation {
+    locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == name)
+        .unwrap()
+        .formation
+}
+
 struct Harness {
     node: Node<MemStore, Random>,
     store: MemStore,
@@ -109,12 +117,10 @@ impl Harness {
             .unwrap_or_else(|error| panic!("{name}: {error}"))
     }
     fn goal(&mut self, preset: &str) -> GoalId {
-        let blueprint = locust_proto::organization::presets()
-            .into_iter()
-            .find(|p| p.name == preset)
-            .unwrap()
-            .blueprint;
-        let roles = blueprint
+        self.goal_from(preset_formation(preset))
+    }
+    fn goal_from(&mut self, formation: locust_proto::organization::Formation) -> GoalId {
+        let roles = formation
             .roles
             .keys()
             .map(|role| (role.clone(), vec![self.principal]))
@@ -123,7 +129,7 @@ impl Harness {
             self.agent,
             Request::GoalCreate {
                 title: "Goal".into(),
-                blueprint_json: Some(serde_json::to_string(&blueprint).unwrap()),
+                formation_json: Some(serde_json::to_string(&formation).unwrap()),
                 roles,
                 inputs: BTreeMap::new(),
             },
@@ -156,7 +162,7 @@ impl Harness {
             Request::TaskOpen {
                 goal,
                 text: "Work".into(),
-                variation: None,
+                task_type: None,
                 inputs: BTreeMap::new(),
                 parent: None,
             },
@@ -334,7 +340,11 @@ fn independent_attempts_and_local_aba_takeover_remain_distinct() {
 #[test]
 fn pipeline_materializes_on_grant_and_completion_without_agent_polling() {
     let mut h = Harness::new();
-    let goal = h.goal("pipeline");
+    // One member drives both stages alone, so the draft uses the default rules.
+    let mut formation = preset_formation("pipeline");
+    formation.flow.get_mut("draft").unwrap().task_type = None;
+    formation.task_types.clear();
+    let goal = h.goal_from(formation);
     assert_eq!(
         h.ok(h.agent, Request::Board { goal }),
         Response::Board(vec![])
@@ -467,9 +477,9 @@ fn author_credential_is_private_cas_capability_without_goal_or_session_access() 
     };
     assert_ne!(author, h.principal);
     let conn = h.connect(5, None);
-    let Response::BlueprintDraft(draft) = h.ok(
+    let Response::FormationDraft(draft) = h.ok(
         conn,
-        Request::BlueprintDraftCreate {
+        Request::FormationDraftCreate {
             id: "design".into(),
             expected_revision: 0,
             source: "{\"schema_version\":1}".into(),
@@ -481,7 +491,7 @@ fn author_credential_is_private_cas_capability_without_goal_or_session_access() 
     let error = h
         .request(
             conn,
-            Request::BlueprintDraftUpdate {
+            Request::FormationDraftUpdate {
                 id: "design".into(),
                 expected_revision: 0,
                 source: "{}".into(),
@@ -499,7 +509,7 @@ fn author_credential_is_private_cas_capability_without_goal_or_session_access() 
     assert_eq!(
         h.request(
             h.agent,
-            Request::BlueprintDraft {
+            Request::FormationDraft {
                 id: "design".into()
             }
         )
@@ -512,11 +522,11 @@ fn author_credential_is_private_cas_capability_without_goal_or_session_access() 
     assert_eq!(
         h.ok(
             conn,
-            Request::BlueprintDraft {
+            Request::FormationDraft {
                 id: "design".into()
             }
         ),
-        Response::BlueprintDraft(draft)
+        Response::FormationDraft(draft)
     );
 }
 
@@ -524,18 +534,18 @@ fn author_credential_is_private_cas_capability_without_goal_or_session_access() 
 fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
     use locust_proto::{
         event::Body,
-        organization::{Authority, Blueprint},
+        organization::{Authority, Formation},
     };
     let mut h = Harness::new();
-    let mut blueprint = Blueprint::default();
-    blueprint.decisions.closure = Some(Authority::Participant {
+    let mut formation = Formation::default();
+    formation.decisions.finish = Some(Authority::Participant {
         key: h.principal.to_string(),
     });
     let Response::GoalCreated { goal } = h.ok(
         h.agent,
         Request::GoalCreate {
             title: "Causal closure".into(),
-            blueprint_json: Some(serde_json::to_string(&blueprint).unwrap()),
+            formation_json: Some(serde_json::to_string(&formation).unwrap()),
             roles: BTreeMap::new(),
             inputs: BTreeMap::new(),
         },
@@ -622,22 +632,22 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
         Request::TaskOpen {
             goal,
             text: "Nested".into(),
-            variation: None,
+            task_type: None,
             inputs: BTreeMap::new(),
             parent: Some(parent),
         },
     ));
-    let blueprint = locust_proto::organization::presets()
+    let formation = locust_proto::organization::presets()
         .into_iter()
         .find(|preset| preset.name == "open")
         .unwrap()
-        .blueprint;
+        .formation;
     let new_rules = recorded(h.ok(
         h.agent,
         Request::RulesBind {
             goal,
             expected: old_rules,
-            blueprint_json: serde_json::to_string(&blueprint).unwrap(),
+            formation_json: serde_json::to_string(&formation).unwrap(),
             roles: BTreeMap::new(),
             inputs: BTreeMap::new(),
         },
@@ -648,7 +658,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
         Request::TaskOpen {
             goal,
             text: "Next nested".into(),
-            variation: None,
+            task_type: None,
             inputs: BTreeMap::new(),
             parent: Some(parent),
         },
@@ -659,7 +669,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
             goal,
             task: TaskId::Authored(child),
             expected_round: child,
-            variation: None,
+            task_type: None,
         },
     ));
     for id in [next_child, revised] {

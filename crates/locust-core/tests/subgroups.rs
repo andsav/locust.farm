@@ -103,12 +103,12 @@ impl Harness {
         (agent, self.connect(tag))
     }
     fn goal(&mut self, conn: ConnId, creator: PublicKey, preset: &str) -> GoalId {
-        let blueprint = locust_proto::organization::presets()
+        let formation = locust_proto::organization::presets()
             .into_iter()
             .find(|p| p.name == preset)
             .unwrap()
-            .blueprint;
-        let roles = blueprint
+            .formation;
+        let roles = formation
             .roles
             .keys()
             .map(|name| (name.clone(), vec![creator]))
@@ -117,7 +117,7 @@ impl Harness {
             conn,
             Request::GoalCreate {
                 title: format!("{preset} goal"),
-                blueprint_json: Some(serde_json::to_string(&blueprint).unwrap()),
+                formation_json: Some(serde_json::to_string(&formation).unwrap()),
                 roles,
                 inputs: BTreeMap::new(),
             },

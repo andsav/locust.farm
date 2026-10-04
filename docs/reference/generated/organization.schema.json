@@ -187,7 +187,16 @@
     "DecisionRules": {
       "additionalProperties": false,
       "properties": {
-        "closure": {
+        "completion": {
+          "$ref": "#/$defs/CompletionRule",
+          "default": {
+            "by": {
+              "kind": "contribution_author"
+            },
+            "kind": "declaration"
+          }
+        },
+        "finish": {
           "anyOf": [
             {
               "$ref": "#/$defs/Authority"
@@ -197,16 +206,7 @@
             }
           ],
           "default": null,
-          "description": "An optional explicit closure decision; an empty board is not closure."
-        },
-        "completion": {
-          "$ref": "#/$defs/CompletionRule",
-          "default": {
-            "by": {
-              "kind": "contribution_author"
-            },
-            "kind": "declaration"
-          }
+          "description": "An optional single decider who may declare the scope finished; an empty board is not finished."
         },
         "selection": {
           "anyOf": [
@@ -396,10 +396,6 @@
     "Stage": {
       "additionalProperties": false,
       "properties": {
-        "materializer": {
-          "$ref": "#/$defs/Authority",
-          "description": "One explicitly bound principal whose daemon materializes this stage."
-        },
         "recipients": {
           "$ref": "#/$defs/Selector",
           "default": {
@@ -414,7 +410,7 @@
           },
           "type": "array"
         },
-        "variation": {
+        "task_type": {
           "default": null,
           "type": [
             "string",
@@ -422,9 +418,6 @@
           ]
         }
       },
-      "required": [
-        "materializer"
-      ],
       "type": "object"
     },
     "StartRule": {
@@ -470,7 +463,7 @@
         }
       ]
     },
-    "TaskVariation": {
+    "TaskType": {
       "additionalProperties": false,
       "properties": {
         "decisions": {
@@ -548,13 +541,13 @@
     "decisions": {
       "$ref": "#/$defs/DecisionRules",
       "default": {
-        "closure": null,
         "completion": {
           "by": {
             "kind": "contribution_author"
           },
           "kind": "declaration"
         },
+        "finish": null,
         "selection": null
       }
     },
@@ -579,9 +572,9 @@
       "minimum": 1,
       "type": "integer"
     },
-    "variations": {
+    "task_types": {
       "additionalProperties": {
-        "$ref": "#/$defs/TaskVariation"
+        "$ref": "#/$defs/TaskType"
       },
       "default": {},
       "description": "Explicitly delegated alternatives to the default task rules.",
@@ -610,6 +603,6 @@
   "required": [
     "schema_version"
   ],
-  "title": "Blueprint",
+  "title": "Formation",
   "type": "object"
 }

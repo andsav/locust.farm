@@ -1,4 +1,4 @@
-# First-user journey after organization blueprints
+# First-user journey after formations
 
 Date: 2026-10-04. **Status: baseline review with an implemented follow-up below.**
 Reviewed source: `c1d27db68cce2dbc5f59208c84c62f9446485573`, API 2 / protocol 2.
@@ -9,7 +9,7 @@ protocol-1 APIs or the universal-coordinator model.
 
 ## Assessment and method
 
-The blueprint implementation supplies much of the machinery the first journey
+The formation implementation supplies much of the machinery the first journey
 needed. It does not yet make that journey complete. The main gap is the handoff
 from a configured client to understandable, useful collaboration: selecting local
 participants, establishing scoped permission, finding relevant shared context,
@@ -41,7 +41,7 @@ the person/agent handoff.
 | W8: public demonstration/view | Still a separate follow-up. A recorded example should follow a proven private journey. A public swarm visualization is not required to repair first use. |
 | W9: optional extensions | Open work, independent attempts and configurable review/closure have been addressed by the new model. Do not reintroduce the old proposals. Hooks, hosted publishing, exclusive reservations and broader execution integration remain separate decisions. |
 
-The frozen [organization implementation plan](../docs/organization-blueprints-implementation-plan.md)
+The frozen [organization implementation plan](../docs/formations-implementation-plan.md)
 explicitly says the old last-mile requirements must be revisited against the new
 contract. Its completion does not automatically mark those requirements done.
 
@@ -64,7 +64,7 @@ newcomer expect a native-client workflow that the page does not provide.
 states the goal, chooses enrolled local participants and workspace, sees the
 proposed organization agreement and separate local permissions, then starts the
 chosen sessions. A matching preset should be suggested from the intent; custom
-blueprint authoring should remain available without becoming mandatory first-use
+formation authoring should remain available without becoming mandatory first-use
 homework. Reuse existing authoring, enrollment and authorization primitives.
 Do not silently grant work during setup.
 
@@ -259,7 +259,7 @@ SDK/package, or published artifacts. Those retain their separate evidence gates.
 
 Final source gates: `cargo fmt --all --check`, strict workspace Clippy, and
 `cargo test --locked --workspace` passed: 663 tests, 12 explicit ignores.
-Generated API/CLI contracts and all six blueprint exports match the binary;
+Generated API/CLI contracts and all six formation exports match the binary;
 documentation links and all four executable manual recipes pass. Independent
 review found no blockers in receipt boundaries, pagination, invitation lifecycle
 or owner permission controls.

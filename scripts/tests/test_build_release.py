@@ -25,7 +25,7 @@ class ReleaseCandidateTests(unittest.TestCase):
             (repo / "LICENSE").write_text("License fixture\n")
             (repo / "docs/page.md").write_text("# Installed manual\n")
             (repo / "docs/site.json").write_text(json.dumps({
-                "versions": {"api": 2, "protocol": 2, "blueprintSchema": 1},
+                "versions": {"api": 2, "protocol": 2, "formationSchema": 1},
                 "sourceLinks": [], "pages": [{"source": "docs/page.md"}], "artifacts": []}))
             manual = build_release.make_manual(repo, COMMIT, 2, 2)
         manifest = build_release.make_manifest(

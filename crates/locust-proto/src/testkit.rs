@@ -5,7 +5,7 @@ use crate::PROTOCOL_VERSION;
 use crate::crypto::{ContentKey, Keypair};
 use crate::event::*;
 use crate::id::{BlobHash, DefinitionHash, EndpointId, EventId, GoalId, PublicKey};
-use crate::organization::{Blueprint, semantic_hash};
+use crate::organization::{Formation, semantic_hash};
 use crate::seal;
 use crate::store::Blob;
 
@@ -15,8 +15,8 @@ pub fn keypair(n: u8) -> Keypair {
 pub fn content_key(n: u8) -> ContentKey {
     ContentKey([n; 32])
 }
-pub fn definition_hash(blueprint: &Blueprint) -> DefinitionHash {
-    semantic_hash(blueprint)
+pub fn definition_hash(formation: &Formation) -> DefinitionHash {
+    semantic_hash(formation)
         .parse()
         .expect("semantic hash is hex")
 }
@@ -37,15 +37,15 @@ pub fn sealed_payload(goal: &GoalId, epoch: u32, text: &[u8]) -> (PayloadRef, Bl
 pub fn rules_binding(
     goal: &GoalId,
     epoch: u32,
-    blueprint: &Blueprint,
+    formation: &Formation,
     roles: BTreeMap<String, Vec<PublicKey>>,
 ) -> (RulesBinding, Blob) {
-    let source = serde_json::to_vec(blueprint).expect("definition JSON encodes");
+    let source = serde_json::to_vec(formation).expect("definition JSON encodes");
     let (object, blob) = sealed_payload(goal, epoch, &source);
     (
         RulesBinding {
             definition: DefinitionRef {
-                semantic: definition_hash(blueprint),
+                semantic: definition_hash(formation),
                 object,
             },
             roles,
@@ -69,9 +69,9 @@ impl Author {
         }
     }
     pub fn genesis(&mut self) -> Event {
-        self.genesis_with(&Blueprint::default())
+        self.genesis_with(&Formation::default())
     }
-    pub fn genesis_with(&mut self, definition: &Blueprint) -> Event {
+    pub fn genesis_with(&mut self, definition: &Formation) -> Event {
         let genesis = Genesis {
             administrator: self.key.public(),
             definition: definition_hash(definition),
@@ -133,14 +133,14 @@ pub fn every_body() -> Vec<Body> {
     let task = TaskId::Authored(id);
     let task_binding = TaskBinding {
         rules: id,
-        variation: None,
+        task_type: None,
         inputs: BTreeMap::new(),
         parent: None,
         stage: None,
     };
     let binding = RulesBinding {
         definition: DefinitionRef {
-            semantic: definition_hash(&Blueprint::default()),
+            semantic: definition_hash(&Formation::default()),
             object: PayloadRef {
                 hash,
                 len: seal::OVERHEAD_BYTES as u32,

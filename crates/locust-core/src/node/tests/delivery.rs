@@ -148,7 +148,7 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
         a,
         Request::GoalCreate {
             title: "Durable delivery".into(),
-            blueprint_json: None,
+            formation_json: None,
             roles: BTreeMap::new(),
             inputs: BTreeMap::new(),
         },
@@ -180,12 +180,15 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
     net.nodes[1].ok(b, Request::GoalJoin { ticket });
     net.poll(1);
     assert!(net.nodes[0].node.goals[&goal].is_member(&target));
-    let mut blueprint = locust_proto::organization::presets()
+    let mut formation = locust_proto::organization::presets()
         .into_iter()
         .find(|preset| preset.name == "pipeline")
         .unwrap()
-        .blueprint;
-    blueprint.flow.remove("review");
+        .formation;
+    formation.flow.remove("ship");
+    // One member drives the draft alone, so it uses the default rules.
+    formation.flow.get_mut("draft").unwrap().task_type = None;
+    formation.task_types.clear();
     let expected = net.nodes[0].node.goals[&goal]
         .state()
         .current_rules
@@ -195,8 +198,8 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
         Request::RulesBind {
             goal,
             expected,
-            blueprint_json: serde_json::to_string(&blueprint).unwrap(),
-            roles: BTreeMap::from([("materializer".into(), vec![source])]),
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            roles: BTreeMap::new(),
             inputs: BTreeMap::new(),
         },
     );

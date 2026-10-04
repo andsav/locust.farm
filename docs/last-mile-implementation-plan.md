@@ -3,11 +3,11 @@
 > **Historical pre-organization document.** Its protocol-1 commands, source
 > snapshots and qualification claims do not apply to API 2 / protocol 2. Read
 > [the current manual](guide/overview.md) and
-> [implementation status](organization-blueprints-status.md) for current behavior.
+> [implementation status](formations-status.md) for current behavior.
 > No legacy reader, migration or old-runtime support is provided.
 
 **Organization model update, 2026-10-04:** the
-[organization blueprints plan](organization-blueprints-implementation-plan.md)
+[formations plan](formations-implementation-plan.md)
 supersedes a universal coordinator as the future product target and adds agent
 authoring, Polaris, and the [complete public manual](public-documentation-plan.md).
 This plan's installation, permission, context and delivery work remains relevant;
@@ -130,7 +130,7 @@ Code areas: [release builder](../scripts/build_release.py), [package verificatio
 
 Code areas: [API](../crates/locust-proto/src/api.rs), [request dispatch](../crates/locust-core/src/node/requests/mod.rs), [reading](../crates/locust-core/src/node/requests/reading.rs), [notes](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/node/requests/notes.rs), [views](../crates/locust-core/src/node/views.rs), [feed](../crates/locust-core/src/node/feed.rs), [local records](../crates/locust-core/src/node/records.rs), [store schema](../crates/locust-store/src/schema.rs).
 
-**W2.1 — Freeze a small contract before wiring callers.** Define typed operations for note pages, a task thread, a goal snapshot, explicit acknowledgment and read-only identifier resolution. Names are provisional until this contract is reviewed. Update operation authorization, request/response matching, serialization fixtures and version reporting together. Use the organization-blueprint contract and remove the protocol-1 fold when its replacement lands; no compatibility branch.
+**W2.1 — Freeze a small contract before wiring callers.** Define typed operations for note pages, a task thread, a goal snapshot, explicit acknowledgment and read-only identifier resolution. Names are provisional until this contract is reviewed. Update operation authorization, request/response matching, serialization fixtures and version reporting together. Use the formation contract and remove the protocol-1 fold when its replacement lands; no compatibility branch.
 
 Proposed semantics:
 

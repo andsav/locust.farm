@@ -50,7 +50,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         actor: &Actor,
         goal: GoalId,
         text: String,
-        variation: Option<String>,
+        task_type: Option<String>,
         inputs: BTreeMap<String, BlobHash>,
         parent: Option<TaskId>,
         now: u64,
@@ -73,7 +73,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         };
         let binding = TaskBinding {
             rules,
-            variation,
+            task_type,
             inputs,
             parent,
             stage: None,
@@ -95,7 +95,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         goal: GoalId,
         task: TaskId,
         expected_round: EventId,
-        variation: Option<String>,
+        task_type: Option<String>,
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
@@ -116,7 +116,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .current_rules
                 .ok_or_else(|| conflict("no current rules binding"))?;
         }
-        binding.variation = variation;
+        binding.task_type = task_type;
         let mut tx = Tx::none();
         let event = self.author(
             entry,

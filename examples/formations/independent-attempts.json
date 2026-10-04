@@ -1,0 +1,43 @@
+{
+  "context": {
+    "guidance": "",
+    "inputs": {}
+  },
+  "decisions": {
+    "completion": {
+      "by": {
+        "kind": "contribution_author"
+      },
+      "kind": "declaration"
+    },
+    "finish": null,
+    "selection": {
+      "kind": "role",
+      "name": "judge"
+    }
+  },
+  "flow": {},
+  "roles": {
+    "judge": {
+      "description": "Picks which finished attempt to use. One person."
+    }
+  },
+  "schema_version": 1,
+  "task_types": {},
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "by": {
+          "kind": "members"
+        },
+        "kind": "independent"
+      }
+    ]
+  }
+}

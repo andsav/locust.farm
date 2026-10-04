@@ -40,7 +40,7 @@ protocol is used.
 
 Create a draft from a bundled arrangement preset or open an existing private
 draft. Forms cover participants, context, work, completion and decisions, task
-variations, and optional flow. They use Locust's generated JSON Schema; the
+task types, and optional flow. They use Locust's generated JSON Schema; the
 source tab shows the same JSON. The source inventory detects unsupported fields
 and newer schema versions, preserves the complete source, and refuses visual
 editing rather than dropping rules. This is a forms-first editor, not a canvas.

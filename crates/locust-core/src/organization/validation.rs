@@ -6,7 +6,7 @@ use locust_proto::organization::*;
 use super::{Diagnostic, References, escape};
 
 struct Validator<'a> {
-    blueprint: &'a Blueprint,
+    formation: &'a Formation,
     diagnostics: Vec<Diagnostic>,
     references: References,
 }
@@ -33,7 +33,7 @@ impl Validator<'_> {
     }
     fn role(&mut self, name: &str, path: &str) {
         self.references.roles.insert(name.into());
-        if !self.blueprint.roles.contains_key(name) {
+        if !self.formation.roles.contains_key(name) {
             self.error(
                 "unknown_role",
                 path,
@@ -166,61 +166,60 @@ impl Validator<'_> {
         if let Some(authority) = &decisions.selection {
             self.authority(authority, &format!("{path}/selection"));
         }
-        if let Some(authority) = &decisions.closure {
-            self.authority(authority, &format!("{path}/closure"));
+        if let Some(authority) = &decisions.finish {
+            self.authority(authority, &format!("{path}/finish"));
         }
     }
     fn run(&mut self) {
-        for name in self.blueprint.roles.keys() {
+        for name in self.formation.roles.keys() {
             self.name(name, &format!("/roles/{}", escape(name)));
         }
-        for name in self.blueprint.context.inputs.keys() {
+        for name in self.formation.context.inputs.keys() {
             self.name(name, &format!("/context/inputs/{}", escape(name)));
         }
-        self.work(&self.blueprint.work, "/work");
-        self.decisions(&self.blueprint.decisions, "/decisions");
-        for (name, variation) in &self.blueprint.variations {
-            let path = format!("/variations/{}", escape(name));
+        self.work(&self.formation.work, "/work");
+        self.decisions(&self.formation.decisions, "/decisions");
+        for (name, task_type) in &self.formation.task_types {
+            let path = format!("/task_types/{}", escape(name));
             self.name(name, &path);
-            if let Some(work) = &variation.work {
+            if let Some(work) = &task_type.work {
                 self.work(work, &format!("{path}/work"));
             }
-            if let Some(decisions) = &variation.decisions {
+            if let Some(decisions) = &task_type.decisions {
                 self.decisions(decisions, &format!("{path}/decisions"));
             }
         }
         let mut dependencies = BTreeMap::new();
-        for (name, stage) in &self.blueprint.flow {
+        for (name, stage) in &self.formation.flow {
             let path = format!("/flow/{}", escape(name));
             self.name(name, &path);
-            self.authority(&stage.materializer, &format!("{path}/materializer"));
             self.selector(
                 &stage.recipients,
                 &format!("{path}/recipients"),
                 false,
                 false,
             );
-            if let Some(variation) = &stage.variation
-                && !self.blueprint.variations.contains_key(variation)
+            if let Some(task_type) = &stage.task_type
+                && !self.formation.task_types.contains_key(task_type)
             {
                 self.error(
-                    "unknown_variation",
-                    &format!("{path}/variation"),
-                    format!("Variation {variation:?} is not declared"),
-                    "Declare the variation or remove the reference to inherit the default rules.",
+                    "unknown_task_type",
+                    &format!("{path}/task_type"),
+                    format!("Task type {task_type:?} is not declared"),
+                    "Declare the task type or remove the reference to inherit the default rules.",
                 );
             }
             let mut required = BTreeSet::new();
             for (index, requirement) in stage.requires.iter().enumerate() {
                 let requirement_path = format!("{path}/requires/{index}");
-                if let Some(upstream) = self.blueprint.flow.get(&requirement.stage) {
+                if let Some(upstream) = self.formation.flow.get(&requirement.stage) {
                     required.insert(requirement.stage.clone());
                     let decisions = upstream
-                        .variation
+                        .task_type
                         .as_ref()
-                        .and_then(|name| self.blueprint.variations.get(name))
-                        .and_then(|variation| variation.decisions.as_ref())
-                        .unwrap_or(&self.blueprint.decisions);
+                        .and_then(|name| self.formation.task_types.get(name))
+                        .and_then(|task_type| task_type.decisions.as_ref())
+                        .unwrap_or(&self.formation.decisions);
                     if requirement.evidence == EvidenceKind::Selection
                         && decisions.selection.is_none()
                     {
@@ -274,9 +273,9 @@ fn fixed_members(selector: &Selector) -> Option<BTreeSet<String>> {
     }
 }
 
-pub(super) fn validate(blueprint: &Blueprint) -> Vec<Diagnostic> {
+pub(super) fn validate(formation: &Formation) -> Vec<Diagnostic> {
     let mut validator = Validator {
-        blueprint,
+        formation,
         diagnostics: Vec::new(),
         references: References::default(),
     };
@@ -284,9 +283,9 @@ pub(super) fn validate(blueprint: &Blueprint) -> Vec<Diagnostic> {
     validator.diagnostics
 }
 
-pub(super) fn references(blueprint: &Blueprint) -> References {
+pub(super) fn references(formation: &Formation) -> References {
     let mut validator = Validator {
-        blueprint,
+        formation,
         diagnostics: Vec::new(),
         references: References::default(),
     };
