@@ -1,6 +1,6 @@
 //! Authenticated peer connections and ordered [`locust_proto::sync::SyncMessage`] frames.
 //!
-//! The caller chooses endpoint identity, relays, address lookup and frame
+//! The caller chooses endpoint identity, relays, contact hints and frame
 //! admission limits. This crate decides neither membership nor which messages
 //! a peer may receive. An authenticated endpoint is not an authorized member.
 //!
@@ -12,16 +12,19 @@
 
 mod framing;
 
-pub use framing::{
-    FrameError, FrameLimits, FrameReceiver, FrameSender, FramedLink, MemoryLink, memory_pair,
-};
+pub use framing::{FrameError, FrameLimits, FrameReceiver, FrameSender, FramedLink};
 
-use iroh::EndpointAddr;
+#[cfg(any(test, feature = "testkit"))]
+pub mod testkit;
+
 use iroh::endpoint::{
-    BindError, Builder, ConnectError, ConnectingError, Connection, ConnectionError, Incoming,
-    RecvStream, SendStream,
+    Connection, ConnectionError, Incoming, NetReportConfig, PortmapperConfig, QuicTransportConfig,
+    RecvStream, SendStream, presets,
 };
+use iroh::{EndpointAddr, Watcher};
 use locust_proto::id::EndpointId;
+use std::fmt;
+use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 
 /// Protocol identifier negotiated by the authenticated Iroh handshake.
@@ -48,65 +51,295 @@ pub struct PathSnapshot {
     pub rtt: Duration,
 }
 
-/// An endpoint with Locust's ALPN and otherwise caller-selected configuration.
+/// Relay infrastructure is always an explicit operator choice.
+#[derive(Clone, PartialEq, Eq)]
+pub enum RelayConfig {
+    Disabled,
+    N0,
+    Custom(Vec<String>),
+}
+
+impl fmt::Debug for RelayConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Disabled => f.write_str("Disabled"),
+            Self::N0 => f.write_str("N0"),
+            Self::Custom(urls) => f
+                .debug_struct("Custom")
+                .field("relay_count", &urls.len())
+                .finish(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IpTransport {
+    Default,
+    Bind(SocketAddr),
+    Disabled,
+}
+
+/// QUIC resource budgets apply before application admission as well as after.
+/// They limit buffered bytes/streams, not tasks, attempts or operation time.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TransportBudget {
+    pub max_bidirectional_streams: u32,
+    pub stream_receive_bytes: u32,
+    pub connection_receive_bytes: u32,
+}
+
+impl Default for TransportBudget {
+    fn default() -> Self {
+        // Two simultaneous exchanges can each buffer one largest contract
+        // frame including its prefix. Application reads replenish credit;
+        // larger exchanges still flow under backpressure.
+        let frame = (locust_proto::limits::MAX_PEER_FRAME_BYTES + 4) as u32;
+        Self {
+            max_bidirectional_streams: 2,
+            stream_receive_bytes: frame,
+            connection_receive_bytes: 2 * frame,
+        }
+    }
+}
+
+/// Caller-owned endpoint identity and network choices. No discovery is enabled.
+#[derive(Clone)]
+pub struct EndpointConfig {
+    pub secret_key: [u8; 32],
+    pub relays: RelayConfig,
+    pub ip_transport: IpTransport,
+    pub port_mapping: bool,
+    pub budget: TransportBudget,
+}
+
+impl fmt::Debug for EndpointConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EndpointConfig")
+            .field("secret_key", &"<redacted>")
+            .field(
+                "relays",
+                &match &self.relays {
+                    RelayConfig::Disabled => "disabled",
+                    RelayConfig::N0 => "n0",
+                    RelayConfig::Custom(_) => "custom",
+                },
+            )
+            .field("ip_transport", &self.ip_transport)
+            .field("port_mapping", &self.port_mapping)
+            .field("budget", &self.budget)
+            .finish()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CloseReason {
+    LocalClosed,
+    PeerClosed,
+    PeerReset,
+    TimedOut,
+    TransportError,
+}
+
+impl From<&ConnectionError> for CloseReason {
+    fn from(error: &ConnectionError) -> Self {
+        match error {
+            ConnectionError::LocallyClosed => Self::LocalClosed,
+            ConnectionError::ApplicationClosed(_) | ConnectionError::ConnectionClosed(_) => {
+                Self::PeerClosed
+            }
+            ConnectionError::Reset => Self::PeerReset,
+            ConnectionError::TimedOut => Self::TimedOut,
+            _ => Self::TransportError,
+        }
+    }
+}
+
+/// Stable categories deliberately omit peer-controlled close strings/URLs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TransportError {
+    InvalidRelay,
+    InvalidBind,
+    InvalidBudget,
+    InvalidEndpointId,
+    Bind,
+    Connect,
+    Handshake,
+    Connection(CloseReason),
+}
+
+impl fmt::Display for TransportError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "transport: {self:?}")
+    }
+}
+impl std::error::Error for TransportError {}
+
 #[derive(Debug, Clone)]
 pub struct Endpoint(iroh::Endpoint);
 
 impl Endpoint {
-    /// Binds a caller-configured Iroh endpoint, accepting only [`SYNC_ALPN`].
-    ///
-    /// Use `iroh::endpoint::presets::Minimal` for no public address lookup or
-    /// relay. Iroh's `N0` preset enables Number 0's relay and lookup services;
-    /// selecting that preset is an explicit operator choice. Supply a persisted
-    /// secret key on the builder to retain identity across process restarts.
-    pub async fn bind(builder: Builder) -> Result<Self, BindError> {
-        builder
+    pub async fn bind(config: EndpointConfig) -> Result<Self, TransportError> {
+        let budget = config.budget;
+        if budget.max_bidirectional_streams == 0
+            || budget.stream_receive_bytes == 0
+            || budget.connection_receive_bytes == 0
+        {
+            return Err(TransportError::InvalidBudget);
+        }
+        let relays = match config.relays {
+            RelayConfig::Disabled => iroh::RelayMode::Disabled,
+            RelayConfig::N0 => iroh::RelayMode::Default,
+            RelayConfig::Custom(urls) => {
+                if urls.is_empty() {
+                    return Err(TransportError::InvalidRelay);
+                }
+                let urls = urls
+                    .iter()
+                    .map(|url| relay_url(url).ok_or(TransportError::InvalidRelay))
+                    .collect::<Result<Vec<_>, _>>()?;
+                iroh::RelayMode::Custom(urls.into_iter().collect())
+            }
+        };
+        let mut report = NetReportConfig::minimal();
+        report.https_probes = !matches!(relays, iroh::RelayMode::Disabled);
+        let transport = QuicTransportConfig::builder()
+            .max_concurrent_bidi_streams(budget.max_bidirectional_streams.into())
+            .max_concurrent_uni_streams(0u32.into())
+            .stream_receive_window(budget.stream_receive_bytes.into())
+            .receive_window(budget.connection_receive_bytes.into())
+            .datagram_receive_buffer_size(None)
+            .datagram_send_buffer_size(0)
+            .build();
+        let mut builder = iroh::Endpoint::builder(presets::Minimal)
+            .secret_key(iroh::SecretKey::from_bytes(&config.secret_key))
             .alpns(vec![SYNC_ALPN.to_vec()])
+            .relay_mode(relays)
+            .clear_address_lookup()
+            .net_report_config(report)
+            .transport_config(transport);
+        if !config.port_mapping {
+            builder = builder.portmapper_config(PortmapperConfig::Disabled);
+        }
+        builder = match config.ip_transport {
+            IpTransport::Default => builder,
+            IpTransport::Disabled => builder.clear_ip_transports(),
+            IpTransport::Bind(addr) => builder
+                .clear_ip_transports()
+                .bind_addr(addr)
+                .map_err(|_| TransportError::InvalidBind)?,
+        };
+        builder
             .bind()
             .await
             .map(Self)
+            .map_err(|_| TransportError::Bind)
     }
 
     pub fn id(&self) -> EndpointId {
         EndpointId(*self.0.id().as_bytes())
     }
 
-    /// Current contact hints, including any configured relay address.
-    pub fn addr(&self) -> EndpointAddr {
-        self.0.addr()
+    /// Public contact hints; unrecognized hints are ignored when dialing.
+    pub fn hints(&self) -> Vec<String> {
+        contact_hints(&self.0.addr())
     }
 
-    /// Waits until at least one configured relay completes its connection
-    /// handshake and registers this endpoint.
-    ///
-    /// This is relay readiness, not direct-path or address-lookup readiness.
-    /// With relays disabled or unreachable, this waits indefinitely, even if
-    /// direct connections work. The caller owns cancellation and any timeout.
-    /// Returning does not guarantee that the relay remains connected afterward.
+    /// Waits for a changed contact snapshot, or returns `None` on local close.
+    /// Caller owns deadlines. Rechecking `previous` also avoids a lost update
+    /// between taking a snapshot and starting this wait.
+    pub async fn hints_changed(&self, previous: &[String]) -> Option<Vec<String>> {
+        let mut watcher = self.0.watch_addr();
+        loop {
+            if self.0.is_closed() {
+                return None;
+            }
+            let hints = contact_hints(&watcher.get());
+            if hints != previous {
+                return Some(hints);
+            }
+            tokio::select! {
+                _ = self.0.closed() => return None,
+                value = watcher.updated() => { value.ok()?; }
+            }
+        }
+    }
+
+    /// Relay readiness only. Without relays this waits until canceled.
     pub async fn online(&self) {
         self.0.online().await;
     }
 
     pub async fn connect(
         &self,
-        addr: impl Into<EndpointAddr>,
-    ) -> Result<PeerConnection, ConnectError> {
-        self.0.connect(addr, SYNC_ALPN).await.map(PeerConnection)
+        peer: EndpointId,
+        hints: &[String],
+    ) -> Result<PeerConnection, TransportError> {
+        let id = iroh::EndpointId::from_bytes(peer.as_bytes())
+            .map_err(|_| TransportError::InvalidEndpointId)?;
+        let mut addr = EndpointAddr::new(id);
+        for hint in hints {
+            if let Ok(socket) = hint.parse::<SocketAddr>() {
+                if !socket.ip().is_unspecified()
+                    && !socket.ip().is_multicast()
+                    && socket.port() != 0
+                {
+                    addr = addr.with_ip_addr(socket);
+                }
+            } else if let Some(relay) = relay_url(hint) {
+                addr = addr.with_relay_url(relay);
+            }
+        }
+        self.0
+            .connect(addr, SYNC_ALPN)
+            .await
+            .map(PeerConnection)
+            .map_err(|_| TransportError::Connect)
     }
 
-    /// Receives the next connection attempt, without waiting for its handshake.
-    ///
-    /// Call [`IncomingConnection::accept`] separately so an unresponsive peer
-    /// cannot prevent the application from accepting other attempts. `None`
-    /// means this endpoint is closed.
+    /// Obtain attempts before awaiting individual handshakes, so a stalled
+    /// handshake cannot block admission of other attempts.
     pub async fn accept(&self) -> Option<IncomingConnection> {
         self.0.accept().await.map(IncomingConnection)
     }
-
-    /// Flushes endpoint shutdown and stops Iroh's background tasks.
     pub async fn close(&self) {
         self.0.close().await;
     }
+
+    /// Waits until local endpoint shutdown starts.
+    pub async fn closed(&self) {
+        self.0.closed().await;
+    }
+}
+
+fn contact_hints(addr: &EndpointAddr) -> Vec<String> {
+    let mut hints: Vec<String> = addr
+        .ip_addrs()
+        .map(ToString::to_string)
+        .chain(addr.relay_urls().map(ToString::to_string))
+        .collect();
+    hints.sort();
+    hints
+}
+
+fn relay_url(value: &str) -> Option<iroh::RelayUrl> {
+    let url: iroh::RelayUrl = value.parse().ok()?;
+    let host = url.host_str()?;
+    let local = host.eq_ignore_ascii_case("localhost")
+        || host
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .parse::<IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback());
+    if !(url.scheme() == "https" || url.scheme() == "http" && local)
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || value.chars().any(char::is_whitespace)
+    {
+        return None;
+    }
+    Some(url)
 }
 
 /// A pending handshake. No remote identity is exposed before authentication.
@@ -114,8 +347,11 @@ impl Endpoint {
 pub struct IncomingConnection(Incoming);
 
 impl IncomingConnection {
-    pub async fn accept(self) -> Result<PeerConnection, ConnectingError> {
-        self.0.await.map(PeerConnection)
+    pub async fn accept(self) -> Result<PeerConnection, TransportError> {
+        self.0
+            .await
+            .map(PeerConnection)
+            .map_err(|_| TransportError::Handshake)
     }
 
     pub fn refuse(self) {
@@ -160,36 +396,47 @@ impl PeerConnection {
 
     /// Opens a framed exchange. The remote can accept it only after the first
     /// frame is sent; QUIC does not announce an empty newly opened stream.
-    pub async fn open_link(&self, limits: FrameLimits) -> Result<IrohLink, ConnectionError> {
-        let (send, recv) = self.0.open_bi().await?;
-        Ok(FramedLink::new(
-            self.remote_id(),
-            recv,
-            send,
-            limits,
-            Some(self.0.clone()),
-        ))
+    /// Use `FrameLimits::hello()` unless the daemon has already established
+    /// this endpoint speaks for a member. Authentication alone is insufficient.
+    pub async fn open_link(&self, limits: FrameLimits) -> Result<IrohLink, TransportError> {
+        let (send, recv) = self
+            .0
+            .open_bi()
+            .await
+            .map_err(|error| TransportError::Connection(CloseReason::from(&error)))?;
+        Ok(FramedLink::new(self.remote_id(), recv, send, limits))
     }
 
-    pub async fn accept_link(&self, limits: FrameLimits) -> Result<IrohLink, ConnectionError> {
-        let (send, recv) = self.0.accept_bi().await?;
-        Ok(FramedLink::new(
-            self.remote_id(),
-            recv,
-            send,
-            limits,
-            Some(self.0.clone()),
-        ))
+    /// An inbound exchange starts at `FrameLimits::hello()`. Only the daemon
+    /// may raise its limit after establishing membership from Hello/Join.
+    /// Explicit limits allow stricter operator policies.
+    pub async fn accept_link(&self, limits: FrameLimits) -> Result<IrohLink, TransportError> {
+        let (send, recv) = self
+            .0
+            .accept_bi()
+            .await
+            .map_err(|error| TransportError::Connection(CloseReason::from(&error)))?;
+        Ok(FramedLink::new(self.remote_id(), recv, send, limits))
     }
 
     /// Closes every stream on this connection. Call [`Endpoint::close`] when
     /// shutting down the endpoint to flush the close notification.
-    pub fn close(&self, reason: &[u8]) {
-        self.0.close(0u32.into(), reason);
+    pub fn close(&self) {
+        self.0.close(0u32.into(), b"");
+    }
+
+    /// Waits for local/remote closure without exposing peer-controlled text.
+    pub async fn closed(&self) -> CloseReason {
+        CloseReason::from(&self.0.closed().await)
     }
 }
 
-pub type IrohLink = FramedLink<RecvStream, SendStream>;
+/// Types usable by daemon tasks without depending on the transport provider.
+pub type PeerLink = FramedLink<RecvStream, SendStream>;
+pub type PeerSender = FrameSender<SendStream>;
+pub type PeerReceiver = FrameReceiver<RecvStream>;
+/// Compatibility name for existing transport qualification code.
+pub type IrohLink = PeerLink;
 
 #[cfg(test)]
 mod tests;

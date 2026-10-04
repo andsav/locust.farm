@@ -1,8 +1,9 @@
 //! Deliberately small transport fixture. It never joins or reads a real goal.
 
-use locust_net::{FrameReceiver, FramedLink};
+use locust_net::{FrameError, FrameReceiver, FramedLink};
 use locust_proto::PROTOCOL_VERSION;
 use locust_proto::id::GoalId;
+use locust_proto::sync::Refusal;
 use locust_proto::sync::SyncMessage;
 use tokio::io::{AsyncRead, AsyncWrite};
 
@@ -19,7 +20,7 @@ pub async fn connect<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
         goal,
     };
     link.send(&hello).await.map_err(|_| Failure("send"))?;
-    match link.recv().await.map_err(|_| Failure("receive"))? {
+    match link.recv().await.map_err(receive_failure)? {
         Some(SyncMessage::Hello {
             version,
             goal: echo,
@@ -38,7 +39,7 @@ pub async fn connect<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
 pub async fn listen<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
     link: &mut FramedLink<R, W>,
 ) -> Result<()> {
-    let hello = match link.recv().await.map_err(|_| Failure("receive"))? {
+    let hello = match link.recv().await.map_err(receive_failure)? {
         Some(
             hello @ SyncMessage::Hello {
                 version: PROTOCOL_VERSION,
@@ -49,7 +50,7 @@ pub async fn listen<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
         _ => return Err(Failure("expected_hello")),
     };
     link.send(&hello).await.map_err(|_| Failure("send"))?;
-    if link.recv().await.map_err(|_| Failure("receive"))? != Some(SyncMessage::Done) {
+    if link.recv().await.map_err(receive_failure)? != Some(SyncMessage::Done) {
         return Err(Failure("expected_done"));
     }
     // Respond only after consuming the connector's completion message.
@@ -78,9 +79,17 @@ pub async fn completion<R: AsyncRead + Unpin>(
     Ok(())
 }
 
-#[cfg(test)]
+fn receive_failure(error: FrameError) -> Failure {
+    match error {
+        FrameError::Protocol(Refusal::UnsupportedVersion) => Failure("unsupported_version"),
+        _ => Failure("receive"),
+    }
+}
+
+#[cfg(all(test, feature = "testkit"))]
 mod tests {
-    use locust_net::{FrameLimits, MemoryLink, memory_pair};
+    use locust_net::FrameLimits;
+    use locust_net::testkit::{MemoryLink, memory_pair};
     use locust_proto::id::EndpointId;
     use locust_proto::limits::MAX_HELLO_FRAME_BYTES;
 
@@ -88,8 +97,8 @@ mod tests {
 
     fn pair() -> (MemoryLink, MemoryLink) {
         let limits = FrameLimits {
-            max_send_bytes: MAX_HELLO_FRAME_BYTES as u32,
-            max_receive_bytes: MAX_HELLO_FRAME_BYTES as u32,
+            max_send_bytes: MAX_HELLO_FRAME_BYTES,
+            max_receive_bytes: MAX_HELLO_FRAME_BYTES,
         };
         memory_pair(EndpointId([1; 32]), EndpointId([2; 32]), limits, limits, 64).unwrap()
     }

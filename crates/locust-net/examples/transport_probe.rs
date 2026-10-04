@@ -14,9 +14,10 @@ use std::cell::Cell;
 use std::io::{self, Write};
 use std::process::ExitCode;
 
-use iroh::endpoint::{NetReportConfig, PortmapperConfig, presets};
-use iroh::{EndpointAddr, RelayMap, RelayMode};
-use locust_net::{Endpoint, FrameLimits, PathKind, PeerConnection};
+use locust_net::{
+    Endpoint, EndpointConfig, FrameLimits, IpTransport, PathKind, PeerConnection, RelayConfig,
+    TransportBudget,
+};
 use locust_proto::limits::MAX_HELLO_FRAME_BYTES;
 use tokio::time::Instant;
 
@@ -149,26 +150,30 @@ async fn run(
         config.wait_route.unwrap_or(config.mode).as_str(),
         if config.mode == Mode::Direct { "disabled" } else { "enabled" }
     )).await?;
-    let mut builder = iroh::Endpoint::builder(presets::Minimal)
-        .clear_address_lookup()
-        .portmapper_config(PortmapperConfig::Disabled)
-        .net_report_config(net_report_policy(config.mode));
-    builder = builder.relay_mode(if config.n0_relays {
-        RelayMode::Default
-    } else if !config.relays.is_empty() {
-        RelayMode::Custom(config.relays.iter().cloned().collect::<RelayMap>())
-    } else {
-        RelayMode::Disabled
-    });
-    if config.mode == Mode::Relay {
-        builder = builder.clear_ip_transports();
-    } else if let Some(bind) = config.bind {
-        builder = builder
-            .clear_ip_transports()
-            .bind_addr(bind)
-            .map_err(|_| Failure("bind_config"))?;
-    }
-    *endpoint_slot = Some(Endpoint::bind(builder).await.map_err(|_| Failure("bind"))?);
+    let endpoint_config = EndpointConfig {
+        secret_key: iroh::SecretKey::generate().to_bytes(),
+        relays: if config.n0_relays {
+            RelayConfig::N0
+        } else if !config.relays.is_empty() {
+            RelayConfig::Custom(config.relays.iter().map(ToString::to_string).collect())
+        } else {
+            RelayConfig::Disabled
+        },
+        ip_transport: if config.mode == Mode::Relay {
+            IpTransport::Disabled
+        } else if let Some(bind) = config.bind {
+            IpTransport::Bind(bind)
+        } else {
+            IpTransport::Default
+        },
+        port_mapping: false,
+        budget: TransportBudget::default(),
+    };
+    *endpoint_slot = Some(
+        Endpoint::bind(endpoint_config)
+            .await
+            .map_err(|_| Failure("bind"))?,
+    );
     let endpoint = endpoint_slot.as_ref().ok_or(Failure("bind"))?;
     output
         .record(format!("record=local endpoint_id={}", endpoint.id()))
@@ -177,19 +182,15 @@ async fn run(
         phase.set("online");
         endpoint.online().await;
     }
-    let contact = endpoint.addr();
-    for addr in contact.ip_addrs() {
+    for hint in endpoint.hints() {
+        let field = if hint.parse::<std::net::SocketAddr>().is_ok() {
+            "direct_addr"
+        } else {
+            "relay_url"
+        };
         output
             .record(format!(
-                "record=contact endpoint_id={} direct_addr={addr}",
-                endpoint.id()
-            ))
-            .await?;
-    }
-    for relay in contact.relay_urls() {
-        output
-            .record(format!(
-                "record=contact endpoint_id={} relay_url={relay}",
+                "record=contact endpoint_id={} {field}={hint}",
                 endpoint.id()
             ))
             .await?;
@@ -211,7 +212,7 @@ async fn run(
                 .expect_peer
                 .is_some_and(|expected| expected != connection.remote_id())
             {
-                connection.close(b"unexpected peer");
+                connection.close();
                 return Err(Failure("unexpected_peer"));
             }
             connection
@@ -219,17 +220,13 @@ async fn run(
         Role::Connect => {
             phase.set("handshake");
             let peer = config.peer.ok_or(Failure("peer_required"))?;
-            let id = iroh::EndpointId::from_bytes(peer.as_bytes())
-                .map_err(|_| Failure("invalid_peer"))?;
-            let mut addr = EndpointAddr::new(id);
-            for direct in &config.peer_addrs {
-                addr = addr.with_ip_addr(*direct);
-            }
+            let mut hints: Vec<String> =
+                config.peer_addrs.iter().map(ToString::to_string).collect();
             if let Some(relay) = &config.peer_relay {
-                addr = addr.with_relay_url(relay.clone());
+                hints.push(relay.to_string());
             }
             let connection = endpoint
-                .connect(addr)
+                .connect(peer, &hints)
                 .await
                 .map_err(|_| Failure("connect"))?;
             if connection.remote_id() != peer {
@@ -264,8 +261,8 @@ async fn run(
     observe(&connection, expected_route, "before", output).await?;
     phase.set("exchange");
     let limits = FrameLimits {
-        max_send_bytes: MAX_HELLO_FRAME_BYTES as u32,
-        max_receive_bytes: MAX_HELLO_FRAME_BYTES as u32,
+        max_send_bytes: MAX_HELLO_FRAME_BYTES,
+        max_receive_bytes: MAX_HELLO_FRAME_BYTES,
     };
     match config.role {
         Role::Listen => {
@@ -345,29 +342,4 @@ async fn observe(
         return Err(Failure("wrong_route"));
     }
     Ok(())
-}
-
-fn net_report_policy(mode: Mode) -> NetReportConfig {
-    let mut config = NetReportConfig::minimal();
-    // Forced relay has no IP transports and thus no QAD. HTTPS probes are
-    // required to select a home relay and complete Endpoint::online().
-    config.https_probes = mode != Mode::Direct;
-    config
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn relay_and_auto_can_select_home_relay_without_captive_portal_checks() {
-        for mode in [Mode::Relay, Mode::Auto] {
-            let config = net_report_policy(mode);
-            assert!(config.https_probes);
-            assert!(!config.captive_portal_check);
-        }
-        let direct = net_report_policy(Mode::Direct);
-        assert!(!direct.https_probes);
-        assert!(!direct.captive_portal_check);
-    }
 }
