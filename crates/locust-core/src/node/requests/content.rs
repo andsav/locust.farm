@@ -94,6 +94,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "the content does not match this goal's references",
             ));
         }
+        if !entry.may_read_epoch(actor.principal.as_ref(), epoch) {
+            return Err(crate::node::access::denied(
+                "the content epoch is outside this principal's membership",
+            ));
+        }
         let key = entry
             .keys
             .get(&epoch)
@@ -146,7 +151,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let states = hashes
             .into_iter()
             .map(|hash| {
-                self.content_state(entry, &hash)
+                self.read_content_state(entry, &hash, actor.principal.as_ref())
                     .map(|state| BlobStatus { hash, state })
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -174,6 +179,27 @@ impl<S: Store, E: Entropy> Node<S, E> {
             response: Response::Done,
             tx,
         })
+    }
+
+    pub(in crate::node) fn read_content_state(
+        &self,
+        entry: &Entry,
+        hash: &BlobHash,
+        reader: Option<&locust_proto::id::PublicKey>,
+    ) -> Result<BlobState, ApiError> {
+        if !entry.names(hash) && blob_record(&self.store, &entry.id(), hash)?.is_none() {
+            return Ok(BlobState::Unknown);
+        }
+        if reader.is_some_and(|reader| entry.goal.read_epoch(reader).is_none()) {
+            return Ok(BlobState::Unavailable);
+        }
+        if let Some(prefix) = self.store.blob_range(hash, 0, seal::OVERHEAD_BYTES)?
+            && let Ok(epoch) = seal::epoch_of(&prefix)
+            && !entry.may_read_epoch(reader, epoch)
+        {
+            return Ok(BlobState::Unavailable);
+        }
+        self.content_state(entry, hash)
     }
 
     pub(in crate::node) fn content_state(

@@ -46,7 +46,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 text: entry
                     .goal
                     .event(&note.id)
-                    .and_then(|event| entry.text(&self.store, event)),
+                    .and_then(|event| entry.text(&self.store, event, actor.principal.as_ref())),
             })
             .collect();
         answer(Response::Notes(notes))
@@ -61,7 +61,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             accepted,
             text: accepted
                 .and_then(|revision| entry.goal.event(&revision))
-                .and_then(|event| entry.text(&self.store, event)),
+                .and_then(|event| entry.text(&self.store, event, actor.principal.as_ref())),
             proposals: document
                 .into_iter()
                 .flat_map(|document| document.open())

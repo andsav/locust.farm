@@ -34,7 +34,8 @@
 //! - `EventRequest` is answered with one `Events` frame for each run of
 //!   [`MAX_EVENTS_PER_BATCH`] requested identifiers, in order, carrying the
 //!   events of that run the responder holds (possibly none). The initiator
-//!   knows how many frames to read without the responder holding them all.
+//!   knows how many frames to read without the responder holding them all. An
+//!   empty identifier list receives no answer.
 //! - `KeyRequest` is answered with `Key`, with `Refused(NotAMember)` when the
 //!   remote endpoint does not speak for a current member, or with
 //!   `Refused(KeyUnavailable)` when the responder holds no key for that epoch.
@@ -44,26 +45,38 @@
 //!   `offset` is past its end.
 //! - `Done` is not answered; it ends the exchange.
 //!
-//! Until the remote endpoint is known to speak for a member, only `Hello` and
-//! `Join` are read, with [`MAX_HELLO_FRAME_BYTES`]; afterwards frames are read
-//! with [`MAX_PEER_FRAME_BYTES`]. Any other request from an endpoint that
-//! does not speak for a member is answered with `Refused(NotAMember)`, also
-//! for a goal the responder does not know, so a non-member learns nothing
-//! about which goals exist. A frame that [`SyncMessage::decode`] refuses is
-//! answered with that refusal, and the exchange ends.
+//! Before admission, frames are read at [`MAX_HELLO_FRAME_BYTES`]. `Hello`
+//! identifies the goal; `Join` can establish admission. Ordinary requests from
+//! an endpoint that does not speak for a member receive `Refused(NotAMember)`,
+//! including requests naming an unknown goal. After membership is established,
+//! the per-link limit rises to [`MAX_PEER_FRAME_BYTES`]. Dialed links can read
+//! admission history at the peer limit, but neither side sends held frontiers,
+//! inventory, headers, keys or content until it verifies the recipient's
+//! current membership from canonical goal state. In particular, a joining
+//! initiator sends an empty frontier while that verification is pending.
 //!
-//! The limit rises per link: after `Hello`, once the daemon has established
-//! that the link's remote endpoint speaks for a current member of the goal it
-//! names, and after an accepted `Join`. A link this daemon dialed to an
-//! endpoint it already knows as a member may be read at the peer limit from
-//! the start.
+//! A separate evidence exchange is `Hello`, `HaltProof([a, b])`, `Done`.
+//! The receiver authenticates the sender as a historical contact of this known
+//! goal (or its pending inviter), verifies both signatures and checks that the
+//! two different events name the goal's coordinator at the same sequence. Once
+//! that historical eligibility is established, the shell may raise only the
+//! evidence frame limit to `2 * (MAX_HEADER_BYTES + 128)`. This permission grants
+//! no ordinary membership, inventory, content or key access. It lets a halted
+//! replica deliver coordinator equivocation to contacts whose admission the
+//! fork excluded. Proofs are retained through the normal durable commit path.
+//!
+//! The responder advances its answer lazily, at most one frame per transport
+//! credit, and intake waits until that complete answer drains. A frame that
+//! [`SyncMessage::decode`] refuses is answered with that refusal and ends the
+//! exchange. Request pipelining cannot accumulate materialized answers behind
+//! a stalled writer.
 //!
 //! A stream that ends without `Done` is an aborted exchange, not a finished
 //! one; what arrived before stays valid, since every event stands alone. The
 //! sender of an exchange's last frame, a `Refused` in particular, waits under
-//! a deadline for the transport to acknowledge it before it drops the link,
+//! the shared exchange idle deadline for the transport to acknowledge it before it drops the link,
 //! because a frame queued behind a dropped link is not delivered. Stream
-//! reset codes and connection close codes carry no meaning in version 0 and
+//! reset codes and connection close codes carry no protocol meaning and
 //! are zero; reasons travel as `Refused` frames.
 //!
 //! # Reconciliation
@@ -77,10 +90,12 @@
 //! - If I hold at least `n` positions and my digest over my points below `n`
 //!   equals `d`, the peer holds exactly my prefix: I send my events at
 //!   positions `n` and above.
-//! - Otherwise the histories diverge, or I am behind and the peer applies the
-//!   same rule to my frontier: I send an `Inventory` of my points for that
-//!   author. The peer requests what it lacks by identifier and sends what I
-//!   lack.
+//! - If my contiguous prefix is shorter and I hold no points beyond it, I
+//!   defer inventory and send my frontier. The longer side verifies that
+//!   prefix and sends its suffix, or requests inventory when it differs.
+//! - Otherwise I send one page of `Inventory` for that author. The peer
+//!   requests missing identifiers, sends what I lack, and requests later
+//!   inventory pages as needed. Unequal-length forks still reconcile.
 //!
 //! An author missing from a frontier is held from nothing: the entry
 //! `(0, EMPTY_LOG_DIGEST)`, a prefix of every history. Conflicting events at
@@ -105,7 +120,11 @@
 //! and, after a reconnect or restart, resumes with a `BlobRequest` at the
 //! staged length. When the object is complete it is verified against its hash
 //! before it is promoted ([`crate::store::Store::finish_blob`]); a mismatch
-//! discards the staged bytes.
+//! discards the staged bytes. The receiver checks advertised lengths against
+//! signed associations before staging and checks sealed metadata once its
+//! prefix is present. An unavailable nonzero resume gets one retry at zero;
+//! unavailability alone never erases shared staging. An incompatible old stage
+//! is replaced only by a zero-offset stream carrying admissible metadata.
 //!
 //! [`MAX_HELLO_FRAME_BYTES`]: crate::limits::MAX_HELLO_FRAME_BYTES
 //! [`MAX_PEER_FRAME_BYTES`]: crate::limits::MAX_PEER_FRAME_BYTES
@@ -279,7 +298,8 @@ impl std::error::Error for Refusal {}
 pub enum SyncMessage {
     /// Opens an exchange about one goal; the initiator's first frame.
     Hello { version: u8, goal: GoalId },
-    /// Redeems an invitation. The only request a non-member may make.
+    /// Redeems an invitation. Eligible historical nonmembers may also send
+    /// [`SyncMessage::HaltProof`].
     Join(JoinRequest),
     /// The responder will not serve the request this answers.
     Refused(Refusal),
@@ -328,6 +348,11 @@ pub enum SyncMessage {
     BlobUnavailable(BlobHash),
     /// Ends the exchange.
     Done,
+    /// Exactly two conflicting coordinator events for this known goal. This
+    /// proof-only frame may reach a historical participant without admitting
+    /// it to content, keys, inventory or ordinary event reconciliation. The
+    /// receiver validates both signatures and the same coordinator position.
+    HaltProof([WireEvent; 2]),
 }
 
 /// Declaration index of [`SyncMessage::Hello`], its first encoded byte.
@@ -374,6 +399,13 @@ impl SyncMessage {
                     || events
                         .iter()
                         .any(|event| event.header.len() > MAX_HEADER_BYTES) =>
+            {
+                Err(Refusal::LimitExceeded)
+            }
+            Self::HaltProof(events)
+                if events
+                    .iter()
+                    .any(|event| event.header.len() > MAX_HEADER_BYTES) =>
             {
                 Err(Refusal::LimitExceeded)
             }
@@ -760,6 +792,10 @@ mod tests {
             },
             SyncMessage::BlobUnavailable(BlobHash([6; 32])),
             SyncMessage::Done,
+            SyncMessage::HaltProof(std::array::from_fn(|_| WireEvent {
+                header: vec![0; 10],
+                signature: Signature([2; 64]),
+            })),
         ];
         for (index, message) in messages.into_iter().enumerate() {
             let bytes = codec::encode(&message).unwrap();

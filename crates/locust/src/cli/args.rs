@@ -9,6 +9,7 @@ enum Kind {
     Number,
     List,
     Flag,
+    Bool,
     Text,
 }
 #[derive(Clone, Copy)]
@@ -63,6 +64,15 @@ const ASSIGNMENT: Field = string("assignment", "assignment", true);
 const GENERATION: Field = number("generation", "generation", true);
 fn fields(operation: &str) -> Vec<Field> {
     match operation {
+        "agent.grant" => vec![
+            string("agent", "agent", true),
+            Field {
+                key: "manage_goals",
+                flag: "manage-goals",
+                kind: Kind::Bool,
+                required: true,
+            },
+        ],
         "goal.create" => vec![string("title", "title", true)],
         "goal.join" => vec![string("ticket", "ticket", true)],
         "goal.invite" => vec![GOAL, number("expires_ms", "expires-ms", false)],
@@ -129,12 +139,77 @@ fn fields(operation: &str) -> Vec<Field> {
         _ => vec![],
     }
 }
+fn version_line() -> &'static str {
+    static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VERSION.get_or_init(crate::version::line)
+}
+fn operation_help(api: &str) -> &'static str {
+    if api == "daemon.run" {
+        return "Run the participant daemon in the foreground";
+    }
+    locust_proto::api::OPERATIONS
+        .iter()
+        .find(|op| op.name == api)
+        .expect("named command has an API operation")
+        .summary
+}
+fn group_help(name: &str) -> &'static str {
+    match name {
+        "daemon" => "Start or stop the participant daemon",
+        "agent" => "Enroll principals and manage daemon-wide grants",
+        "goal" => "Create, join and inspect collaborative goals",
+        "task" => "Propose, assign and carry out tasks",
+        "note" => "Add notes to a goal",
+        "event" => "Inspect a recorded event",
+        "result" => "Accept or reject submitted results",
+        "doc" => "Read, revise and accept shared documents",
+        _ => unreachable!("named command group"),
+    }
+}
+fn field_help(key: &str) -> &'static str {
+    match key {
+        "goal" => "Goal identifier or unique hexadecimal prefix of at least 8 characters",
+        "ticket" => "Invitation ticket, or - to read it from standard input",
+        "expires_ms" => "Expiry as absolute Unix time in milliseconds; must be in the future",
+        "deadline_ms" => "Task deadline as absolute Unix time in milliseconds",
+        "agent" => "Full enrolled principal key",
+        "manage_goals" => "Set goal-management authority explicitly to true or false",
+        "title" => "Goal title",
+        "assignment" => "Full assignment event identifier",
+        "generation" => "Current claim generation",
+        "task" => "Full task proposal event identifier",
+        "event" => "Full event identifier",
+        "assignee" => "Full principal key of the task assignee",
+        "depends_on" => "Task dependencies; repeat or separate identifiers with commas",
+        "max_attempts" => "Maximum task attempts",
+        "input" => "Input content object hash",
+        "takeover" => "Also authorize taking over an existing claim",
+        "base" => "Base identifier or content hash for this operation",
+        "patch" => "Patch content object hash",
+        "artifacts" => "Artifact content hashes; repeat or separate with commas",
+        "result" => "Full submission event identifier",
+        "head" => "Accepted result content hash",
+        "about" => "Event identifier the note concerns",
+        "supersedes" => "Earlier note event identifier this note replaces",
+        "seen" => "Last observed goal change counter",
+        "timeout_ms" => "Maximum wait duration in milliseconds",
+        "after" => "Return events after this local position",
+        "limit" => "Maximum number of events to return",
+        "doc" => "Document identifier",
+        "revision" => "Full revision event identifier",
+        "text" | "reason" | "summary" => "Text, or - to read standard input",
+        _ => unreachable!("named command field"),
+    }
+}
 fn operation(name: &'static str, api: &'static str) -> Command {
-    let mut command = Command::new(name);
+    let mut command = Command::new(name).about(operation_help(api));
     for field in fields(api) {
-        let mut arg = Arg::new(field.key).required(field.required);
+        let mut arg = Arg::new(field.key)
+            .required(field.required)
+            .help(field_help(field.key));
         arg = match field.kind {
             Kind::Flag => arg.long(field.flag).action(ArgAction::SetTrue),
+            Kind::Bool => arg.long(field.flag).value_parser(["true", "false"]),
             Kind::List => arg
                 .long(field.flag)
                 .action(ArgAction::Append)
@@ -149,7 +224,9 @@ fn operation(name: &'static str, api: &'static str) -> Command {
     command
 }
 fn group(name: &'static str, children: &[(&'static str, &'static str)]) -> Command {
-    let mut command = Command::new(name).subcommand_required(true);
+    let mut command = Command::new(name)
+        .about(group_help(name))
+        .subcommand_required(true);
     for &(name, api) in children {
         command = command.subcommand(operation(name, api));
     }
@@ -158,31 +235,53 @@ fn group(name: &'static str, children: &[(&'static str, &'static str)]) -> Comma
 pub(super) fn command() -> Command {
     Command::new("locust")
         .about("Local participant daemon and client")
+        .version(version_line())
+        .propagate_version(true)
         .subcommand_required(true)
-        .arg(Arg::new("home").long("home").global(true))
+        .arg(
+            Arg::new("home")
+                .long("home")
+                .global(true)
+                .help("Absolute state directory (or LOCUST_HOME; defaults to ~/.locust)"),
+        )
         .arg(
             Arg::new("credential")
                 .long("credential")
+                .help("Absolute credential file (or LOCUST_CREDENTIAL)")
                 .global(true)
                 .conflicts_with("owner"),
         )
         .arg(
             Arg::new("owner")
                 .long("owner")
+                .help("Use this daemon home's owner credential")
                 .global(true)
                 .action(ArgAction::SetTrue),
         )
-        .arg(Arg::new("as").long("as").global(true).requires("owner"))
-        .arg(Arg::new("session").long("session").global(true))
+        .arg(
+            Arg::new("as")
+                .long("as")
+                .global(true)
+                .requires("owner")
+                .help("Act as an enrolled name or principal key (requires --owner)"),
+        )
+        .arg(
+            Arg::new("session")
+                .long("session")
+                .global(true)
+                .help("Absolute execution session secret file (or LOCUST_SESSION)"),
+        )
         .arg(
             Arg::new("json")
                 .long("json")
+                .help("Print one JSON response envelope")
                 .global(true)
                 .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("idempotency-key")
                 .long("idempotency-key")
+                .help("Retry key: 16 bytes in hexadecimal, scoped to the caller")
                 .global(true),
         )
         .subcommand(group(
@@ -190,17 +289,31 @@ pub(super) fn command() -> Command {
             &[("run", "daemon.run"), ("stop", "daemon.stop")],
         ))
         .subcommand(operation("status", "status"))
-        .subcommand(Command::new("doctor"))
         .subcommand(
-            Command::new("agent").subcommand_required(true).subcommand(
-                Command::new("enroll")
-                    .arg(Arg::new("name").required(true))
-                    .arg(
-                        Arg::new("manage-goals")
-                            .long("manage-goals")
-                            .action(ArgAction::SetTrue),
-                    ),
-            ),
+            Command::new("doctor").about("Check local paths, credentials and daemon readiness"),
+        )
+        .subcommand(
+            Command::new("agent")
+                .about(group_help("agent"))
+                .subcommand_required(true)
+                .subcommand(
+                    Command::new("enroll")
+                        .about(
+                            "Enroll a named principal; use agent grant to change existing grants",
+                        )
+                        .arg(
+                            Arg::new("name")
+                                .required(true)
+                                .help("Local principal name: a-z, 0-9 and hyphens"),
+                        )
+                        .arg(
+                            Arg::new("manage-goals")
+                                .long("manage-goals")
+                                .help("Allow creating goals, inviting, joining and leaving")
+                                .action(ArgAction::SetTrue),
+                        ),
+                )
+                .subcommand(operation("grant", "agent.grant")),
         )
         .subcommand(group(
             "goal",
@@ -249,14 +362,29 @@ pub(super) fn command() -> Command {
         ))
         .subcommand(
             Command::new("session")
+                .about("Manage local execution session secrets")
                 .subcommand_required(true)
-                .subcommand(Command::new("create").arg(Arg::new("path").required(true))),
+                .subcommand(
+                    Command::new("create")
+                        .about("Create or reuse a private execution session secret")
+                        .arg(
+                            Arg::new("path")
+                                .required(true)
+                                .help("Absolute path for the session secret"),
+                        ),
+                ),
         )
         .subcommand(
             Command::new("call")
-                .arg(Arg::new("operation").required(true))
+                .about("Call any typed API operation with JSON fields")
+                .arg(
+                    Arg::new("operation")
+                        .required(true)
+                        .help("API operation name, such as goal.status"),
+                )
                 .arg(
                     Arg::new("fields")
+                        .help("JSON object, or - to read standard input")
                         .default_value("{}")
                         .allow_hyphen_values(true),
                 ),
@@ -274,6 +402,9 @@ pub(super) fn values(operation: &str, matches: &ArgMatches) -> Result<Map<String
     for field in fields(operation) {
         let value = match field.kind {
             Kind::Flag => Some(json!(matches.get_flag(field.key))),
+            Kind::Bool => matches
+                .get_one::<String>(field.key)
+                .map(|v| json!(v == "true")),
             Kind::List => Some(json!(
                 matches
                     .get_many::<String>(field.key)
@@ -295,6 +426,10 @@ pub(super) fn values(operation: &str, matches: &ArgMatches) -> Result<Map<String
         if let Some(value) = value {
             values.insert(field.key.to_owned(), value);
         }
+    }
+    if operation == "agent.grant" {
+        let manage_goals = values.remove("manage_goals").expect("required grant value");
+        values.insert("grants".to_owned(), json!({ "manage_goals": manage_goals }));
     }
     Ok(values)
 }

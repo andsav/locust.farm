@@ -1,7 +1,7 @@
 //! The seam between the daemon's I/O shell and the state machine.
 //!
 //! The shell owns sockets, timers and the clock. The engine owns every
-//! decision and all state, and never blocks: each call returns at once. One
+//! decision and all state. Calls can perform synchronous storage work, so one
 //! dedicated thread owns the engine and calls it in the order requests
 //! arrive; the shell's I/O tasks exchange messages with that thread over
 //! channels. That keeps the daemon single-writer without a lock and lets
@@ -15,7 +15,7 @@
 //! the network in, what to open and send out. Both are plain values in and
 //! out, so a test drives several engines against each other with no sockets.
 
-use crate::api::{ClientHello, RequestFrame, ResponseFrame, ServerHello};
+use crate::api::{ApiError, ClientHello, RequestFrame, ResponseFrame, ServerHello};
 use crate::id::{EndpointId, GoalId};
 use crate::sync::SyncMessage;
 
@@ -78,8 +78,14 @@ pub trait Engine {
     /// session; only the attachment ends.
     fn disconnect(&mut self, conn: ConnId);
 
-    /// True once an owner asked the daemon to stop.
+    /// True once an owner asked the daemon to stop or a fatal failure requires
+    /// shutdown before any further authoring.
     fn stop_requested(&self) -> bool;
+
+    /// Fatal failure to report after the shell cleans up its socket and lock.
+    fn failure(&self) -> Option<ApiError> {
+        None
+    }
 }
 
 /// One exchange with a peer daemon: one bidirectional stream of
@@ -170,6 +176,10 @@ pub enum PeerOutput {
     /// Answered by [`PeerInput::Finished`] on success or [`PeerInput::Closed`]
     /// on failure.
     Finish(ExchangeId),
+    /// Permit a bounded fork-proof frame from a historical contact. This
+    /// changes the transport read limit only; it never admits the endpoint to
+    /// ordinary reconciliation, content or keys.
+    Evidence(ExchangeId),
 }
 
 /// The state machine as the transport sees it.
@@ -177,6 +187,13 @@ pub trait PeerEngine {
     /// The 32-byte secret the transport's endpoint identity is derived from.
     /// The engine creates it on first start and keeps it in its store.
     fn endpoint_secret(&self) -> [u8; 32];
+
+    /// Whether the shell may deliver the next frame on this exchange. A false
+    /// value applies read backpressure while the engine drains its responses;
+    /// the shell checks again after delivering writable progress.
+    fn peer_readable(&self, _exchange: ExchangeId) -> bool {
+        true
+    }
 
     /// Handles one input and appends what the transport should do to `out`.
     /// The shell calls [`Engine::take_changed`] afterwards, because a frame

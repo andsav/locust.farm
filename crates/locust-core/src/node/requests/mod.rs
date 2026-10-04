@@ -87,9 +87,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
 
         // A read changes nothing, so running it again is its own idempotency;
         // only requests that write are recorded under their key.
-        let key = frame
-            .idempotency
-            .filter(|_| !frame.request.is_read_only() && !actor.is_viewer());
+        let key = frame.idempotency.filter(|_| {
+            !frame.request.is_read_only()
+                && !actor.is_viewer()
+                && !matches!(frame.request, Request::Shutdown)
+        });
         let digest = key.map(|_| request_digest(frame.on_behalf, &frame.request));
         if let (Some(key), Some(digest)) = (&key, &digest)
             && let Some(response) = self.replayed(actor.caller, key, digest)?

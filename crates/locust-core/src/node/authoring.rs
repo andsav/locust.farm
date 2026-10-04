@@ -117,7 +117,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// The signing key of a principal this daemon holds.
     pub(super) fn signer(&self, author: &PublicKey) -> Result<&Keypair, ApiError> {
         self.principals
-            .get(author)
+            .active(author)
             .map(|principal| &principal.key)
             .ok_or_else(|| ApiError::new(ErrorCode::NotFound, "no enrolled principal has that key"))
     }
@@ -131,7 +131,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "the goal's authority history conflicts; nothing more is signed for it",
             ));
         }
-        if !entry.is_member(author) {
+        if !entry.is_member(author) || entry.local.part.get(author) == Some(&true) {
             return Err(ApiError::new(
                 ErrorCode::Denied,
                 "the principal is not a current member of the goal",

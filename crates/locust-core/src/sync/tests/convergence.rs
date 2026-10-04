@@ -207,3 +207,75 @@ fn a_forked_author_with_more_variants_than_one_inventory_page_converges() {
     net.poll(&[0]);
     assert_converged(&net, &founded, &all);
 }
+
+#[test]
+fn a_one_event_difference_uses_no_inventory_in_either_dial_direction() {
+    use locust_proto::sync::SyncMessage;
+    let founded = Founded::new();
+    let events = founded.notes(&mut Author::new(2), 1000);
+    for dialer in [0, 1] {
+        let mut net = Net::new(vec![
+            host(1, founded.replica(&events[..999]), &[1, 2]),
+            host(2, founded.replica(&events), &[1, 2]),
+        ]);
+        net.poll(&[dialer]);
+        assert_eq!(
+            net.nodes[0].host.ids(&founded.goal),
+            net.nodes[1].host.ids(&founded.goal)
+        );
+        assert!(net.log.iter().all(|(_, frame)| !matches!(
+            frame,
+            SyncMessage::Inventory { .. } | SyncMessage::InventoryRequest { .. }
+        )));
+        assert_eq!(
+            net.log
+                .iter()
+                .filter_map(|(_, frame)| if let SyncMessage::Events(events) = frame {
+                    Some(events.len())
+                } else {
+                    None
+                })
+                .sum::<usize>(),
+            1
+        );
+    }
+}
+
+#[test]
+fn unequal_divergent_prefixes_still_exchange_inventory_and_converge() {
+    use locust_proto::sync::SyncMessage;
+    let founded = Founded::new();
+    let mut a = Author::new(2);
+    let mut b = Author::new(2);
+    let left = vec![a.event(
+        founded.goal,
+        founded.anchor(),
+        Body::Note {
+            about: None,
+            supersedes: None,
+        },
+    )];
+    let mut right = vec![b.event(
+        founded.goal,
+        founded.anchor(),
+        Body::Note {
+            about: Some(founded.genesis.id()),
+            supersedes: None,
+        },
+    )];
+    right.extend(founded.notes(&mut b, 4));
+    let all = union(&[&left, &right, std::slice::from_ref(&founded.genesis)]);
+    for dialer in [0, 1] {
+        let mut net = Net::new(vec![
+            host(1, founded.replica(&left), &[1, 2]),
+            host(2, founded.replica(&right), &[1, 2]),
+        ]);
+        net.poll(&[dialer]);
+        assert_converged(&net, &founded, &all);
+        assert!(
+            net.log
+                .iter()
+                .any(|(_, frame)| matches!(frame, SyncMessage::Inventory { .. }))
+        );
+    }
+}

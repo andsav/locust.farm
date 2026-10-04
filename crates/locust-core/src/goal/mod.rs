@@ -10,6 +10,7 @@
 
 mod append;
 mod chain;
+mod commitments;
 mod fold;
 mod history;
 mod ids;
@@ -220,6 +221,12 @@ impl Goal {
                 .and_then(|anchor| self.folded.chain.position(&anchor))
         })?;
         Some(self.folded.chain.epoch_at(position))
+    }
+
+    /// Latest epoch a principal may read, derived from canonical admissions
+    /// and removals. A principal never admitted has no plaintext access.
+    pub fn read_epoch(&self, member: &PublicKey) -> Option<u32> {
+        self.folded.chain.read_epoch(member, self.folded.applied)
     }
 
     /// The task a held event concerns, resolved through its assignment,

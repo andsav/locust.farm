@@ -4,6 +4,7 @@
 use std::collections::{HashMap, HashSet};
 
 use locust_proto::engine::{ExchangeId, PeerInput, PeerOutput};
+use locust_proto::event::WireEvent;
 use locust_proto::id::{EndpointId, GoalId, PublicKey};
 use locust_proto::invite::JoinRequest;
 use locust_proto::sync::{Refusal, SyncMessage};
@@ -73,6 +74,24 @@ pub trait Host {
     /// daemon's own endpoint.
     fn peers(&self) -> Vec<(GoalId, EndpointId)>;
 
+    /// Bounded fork evidence for historical contacts, without ordinary access.
+    fn halt_proofs(&self) -> Vec<(GoalId, EndpointId, [WireEvent; 2])> {
+        Vec::new()
+    }
+    /// Whether this authenticated endpoint may deliver coordinator fork evidence.
+    fn accepts_halt_proof(&self, _goal: &GoalId, _remote: &EndpointId) -> bool {
+        false
+    }
+    /// Validates and durably holds exactly one coordinator equivocation proof.
+    fn receive_halt_proof(
+        &mut self,
+        _goal: &GoalId,
+        _remote: &EndpointId,
+        _proof: [WireEvent; 2],
+    ) -> Result<(), Refusal> {
+        Err(Refusal::NotAMember)
+    }
+
     /// The stored contact hints of `endpoint`, possibly none.
     fn hints(&self, endpoint: &EndpointId) -> Vec<String>;
 
@@ -136,6 +155,9 @@ struct Dialed {
     joining_member: Option<PublicKey>,
     initiator: Initiator,
     finishing: Option<Ended>,
+    proof: Option<[WireEvent; 2]>,
+    proof_sent: bool,
+    admitted: bool,
 }
 
 /// One (goal, endpoint) pair this daemon opens exchanges for.
@@ -159,6 +181,16 @@ impl Driver {
     /// No exchanges, no history of failures.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Intake is paused while an accepted request still owes its answer.
+    pub fn readable(&self, exchange: ExchangeId) -> bool {
+        match exchange {
+            ExchangeId::Accepted(number) => {
+                self.accepted.get(&number).is_none_or(Responder::readable)
+            }
+            ExchangeId::Dialed(_) => true,
+        }
     }
 
     /// Handles one input and appends what the transport should do to `out`.
@@ -238,11 +270,17 @@ impl Driver {
         let mut changed = host.take_changed();
         changed.sort_unstable();
         let joins = host.joins();
+        let proofs = host.halt_proofs();
         let mut live = HashSet::new();
         let pairs = joins
             .iter()
             .map(|join| ((join.goal, join.endpoint), Some(join)))
-            .chain(host.peers().into_iter().map(|pair| (pair, None)));
+            .chain(host.peers().into_iter().map(|pair| (pair, None)))
+            .chain(
+                proofs
+                    .iter()
+                    .map(|(goal, endpoint, _)| ((*goal, *endpoint), None)),
+            );
         for (pair, join) in pairs {
             if !live.insert(pair) {
                 continue;
@@ -277,6 +315,12 @@ impl Driver {
                     joining_member: join.map(|join| join.request.member),
                     initiator,
                     finishing: None,
+                    proof: proofs
+                        .iter()
+                        .find(|(goal, endpoint, _)| (*goal, *endpoint) == pair)
+                        .map(|(_, _, proof)| proof.clone()),
+                    proof_sent: false,
+                    admitted: false,
                 },
             );
             out.push(PeerOutput::Open {
@@ -307,6 +351,28 @@ impl Driver {
             return;
         }
         let exchange = ExchangeId::Dialed(number);
+        if dialed.proof.is_some() || dialed.proof_sent {
+            if frame.is_none() {
+                out.push(PeerOutput::Evidence(exchange));
+                out.push(PeerOutput::Send {
+                    exchange,
+                    frame: SyncMessage::Hello {
+                        version: locust_proto::PROTOCOL_VERSION,
+                        goal: dialed.goal,
+                    },
+                });
+            } else if let Some(SyncMessage::Refused(reason)) = frame {
+                dialed.finishing = Some(Ended::Refused(reason));
+                out.push(PeerOutput::Finish(exchange));
+            }
+            return;
+        }
+        let authorized = host.speaks_for_member(&dialed.goal, &dialed.endpoint);
+        if authorized && !dialed.admitted {
+            out.push(PeerOutput::Admit(exchange));
+            dialed.admitted = true;
+        }
+        dialed.initiator.authorize_outbound(authorized);
         let ended = match host.replica(&dialed.goal) {
             Some(replica) => {
                 match frame {
@@ -379,9 +445,13 @@ impl Driver {
         };
         let exchange = ExchangeId::Accepted(number);
         let admitted = responder.is_admitted();
+        let evidence = responder.is_evidence();
         responder.receive(host, frame, now_ms, &mut self.frames);
         if !admitted && responder.is_admitted() {
             out.push(PeerOutput::Admit(exchange));
+        }
+        if !evidence && responder.is_evidence() && !responder.is_admitted() {
+            out.push(PeerOutput::Evidence(exchange));
         }
         send(exchange, &mut self.frames, out);
         if let Some(ended) = responder.ended() {
@@ -398,6 +468,29 @@ impl Driver {
             return;
         }
         let exchange = ExchangeId::Dialed(number);
+        if let Some(proof) = dialed.proof.take() {
+            dialed.proof_sent = true;
+            out.push(PeerOutput::Send {
+                exchange,
+                frame: SyncMessage::HaltProof(proof),
+            });
+            return;
+        }
+        if dialed.proof_sent {
+            out.push(PeerOutput::Send {
+                exchange,
+                frame: SyncMessage::Done,
+            });
+            out.push(PeerOutput::Finish(exchange));
+            dialed.finishing = Some(Ended::Completed);
+            return;
+        }
+        let authorized = host.speaks_for_member(&dialed.goal, &dialed.endpoint);
+        if authorized && !dialed.admitted {
+            out.push(PeerOutput::Admit(exchange));
+            dialed.admitted = true;
+        }
+        dialed.initiator.authorize_outbound(authorized);
         if let Some(replica) = host.replica(&dialed.goal) {
             dialed.initiator.writable(replica, &mut self.frames);
             send(exchange, &mut self.frames, out);

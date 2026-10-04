@@ -411,8 +411,8 @@ mod tests {
     #[test]
     fn overlong_text_is_refused_before_it_is_decoded() {
         let exact = format!(
-            "{TICKET_PREFIX}{}",
-            "0".repeat(MAX_TICKET_BYTES - TICKET_PREFIX.len())
+            "{TICKET_PREFIX}{PROTOCOL_VERSION:02x}{}",
+            "0".repeat(MAX_TICKET_BYTES - TICKET_PREFIX.len() - 2)
         );
         assert_eq!(exact.len(), MAX_TICKET_BYTES);
         // Within the limit the text is decoded and found damaged.

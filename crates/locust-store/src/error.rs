@@ -17,6 +17,9 @@ pub enum OpenError {
     /// The database was written by a newer Locust. This binary does not know
     /// that schema and does not guess.
     NewerSchema { found: i64, known: i64 },
+    /// Persisted signed events use another protocol. Their bytes cannot be
+    /// migrated in place without invalidating event identifiers/signatures.
+    UnsupportedProtocolVersion { found: u8, known: u8 },
     /// The directory or database could not be opened, migrated or checked.
     Store(StoreError),
 }
@@ -33,6 +36,10 @@ impl fmt::Display for OpenError {
                 f,
                 "the database has schema version {found}, newer than version {known} that this \
                  binary knows; run the Locust release that wrote it or a newer one"
+            ),
+            Self::UnsupportedProtocolVersion { found, known } => write!(
+                f,
+                "the state directory contains event protocol version {found}, but this binary supports version {known}; use the matching Locust release or a separate state directory"
             ),
             Self::Store(error) => error.fmt(f),
         }

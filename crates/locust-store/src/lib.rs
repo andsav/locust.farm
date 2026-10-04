@@ -28,6 +28,19 @@
 //! commits (a failed sync) has an unknown outcome, so the store then refuses
 //! every call until it is reopened and reads the outcome back.
 //!
+//! Staging appends, discards and promotion can also fail after changing the
+//! filesystem. Those failures fence the handle until reopen. Opening runs a
+//! checked FULL SQLite checkpoint under exclusive ownership, then syncs all
+//! staged files and their directory before returning or collecting orphans.
+//! Recovered WAL records and staged lengths are therefore made durable before
+//! the daemon can publish them. A failed recovery barrier refuses the open.
+//!
+//! Promotion copies a large staged object into an independent temporary file,
+//! syncs and renames that file, and commits its row before removing staging.
+//! This adds a streaming disk copy but preserves acknowledged staging through
+//! failed inserts and commits. Redundant staging of held objects is retained
+//! on reopen, just as in the reference store; callers finish or discard it.
+//!
 //! # Durability and what it costs
 //!
 //! - `locking_mode=EXCLUSIVE`: the connection takes SQLite's exclusive lock
@@ -93,6 +106,8 @@ mod columns;
 mod connection;
 mod error;
 mod events;
+#[cfg(test)]
+mod faults;
 mod files;
 mod local;
 mod objects;

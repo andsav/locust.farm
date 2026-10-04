@@ -30,7 +30,7 @@ mod vectors;
 
 /// Version byte carried by every signed header and invitation. A peer that
 /// sees another value reports an unsupported version instead of guessing.
-pub const PROTOCOL_VERSION: u8 = 0;
+pub const PROTOCOL_VERSION: u8 = 1;
 
 /// Version of the local daemon API spoken over the Unix socket.
-pub const API_VERSION: u16 = 0;
+pub const API_VERSION: u16 = 1;

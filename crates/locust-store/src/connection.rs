@@ -39,6 +39,74 @@ pub(crate) fn open(database: &Path, dir: &Path) -> Result<Connection, OpenError>
         .map_err(sql)?;
     // F_FULLFSYNC on macOS; SQLite ignores it where the platform lacks it.
     conn.pragma_update(None, "fullfsync", "ON").map_err(sql)?;
+    recover(&conn)?;
     conn.set_prepared_statement_cache_capacity(STATEMENT_CACHE);
     Ok(conn)
+}
+
+/// A killed writer may leave a complete commit record in the kernel cache
+/// without having synced it. SQLite can recover and read that record. Make
+/// recovered state durable before the caller publishes it or collects files
+/// based on it. FULL checkpoint syncs the WAL before copying it to the main
+/// database, then syncs the database. The exclusive connection owns recovery.
+fn recover(conn: &Connection) -> Result<(), OpenError> {
+    #[cfg(test)]
+    crate::faults::check(crate::faults::Point::Recovery, Path::new(""))
+        .map_err(|error| crate::error::file("recover", Path::new("database"), error))?;
+    let (busy, logged, checkpointed): (i64, i64, i64) = conn
+        .query_row("PRAGMA wal_checkpoint(FULL)", [], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(sql)?;
+    if busy != 0 || logged != checkpointed {
+        return Err(OpenError::Store(locust_proto::store::StoreError::Failed(
+            "database recovery checkpoint did not complete".to_owned(),
+        )));
+    }
+    Ok(())
+}
+
+/// Reject incompatible signed events before migrations, blob collection, or
+/// node identity initialization. WAL recovery above may checkpoint physical
+/// database pages, but this check never rewrites logical event content.
+pub(crate) fn check_protocol(conn: &Connection) -> Result<(), OpenError> {
+    // Do not assume the event table layout of a schema we do not know.
+    let schema: i64 = conn
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(sql)?;
+    if schema > crate::schema::VERSION {
+        return Err(OpenError::NewerSchema {
+            found: schema,
+            known: crate::schema::VERSION,
+        });
+    }
+    let exists: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'events')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(sql)?;
+    if !exists {
+        return Ok(());
+    }
+    let mut statement = conn
+        .prepare("SELECT DISTINCT substr(header, 1, 1) FROM events")
+        .map_err(sql)?;
+    let versions = statement
+        .query_map([], |row| row.get::<_, Vec<u8>>(0))
+        .map_err(sql)?;
+    for version in versions {
+        let bytes = version.map_err(sql)?;
+        let found = *bytes
+            .first()
+            .ok_or_else(|| crate::error::corrupted("stored event has an empty header"))?;
+        if found != locust_proto::PROTOCOL_VERSION {
+            return Err(OpenError::UnsupportedProtocolVersion {
+                found,
+                known: locust_proto::PROTOCOL_VERSION,
+            });
+        }
+    }
+    Ok(())
 }

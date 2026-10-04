@@ -406,7 +406,7 @@ fn objects_above_the_inline_limit_are_files_served_by_range() {
 }
 
 #[test]
-fn staging_a_large_object_resumes_after_reopen_and_promotes_it_in_place() {
+fn staging_a_large_object_resumes_after_reopen_and_promotes_it_durably() {
     let (dir, mut store) = scratch();
     let large = object(2 * BLOB_CHUNK_BYTES + 3);
     let (hash, bytes, chunk) = (large.hash(), large.bytes(), BLOB_CHUNK_BYTES);
@@ -497,6 +497,7 @@ fn leftovers_in_the_object_directory_are_collected_on_open() {
         object_files(dir.path()),
         sorted(vec![
             held.to_string(),
+            format!("{held}.staged"),
             format!("{resumable}.staged"),
             format!("{orphan}.other"),
             foreign.clone(),
@@ -504,6 +505,7 @@ fn leftovers_in_the_object_directory_are_collected_on_open() {
         ])
     );
     assert_eq!(store.staged_len(&resumable), Ok(8));
+    assert_eq!(store.staged_len(&held), Ok(8));
     assert_eq!(
         store.blob(&inline.hash()),
         Ok(Some(inline.bytes().to_vec()))
@@ -581,4 +583,333 @@ fn a_batch_of_256_largest_headers_commits_in_one_step() {
     }
     assert_eq!(paged, batch);
     assert_eq!(after.map(|point| point.seq), Some(i64::MAX as u64));
+}
+
+#[test]
+fn recovery_barrier_failure_prevents_open_and_garbage_collection() {
+    use crate::faults::{self, Point};
+    let (dir, store) = scratch();
+    drop(store);
+    let orphan = dir.path().join("blobs").join(object(42).hash().to_string());
+    fs::write(&orphan, b"orphan").unwrap();
+    faults::arm(Point::Recovery, Path::new(""));
+    assert!(matches!(
+        SqliteStore::open(dir.path()),
+        Err(OpenError::Store(StoreError::Failed(_)))
+    ));
+    faults::assert_fired();
+    assert!(orphan.exists(), "failed recovery must not collect files");
+    let store = reopen(&dir);
+    assert!(!orphan.exists());
+    assert_eq!(store.goals(), Ok(Vec::new()));
+}
+
+#[test]
+fn a_failed_staging_flush_is_fenced_and_repaired_before_reopen_succeeds() {
+    use crate::faults::{self, Point};
+    let (dir, mut store) = scratch();
+    let blob = object(INLINE_MAX_BYTES + 17);
+    let hash = blob.hash();
+    let path = dir.path().join("blobs").join(format!("{hash}.staged"));
+    store.stage_blob(&hash, 0, &blob.bytes()[..10]).unwrap();
+    faults::arm(Point::FileSync, &path);
+    assert!(matches!(
+        store.stage_blob(&hash, 10, &blob.bytes()[10..]),
+        Err(StoreError::Failed(_))
+    ));
+    faults::assert_fired();
+    assert!(matches!(
+        store.finish_blob(&hash),
+        Err(StoreError::Failed(_))
+    ));
+    assert!(matches!(
+        store.staged_len(&hash),
+        Err(StoreError::Failed(_))
+    ));
+    drop(store);
+
+    faults::arm(Point::FileSync, &path);
+    assert!(matches!(
+        SqliteStore::open(dir.path()),
+        Err(OpenError::Store(StoreError::Failed(_)))
+    ));
+    faults::assert_fired();
+    let mut store = reopen(&dir);
+    let trace = faults::take_trace();
+    assert!(trace.contains(&(Point::FileSync, path.clone())));
+    assert!(trace.contains(&(Point::DirectorySync, dir.path().join("blobs"))));
+    assert_eq!(store.staged_len(&hash), Ok(blob.bytes().len() as u64));
+    assert_eq!(
+        store.stage_blob(&hash, blob.bytes().len() as u64, &[]),
+        Ok(blob.bytes().len() as u64)
+    );
+    faults::arm(Point::FileSync, &path);
+    assert!(matches!(
+        store.finish_blob(&hash),
+        Err(StoreError::Failed(_))
+    ));
+    faults::assert_fired();
+    assert!(matches!(store.blob_len(&hash), Err(StoreError::Failed(_))));
+    drop(store);
+    let mut store = reopen(&dir);
+    assert_eq!(store.blob_len(&hash), Ok(None));
+    assert_eq!(store.staged_len(&hash), Ok(blob.bytes().len() as u64));
+    assert_eq!(store.finish_blob(&hash), Ok(true));
+    assert_eq!(store.blob(&hash), Ok(Some(blob.bytes().to_vec())));
+}
+
+#[test]
+fn uncertain_stage_and_discard_directory_updates_require_recovery() {
+    use crate::faults::{self, Point};
+    let (dir, mut store) = scratch();
+    let blob = object(31);
+    let hash = blob.hash();
+    let blobs = dir.path().join("blobs");
+    faults::arm(Point::DirectorySync, &blobs);
+    assert!(matches!(
+        store.stage_blob(&hash, 0, blob.bytes()),
+        Err(StoreError::Failed(_))
+    ));
+    faults::assert_fired();
+    assert!(matches!(
+        store.stage_blob(&hash, 0, blob.bytes()),
+        Err(StoreError::Failed(_))
+    ));
+    drop(store);
+
+    faults::arm(Point::DirectorySync, &blobs);
+    assert!(matches!(
+        SqliteStore::open(dir.path()),
+        Err(OpenError::Store(StoreError::Failed(_)))
+    ));
+    faults::assert_fired();
+    let mut store = reopen(&dir);
+    assert_eq!(store.stage_blob(&hash, 0, blob.bytes()), Ok(31));
+    faults::arm(Point::DirectorySync, &blobs);
+    assert!(matches!(
+        store.discard_staged_blob(&hash),
+        Err(StoreError::Failed(_))
+    ));
+    faults::assert_fired();
+    assert!(matches!(
+        store.discard_staged_blob(&hash),
+        Err(StoreError::Failed(_))
+    ));
+    drop(store);
+
+    faults::arm(Point::DirectorySync, &blobs);
+    assert!(SqliteStore::open(dir.path()).is_err());
+    faults::assert_fired();
+    let mut store = reopen(&dir);
+    assert_eq!(store.discard_staged_blob(&hash), Ok(()));
+    assert_eq!(store.staged_len(&hash), Ok(0));
+    drop(store);
+    assert_eq!(reopen(&dir).staged_len(&hash), Ok(0));
+}
+
+#[test]
+fn promotion_preserves_staging_when_the_row_insert_fails() {
+    let (dir, mut store) = scratch();
+    let blob = object(INLINE_MAX_BYTES + 5);
+    let hash = blob.hash();
+    store.stage_blob(&hash, 0, blob.bytes()).unwrap();
+    store
+        .connection()
+        .execute_batch(
+            "CREATE TEMP TRIGGER refuse BEFORE INSERT ON blobs
+         BEGIN SELECT RAISE(ABORT, 'injected promotion insert failure'); END;",
+        )
+        .unwrap();
+    let error = store.finish_blob(&hash).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("injected promotion insert failure")
+    );
+    assert_eq!(store.staged_len(&hash), Ok(blob.bytes().len() as u64));
+    assert_eq!(store.blob_len(&hash), Ok(None));
+    drop(store);
+    let mut store = reopen(&dir);
+    assert_eq!(store.staged_len(&hash), Ok(blob.bytes().len() as u64));
+    assert_eq!(store.finish_blob(&hash), Ok(true));
+    assert_eq!(store.blob(&hash), Ok(Some(blob.bytes().to_vec())));
+}
+
+#[test]
+fn promotion_preserves_staging_when_the_database_commit_fails() {
+    let (dir, mut store) = scratch();
+    let blob = object(INLINE_MAX_BYTES + 7);
+    let hash = blob.hash();
+    store.stage_blob(&hash, 0, blob.bytes()).unwrap();
+    store
+        .connection()
+        .execute_batch(
+            "PRAGMA foreign_keys = ON;
+         CREATE TEMP TABLE parent (id INTEGER PRIMARY KEY);
+         CREATE TEMP TABLE child (
+             parent INTEGER REFERENCES parent (id) DEFERRABLE INITIALLY DEFERRED
+         );
+         CREATE TEMP TRIGGER fail_at_commit AFTER INSERT ON blobs
+         BEGIN INSERT INTO child VALUES (1); END;",
+        )
+        .unwrap();
+    let error = store.finish_blob(&hash).unwrap_err();
+    assert!(error.to_string().contains("FOREIGN KEY constraint failed"));
+    assert!(matches!(
+        store.staged_len(&hash),
+        Err(StoreError::Failed(_))
+    ));
+    drop(store);
+    let mut store = reopen(&dir);
+    assert_eq!(store.blob_len(&hash), Ok(None));
+    assert_eq!(store.staged_len(&hash), Ok(blob.bytes().len() as u64));
+    assert_eq!(store.finish_blob(&hash), Ok(true));
+    assert_eq!(store.blob(&hash), Ok(Some(blob.bytes().to_vec())));
+}
+
+#[test]
+fn promotion_file_and_directory_flush_failures_preserve_recoverable_staging() {
+    use crate::faults::{self, Point};
+    for point in [Point::FileSync, Point::DirectorySync] {
+        let (dir, mut store) = scratch();
+        let blob = object(INLINE_MAX_BYTES + 9);
+        let hash = blob.hash();
+        store.stage_blob(&hash, 0, blob.bytes()).unwrap();
+        let target = match point {
+            Point::FileSync => dir.path().join("blobs").join(format!("{hash}.tmp")),
+            Point::DirectorySync => dir.path().join("blobs"),
+            _ => unreachable!(),
+        };
+        faults::arm(point, &target);
+        assert!(matches!(
+            store.finish_blob(&hash),
+            Err(StoreError::Failed(_))
+        ));
+        faults::assert_fired();
+        assert!(matches!(store.blob_len(&hash), Err(StoreError::Failed(_))));
+        drop(store);
+        let mut store = reopen(&dir);
+        assert_eq!(store.blob_len(&hash), Ok(None));
+        assert_eq!(store.staged_len(&hash), Ok(blob.bytes().len() as u64));
+        assert_eq!(store.finish_blob(&hash), Ok(true));
+        assert_eq!(store.blob(&hash), Ok(Some(blob.bytes().to_vec())));
+    }
+}
+
+#[test]
+fn interrupted_promotion_cleanup_keeps_staging_independent_of_held_bytes() {
+    use crate::faults::{self, Point};
+    let (dir, mut store) = scratch();
+    let blob = object(INLINE_MAX_BYTES + 11);
+    let hash = blob.hash();
+    let staged = dir.path().join("blobs").join(format!("{hash}.staged"));
+    store.stage_blob(&hash, 0, blob.bytes()).unwrap();
+    faults::arm(Point::Discard, &staged);
+    assert!(matches!(
+        store.finish_blob(&hash),
+        Err(StoreError::Failed(_))
+    ));
+    faults::assert_fired();
+    drop(store);
+    let mut store = reopen(&dir);
+    let len = blob.bytes().len() as u64;
+    assert_eq!(store.staged_len(&hash), Ok(len));
+    assert_eq!(store.blob(&hash), Ok(Some(blob.bytes().to_vec())));
+    assert_eq!(store.stage_blob(&hash, len, b"extra"), Ok(len + 5));
+    assert_eq!(store.blob(&hash), Ok(Some(blob.bytes().to_vec())));
+    assert_eq!(store.finish_blob(&hash), Ok(false));
+    assert_eq!(store.blob(&hash), Ok(Some(blob.bytes().to_vec())));
+}
+
+#[test]
+fn redundant_staging_survives_reopen_for_inline_and_file_objects() {
+    for len in [19, INLINE_MAX_BYTES + 1] {
+        let (dir, mut store) = scratch();
+        let blob = object(len);
+        let hash = blob.hash();
+        store
+            .commit(&Commit {
+                blobs: vec![blob.clone()],
+                ..Commit::default()
+            })
+            .unwrap();
+        store.stage_blob(&hash, 0, blob.bytes()).unwrap();
+        drop(store);
+        let mut store = reopen(&dir);
+        assert_eq!(store.staged_len(&hash), Ok(len as u64));
+        assert_eq!(store.finish_blob(&hash), Ok(true));
+        assert_eq!(store.staged_len(&hash), Ok(0));
+        assert_eq!(store.blob(&hash), Ok(Some(blob.bytes().to_vec())));
+    }
+}
+
+#[test]
+fn incompatible_event_protocol_refuses_open_before_collecting_or_rewriting_state() {
+    let (dir, mut store) = scratch();
+    let mut author = locust_proto::testkit::Author::new(71);
+    let genesis = author.genesis();
+    let held = object(INLINE_MAX_BYTES + 13);
+    let pending = object(57);
+    store
+        .commit(&Commit {
+            events: vec![genesis.clone()],
+            blobs: vec![held.clone()],
+            local: vec![LocalWrite::Put {
+                space: Space::Identity,
+                key: b"sentinel".to_vec(),
+                value: b"identity".to_vec(),
+            }],
+            ..Commit::default()
+        })
+        .unwrap();
+    store
+        .stage_blob(&pending.hash(), 0, &pending.bytes()[..23])
+        .unwrap();
+    // Version is the first header byte. The compatibility check must run
+    // before decoding or rewriting any row, including identity records.
+    let mut old_header = genesis.header_bytes().to_vec();
+    old_header[0] = locust_proto::PROTOCOL_VERSION.wrapping_sub(1);
+    store
+        .connection()
+        .execute("UPDATE events SET header = ?1", [&old_header])
+        .unwrap();
+    drop(store);
+    let orphan = dir
+        .path()
+        .join("blobs")
+        .join(format!("{}.tmp", object(91).hash()));
+    fs::write(&orphan, b"uncollected evidence").unwrap();
+    let before = object_files(dir.path());
+    assert!(
+        matches!(SqliteStore::open(dir.path()), Err(OpenError::UnsupportedProtocolVersion { found, known })
+        if found == old_header[0] && known == locust_proto::PROTOCOL_VERSION)
+    );
+    assert_eq!(object_files(dir.path()), before);
+    assert_eq!(fs::read(&orphan).unwrap(), b"uncollected evidence");
+    assert_eq!(
+        fs::read(dir.path().join("blobs").join(held.hash().to_string())).unwrap(),
+        held.bytes()
+    );
+    assert_eq!(
+        fs::read(
+            dir.path()
+                .join("blobs")
+                .join(format!("{}.staged", pending.hash()))
+        )
+        .unwrap(),
+        &pending.bytes()[..23]
+    );
+    let conn = rusqlite::Connection::open_with_flags(
+        locust_proto::local::database_path(dir.path()),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .unwrap();
+    let header: Vec<u8> = conn
+        .query_row("SELECT header FROM events", [], |row| row.get(0))
+        .unwrap();
+    let identity: Vec<u8> = conn
+        .query_row("SELECT value FROM local", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(header, old_header);
+    assert_eq!(identity, b"identity");
 }

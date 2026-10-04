@@ -32,6 +32,9 @@ pub struct Initiator {
     blob_cursor: Option<BlobHash>,
     outbox: Outbox,
     ended: Option<Ended>,
+    /// The authenticated endpoint is a current member according to signed
+    /// local state. An invitation or an answering frontier is not proof.
+    outbound_authorized: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -66,6 +69,9 @@ enum Expect {
         next: u64,
         total: Option<u64>,
         keep: bool,
+        /// One zero-offset retry recovers an unusable resume. Merely hearing
+        /// unavailable never deletes staging another exchange may be using.
+        retried: bool,
     },
 }
 
@@ -91,6 +97,7 @@ impl Initiator {
             blob_cursor: None,
             outbox: Outbox::default(),
             ended: None,
+            outbound_authorized: true,
         }
     }
 
@@ -99,7 +106,17 @@ impl Initiator {
     pub fn joining(request: JoinRequest) -> Self {
         let mut initiator = Self::new(request.goal);
         initiator.join = Some(request);
+        initiator.outbound_authorized = false;
         initiator
+    }
+
+    pub(super) fn authorize_outbound(&mut self, authorized: bool) {
+        if !authorized && self.outbound_authorized && self.stage != Stage::Start {
+            self.outbox.clear();
+            self.outbox.push(SyncMessage::Refused(Refusal::NotAMember));
+            self.ended = Some(Ended::Refused(Refusal::NotAMember));
+        }
+        self.outbound_authorized = authorized;
     }
 
     /// The goal this exchange is about.
@@ -168,7 +185,12 @@ impl Initiator {
     }
 
     fn send_frontier(&mut self, replica: &dyn Replica) {
-        self.outbox.push(SyncMessage::Frontier(replica.frontier()));
+        self.outbox
+            .push(SyncMessage::Frontier(if self.outbound_authorized {
+                replica.frontier()
+            } else {
+                Frontier::default()
+            }));
         self.expect.push_back(Expect::Answer);
     }
 
@@ -233,8 +255,27 @@ impl Initiator {
                     bytes,
                 },
             ) if given == hash => self.chunk(replica, offset, total, &bytes)?,
-            (Expect::Blob { hash, .. }, SyncMessage::BlobUnavailable(given)) if given == hash => {
+            (
+                Expect::Blob {
+                    hash,
+                    next,
+                    retried,
+                    ..
+                },
+                SyncMessage::BlobUnavailable(given),
+            ) if given == hash => {
                 self.expect.pop_front();
+                if next > 0 && !retried {
+                    self.outbox
+                        .push(SyncMessage::BlobRequest { hash, offset: 0 });
+                    self.expect.push_front(Expect::Blob {
+                        hash,
+                        next: 0,
+                        total: None,
+                        keep: true,
+                        retried: true,
+                    });
+                }
             }
             (_, SyncMessage::Refused(refusal)) => return Err(Fault::Received(refusal)),
             _ => return Err(BROKEN),
@@ -265,8 +306,10 @@ impl Initiator {
             .map(|point| point.id)
             .collect();
         let end = if more { last } else { mine.last().copied() };
-        self.outbox
-            .events(replica, author, after, end, points.to_vec());
+        if self.outbound_authorized {
+            self.outbox
+                .events(replica, author, after, end, points.to_vec());
+        }
 
         if !missing.is_empty() {
             let frames = missing.len().div_ceil(MAX_EVENTS_PER_BATCH);
@@ -290,12 +333,23 @@ impl Initiator {
     /// responder sent no inventory of, pushes the events past the
     /// responder's prefix when it holds exactly a prefix of this log.
     fn push_prefixes(&mut self, replica: &dyn Replica, theirs: &Frontier) {
+        if !self.outbound_authorized {
+            return;
+        }
         for mine in replica.frontier().authors {
             if self.inventoried.contains(&mine.author) {
                 continue;
             }
             let entry = theirs.get(&mine.author);
             if !replica.extends(&entry) {
+                self.outbox.push(SyncMessage::InventoryRequest {
+                    author: mine.author,
+                    after: None,
+                });
+                self.expect.push_back(Expect::Inventory {
+                    author: mine.author,
+                    after: None,
+                });
                 continue;
             }
             let points = replica.points(&mine.author);
@@ -318,6 +372,7 @@ impl Initiator {
             next,
             total: known,
             keep,
+            ..
         }) = self.expect.front_mut()
         else {
             return Err(BROKEN);
@@ -348,6 +403,11 @@ impl Initiator {
         while self.expect.is_empty() && !self.outbox.pending() {
             match self.stage {
                 Stage::Reconcile => {
+                    if !self.outbound_authorized {
+                        self.outbox.push(SyncMessage::Refused(Refusal::NotAMember));
+                        self.ended = Some(Ended::Refused(Refusal::NotAMember));
+                        return;
+                    }
                     self.stage = Stage::Blobs;
                 }
                 // One object at a time: each answer runs to the object's end.
@@ -360,6 +420,7 @@ impl Initiator {
                             next: offset,
                             total: None,
                             keep: true,
+                            retried: false,
                         });
                     }
                     None => {

@@ -46,9 +46,14 @@ impl Entry {
     /// How a local principal stands in the goal; `None` when it never took
     /// part, in which case the goal does not exist for it.
     pub fn membership(&self, principal: &PublicKey) -> Option<Membership> {
-        if self.local.joins.contains_key(principal) {
-            return Some(Membership::Joining);
+        if let Some(join) = self.local.joins.get(principal) {
+            return Some(if join.refused {
+                Membership::Refused
+            } else {
+                Membership::Joining
+            });
         }
+        self.goal.read_epoch(principal)?;
         Some(match self.local.part.get(principal)? {
             true => Membership::Left,
             false if self.is_member(principal) => Membership::Member,
@@ -87,7 +92,10 @@ impl Entry {
 impl<S: Store, E: Entropy> Node<S, E> {
     /// The goal's title: the cached one, or the genesis text once its
     /// payload and key are held.
-    pub(super) fn title(&self, entry: &Entry) -> Option<String> {
+    pub(super) fn title(&self, entry: &Entry, reader: Option<&PublicKey>) -> Option<String> {
+        if !entry.may_read_epoch(reader, 0) {
+            return None;
+        }
         if let Some(payload) = entry
             .state()
             .genesis
@@ -102,7 +110,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         entry.local.title.clone().or_else(|| {
             let genesis = entry.goal.event(&entry.state().genesis?)?;
-            entry.text(&self.store, genesis)
+            entry.text(&self.store, genesis, reader)
         })
     }
 
@@ -122,7 +130,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 };
                 summaries.push(GoalSummary {
                     goal: *goal,
-                    title: self.title(entry),
+                    title: self.title(entry, principal.as_ref()),
                     member: *member,
                     membership,
                     halted: entry.halted(),
@@ -133,8 +141,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// Whether the daemon can serve one content object of a goal.
-    pub(super) fn blob_state(&self, entry: &Entry, hash: &BlobHash) -> BlobState {
-        self.content_state(entry, hash)
+    pub(super) fn blob_state(
+        &self,
+        entry: &Entry,
+        hash: &BlobHash,
+        reader: Option<&PublicKey>,
+    ) -> BlobState {
+        self.read_content_state(entry, hash, reader)
             .unwrap_or(BlobState::Unavailable)
     }
 
@@ -149,7 +162,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let title = entry
             .goal
             .event(&task.id)
-            .and_then(|event| entry.text(&self.store, event))
+            .and_then(|event| entry.text(&self.store, event, reader))
             .map(|text| text.lines().next().unwrap_or_default().to_owned());
         let integrated = reader
             .and_then(|reader| entry.local.workspace.get(reader)?.integrated)
@@ -184,7 +197,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             text: entry
                 .goal
                 .event(&task.id)
-                .and_then(|event| entry.text(&self.store, event)),
+                .and_then(|event| entry.text(&self.store, event, reader)),
             input: task.input,
             depends_on: task.depends_on.clone(),
             deadline_ms: task.deadline_ms,
@@ -194,21 +207,26 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// One event in full.
-    pub(super) fn event_detail(&self, entry: &Entry, event: &Event) -> EventDetail {
+    pub(super) fn event_detail(
+        &self,
+        entry: &Entry,
+        event: &Event,
+        reader: Option<&PublicKey>,
+    ) -> EventDetail {
         let header = event.header();
         EventDetail {
             view: entry.event_view(event),
             anchor: header.anchor,
             body: header.body.clone(),
             payload: header.payload,
-            text: entry.text(&self.store, event),
+            text: entry.text(&self.store, event, reader),
             task: entry.goal.task_of(&event.id()),
             content: header
                 .blobs()
                 .into_iter()
                 .map(|hash| BlobStatus {
                     hash,
-                    state: self.blob_state(entry, &hash),
+                    state: self.blob_state(entry, &hash, reader),
                 })
                 .collect(),
         }

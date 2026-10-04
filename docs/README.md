@@ -14,7 +14,8 @@ the repository root to check coverage and local link paths.
 ## Index
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
-- [Protocol contract, version 0](protocol-v0.md): encoding, hashing and signature decisions, the signed event header and event kinds, invitations, sync frames, local API and storage seam; implemented types and runtime invariants; complete release qualification remains open.
+- [Protocol contract, version 1](protocol-v1.md): current authority, deterministic fork selection, reconciliation, local API and recovery rules, with enforcing code/tests and explicit version-0 incompatibility.
+- [Archived protocol contract, version 0](protocol-v0.md): encoding, hashing and signature decisions, the signed event header and event kinds, invitations, sync frames, local API and storage seam; implemented types and runtime invariants; complete release qualification remains open.
 - [Crates and workstreams](workstreams.md): accepted crate split, lane responsibilities and current shared A/B ownership, cross-review, and the rules for sharing one checkout.
 - [Lane A log](lane-a-log.md): contract notices, answers to lane B and reviews of lane B's commits.
 - [Lane B log](lane-b-log.md): requests to lane A, reviews of lane A's commits and replies.

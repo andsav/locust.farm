@@ -3,7 +3,7 @@ mod args;
 mod connection;
 mod doctor;
 
-use crate::{daemon, failure::Failure, secret, version};
+use crate::{daemon, failure::Failure, secret};
 use clap::{ArgMatches, error::ErrorKind};
 use locust_proto::api::{
     Credential, DaemonStatus, ErrorCode, Grants, Request, Response, SessionSecret, WaitOutcome,
@@ -36,10 +36,6 @@ impl Output {
 
 pub(super) fn run() -> u8 {
     let arguments: Vec<_> = std::env::args_os().collect();
-    if arguments.len() == 2 && arguments[1] == "--version" {
-        println!("locust {}", version::line());
-        return 0;
-    }
     let json_mode = arguments.iter().any(|arg| arg == "--json");
     let matches = match args::command().try_get_matches_from(arguments) {
         Ok(matches) => matches,
@@ -50,9 +46,14 @@ pub(super) fn run() -> u8 {
             ) =>
         {
             if json_mode {
+                let key = if error.kind() == ErrorKind::DisplayVersion {
+                    "version"
+                } else {
+                    "help"
+                };
                 println!(
                     "{}",
-                    json!({"ok": true, "result": {"help": error.to_string()}})
+                    json!({"ok": true, "result": {key: error.to_string().trim_end()}})
                 );
             } else {
                 print!("{error}");
@@ -149,6 +150,15 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         && fields.get(field).and_then(Value::as_str) == Some("-")
     {
         fields.insert(field.to_owned(), Value::String(stdin_text()?));
+    }
+    if !generic_call
+        && operation == "goal.join"
+        && fields.get("ticket").and_then(Value::as_str) == Some("-")
+    {
+        fields.insert(
+            "ticket".to_owned(),
+            Value::String(stdin_text()?.trim_end_matches(['\r', '\n']).to_owned()),
+        );
     }
     if !named_enrollment {
         validate_fields(&operation, &fields)?;
@@ -307,7 +317,13 @@ fn resolve_goal(
     }
 }
 fn create_session(path: &str) -> Result<Output, Failure> {
-    let path = local::session_path(Some(std::ffi::OsStr::new(path)))?
+    let path = local::session_path(Some(std::ffi::OsStr::new(path)))
+        .map_err(|error| match error {
+            local::LocalError::NotAbsolute(_) => {
+                Failure::usage("session create PATH must be an absolute path")
+            }
+            other => other.into(),
+        })?
         .ok_or_else(|| Failure::usage("session create requires an absolute path"))?;
     secret::create_private_dir(
         path.parent()
@@ -338,7 +354,10 @@ fn human(response: &Response, credential_path: Option<&Path>) -> String {
             goal,
             coordinator,
             membership,
-        } => format!("goal {goal}\ncoordinator {coordinator}\nmembership {membership:?}"),
+        } => format!(
+            "goal {goal}\ncoordinator {coordinator}\nmembership {}",
+            stable_name(membership)
+        ),
         Response::Claimed(claim) => format!(
             "assignment {}\ngeneration {}\ninstance {}",
             claim.assignment, claim.generation, claim.instance
@@ -358,15 +377,27 @@ fn human(response: &Response, credential_path: Option<&Path>) -> String {
             }));
             lines.extend(status.goals.iter().map(|goal| {
                 format!(
-                    "goal {} member {} {:?} {}",
+                    "goal {} member {} {} {}{}",
                     goal.goal,
                     goal.member,
-                    goal.membership,
-                    goal.title.as_deref().unwrap_or("")
+                    stable_name(&goal.membership),
+                    goal.title.as_deref().unwrap_or(""),
+                    goal.halted
+                        .as_ref()
+                        .map(|halt| format!(" halted {}", stable_name(halt)))
+                        .unwrap_or_default()
                 )
             }));
             lines.join("\n")
         }
         _ => serde_json::to_string_pretty(response).expect("response JSON is serializable"),
     }
+}
+
+fn stable_name(value: &impl serde::Serialize) -> String {
+    serde_json::to_value(value)
+        .expect("public enum is serializable")
+        .as_str()
+        .expect("public enum uses a string tag")
+        .to_owned()
 }

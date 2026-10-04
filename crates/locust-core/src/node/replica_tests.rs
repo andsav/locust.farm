@@ -118,8 +118,17 @@ impl Peer {
 }
 
 fn reconcile(peers: &mut [Peer], now: u64) -> Vec<locust_proto::sync::SyncMessage> {
+    let dialers: Vec<_> = (0..peers.len()).collect();
+    reconcile_from(peers, now, &dialers)
+}
+
+fn reconcile_from(
+    peers: &mut [Peer],
+    now: u64,
+    dialers: &[usize],
+) -> Vec<locust_proto::sync::SyncMessage> {
     let mut sent = Vec::new();
-    let mut queue: VecDeque<_> = (0..peers.len()).map(|i| (i, PeerInput::Poll)).collect();
+    let mut queue: VecDeque<_> = dialers.iter().map(|i| (*i, PeerInput::Poll)).collect();
     let mut routes = HashMap::new();
     let mut accepted = 0;
     let mut steps = 0;
@@ -168,7 +177,7 @@ fn reconcile(peers: &mut [Peer], now: u64) -> Vec<locust_proto::sync::SyncMessag
                     ));
                     queue.push_back((i, PeerInput::Writable(exchange)));
                 }
-                PeerOutput::Admit(_) => {}
+                PeerOutput::Admit(_) | PeerOutput::Evidence(_) => {}
                 PeerOutput::Finish(exchange) => queue.push_back((i, PeerInput::Finished(exchange))),
             }
         }
@@ -739,4 +748,228 @@ fn bare_object_reference_refuses_an_epoch_after_its_event() {
         Staged::Rejected
     );
     assert!(peers[1].store.blob_len(&hash).unwrap().is_none());
+}
+
+#[test]
+fn inflated_advertisement_is_rejected_and_legacy_oversized_stage_recovers_from_zero() {
+    use crate::sync::{Host, Staged};
+    use locust_proto::event::{Body, PayloadRef};
+    use locust_proto::sync::SyncMessage;
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    let Response::BlobStored { hash } = peers[0].call(Request::BlobPut {
+        goal,
+        bytes: b"small".to_vec(),
+    }) else {
+        panic!("put")
+    };
+    let sealed = peers[0].store.blob(&hash).unwrap().unwrap();
+    let event = reference_event(
+        &peers[0],
+        goal,
+        Some(PayloadRef {
+            hash,
+            len: sealed.len() as u32,
+            key_epoch: 0,
+        }),
+        Body::Note {
+            about: None,
+            supersedes: None,
+        },
+    );
+    for peer in &mut peers {
+        Host::replica(&mut peer.node, &goal)
+            .unwrap()
+            .receive(vec![event.to_wire()])
+            .unwrap();
+    }
+    let replica = Host::replica(&mut peers[1].node, &goal).unwrap();
+    assert_eq!(
+        replica.stage(&hash, 0, 1_000_000, &sealed),
+        Staged::Rejected
+    );
+    assert_eq!(peers[1].store.staged_len(&hash).unwrap(), 0);
+    // Simulate a partial object left by the old receiver, then reopen.
+    peers[1]
+        .store
+        .stage_blob(&hash, 0, &vec![9; 100_000])
+        .unwrap();
+    peers[1].restart();
+    let frames = reconcile(&mut peers, 35_000);
+    for offset in [100_000, 0] {
+        assert!(frames.iter().any(|frame| matches!(frame, SyncMessage::BlobRequest { hash: asked, offset: at } if *asked == hash && *at == offset)));
+    }
+    assert_eq!(peers[1].store.blob(&hash).unwrap(), Some(sealed));
+    assert_eq!(peers[1].store.staged_len(&hash).unwrap(), 0);
+}
+
+#[test]
+fn unavailable_peer_and_incomplete_conflicting_retry_preserve_shared_staging() {
+    use crate::sync::{Host, Staged};
+    use locust_proto::event::{Body, PayloadRef};
+    use locust_proto::sync::SyncMessage;
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    let Response::BlobStored { hash } = peers[0].call(Request::BlobPut {
+        goal,
+        bytes: vec![7; 200],
+    }) else {
+        panic!("put")
+    };
+    let sealed = peers[0].store.blob(&hash).unwrap().unwrap();
+    let event = reference_event(
+        &peers[0],
+        goal,
+        Some(PayloadRef {
+            hash,
+            len: sealed.len() as u32,
+            key_epoch: 0,
+        }),
+        Body::Note {
+            about: None,
+            supersedes: None,
+        },
+    );
+    for peer in &mut peers {
+        Host::replica(&mut peer.node, &goal)
+            .unwrap()
+            .receive(vec![event.to_wire()])
+            .unwrap();
+    }
+    let replica = Host::replica(&mut peers[1].node, &goal).unwrap();
+    assert_eq!(
+        replica.stage(&hash, 0, sealed.len() as u64, &sealed[..100]),
+        Staged::More(100)
+    );
+    assert_eq!(
+        replica.stage(&hash, 0, sealed.len() as u64, &[0; 2]),
+        Staged::Rejected
+    );
+    peers[0].call(Request::BlobWithdraw { goal, hash });
+    let frames = reconcile(&mut peers, 35_000);
+    assert!(
+        frames
+            .iter()
+            .filter(|frame| matches!(frame, SyncMessage::BlobUnavailable(given) if *given == hash))
+            .count()
+            >= 2
+    );
+    assert_eq!(
+        peers[1].store.staged_range(&hash, 0, 100).unwrap(),
+        Some(sealed[..100].to_vec())
+    );
+}
+
+#[test]
+fn wanted_cursor_is_sorted_and_updates_after_commits_completion_and_reopen() {
+    use crate::sync::Host;
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    for n in 0..100 {
+        peers[0].call(Request::NoteAdd {
+            goal,
+            about: None,
+            supersedes: None,
+            text: format!("missing {n}"),
+        });
+    }
+    let wires = peers[0]
+        .store
+        .log(&goal, 0, usize::MAX)
+        .unwrap()
+        .into_iter()
+        .map(|(_, event)| event.to_wire())
+        .collect();
+    Host::replica(&mut peers[1].node, &goal)
+        .unwrap()
+        .receive(wires)
+        .unwrap();
+    let wanted = Host::replica(&mut peers[1].node, &goal)
+        .unwrap()
+        .wanted_blobs(usize::MAX);
+    assert_eq!(wanted.len(), 100);
+    assert!(wanted.windows(2).all(|pair| pair[0].0 < pair[1].0));
+    peers[1].restart();
+    assert_eq!(
+        Host::replica(&mut peers[1].node, &goal)
+            .unwrap()
+            .wanted_blobs(usize::MAX),
+        wanted
+    );
+    reconcile(&mut peers, 35_000);
+    assert!(
+        Host::replica(&mut peers[1].node, &goal)
+            .unwrap()
+            .wanted_blobs(usize::MAX)
+            .is_empty()
+    );
+    peers[1].restart();
+    assert!(
+        Host::replica(&mut peers[1].node, &goal)
+            .unwrap()
+            .wanted_blobs(usize::MAX)
+            .is_empty()
+    );
+}
+
+#[test]
+fn coordinator_halt_reaches_a_historical_contact_without_history_or_key_admission() {
+    use crate::sync::Host;
+    use locust_proto::event::{Body, Event};
+    use locust_proto::sync::SyncMessage;
+    let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
+    let goal = found(&mut peers);
+    let admission = peers[0]
+        .store
+        .log(&goal, 0, usize::MAX)
+        .unwrap()
+        .into_iter()
+        .map(|(_, event)| event)
+        .find(|event| matches!(event.header().body, Body::MemberAdmitted { .. }))
+        .unwrap();
+    let mut header = admission.header().clone();
+    header.at_ms += 1;
+    let fork = Event::sign(header, peers[0].node.signer(&peers[0].principal).unwrap()).unwrap();
+    for peer in &mut peers[..2] {
+        Host::replica(&mut peer.node, &goal)
+            .unwrap()
+            .receive(vec![fork.to_wire()])
+            .unwrap();
+    }
+    let frames = reconcile_from(&mut peers, 35_000, &[0, 1]);
+    assert!(
+        frames
+            .iter()
+            .any(|frame| matches!(frame, SyncMessage::HaltProof(_)))
+    );
+    assert!(
+        frames.iter().all(|frame| matches!(
+            frame,
+            SyncMessage::Hello { .. }
+                | SyncMessage::HaltProof(_)
+                | SyncMessage::Done
+                | SyncMessage::Refused(_)
+        )),
+        "proof exchange disclosed ordinary data: {frames:?}"
+    );
+    for peer in &mut peers {
+        assert!(peer.node.goals[&goal].goal.halt().is_some());
+        peer.restart();
+        assert!(peer.node.goals[&goal].goal.halt().is_some());
+    }
+    let before = peers[1].node.goals[&goal].revision();
+    let remote = peers[0].endpoint;
+    Host::receive_halt_proof(
+        &mut peers[1].node,
+        &goal,
+        &remote,
+        [admission.to_wire(), fork.to_wire()],
+    )
+    .unwrap();
+    assert_eq!(
+        peers[1].node.goals[&goal].revision(),
+        before,
+        "duplicate proof must not wake waits or schedule another broadcast"
+    );
+    assert!(Host::take_changed(&mut peers[1].node).is_empty());
 }

@@ -9,14 +9,17 @@
 //! the engine it asks which goals changed and revisits the waits on those
 //! goals; a connection task tells it when a wait's time is up.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 
+use crate::failure::Failure;
 use locust_proto::api::{
     ApiError, ClientHello, ErrorCode, RequestFrame, ResponseFrame, ServerHello,
 };
-use locust_proto::engine::{ConnId, Engine, Parked, PeerEngine, PeerInput, PeerOutput, Step};
+use locust_proto::engine::{
+    ConnId, Engine, ExchangeId, Parked, PeerEngine, PeerInput, PeerOutput, Step,
+};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch;
 
@@ -71,7 +74,7 @@ pub(crate) struct EngineThread {
     /// Set to true when the daemon is to stop: by the engine thread once an
     /// owner asked for it, or by the accept loop on a signal.
     pub(crate) stop: watch::Sender<bool>,
-    thread: Option<JoinHandle<()>>,
+    thread: Option<JoinHandle<Result<(), Failure>>>,
     pub(crate) endpoint_secret: Option<[u8; 32]>,
     pub(crate) outgoing: Option<tokio::sync::mpsc::UnboundedReceiver<NetworkOutput>>,
 }
@@ -81,30 +84,34 @@ impl EngineThread {
     /// never crosses threads. Returns once the engine exists, or with the
     /// reason it could not be built.
     #[cfg(test)]
-    pub(crate) fn start<E, F>(make_engine: F, clock: Clock) -> Result<Self, String>
+    pub(crate) fn start<E, F>(make_engine: F, clock: Clock) -> Result<Self, Failure>
     where
         E: Engine + 'static,
         F: FnOnce() -> Result<E, String> + Send + 'static,
     {
-        Self::start_inner(make_engine, clock, None)
+        Self::start_inner(|| make_engine().map_err(Failure::internal), clock, None)
     }
 
-    pub(crate) fn start_networked<E, F>(make_engine: F, clock: Clock) -> Result<Self, String>
+    pub(crate) fn start_networked<E, F>(make_engine: F, clock: Clock) -> Result<Self, Failure>
     where
         E: Engine + PeerEngine + 'static,
-        F: FnOnce() -> Result<E, String> + Send + 'static,
+        F: FnOnce() -> Result<E, Failure> + Send + 'static,
     {
-        Self::start_inner(make_engine, clock, Some((E::endpoint_secret, E::peer)))
+        Self::start_inner(
+            make_engine,
+            clock,
+            Some((E::endpoint_secret, E::peer, E::peer_readable)),
+        )
     }
 
     fn start_inner<E, F>(
         make_engine: F,
         clock: Clock,
         peer: Option<PeerHooks<E>>,
-    ) -> Result<Self, String>
+    ) -> Result<Self, Failure>
     where
         E: Engine + 'static,
-        F: FnOnce() -> Result<E, String> + Send + 'static,
+        F: FnOnce() -> Result<E, Failure> + Send + 'static,
     {
         let (jobs, inbox) = mpsc::channel();
         let (stop, _) = watch::channel(false);
@@ -116,17 +123,26 @@ impl EngineThread {
                 let stop = stop.clone();
                 move || match make_engine() {
                     Ok(engine) => {
-                        let endpoint_secret = peer.map(|(secret, _)| secret(&engine));
+                        let endpoint_secret = peer.map(|(secret, _, _)| secret(&engine));
                         let _ = ready.send(Ok(endpoint_secret));
-                        Worker::new(engine, clock, stop, peer.map(|(_, handle)| handle), output)
-                            .run(&inbox);
+                        Worker::new(
+                            engine,
+                            clock,
+                            stop,
+                            peer.map(|(_, handle, readable)| (handle, readable)),
+                            output,
+                        )
+                        .run(&inbox)
                     }
                     Err(reason) => {
-                        let _ = ready.send(Err(reason));
+                        let _ = ready.send(Err(reason.clone()));
+                        Err(reason)
                     }
                 }
             })
-            .map_err(|error| format!("the engine thread could not be started: {error}"))?;
+            .map_err(|error| {
+                Failure::internal(format!("the engine thread could not be started: {error}"))
+            })?;
         match built.recv() {
             Ok(Ok(endpoint_secret)) => Ok(Self {
                 jobs,
@@ -141,29 +157,34 @@ impl EngineThread {
             }
             Err(_) => {
                 let _ = thread.join();
-                Err("the engine thread ended before the engine was built".to_string())
+                Err(Failure::internal(
+                    "the engine thread ended before the engine was built",
+                ))
             }
         }
     }
 
     /// Lets the thread finish the jobs already queued, drops the engine and
     /// waits for the thread to end.
-    pub(crate) fn shutdown(mut self) {
-        self.join();
+    pub(crate) fn shutdown(mut self) -> Result<(), Failure> {
+        self.join()
     }
 
-    fn join(&mut self) {
+    fn join(&mut self) -> Result<(), Failure> {
         if let Some(thread) = self.thread.take() {
             let _ = self.jobs.send(Job::Stop);
-            let _ = thread.join();
+            return thread
+                .join()
+                .map_err(|_| Failure::internal("the engine thread panicked"))?;
         }
+        Ok(())
     }
 }
 
 impl Drop for EngineThread {
     fn drop(&mut self) {
         // Startup errors must release the store before StateDir releases its lock.
-        self.join();
+        let _ = self.join();
     }
 }
 
@@ -182,12 +203,14 @@ pub(crate) enum NetworkOutput {
 }
 
 type PeerHandler<E> = fn(&mut E, PeerInput, u64, &mut Vec<PeerOutput>);
-type PeerHooks<E> = (fn(&E) -> [u8; 32], PeerHandler<E>);
+type PeerReader<E> = fn(&E, ExchangeId) -> bool;
+type PeerHooks<E> = (fn(&E) -> [u8; 32], PeerHandler<E>, PeerReader<E>);
 
 struct Worker<E> {
-    peer: Option<PeerHandler<E>>,
+    peer: Option<(PeerHandler<E>, PeerReader<E>)>,
     output: UnboundedSender<NetworkOutput>,
     frames: Vec<PeerOutput>,
+    blocked: HashMap<ExchangeId, tokio::sync::oneshot::Sender<()>>,
     engine: E,
     clock: Clock,
     stop: watch::Sender<bool>,
@@ -204,7 +227,7 @@ impl<E: Engine> Worker<E> {
         engine: E,
         clock: Clock,
         stop: watch::Sender<bool>,
-        peer: Option<PeerHandler<E>>,
+        peer: Option<(PeerHandler<E>, PeerReader<E>)>,
         output: UnboundedSender<NetworkOutput>,
     ) -> Self {
         Self {
@@ -212,6 +235,7 @@ impl<E: Engine> Worker<E> {
             peer,
             output,
             frames: Vec::new(),
+            blocked: HashMap::new(),
             clock,
             stop,
             stop_announced: false,
@@ -221,7 +245,7 @@ impl<E: Engine> Worker<E> {
         }
     }
 
-    fn run(mut self, inbox: &Receiver<Job>) {
+    fn run(mut self, inbox: &Receiver<Job>) -> Result<(), Failure> {
         while let Ok(job) = inbox.recv() {
             match job {
                 Job::Connect {
@@ -236,19 +260,39 @@ impl<E: Engine> Worker<E> {
                 }
                 Job::Peer(input) => self.network(input),
                 Job::PeerFrame { input, processed } => {
+                    let exchange = match &input {
+                        PeerInput::Frame { exchange, .. } => *exchange,
+                        _ => unreachable!("only frames await processing"),
+                    };
                     self.network(input);
-                    let _ = self.output.send(NetworkOutput::Processed(processed));
+                    self.blocked.insert(exchange, processed);
                 }
                 Job::Expire { conn, request_id } => self.expire(conn, request_id),
                 Job::Disconnect { conn } => self.disconnect(conn),
                 Job::Stop => break,
             }
             self.settle();
+            if let Some((_, readable)) = self.peer {
+                let ready: Vec<_> = self
+                    .blocked
+                    .keys()
+                    .copied()
+                    .filter(|exchange| readable(&self.engine, *exchange))
+                    .collect();
+                for exchange in ready {
+                    if let Some(processed) = self.blocked.remove(&exchange) {
+                        let _ = self.output.send(NetworkOutput::Processed(processed));
+                    }
+                }
+            }
         }
+        self.engine
+            .failure()
+            .map_or(Ok(()), |error| Err(error.into()))
     }
 
     fn network(&mut self, input: PeerInput) {
-        if let Some(peer) = self.peer {
+        if let Some((peer, _)) = self.peer {
             peer(&mut self.engine, input, (self.clock)(), &mut self.frames);
             for output in self.frames.drain(..) {
                 if self.output.send(NetworkOutput::Action(output)).is_err() {
@@ -362,5 +406,136 @@ impl<E> Drop for Worker<E> {
     fn drop(&mut self) {
         // A failed engine thread cannot leave a live socket serving nobody.
         self.stop.send_replace(true);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use locust_proto::id::GoalId;
+    use locust_proto::sync::SyncMessage;
+
+    struct Fixture {
+        remaining: usize,
+        failed: bool,
+    }
+    impl Engine for Fixture {
+        fn connect(&mut self, _: ConnId, _: &ClientHello, _: u64) -> ServerHello {
+            panic!("unused")
+        }
+        fn request(&mut self, _: ConnId, _: RequestFrame, _: u64) -> Step {
+            panic!("unused")
+        }
+        fn resume(&mut self, _: ConnId, _: &Parked, _: bool, _: u64) -> Step {
+            panic!("unused")
+        }
+        fn take_changed(&mut self) -> Vec<GoalId> {
+            vec![]
+        }
+        fn disconnect(&mut self, _: ConnId) {}
+        fn stop_requested(&self) -> bool {
+            self.failed
+        }
+        fn failure(&self) -> Option<ApiError> {
+            self.failed
+                .then(|| ApiError::new(ErrorCode::Corrupted, "fixture durability failure"))
+        }
+    }
+    impl PeerEngine for Fixture {
+        fn endpoint_secret(&self) -> [u8; 32] {
+            [0; 32]
+        }
+        fn peer(&mut self, input: PeerInput, _: u64, out: &mut Vec<PeerOutput>) {
+            let exchange = match input {
+                PeerInput::Frame { exchange, .. } => {
+                    self.remaining = 2;
+                    exchange
+                }
+                PeerInput::Writable(exchange) => {
+                    self.remaining -= 1;
+                    exchange
+                }
+                _ => return,
+            };
+            if self.remaining > 0 {
+                out.push(PeerOutput::Send {
+                    exchange,
+                    frame: SyncMessage::Events(vec![]),
+                });
+            }
+        }
+        fn peer_readable(&self, _: ExchangeId) -> bool {
+            self.remaining == 0
+        }
+    }
+
+    #[tokio::test]
+    async fn request_acknowledgement_waits_for_the_whole_response_to_drain() {
+        let mut thread = EngineThread::start_networked(
+            || {
+                Ok(Fixture {
+                    remaining: 0,
+                    failed: false,
+                })
+            },
+            || 0,
+        )
+        .unwrap();
+        let mut output = thread.outgoing.take().unwrap();
+        let exchange = ExchangeId::Accepted(1);
+        let (processed, _applied) = tokio::sync::oneshot::channel();
+        thread
+            .jobs
+            .send(Job::PeerFrame {
+                input: PeerInput::Frame {
+                    exchange,
+                    frame: SyncMessage::Frontier(Default::default()),
+                },
+                processed,
+            })
+            .unwrap();
+        for _ in 0..2 {
+            assert!(matches!(
+                output.recv().await,
+                Some(NetworkOutput::Action(PeerOutput::Send { .. }))
+            ));
+            assert!(
+                output.try_recv().is_err(),
+                "reader was released before response completion"
+            );
+            thread
+                .jobs
+                .send(Job::Peer(PeerInput::Writable(exchange)))
+                .unwrap();
+        }
+        assert!(matches!(
+            output.recv().await,
+            Some(NetworkOutput::Processed(_))
+        ));
+        thread.shutdown().unwrap();
+    }
+
+    #[test]
+    fn typed_startup_and_terminal_engine_failures_survive_thread_cleanup() {
+        let error = EngineThread::start_networked::<Fixture, _>(
+            || Err(Failure::new(ErrorCode::Corrupted, "damaged store")),
+            || 0,
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error.code, ErrorCode::Corrupted);
+        let thread = EngineThread::start_networked(
+            || {
+                Ok(Fixture {
+                    remaining: 0,
+                    failed: true,
+                })
+            },
+            || 0,
+        )
+        .unwrap();
+        thread.jobs.send(Job::Peer(PeerInput::Poll)).unwrap();
+        let error = thread.shutdown().unwrap_err();
+        assert_eq!(error.code, ErrorCode::Corrupted);
     }
 }

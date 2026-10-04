@@ -212,10 +212,12 @@ impl Net {
                 let bytes = codec::encode(&frame).unwrap();
                 self.queue.push_back(Msg::Frame(stream, to, bytes));
             }
+            PeerOutput::Evidence(_) => {}
             PeerOutput::Admit(exchange) => {
                 let stream = self.by_side[&(node, exchange)];
-                assert_eq!(self.streams[stream].sides[1], (node, exchange));
-                self.streams[stream].admitted = true;
+                if matches!(exchange, ExchangeId::Accepted(_)) {
+                    self.streams[stream].admitted = true;
+                }
             }
             PeerOutput::Finish(exchange) => {
                 if let Some(stream) = self.by_side.get(&(node, exchange)) {
@@ -240,6 +242,11 @@ impl Net {
                 }
             }
             Msg::Frame(stream, to, bytes) => {
+                let (node, exchange) = self.streams[stream].sides[usize::from(to)];
+                if !self.nodes[node].driver.readable(exchange) {
+                    self.queue.push_back(Msg::Frame(stream, to, bytes));
+                    return;
+                }
                 let state = &mut self.streams[stream];
                 if state.closed {
                     return;

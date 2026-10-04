@@ -30,8 +30,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
         actor: &Actor,
         goal: GoalId,
         expires_ms: Option<u64>,
-        _now_ms: u64,
+        now_ms: u64,
     ) -> Plan {
+        if expires_ms.is_some_and(|expires| expires <= now_ms) {
+            return Err(crate::node::access::conflict(
+                "the invitation has already expired",
+            ));
+        }
         self.manages_goals(actor)?;
         let (entry, coordinator) = self.coordinator(actor, &goal)?;
         if entry.goal.halt().is_some() {
@@ -69,10 +74,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
         })
     }
 
-    pub(super) fn goal_join(&self, actor: &Actor, ticket: Ticket, _now_ms: u64) -> Plan {
+    pub(super) fn goal_join(&self, actor: &Actor, ticket: Ticket, now_ms: u64) -> Plan {
         let principal = self.manages_goals(actor)?;
-        self.own_endpoint()?;
+        let own = self.own_endpoint()?.endpoint;
         let invitation = Invitation::from_ticket(ticket.as_str()).map_err(invite_error)?;
+        if invitation
+            .expires_ms
+            .is_some_and(|expires| expires <= now_ms)
+        {
+            return Err(denied("the invitation has expired"));
+        }
         let goal = invitation.goal;
         if let Some(entry) = self.goals.get(&goal) {
             if entry
@@ -82,6 +93,22 @@ impl<S: Store, E: Entropy> Node<S, E> {
             {
                 return Err(conflict(
                     "the ticket's coordinator differs from the held goal",
+                ));
+            }
+            if entry
+                .state()
+                .members
+                .get(&invitation.coordinator)
+                .is_some_and(|endpoint| *endpoint != invitation.endpoint)
+            {
+                return Err(conflict(
+                    "the ticket's endpoint differs from the held coordinator admission",
+                ));
+            }
+            if entry.membership(&principal) == Some(Membership::Left) && entry.is_member(&principal)
+            {
+                return Err(conflict(
+                    "the departure must be acknowledged by removal before rejoining",
                 ));
             }
             if entry.membership(&principal) == Some(Membership::Member) {
@@ -107,10 +134,31 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 }
                 if !join.refused {
                     return Err(conflict(
-                        "another invitation is already being redeemed for this goal",
+                        "another invitation is being redeemed; check status and retry a fresh invitation after refusal",
                     ));
                 }
             }
+        }
+        if invitation.endpoint == own {
+            let request = locust_proto::invite::JoinRequest::sign(
+                goal,
+                own,
+                invitation.secret,
+                self.signer(&principal)?,
+            );
+            let mut tx = self
+                .plan_join(&own, &request, now_ms)
+                .map_err(|_| denied("the inviter refused this invitation"))?;
+            tx.local(local::part_write(&goal, &principal, false))
+                .touch(goal);
+            return Ok(Planned {
+                response: Response::Joined {
+                    goal,
+                    coordinator: invitation.coordinator,
+                    membership: Membership::Member,
+                },
+                tx,
+            });
         }
         let mut tx = Tx::none();
         tx.local(local::join_write(

@@ -477,3 +477,93 @@ fn peer_termination_discards_the_remaining_response_cursor() {
         assert!(responder.ended().is_some());
     }
 }
+
+#[test]
+fn empty_request_has_no_answer_and_response_blocks_further_intake() {
+    let (founded, mut host, _) = served();
+    let mut responder = Responder::new(endpoint(2));
+    let mut out = Vec::new();
+    responder.receive(&mut host, hello(founded.goal), 0, &mut out);
+    responder.receive(&mut host, SyncMessage::EventRequest(vec![]), 0, &mut out);
+    assert!(out.is_empty());
+    assert!(responder.readable());
+    responder.receive(
+        &mut host,
+        SyncMessage::Frontier(Frontier::default()),
+        0,
+        &mut out,
+    );
+    assert!(!responder.readable());
+    let mut frames = out.len();
+    while !responder.readable() {
+        out.clear();
+        responder.writable(&mut host, &mut out);
+        assert!(out.len() <= 1);
+        frames += out.len();
+    }
+    assert_eq!(frames, 5); // genesis, three note batches, terminal frontier
+}
+
+#[test]
+fn joining_an_untrusted_endpoint_discloses_no_held_headers() {
+    use locust_proto::invite::{InviteSecret, JoinRequest};
+    let (founded, mut host, _) = served();
+    let request = JoinRequest::sign(
+        founded.goal,
+        endpoint(1),
+        InviteSecret([9; 32]),
+        &Author::new(4).key,
+    );
+    let mut initiator = Initiator::joining(request);
+    let replica = host.replica_mut(&founded.goal);
+    let mut out = Vec::new();
+    initiator.start(replica, &mut out);
+    initiator.writable(replica, &mut out);
+    initiator.writable(replica, &mut out);
+    initiator.receive(
+        replica,
+        SyncMessage::Frontier(Frontier::default()),
+        &mut out,
+    );
+    initiator.writable(replica, &mut out);
+    assert!(
+        out.iter().all(|frame| match frame {
+            SyncMessage::Hello { .. } | SyncMessage::Join(_) | SyncMessage::Refused(_) => true,
+            SyncMessage::Frontier(frontier) => frontier.authors.is_empty(),
+            _ => false,
+        }),
+        "unexpected disclosure: {out:?}"
+    );
+}
+
+#[test]
+fn repeated_requests_cannot_accumulate_responses_behind_a_stalled_writer() {
+    let (founded, mut host, held) = served();
+    let mut responder = Responder::new(endpoint(2));
+    let mut out = Vec::new();
+    responder.receive(&mut host, hello(founded.goal), 0, &mut out);
+    responder.receive(
+        &mut host,
+        SyncMessage::EventRequest(held.clone()),
+        0,
+        &mut out,
+    );
+    assert_eq!(out.len(), 1);
+    for _ in 0..100 {
+        responder.receive(
+            &mut host,
+            SyncMessage::EventRequest(held.clone()),
+            0,
+            &mut out,
+        );
+    }
+    assert_eq!(out.len(), 1, "no transport capacity was released");
+    out.clear();
+    responder.writable(&mut host, &mut out);
+    assert_eq!(out, [SyncMessage::Refused(Refusal::ProtocolError)]);
+    responder.writable(&mut host, &mut out);
+    assert_eq!(
+        responder.ended(),
+        Some(Ended::Refused(Refusal::ProtocolError))
+    );
+}

@@ -9,12 +9,12 @@
 //!   length is the staged length.
 //!
 //! Every write that a caller is told is durable is synced first, file then
-//! directory; `File::sync_all` and `sync_data` use F_FULLFSYNC on macOS.
+//! directory; `File::sync_all` uses F_FULLFSYNC on macOS.
 //! Removals are durable only where the contract needs them to be (discarded
 //! staging); any other leftover is collected on open.
 
 use std::fs::{self, DirBuilder, File, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Seek, Write};
 use std::os::unix::fs::{DirBuilderExt, FileExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
@@ -59,6 +59,19 @@ impl Files {
         sync_directory(&self.dir).map_err(|error| file("sync", &self.dir, error))
     }
 
+    /// Repair an interrupted append or directory update before acknowledging
+    /// recovered staged lengths, including no-op stage/discard retries.
+    pub(crate) fn recover_staging(&self) -> Result<(), StoreError> {
+        for (hash, kind) in self.entries()? {
+            if kind == Kind::Staged
+                && let Some(staged) = self.open_staged(&hash)?
+            {
+                staged.sync()?;
+            }
+        }
+        self.sync()
+    }
+
     /// Writes an object under its final name, durable except for the
     /// directory entry: the caller syncs the directory once for all the
     /// objects of a commit.
@@ -72,7 +85,7 @@ impl Files {
             .open(&temporary)
             .map_err(|error| file("create", &temporary, error))?;
         out.write_all(bytes)
-            .and_then(|()| out.sync_all())
+            .and_then(|()| sync_file(&out, &temporary))
             .map_err(|error| file("write", &temporary, error))?;
         let path = self.path(hash, "");
         fs::rename(&temporary, &path).map_err(|error| file("rename", &temporary, error))
@@ -187,7 +200,7 @@ impl Files {
         }
         staged
             .write_all_at(bytes, len)
-            .and_then(|()| staged.sync_data())
+            .and_then(|()| sync_file(&staged, &path))
             .map_err(|error| file("write", &path, error))?;
         if created {
             self.sync()?;
@@ -217,6 +230,9 @@ impl Files {
     /// Removes the staged copy of `hash`, durably.
     pub(crate) fn discard_staged(&self, hash: &BlobHash) -> Result<(), StoreError> {
         let path = self.path(hash, STAGED);
+        #[cfg(test)]
+        crate::faults::check(crate::faults::Point::Discard, &path)
+            .map_err(|error| file("remove", &path, error))?;
         match fs::remove_file(&path) {
             Ok(()) => self.sync(),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
@@ -224,11 +240,32 @@ impl Files {
         }
     }
 
-    /// Makes the staged copy of `hash` its object file, durably, without
-    /// copying it. Its bytes were synced as they were staged.
-    pub(crate) fn promote_staged(&self, hash: &BlobHash) -> Result<(), StoreError> {
-        let staged = self.path(hash, STAGED);
-        fs::rename(&staged, self.path(hash, "")).map_err(|error| file("rename", &staged, error))?;
+    /// Installs an independently owned, durable copy while keeping staging
+    /// intact until the database row commits. A hard link would let later
+    /// staging appends mutate a held object after interrupted cleanup.
+    pub(crate) fn promote_staged(
+        &self,
+        hash: &BlobHash,
+        mut staged: Staged,
+    ) -> Result<(), StoreError> {
+        staged.sync()?;
+        staged
+            .file
+            .rewind()
+            .map_err(|error| file("seek", &staged.path, error))?;
+        let temporary = self.path(hash, TEMPORARY);
+        let mut out = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&temporary)
+            .map_err(|error| file("create", &temporary, error))?;
+        io::copy(&mut staged.file, &mut out)
+            .and_then(|_| sync_file(&out, &temporary))
+            .map_err(|error| file("copy", &temporary, error))?;
+        fs::rename(&temporary, self.path(hash, ""))
+            .map_err(|error| file("rename", &temporary, error))?;
         self.sync()
     }
 
@@ -274,7 +311,17 @@ impl Files {
 }
 
 fn sync_directory(path: &Path) -> io::Result<()> {
+    #[cfg(test)]
+    crate::faults::check(crate::faults::Point::DirectorySync, path)?;
     File::open(path)?.sync_all()
+}
+
+fn sync_file(file: &File, path: &Path) -> io::Result<()> {
+    #[cfg(test)]
+    crate::faults::check(crate::faults::Point::FileSync, path)?;
+    #[cfg(not(test))]
+    let _ = path;
+    file.sync_all()
 }
 
 /// Creates missing ancestors from the first existing directory down. The
@@ -341,6 +388,9 @@ pub(crate) struct Staged {
 }
 
 impl Staged {
+    fn sync(&self) -> Result<(), StoreError> {
+        sync_file(&self.file, &self.path).map_err(|error| file("sync", &self.path, error))
+    }
     /// All staged bytes; for copies small enough to hold in memory.
     pub(crate) fn read(mut self) -> Result<Vec<u8>, StoreError> {
         let mut bytes = Vec::with_capacity(usize::try_from(self.len).unwrap_or(0));
@@ -350,7 +400,7 @@ impl Staged {
     }
 
     /// The content hash of the staged bytes, read in pieces.
-    pub(crate) fn hash(self) -> Result<BlobHash, StoreError> {
+    pub(crate) fn hash(&self) -> Result<BlobHash, StoreError> {
         content_hash_of(&self.file).map_err(|error| file("read", &self.path, error))
     }
 }

@@ -51,7 +51,7 @@ pub(crate) async fn serve(
                     tokio::spawn(connection::serve(stream, ConnId(connections), shared.clone()));
                 }
                 Err(error) => {
-                    eprintln!("locust: accepting a connection failed: {error}");
+                    super::log(format_args!("locust: accepting a connection failed: {error}"));
                     tokio::time::sleep(ACCEPT_BACKOFF).await;
                 }
             },

@@ -115,7 +115,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .map(|record| record.endpoint);
         answer(Response::GoalStatus(GoalStatus {
             goal,
-            title: self.title(entry),
+            title: self.title(entry, actor.principal.as_ref()),
             coordinator,
             decision_head: state.head,
             members: state
@@ -191,6 +191,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn goal_leave(&self, actor: &Actor, goal: GoalId, now: u64) -> Plan {
         self.manages_goals(actor)?;
         let (entry, principal) = self.member(actor, &goal)?;
+        if entry.state().coordinator == Some(principal) {
+            return Err(crate::node::access::conflict(
+                "the coordinator cannot leave before authority handoff",
+            ));
+        }
         let mut tx = Tx::none();
         let event = self.author(entry, &principal, Body::LeaveRequested, None, now, &mut tx)?;
         tx.local(local::part_write(&goal, &principal, true));
@@ -205,6 +210,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, coordinator) = self.coordinator(actor, &goal)?;
+        if member == coordinator {
+            return Err(crate::node::access::conflict(
+                "the coordinator cannot remove itself before authority handoff",
+            ));
+        }
         if !entry.is_member(&member) {
             return Err(crate::node::access::conflict(
                 "the principal is not a member",

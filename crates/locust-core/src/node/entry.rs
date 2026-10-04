@@ -104,11 +104,27 @@ impl Entry {
         self.local.revision.max(1)
     }
 
+    pub fn may_read_epoch(&self, reader: Option<&PublicKey>, epoch: u32) -> bool {
+        reader.is_none_or(|reader| {
+            self.goal
+                .read_epoch(reader)
+                .is_some_and(|last| epoch <= last)
+        })
+    }
+
     /// The text of `event`: its payload opened with the key of the epoch it
     /// was sealed under. Absent when there is no payload, the payload or the
     /// key is not held, or the bytes are not text.
-    pub fn text<S: Store>(&self, store: &S, event: &Event) -> Option<String> {
+    pub fn text<S: Store>(
+        &self,
+        store: &S,
+        event: &Event,
+        reader: Option<&PublicKey>,
+    ) -> Option<String> {
         let payload = event.header().payload?;
+        if !self.may_read_epoch(reader, payload.key_epoch) {
+            return None;
+        }
         let record =
             super::requests::content::blob_record(store, &self.id(), &payload.hash).ok()?;
         if record.is_some_and(|record| record.withdrawn) {

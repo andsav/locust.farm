@@ -14,6 +14,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [T1 remediation](t1-remediation.md): disposition of all 36 independent-review findings, protocol-1 decisions, additional build/client-evidence repairs and verification boundaries.
+
 ### Independent review of the T1 candidate — 2026-10-03
 
 - [Independent review of the release candidate](t1-candidate-independent-review.md): reproduction of the integration claims, 36 verified findings (10 at P2, none blocking the T1 guide), what was tested and held, and the earlier cross-review of the build helper and client harness. Probes are kept as patches under `evidence/t1-candidate-review/`, listed in the evidence index.

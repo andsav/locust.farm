@@ -389,10 +389,6 @@ fn peer_decode_and_prefix_failures_deliver_refusals_before_close() {
         .unwrap()
         .block_on(async {
             let remote = local_endpoint([91; 32]).await.unwrap();
-            let connection = remote
-                .connect(invitation.endpoint, &invitation.hints)
-                .await
-                .unwrap();
             for (frame, expected) in [
                 (
                     SyncMessage::Hello {
@@ -418,6 +414,10 @@ fn peer_decode_and_prefix_failures_deliver_refusals_before_close() {
                     Refusal::NotAMember,
                 ),
             ] {
+                let connection = remote
+                    .connect(invitation.endpoint, &invitation.hints)
+                    .await
+                    .unwrap();
                 let mut link = connection.open_link(FrameLimits::peer()).await.unwrap();
                 link.send(&frame).await.unwrap();
                 if expected == Refusal::NotAMember {
@@ -433,10 +433,14 @@ fn peer_decode_and_prefix_failures_deliver_refusals_before_close() {
                     .unwrap()
                     .unwrap();
                 assert_eq!(reply, SyncMessage::Refused(expected));
+                // Rejected pre-admission connections release their transport
+                // budget instead of remaining available for more streams.
+                tokio::time::timeout(Duration::from_secs(5), connection.closed())
+                    .await
+                    .unwrap();
             }
-            connection.close();
             remote.close().await;
         });
-    // Protocol failures belong to their streams; local service remains healthy.
+    // Refused unauthenticated peers are closed; local service remains healthy.
     agent.call(Request::Status).unwrap();
 }

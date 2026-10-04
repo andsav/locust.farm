@@ -176,6 +176,7 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
         );
         assert_eq!(store.goals().unwrap().len(), usize::from(after));
         assert!(node.take_changed().is_empty());
+        assert!(node.stop_requested());
         assert_eq!(
             code(call(
                 &mut node,
