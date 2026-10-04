@@ -153,7 +153,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                     });
                 }
             }
-            Body::AttemptStarted { context, offer } => {
+            Body::AttemptStarted { context, offer, .. } => {
                 out.state.attempts.insert(
                     id,
                     Attempt {

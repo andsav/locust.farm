@@ -110,10 +110,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .expect("task context")
             .binding
             .clone();
-        binding.rules = entry
-            .state()
-            .current_rules
-            .ok_or_else(|| conflict("no current rules binding"))?;
+        if binding.parent.is_none() {
+            binding.rules = entry
+                .state()
+                .current_rules
+                .ok_or_else(|| conflict("no current rules binding"))?;
+        }
         binding.variation = variation;
         let mut tx = Tx::none();
         let event = self.author(

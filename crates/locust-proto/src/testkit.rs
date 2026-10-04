@@ -196,6 +196,7 @@ pub fn every_body() -> Vec<Body> {
         Body::AttemptStarted {
             context,
             offer: Some(id),
+            closure: Some(id),
         },
         Body::AttemptReported {
             attempt: id,

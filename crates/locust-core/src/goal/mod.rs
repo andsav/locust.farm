@@ -1,6 +1,7 @@
 //! Pure organization evaluation. Equal authenticated evidence and definitions
 //! produce equal projections regardless of transport or insertion order.
 mod chain;
+mod closure;
 mod commitments;
 mod delegation;
 mod flow;

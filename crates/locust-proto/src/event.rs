@@ -410,6 +410,9 @@ pub enum Body {
     AttemptStarted {
         context: Context,
         offer: Option<EventId>,
+        /// Exact observed position in this round's closure stream. None means
+        /// no position has been observed; concurrent offline starts remain valid.
+        closure: Option<EventId>,
     },
     AttemptReported {
         attempt: EventId,
@@ -553,8 +556,9 @@ impl Body {
                 ids.insert(binding.rules);
                 ids.extend(binding.parent.map(|context| context.round));
             }
-            Self::AttemptStarted { offer, .. } => {
+            Self::AttemptStarted { offer, closure, .. } => {
                 ids.extend(offer);
+                ids.extend(closure);
             }
             Self::AttemptReported { attempt, .. } | Self::CancelRequested { attempt } => {
                 ids.insert(*attempt);

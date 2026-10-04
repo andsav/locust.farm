@@ -144,7 +144,7 @@ const ID7: &str = "e9b2cec3cdae2208186b05e49a047c0dc82ec9cb24088cd38c95a25bf3628
 const SIGNATURE7: &str = "b176719116b59266797dd44461b427bf1867d6d9b33d38da1ae8ee0b830053677f89ad4f0380d4df5532ae34e2920e742523f5472df3e44d9ef80bfcdaa5b509";
 const ID8: &str = "2442e60220090aad320c162e4ed6fca6dcbdd66dee073578d3b2cf852d14b458";
 const SIGNATURE8: &str = "04ed6fa19ecd3b1425f4d6142734666e4d2b26a205b13c0d978c8f80deed2d550b52c10bb841033db0a84d301d6ac045be96ce49b533870a0cce7e9a4bbabb0d";
-const BODY_DIGEST: &str = "92461f69f4f7b32205f92ad39c43b0a222c5ef4a72a14486ee22037aae86dc76";
+const BODY_DIGEST: &str = "109c24784a98c14ebb7b8c0def9cde95a22a425b1ff480ef4ae3805c5cb24c5c";
 
 #[test]
 fn signed_current_protocol_vectors_are_frozen() {

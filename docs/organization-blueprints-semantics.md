@@ -181,7 +181,7 @@ not enum declaration order.
 | `TaskRevised` | Task, expected round, new definition/variation and bindings | Administrator; creates a new round without reinterpreting prior evidence |
 | `TaskOpened` | Pinned goal rules revision, variation, inputs, criteria payload, optional parent | Selector authorized to propose; creates a task and initial round |
 | `WorkOffered` | Task/round, recipient, optional predecessor offer | Selector authorized to offer; makes directed work available |
-| `AttemptStarted` | Task/round, optional accepted offer, participant | Eligible independent starter or offered recipient; creates an attempt |
+| `AttemptStarted` | Task/round, optional accepted offer, optional exact closure-stream position, participant | Eligible independent starter or offered recipient; creates an attempt only at a causally open position |
 | `AttemptReported` | Attempt, progress/completed/failed/abandoned/uncertain status | Attempt author; reports facts without proving process liveness |
 | `WorkDeclined` | Exact offer | Recipient; records refusal |
 | `CancelRequested` / `CancelAcknowledged` | Attempt and exact cancellation request | Rule-authorized requester / attempt author; request does not prove cessation |
@@ -201,6 +201,20 @@ subsequent decisions name its exact current predecessor. Two signed successors
 of one predecessor halt that stream at the predecessor, even if their author-log
 sequence numbers differ. A discovered fork is never repaired by hash ordering,
 timeout, or a second signer silently taking over.
+
+An attempt records the exact closure-stream position observed for its round.
+The daemon fills this typed reference when authoring a start. An observed `Close`
+prevents that start; an observed `Reopen` permits it under the other pinned rules.
+Replay rejects a closure reference from another scope or purpose, and rejects
+omission or regression relative to closure decisions already present in the
+attempt's authenticated author ancestry and typed dependency closure. Missing
+referenced evidence stays pending. A concurrent offline start with no authenticated
+observation of the close remains valid when that close arrives later; wall clocks
+and arrival order do not retroactively cancel it. `Header.parents` remains causal
+hints, not an authority source. These constraints are enforced by
+[closure evaluation](../crates/locust-core/src/goal/closure.rs), with received-event
+[regressions](../crates/locust-core/src/goal/tests.rs) and public-Engine
+[authoring/restart tests](../crates/locust-core/tests/organizations.rs).
 
 A new administrator-authorized round can deliberately continue work after a
 scope halt, naming the halted round and the new bindings. It does not select a

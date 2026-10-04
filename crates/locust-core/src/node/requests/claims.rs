@@ -9,7 +9,9 @@ use crate::node::entry::Entry;
 use crate::node::sessions::{ClaimRecord, claim_write};
 use locust_proto::api::{ApiError, ErrorCode, Response};
 use locust_proto::engine::Entropy;
-use locust_proto::event::{AttemptStatus, Body, CancelOutcome, Scope, TaskId};
+use locust_proto::event::{
+    AttemptStatus, Body, CancelOutcome, DecisionPurpose, Scope, ScopeKey, TaskId,
+};
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::store::Store;
 
@@ -82,10 +84,23 @@ impl<S: Store, E: Entropy> Node<S, E> {
         tx.commit
             .local
             .extend(self.sessions.bind(&instance, &principal)?);
+        let closure = entry
+            .state()
+            .decisions
+            .get(&ScopeKey {
+                context,
+                purpose: DecisionPurpose::Closure,
+            })
+            .and_then(|decisions| decisions.last())
+            .map(|decision| decision.id);
         let attempt = self.author(
             entry,
             &principal,
-            Body::AttemptStarted { context, offer },
+            Body::AttemptStarted {
+                context,
+                offer,
+                closure,
+            },
             None,
             now,
             &mut tx,

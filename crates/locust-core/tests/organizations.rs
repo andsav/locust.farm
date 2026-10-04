@@ -518,3 +518,161 @@ fn author_credential_is_private_cas_capability_without_goal_or_session_access() 
         Response::BlueprintDraft(draft)
     );
 }
+
+#[test]
+fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
+    use locust_proto::{
+        event::Body,
+        organization::{Authority, Blueprint},
+    };
+    let mut h = Harness::new();
+    let mut blueprint = Blueprint::default();
+    blueprint.decisions.closure = Some(Authority::Participant {
+        key: h.principal.to_string(),
+    });
+    let Response::GoalCreated { goal } = h.ok(
+        h.agent,
+        Request::GoalCreate {
+            title: "Causal closure".into(),
+            blueprint_json: Some(serde_json::to_string(&blueprint).unwrap()),
+            roles: BTreeMap::new(),
+            inputs: BTreeMap::new(),
+        },
+    ) else {
+        panic!()
+    };
+    h.grant(goal, false);
+    let task = h.task(goal);
+    let closed = recorded(h.ok(
+        h.agent,
+        Request::ScopeClose {
+            goal,
+            scope: Scope::Task(task),
+            expected: None,
+        },
+    ));
+    assert_eq!(
+        h.request(
+            h.agent,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: None
+            }
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::Denied
+    );
+    let reopened = recorded(h.ok(
+        h.agent,
+        Request::ScopeReopen {
+            goal,
+            scope: Scope::Task(task),
+            expected: Some(closed),
+        },
+    ));
+    let Response::Claimed(claim) = h.ok(
+        h.agent,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: None,
+        },
+    ) else {
+        panic!()
+    };
+    let event = h.store.event(&claim.attempt).unwrap().unwrap();
+    assert!(
+        matches!(event.header().body, Body::AttemptStarted { closure: Some(position), .. } if position == reopened)
+    );
+    h.restart();
+    let Response::Claimed(retried) = h.ok(
+        h.agent,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: None,
+        },
+    ) else {
+        panic!()
+    };
+    assert_eq!(retried.attempt, claim.attempt);
+}
+
+#[test]
+fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
+    use locust_proto::event::Body;
+    let mut h = Harness::new();
+    let goal = h.goal("open");
+    h.grant(goal, false);
+    let parent = h.task(goal);
+    let old_rules = h
+        .store
+        .log(&goal, 0, 100)
+        .unwrap()
+        .iter()
+        .find_map(|(_, event)| {
+            matches!(event.header().body, Body::RulesBound { .. }).then_some(event.id())
+        })
+        .unwrap();
+    let child = recorded(h.ok(
+        h.agent,
+        Request::TaskOpen {
+            goal,
+            text: "Nested".into(),
+            variation: None,
+            inputs: BTreeMap::new(),
+            parent: Some(parent),
+        },
+    ));
+    let blueprint = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "open")
+        .unwrap()
+        .blueprint;
+    let new_rules = recorded(h.ok(
+        h.agent,
+        Request::RulesBind {
+            goal,
+            expected: old_rules,
+            blueprint_json: serde_json::to_string(&blueprint).unwrap(),
+            roles: BTreeMap::new(),
+            inputs: BTreeMap::new(),
+        },
+    ));
+    assert_ne!(new_rules, old_rules);
+    let next_child = recorded(h.ok(
+        h.agent,
+        Request::TaskOpen {
+            goal,
+            text: "Next nested".into(),
+            variation: None,
+            inputs: BTreeMap::new(),
+            parent: Some(parent),
+        },
+    ));
+    let revised = recorded(h.ok(
+        h.agent,
+        Request::TaskRevise {
+            goal,
+            task: TaskId::Authored(child),
+            expected_round: child,
+            variation: None,
+        },
+    ));
+    for id in [next_child, revised] {
+        let event = h.store.event(&id).unwrap().unwrap();
+        let (Body::TaskOpened { binding } | Body::TaskRevised { binding, .. }) =
+            &event.header().body
+        else {
+            panic!()
+        };
+        assert_eq!(binding.rules, old_rules);
+    }
+    h.restart();
+    let Response::Board(tasks) = h.ok(h.agent, Request::Board { goal }) else {
+        panic!()
+    };
+    assert_eq!(tasks.len(), 3);
+}

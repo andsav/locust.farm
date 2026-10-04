@@ -70,6 +70,7 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
             Body::AttemptStarted {
                 context,
                 offer: None,
+                closure: None,
             },
         );
         let result = worker.event(

@@ -163,6 +163,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     },
                 ) = binding.parent
                 {
+                    self.active_context(parent_context, event, proof)?;
                     let parent = self.resolve(parent_context)?;
                     if !rules::matches(
                         &parent.effective.work.propose,
@@ -219,8 +220,13 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 }
                 if !self.member_at(*recipient,h.anchor.unwrap())||!resolved.effective.work.starts.iter().any(|rule|matches!(rule,StartRule::Offered{by,to} if rules::matches(by,h.author,&resolved.effective,None)&&rules::matches(to,*recipient,&resolved.effective,None))){return Err(invalid("work offer is not authorized by the pinned rules"));}
             }
-            Body::AttemptStarted { context, offer } => {
+            Body::AttemptStarted {
+                context,
+                offer,
+                closure,
+            } => {
                 self.active_context(*context, event, proof)?;
+                self.open_at_observed_closure(event, *context, *closure, proof)?;
                 if !matches!(context.scope, Scope::Task(_)) {
                     return Err(invalid("attempt requires a task"));
                 }

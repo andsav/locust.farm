@@ -215,6 +215,7 @@ fn independent_attempts_and_contributions_survive_reverse_arrival_and_restart() 
         Body::AttemptStarted {
             context,
             offer: None,
+            closure: None,
         },
     );
     let b = f.worker(
@@ -222,6 +223,7 @@ fn independent_attempts_and_contributions_survive_reverse_arrival_and_restart() 
         Body::AttemptStarted {
             context,
             offer: None,
+            closure: None,
         },
     );
     f.publish(0, context);
@@ -1036,4 +1038,213 @@ fn nested_task_keeps_parent_rules_after_future_defaults_change() {
         },
     );
     assert_eq!(f.goal().standing(&child), Some(Standing::Effective));
+}
+
+#[test]
+fn starts_bind_causal_closure_without_rejecting_concurrent_offline_work() {
+    let mut blueprint = Blueprint::default();
+    blueprint.decisions.closure = Some(Authority::Participant {
+        key: Author::new(1).key.public().to_string(),
+    });
+    let mut f = Fixture::new(blueprint);
+    let context = f.task();
+    let close = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Close,
+        evidence: vec![],
+    });
+    // This worker's signed ancestry has not observed the concurrent close.
+    let concurrent = f.worker(
+        0,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: None,
+        },
+    );
+    let observed_close = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(close),
+        },
+    );
+    let omitted_close = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: None,
+        },
+    );
+    let reopen = f.admin(Body::ScopeDecided {
+        context,
+        previous: Some(close),
+        action: DecisionAction::Reopen,
+        evidence: vec![],
+    });
+    let reopened = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(reopen),
+        },
+    );
+    let regressed = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(close),
+        },
+    );
+    let goal = f.goal();
+    for accepted in [concurrent, reopened] {
+        assert_eq!(goal.standing(&accepted), Some(Standing::Effective));
+    }
+    for rejected in [observed_close, omitted_close, regressed] {
+        assert!(matches!(
+            goal.standing(&rejected),
+            Some(Standing::Excluded(_))
+        ));
+    }
+    let mut missing = Goal::new(f.id);
+    missing.apply(
+        &f.events
+            .iter()
+            .filter(|event| event.id() != reopen)
+            .cloned()
+            .collect::<Vec<_>>(),
+        &f.definitions,
+    );
+    assert!(matches!(
+        missing.standing(&reopened),
+        Some(Standing::Pending(_))
+    ));
+    missing.apply(&[f.event(reopen).clone()], &f.definitions);
+    assert_eq!(missing.evaluation(), goal.evaluation());
+    for reverse in [false, true] {
+        let mut events = f.events.clone();
+        if reverse {
+            events.reverse();
+        }
+        let mut store = MemStore::new();
+        store
+            .commit(&Commit {
+                events,
+                ..Commit::default()
+            })
+            .unwrap();
+        assert_eq!(
+            Goal::load(&store.reopen(), f.id, &f.definitions)
+                .unwrap()
+                .evaluation(),
+            goal.evaluation()
+        );
+    }
+}
+
+#[test]
+fn start_cannot_use_another_scope_or_selection_as_closure_position() {
+    let mut blueprint = Blueprint::default();
+    let authority = Authority::Participant {
+        key: Author::new(1).key.public().to_string(),
+    };
+    blueprint.decisions.closure = Some(authority.clone());
+    blueprint.decisions.selection = Some(authority);
+    blueprint.decisions.completion = CompletionRule::Contribution {
+        by: Selector::Members,
+    };
+    let mut f = Fixture::new(blueprint);
+    let context = f.task();
+    let another = f.task();
+    let close = f.admin(Body::ScopeDecided {
+        context: another,
+        previous: None,
+        action: DecisionAction::Close,
+        evidence: vec![],
+    });
+    let subject = f.publish(0, context);
+    let select = f.admin(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![subject],
+    });
+    let wrong_scope = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(close),
+        },
+    );
+    let wrong_purpose = f.worker(
+        1,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(select),
+        },
+    );
+    let goal = f.goal();
+    for rejected in [wrong_scope, wrong_purpose] {
+        assert!(matches!(
+            goal.standing(&rejected),
+            Some(Standing::Excluded(_))
+        ));
+    }
+}
+
+#[test]
+fn new_child_cannot_reuse_parent_round_superseded_at_its_anchor() {
+    let mut f = Fixture::new(Blueprint::default());
+    let parent = f.task();
+    let revised = f.admin(Body::TaskRevised {
+        task: match parent.scope {
+            Scope::Task(task) => task,
+            _ => unreachable!(),
+        },
+        expected_round: parent.round,
+        binding: TaskBinding {
+            rules: f.rules,
+            variation: None,
+            inputs: BTreeMap::new(),
+            parent: None,
+            stage: None,
+        },
+    });
+    let child = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: TaskBinding {
+                rules: f.rules,
+                variation: None,
+                inputs: BTreeMap::new(),
+                parent: Some(parent),
+                stage: None,
+            },
+        },
+    );
+    let current = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: TaskBinding {
+                rules: f.rules,
+                variation: None,
+                inputs: BTreeMap::new(),
+                parent: Some(Context {
+                    round: revised,
+                    ..parent
+                }),
+                stage: None,
+            },
+        },
+    );
+    let goal = f.goal();
+    assert!(matches!(goal.standing(&child), Some(Standing::Excluded(_))));
+    assert_eq!(goal.standing(&current), Some(Standing::Effective));
 }
