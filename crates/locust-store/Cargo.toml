@@ -3,6 +3,7 @@ name = "locust-store"
 description = "Durable SQLite implementation of the Locust storage seam"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish.workspace = true
 
 [dependencies]

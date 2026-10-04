@@ -3,6 +3,7 @@ name = "locust"
 description = "Locust daemon, command-line client and stdio MCP bridge"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish.workspace = true
 
 [dependencies]

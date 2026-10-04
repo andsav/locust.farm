@@ -140,8 +140,9 @@ reads, interrupted cleanup, ambiguous systemd ownership and generated MCP argv.
 Final macOS source checks passed formatting, strict all-target Clippy and 571
 Rust tests (11 explicit ignores). CI declarations have not been run remotely.
 Native installer, service, client and emulated Linux campaign results are
-separate qualification records; production key custody, license and publication
-remain open. The [local prompt](install-prompt.md) requires explicitly selected
+separate qualification records; production key custody and publication remain
+open. The owner selected the [Apache License 2.0](../LICENSE) on 2026-10-04;
+release bundles do not carry its text yet. The [local prompt](install-prompt.md) requires explicitly selected
 trust and paths and does not invent a public release origin.
 
 **A-C9 / B-C13 native macOS result:** the exact candidate from
@@ -264,8 +265,8 @@ The earlier hcom Codex/Claude runs only identify useful scenarios. In particular
 
 ## Decisions still requiring an owner
 
-- Repository license and distribution/signing-key custody: repository owner.
+- Distribution and signing-key custody: repository owner. The repository license is decided: [Apache License 2.0](../LICENSE), selected by the owner on 2026-10-04.
 - Pinned transport/blob/crypto implementation and default relay operator: assigned implementation/integration owner, with M0 evidence.
 - Final release go/no-go or explicit scope/support revision: repository owner after reviewing the candidate evidence.
 
-The first two rows assign decisions rather than resolving them. Do not invent a license, configure services or publish artifacts merely to complete this planning register.
+The first two rows assign decisions rather than resolving them. Do not change the license, configure services or publish artifacts merely to complete this planning register.

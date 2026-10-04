@@ -324,7 +324,7 @@ A contract revision is a hard cut: the hello accepts only an equal API version, 
 
 **Now** (they gate slices 0 and 1):
 
-1. **Distribution**: licence, public origin, signing custody.
+1. **Distribution**: licence, public origin, signing custody. Update, 2026-10-04: the owner chose the [Apache License 2.0](../LICENSE) after this note was written; origin and custody remain.
 2. **Is Locust complete without Polaris for a newcomer** (CLI, text view, your own agents)? If yes, Polaris leaves the newcomer path until it ships.
 3. **Standing permission.** Recommended: for the owner's own agents in goals the owner created, offer it when the goal is created. In someone else's goal, ask per assignment and offer "always for this goal" after the first approval, with an expiry. Never at join.
 4. **The bridge and peer text.** May the bridge gain tools and output of its own (`brief`, `news`), which changes the contract that a tool is an operation's mirror? And is "requested" as defined in section 2 the rule?

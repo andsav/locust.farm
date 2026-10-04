@@ -11,9 +11,9 @@ members = [
 resolver = "3"
 
 [workspace.package]
-license = "AGPL-3.0-only"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL-3.0-only"
 publish = false
 
 # One owner edits this table and Cargo.lock; see docs/workstreams.md.

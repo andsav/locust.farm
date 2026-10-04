@@ -3,6 +3,7 @@ name = "locust-workspace"
 description = "Locust workspace snapshots: manifest export, materialization and patches"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish.workspace = true
 
 [dependencies]
