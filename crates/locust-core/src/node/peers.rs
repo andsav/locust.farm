@@ -254,7 +254,7 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
         request: &JoinRequest,
         now_ms: u64,
     ) -> Result<(), Refusal> {
-        let tx = self.plan_join(remote, request, now_ms)?;
+        let tx = self.plan_join(remote, request, now_ms, None)?;
         self.land(tx).map_err(|_| Refusal::InvitationRefused)
     }
     fn take_changed(&mut self) -> Vec<GoalId> {
@@ -293,11 +293,15 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
 
 impl<S: Store, E: Entropy> Node<S, E> {
     /// Shared validation for network and same-daemon invitation redemption.
+    /// Only an authenticated owner acting for the joining local principal can
+    /// authorize this admission without the administrator's standing grants.
+    /// Network redemption never supplies a local actor.
     pub(super) fn plan_join(
         &self,
         remote: &EndpointId,
         request: &JoinRequest,
         now_ms: u64,
+        local_actor: Option<&super::callers::Actor>,
     ) -> Result<Tx, Refusal> {
         use super::requests::invitations::InviteRecord;
         let refused = Refusal::InvitationRefused;
@@ -329,13 +333,24 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 Err(refused)
             };
         }
+        let owner_local_admission = local_actor.is_some_and(|actor| {
+            actor.caller == locust_proto::api::Caller::Owner
+                && actor.owner_act
+                && actor.principal == Some(request.member)
+                && self
+                    .identity
+                    .endpoint
+                    .as_ref()
+                    .is_some_and(|own| own.endpoint == *remote)
+        });
         if self.principals.active(&invite.administrator).is_none()
             || entry.local.part.get(&invite.administrator) == Some(&true)
-            || !entry.local.grants(&invite.administrator).administer
-            || !self
-                .principals
-                .active(&invite.administrator)
-                .is_some_and(|principal| principal.record.grants.manage_goals)
+            || (!owner_local_admission
+                && (!entry.local.grants(&invite.administrator).administer
+                    || !self
+                        .principals
+                        .active(&invite.administrator)
+                        .is_some_and(|principal| principal.record.grants.manage_goals)))
             || invite.expires_ms.is_some_and(|expires| now_ms >= expires)
             || entry.state().administrator != Some(invite.administrator)
             || entry.is_member(&request.member)

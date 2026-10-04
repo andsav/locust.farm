@@ -566,6 +566,23 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
             takeover: false,
         })
         .unwrap();
+    // Task text and the later work offer replicate independently. Seeing the
+    // task does not yet prove that this exact offered attempt is eligible.
+    eventually_observed(
+        "worker offer readiness",
+        || w.call(Request::Pending { goal }),
+        |observed| match observed {
+            Ok(Response::Pending(work))
+                if work
+                    .to_start
+                    .iter()
+                    .any(|item| item.task == task && item.offer == Some(assignment)) =>
+            {
+                Some(())
+            }
+            _ => None,
+        },
+    );
     let Response::Claimed(claim) = w
         .call(Request::AttemptStart {
             goal,

@@ -282,12 +282,12 @@ submitted=call('patch','submit','--goal',goal,'--patch',pid,'--attempt',claim['a
                '--generation',str(claim['generation']),'Verified synthetic workspace change')
 rid=submitted['recorded']['event']
 call('review','record','--goal',goal,'--subject',rid,'--verdict','approve','Verified synthetic change')
-call('patch','select','--goal',goal,'--subject',rid,'--patch',pid)
+call('patch','select','--goal',goal,'--subject',rid)
 accepted=call('goal','status','--goal',goal)['goal_status']
 assert call('task','show','--goal',goal,'--task',w['task'])['task']['view']['selected']==rid
 assert accepted['workspace']['integrated']==w['base']
 assert (source/'code.txt').read_text()=='before\\n'
-call('patch','apply','--goal',goal,'--subject',rid,'--patch',pid,'--root',w['source'],'--expected-base',w['base'],
+call('patch','apply','--goal',goal,'--subject',rid,'--root',w['source'],
      '--expected-git-head',w['commit'])
 integrated=call('goal','status','--goal',goal)['goal_status']
 assert integrated['workspace']['integrated']==head

@@ -67,3 +67,5 @@ the repository root to check coverage and local link paths.
 - [Troubleshooting, FAQ and glossary](guide/help.md): Symptom-specific next actions and exact collaboration terminology.
 - [Authoring schema and command reference](guide/schema-reference.md): generated fields, offline operations and exact example downloads.
 - [Local API, MCP and event reference boundaries](guide/runtime-reference.md): transport, effects, proof and generation boundaries.
+
+- [Local Codex and Claude demo](demo.md): reviewed onboarding, named local participants, explicit permissions, shared findings and exact contribution application.

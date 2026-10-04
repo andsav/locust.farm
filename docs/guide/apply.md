@@ -12,7 +12,8 @@ rule/round. A review applies to that candidate alone. Several candidates may
 qualify; the rule's selection authority can choose one where selection is
 configured. `scope select --goal GOAL --subject CONTRIBUTION` selects the initial
 output. Later changes supply the current decision event with `--expected`.
-`patch select` additionally checks the subject's exact patch artifact.
+`patch review --subject CONTRIBUTION` derives the signed patch and base; `--patch` remains available for inspecting an unpublished patch.
+`patch select --subject CONTRIBUTION` additionally checks the subject's exact patch artifact.
 
 A local owner can choose an effective, unselected contribution for their own
 checkout with `patch apply --local-choice`. This requires authenticated `--owner`
@@ -36,8 +37,8 @@ using either the selected-output or local-choice route.
 For a selected contribution, use:
 
 ```sh
-locust patch apply --goal GOAL --subject CONTRIBUTION --patch PATCH \
-  --root /absolute/checkout --expected-base MANIFEST --expected-git-head COMMIT
+locust patch apply --goal GOAL --subject CONTRIBUTION \
+  --root /absolute/checkout --expected-git-head COMMIT
 ```
 
 Here `CONTRIBUTION` identifies the signed event; `PATCH` identifies the immutable
@@ -93,11 +94,11 @@ agent patch create --goal "$goal" --base "$base" --root "$demo/worker" --path co
 patch=$(pick contribution_id <"$demo/patch.json")
 subject=$(agent contribution publish --goal "$goal" --base "$base" --patch "$patch" 'A taskless patch' | pick recorded.event)
 agent patch review --goal "$goal" --patch "$patch" >"$demo/review.json"
-if agent patch apply --goal "$goal" --subject "$subject" --patch "$patch" --root "$demo/source" --expected-base "$base" --expected-git-head "$commit" >"$demo/unselected.json"; then
+if agent patch apply --goal "$goal" --subject "$subject" --root "$demo/source" --expected-git-head "$commit" >"$demo/unselected.json"; then
   echo 'Unexpected unselected apply success'; exit 1
 fi
-owner --as "$person" patch apply --goal "$goal" --subject "$subject" --patch "$patch" \
-  --root "$demo/source" --expected-base "$base" --expected-git-head "$commit" --local-choice >"$demo/applied.json"
+owner --as "$person" patch apply --goal "$goal" --subject "$subject" \
+  --root "$demo/source" --expected-git-head "$commit" --local-choice >"$demo/applied.json"
 agent contributions --goal "$goal" >"$demo/contributions.json"
 python3 - "$demo" <<'PY'
 import json, pathlib, sys

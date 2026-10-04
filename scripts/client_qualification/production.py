@@ -255,17 +255,20 @@ class ProductionDaemon:
         if forced or process.returncode != 0 or (self.home / "daemon.sock").exists():
             raise ProductionError("production daemon did not exit cleanly")
 
+    def _enroll_identity(self):
+        enrolled = self.call(["agent", "enroll", "qualification", "--manage-goals"], owner=True)
+        self.principal = enrolled.get("agent_enrolled", {}).get("agent")
+        if not isinstance(self.principal, str) or not PUBLIC_ID.fullmatch(self.principal):
+            raise ProductionError("production enrollment did not return a principal")
+        session = self.call(["session", "create", str(self.session)], owner=True)
+        self.instance = session.get("instance")
+        if not isinstance(self.instance, str) or not re.fullmatch(r"[0-9a-f]{32}", self.instance):
+            raise ProductionError("production session creation did not return an instance")
+
     def __enter__(self):
         try:
             self._start()
-            enrolled = self.call(["agent", "enroll", "qualification", "--manage-goals"], owner=True)
-            self.principal = enrolled.get("agent_enrolled", {}).get("agent")
-            if not isinstance(self.principal, str) or not PUBLIC_ID.fullmatch(self.principal):
-                raise ProductionError("production enrollment did not return a principal")
-            session = self.call(["session", "create", str(self.session)], owner=True)
-            self.instance = session.get("instance")
-            if not isinstance(self.instance, str) or not re.fullmatch(r"[0-9a-f]{32}", self.instance):
-                raise ProductionError("production session creation did not return an instance")
+            self._enroll_identity()
             for path in (self.credential, self.session):
                 if path.is_symlink() or not path.is_file() or path.stat().st_mode & 0o777 != 0o600 or path.stat().st_size != 32:
                     raise ProductionError("production authentication files are not private 32-byte secrets")

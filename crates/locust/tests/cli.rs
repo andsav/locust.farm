@@ -829,3 +829,210 @@ fn closed_stderr_does_not_abort_daemon_startup_or_shutdown() {
     envelope(&output, 0);
     assert!(!home.path().join("daemon.sock").exists());
 }
+
+#[test]
+fn human_goal_and_task_titles_resolve_to_exact_authorized_write() {
+    use locust_proto::api::TaskView;
+    use locust_proto::event::{Context, Scope, TaskId};
+    use locust_proto::id::EventId;
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([0x31; 32]);
+    let task = TaskId::Authored(EventId([0x41; 32]));
+    let agent = PublicKey([0x51; 32]);
+    let handle = server(home.path(), 1, move |frame| match frame.request {
+        Request::Status => Ok(status(vec![GoalSummary {
+            goal,
+            title: Some("Demo".into()),
+            member: agent,
+            membership: Membership::Member,
+            halted: None,
+        }])),
+        Request::Board { goal: g } => {
+            assert_eq!(g, goal);
+            Ok(Response::Board(vec![TaskView {
+                task,
+                context: Context {
+                    scope: Scope::Task(task),
+                    round: EventId([0x41; 32]),
+                },
+                creator: agent,
+                title: Some("Fix greeting".into()),
+                attempts: vec![],
+                contributions: vec![],
+                completed: false,
+                selected: None,
+                closed: false,
+            }]))
+        }
+        Request::WorkOffer {
+            goal: g,
+            task: t,
+            recipient,
+        } => {
+            assert_eq!((g, t, recipient), (goal, task, agent));
+            Ok(Response::Recorded {
+                event: EventId([0x61; 32]),
+            })
+        }
+        other => panic!("unexpected request {other:?}"),
+    });
+    let output = cli(home.path())
+        .args([
+            "--owner",
+            "work",
+            "offer",
+            "--goal",
+            "Demo",
+            "--task",
+            "Fix greeting",
+            "--recipient",
+            &agent.to_string(),
+        ])
+        .output()
+        .unwrap();
+    envelope(&output, 0);
+    handle.join().unwrap();
+}
+
+#[test]
+fn duplicate_goal_titles_refuse_writes_instead_of_guessing() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let handle = server(home.path(), 1, move |frame| {
+        assert!(matches!(frame.request, Request::Status));
+        Ok(status(
+            [1, 2]
+                .into_iter()
+                .map(|n| GoalSummary {
+                    goal: GoalId([n; 32]),
+                    title: Some("Demo".into()),
+                    member: PublicKey([3; 32]),
+                    membership: Membership::Member,
+                    halted: None,
+                })
+                .collect(),
+        ))
+    });
+    let output = cli(home.path())
+        .args(["--owner", "goal", "leave", "--goal", "Demo"])
+        .output()
+        .unwrap();
+    assert!(
+        envelope(&output, 6)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("ambiguous")
+    );
+    handle.join().unwrap();
+}
+
+#[test]
+fn review_subject_prefix_checks_later_feed_pages_before_writing() {
+    use locust_proto::api::{EventView, Standing};
+    use locust_proto::id::EventId;
+    for ambiguous in [false, true] {
+        let home = scratch();
+        write_secret(&home.path().join("owner.credential"), &[1; 32]);
+        let goal = GoalId([1; 32]);
+        let first = EventId([0xab; 32]);
+        let mut other = [0xab; 32];
+        other[31] = 2;
+        let handle = server(home.path(), 1, move |frame| match frame.request {
+            Request::Events { goal: g, after, .. } => {
+                assert_eq!(g, goal);
+                let candidate = match after {
+                    None => Some((1, first)),
+                    Some(1) => Some((
+                        2,
+                        if ambiguous {
+                            EventId(other)
+                        } else {
+                            EventId([2; 32])
+                        },
+                    )),
+                    Some(2) => None,
+                    other => panic!("bad cursor {other:?}"),
+                };
+                Ok(Response::Events(
+                    candidate
+                        .into_iter()
+                        .map(|(position, event)| EventView {
+                            position: Some(position),
+                            event,
+                            author: PublicKey([3; 32]),
+                            kind: "contribution_published".into(),
+                            at_ms: 0,
+                            standing: Standing::Effective,
+                        })
+                        .collect(),
+                ))
+            }
+            Request::ReviewRecord {
+                goal: g, subject, ..
+            } => {
+                assert!(!ambiguous, "ambiguous selector wrote a review");
+                assert_eq!((g, subject), (goal, first));
+                Ok(Response::Recorded {
+                    event: EventId([4; 32]),
+                })
+            }
+            other => panic!("unexpected {other:?}"),
+        });
+        let output = cli(home.path())
+            .args([
+                "--owner",
+                "review",
+                "record",
+                "--goal",
+                &goal.to_string(),
+                "--subject",
+                "ABABABAB",
+                "--verdict",
+                "approve",
+                "Reviewed exact changes",
+            ])
+            .output()
+            .unwrap();
+        let result = envelope(&output, if ambiguous { 6 } else { 0 });
+        if ambiguous {
+            assert!(
+                result["error"]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("ambiguous")
+            );
+        }
+        handle.join().unwrap();
+    }
+}
+
+#[test]
+fn generic_calls_keep_full_typed_identity_contract_and_reject_human_selectors_offline() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    for (operation, fields) in [
+        ("goal.leave", json!({"goal":"Demo"})),
+        (
+            "task.show",
+            json!({"goal":GoalId([1;32]),"task":"task:abababab"}),
+        ),
+        (
+            "event.show",
+            json!({"goal":GoalId([1;32]),"event":"abababab"}),
+        ),
+    ] {
+        let output = cli(home.path())
+            .args(["--owner", "call", operation, &fields.to_string()])
+            .output()
+            .unwrap();
+        let result = envelope(&output, 2);
+        assert_eq!(result["error"]["code"], "invalid");
+        assert!(
+            !result["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("socket")
+        );
+    }
+}

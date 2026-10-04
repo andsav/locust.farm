@@ -62,7 +62,7 @@ binding strings and content but never opens the supplied paths.
 | `patch review --goal GOAL --patch PATCH` | Validates the exact delta and renders text diffs or binary/mode summaries |
 | `patch submit --goal GOAL --patch PATCH --assignment ASSIGNMENT --generation N SUMMARY` | Validates and submits the contribution with its base and head under the claimed session |
 | `patch accept --goal GOAL --result RESULT --patch PATCH` | Checks the result/patch/base relationship and accepts the exact head |
-| `patch apply --goal GOAL --patch PATCH --root ROOT --expected-base BASE` | Applies a currently accepted contribution, preserves originals and records local integration after success |
+| `patch apply --goal GOAL --subject CONTRIBUTION --root ROOT` | Applies a currently accepted contribution, preserves originals and records local integration after success |
 
 Paths are absolute local selections. An exported Git root also requires
 `--expected-git-head FULL_COMMIT` for application. Capture and application must

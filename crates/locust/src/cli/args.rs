@@ -127,6 +127,14 @@ fn operation(name: &'static str, api: &'static str) -> Command {
         }
         command = command.arg(argument);
     }
+    if api == "goal.create" {
+        command = command.arg(
+            Arg::new("blueprint")
+                .long("blueprint")
+                .conflicts_with("blueprint_json")
+                .help("Bundled organization name from blueprint examples; no JSON required"),
+        );
+    }
     command
 }
 fn version_line() -> &'static str {
@@ -196,7 +204,7 @@ pub(super) fn command() -> Command {
         .subcommand(super::onboarding::up_command())
         .subcommand(super::blueprint::commands())
         .subcommand(Command::new("contract").about("Export API, event and MCP contracts offline"))
-        .subcommand(Command::new("doctor").about("Check local daemon readiness"))
+        .subcommand(super::doctor::command())
         .subcommand(
             Command::new("mcp")
                 .about("Serve authenticated MCP tools")
@@ -260,6 +268,10 @@ pub(super) fn command() -> Command {
             command = command.subcommand(operation(api.name, api.name));
         }
     }
+    groups
+        .entry("goal")
+        .or_default()
+        .push(super::local_members::command());
     groups
         .entry("daemon")
         .or_default()
@@ -351,6 +363,22 @@ pub(super) fn values(operation: &str, matches: &ArgMatches) -> Result<Map<String
             },
         };
         values.insert(field.name.into(), value);
+    }
+    if operation == "goal.create"
+        && let Some(name) = matches.get_one::<String>("blueprint")
+    {
+        let preset = locust_proto::organization::presets()
+            .into_iter()
+            .find(|preset| preset.name == *name)
+            .ok_or_else(|| {
+                Failure::usage(format!("unknown blueprint {name}; use blueprint examples"))
+            })?;
+        values.insert(
+            "blueprint_json".into(),
+            Value::String(
+                serde_json::to_string(&preset.blueprint).expect("bundled blueprint encodes"),
+            ),
+        );
     }
     Ok(values)
 }

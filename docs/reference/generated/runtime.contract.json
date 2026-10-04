@@ -75,7 +75,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -100,7 +100,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -118,7 +118,7 @@
               },
               {
                 "action": "Set",
-                "help": "Limit this change to one task's local execution authorization",
+                "help": "Task title or typed task:/effect: identifier or unique prefix",
                 "long": "task",
                 "name": "task",
                 "positional": false,
@@ -143,7 +143,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -161,7 +161,7 @@
               },
               {
                 "action": "Set",
-                "help": "Limit this change to one task's local execution authorization",
+                "help": "Task title or typed task:/effect: identifier or unique prefix",
                 "long": "task",
                 "name": "task",
                 "positional": false,
@@ -196,7 +196,7 @@
         "arguments": [
           {
             "action": "Set",
-            "help": "Goal identifier or unique prefix",
+            "help": "Goal title, full identifier or unique prefix",
             "long": "goal",
             "name": "goal",
             "positional": false,
@@ -340,7 +340,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -392,7 +392,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -401,11 +401,20 @@
               },
               {
                 "action": "Set",
-                "help": "Full contribution content identifier",
+                "help": "Contribution event identifier or unique prefix; derives its signed patch",
+                "long": "subject",
+                "name": "subject",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Full content identifier for an unpublished patch",
                 "long": "patch",
                 "name": "patch",
                 "positional": false,
-                "required": true,
+                "required": false,
                 "short": null
               }
             ],
@@ -417,7 +426,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -478,7 +487,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -487,7 +496,7 @@
               },
               {
                 "action": "Set",
-                "help": "Full contribution event identifier",
+                "help": "Contribution event identifier or unique prefix",
                 "long": "subject",
                 "name": "subject",
                 "positional": false,
@@ -496,20 +505,11 @@
               },
               {
                 "action": "Set",
-                "help": "Current scope selection decision identifier",
+                "help": "Current scope selection decision identifier or unique prefix",
                 "long": "expected",
                 "name": "expected",
                 "positional": false,
                 "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Full contribution content identifier",
-                "long": "patch",
-                "name": "patch",
-                "positional": false,
-                "required": true,
                 "short": null
               }
             ],
@@ -521,7 +521,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -539,27 +539,9 @@
               },
               {
                 "action": "Set",
-                "help": "Full contribution content identifier",
-                "long": "patch",
-                "name": "patch",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Exact selected contribution event identifier",
+                "help": "Selected contribution event identifier or unique prefix; derives its signed patch and base",
                 "long": "subject",
                 "name": "subject",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Exact manifest the local changes are expected to start from",
-                "long": "expected-base",
-                "name": "expected-base",
                 "positional": false,
                 "required": true,
                 "short": null
@@ -1911,10 +1893,74 @@
         "summary": "Export API, event and MCP contracts offline"
       },
       {
-        "arguments": [],
+        "arguments": [
+          {
+            "action": "Set",
+            "help": "Software prefix; defaults to the selected onboarding journal",
+            "long": "prefix",
+            "name": "prefix",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Inspect this enrolled client in the selected profile",
+            "long": "client",
+            "name": "client",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Selected client profile home (defaults to HOME)",
+            "long": "profile-home",
+            "name": "profile-home",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Workspace to inspect (defaults to the enrolled workspace)",
+            "long": "workspace",
+            "name": "workspace",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Service manager to inspect; defaults to this platform when inspecting a client",
+            "long": "service",
+            "name": "service",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Service manager profile home (defaults to HOME)",
+            "long": "service-profile-home",
+            "name": "service-profile-home",
+            "positional": false,
+            "required": false,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": "Service logs directory (defaults to daemon home/logs)",
+            "long": "log-dir",
+            "name": "log-dir",
+            "positional": false,
+            "required": false,
+            "short": null
+          }
+        ],
         "commands": [],
         "name": "doctor",
-        "summary": "Check local daemon readiness"
+        "summary": "Check daemon readiness and a selected installation or enrolled client profile"
       },
       {
         "arguments": [
@@ -3388,6 +3434,15 @@
                 "positional": false,
                 "required": true,
                 "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Bundled organization name from blueprint examples; no JSON required",
+                "long": "blueprint",
+                "name": "blueprint",
+                "positional": false,
+                "required": false,
+                "short": null
               }
             ],
             "commands": [],
@@ -3500,6 +3555,49 @@
             "commands": [],
             "name": "status",
             "summary": "goal status"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique hex prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Enrolled local agent name or full principal key",
+                "long": "agent",
+                "name": "agent",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Inspect sharing and membership without issuing an invitation",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Approve sharing this selected goal with this selected local agent",
+                "long": "yes",
+                "name": "yes",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "add-local",
+            "summary": "Review whole-goal sharing with an enrolled local agent; permissions stay unchanged"
           }
         ],
         "name": "goal",
@@ -4186,7 +4284,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -4220,7 +4318,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Goal identifier or unique prefix",
+                "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,

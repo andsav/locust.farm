@@ -301,7 +301,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 self.signer(&principal)?,
             );
             let mut tx = self
-                .plan_join(&own, &request, now_ms)
+                .plan_join(&own, &request, now_ms, Some(actor))
                 .map_err(|_| denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the administrator"))?;
             tx.local(local::part_write(&goal, &principal, false))
                 .touch(goal);

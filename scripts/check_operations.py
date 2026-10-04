@@ -236,10 +236,10 @@ class Operations(Qualification):
                 ["patch", "review", "--goal", goal, "--patch", p["contribution_id"]], expected_errors=("unavailable", "not_found")))
         self.api(lead, "review.record", goal=goal, subject=results[0], verdict="approve", text="Reviewed first patch")
         self.api(lead, "review.record", goal=goal, subject=results[1], verdict="approve", text="Reviewed second patch")
-        self.cli(lead, ["patch", "select", "--goal", goal, "--subject", results[0], "--patch", patches[0]["contribution_id"]])
-        self.expect_error(lead, ["patch", "select", "--goal", goal, "--subject", results[1], "--patch", patches[1]["contribution_id"]], "conflict")
-        apply = ["patch", "apply", "--goal", goal, "--subject", results[0], "--root", source, "--patch", patches[0]["contribution_id"],
-                 "--expected-base", base, "--expected-git-head", commit]
+        self.cli(lead, ["patch", "select", "--goal", goal, "--subject", results[0]])
+        self.expect_error(lead, ["patch", "select", "--goal", goal, "--subject", results[1]], "conflict")
+        apply = ["patch", "apply", "--goal", goal, "--subject", results[0], "--root", source,
+                 "--expected-git-head", commit]
         (source / "code.txt").write_text("uncommitted conflict\n")
         (source / "unrelated.txt").write_text("unrelated dirty work\n")
         before = {p.name: p.read_bytes() for p in source.iterdir() if p.is_file()}

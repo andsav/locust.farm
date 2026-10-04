@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Actual client discovery and task flow through a test-signed installed Locust.
 
-Only setup plan/apply installs the MCP entry, skill and bound CLI. Native client JSON
+Installed `up` enrolls the identity and installs the MCP entry, skill and bound CLI. Native client JSON
 receipts and independent durable daemon reads are required; provider-selected
 calls alone never pass. Private profiles use dummy loopback providers and the
 macOS OS network guard. Interactive human approval and real models are not tested.
@@ -23,7 +23,8 @@ import threading
 import check_clients as fixture
 import check_t2_clients as workflow
 from check_installation import copy_bundle
-from client_qualification.production import DAEMON_GUARD, ProductionDaemon, ProductionError
+from client_qualification.production import DAEMON_GUARD, ProductionError
+from client_qualification.onboarding import OnboardedDaemon
 from client_qualification.provider import Provider
 from client_qualification.runtime import Process, Profile, private_write, records
 
@@ -32,7 +33,7 @@ CLIENTS = ("codex", "claude-code", "pi")
 SKILLS = {"codex": ".agents/skills/locust/SKILL.md", "claude-code": ".claude/skills/locust/SKILL.md",
           "pi": ".pi/agent/skills/locust/SKILL.md"}
 CONFIGS = {"codex": ".codex/config.toml", "claude-code": ".claude.json", "pi": ".pi/agent/mcp.json"}
-ASSERTIONS = ("test_signed_install", "persistent_setup", "setup_idempotent", "network_isolation",
+ASSERTIONS = ("test_signed_install", "persistent_setup", "setup_idempotent", "onboarding_no_initial_grants", "onboarding_retry_after_restart", "selected_profile_doctor", "network_isolation",
               "bound_cli_launcher",
               "automatic_skill_metadata", "native_skill_read", "registered_mcp_roundtrip", "default_read",
               "default_write", "permissive_read", "permissive_write", "claim", "progress",
@@ -246,7 +247,7 @@ def registration_removed(client, config, skill, status):
 
 
 def invocation(client, binary, profile, label, permissive):
-    # Empty overlay is intentional: only setup wrote MCP registration and skill.
+    # Empty overlay is intentional: only up wrote MCP registration and skill.
     argv = fixture.invocation(client, binary, [], permissive, None, profile)
     argv = [argument for argument in argv if argument != "--bare"]
     if client == "pi":
@@ -350,24 +351,25 @@ def qualify(client, binary, args):
         prefix, installed, artifact = install(profile, args)
         result["artifact"] = artifact
         checks["test_signed_install"] = fixture.assertion("pass", "Trusted bootstrap verified disposable test signature and exact payload before activation", artifact)
-        with ProductionDaemon(profile, installed, timeout) as daemon:
-            result["daemon_receipts"] = str(daemon.events)
-            observer = None
-            with Provider([], request_observer=lambda body: observer(body) if observer else None) as provider:
-                env.update(fixture.provider_settings(client, profile, provider.url))
-                config = profile.home / CONFIGS[client]
-                if client != "codex":
-                    private_write(config, json.dumps({"qualification_sentinel": "preserve", "mcpServers": {}}))
-                baseline = config.read_bytes()
-                plan = setup(profile, daemon, prefix, installed, client, "plan", timeout)
-                applied = setup(profile, daemon, prefix, installed, client, "apply", timeout, plan["plan_sha256"])
-                again = setup(profile, daemon, prefix, installed, client, "plan", timeout)
-                repeated = setup(profile, daemon, prefix, installed, client, "apply", timeout, again["plan_sha256"])
+        observer = None
+        with Provider([], request_observer=lambda body: observer(body) if observer else None) as provider:
+            env.update(fixture.provider_settings(client, profile, provider.url))
+            config = profile.home / CONFIGS[client]
+            if client != "codex":
+                private_write(config, json.dumps({"qualification_sentinel": "preserve", "mcpServers": {}}))
+            baseline = config.read_bytes()
+            with OnboardedDaemon(profile, installed, timeout, client) as daemon:
+                result["daemon_receipts"] = str(daemon.events)
                 local_status = setup(profile, daemon, prefix, installed, client, "status", timeout)
-                result["setup"] = {"plan": plan, "applied": applied, "repeat": repeated, "status": local_status}
+                result["onboarding"] = daemon.onboarding
+                result["onboarding"]["doctor_before"] = daemon.doctor()
+                result["setup"] = {"status": local_status}
                 checks["persistent_setup"] = fixture.assertion("pass" if local_status["configured"] and local_status["binding_matches"] else "fail",
-                    "Installed setup API owns the skill, bound launcher and persistent MCP entry; actual client discovery tested separately")
-                checks["setup_idempotent"] = fixture.assertion("pass" if repeated["changed"] is False else "fail", "Second reviewed apply changes no owned file")
+                    "Installed up owns enrolled identity, skill, bound launcher and MCP entry; native discovery tested separately")
+                checks["setup_idempotent"] = fixture.assertion("pass" if daemon.onboarding["retry_verified"] else "fail",
+                    "Repeated up and agent add preserve identity, session, credentials and launcher")
+                checks["onboarding_no_initial_grants"] = fixture.assertion("pass" if daemon.onboarding["no_initial_grants"] else "fail",
+                    "Independent owner status sees exactly one enrolled principal without manage-goals permission before explicit fixture authorization")
                 skill_path = profile.home / SKILLS[client]
                 launcher = skill_path.with_name("locust-cli")
                 require(local_status.get("launcher") == str(launcher) and local_status.get("launcher_ready") is True,
@@ -438,7 +440,7 @@ def qualify(client, binary, args):
                 write = persisted_contribution(ae, daemon, "installed-permissive-" + client)
                 checks["permissive_read"] = fixture.assertion("pass" if read else "fail", "Native MCP response matches independently created goal and principal")
                 checks["permissive_write"] = fixture.assertion("pass" if write else "fail", "Native returned event ID independently resolves to expected committed note and author")
-                checks["registered_mcp_roundtrip"] = fixture.assertion("pass" if read and write else "fail", "Actual native MCP result plus durable daemon state through setup-installed command, without registration overlays")
+                checks["registered_mcp_roundtrip"] = fixture.assertion("pass" if read and write else "fail", "Actual native MCP result plus durable daemon state through up-installed command, without registration overlays")
                 observed_claims = [v["result"].get("claimed") for v in successful(ae, workflow.CLAIM)]
                 claim = any(c in independent_claims and c.get("task") == work["task"] and c.get("instance") == daemon.instance
                             for c in observed_claims if isinstance(c, dict))
@@ -448,19 +450,27 @@ def qualify(client, binary, args):
                 checks["bound_cli_launcher"] = fixture.assertion(
                     "pass" if all(checks[key]["status"] == "pass" for key in
                                   ("workspace_native_tool", "contribution_flow", "selected_before_integrated", "dirty_work_preserved")) else "fail",
-                    "Native client workspace driver used only setup's launcher and --json; no executable/home/credential/session prefix supplied by the harness",
+                    "Native client workspace driver used only up's launcher and --json; no executable/home/credential/session prefix supplied by the harness",
                     {"path": str(launcher), "sha256": digest(launcher), "skill_sha256": observer.sha256})
                 before = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
                 endpoint = daemon.endpoint
                 daemon.restart()
                 after = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
                 checks["daemon_restart"] = fixture.assertion("pass" if before == after and endpoint == daemon.endpoint else "fail", "Installed daemon retains exact goal state and endpoint across restart")
+                daemon.retry()
+                result["onboarding"]["doctor_after_restart"] = daemon.doctor()
+                checks["selected_profile_doctor"] = fixture.assertion("pass",
+                    "Selected installation/profile checks pass before native startup and after restart; exact enrolled identity matches and model/discovery remain unverified")
+                require(daemon.call(["status"], owner=True)["status"]["agents"][0]["grants"]["manage_goals"],
+                        "Onboarding retry reset explicit owner authorization")
+                checks["onboarding_retry_after_restart"] = fixture.assertion("pass",
+                    "After daemon restart, up and agent add retain exact identity, secret hashes, launcher and owner grant")
                 fresh, fe = execute("fresh-after-restart", [workflow.step(workflow.READ, {"goal": daemon.goal}),
                     workflow.step(workflow.WRITE, {"goal": daemon.goal, "artifacts": [], "summary": "installed-restart-" + client})], True)
                 fresh_good = (read_matches(fe, daemon) and persisted_contribution(fe, daemon, "installed-restart-" + client)
                               and bool(fresh["native_session_id"]) and fresh["native_session_id"] not in
                               {default["native_session_id"], active["native_session_id"]})
-                checks["fresh_client_after_restart"] = fixture.assertion("pass" if fresh_good else "fail", "Fresh native process reads persisted state and commits new note through existing persistent setup after daemon restart")
+                checks["fresh_client_after_restart"] = fixture.assertion("pass" if fresh_good else "fail", "Fresh native process reads persisted state and commits new note through existing up binding after daemon restart and onboarding retry")
                 result["provider_requests"] = provider_projection(provider)
                 result["provider_errors"] = provider.errors
                 result["provider_backend_requests"] = provider.backend_requests

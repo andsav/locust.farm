@@ -13,7 +13,7 @@ fn goal() -> Arg {
     Arg::new("goal")
         .long("goal")
         .required(true)
-        .help("Goal identifier or unique prefix")
+        .help("Goal title, full identifier or unique prefix")
 }
 
 fn agent() -> Arg {
@@ -31,7 +31,7 @@ fn change(name: &'static str, about: &'static str) -> Command {
         .arg(
             Arg::new("task")
                 .long("task")
-                .help("Limit this change to one task's local execution authorization"),
+                .help("Task title or typed task:/effect: identifier or unique prefix"),
         )
         .arg(
             Arg::new("permissions")
@@ -169,10 +169,7 @@ pub(super) fn run(
             .collect::<Vec<_>>();
         let task = selected
             .get_one::<String>("task")
-            .map(|task| {
-                task.parse()
-                    .map_err(|_| Failure::usage("--task requires task:<64 hex> or effect:<64 hex>"))
-            })
+            .map(|task| super::selectors::resolve_task(&mut client, &socket, goal, task, None))
             .transpose()?;
         match (operation, task) {
             ("permission.allow", Some(task)) => {

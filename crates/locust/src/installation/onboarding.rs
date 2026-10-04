@@ -3,6 +3,8 @@
 //! A private journal reserves one identity per client/profile before secrets or
 //! enrollment are created. Secrets are durable before the daemon learns them.
 //! Setup keeps its own file transaction; neither stage grants work permission.
+pub mod diagnostics;
+
 use super::*;
 use crate::connection;
 use locust_proto::api::{

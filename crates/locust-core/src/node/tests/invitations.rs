@@ -238,7 +238,7 @@ fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
         invitation.secret,
         daemon.node.signer(&member).unwrap(),
     );
-    assert!(daemon.node.plan_join(&endpoint, &same, 2_000).is_ok());
+    assert!(daemon.node.plan_join(&endpoint, &same, 2_000, None).is_ok());
     let other = daemon.enroll("other", 3, true);
     let different = JoinRequest::sign(
         goal,
@@ -247,7 +247,7 @@ fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
         daemon.node.signer(&other).unwrap(),
     );
     assert!(matches!(
-        daemon.node.plan_join(&endpoint, &different, 2_000),
+        daemon.node.plan_join(&endpoint, &different, 2_000, None),
         Err(Refusal::InvitationRefused)
     ));
 }
@@ -296,4 +296,137 @@ fn expired_preview_is_readable_but_join_is_refused_without_side_effects() {
             ..
         }
     ));
+}
+
+#[test]
+fn only_explicit_owner_local_admission_can_replace_administrator_standing_grants() {
+    // Each grant independently blocks agent and network redemption. An explicit
+    // owner decision for a local identity does not persist either grant.
+    for (manage_goals, administer) in [(false, true), (true, false), (false, false)] {
+        let (mut daemon, administrator, owner, agent, goal) = setup();
+        let member = daemon.enroll("joining", 2, true);
+        let member_connection = daemon.connect(credential(2), None);
+        let ticket = issue(&mut daemon, agent, goal, None);
+        let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+        daemon.ok(
+            owner,
+            Request::AgentGrant {
+                agent: administrator,
+                grants: Grants { manage_goals },
+            },
+        );
+        let admin_grants = GoalGrants {
+            administer,
+            ..GoalGrants::default()
+        };
+        daemon.ok(
+            owner,
+            Request::GoalGrant {
+                goal,
+                agent: administrator,
+                grants: admin_grants,
+            },
+        );
+        let member_grants = daemon.node.goals[&goal].local.grants(&member);
+        let agent_join = Request::GoalJoin {
+            ticket: ticket.clone(),
+        };
+        assert_eq!(
+            code(daemon.call(member_connection, agent_join)),
+            ErrorCode::Denied
+        );
+        assert!(!daemon.node.goals[&goal].is_member(&member));
+        let remote = EndpointId([99; 32]);
+        let network_request = JoinRequest::sign(
+            goal,
+            remote,
+            invitation.secret,
+            daemon.node.signer(&member).unwrap(),
+        );
+        assert!(matches!(
+            daemon
+                .node
+                .plan_join(&remote, &network_request, 1_000, None),
+            Err(Refusal::InvitationRefused)
+        ));
+        // Even a same-endpoint request without the authenticated owner actor
+        // retains the normal invitation permission checks.
+        let local = EndpointId([21; 32]);
+        let local_request = JoinRequest::sign(
+            goal,
+            local,
+            invitation.secret,
+            daemon.node.signer(&member).unwrap(),
+        );
+        assert!(matches!(
+            daemon.node.plan_join(&local, &local_request, 1_000, None),
+            Err(Refusal::InvitationRefused)
+        ));
+        assert_eq!(
+            inventory(&mut daemon, owner, goal)[0].state,
+            InvitationState::Pending
+        );
+        assert!(matches!(
+            daemon.ok(owner, reviewed(ticket, member)),
+            Response::Joined {
+                membership: Membership::Member,
+                ..
+            }
+        ));
+        assert_eq!(
+            daemon.node.goals[&goal].local.grants(&administrator),
+            admin_grants
+        );
+        assert_eq!(
+            daemon.node.goals[&goal].local.grants(&member),
+            member_grants
+        );
+        assert_eq!(
+            daemon
+                .node
+                .principals
+                .active(&administrator)
+                .unwrap()
+                .record
+                .grants
+                .manage_goals,
+            manage_goals
+        );
+        assert!(
+            daemon
+                .node
+                .principals
+                .active(&member)
+                .unwrap()
+                .record
+                .grants
+                .manage_goals
+        );
+        assert_eq!(
+            inventory(&mut daemon, owner, goal)[0].state,
+            InvitationState::Redeemed
+        );
+    }
+}
+
+#[test]
+fn owner_local_admission_does_not_override_revoked_administrator_identity() {
+    let (mut daemon, administrator, owner, agent, goal) = setup();
+    let member = daemon.enroll("joining", 2, false);
+    let ticket = issue(&mut daemon, agent, goal, None);
+    daemon.ok(
+        owner,
+        Request::AgentRevoke {
+            agent: administrator,
+        },
+    );
+    assert_eq!(
+        code(daemon.call(owner, reviewed(ticket, member))),
+        ErrorCode::Denied
+    );
+    assert!(!daemon.node.goals[&goal].is_member(&member));
+    assert_eq!(
+        inventory(&mut daemon, owner, goal)[0].state,
+        InvitationState::Pending
+    );
 }

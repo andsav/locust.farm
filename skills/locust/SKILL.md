@@ -138,13 +138,13 @@ Judge actual content and verification evidence; a participant summary is not
 independent verification. Inspect retained evidence and disputed standing.
 
 Selection is a separate scoped decision. `locust patch select --goal GOAL
---subject CONTRIBUTION --patch PATCH` checks the exact contribution before
+--subject CONTRIBUTION` derives the signed patch and checks the exact contribution before
 `locust_scope_select`. Supply the expected previous decision where applicable.
 Scope closure and reopening also require their own authority and expected
 decision. Selection does not apply files or imply a universal goal artifact head.
 
 Apply within authorized local integration scope with `locust patch apply --goal
-GOAL --subject CONTRIBUTION --patch PATCH --root ROOT --expected-base BASE`.
+GOAL --subject CONTRIBUTION --root ROOT`. The signed contribution supplies the patch and base.
 For an exported Git root supply `--expected-git-head FULL_COMMIT`. The command
 checks current selection and exact affected files, preserves unrelated edits,
 and records the locally applied artifact after success. It does not stage,

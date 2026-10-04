@@ -6,10 +6,12 @@ mod connection;
 mod doctor;
 mod install;
 mod invitations;
+mod local_members;
 mod onboarding;
 mod package;
 mod permissions;
 mod presentation;
+mod selectors;
 mod service;
 mod setup;
 mod workspace;
@@ -22,8 +24,8 @@ use locust_proto::api::{
 use locust_proto::client::Client;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
 use locust_proto::local;
+use selectors::{resolve_goal, validate_goal};
 use serde_json::{Map, Value, json};
-use std::collections::BTreeSet;
 use std::io::{self, Read};
 use std::path::Path;
 
@@ -203,6 +205,9 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     if operation.starts_with("client.") {
         return client::run(matches, &operation, selected);
     }
+    if operation == "goal.add-local" {
+        return local_members::run(matches, selected);
+    }
     if operation.starts_with("invitation.") {
         return invitations::run(matches, &operation, selected);
     }
@@ -306,7 +311,13 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         );
     }
     if !named_enrollment {
-        validate_fields(&operation, &fields)?;
+        if generic_call {
+            request(&operation, fields.clone())?
+                .check()
+                .map_err(Failure::from)?;
+        } else {
+            validate_fields(&operation, &fields)?;
+        }
     }
     let mut client = connection::open(matches, &home)?;
     let socket = local::socket_path(&home)?;
@@ -337,7 +348,7 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     } else {
         None
     };
-    if let Some(Value::String(goal)) = fields.get("goal") {
+    if !generic_call && let Some(Value::String(goal)) = fields.get("goal") {
         let goal = resolve_goal(&mut client, &socket, goal, on_behalf)?;
         fields.insert("goal".to_owned(), json!(goal));
     }
@@ -348,6 +359,9 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
                 fields.insert(field.to_owned(), json!(principal));
             }
         }
+    }
+    if !generic_call {
+        selectors::resolve_fields(&mut client, &socket, &mut fields, on_behalf)?;
     }
     let request = request(&operation, fields)?;
     let response_goal = request.goal();
@@ -444,6 +458,7 @@ fn validate_fields(operation: &str, fields: &Map<String, Value>) -> Result<(), F
             fields.insert(name.to_owned(), json!(PublicKey([0; 32])));
         }
     }
+    selectors::validate_fields(&mut fields)?;
     request(operation, fields)?.check().map_err(Failure::from)
 }
 fn status(
@@ -483,44 +498,6 @@ fn resolve_principal(
                 format!("principal {principal} is not enrolled"),
             )
         })
-}
-fn validate_goal(value: &str) -> Result<(), Failure> {
-    if !(8..=64).contains(&value.len()) || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err(Failure::usage(
-            "--goal requires a full hex identifier or a unique prefix of at least 8 hex characters",
-        ));
-    }
-    Ok(())
-}
-fn resolve_goal(
-    client: &mut LocalClient,
-    socket: &Path,
-    prefix: &str,
-    on_behalf: Option<PublicKey>,
-) -> Result<GoalId, Failure> {
-    validate_goal(prefix)?;
-    if prefix.len() == 64 {
-        return prefix
-            .parse()
-            .map_err(|_| Failure::usage("invalid goal identifier"));
-    }
-    let prefix = prefix.to_ascii_lowercase();
-    let matches: BTreeSet<_> = status(client, socket, on_behalf)?
-        .goals
-        .into_iter()
-        .map(|goal| goal.goal)
-        .filter(|goal| goal.to_string().starts_with(&prefix))
-        .collect();
-    match matches.len() {
-        0 => Err(Failure::new(
-            ErrorCode::NotFound,
-            format!("no visible goal matches {prefix}"),
-        )),
-        1 => Ok(*matches.first().unwrap()),
-        _ => Err(Failure::invalid(format!(
-            "goal prefix {prefix} is ambiguous; use more characters"
-        ))),
-    }
 }
 fn create_session(path: &str) -> Result<Output, Failure> {
     let path = local::session_path(Some(std::ffi::OsStr::new(path)))

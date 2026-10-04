@@ -141,6 +141,21 @@ impl State {
                 });
                 Ok(Response::Recorded { event: RESULT })
             }
+            Request::Events { goal, after, .. } => {
+                assert_eq!(goal, GOAL);
+                Ok(Response::Events(if after.is_none() {
+                    vec![EventView {
+                        position: Some(1),
+                        event: RESULT,
+                        author: PRINCIPAL,
+                        kind: "contribution_published".into(),
+                        at_ms: 1,
+                        standing: Standing::Effective,
+                    }]
+                } else {
+                    vec![]
+                }))
+            }
             Request::Event { goal, event } => {
                 assert_eq!(goal, GOAL);
                 assert_eq!(event, RESULT);
@@ -464,26 +479,67 @@ fn snapshot_patch_selection_and_integration_are_explicit_and_bound() {
         ]);
     output(cmd, 0);
     assert!(fixture.state.lock().unwrap().selected_patch.is_none());
+    let mut cmd = fixture.cli();
+    cmd.args([
+        "patch",
+        "review",
+        "--goal",
+        "workspace",
+        "--subject",
+        "64646464",
+    ]);
+    let reviewed_subject = output(cmd, 0);
+    assert_eq!(reviewed_subject["result"], reviewed["result"]);
+    assert!(fixture.state.lock().unwrap().selected_patch.is_none());
     let submitted = fixture.state.lock().unwrap().submitted.clone().unwrap();
     let Body::ContributionPublished { sources, .. } = &submitted else {
         panic!()
     };
     assert_eq!(sources, &[EventId([0x61; 32]), EventId([0x62; 32])]);
+    fixture.state.lock().unwrap().submitted = Some(Body::AttemptReported {
+        attempt: ATTEMPT,
+        status: locust_proto::event::AttemptStatus::Completed,
+    });
+    let mut wrong_kind = fixture.cli();
+    wrong_kind.args([
+        "patch",
+        "review",
+        "--goal",
+        "workspace",
+        "--subject",
+        "64646464",
+    ]);
+    assert!(
+        output(wrong_kind, 6)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("signed patch and base")
+    );
+    fixture.state.lock().unwrap().submitted = Some(submitted.clone());
+
     if let Some(Body::ContributionPublished { base, .. }) =
         &mut fixture.state.lock().unwrap().submitted
     {
         *base = Some(BlobHash([0x99; 32]));
     }
+    let mut review = fixture.cli();
+    review.args([
+        "patch",
+        "review",
+        "--goal",
+        "workspace",
+        "--subject",
+        "64646464",
+    ]);
+    assert_eq!(output(review, 7)["error"]["code"], "conflict");
     let mut cmd = fixture.cli();
     cmd.args([
         "patch",
         "select",
         "--goal",
         "31313131",
-        "--patch",
-        &patch,
         "--subject",
-        &RESULT.to_string(),
+        "64646464",
     ]);
     assert_eq!(output(cmd, 7)["error"]["code"], "conflict");
     assert!(fixture.state.lock().unwrap().selected_patch.is_none());
@@ -494,10 +550,8 @@ fn snapshot_patch_selection_and_integration_are_explicit_and_bound() {
         "select",
         "--goal",
         "31313131",
-        "--patch",
-        &patch,
         "--subject",
-        &RESULT.to_string(),
+        "64646464",
     ]);
     output(cmd, 0);
     assert_eq!(
@@ -530,13 +584,9 @@ fn snapshot_patch_selection_and_integration_are_explicit_and_bound() {
         "patch",
         "apply",
         "--subject",
-        &RESULT.to_string(),
+        "64646464",
         "--goal",
         "31313131",
-        "--patch",
-        &patch,
-        "--expected-base",
-        &base,
         "--root",
     ])
     .arg(&destination);
@@ -554,36 +604,34 @@ fn snapshot_patch_selection_and_integration_are_explicit_and_bound() {
     );
     assert_eq!(fs::read(destination.join("file")).unwrap(), b"base\n");
     fixture.state.lock().unwrap().selected_patch = selected;
-    let wrong = BlobHash([0x99; 32]).to_string();
+    let saved_submission = fixture.state.lock().unwrap().submitted.clone();
+    if let Some(Body::ContributionPublished { base, .. }) =
+        &mut fixture.state.lock().unwrap().submitted
+    {
+        *base = Some(BlobHash([0x99; 32]));
+    }
     let mut cmd = fixture.cli();
     cmd.args([
         "patch",
         "apply",
         "--subject",
-        &RESULT.to_string(),
+        "64646464",
         "--goal",
         "31313131",
-        "--patch",
-        &patch,
-        "--expected-base",
-        &wrong,
         "--root",
     ])
     .arg(&destination);
     assert_eq!(output(cmd, 6)["error"]["code"], "invalid");
+    fixture.state.lock().unwrap().submitted = saved_submission;
     assert_eq!(fs::read(destination.join("file")).unwrap(), b"base\n");
     let mut cmd = fixture.cli();
     cmd.args([
         "patch",
         "apply",
         "--subject",
-        &RESULT.to_string(),
+        "64646464",
         "--goal",
         "31313131",
-        "--patch",
-        &patch,
-        "--expected-base",
-        &base,
         "--root",
     ])
     .arg(&destination);
@@ -638,7 +686,7 @@ fn applied_files_survive_binding_failure_and_exact_retry_recovers_integration() 
     let root = tempfile::tempdir().unwrap();
     fs::write(root.path().join("changed"), b"before\n").unwrap();
     fs::write(root.path().join("unrelated"), b"local WIP").unwrap();
-    let (base, head, patch) = {
+    let head = {
         let mut state = fixture.state.lock().unwrap();
         let mut put = |bytes: &[u8]| {
             let hash = content_hash(bytes);
@@ -690,7 +738,7 @@ fn applied_files_survive_binding_failure_and_exact_retry_recovers_integration() 
         });
         state.binding.destination = Some(root.path().to_str().unwrap().into());
         state.reject_workspace_set = true;
-        (base.to_string(), head, patch.to_string())
+        head
     };
     let apply = || {
         let mut cmd = fixture.cli();
@@ -701,10 +749,6 @@ fn applied_files_survive_binding_failure_and_exact_retry_recovers_integration() 
             &RESULT.to_string(),
             "--goal",
             "31313131",
-            "--patch",
-            &patch,
-            "--expected-base",
-            &base,
             "--root",
         ])
         .arg(root.path());

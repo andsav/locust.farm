@@ -245,7 +245,7 @@ def main():
                 raise RuntimeError('Independent application workspace does not match patch base')
             dirty_status = git(ip, 'status', '--porcelain', '--', 'README.md', 'unrelated.txt')
             applied = raw_call(daemon, ['--as', integrator['principal'], 'patch', 'apply', '--goal', daemon.goal,
-                '--subject', subject, '--patch', patch, '--root', str(ip.workspace), '--expected-base', base,
+                '--subject', subject, '--root', str(ip.workspace),
                 '--expected-git-head', integration_head, '--local-choice'], owner=True)
             report['applied_artifact'] = snapshot(output, 'applied-artifact', ip.workspace)
             report['application'] = {'actor': 'person-harness', 'subject': subject, 'patch': patch,
