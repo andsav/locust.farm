@@ -135,9 +135,10 @@ pub struct Commit {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StoreError {
     /// The storage medium failed (I/O error, disk full). Nothing was applied,
-    /// except that a failure while a commit was being made durable leaves its
-    /// outcome unknown until the store is reopened; a store refuses further
-    /// calls until then. A daemon whose commit failed therefore stops and
+    /// except that a failure while a mutation (commit, staged write, promotion
+    /// or discard) was being made durable leaves its outcome unknown until the
+    /// store is reopened; a store refuses further calls until recovery has made
+    /// that state durable. A daemon whose mutation failed therefore stops and
     /// replays the log on its next start, and never signs again at a position
     /// it may already have used.
     Failed(String),

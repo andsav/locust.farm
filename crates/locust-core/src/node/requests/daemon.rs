@@ -51,14 +51,17 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// stored. The daemon generates and keeps the signing key.
     pub(super) fn agent_enroll(&self, name: String, grants: Grants, credential: [u8; 32]) -> Plan {
         if let Some(existing) = self.principals.by_name(&name) {
-            return if existing.record.credential == credential {
+            return if existing.record.credential == credential
+                && existing.record.grants == grants
+                && !existing.record.revoked
+            {
                 answer(Response::AgentEnrolled {
                     agent: existing.key.public(),
                 })
             } else {
                 Err(ApiError::new(
                     ErrorCode::Conflict,
-                    "the name is taken by a principal with another credential",
+                    "the name is taken by a revoked principal or a different enrollment",
                 ))
             };
         }

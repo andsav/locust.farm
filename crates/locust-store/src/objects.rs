@@ -182,15 +182,15 @@ fn inline<'row>(row: &'row Row<'_>, hash: &BlobHash, len: u64) -> Result<&'row [
 }
 
 /// Removes what a crash or a failed commit can leave in `blobs/`: temporary
-/// files, object files no row names, and staged copies of objects already
-/// held (promotion committed, removal lost). Staged copies of objects not
-/// held are kept: they are transfers to resume.
+/// files and object files no row names. Every staged copy is kept, including
+/// redundant copies of held objects: staging is an independent durable state
+/// in the Store contract, and callers may resume or finish it after reopen.
 pub(crate) fn collect_garbage(conn: &Connection, files: &Files) -> Result<(), StoreError> {
     for (hash, kind) in files.entries()? {
         let orphan = match kind {
             Kind::Temporary => true,
             Kind::Object => !len(conn, &hash)?.is_some_and(is_file),
-            Kind::Staged => is_held(conn, &hash)?,
+            Kind::Staged => false,
         };
         if orphan {
             files.remove_entry(&hash, kind);

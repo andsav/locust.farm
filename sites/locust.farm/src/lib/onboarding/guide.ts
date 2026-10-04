@@ -85,3 +85,32 @@ export const HARNESS_ROUTES: readonly HarnessRoute[] = [
 			'A generic route that names the minimum tools, instructions and approvals a harness needs.'
 	}
 ];
+
+/**
+ * The instructions for agents, shared by the /start page and /llms.txt. The steps
+ * are followed in order; the standing rule applies throughout and sits outside
+ * them, so it is not read as something to do after stopping.
+ */
+export const AGENT_INTRO = 'A person pasted the entry prompt and sent you here. Do this, in order:';
+
+export const AGENT_STEPS = {
+	identify:
+		'Tell the person your harness, its version and its mode. Name the harness, not the model. Say “unknown” when you cannot tell.',
+	answer: 'Answer three questions about this session:',
+	route: 'Find your harness below. If it is not listed, use “Any other harness”.',
+	/** The last step while no setup is published. */
+	report:
+		'No setup is published and no route is qualified yet. Report your harness, your answers and your route’s prerequisite, then stop. Do not install, download or run anything for Locust.',
+	/** The last step once SETUP_ARTIFACT is set; it follows the link to the setup. */
+	approve: 'Show every change it would make and wait for the person to approve.'
+} as const;
+
+export const AGENT_RULE =
+	'At every step: never edit stored approvals, weaken a policy or work around a block. Tell the person what was refused and let them decide.';
+
+/** Labels for the three fields of a harness route. */
+export const ROUTE_LABELS = {
+	upstream: 'The client documents',
+	locust: 'Locust today',
+	prerequisite: 'Needed first'
+} as const;

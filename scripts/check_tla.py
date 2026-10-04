@@ -261,6 +261,17 @@ def snapshot_inputs(destination):
     return hashes
 
 
+def model_scope(registry, cases):
+    """Keep the modeled protocol identity separate from the running checkout."""
+    if all(case["kind"] == "runner-fixture" for case in cases):
+        return {"kind": "runner-fixtures", "runtime_conformance_claimed": False}
+    baseline = registry.get("model_baseline")
+    if not isinstance(baseline, dict) or not re.fullmatch(r"[a-f0-9]{40}", baseline.get("source_commit", "")):
+        raise CheckError("protocol model run requires an explicit source baseline")
+    return {"kind": "protocol-models", "modeled_baseline": baseline,
+            "runtime_conformance_claimed": False}
+
+
 def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_root=MODELS):
     directory = run_dir / case["id"]
     directory.mkdir()
@@ -317,6 +328,9 @@ def main(argv=None):
                 [case for case in registry["cases"] if args.suite in case["suite"]]
         if not cases or (args.case and set(args.case) != {case["id"] for case in cases}):
             raise CheckError("empty suite or unknown case")
+        scope = model_scope(registry, cases)
+        if scope.get("modeled_baseline", {}).get("status") == "historical":
+            print("Historical protocol model check; current Rust conformance is not established.", flush=True)
         java, jar, identity = tools(manifest, bootstrap=args.bootstrap)
         run_dir = ROOT / "output/tla/runs" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8])
         run_dir.mkdir(parents=True)
@@ -332,6 +346,7 @@ def main(argv=None):
                   "runner_sha256": runner_hash,
                   "toolchain_manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
                   "cases_manifest_sha256": hashlib.sha256(registry_bytes).hexdigest(),
+                  "model_scope": scope,
                   "toolchain": manifest, "java": identity,
                   "platform": platform.platform(), "architecture": platform.machine(), "results": []}
         for case in cases:

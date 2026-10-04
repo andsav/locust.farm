@@ -1,10 +1,11 @@
-# T1 CLI run: start with two Apple Silicon Macs
+# T1 CLI run: protocol 1 on two Apple Silicon Macs
 
-Date: 2026-10-03. **Status: the owner has two Apple Silicon Macs available and will start with those. No physical two-Mac run is recorded yet. The exact release candidate has passed all 21 three-process workflow checks on one Mac.** Publication remains deferred. The [build guide](t1-build.md) identifies the candidate; the [release ledger](release-evidence.md) records the evidence boundary. These commands exercise the production CLI, authenticated local API, SQLite store and encrypted Iroh synchronization. They do not require a coding client or MCP.
+Date: 2026-10-03. **Status: current commands target the remediated API-1/protocol-1 build. Physical qualification of that build remains pending.** The historical protocol-0 run on two Macs recorded joining, a decrypted note and assignment readiness; it stopped before claim/submission. Its [worker findings](../research/t1-m2-smoke-2026-10-03.md) and [release ledger](release-evidence.md) remain historical evidence. Publication is deferred. The [build guide](t1-build.md) and [remediation record](../research/t1-remediation.md) identify current source and verification. These commands use the production CLI, local API, SQLite store and encrypted Iroh synchronization; they do not require a coding client or MCP.
 
+Version 1 refuses version-0 peers, tickets and stored events. Preserve the previous binaries and `~/.locust-t1` homes. This sequence uses a fresh `~/.locust-t1-v1` on each Mac; it does not migrate the earlier goal.
 ## Verify and start the candidate
 
-Copy the [identified local bundle](t1-build.md) to the second Mac using AirDrop or a shared folder. If supplied as an archive, extract it on each Mac. The bundle contains `locust`, `SHA256SUMS` and `metadata.json`; both machines use these same bytes. Do not copy the daemon's `~/.locust-t1` directory: each Mac creates its own identity and state. No public download or rebuild is needed.
+Copy one newly [identified protocol-1 local bundle](t1-build.md) to the second Mac using AirDrop or a shared folder. If supplied as an archive, extract it on each Mac. The bundle contains `locust`, `SHA256SUMS` and `metadata.json`; both machines use these same bytes. Do not copy the daemon's `~/.locust-t1` directory: each Mac creates its own identity and state. No public download or rebuild is needed.
 
 Set `LOCUST` to the absolute path of the candidate executable. From the directory containing its `SHA256SUMS`, verify the bundle before starting the daemon:
 
@@ -16,10 +17,10 @@ chmod u+x "$LOCUST"
 "$LOCUST" --version
 ```
 
-The expected version is `locust 0.1.0 (3422c7b51948) api 0 protocol 0`; the executable's SHA-256 is `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`. Stop if the checksum or version differs. Once both agree, start the daemon:
+The version must report `api 1 protocol 1` and the commit recorded in that bundle's `metadata.json`; its checksum must match `SHA256SUMS`. Both Macs must report the same commit and checksum. The old `3422c7b` candidate in the historical build record is protocol 0 and cannot be used for this sequence. Once both agree, start the daemon:
 
 ```sh
-export LOCUST_HOME="$HOME/.locust-t1"
+export LOCUST_HOME="$HOME/.locust-t1-v1"
 "$LOCUST" --home "$LOCUST_HOME" daemon run
 ```
 
@@ -27,7 +28,7 @@ Keep the daemon terminal open. In a second terminal, set `LOCUST` to the same ex
 
 ```sh
 export LOCUST=/absolute/path/to/locust
-export LOCUST_HOME="$HOME/.locust-t1"
+export LOCUST_HOME="$HOME/.locust-t1-v1"
 PARTICIPANT=m1
 "$LOCUST" --owner agent enroll "$PARTICIPANT" --manage-goals
 export LOCUST_CREDENTIAL="$LOCUST_HOME/agents/$PARTICIPANT.credential"
@@ -35,7 +36,7 @@ export LOCUST_CREDENTIAL="$LOCUST_HOME/agents/$PARTICIPANT.credential"
 "$LOCUST" --json doctor
 ```
 
-Record `"$LOCUST" --version`, `shasum -a 256 "$LOCUST"`, `uname -m` and `sw_vers -productVersion` on both machines. The binary hash and embedded source commit must agree. Enrollment prints the credential's path and public principal key; use M2's principal key where a command below asks for `M2_PRINCIPAL`. Enroll once per fresh home; keep that same home and credential when restarting.
+Record `"$LOCUST" --version`, `shasum -a 256 "$LOCUST"`, `uname -m` and `sw_vers -productVersion` on both machines. The binary hash and embedded source commit must agree. Enrollment prints the credential's path and public principal key; use M2's principal key where a command below asks for `M2_PRINCIPAL`. Enroll once per fresh home; keep that same home and credential when restarting. A retry with different grants returns `conflict`; change an existing principal explicitly with `"$LOCUST" --owner agent grant --agent FULL_PRINCIPAL_KEY --manage-goals true`.
 
 ## Join and complete a task
 
@@ -44,18 +45,19 @@ On M1:
 ```sh
 "$LOCUST" --json goal create --title "Two Mac T1"
 GOAL=full_goal_id_from_the_response
-"$LOCUST" --json goal invite --goal "$GOAL"
+INVITE_EXPIRES_MS="$(python3 -c 'import time; print(time.time_ns() // 1_000_000 + 3_600_000)')"
+"$LOCUST" --json goal invite --goal "$GOAL" --expires-ms "$INVITE_EXPIRES_MS"
 ```
 
-Give the ticket to M2. On M2, join and record the returned goal ID:
+The expiry is one hour from M1's clock, expressed as absolute Unix milliseconds. Give the full ticket to M2 through the chosen handoff channel. On M2, run the join command, paste the ticket on standard input, then press Control-D; it stays out of the process argument list. A private ticket file can instead be redirected with `< /absolute/path/to/private-ticket.txt`. Record the returned goal ID:
 
 ```sh
-"$LOCUST" --json goal join --ticket 'ticket_from_m1'
+"$LOCUST" --json goal join --ticket -
 GOAL=full_goal_id_from_the_response
 "$LOCUST" --json goal status --goal "$GOAL"
 ```
 
-Run `goal status --goal "$GOAL"` on both Macs and wait until each lists both principals and the decrypted goal title. Save the daemon's `peer ... paths` lines; they name the observed direct or relay route without IP addresses. On M1, propose and assign:
+Run `status` and `goal status --goal "$GOAL"` on both Macs until each lists both admitted principals and the decrypted goal title. A pending join may return `unavailable` for goal reads; `status` still shows the local attempt. If it becomes `refused`, ask M1 for a fresh unexpired invitation and repeat the stdin join. Each ticket is single-recipient; tickets for the same goal share a long prefix, so copy the full value. Save the daemon's `peer ... paths` lines; they name the observed direct or relay route without IP addresses. On M1, propose and assign:
 
 ```sh
 "$LOCUST" --json task propose --goal "$GOAL" "Return the text: T1 task completed."

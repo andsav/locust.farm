@@ -159,6 +159,23 @@ Run before the takeover and not recorded then. Reviewed at `31ca555` (build help
 
 Building from a `git archive` copy at a fixed path, with the commit passed in explicitly and a cleaned environment, would settle the environment, index-flag and path findings together.
 
+## Addendum: the two-Mac run recorded on October 3
+
+Reviewed afterwards, at the owner's request: the [M1 observation](evidence/two-mac-t1-2026-10-03.json), the M2 [join record](evidence/t1-m2-smoke-2026-10-03.json) and [task-readiness record](evidence/t1-m2-task-2026-10-03.json), their [note](t1-m2-smoke-2026-10-03.md) and the rows they add to the [release ledger](../docs/release-evidence.md).
+
+**The evidence is consistent with this review for the steps that were run, and it claims no more than it shows.** On two physical Macs: enrollment, `status` and `doctor`; a join that completed in about a second (join sent at 02:57:36.6 UTC, first synchronization at 02:57:37.5); both members and the decrypted title on both sides; M1's note readable on M2, which exercises sealed content and key delivery between machines; the assignment replicated and shown as `to_authorize`, then `to_claim` after the local `task authorize`; a session created. Every recorded command exited 0. None of the 36 findings was touched, which is expected, because they lie outside the guide's path.
+
+Checked independently: the build-input comparison between `3422c7b` and `8ef9dbc` is empty, as recorded; the timestamps in the three records agree with each other; no invitation, credential or session secret appears in the tracked files.
+
+What the run does not yet show: claim, submission, the result travelling back to M1 and its acceptance (the run stopped before the claim at the owner's request); restarts; sleep and wake. The coordinator-offline step needs a third member and cannot be run with two machines. The two Macs ran different bytes (M2 built its own binary), so the same-artifact requirement stays open, as the ledger says.
+
+Observations from the evidence:
+
+- **Both sides selected a relay path at about 57 ms.** If the two Macs are on one local network, a direct path of a few milliseconds would be expected. The daemon prints the path once, when a connection is established, so the records cannot say whether the path became direct later; nothing in `status` or `goal status` shows the current path. If it stayed relayed, that fits the unverified local-network-access hypothesis above: M2's daemon was started as a detached process by an agent session, not from Terminal, and macOS applies that restriction to direct traffic to local addresses as well as to multicast. Everything works over the relay, but all traffic then passes through the relay operator's servers, encrypted. A way to settle it: start one daemon from Terminal, allow local-network access if macOS asks, and read the `paths` line of the next connection.
+- **The M1 record joins two moments under one timestamp.** Its `goal_status.decision_head` is still M2's admission while its board already shows the assignment. On the candidate the head does advance when a task is assigned (checked locally), so the status was captured before the assignment and the board after it. This is a precision point about the record, not a runtime defect.
+- **The M2 records contain absolute local paths** (the home directory, the checkout and the state directory), where the earlier evidence files use placeholders and the integration findings say tracked summaries omit private paths.
+- **The ticket was passed on the command line**, as IR-36 describes; the record redacts it.
+
 ## Reproduction
 
 The probes are patches under `evidence/t1-candidate-review/`, one per reviewer (`goal`, `node`, `sync`, `store`, `secrets`, `daemon`) and one per verifier (`verify-goal` and so on). Each applies on its own to a clean copy of `3422c7b`:

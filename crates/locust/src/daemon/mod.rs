@@ -69,14 +69,14 @@ pub(crate) struct EngineInit {
 /// `daemon.stop`.
 pub fn run(home: &Path) -> Result<(), Failure> {
     run_networked_with(home, network::bind, |socket| {
-        eprintln!(
+        log(format_args!(
             "locust: daemon {} listening on {}",
             version::daemon(),
             socket.display()
-        );
+        ));
         signals()
     })?;
-    eprintln!("locust: daemon stopped");
+    log(format_args!("locust: daemon stopped"));
     Ok(())
 }
 
@@ -100,7 +100,7 @@ where
     let init_version = daemon_version.clone();
     let mut engine = worker::EngineThread::start_networked(
         move || {
-            let store = SqliteStore::open(&init_home).map_err(|error| error.to_string())?;
+            let store = SqliteStore::open(&init_home).map_err(store_open_failure)?;
             Node::open(
                 store,
                 system::OsEntropy,
@@ -108,11 +108,10 @@ where
                 init_version,
                 system::now_ms(),
             )
-            .map_err(|error| error.to_string())
+            .map_err(|error| Failure::from(locust_proto::api::ApiError::from(error)))
         },
         system::now_ms,
-    )
-    .map_err(|reason| Failure::internal(format!("the engine could not start: {reason}")))?;
+    )?;
     let served = runtime.block_on(async {
         let endpoint = bind(
             engine
@@ -167,10 +166,10 @@ where
         );
         Ok(())
     });
-    engine.shutdown();
+    let stopped = engine.shutdown();
     drop(runtime);
     drop(state);
-    served
+    served.and(stopped)
 }
 
 /// Completes on SIGINT or SIGTERM.
@@ -232,8 +231,28 @@ where
         shell::serve(listener, &engine, &daemon_version, shutdown).await;
         Ok::<(), io::Error>(())
     });
-    engine.shutdown();
+    let stopped = engine.shutdown();
     drop(runtime);
     drop(state);
-    served.map_err(|error| Failure::internal(format!("the daemon could not serve: {error}")))
+    served
+        .map_err(|error| Failure::internal(format!("the daemon could not serve: {error}")))
+        .and(stopped)
+}
+
+/// Diagnostics must not decide the daemon's lifetime when stderr disappears.
+fn log(message: std::fmt::Arguments<'_>) {
+    use std::io::Write;
+    let _ = writeln!(std::io::stderr().lock(), "{message}");
+}
+
+fn store_open_failure(error: locust_store::OpenError) -> Failure {
+    use locust_proto::api::{ApiError, ErrorCode};
+    use locust_store::OpenError;
+    match error {
+        OpenError::Store(error) => ApiError::from(error).into(),
+        error @ OpenError::InUse(_) => Failure::new(ErrorCode::Unavailable, error.to_string()),
+        error @ (OpenError::NewerSchema { .. } | OpenError::UnsupportedProtocolVersion { .. }) => {
+            Failure::new(ErrorCode::UnsupportedVersion, error.to_string())
+        }
+    }
 }

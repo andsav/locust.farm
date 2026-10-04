@@ -376,11 +376,12 @@ fn removal_readmission_and_fork_replay_are_independent_of_arrival_order() {
     }
 }
 
-/// Concrete replay of GoalLog's IR12 symbolic events 1..9. These signed
-/// contributions enter through the held-event seam: the local task.submit API
-/// already refuses submission after acceptance, but peers may send it.
+/// Reuse the historical version-0 GoalLog IR12 events 1..9 against version 1.
+/// Signed peer contributions enter through the held-event seam; the corrected
+/// runtime keeps the accepted display while retaining the late result as
+/// evidence. This does not establish conformance with the old model outcome.
 #[test]
-fn tla_ir12_later_submission_changes_display_without_changing_acceptance() {
+fn tla_ir12_later_submission_preserves_the_accepted_display() {
     let (mut coordinator, mut worker, mut events) = transcript_with_budget(Some(2));
     let goal_id = events[0].header().goal;
     let task = events[3].id();
@@ -415,8 +416,22 @@ fn tla_ir12_later_submission_changes_display_without_changing_acceptance() {
     let view = chronological.state().task(&task).unwrap();
     assert_eq!(view.state, TaskState::Accepted);
     assert_eq!(view.accepted, Some(accepted_result));
-    // Current behavior, not a proposed accepted-result display guarantee.
-    assert_eq!(view.result, Some(later.id()));
+    assert_eq!(view.result, Some(accepted_result));
+    assert_eq!(
+        chronological
+            .state()
+            .assignment(&assignment)
+            .unwrap()
+            .result,
+        Some(later.id())
+    );
+    assert!(
+        chronological
+            .state()
+            .results
+            .iter()
+            .any(|result| result.id == later.id())
+    );
     assert_eq!(view.accepted_head, Some(BlobHash([8; 32])));
     assert_eq!(
         chronological.standing(&later.id()),
@@ -446,10 +461,12 @@ fn tla_ir12_later_submission_changes_display_without_changing_acceptance() {
     );
 }
 
-/// Concrete replay of GoalLog's IR5 events 1..21: three accepted heads, with
-/// the middle task proposed by M; M then equivocates at author position zero.
+/// Reuse the historical version-0 GoalLog IR5 events 1..21 against version 1.
+/// The canonical decisions select M's original proposal and preserve all three
+/// accepted heads across its later fork. The final explicit empty removal
+/// cutoff is a separate coordinator action, not the old member-fork outcome.
 #[test]
-fn tla_ir5_member_fork_rolls_back_dependent_accepted_heads() {
+fn tla_ir5_member_fork_preserves_the_committed_accepted_heads() {
     let mut coordinator = Author::new(1);
     let mut worker = Author::new(2);
     let mut proposer = Author::new(3);
@@ -554,33 +571,33 @@ fn tla_ir5_member_fork_rolls_back_dependent_accepted_heads() {
     let fork = Event::sign(conflicting, &proposer.key).unwrap();
     events.push(fork.clone());
     chronological.apply(&[fork]);
-    // The coordinator did not fork: replay continues, but M's proposal is
-    // unusable. The final acceptance no longer matches the accepted base.
     assert_eq!(chronological.halt(), None);
     assert_eq!(
         chronological.standing(&events[9].id()),
-        Some(Standing::Excluded(Exclusion::Forked))
-    );
-    assert!(chronological.state().task(&tasks[1]).is_none());
-    assert_eq!(chronological.state().accepted_heads.len(), 1);
-    assert_eq!(
-        chronological.state().accepted_head(),
-        Some(BlobHash([9; 32]))
-    );
-    assert_eq!(
-        chronological.state().task(&tasks[2]).unwrap().state,
-        TaskState::Submitted
-    );
-    assert_eq!(
-        chronological.standing(&results[2]),
         Some(Standing::Effective)
     );
-    for accept in &acceptances[1..] {
-        assert!(matches!(
-            chronological.standing(accept),
-            Some(Standing::Excluded(_))
-        ));
+    assert_eq!(
+        chronological.standing(&events[19].id()),
+        Some(Standing::Excluded(Exclusion::Forked))
+    );
+    assert_eq!(chronological.state().accepted_heads.len(), 3);
+    assert_eq!(
+        chronological.state().accepted_head(),
+        Some(BlobHash([19; 32]))
+    );
+    for (task, result) in tasks.iter().zip(&results) {
+        let task = chronological.state().task(task).unwrap();
+        assert_eq!(task.state, TaskState::Accepted);
+        assert_eq!(task.accepted, Some(*result));
     }
+    for accept in &acceptances {
+        assert_eq!(chronological.standing(accept), Some(Standing::Effective));
+    }
+
+    // Preserve historical event 21: last_accepted=None intentionally fences
+    // every contribution of M's tenure. That explicit coordinator cutoff
+    // can withdraw the proposal on which later acceptances depend; branch
+    // commitments do not bypass membership-removal policy.
 
     let removal = coordinator.event(
         goal_id,
@@ -605,4 +622,445 @@ fn tla_ir5_member_fork_rolls_back_dependent_accepted_heads() {
         assert_eq!(scrambled.folded, super::fold::fold(&scrambled.history).0);
     }
     assert_same(&chronological, &scrambled, &events);
+}
+
+#[test]
+fn canonical_acceptance_pins_transitive_author_ancestry_across_arrivals_and_reopen() {
+    use locust_proto::id::BlobHash;
+    let (mut coordinator, mut worker, mut events) = transcript();
+    let id = events[0].header().goal;
+    let accepted = coordinator.event(
+        id,
+        Some(events[4].id()),
+        Body::ResultAccepted {
+            result: events[6].id(),
+            head: Some(BlobHash([42; 32])),
+        },
+    );
+    let mut fork_header = events[5].header().clone();
+    fork_header.at_ms += 42;
+    let fork = Event::sign(fork_header, &worker.key).unwrap();
+    let suffix = worker.event(
+        id,
+        Some(accepted.id()),
+        Body::Note {
+            about: None,
+            supersedes: None,
+        },
+    );
+    events.extend([accepted, fork.clone(), suffix.clone()]);
+    let expected = held(&events);
+    assert_eq!(expected.state().accepted_head(), Some(BlobHash([42; 32])));
+    assert_eq!(
+        expected.standing(&events[5].id()),
+        Some(Standing::Effective)
+    );
+    assert_eq!(
+        expected.standing(&events[6].id()),
+        Some(Standing::Effective)
+    );
+    assert!(matches!(
+        expected.standing(&fork.id()),
+        Some(Standing::Excluded(super::Exclusion::Forked))
+    ));
+    assert!(matches!(
+        expected.standing(&suffix.id()),
+        Some(Standing::Excluded(super::Exclusion::Forked))
+    ));
+    for seed in 1..65u64 {
+        let mut order = events.clone();
+        let mut random = seed;
+        for i in (1..order.len()).rev() {
+            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
+            order.swap(i, random as usize % (i + 1));
+        }
+        let mut goal = Goal::new(id);
+        let mut store = MemStore::new();
+        for event in order {
+            store
+                .commit(&Commit {
+                    events: vec![event.clone()],
+                    ..Commit::default()
+                })
+                .unwrap();
+            goal.apply(&[event]);
+            assert_eq!(goal.folded, super::fold::fold(&goal.history).0);
+        }
+        assert_same(&expected, &goal, &events);
+        assert_same(&expected, &Goal::load(&store, id).unwrap(), &events);
+    }
+}
+
+#[test]
+fn late_submission_is_evidence_without_replacing_the_accepted_task_result() {
+    let (mut coordinator, mut worker, mut events) = transcript();
+    let id = events[0].header().goal;
+    let accepted = coordinator.event(
+        id,
+        Some(events[4].id()),
+        Body::ResultAccepted {
+            result: events[6].id(),
+            head: None,
+        },
+    );
+    let late = worker.event(
+        id,
+        Some(accepted.id()),
+        Body::ResultSubmitted {
+            assignment: events[4].id(),
+            base: None,
+            patch: None,
+            artifacts: vec![],
+        },
+    );
+    events.extend([accepted, late.clone()]);
+    let goal = held(&events);
+    assert_eq!(goal.state().tasks[0].result, Some(events[6].id()));
+    assert_eq!(goal.state().tasks[0].accepted, Some(events[6].id()));
+    assert_eq!(goal.standing(&late.id()), Some(Standing::Effective));
+    assert!(
+        goal.state()
+            .results
+            .iter()
+            .any(|result| result.id == late.id())
+    );
+}
+
+#[test]
+fn canonical_dependencies_survive_variant_and_waiting_quotas_in_the_same_batch() {
+    for waiting in [false, true] {
+        let (mut coordinator, worker, events) = transcript();
+        let id = events[0].header().goal;
+        let mut goal = held(&events[..5]);
+        let count = if waiting {
+            super::MAX_WAITING_PER_AUTHOR
+        } else {
+            super::MAX_FORK_VARIANTS
+        };
+        let mut fill = Vec::new();
+        for i in 0..count {
+            let mut header = events[5].header().clone();
+            header.at_ms += 100 + i as u64;
+            if waiting {
+                header.seq = 100 + i as u64;
+                header.prev = Some(events[5].id());
+            }
+            fill.push(Event::sign(header, &worker.key).unwrap());
+        }
+        let fill = goal.screen(fill);
+        assert_eq!(fill.len(), count);
+        goal.apply(&fill);
+        let accepted = coordinator.event(
+            id,
+            Some(events[4].id()),
+            Body::ResultAccepted {
+                result: events[6].id(),
+                head: None,
+            },
+        );
+        let batch = goal.screen(vec![events[6].clone(), events[5].clone(), accepted.clone()]);
+        assert!(batch.iter().any(|event| event.id() == events[5].id()));
+        assert!(batch.iter().any(|event| event.id() == events[6].id()));
+        goal.apply(&batch);
+        assert_eq!(goal.state().tasks[0].accepted, Some(events[6].id()));
+        assert_eq!(goal.state().head, Some(accepted.id()));
+    }
+}
+
+#[test]
+fn broken_chain_or_unauthorized_decision_cannot_pin_a_member_branch() {
+    for unauthorized in [false, true] {
+        let (mut coordinator, worker, mut events) = transcript();
+        let id = events[0].header().goal;
+        let mut fork_header = events[5].header().clone();
+        fork_header.at_ms += 1;
+        events.push(Event::sign(fork_header, &worker.key).unwrap());
+        let decision = if unauthorized {
+            let mut outsider = Author::new(44);
+            outsider.event(
+                id,
+                Some(events[4].id()),
+                Body::ResultAccepted {
+                    result: events[6].id(),
+                    head: None,
+                },
+            )
+        } else {
+            coordinator.event(
+                id,
+                Some(events[2].id()),
+                Body::ResultAccepted {
+                    result: events[6].id(),
+                    head: None,
+                },
+            )
+        };
+        events.push(decision);
+        let goal = held(&events);
+        assert!(matches!(
+            goal.standing(&events[5].id()),
+            Some(Standing::Excluded(super::Exclusion::Forked))
+        ));
+        assert!(matches!(
+            goal.standing(&events[6].id()),
+            Some(Standing::Excluded(super::Exclusion::Forked))
+        ));
+        assert_eq!(goal.state().tasks[0].accepted, None);
+    }
+}
+
+#[test]
+fn noncanonical_claimed_decisions_do_not_bypass_dependency_retention_quotas() {
+    for unauthorized in [false, true] {
+        let (mut coordinator, worker, events) = transcript();
+        let id = events[0].header().goal;
+        let mut goal = held(&events[..5]);
+        let fill: Vec<_> = (0..super::MAX_FORK_VARIANTS)
+            .map(|i| {
+                let mut header = events[5].header().clone();
+                header.at_ms += 100 + i as u64;
+                Event::sign(header, &worker.key).unwrap()
+            })
+            .collect();
+        goal.apply(&goal.screen(fill));
+        let decision = if unauthorized {
+            let mut outsider = Author::new(88);
+            outsider.event(
+                id,
+                Some(events[4].id()),
+                Body::ResultAccepted {
+                    result: events[6].id(),
+                    head: None,
+                },
+            )
+        } else {
+            coordinator.event(
+                id,
+                Some(events[2].id()),
+                Body::ResultAccepted {
+                    result: events[6].id(),
+                    head: None,
+                },
+            )
+        };
+        let kept = goal.screen(vec![decision, events[6].clone(), events[5].clone()]);
+        assert!(!kept.iter().any(|event| event.id() == events[5].id()));
+    }
+}
+
+#[test]
+fn invalid_canonical_reference_does_not_resurrect_a_forked_branch() {
+    use locust_proto::id::EventId;
+    let (mut coordinator, worker, mut events) = transcript();
+    let id = events[0].header().goal;
+    let mut fork_header = events[5].header().clone();
+    fork_header.at_ms += 1;
+    let fork = Event::sign(fork_header, &worker.key).unwrap();
+    let mut bad_header = events.pop().unwrap().header().clone();
+    bad_header.body = Body::ResultSubmitted {
+        assignment: EventId([99; 32]),
+        base: None,
+        patch: None,
+        artifacts: vec![],
+    };
+    let invalid = Event::sign(bad_header, &worker.key).unwrap();
+    let decision = coordinator.event(
+        id,
+        Some(events[4].id()),
+        Body::ResultAccepted {
+            result: invalid.id(),
+            head: None,
+        },
+    );
+    events.extend([fork, invalid, decision.clone()]);
+    let expected = held(&events);
+    assert_eq!(
+        expected.standing(&events[5].id()),
+        Some(Standing::Excluded(super::Exclusion::Forked))
+    );
+    assert!(matches!(
+        expected.standing(&decision.id()),
+        Some(Standing::Excluded(_))
+    ));
+    for seed in 1..65u64 {
+        let mut order = events.clone();
+        let mut random = seed;
+        for i in (1..order.len()).rev() {
+            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
+            order.swap(i, random as usize % (i + 1));
+        }
+        let mut goal = Goal::new(id);
+        let mut store = MemStore::new();
+        for event in order {
+            store
+                .commit(&Commit {
+                    events: vec![event.clone()],
+                    ..Commit::default()
+                })
+                .unwrap();
+            goal.apply(&[event]);
+            assert_eq!(goal.folded, super::fold::fold(&goal.history).0);
+        }
+        assert_same(&expected, &goal, &events);
+        assert_same(
+            &expected,
+            &Goal::load(&store.reopen(), id).unwrap(),
+            &events,
+        );
+    }
+}
+
+#[test]
+fn wrong_kind_reference_retains_its_header_without_exempting_ancestry() {
+    let (mut coordinator, mut worker, events) = transcript();
+    let id = events[0].header().goal;
+    let mut goal = held(&events);
+    let mut fork_header = events[5].header().clone();
+    fork_header.at_ms += 1;
+    goal.apply(&[Event::sign(fork_header, &worker.key).unwrap()]);
+    let mut suffix = Vec::new();
+    for _ in 0..(super::MAX_WAITING_PER_AUTHOR * 2) {
+        suffix.push(worker.event(
+            id,
+            Some(events[4].id()),
+            Body::Note {
+                about: None,
+                supersedes: None,
+            },
+        ));
+    }
+    let target = suffix.last().unwrap().id();
+    let decision = coordinator.event(
+        id,
+        Some(events[4].id()),
+        Body::RevisionAccepted { revision: target },
+    );
+    suffix.push(decision.clone());
+    for reversed in [false, true] {
+        let mut batch = suffix.clone();
+        if reversed {
+            batch.reverse();
+        }
+        let kept = goal.screen(batch);
+        assert!(kept.iter().any(|event| event.id() == target));
+        assert!(kept.len() <= super::MAX_WAITING_PER_AUTHOR + 2);
+        let mut projected = super::history::History::default();
+        for event in goal.history.events.iter().chain(&kept) {
+            projected.insert(event);
+        }
+        let selection = super::commitments::Commitments::build(
+            &projected,
+            &super::chain::Chain::build(&projected),
+        );
+        assert!(
+            !selection
+                .pins
+                .keys()
+                .any(|(author, _)| *author == worker.key.public())
+        );
+        assert_eq!(selection.required.len(), 2); // Coordinator task and the invalid direct target.
+    }
+}
+
+#[test]
+fn wrong_kind_reference_with_missing_ancestry_is_refused_without_stalling() {
+    use locust_proto::id::EventId;
+    let (mut coordinator, worker, mut events) = transcript();
+    let id = events[0].header().goal;
+    let mut header = events[6].header().clone();
+    header.seq = 100;
+    header.prev = Some(EventId([99; 32]));
+    header.body = Body::Note {
+        about: None,
+        supersedes: None,
+    };
+    let target = Event::sign(header, &worker.key).unwrap();
+    let decision = coordinator.event(
+        id,
+        Some(events[4].id()),
+        Body::ResultAccepted {
+            result: target.id(),
+            head: None,
+        },
+    );
+    let next = coordinator.event(
+        id,
+        Some(decision.id()),
+        Body::MemberAdmitted {
+            member: Author::new(44).key.public(),
+            endpoint: EndpointId([44; 32]),
+        },
+    );
+    events.extend([target, decision.clone(), next.clone()]);
+    let goal = held(&events);
+    assert!(matches!(
+        goal.standing(&decision.id()),
+        Some(Standing::Excluded(_))
+    ));
+    assert_eq!(goal.standing(&next.id()), Some(Standing::Effective));
+    assert_eq!(goal.state().head, Some(next.id()));
+    let mut store = MemStore::new();
+    store
+        .commit(&Commit {
+            events: events.clone(),
+            ..Commit::default()
+        })
+        .unwrap();
+    assert_same(&goal, &Goal::load(&store.reopen(), id).unwrap(), &events);
+}
+
+#[test]
+fn incomplete_canonical_branch_waits_then_recovers_through_a_full_variant_quota() {
+    let (mut coordinator, worker, events) = transcript();
+    let id = events[0].header().goal;
+    let mut goal = held(&events[..5]);
+    let variants: Vec<_> = (0..super::MAX_FORK_VARIANTS)
+        .map(|i| {
+            let mut header = events[5].header().clone();
+            header.at_ms += 100 + i as u64;
+            Event::sign(header, &worker.key).unwrap()
+        })
+        .collect();
+    goal.apply(&goal.screen(variants));
+    let accepted = coordinator.event(
+        id,
+        Some(events[4].id()),
+        Body::ResultAccepted {
+            result: events[6].id(),
+            head: None,
+        },
+    );
+    let after = coordinator.event(
+        id,
+        Some(accepted.id()),
+        Body::MemberAdmitted {
+            member: Author::new(44).key.public(),
+            endpoint: EndpointId([44; 32]),
+        },
+    );
+    goal.apply(&[events[6].clone(), accepted.clone(), after.clone()]);
+    assert_eq!(
+        goal.standing(&accepted.id()),
+        Some(Standing::Pending(super::Waiting::Reference))
+    );
+    assert!(matches!(
+        goal.standing(&after.id()),
+        Some(Standing::Pending(_))
+    ));
+    assert_eq!(goal.state().head, Some(events[4].id()));
+    let kept = goal.screen(vec![events[5].clone()]);
+    assert_eq!(kept.len(), 1);
+    goal.apply(&kept);
+    assert_eq!(goal.standing(&accepted.id()), Some(Standing::Effective));
+    assert_eq!(goal.standing(&after.id()), Some(Standing::Effective));
+    assert_eq!(goal.state().tasks[0].accepted, Some(events[6].id()));
+    let all = goal.history.events.clone();
+    let mut store = MemStore::new();
+    store
+        .commit(&Commit {
+            events: all.clone(),
+            ..Commit::default()
+        })
+        .unwrap();
+    assert_same(&goal, &Goal::load(&store.reopen(), id).unwrap(), &all);
 }

@@ -197,6 +197,20 @@ The depth of the complete state graph search is 17.
             fixture = root / "fixtures/RunnerFixture.tla"
             self.assertEqual(hashes["research/tla/fixtures/RunnerFixture.tla"], tla.sha256(fixture))
 
+    def test_protocol_model_identity_stays_separate_from_current_checkout(self):
+        registry = {"model_baseline": {"status": "historical", "source_commit": "a" * 40,
+                                       "protocol_version": 0, "api_version": 0}}
+        result = tla.model_scope(registry, [{"kind": "current-safety"}])
+        self.assertEqual(result["modeled_baseline"]["protocol_version"], 0)
+        self.assertFalse(result["runtime_conformance_claimed"])
+        with self.assertRaises(tla.CheckError):
+            tla.model_scope({}, [{"kind": "current-safety"}])
+
+    def test_runner_fixtures_do_not_claim_a_protocol_model_baseline(self):
+        result = tla.model_scope({}, [{"kind": "runner-fixture"}])
+        self.assertEqual(result["kind"], "runner-fixtures")
+        self.assertNotIn("modeled_baseline", result)
+
 
 if __name__ == "__main__":
     unittest.main()

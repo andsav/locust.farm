@@ -15,10 +15,8 @@ pub(super) fn home(matches: &ArgMatches) -> Result<PathBuf, Failure> {
         .map(std::ffi::OsString::from)
         .or_else(|| std::env::var_os(local::HOME_ENV));
     let user_home = std::env::var_os("HOME");
-    Ok(local::home_dir(
-        configured.as_deref(),
-        user_home.as_deref(),
-    )?)
+    local::home_dir(configured.as_deref(), user_home.as_deref())
+        .map_err(|error| path_error(error, matches, "home"))
 }
 pub(super) fn credential_path(matches: &ArgMatches, home: &Path) -> Result<PathBuf, Failure> {
     if matches.get_flag("owner") {
@@ -28,14 +26,16 @@ pub(super) fn credential_path(matches: &ArgMatches, home: &Path) -> Result<PathB
         .get_one::<String>("credential")
         .map(std::ffi::OsString::from)
         .or_else(|| std::env::var_os(local::CREDENTIAL_ENV));
-    Ok(local::credential_path(configured.as_deref())?)
+    local::credential_path(configured.as_deref())
+        .map_err(|error| path_error(error, matches, "credential"))
 }
 pub(super) fn session_path(matches: &ArgMatches) -> Result<Option<PathBuf>, Failure> {
     let configured = matches
         .get_one::<String>("session")
         .map(std::ffi::OsString::from)
         .or_else(|| std::env::var_os(local::SESSION_ENV));
-    Ok(local::session_path(configured.as_deref())?)
+    local::session_path(configured.as_deref())
+        .map_err(|error| path_error(error, matches, "session"))
 }
 pub(super) fn read_secret(path: &Path) -> Result<[u8; 32], Failure> {
     let metadata = fs::metadata(path)
@@ -59,11 +59,12 @@ pub(super) fn connect(socket: &Path) -> Result<UnixStream, Failure> {
     })
 }
 pub(super) fn open(matches: &ArgMatches, home: &Path) -> Result<Client<UnixStream>, Failure> {
-    let socket = local::socket_path(home)?;
+    let socket = local::socket_path(home).map_err(|error| path_error(error, matches, "home"))?;
     let credential_path = credential_path(matches, home)?;
+    let session_path = session_path(matches)?;
     let stream = connect(&socket)?;
     let credential = Credential(read_secret(&credential_path)?);
-    let session = session_path(matches)?
+    let session = session_path
         .as_deref()
         .map(read_secret)
         .transpose()?
@@ -103,5 +104,23 @@ pub(super) fn client_error(error: ClientError, socket: &Path) -> Failure {
             "daemon socket {} is not answering: {other}",
             socket.display()
         )),
+    }
+}
+
+fn path_error(error: local::LocalError, matches: &ArgMatches, option: &str) -> Failure {
+    match error {
+        local::LocalError::NoCredential => Failure::usage(
+            "select a credential with --credential <absolute-path> or LOCUST_CREDENTIAL, or use --owner for owner authority",
+        ),
+        local::LocalError::NotAbsolute(_) if matches.get_one::<String>(option).is_some() => {
+            Failure::usage(format!("--{option} must be an absolute path"))
+        }
+        local::LocalError::SocketPathTooLong(_) if matches.get_one::<String>("home").is_some() => {
+            Failure::usage(format!(
+                "{}; choose a shorter --home directory",
+                error.to_string().split(';').next().unwrap()
+            ))
+        }
+        _ => error.into(),
     }
 }

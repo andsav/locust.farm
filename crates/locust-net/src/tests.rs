@@ -5,9 +5,9 @@ use std::task::Poll;
 use std::time::Duration;
 
 use iroh::SecretKey;
-use locust_proto::codec;
 use locust_proto::id::{BlobHash, GoalId};
 use locust_proto::sync::{Refusal, SyncMessage};
+use locust_proto::{PROTOCOL_VERSION, codec};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::testkit::memory_pair;
@@ -44,7 +44,7 @@ async fn memory_link_preserves_order_identity_and_half_close() {
     assert_eq!(left.remote_id(), RIGHT);
     assert_eq!(right.remote_id(), LEFT);
     let hello = SyncMessage::Hello {
-        version: 0,
+        version: PROTOCOL_VERSION,
         goal: GoalId([3; 32]),
     };
     left.send(&hello).await.unwrap();
@@ -71,7 +71,7 @@ async fn memory_link_preserves_order_identity_and_half_close() {
 #[tokio::test]
 async fn asynchronous_frames_match_the_contract_codec() {
     let message = SyncMessage::Hello {
-        version: 0,
+        version: PROTOCOL_VERSION,
         goal: GoalId([7; 32]),
     };
     let encoded = wire(&message);
@@ -112,7 +112,7 @@ async fn outgoing_oversize_rejection_does_not_write_or_poison() {
     };
     let (mut left, mut right) = memory_pair(LEFT, RIGHT, limits, LIMITS, 16).unwrap();
     let too_big = SyncMessage::Hello {
-        version: 0,
+        version: PROTOCOL_VERSION,
         goal: GoalId([3; 32]),
     };
     assert!(matches!(
@@ -126,7 +126,7 @@ async fn outgoing_oversize_rejection_does_not_write_or_poison() {
 #[tokio::test]
 async fn truncated_prefix_and_payload_are_not_clean_eof() {
     let complete = wire(&SyncMessage::Hello {
-        version: 0,
+        version: PROTOCOL_VERSION,
         goal: GoalId([3; 32]),
     });
     for length in 1..complete.len() {
@@ -161,7 +161,7 @@ async fn invalid_encoding_and_trailing_bytes_poison_the_receiver() {
 #[tokio::test]
 async fn canceled_receive_resumes_at_each_prefix_and_payload_boundary() {
     let message = SyncMessage::Hello {
-        version: 0,
+        version: PROTOCOL_VERSION,
         goal: GoalId([9; 32]),
     };
     let encoded = wire(&message);
@@ -319,7 +319,7 @@ async fn key_only_roundtrip(left: &Endpoint, right: &Endpoint, retry: bool) -> R
         .await
         .map_err(|e| e.to_string())?;
     let hello = SyncMessage::Hello {
-        version: 0,
+        version: PROTOCOL_VERSION,
         goal: GoalId([83; 32]),
     };
     sent.send(&hello).await.map_err(|e| e.to_string())?;
@@ -510,7 +510,7 @@ async fn sync_validation_rejects_versions_and_invalid_chunk_ranges() {
     for (message, expected) in [
         (
             SyncMessage::Hello {
-                version: 1,
+                version: PROTOCOL_VERSION + 1,
                 goal: GoalId([0; 32]),
             },
             Refusal::UnsupportedVersion,
@@ -600,7 +600,7 @@ async fn loopback_half_drop_and_backpressure_match_memory_lifecycle() {
         let (outgoing, incoming) = connected(&left, &right).await;
         let mut link = outgoing.open_link(LIMITS).await.unwrap();
         link.send(&SyncMessage::Hello {
-            version: 0,
+            version: PROTOCOL_VERSION,
             goal: GoalId([1; 32]),
         })
         .await
@@ -629,7 +629,7 @@ async fn loopback_final_refusal_survives_acknowledged_finish_and_close() {
                 async {
                     let mut link = outgoing.open_link(FrameLimits::hello()).await.unwrap();
                     link.send(&SyncMessage::Hello {
-                        version: 0,
+                        version: PROTOCOL_VERSION,
                         goal: GoalId([0; 32]),
                     })
                     .await
@@ -676,7 +676,7 @@ async fn loopback_admission_and_canceled_receive_resume_the_same_exchange() {
         let (outgoing, incoming) = connected(&left, &right).await;
         let mut link = outgoing.open_link(FrameLimits::peer()).await.unwrap();
         let hello = SyncMessage::Hello {
-            version: 0,
+            version: PROTOCOL_VERSION,
             goal: GoalId([0; 32]),
         };
         link.send(&hello).await.unwrap();
@@ -893,7 +893,7 @@ async fn loopback_canceled_receive_keeps_partial_payload_and_prefix_admission() 
         let (outgoing, incoming) = connected(&left, &right).await;
         let (mut raw, _recv) = outgoing.0.open_bi().await.unwrap();
         let message = SyncMessage::Hello {
-            version: 0,
+            version: PROTOCOL_VERSION,
             goal: GoalId([3; 32]),
         };
         let encoded = wire(&message);

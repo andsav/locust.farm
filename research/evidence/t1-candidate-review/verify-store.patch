@@ -1,9 +1,11 @@
 --- a/crates/locust-store/tests/verify.rs
 +++ b/crates/locust-store/tests/verify.rs
-@@ -0,0 +1,386 @@
+@@ -0,0 +1,410 @@
 +//! Probes for the verify-store review. Each step runs in a child process with
 +//! the DYLD interposer, which traces F_FULLFSYNC/rename/unlink and can kill
 +//! the process or fail a flush with EIO while an arm file exists.
++//! Build verify-store-flush-interposer.c (not store-flush-interposer.c).
++//! These are candidate observations; runtime regressions live in the crate.
 +
 +use std::env;
 +use std::fs;
@@ -46,10 +48,14 @@
 +
 +fn arm(on: bool) {
 +    let path = env::var(ARM).unwrap();
++    let fired = format!("{path}.fired");
 +    if on {
++        let _ = fs::remove_file(&fired);
 +        fs::write(&path, b"").unwrap();
 +    } else {
-+        let _ = fs::remove_file(&path);
++        assert!(Path::new(&fired).exists(), "the armed operation never reached its fault");
++        fs::remove_file(&fired).unwrap();
++        fs::remove_file(&path).unwrap();
 +    }
 +}
 +
@@ -73,6 +79,17 @@
 +    println!("===== step {step}: status {:?}", output.status);
 +    println!("--- stdout\n{}", String::from_utf8_lossy(&output.stdout));
 +    println!("--- stderr\n{}", String::from_utf8_lossy(&output.stderr));
++    let stderr = String::from_utf8_lossy(&output.stderr);
++    if probe.iter().any(|(key, _)| *key == "PROBE_KILL_SUB") {
++        assert_eq!(output.status.code(), Some(77), "kill injection did not fire");
++        assert!(stderr.contains("[verify-store] injected exit 77 before"));
++    } else {
++        assert!(output.status.success(), "child step failed");
++        if probe.iter().any(|(key, _)| *key == "PROBE_FAIL_SUB") {
++            assert!(stderr.contains("[verify-store] injected EIO before"), "failure injection did not fire");
++        }
++    }
++    assert!(stderr.contains("[verify-store]"), "the verifier interposer was not loaded");
 +    let _ = fs::remove_file(&armfile);
 +    output
 +}
@@ -177,6 +194,8 @@
 +    mark("stage last start");
 +    let last = store.stage_blob(&hash, BLOB_CHUNK_BYTES as u64, &bytes[BLOB_CHUNK_BYTES..]);
 +    arm(false);
++    assert!(!kill, "kill injection did not fire");
++    assert!(last.is_err(), "staging flush failure did not reach the store");
 +    println!("stage last {last:?} (kill={kill})");
 +    println!("staged_len now {:?}", store.staged_len(&hash));
 +}
@@ -227,6 +246,7 @@
 +    let finished = store.finish_blob(&hash);
 +    arm(false);
 +    mark("finish done");
++    assert!(finished.is_err(), "WAL flush failure did not reach the store");
 +    println!("finish_blob {finished:?}");
 +    println!("files {:?}", files(dir));
 +    drop(store);
@@ -317,7 +337,9 @@
 +    let (hash, bytes) = (blob.hash(), blob.bytes());
 +    arm(true);
 +    mark("first stage (dir flush fails)");
-+    println!("first stage {:?}", store.stage_blob(&hash, 0, &bytes[..BLOB_CHUNK_BYTES]));
++    let first = store.stage_blob(&hash, 0, &bytes[..BLOB_CHUNK_BYTES]);
++    assert!(first.is_err(), "directory flush failure did not reach stage");
++    println!("first stage {first:?}");
 +    arm(false);
 +    mark("repeat same chunk");
 +    println!("repeat stage {:?}", store.stage_blob(&hash, 0, &bytes[..BLOB_CHUNK_BYTES]));
@@ -331,7 +353,9 @@
 +    println!("stage other {:?}", store.stage_blob(&other.hash(), 0, other.bytes()));
 +    arm(true);
 +    mark("discard (dir flush fails)");
-+    println!("discard {:?}", store.discard_staged_blob(&other.hash()));
++    let discard = store.discard_staged_blob(&other.hash());
++    assert!(discard.is_err(), "directory flush failure did not reach discard");
++    println!("discard {discard:?}");
 +    arm(false);
 +    mark("discard again");
 +    println!("discard again {:?}", store.discard_staged_blob(&other.hash()));

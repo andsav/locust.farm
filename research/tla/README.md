@@ -1,10 +1,21 @@
 # Locust TLA+ models and checks
 
-Date: 2026-10-03. **Status: Stages 0 and 1 implemented and checked locally
-on macOS Arm64.** The
+Date: 2026-10-03; integration update 2026-10-04. **Status: Stages 0 and 1
+implemented and checked locally for the historical protocol/API version-0
+baseline. The merged implementation uses version 1 and requires model
+rebaselining.** The
 [implementation plan](../../docs/tla-verification-plan.md) defines the remaining
 scope. This work checks bounded abstract behavior; it does not prove the Rust
 implementation or qualify the running M1/M2 test.
+
+The [upstream impact assessment](upstream-impact-2026-10-04.md) identifies the
+changed rules. GoalLog retains the old rollback/display counterexamples; its
+passing configurations are not current version-1 conformance checks. The
+Sessions generation/idempotency seam remains relevant, while new membership,
+read authority and shutdown behavior need a fresh mapping. Original models,
+configurations and evidence remain available as historical results. The Rust
+trace fixtures now check corrected version-1 outcomes rather than the old
+GoalLog results.
 
 ## Run the checks
 
@@ -89,8 +100,9 @@ deductive proofs are outside Stages 0 and 1.
 for finite authenticated transcripts. Safety families vary event delivery order,
 gaps and duplicates, including forks, cancellation, reassignment and
 removal/readmission. Scripted cases preserve the reviewed causal prefixes for
-IR-5 and IR-12. Desired acceptance permanence and display binding remain false
-under current rules; passing current-rule invariants does not resolve them.
+IR-5 and IR-12. Desired acceptance permanence and display binding fail under
+the modeled version-0 rules. Upstream corrects those runtime cases; passing
+historical invariants does not verify the version-1 fixes.
 
 [Sessions.tla](Sessions.tla) models one local assignment, two principals, two
 sessions, three generations, three events and two request keys. It checks
@@ -105,6 +117,8 @@ Three deterministic Rust fixtures replay IR-5, IR-12 and the session takeover/
 retry/reopen scenario in [goal tests](../../crates/locust-core/src/goal/tests.rs)
 and [session tests](../../crates/locust-core/src/node/tests/formal.rs).
 This begins trace-to-Rust mapping with synthetic identities and MemStore; it
-is not a generic trace importer or a proof of refinement. Runtime behavior is
-unchanged. The [property map](property-map.md) records omitted cases and the
-shared GoalLog transition algebra.
+is not a generic trace importer or a proof of refinement. The original Stage 1
+implementation changed no runtime behavior. After upstream
+integration, these Rust fixtures assert version-1 behavior; their outcomes no
+longer match the historical GoalLog findings. The [property map](property-map.md)
+records omitted cases and the shared GoalLog transition algebra.

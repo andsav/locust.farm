@@ -10,7 +10,8 @@
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",
-    "crates/locust-core/Cargo.toml"
+    "crates/locust-core/Cargo.toml",
+    "crates/locust-proto/src/lib.rs"
   ],
   "cases": [
     {
@@ -664,5 +665,13 @@
         "HealthyMemoryMatchesStore"
       ]
     }
-  ]
+  ],
+  "model_baseline": {
+    "status": "historical",
+    "source_commit": "86980594acee708b2f9bf303afc9ee636dc55337",
+    "protocol_version": 0,
+    "api_version": 0,
+    "evidence_commit": "4fc3079df29da4d2c4b503b2478c5ed75250c037",
+    "rebaseline_required_for_protocol": 1
+  }
 }

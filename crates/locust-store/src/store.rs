@@ -1,6 +1,6 @@
 //! [`SqliteStore`]: opening a state directory, and the [`Store`] operations,
-//! each ordering its file and database steps so that a crash at any point
-//! leaves all of the operation or none of it.
+//! ordering file and database steps for durable acknowledgements and
+//! recoverable interrupted operations.
 
 use std::path::Path;
 use std::slice;
@@ -15,7 +15,7 @@ use crate::error::{OpenError, sql};
 use crate::files::{Files, Staged};
 use crate::{connection, events, local, objects, schema};
 
-const BROKEN: &str = "an earlier commit failed while it was being made durable, so its outcome \
+const BROKEN: &str = "an earlier write failed while it was being made durable, so its outcome \
      is unknown; reopen the store to read it back";
 
 /// The durable store of one state directory. Owned by one thread; see the
@@ -24,10 +24,9 @@ const BROKEN: &str = "an earlier commit failed while it was being made durable, 
 pub struct SqliteStore {
     conn: Connection,
     files: Files,
-    /// Set when a transaction failed during its commit. Such a failure can
-    /// come after the commit reached the disk (a failed sync, say), so what
-    /// the database holds is unknown until it is read back from disk; every
-    /// later call fails until the store is reopened.
+    /// Set when a durable mutation fails with an uncertain outcome (database
+    /// commit, staging append, promotion or discard). Every later call fails
+    /// until reopen repairs and reads back the persisted state.
     broken: bool,
 }
 
@@ -40,12 +39,16 @@ impl SqliteStore {
     ///
     /// Fails with [`OpenError::InUse`] while another store holds `dir`, and
     /// with [`OpenError::NewerSchema`] for a database written by a newer
-    /// release.
+    /// release. Signed events of another protocol are refused with
+    /// [`OpenError::UnsupportedProtocolVersion`] before migrations or garbage
+    /// collection. Opening may checkpoint recovered WAL pages first.
     pub fn open(dir: impl AsRef<Path>) -> Result<Self, OpenError> {
         let dir = dir.as_ref();
         let files = Files::create(conventions::blobs_dir(dir))?;
         let mut conn = connection::open(&conventions::database_path(dir), dir)?;
+        connection::check_protocol(&conn)?;
         schema::migrate(&mut conn)?;
+        files.recover_staging()?;
         objects::collect_garbage(&conn, &files)?;
         Ok(Self {
             conn,
@@ -68,6 +71,14 @@ impl SqliteStore {
         }
     }
 
+    fn discard_staging(&mut self, hash: &BlobHash) -> Result<(), StoreError> {
+        let result = self.files.discard_staged(hash);
+        if result.is_err() {
+            self.broken = true;
+        }
+        result
+    }
+
     /// Holds a staged copy small enough to live in the database, or the empty
     /// object when nothing is staged.
     fn promote_inline(
@@ -80,7 +91,7 @@ impl SqliteStore {
             None => Vec::new(),
         };
         let Some(blob) = Blob::verified(*hash, bytes) else {
-            self.files.discard_staged(hash)?;
+            self.discard_staging(hash)?;
             return Ok(false);
         };
         if !objects::is_held(&self.conn, hash)? {
@@ -88,31 +99,33 @@ impl SqliteStore {
             objects::insert(&tx, slice::from_ref(&blob))?;
             commit_durably(tx, &mut self.broken)?;
         }
-        // A crash before this removal leaves a staged copy of a held object,
-        // which the next open removes.
-        self.files.discard_staged(hash)?;
+        // A crash before removal leaves an independent staged copy. Keep it
+        // on reopen so callers can retry promotion or discard explicitly.
+        self.discard_staging(hash)?;
         Ok(true)
     }
 
-    /// Holds a large staged copy by renaming it into place, once its hash,
+    /// Holds a large staged copy by copying it into place, once its hash,
     /// computed in pieces, matches.
     fn promote_file(&mut self, hash: &BlobHash, staged: Staged) -> Result<bool, StoreError> {
         let len = staged.len;
         if staged.hash()? != *hash {
-            self.files.discard_staged(hash)?;
+            self.discard_staging(hash)?;
             return Ok(false);
         }
         if objects::is_held(&self.conn, hash)? {
-            self.files.discard_staged(hash)?;
+            self.discard_staging(hash)?;
             return Ok(true);
         }
-        // A crash between the rename and the commit leaves an object file
-        // that no row names: the next open removes it, and the transfer
-        // starts over.
-        self.files.promote_staged(hash)?;
+        // Keep independent staging until the row is durable. A failed insert
+        // or interrupted commit must not consume acknowledged staged bytes.
+        self.files.promote_staged(hash, staged).inspect_err(|_| {
+            self.broken = true;
+        })?;
         let tx = self.conn.transaction().map_err(sql)?;
         objects::insert_file(&tx, hash, len)?;
         commit_durably(tx, &mut self.broken)?;
+        self.discard_staging(hash)?;
         Ok(true)
     }
 }
@@ -213,7 +226,11 @@ impl Store for SqliteStore {
         bytes: &[u8],
     ) -> Result<u64, StoreError> {
         self.usable()?;
-        self.files.stage(hash, offset, bytes)
+        let result = self.files.stage(hash, offset, bytes);
+        if result.is_err() {
+            self.broken = true;
+        }
+        result
     }
 
     fn staged_len(&self, hash: &BlobHash) -> Result<u64, StoreError> {
@@ -233,12 +250,12 @@ impl Store for SqliteStore {
 
     fn discard_staged_blob(&mut self, hash: &BlobHash) -> Result<(), StoreError> {
         self.usable()?;
-        self.files.discard_staged(hash)
+        self.discard_staging(hash)
     }
 
     /// A small copy is verified in memory and moved into the database; a
-    /// large one is hashed in 64 KiB pieces and renamed into place, so its
-    /// bytes pass through memory once and are never copied on disk.
+    /// large one is hashed in 64 KiB pieces and copied into place while its
+    /// independent staged copy remains recoverable until the row commits.
     fn finish_blob(&mut self, hash: &BlobHash) -> Result<bool, StoreError> {
         self.usable()?;
         match self.files.open_staged(hash)? {

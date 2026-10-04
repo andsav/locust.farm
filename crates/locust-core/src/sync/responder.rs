@@ -1,11 +1,9 @@
 //! The side of an exchange that a peer opened.
 
 use locust_proto::PROTOCOL_VERSION;
-use locust_proto::event::AuthorPoint;
-use locust_proto::id::{BlobHash, EndpointId, GoalId, PublicKey};
+use locust_proto::id::{BlobHash, EndpointId, GoalId};
 use locust_proto::invite::JoinRequest;
-use locust_proto::limits::MAX_INVENTORY_POINTS;
-use locust_proto::sync::{Frontier, Refusal, SyncMessage};
+use locust_proto::sync::{Refusal, SyncMessage};
 
 use super::outbox::{Outbox, Work};
 use super::{Ended, Host, Replica};
@@ -21,6 +19,7 @@ pub struct Responder {
     remote: EndpointId,
     goal: Option<GoalId>,
     admitted: bool,
+    evidence: bool,
     ended: Option<Ended>,
     outbox: Outbox,
 }
@@ -32,6 +31,7 @@ impl Responder {
             remote,
             goal: None,
             admitted: false,
+            evidence: false,
             ended: None,
             outbox: Outbox::default(),
         }
@@ -53,6 +53,10 @@ impl Responder {
         self.admitted
     }
 
+    pub fn is_evidence(&self) -> bool {
+        self.evidence
+    }
+
     /// True once the exchange is over: after `Done`, or after a refusal.
     pub fn is_finished(&self) -> bool {
         self.ended.is_some()
@@ -61,6 +65,10 @@ impl Responder {
     /// How the exchange ended, once it has.
     pub fn ended(&self) -> Option<Ended> {
         (!self.outbox.pending()).then_some(self.ended).flatten()
+    }
+
+    pub fn readable(&self) -> bool {
+        self.outbox.readable() || self.ended.is_some()
     }
 
     /// Handles the next received frame and appends its answer to `out`.
@@ -75,23 +83,32 @@ impl Responder {
         if self.ended.is_some() {
             return;
         }
-        let outcome = match (self.goal, frame) {
-            (None, SyncMessage::Hello { version, goal }) => self.hello(host, version, goal),
-            (None, _) | (Some(_), SyncMessage::Hello { .. }) => Err(Refusal::ProtocolError),
-            (Some(goal), SyncMessage::Join(request)) => self.join(host, goal, &request, now_ms),
-            (Some(_), SyncMessage::Done) => {
-                self.outbox.clear();
-                self.ended = Some(Ended::Completed);
-                Ok(())
+        let outcome = if !self.readable()
+            && !matches!(frame, SyncMessage::Done | SyncMessage::Refused(_))
+        {
+            Err(Refusal::ProtocolError)
+        } else {
+            match (self.goal, frame) {
+                (None, SyncMessage::Hello { version, goal }) => self.hello(host, version, goal),
+                (None, _) | (Some(_), SyncMessage::Hello { .. }) => Err(Refusal::ProtocolError),
+                (Some(goal), SyncMessage::Join(request)) => self.join(host, goal, &request, now_ms),
+                (Some(_), SyncMessage::Done) => {
+                    self.outbox.clear();
+                    self.ended = Some(Ended::Completed);
+                    Ok(())
+                }
+                // The initiator gave up; there is nothing to answer.
+                (Some(_), SyncMessage::Refused(refusal)) => {
+                    self.outbox.clear();
+                    self.ended = Some(Ended::Refused(refusal));
+                    Ok(())
+                }
+                (Some(goal), SyncMessage::HaltProof(proof)) => {
+                    host.receive_halt_proof(&goal, &self.remote, proof)
+                }
+                (Some(_), _) if !self.admitted => Err(Refusal::NotAMember),
+                (Some(goal), request) => self.serve(host, goal, request),
             }
-            // The initiator gave up; there is nothing to answer.
-            (Some(_), SyncMessage::Refused(refusal)) => {
-                self.outbox.clear();
-                self.ended = Some(Ended::Refused(refusal));
-                Ok(())
-            }
-            (Some(_), _) if !self.admitted => Err(Refusal::NotAMember),
-            (Some(goal), request) => self.serve(host, goal, request),
         };
         if let Err(refusal) = outcome {
             self.outbox.clear();
@@ -130,6 +147,7 @@ impl Responder {
         }
         self.goal = Some(goal);
         self.admitted = host.speaks_for_member(&goal, &self.remote);
+        self.evidence = host.accepts_halt_proof(&goal, &self.remote);
         Ok(())
     }
 
@@ -164,12 +182,16 @@ impl Responder {
         }
         let replica = host.replica(&goal).ok_or(Refusal::NotAMember)?;
         match request {
-            SyncMessage::Frontier(theirs) => answer_frontier(replica, &theirs, &mut self.outbox),
+            SyncMessage::Frontier(theirs) => self.outbox.task(Work::Frontier {
+                theirs,
+                mine: replica.frontier(),
+                next: 0,
+            }),
             SyncMessage::Events(events) => {
                 replica.receive(events)?;
             }
             SyncMessage::InventoryRequest { author, after } => {
-                self.outbox.push(inventory(replica, author, after));
+                self.outbox.task(Work::Inventory { author, after });
             }
             SyncMessage::EventRequest(ids) => {
                 self.outbox.task(Work::Requested(ids.into()));
@@ -184,59 +206,6 @@ impl Responder {
             _ => return Err(Refusal::ProtocolError),
         }
         Ok(())
-    }
-}
-
-/// The answer to a peer's frontier: for every author either side holds, the
-/// events past the peer's prefix when the peer holds exactly a prefix of this
-/// replica's log, otherwise the first page of this replica's inventory; then
-/// this replica's frontier.
-fn answer_frontier(replica: &dyn Replica, theirs: &Frontier, out: &mut Outbox) {
-    let mine = replica.frontier();
-    let (mut i, mut j) = (0, 0);
-    loop {
-        let author = match (mine.authors.get(i), theirs.authors.get(j)) {
-            (Some(a), Some(b)) if a.author == b.author => {
-                i += 1;
-                j += 1;
-                a.author
-            }
-            (Some(a), Some(b)) if a.author < b.author => {
-                i += 1;
-                a.author
-            }
-            (Some(a), None) => {
-                i += 1;
-                a.author
-            }
-            (_, Some(b)) => {
-                j += 1;
-                b.author
-            }
-            (None, None) => break,
-        };
-        let entry = theirs.get(&author);
-        if replica.extends(&entry) {
-            let points = replica.points(&author);
-            let from = points.partition_point(|point| point.seq < entry.next_seq);
-            let after = from.checked_sub(1).map(|i| points[i]);
-            out.events(replica, author, after, None, Vec::new());
-        } else {
-            out.push(inventory(replica, author, None));
-        }
-    }
-    out.push(SyncMessage::Frontier(mine));
-}
-
-/// One page of this replica's points of `author` strictly after `after`.
-fn inventory(replica: &dyn Replica, author: PublicKey, after: Option<AuthorPoint>) -> SyncMessage {
-    let points = replica.points(&author);
-    let start = after.map_or(0, |after| points.partition_point(|point| *point <= after));
-    let end = points.len().min(start + MAX_INVENTORY_POINTS);
-    SyncMessage::Inventory {
-        author,
-        points: points[start..end].to_vec(),
-        more: end < points.len(),
     }
 }
 

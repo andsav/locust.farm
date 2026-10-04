@@ -1,13 +1,24 @@
 # TLA+ property and implementation map
 
-Date: 2026-10-03. **Status: Stage 0 inventory updated for the implemented Stage 1
-models and Rust trace fixtures.** Initial baseline
+Date: 2026-10-03; integration update 2026-10-04. **Status: historical version-0
+Stage 0/1 inventory. Upstream protocol/API version 1 changes the implementation
+and requires model rebaselining.** Initial baseline
 `86980594acee708b2f9bf303afc9ee636dc55337`. This maps the
 [verification plan](../../docs/tla-verification-plan.md) to current code,
 [GoalLog](GoalLog.tla), [Sessions](Sessions.tla) and their configurations.
 The rule descriptions are source-based observations. Run identities, completion,
 state counts and test outcomes belong to the separately recorded evidence;
 this inventory does not certify a run or prove implementation refinement.
+
+The [upstream impact assessment](upstream-impact-2026-10-04.md) supersedes any
+reading of the table below as a description of current version-1 behavior.
+The table preserves the model's version-0 mapping; local code links now open the
+merged implementation, while the recorded source hashes/commits identify the
+historical source. In version 1, canonical commitments can retain selected
+member branches, and late submissions preserve the accepted display. The Rust
+IR-5/IR-12 transcript tests have been adapted to those corrected outcomes; the
+old function names/outcomes below describe the historical fixtures. No
+version-1 TLA+ qualification is claimed.
 
 ## Goal replay and task authority
 
@@ -102,13 +113,16 @@ None of these configurations declares fairness or a liveness property.
 
 ## Concrete trace correspondence and its limits
 
-The new [goal tests](../../crates/locust-core/src/goal/tests.rs) construct real
+The [goal tests](../../crates/locust-core/src/goal/tests.rs) construct real
 signed events with deterministic test identities and synthetic head values.
 IR-12 maps model events 1 through 9 and compares scrambled/duplicate arrival,
 incremental replay, full fold and `MemStore` reopen. IR-5 maps events 1 through
-21, checks the fork's standings and rollback, then confirms removal does not
-repair it and reverse-order replay agrees. These tests characterize the current
-undesired outcomes; they do not adopt corrected acceptance policies.
+21. The original version-0 fixture checked fork rollback followed by removal.
+The merged version-1 fixture checks that the fork preserves all three heads,
+then distinguishes their withdrawal under the final explicit empty removal
+cutoff. Reverse-order replay agrees. The IR-12 fixture now preserves the accepted
+display while retaining the late submission. These corrected Rust executions
+do not establish conformance with the unchanged historical model.
 
 The new [session trace test](../../crates/locust-core/src/node/tests/formal.rs)
 executes A1-B2-A3 through `Engine`, refuses delayed A1/B2 writes, preserves a
@@ -142,7 +156,7 @@ findings are also deferred. The [independent review](../t1-candidate-independent
 retains those failures; atomic storage or a finite delivery universe must not be
 used to claim they are fixed.
 
-Semantic decisions for this implementation: preserve current runtime behavior;
-reproduce IR-5 and IR-12; keep proposed acceptance permanence and display binding
-as unsatisfied goals awaiting a separate contract/source change. No corrected
-protocol variant or proof of the Rust implementation is adopted here.
+Original Stage 1 decisions: preserve version-0 runtime behavior, reproduce IR-5
+and IR-12, and record acceptance permanence/display binding as unsatisfied goals.
+Upstream version 1 subsequently adopted runtime corrections. This directory
+does not yet supply a corrected protocol model or a proof of the Rust implementation.

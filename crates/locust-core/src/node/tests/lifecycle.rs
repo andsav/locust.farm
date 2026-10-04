@@ -472,7 +472,22 @@ fn revisions_notes_and_idempotent_mutation_survive_replay() {
 
 #[test]
 fn removal_seals_new_epoch_proof_and_stops_member_writes() {
-    let (mut daemon, principal, _, agent, goal) = setup();
+    let (mut daemon, coordinator, _, agent, goal) = setup();
+    assert_eq!(
+        code(daemon.call(
+            agent,
+            Request::MemberRemove {
+                goal,
+                member: coordinator
+            }
+        )),
+        ErrorCode::Conflict
+    );
+    assert_eq!(
+        code(daemon.call(agent, Request::GoalLeave { goal })),
+        ErrorCode::Conflict
+    );
+    let (principal, member_conn) = super::authorization::join_local(&mut daemon, agent, goal, 2);
     let removal = event(daemon.ok(
         agent,
         Request::MemberRemove {
@@ -495,7 +510,7 @@ fn removal_seals_new_epoch_proof_and_stops_member_writes() {
     );
     assert_eq!(
         code(daemon.call(
-            agent,
+            member_conn,
             Request::NoteAdd {
                 goal,
                 about: None,

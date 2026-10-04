@@ -102,7 +102,18 @@ impl Folded {
     ) -> bool {
         // A removal reaches back to events already judged; a decision that
         // held events anchor to puts them after it; a wrong anchor halts.
+        let selects_branch = matches!(
+            decision.header().body,
+            Body::TaskAssigned { .. }
+                | Body::ResultAccepted { .. }
+                | Body::ResultRejected { .. }
+                | Body::RevisionAccepted { .. }
+        ) && history
+            .logs
+            .iter()
+            .any(|(author, log)| Some(*author) != history.coordinator && log.fork.is_some());
         if matches!(decision.header().body, Body::MemberRemoved { .. })
+            || selects_branch
             || self.gates.contains(&decision.id())
             || !self.chain.succeeds(decision)
         {

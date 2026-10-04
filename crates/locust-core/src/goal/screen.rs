@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use locust_proto::event::{Body, Event};
 use locust_proto::id::{EventId, GoalId, PublicKey};
 
+use super::chain::Chain;
+use super::commitments::Commitments;
 use super::history::History;
 use super::ids::IdSet;
 
@@ -54,6 +56,32 @@ pub(super) fn screen(goal: GoalId, history: &History, events: Vec<Event>) -> Vec
         })
         .collect();
 
+    // Most exchanges are ordinary prefix extension. Build the canonical
+    // dependency projection only when a quota could drop an event.
+    let mut counts = HashMap::<(PublicKey, u64), usize>::new();
+    let mut per_author = HashMap::<PublicKey, usize>::new();
+    for event in events.iter().filter(of_goal) {
+        *counts
+            .entry((event.header().author, event.header().seq))
+            .or_default() += 1;
+        *per_author.entry(event.header().author).or_default() += 1;
+    }
+    let quota = counts.iter().any(|((author, seq), count)| {
+        history.log(author).map_or(0, |log| log.variants(*seq)) + count > MAX_FORK_VARIANTS
+    }) || per_author.iter().any(|(author, count)| {
+        history.log(author).map_or(0, |log| log.waiting()) + count > MAX_WAITING_PER_AUTHOR
+    });
+    let required = if quota {
+        // Only the unbroken coordinator chain can authorize retention;
+        // project the whole batch so arrival order cannot hide its refs.
+        let mut projected = History::default();
+        for event in history.events.iter().chain(events.iter().filter(of_goal)) {
+            projected.insert(event);
+        }
+        Commitments::build(&projected, &Chain::build(&projected)).required
+    } else {
+        IdSet::default()
+    };
     let mut seen = IdSet::default();
     let mut variants: HashMap<(PublicKey, u64), usize> = HashMap::new();
     let mut logs: HashMap<PublicKey, Projected> = HashMap::new();
@@ -74,7 +102,7 @@ pub(super) fn screen(goal: GoalId, history: &History, events: Vec<Event>) -> Vec
         let at_position = variants
             .entry((author, seq))
             .or_insert_with(|| held.map_or(0, |log| log.variants(seq)));
-        if *at_position >= MAX_FORK_VARIANTS {
+        if *at_position >= MAX_FORK_VARIANTS && !required.contains(&event.id()) {
             continue;
         }
         let log = logs.entry(author).or_insert_with(|| Projected {
@@ -90,7 +118,7 @@ pub(super) fn screen(goal: GoalId, history: &History, events: Vec<Event>) -> Vec
         } else if *at_position == 1 {
             // First conflicting evidence must survive a full waiting set.
             log.waiting += 1;
-        } else if log.waiting >= MAX_WAITING_PER_AUTHOR {
+        } else if log.waiting >= MAX_WAITING_PER_AUTHOR && !required.contains(&event.id()) {
             continue;
         } else {
             log.waiting += 1;

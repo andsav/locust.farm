@@ -81,6 +81,7 @@ pub struct Node<S, E> {
     peer_driver: crate::sync::Driver,
     peer_connections: BTreeSet<locust_proto::id::EndpointId>,
     replica_goal: Option<GoalId>,
+    blob_index: replica::BlobIndex,
     failed: bool,
     stop: bool,
 }
@@ -133,6 +134,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             peer_driver: crate::sync::Driver::default(),
             peer_connections: BTreeSet::new(),
             replica_goal: None,
+            blob_index: replica::BlobIndex::default(),
             failed: false,
             stop: false,
         };
@@ -145,6 +147,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 node.absorb(space, &key, Some(&value))?;
             }
         }
+        node.rebuild_blob_index()?;
         Ok(node)
     }
 
@@ -271,7 +274,16 @@ impl<S: Store, E: Entropy> Engine for Node<S, E> {
         self.conns.remove(&conn);
     }
 
+    fn failure(&self) -> Option<locust_proto::api::ApiError> {
+        self.failed.then(|| {
+            locust_proto::api::ApiError::new(
+                ErrorCode::Internal,
+                "storage failed; restart the daemon",
+            )
+        })
+    }
+
     fn stop_requested(&self) -> bool {
-        self.stop
+        self.stop || self.failed
     }
 }

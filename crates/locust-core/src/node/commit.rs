@@ -173,6 +173,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
             self.entry_mut(goal).note_named(&tx.commit.events);
             self.outbound.insert(goal);
         }
+        if let Err(error) = self.update_blob_index(&tx.commit) {
+            self.failed = true;
+            return Err(error.into());
+        }
         self.changed.extend(tx.touched);
         self.stop |= tx.stop;
         Ok(())

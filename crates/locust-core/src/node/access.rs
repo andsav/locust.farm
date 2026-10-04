@@ -41,6 +41,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let entry = self.goals.get(goal).ok_or_else(|| not_found(NO_GOAL))?;
         match actor.principal {
             Some(principal) if entry.membership(&principal).is_none() => Err(not_found(NO_GOAL)),
+            Some(principal)
+                if entry.membership(&principal) == Some(Membership::Refused)
+                    && entry.goal.read_epoch(&principal).is_none() =>
+            {
+                Err(denied(
+                    "the invitation was refused; join with a fresh invitation",
+                ))
+            }
+            Some(principal) if entry.goal.read_epoch(&principal).is_none() => Err(ApiError::new(
+                ErrorCode::Unavailable,
+                "canonical admission has not arrived for this principal",
+            )),
             _ => Ok(entry),
         }
     }

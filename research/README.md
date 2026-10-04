@@ -14,15 +14,19 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [T1 remediation](t1-remediation.md): disposition of all 36 independent-review findings, protocol-1 decisions, additional build/client-evidence repairs and verification boundaries.
+
 ### TLA+ verification
 
 - [Model and runner guide](tla/README.md): pinned tools, reproducible bounded checks, input snapshots, result classification and evidence limits.
 - [Property and implementation map](tla/property-map.md): rules mapped to code/tests, current versus desired semantics, assumptions and deferred findings.
+- [Upstream version-1 modeling impact](tla/upstream-impact-2026-10-04.md): merge assessment, changed rules, historical model boundaries and required rebaselining.
 - [Stages 0 and 1 evidence](evidence/tla/README.md): bounded result summaries, retained counterexamples/witnesses, Rust fixture correspondence, development failures and unverified CI qualification.
 
 ### Independent review of the T1 candidate — 2026-10-03
 
 - [Independent review of the release candidate](t1-candidate-independent-review.md): reproduction of the integration claims, 36 verified findings (10 at P2, none blocking the T1 guide), what was tested and held, and the earlier cross-review of the build helper and client harness. Probes are kept as patches under `evidence/t1-candidate-review/`, listed in the evidence index.
+- [Orchestrator assessment](t1-candidate-review-response.md): independently reproduced high-priority defects, qualifications to fork-policy and durability fixes, a mismatched store verifier, and proposed repair order; no runtime fixes applied.
 
 ### T1 runtime integration — 2026-10-03
 

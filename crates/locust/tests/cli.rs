@@ -550,3 +550,252 @@ fn doctor_succeeds_for_a_locked_private_home_and_valid_session() {
     );
     handle.join().unwrap();
 }
+
+#[test]
+fn version_is_registered_and_json_works_on_either_side() {
+    for args in [["--json", "--version"], ["--version", "--json"]] {
+        let output = Command::new(env!("CARGO_BIN_EXE_locust"))
+            .args(args)
+            .output()
+            .unwrap();
+        let body = envelope(&output, 0);
+        let version = body["result"]["version"].as_str().unwrap();
+        assert!(version.starts_with("locust "));
+        assert!(version.contains(&format!(
+            "api {API_VERSION} protocol {}",
+            locust_proto::PROTOCOL_VERSION
+        )));
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_locust"))
+        .args(["--json", "--help"])
+        .output()
+        .unwrap();
+    let body = envelope(&output, 0);
+    let help = body["result"]["help"].as_str().unwrap();
+    assert!(help.contains("--version"));
+    assert!(help.contains("Absolute credential file"));
+    assert!(help.contains("Start or stop the participant daemon"));
+}
+
+#[test]
+fn explicit_path_errors_name_the_option_and_missing_auth_lists_choices() {
+    let home = scratch();
+    for (args, expected) in [
+        (
+            vec!["--home", "relative", "status"],
+            "--home must be an absolute path",
+        ),
+        (
+            vec!["--credential", "relative", "status"],
+            "--credential must be an absolute path",
+        ),
+        (
+            vec!["--owner", "--session", "relative", "status"],
+            "--session must be an absolute path",
+        ),
+        (
+            vec!["session", "create", "relative"],
+            "session create PATH must be an absolute path",
+        ),
+    ] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_locust"));
+        command
+            .env_remove("LOCUST_CREDENTIAL")
+            .env_remove("LOCUST_SESSION")
+            .env("LOCUST_HOME", home.path())
+            .arg("--json")
+            .args(args);
+        let output = command.output().unwrap();
+        assert_eq!(envelope(&output, 2)["error"]["message"], expected);
+    }
+    let output = cli(home.path()).arg("status").output().unwrap();
+    let body = envelope(&output, 2);
+    let message = body["error"]["message"].as_str().unwrap();
+    for choice in ["--credential", "LOCUST_CREDENTIAL", "--owner"] {
+        assert!(message.contains(choice));
+    }
+}
+
+#[test]
+fn named_grant_explicitly_sets_or_revokes_goal_management() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let agent = PublicKey([2; 32]);
+    let mut expected = [true, false].into_iter();
+    let handle = server(home.path(), 2, move |frame| {
+        assert_eq!(
+            frame.request,
+            Request::AgentGrant {
+                agent,
+                grants: Grants {
+                    manage_goals: expected.next().unwrap()
+                }
+            }
+        );
+        Ok(Response::Done)
+    });
+    for value in ["true", "false"] {
+        envelope(
+            &cli(home.path())
+                .args([
+                    "--owner",
+                    "agent",
+                    "grant",
+                    "--agent",
+                    &agent.to_string(),
+                    "--manage-goals",
+                    value,
+                ])
+                .output()
+                .unwrap(),
+            0,
+        );
+    }
+    handle.join().unwrap();
+}
+
+#[test]
+fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
+    use locust_proto::id::EndpointId;
+    use locust_proto::invite::{Invitation, InviteSecret};
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let invitation = Invitation {
+        version: locust_proto::PROTOCOL_VERSION,
+        goal: GoalId([3; 32]),
+        coordinator: PublicKey([4; 32]),
+        endpoint: EndpointId([5; 32]),
+        hints: vec![],
+        secret: InviteSecret([6; 32]),
+        expires_ms: None,
+    };
+    let ticket = invitation.to_ticket().unwrap();
+    let expected = ticket.clone();
+    let handle = server(home.path(), 1, move |frame| {
+        assert_eq!(
+            frame.request,
+            Request::GoalJoin {
+                ticket: expected.clone()
+            }
+        );
+        Ok(Response::Joined {
+            goal: invitation.goal,
+            coordinator: invitation.coordinator,
+            membership: Membership::Joining,
+        })
+    });
+    let mut child = cli(home.path())
+        .args(["--owner", "goal", "join", "--ticket", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    write!(child.stdin.take().unwrap(), "{}\r\n", ticket.as_str()).unwrap();
+    assert_eq!(
+        envelope(&child.wait_with_output().unwrap(), 0)["result"]["joined"]["membership"],
+        "joining"
+    );
+    handle.join().unwrap();
+}
+
+#[test]
+fn human_status_names_membership_and_halt_with_stable_tags() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let handle = server(home.path(), 1, |_| {
+        Ok(status(vec![GoalSummary {
+            goal: GoalId([3; 32]),
+            member: PublicKey([4; 32]),
+            title: Some("a goal".into()),
+            membership: Membership::Refused,
+            halted: Some(locust_proto::api::Halt::AuthorityConflict),
+        }]))
+    });
+    let output = Command::new(env!("CARGO_BIN_EXE_locust"))
+        .env_remove("LOCUST_CREDENTIAL")
+        .env_remove("LOCUST_SESSION")
+        .arg("--home")
+        .arg(home.path())
+        .args(["--owner", "status"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains(" refused a goal halted authority_conflict"));
+    handle.join().unwrap();
+}
+
+#[test]
+fn corrupt_database_startup_preserves_corrupted_code_and_cleans_socket() {
+    let home = scratch();
+    fs::write(home.path().join("locust.db"), b"not a SQLite database").unwrap();
+    let output = cli(home.path()).args(["daemon", "run"]).output().unwrap();
+    assert_eq!(envelope(&output, 11)["error"]["code"], "corrupted");
+    assert!(!home.path().join("daemon.sock").exists());
+}
+
+#[test]
+fn held_daemon_lock_is_unavailable() {
+    let home = scratch();
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(home.path().join("daemon.lock"))
+        .unwrap();
+    lock.try_lock().unwrap();
+    let output = cli(home.path()).args(["daemon", "run"]).output().unwrap();
+    assert_eq!(envelope(&output, 8)["error"]["code"], "unavailable");
+}
+
+#[test]
+fn closed_stderr_does_not_abort_daemon_startup_or_shutdown() {
+    let home = scratch();
+    let mut child = cli(home.path())
+        .args(["daemon", "run"])
+        .env("LOCUST_RELAY", "none")
+        .env("LOCUST_LOOKUP", "none")
+        .env("LOCUST_BIND", "127.0.0.1:0")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    // Close the reader before the daemon's first listening log line.
+    drop(child.stderr.take());
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let ready = loop {
+        if child.try_wait().unwrap().is_some() {
+            break false;
+        }
+        if home.path().join("daemon.sock").exists() {
+            break true;
+        }
+        if std::time::Instant::now() >= deadline {
+            break false;
+        }
+        thread::sleep(std::time::Duration::from_millis(10));
+    };
+    if !ready {
+        let _ = child.kill();
+        let output = child.wait_with_output().unwrap();
+        panic!("daemon did not start with closed stderr: {:?}", output);
+    }
+    let stop = cli(home.path())
+        .args(["--owner", "daemon", "stop"])
+        .output()
+        .unwrap();
+    if !stop.status.success() {
+        let _ = child.kill();
+    }
+    envelope(&stop, 0);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while child.try_wait().unwrap().is_none() && std::time::Instant::now() < deadline {
+        thread::sleep(std::time::Duration::from_millis(10));
+    }
+    if child.try_wait().unwrap().is_none() {
+        let _ = child.kill();
+    }
+    let output = child.wait_with_output().unwrap();
+    envelope(&output, 0);
+    assert!(!home.path().join("daemon.sock").exists());
+}

@@ -11,6 +11,7 @@ use locust_proto::event::{AuthorPoint, Body, Event};
 use locust_proto::id::{EventId, PublicKey};
 
 use super::chain::Chain;
+use super::commitments::Commitments;
 use super::history::{AuthorLog, History, Slot};
 use super::ids::IdSet;
 use super::standing::{Exclusion, Standing, Waiting};
@@ -164,18 +165,32 @@ impl Folded {
         let Some(slot) = history.slot(named) else {
             return Reference::Wait(*named);
         };
+        let target = &history.events[slot as usize];
+        if !matches!(
+            (&decision.header().body, &target.header().body),
+            (Body::TaskAssigned { .. }, Body::TaskProposed { .. })
+                | (
+                    Body::ResultAccepted { .. } | Body::ResultRejected { .. },
+                    Body::ResultSubmitted { .. }
+                )
+                | (Body::RevisionAccepted { .. }, Body::Revision { .. })
+        ) {
+            return Reference::Refuse("the event named has the wrong kind");
+        }
+        let position = target
+            .header()
+            .anchor
+            .and_then(|anchor| self.chain.position(&anchor));
+        let Some(position) = position.filter(|position| *position < self.applied) else {
+            return Reference::Refuse("the event named is not anchored before the decision");
+        };
+        if self.excluded(target, position, false).is_some() {
+            return Reference::Refuse("the event named grants nothing");
+        }
         match self.standings[slot as usize] {
             Standing::Effective => Reference::Clear,
             Standing::Excluded(_) => Reference::Refuse("the event named grants nothing"),
-            Standing::Pending(_) => {
-                let anchor = history.events[slot as usize].header().anchor;
-                let position = anchor.and_then(|anchor| self.chain.position(&anchor));
-                if position.is_some_and(|position| position < self.applied) {
-                    Reference::Wait(*named)
-                } else {
-                    Reference::Refuse("the event named is not anchored before the decision")
-                }
-            }
+            Standing::Pending(_) => Reference::Wait(*named),
         }
     }
 
@@ -219,6 +234,7 @@ impl Folded {
         is_coordinator: bool,
         places: &mut Vec<Place>,
         order: &mut Vec<Slot>,
+        commitments: &Commitments,
     ) -> Trail {
         let mut trail = Trail::default();
         let cut = if is_coordinator {
@@ -231,15 +247,22 @@ impl Folded {
         } else {
             Exclusion::Forked
         };
+        let mut predecessor = None;
+        let mut next_seq = 0;
         for (index, (point, &slot)) in log.points.iter().zip(&log.slots).enumerate() {
+            let event = &history.events[slot as usize];
+            let pinned =
+                commitments.pins.get(&(event.header().author, point.seq)) == Some(&point.id);
+            let contiguous = point.seq == next_seq && event.header().prev == predecessor;
             let standing = &mut self.standings[slot as usize];
-            if cut.is_some_and(|cut| point.seq >= cut) {
+            if cut.is_some_and(|cut| point.seq >= cut) && (is_coordinator || !pinned) {
                 *standing = Standing::Excluded(cut_reason);
                 order.push(slot);
-            } else if index >= log.usable {
+            } else if index >= log.usable && !(pinned && contiguous) {
                 *standing = Standing::Pending(Waiting::Predecessor);
             } else {
-                let event = &history.events[slot as usize];
+                next_seq = point.seq + 1;
+                predecessor = Some(point.id);
                 match trail.place(&self.chain, event, is_coordinator) {
                     Spot::NotCoordinator => {
                         *standing = Standing::Excluded(Exclusion::NotCoordinator);
@@ -275,8 +298,30 @@ fn applied(allowed: Result<(), &'static str>) -> Standing {
 /// Computes everything from the held set. Also returns the events that were
 /// judged, in the order they were applied.
 pub(super) fn fold(history: &History) -> (Folded, Vec<Slot>) {
+    let chain = Chain::build(history);
+    // Without a member fork the ordinary usable prefixes already choose
+    // every branch. Dependency retention is computed separately by screening.
+    let commitments = if history
+        .logs
+        .iter()
+        .any(|(author, log)| Some(*author) != history.coordinator && log.fork.is_some())
+    {
+        Commitments::build(history, &chain)
+    } else {
+        Commitments::default()
+    };
+    fold_with_commitments(history, chain, &commitments)
+}
+
+/// Evaluate tentative canonical branch selections with the ordinary fold.
+/// Commitment selection calls this directly, avoiding recursive selection.
+pub(super) fn fold_with_commitments(
+    history: &History,
+    chain: Chain,
+    commitments: &Commitments,
+) -> (Folded, Vec<Slot>) {
     let mut folded = Folded {
-        chain: Chain::build(history),
+        chain,
         standings: vec![Standing::Pending(Waiting::Anchor); history.events.len()],
         ..Folded::default()
     };
@@ -306,6 +351,7 @@ pub(super) fn fold(history: &History) -> (Folded, Vec<Slot>) {
             *author == coordinator,
             &mut places,
             &mut order,
+            commitments,
         );
         folded.trails.insert(*author, trail);
     }
@@ -326,6 +372,12 @@ pub(super) fn fold(history: &History) -> (Folded, Vec<Slot>) {
     }
 
     for position in 0..links {
+        let link = &folded.chain.links[position];
+        if let Some(reference) = commitments.pending.get(&link.id) {
+            folded.standings[link.slot as usize] = Standing::Pending(Waiting::Reference);
+            folded.awaited = Some(*reference);
+            break;
+        }
         if !folded.decide(history, &mut order) {
             break;
         }

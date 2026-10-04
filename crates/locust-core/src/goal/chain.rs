@@ -146,6 +146,23 @@ impl Chain {
         });
     }
 
+    /// Latest content epoch granted by canonical membership. Readmission
+    /// grants the complete earlier history again.
+    pub fn read_epoch(&self, member: &PublicKey, applied: u32) -> Option<u32> {
+        let (_, until) = *self
+            .tenures
+            .get(member)?
+            .spans
+            .iter()
+            .rev()
+            .find(|(from, _)| *from < applied)?;
+        Some(if until >= applied {
+            self.links.get(applied.checked_sub(1)? as usize)?.epoch
+        } else {
+            self.epoch_at(until).saturating_sub(1)
+        })
+    }
+
     /// The chain position of the decision `id`.
     pub fn position(&self, id: &EventId) -> Option<u32> {
         self.positions.get(id).copied()

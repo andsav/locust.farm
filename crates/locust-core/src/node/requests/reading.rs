@@ -45,7 +45,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .goal
             .event(&event)
             .ok_or_else(|| not_found("no such event"))?;
-        answer(Response::Event(self.event_detail(entry, found)))
+        answer(Response::Event(self.event_detail(
+            entry,
+            found,
+            actor.principal.as_ref(),
+        )))
     }
 
     pub(super) fn pending(&self, actor: &Actor, goal: GoalId) -> Plan {

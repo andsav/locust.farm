@@ -1146,6 +1146,9 @@ pub enum Membership {
     Removed,
     /// The principal asked to leave and no longer takes part.
     Left,
+    /// The coordinator refused this local join attempt. No goal content is
+    /// readable until a subsequent invitation is admitted.
+    Refused,
 }
 
 /// One local principal's part in one goal, as `status` lists it.
@@ -2666,8 +2669,9 @@ mod tests {
                 Membership::Member,
                 Membership::Removed,
                 Membership::Left,
+                Membership::Refused,
             ]),
-            ["joining", "member", "removed", "left"]
+            ["joining", "member", "removed", "left", "refused"]
         );
         assert_eq!(
             tags(&[Halt::AuthorityConflict, Halt::SignerRecovery]),

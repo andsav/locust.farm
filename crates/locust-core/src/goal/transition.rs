@@ -390,7 +390,7 @@ fn record(
     if task.assignment != Some(*assignment) {
         return Ok(());
     }
-    if submitted {
+    if submitted && task.accepted.is_none() {
         task.result = Some(id);
     }
     if live && task.accepted.is_none() {

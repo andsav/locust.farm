@@ -47,6 +47,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
 }
 
 impl<S: Store, E: Entropy> PeerEngine for Node<S, E> {
+    fn peer_readable(&self, exchange: locust_proto::engine::ExchangeId) -> bool {
+        self.peer_driver.readable(exchange)
+    }
+
     fn endpoint_secret(&self) -> [u8; 32] {
         self.identity.endpoint_secret
     }
@@ -83,6 +87,91 @@ impl<S: Store, E: Entropy> PeerEngine for Node<S, E> {
 }
 
 impl<S: Store, E: Entropy> Host for Node<S, E> {
+    fn halt_proofs(&self) -> Vec<(GoalId, EndpointId, [locust_proto::event::WireEvent; 2])> {
+        let own = self
+            .identity
+            .endpoint
+            .as_ref()
+            .map(|record| record.endpoint);
+        let mut proofs = Vec::new();
+        for (goal, entry) in &self.goals {
+            let Some(crate::goal::Halt::Fork { events, .. }) = entry.goal.halt() else {
+                continue;
+            };
+            let (Some(first), Some(second)) = (
+                events.first().and_then(|id| entry.goal.event(id)),
+                events.get(1).and_then(|id| entry.goal.event(id)),
+            ) else {
+                continue;
+            };
+            for endpoint in historical_endpoints(entry) {
+                if Some(endpoint) != own {
+                    proofs.push((*goal, endpoint, [first.to_wire(), second.to_wire()]));
+                }
+            }
+        }
+        proofs
+    }
+
+    fn accepts_halt_proof(&self, goal: &GoalId, remote: &EndpointId) -> bool {
+        !self.failed
+            && self.goals.get(goal).is_some_and(|entry| {
+                historical_endpoints(entry).contains(remote)
+                    || entry
+                        .local
+                        .joins
+                        .values()
+                        .any(|join| join.endpoint == *remote)
+            })
+    }
+
+    fn receive_halt_proof(
+        &mut self,
+        goal: &GoalId,
+        remote: &EndpointId,
+        proof: [locust_proto::event::WireEvent; 2],
+    ) -> Result<(), Refusal> {
+        if !self.accepts_halt_proof(goal, remote) {
+            return Err(Refusal::NotAMember);
+        }
+        let entry = self.goals.get(goal).ok_or(Refusal::NotAMember)?;
+        let coordinator = entry
+            .state()
+            .coordinator
+            .or_else(|| {
+                entry
+                    .local
+                    .joins
+                    .values()
+                    .find(|join| join.endpoint == *remote)
+                    .map(|join| join.coordinator)
+            })
+            .ok_or(Refusal::NotAMember)?;
+        let first =
+            locust_proto::event::Event::from_wire(&proof[0]).map_err(|_| Refusal::NotAMember)?;
+        let second =
+            locust_proto::event::Event::from_wire(&proof[1]).map_err(|_| Refusal::NotAMember)?;
+        if first.header().goal != *goal
+            || second.header().goal != *goal
+            || first.header().author != coordinator
+            || second.header().author != coordinator
+            || first.header().seq != second.header().seq
+            || first.id() == second.id()
+        {
+            return Err(Refusal::NotAMember);
+        }
+        let mut tx = Tx::none();
+        tx.commit.events.extend(
+            [first, second]
+                .into_iter()
+                .filter(|event| !entry.goal.holds(&event.id())),
+        );
+        if tx.commit.events.is_empty() {
+            return Ok(());
+        }
+        self.land(tx).map_err(|_| Refusal::NotAMember)
+    }
+
     fn peers(&self) -> Vec<(GoalId, EndpointId)> {
         let own = self
             .identity
@@ -156,54 +245,8 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
         request: &JoinRequest,
         now_ms: u64,
     ) -> Result<(), Refusal> {
-        use super::requests::invitations::InviteRecord;
-        let refused = Refusal::InvitationRefused;
-        if self.failed || *remote != request.endpoint || !request.verify() {
-            return Err(refused);
-        }
-        let digest = request.secret.digest();
-        let bytes = self
-            .store
-            .get(Space::Invite, &digest)
-            .map_err(|_| refused)?
-            .ok_or(refused)?;
-        let mut invite: InviteRecord = records::read(&bytes).map_err(|_| refused)?;
-        if invite.goal != request.goal {
-            return Err(refused);
-        }
-        let entry = self.goals.get(&request.goal).ok_or(refused)?;
-        if let Some((member, endpoint)) = invite.redeemed {
-            return if member == request.member
-                && endpoint == *remote
-                && entry.state().members.get(&member) == Some(remote)
-            {
-                Ok(())
-            } else {
-                Err(refused)
-            };
-        }
-        if invite.expires_ms.is_some_and(|expires| now_ms >= expires)
-            || entry.state().coordinator != Some(invite.coordinator)
-            || entry.is_member(&request.member)
-        {
-            return Err(refused);
-        }
-        let mut tx = Tx::none();
-        self.author(
-            entry,
-            &invite.coordinator,
-            Body::MemberAdmitted {
-                member: request.member,
-                endpoint: *remote,
-            },
-            None,
-            now_ms,
-            &mut tx,
-        )
-        .map_err(|_| refused)?;
-        invite.redeemed = Some((request.member, *remote));
-        tx.local(records::put(Space::Invite, digest.to_vec(), &invite));
-        self.land(tx).map_err(|_| refused)
+        let tx = self.plan_join(remote, request, now_ms)?;
+        self.land(tx).map_err(|_| Refusal::InvitationRefused)
     }
     fn take_changed(&mut self) -> Vec<GoalId> {
         std::mem::take(&mut self.outbound).into_iter().collect()
@@ -232,4 +275,87 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
         }
         let _ = self.land(tx);
     }
+}
+
+impl<S: Store, E: Entropy> Node<S, E> {
+    /// Shared validation for network and same-daemon invitation redemption.
+    pub(super) fn plan_join(
+        &self,
+        remote: &EndpointId,
+        request: &JoinRequest,
+        now_ms: u64,
+    ) -> Result<Tx, Refusal> {
+        use super::requests::invitations::InviteRecord;
+        let refused = Refusal::InvitationRefused;
+        if self.failed || *remote != request.endpoint || !request.verify() {
+            return Err(refused);
+        }
+        let digest = request.secret.digest();
+        let bytes = self
+            .store
+            .get(Space::Invite, &digest)
+            .map_err(|_| refused)?
+            .ok_or(refused)?;
+        let mut invite: InviteRecord = records::read(&bytes).map_err(|_| refused)?;
+        if invite.goal != request.goal {
+            return Err(refused);
+        }
+        let entry = self.goals.get(&request.goal).ok_or(refused)?;
+        if let Some((member, endpoint)) = invite.redeemed {
+            return if member == request.member
+                && endpoint == *remote
+                && entry.state().members.get(&member) == Some(remote)
+            {
+                Ok(Tx::none())
+            } else {
+                Err(refused)
+            };
+        }
+        if self.principals.active(&invite.coordinator).is_none()
+            || entry.local.part.get(&invite.coordinator) == Some(&true)
+            || !entry.local.grants(&invite.coordinator).decide
+            || !self
+                .principals
+                .active(&invite.coordinator)
+                .is_some_and(|principal| principal.record.grants.manage_goals)
+            || invite.expires_ms.is_some_and(|expires| now_ms >= expires)
+            || entry.state().coordinator != Some(invite.coordinator)
+            || entry.is_member(&request.member)
+        {
+            return Err(refused);
+        }
+        let mut tx = Tx::none();
+        self.author(
+            entry,
+            &invite.coordinator,
+            Body::MemberAdmitted {
+                member: request.member,
+                endpoint: *remote,
+            },
+            None,
+            now_ms,
+            &mut tx,
+        )
+        .map_err(|_| refused)?;
+        invite.redeemed = Some((request.member, *remote));
+        tx.local(records::put(Space::Invite, digest.to_vec(), &invite));
+        Ok(tx)
+    }
+}
+
+/// Signed admission contacts remain eligible for conflict evidence only.
+/// This never changes the current member/endpoint projection.
+fn historical_endpoints(entry: &super::entry::Entry) -> std::collections::BTreeSet<EndpointId> {
+    let Some(coordinator) = entry.state().coordinator else {
+        return Default::default();
+    };
+    entry
+        .goal
+        .points(&coordinator)
+        .iter()
+        .filter_map(|point| match entry.goal.event(&point.id)?.header().body {
+            Body::MemberAdmitted { endpoint, .. } => Some(endpoint),
+            _ => None,
+        })
+        .collect()
 }

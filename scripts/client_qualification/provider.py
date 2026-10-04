@@ -25,30 +25,49 @@ class Provider:
             def log_message(self, *_args):
                 pass
 
+            def backend(self, template, status, purpose):
+                with provider.lock:
+                    provider.backend_requests.append({"method": self.command, "path_template": template,
+                                                      "status": status, "purpose": purpose})
+
             def do_CONNECT(self):
+                self.backend("<authority>", 403, "external network prohibited; no forwarding")
                 self.send_error(403, "External network prohibited")
+
+            def unsupported(self):
+                self.backend("/<unhandled>", 403, "unsupported endpoint; no forwarding")
+                self.send_error(403, "Unsupported endpoint; no forwarding")
+
+            def __getattr__(self, name):
+                if name.startswith("do_"):
+                    return self.unsupported
+                raise AttributeError(name)
 
             def do_GET(self):
                 path = urlsplit(self.path).path
                 if path.startswith("/api/sessions/") and len(path.split("/")) == 4 and path.split("/")[-1]:
-                    with provider.lock:
-                        provider.backend_requests.append({"method": "GET", "path_template": "/api/sessions/<id>",
-                                                          "status": 404, "purpose": "scripted local-session fallback"})
+                    self.backend("/api/sessions/<id>", 404, "scripted local-session fallback")
                     self.send_error(404, "Scripted session lookup: use local session")
                 elif path.endswith("/models"):
+                    self.backend("/<prefix>/models", 200, "scripted model listing")
                     self.reply({"object": "list", "data": [{"id": "locust-fixture", "object": "model"}]})
                 else:
+                    self.backend("/<unhandled>", 404, "unsupported endpoint; no forwarding")
                     self.send_error(404)
 
             def do_POST(self):
                 try:
                     self.path = urlsplit(self.path).path
+                    if not self.path.endswith(("/responses", "/messages", "/chat/completions", "/count_tokens")):
+                        self.unsupported()
+                        return
+                    endpoint = next(name for name in ("responses", "messages", "chat/completions", "count_tokens")
+                                    if self.path.endswith("/" + name))
+                    self.path = "/" + endpoint
                     body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
                     if self.path.endswith("/count_tokens"):
+                        self.backend("/<prefix>/count_tokens", 200, "scripted token count")
                         self.reply({"input_tokens": 32})
-                        return
-                    if not self.path.endswith(("/responses", "/messages", "/chat/completions")):
-                        self.send_error(403, "Unsupported endpoint; no forwarding")
                         return
                     tools = body.get("tools", [])
                     names = [tool.get("name") or tool.get("function", {}).get("name") for tool in tools]
@@ -90,7 +109,9 @@ class Provider:
                 except (BrokenPipeError, ConnectionResetError):
                     pass
                 except Exception as error:
-                    provider.errors.append(type(error).__name__ + ": " + str(error))
+                    with provider.lock:
+                        provider.errors.append(type(error).__name__)
+                    self.backend("/<malformed>", 400, "invalid fixture request")
                     self.send_error(400)
 
             def reply(self, body):

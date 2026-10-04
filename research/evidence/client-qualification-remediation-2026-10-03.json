@@ -1,0 +1,2055 @@
+{
+  "schema": "locust-client-qualification",
+  "schema_version": 1,
+  "created_at": "2026-10-04T04:05:05.505202+00:00",
+  "platform": {
+    "os": "Darwin",
+    "release": "25.4.0",
+    "architecture": "arm64"
+  },
+  "timeout_ms": 30000,
+  "evidence_level": "actual-client/scripted-provider/local-fixture",
+  "scope": "Configuration, MCP readiness and explicit client resume only; R6/R6L/R8 remain open",
+  "candidate_commit": "0391da8675b7ab7e5273a6f7b5eda796dd28b075",
+  "candidate_source_note": "Repository base commit; source snapshots and dirty inputs below identify the current harness state",
+  "harness_sources": [
+    {
+      "path": "scripts/check_clients.py",
+      "sha256": "62bd329c398e7270a05e0d6c96abf95f924ef4f58ce2f3038fa6647449a84265"
+    },
+    {
+      "path": "scripts/client_qualification/__init__.py",
+      "sha256": "955015b6706262e7044355144f24f2d1ec711becdd576c29161263b369891d99"
+    },
+    {
+      "path": "scripts/client_qualification/provider.py",
+      "sha256": "f49869812ef65065507cb40573a66172b841d2a7c621f00b610d0d194a11e032"
+    },
+    {
+      "path": "scripts/client_qualification/runtime.py",
+      "sha256": "8bf4426562076ae0260f2be474f4d8febbb65c35b64f038bfbe9db371d51e8d4"
+    },
+    {
+      "path": "scripts/tests/test_client_qualification.py",
+      "sha256": "f7c488a0014bd67481e65b36befcffef8d797c3dead51bea732b1792f564c608"
+    }
+  ],
+  "working_tree_inputs": {
+    "dirty": true,
+    "status": [
+      " M crates/locust-proto/src/api.rs",
+      " M crates/locust-proto/src/engine.rs",
+      " M crates/locust-proto/src/invite.rs",
+      " M crates/locust-proto/src/lib.rs",
+      " M crates/locust-proto/src/store.rs",
+      " M crates/locust-proto/src/sync.rs",
+      " M crates/locust-proto/src/vectors.rs"
+    ],
+    "scope": [
+      "scripts/check_clients.py",
+      "scripts/client_qualification",
+      "scripts/tests/test_client_qualification.py",
+      "crates/locust-adapter",
+      "crates/locust-proto",
+      "Cargo.toml",
+      "Cargo.lock",
+      "rust-toolchain.toml"
+    ],
+    "build_attestation": "Source snapshot only; exact probe binaries hashed separately"
+  },
+  "implementation_commit": "0391da8675b7ab7e5273a6f7b5eda796dd28b075",
+  "implementation_commit_note": "Every harness source hash in the raw report was compared with this committed source after the run.",
+  "raw_report_sha256": "446f0ac1633612952f0c586fd60bd1f01cbf7ccd28ed4c168ddb4cef2aa2d421",
+  "harness_exit_code": 0,
+  "redaction": "Absolute executable, profile and log paths, native session identifiers, tool definitions, provider headers and raw client output omitted. Fixture secrets were never retained in the report. Protocol event PIDs are omitted; same-session comparisons are retained as booleans.",
+  "probe_build": {
+    "command": "CARGO_TARGET_DIR=target/lane-b-fixture cargo build --locked -p locust-adapter --examples",
+    "compiler": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+    "result": "pass",
+    "qualification": "Developer fixture build from the current checkout; dirty inputs are recorded above, and exact executed probe bytes are hashed below."
+  },
+  "invocation_note": "Used the four existing installed client executables, the existing ignored Pi 1.0.1 package, a 30000ms per-operation/cleanup budget, fresh disposable profiles, scripted loopback providers and the required sandbox preflight. No clients were installed, accounts authenticated or owner profiles modified.",
+  "cleanup_evidence_note": "Natural cleanup means exit without harness TERM/KILL within the authored grace period, restricted to the owned process session and receipt-identified bridges. It does not establish immediate cancellation or containment of unobserved fully detached descendants.",
+  "probe_artifacts": [
+    {
+      "name": "config_probe",
+      "sha256": "d2aad5e62b8564e6b7e06dd1ef5190b75dc0847253bea03da155617f405674c2"
+    },
+    {
+      "name": "stdio_probe",
+      "sha256": "e85013b0a8d0ab0d8916c83aabb909da9f79757be81ba4b2c66df31d21f9c93f"
+    }
+  ],
+  "clients": [
+    {
+      "client": "codex",
+      "version": "codex-cli 0.153.4",
+      "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+      "resolved_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+      "private_runtime_profile_removed": true,
+      "assertions": {
+        "configuration": {
+          "status": "pass",
+          "reason": "Registration generated and applied to private profile; parsing/readiness checked separately"
+        },
+        "isolated_environment": {
+          "status": "pass",
+          "reason": "Cleared client environment; private HOME/config/tmp/workspace; bridge paths omitted"
+        },
+        "mcp_environment": {
+          "status": "pass",
+          "reason": "MCP child validated three protected environment/file references"
+        },
+        "initialize": {
+          "status": "pass",
+          "reason": "MCP protocol completion receipt required"
+        },
+        "tools_list": {
+          "status": "pass",
+          "reason": "MCP protocol completion receipt required"
+        },
+        "default_read": {
+          "status": "pass",
+          "reason": "Observed successful tool receipt"
+        },
+        "default_write": {
+          "status": "pass",
+          "reason": "Observed successful tool receipt"
+        },
+        "default_interactive_approval": {
+          "status": "not_run",
+          "reason": "Headless default policy observed; interactive approval requires a human; permissive run is separate"
+        },
+        "permissive_read": {
+          "status": "pass",
+          "reason": "Deliberately permissive policy; actual protocol + authenticated fixture receipts required"
+        },
+        "permissive_write": {
+          "status": "pass",
+          "reason": "Deliberately permissive policy; actual protocol + authenticated fixture receipts required"
+        },
+        "held_wait": {
+          "status": "pass",
+          "reason": "Harness-held Unix socket wait reached by actual client MCP call"
+        },
+        "interruption": {
+          "status": "pass",
+          "reason": "Held wait, leader-only SIGINT, and natural exit of the owned session and receipt-identified bridges required; forced cleanup cannot pass; unobserved fully detached descendants are outside this evidence"
+        },
+        "explicit_resume": {
+          "status": "pass",
+          "reason": "Same native session identifier and fresh successful MCP read receipt required"
+        },
+        "bridge_restart": {
+          "status": "pass",
+          "reason": "Fresh bridge PID/environment and successful resumed read required; not daemon durable recovery"
+        },
+        "fixture_authentication": {
+          "status": "pass",
+          "reason": "Socket fixture compared session/credential bytes without retaining them"
+        },
+        "daemon_task_flow": {
+          "status": "not_run",
+          "reason": "No actual Locust task/daemon implemented in this fixture"
+        },
+        "daemon_authentication": {
+          "status": "not_run",
+          "reason": "Fixture checks protected bytes only; not the daemon handshake"
+        },
+        "real_model": {
+          "status": "not_run",
+          "reason": "Scripted local provider, no real model invoked"
+        },
+        "own_account_authentication": {
+          "status": "not_run",
+          "reason": "Dummy auth only; existing user auth is intentionally excluded"
+        },
+        "packaged_install": {
+          "status": "not_run",
+          "reason": "Local debug fixture; no packaged Locust artifact"
+        },
+        "active_session_delivery": {
+          "status": "not_run",
+          "reason": "No actual daemon pending-work delivery path under test"
+        },
+        "client_execution": {
+          "status": "pass",
+          "reason": "Provider errors, timeout, exit code and cleanup of the owned session and receipt-identified bridges checked separately from individual tool receipts; unobserved fully detached descendants are outside this evidence"
+        },
+        "receipt_integrity": {
+          "status": "pass",
+          "reason": "Completed MCP logs parsed strictly; no malformed records ignored"
+        },
+        "network_isolation": {
+          "status": "pass",
+          "reason": "Guard allowed loopback and rejected raw TEST-NET address with EPERM/EACCES before client calls"
+        }
+      },
+      "default_permission_outcomes": [
+        {
+          "tool": "locust_probe_socket",
+          "outcome": "completed"
+        },
+        {
+          "tool": "locust_probe_write",
+          "outcome": "completed"
+        }
+      ],
+      "network_guard": {
+        "loopback": true,
+        "external_errno": 1
+      },
+      "provider_errors": [],
+      "backend_requests": [],
+      "runs": [
+        {
+          "scenario": "default",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "elapsed_ms": 407,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 0
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 1
+            }
+          ],
+          "output": {
+            "stdout": {
+              "byte_length": 1481,
+              "sha256": "c019eb6921d6e24c576f67e36e3ab0988db13783897a04bb7ce88f721c6decad"
+            },
+            "stderr": {
+              "byte_length": 39,
+              "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_write"
+            }
+          ],
+          "effective_policy_flags": []
+        },
+        {
+          "scenario": "lifecycle",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [],
+          "exit_code": 1,
+          "timed_out": false,
+          "interrupted": true,
+          "elapsed_ms": 238,
+          "signal_scope": "client_leader",
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 1
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 2
+            },
+            {
+              "operation": "wait",
+              "authenticated_fixture": true,
+              "phase": "start"
+            }
+          ],
+          "output": {
+            "stdout": {
+              "byte_length": 1403,
+              "sha256": "71bf5173cfca31a7e68d3837daed9b6a72a54b7e71b32d577679551cefd56387"
+            },
+            "stderr": {
+              "byte_length": 39,
+              "sha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_wait"
+            }
+          ],
+          "effective_policy_flags": [
+            "-a",
+            "never",
+            "-s",
+            "danger-full-access"
+          ]
+        },
+        {
+          "scenario": "resume",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "elapsed_ms": 186,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 2
+            }
+          ],
+          "same_native_session_id": true,
+          "output": {
+            "stdout": {
+              "byte_length": 1023,
+              "sha256": "22672ab6616f8d31adfc5eec3f9a52a213763b6e5ac3899e997e28bc53f84df7"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            }
+          ],
+          "effective_policy_flags": [
+            "-a",
+            "never",
+            "-s",
+            "danger-full-access"
+          ]
+        }
+      ],
+      "provider_tool_selections": [
+        {
+          "path": "/responses",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "locust_probe_socket",
+          "namespace": "mcp__locust",
+          "discovery": false
+        },
+        {
+          "path": "/responses",
+          "requested_tool": "locust_probe_write",
+          "selected_tool": "locust_probe_write",
+          "namespace": "mcp__locust",
+          "discovery": false
+        },
+        {
+          "path": "/responses",
+          "requested_tool": null,
+          "selected_tool": null,
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/responses",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "locust_probe_socket",
+          "namespace": "mcp__locust",
+          "discovery": false
+        },
+        {
+          "path": "/responses",
+          "requested_tool": "locust_probe_write",
+          "selected_tool": "locust_probe_write",
+          "namespace": "mcp__locust",
+          "discovery": false
+        },
+        {
+          "path": "/responses",
+          "requested_tool": "locust_probe_wait",
+          "selected_tool": "locust_probe_wait",
+          "namespace": "mcp__locust",
+          "discovery": false
+        },
+        {
+          "path": "/responses",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "locust_probe_socket",
+          "namespace": "mcp__locust",
+          "discovery": false
+        },
+        {
+          "path": "/responses",
+          "requested_tool": null,
+          "selected_tool": null,
+          "namespace": null,
+          "discovery": false
+        }
+      ]
+    },
+    {
+      "client": "claude-code",
+      "version": "2.1.280 (Claude Code)",
+      "binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+      "resolved_binary_sha256": "387a5c5dcdbb815085edf0baf79591f9d8894efe922bceaf3d75b1b08055229d",
+      "private_runtime_profile_removed": true,
+      "assertions": {
+        "configuration": {
+          "status": "pass",
+          "reason": "Registration generated and applied to private profile; parsing/readiness checked separately"
+        },
+        "isolated_environment": {
+          "status": "pass",
+          "reason": "Cleared client environment; private HOME/config/tmp/workspace; bridge paths omitted"
+        },
+        "mcp_environment": {
+          "status": "pass",
+          "reason": "MCP child validated three protected environment/file references"
+        },
+        "initialize": {
+          "status": "pass",
+          "reason": "MCP protocol completion receipt required"
+        },
+        "tools_list": {
+          "status": "pass",
+          "reason": "MCP protocol completion receipt required"
+        },
+        "default_read": {
+          "status": "not_run",
+          "reason": "Default headless policy explicitly denied tool; human approval not supplied"
+        },
+        "default_write": {
+          "status": "not_run",
+          "reason": "Default headless policy explicitly denied tool; human approval not supplied"
+        },
+        "default_interactive_approval": {
+          "status": "not_run",
+          "reason": "Headless default policy observed; interactive approval requires a human; permissive run is separate"
+        },
+        "permissive_read": {
+          "status": "pass",
+          "reason": "Deliberately permissive policy; actual protocol + authenticated fixture receipts required"
+        },
+        "permissive_write": {
+          "status": "pass",
+          "reason": "Deliberately permissive policy; actual protocol + authenticated fixture receipts required"
+        },
+        "held_wait": {
+          "status": "pass",
+          "reason": "Harness-held Unix socket wait reached by actual client MCP call"
+        },
+        "interruption": {
+          "status": "pass",
+          "reason": "Held wait, leader-only SIGINT, and natural exit of the owned session and receipt-identified bridges required; forced cleanup cannot pass; unobserved fully detached descendants are outside this evidence"
+        },
+        "explicit_resume": {
+          "status": "pass",
+          "reason": "Same native session identifier and fresh successful MCP read receipt required"
+        },
+        "bridge_restart": {
+          "status": "pass",
+          "reason": "Fresh bridge PID/environment and successful resumed read required; not daemon durable recovery"
+        },
+        "fixture_authentication": {
+          "status": "pass",
+          "reason": "Socket fixture compared session/credential bytes without retaining them"
+        },
+        "daemon_task_flow": {
+          "status": "not_run",
+          "reason": "No actual Locust task/daemon implemented in this fixture"
+        },
+        "daemon_authentication": {
+          "status": "not_run",
+          "reason": "Fixture checks protected bytes only; not the daemon handshake"
+        },
+        "real_model": {
+          "status": "not_run",
+          "reason": "Scripted local provider, no real model invoked"
+        },
+        "own_account_authentication": {
+          "status": "not_run",
+          "reason": "Dummy auth only; existing user auth is intentionally excluded"
+        },
+        "packaged_install": {
+          "status": "not_run",
+          "reason": "Local debug fixture; no packaged Locust artifact"
+        },
+        "active_session_delivery": {
+          "status": "not_run",
+          "reason": "No actual daemon pending-work delivery path under test"
+        },
+        "client_execution": {
+          "status": "pass",
+          "reason": "Provider errors, timeout, exit code and cleanup of the owned session and receipt-identified bridges checked separately from individual tool receipts; unobserved fully detached descendants are outside this evidence"
+        },
+        "receipt_integrity": {
+          "status": "pass",
+          "reason": "Completed MCP logs parsed strictly; no malformed records ignored"
+        },
+        "network_isolation": {
+          "status": "pass",
+          "reason": "Guard allowed loopback and rejected raw TEST-NET address with EPERM/EACCES before client calls"
+        }
+      },
+      "default_permission_outcomes": [
+        {
+          "tool": "locust_probe_socket",
+          "outcome": "denied"
+        },
+        {
+          "tool": "locust_probe_write",
+          "outcome": "denied"
+        }
+      ],
+      "network_guard": {
+        "loopback": true,
+        "external_errno": 1
+      },
+      "provider_errors": [],
+      "backend_requests": [
+        {
+          "method": "HEAD",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "HEAD",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "HEAD",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        }
+      ],
+      "runs": [
+        {
+          "scenario": "default",
+          "permission_profile": "default_headless_bare",
+          "client_opt_ins": [
+            "--bare (no hooks/keychain/profile discovery)"
+          ],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "elapsed_ms": 388,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [],
+          "output": {
+            "stdout": {
+              "byte_length": 7124,
+              "sha256": "c31ddd3d12a4f2abed142e925e45c21833c309bd0eac4e412f9ca6e9aba8563d"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            }
+          ],
+          "effective_policy_flags": [
+            "--bare"
+          ]
+        },
+        {
+          "scenario": "lifecycle",
+          "permission_profile": "deliberately_permissive_bare",
+          "client_opt_ins": [
+            "--bare (no hooks/keychain/profile discovery)"
+          ],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": true,
+          "elapsed_ms": 390,
+          "signal_scope": "client_leader",
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 0
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 1
+            },
+            {
+              "operation": "wait",
+              "authenticated_fixture": true,
+              "phase": "start"
+            }
+          ],
+          "output": {
+            "stdout": {
+              "byte_length": 6965,
+              "sha256": "083764a4c0a5cf909e7c920cf47a326a7a6e6f2289e05f803eef25155599db9a"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_wait"
+            }
+          ],
+          "effective_policy_flags": [
+            "--bare",
+            "--dangerously-skip-permissions"
+          ]
+        },
+        {
+          "scenario": "resume",
+          "permission_profile": "deliberately_permissive_bare",
+          "client_opt_ins": [
+            "--bare (no hooks/keychain/profile discovery)"
+          ],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "elapsed_ms": 390,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 1
+            }
+          ],
+          "same_native_session_id": true,
+          "output": {
+            "stdout": {
+              "byte_length": 4865,
+              "sha256": "c445322785d16edd44554dbec5337aa188788d2cb74d8701ddb95ba51784e1ca"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            }
+          ],
+          "effective_policy_flags": [
+            "--bare",
+            "--dangerously-skip-permissions"
+          ]
+        }
+      ],
+      "provider_tool_selections": [
+        {
+          "path": "/messages",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "mcp__locust__locust_probe_socket",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/messages",
+          "requested_tool": "locust_probe_write",
+          "selected_tool": "mcp__locust__locust_probe_write",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/messages",
+          "requested_tool": null,
+          "selected_tool": null,
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/messages",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "mcp__locust__locust_probe_socket",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/messages",
+          "requested_tool": "locust_probe_write",
+          "selected_tool": "mcp__locust__locust_probe_write",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/messages",
+          "requested_tool": "locust_probe_wait",
+          "selected_tool": "mcp__locust__locust_probe_wait",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/messages",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "mcp__locust__locust_probe_socket",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/messages",
+          "requested_tool": null,
+          "selected_tool": null,
+          "namespace": null,
+          "discovery": false
+        }
+      ]
+    },
+    {
+      "client": "factory-droid",
+      "version": "0.218.1",
+      "binary_sha256": "076c78e42f94dd21767f5094002259efb256cc294cce63d6552b6607bc714589",
+      "resolved_binary_sha256": "076c78e42f94dd21767f5094002259efb256cc294cce63d6552b6607bc714589",
+      "private_runtime_profile_removed": true,
+      "assertions": {
+        "configuration": {
+          "status": "pass",
+          "reason": "Registration generated and applied to private profile; parsing/readiness checked separately"
+        },
+        "isolated_environment": {
+          "status": "pass",
+          "reason": "Cleared client environment; private HOME/config/tmp/workspace; bridge paths omitted"
+        },
+        "mcp_environment": {
+          "status": "pass",
+          "reason": "MCP child validated three protected environment/file references"
+        },
+        "initialize": {
+          "status": "pass",
+          "reason": "MCP protocol completion receipt required"
+        },
+        "tools_list": {
+          "status": "pass",
+          "reason": "MCP protocol completion receipt required"
+        },
+        "default_read": {
+          "status": "pass",
+          "reason": "Observed successful tool receipt"
+        },
+        "default_write": {
+          "status": "not_run",
+          "reason": "Default headless policy explicitly denied tool; human approval not supplied"
+        },
+        "default_interactive_approval": {
+          "status": "not_run",
+          "reason": "Headless default policy observed; interactive approval requires a human; permissive run is separate"
+        },
+        "permissive_read": {
+          "status": "pass",
+          "reason": "Deliberately permissive policy; actual protocol + authenticated fixture receipts required"
+        },
+        "permissive_write": {
+          "status": "pass",
+          "reason": "Deliberately permissive policy; actual protocol + authenticated fixture receipts required"
+        },
+        "held_wait": {
+          "status": "pass",
+          "reason": "Harness-held Unix socket wait reached by actual client MCP call"
+        },
+        "interruption": {
+          "status": "pass",
+          "reason": "Held wait, leader-only SIGINT, and natural exit of the owned session and receipt-identified bridges required; forced cleanup cannot pass; unobserved fully detached descendants are outside this evidence"
+        },
+        "explicit_resume": {
+          "status": "pass",
+          "reason": "Same native session identifier and fresh successful MCP read receipt required"
+        },
+        "bridge_restart": {
+          "status": "pass",
+          "reason": "Fresh bridge PID/environment and successful resumed read required; not daemon durable recovery"
+        },
+        "fixture_authentication": {
+          "status": "pass",
+          "reason": "Socket fixture compared session/credential bytes without retaining them"
+        },
+        "daemon_task_flow": {
+          "status": "not_run",
+          "reason": "No actual Locust task/daemon implemented in this fixture"
+        },
+        "daemon_authentication": {
+          "status": "not_run",
+          "reason": "Fixture checks protected bytes only; not the daemon handshake"
+        },
+        "real_model": {
+          "status": "not_run",
+          "reason": "Scripted local provider, no real model invoked"
+        },
+        "own_account_authentication": {
+          "status": "not_run",
+          "reason": "Dummy auth only; existing user auth is intentionally excluded"
+        },
+        "packaged_install": {
+          "status": "not_run",
+          "reason": "Local debug fixture; no packaged Locust artifact"
+        },
+        "active_session_delivery": {
+          "status": "not_run",
+          "reason": "No actual daemon pending-work delivery path under test"
+        },
+        "client_execution": {
+          "status": "pass",
+          "reason": "Provider errors, timeout, exit code and cleanup of the owned session and receipt-identified bridges checked separately from individual tool receipts; unobserved fully detached descendants are outside this evidence"
+        },
+        "receipt_integrity": {
+          "status": "pass",
+          "reason": "Completed MCP logs parsed strictly; no malformed records ignored"
+        },
+        "network_isolation": {
+          "status": "pass",
+          "reason": "Guard allowed loopback and rejected raw TEST-NET address with EPERM/EACCES before client calls"
+        }
+      },
+      "default_permission_outcomes": [
+        {
+          "tool": "locust_probe_socket",
+          "outcome": "completed"
+        },
+        {
+          "tool": "locust_probe_write",
+          "outcome": "denied"
+        }
+      ],
+      "network_guard": {
+        "loopback": true,
+        "external_errno": 1
+      },
+      "provider_errors": [],
+      "backend_requests": [
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/api/sessions/<id>",
+          "status": 404,
+          "purpose": "scripted local-session fallback"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "GET",
+          "path_template": "/<unhandled>",
+          "status": 404,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        },
+        {
+          "method": "POST",
+          "path_template": "/<unhandled>",
+          "status": 403,
+          "purpose": "unsupported endpoint; no forwarding"
+        }
+      ],
+      "factory_backend": {
+        "mode": "scripted-loopback-session-lookup-404",
+        "purpose": "Native Droid resume performs a backend lookup; fixture 404 allows its local-session fallback"
+      },
+      "runs": [
+        {
+          "scenario": "default",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": 1,
+          "timed_out": false,
+          "interrupted": false,
+          "elapsed_ms": 6574,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 0
+            }
+          ],
+          "output": {
+            "stdout": {
+              "byte_length": 3640,
+              "sha256": "96d57c355d11ad32df72af2e65da72ccfac0fe556a54dee8f49ab935e620fb56"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            }
+          ],
+          "effective_policy_flags": []
+        },
+        {
+          "scenario": "lifecycle",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": true,
+          "elapsed_ms": 8582,
+          "signal_scope": "client_leader",
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 0
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 1
+            },
+            {
+              "operation": "wait",
+              "authenticated_fixture": true,
+              "phase": "start"
+            }
+          ],
+          "output": {
+            "stdout": {
+              "byte_length": 3984,
+              "sha256": "76726ee9cb5e77aca22a0095bce5bc909583e5a5dc775e387856923de1e34591"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_wait"
+            }
+          ],
+          "effective_policy_flags": [
+            "--skip-permissions-unsafe"
+          ]
+        },
+        {
+          "scenario": "resume",
+          "permission_profile": "deliberately_permissive",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "elapsed_ms": 1655,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 1
+            }
+          ],
+          "same_native_session_id": true,
+          "output": {
+            "stdout": {
+              "byte_length": 2209,
+              "sha256": "d96c9fe27f757dd6d6b3a86327dae784f7bfd390b6df6d6fe0cf16f5c9b304c1"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            }
+          ],
+          "effective_policy_flags": [
+            "--skip-permissions-unsafe"
+          ]
+        }
+      ],
+      "provider_tool_selections": [
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "ToolSearch",
+          "namespace": null,
+          "discovery": true
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "locust___locust_probe_socket",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_write",
+          "selected_tool": "locust___locust_probe_write",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "ToolSearch",
+          "namespace": null,
+          "discovery": true
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "locust___locust_probe_socket",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_write",
+          "selected_tool": "locust___locust_probe_write",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_wait",
+          "selected_tool": "locust___locust_probe_wait",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": null,
+          "selected_tool": null,
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "locust___locust_probe_socket",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": null,
+          "selected_tool": null,
+          "namespace": null,
+          "discovery": false
+        }
+      ]
+    },
+    {
+      "client": "pi",
+      "version": "1.0.1",
+      "binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+      "resolved_binary_sha256": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
+      "private_runtime_profile_removed": true,
+      "assertions": {
+        "configuration": {
+          "status": "pass",
+          "reason": "Registration generated and applied to private profile; parsing/readiness checked separately"
+        },
+        "isolated_environment": {
+          "status": "pass",
+          "reason": "Cleared client environment; private HOME/config/tmp/workspace; bridge paths omitted"
+        },
+        "mcp_environment": {
+          "status": "pass",
+          "reason": "MCP child validated three protected environment/file references"
+        },
+        "initialize": {
+          "status": "pass",
+          "reason": "MCP protocol completion receipt required"
+        },
+        "tools_list": {
+          "status": "pass",
+          "reason": "MCP protocol completion receipt required"
+        },
+        "default_read": {
+          "status": "pass",
+          "reason": "Observed successful tool receipt"
+        },
+        "default_write": {
+          "status": "pass",
+          "reason": "Observed successful tool receipt"
+        },
+        "default_interactive_approval": {
+          "status": "not_run",
+          "reason": "Headless default policy observed; interactive approval requires a human; permissive run is separate"
+        },
+        "permissive_read": {
+          "status": "pass",
+          "reason": "Default isolated Pi policy, no permission extension or bypass installed; actual protocol + authenticated fixture receipts required"
+        },
+        "permissive_write": {
+          "status": "pass",
+          "reason": "Default isolated Pi policy, no permission extension or bypass installed; actual protocol + authenticated fixture receipts required"
+        },
+        "held_wait": {
+          "status": "pass",
+          "reason": "Harness-held Unix socket wait reached by actual client MCP call"
+        },
+        "interruption": {
+          "status": "pass",
+          "reason": "Held wait, leader-only SIGINT, and natural exit of the owned session and receipt-identified bridges required; forced cleanup cannot pass; unobserved fully detached descendants are outside this evidence"
+        },
+        "explicit_resume": {
+          "status": "pass",
+          "reason": "Same native session identifier and fresh successful MCP read receipt required"
+        },
+        "bridge_restart": {
+          "status": "pass",
+          "reason": "Fresh bridge PID/environment and successful resumed read required; not daemon durable recovery"
+        },
+        "fixture_authentication": {
+          "status": "pass",
+          "reason": "Socket fixture compared session/credential bytes without retaining them"
+        },
+        "daemon_task_flow": {
+          "status": "not_run",
+          "reason": "No actual Locust task/daemon implemented in this fixture"
+        },
+        "daemon_authentication": {
+          "status": "not_run",
+          "reason": "Fixture checks protected bytes only; not the daemon handshake"
+        },
+        "real_model": {
+          "status": "not_run",
+          "reason": "Scripted local provider, no real model invoked"
+        },
+        "own_account_authentication": {
+          "status": "not_run",
+          "reason": "Dummy auth only; existing user auth is intentionally excluded"
+        },
+        "packaged_install": {
+          "status": "not_run",
+          "reason": "Local debug fixture; no packaged Locust artifact"
+        },
+        "active_session_delivery": {
+          "status": "not_run",
+          "reason": "No actual daemon pending-work delivery path under test"
+        },
+        "client_execution": {
+          "status": "pass",
+          "reason": "Provider errors, timeout, exit code and cleanup of the owned session and receipt-identified bridges checked separately from individual tool receipts; unobserved fully detached descendants are outside this evidence"
+        },
+        "receipt_integrity": {
+          "status": "pass",
+          "reason": "Completed MCP logs parsed strictly; no malformed records ignored"
+        },
+        "network_isolation": {
+          "status": "pass",
+          "reason": "Guard allowed loopback and rejected raw TEST-NET address with EPERM/EACCES before client calls"
+        }
+      },
+      "default_permission_outcomes": [
+        {
+          "tool": "locust_probe_socket",
+          "outcome": "completed"
+        },
+        {
+          "tool": "locust_probe_write",
+          "outcome": "completed"
+        }
+      ],
+      "network_guard": {
+        "loopback": true,
+        "external_errno": 1
+      },
+      "provider_errors": [],
+      "backend_requests": [],
+      "runs": [
+        {
+          "scenario": "default",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "elapsed_ms": 430,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 0
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 1
+            }
+          ],
+          "output": {
+            "stdout": {
+              "byte_length": 43739,
+              "sha256": "642e3816571af362a1720b566e8820235b5a9152bde780303ededa1ac11d79af"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_write"
+            }
+          ],
+          "effective_policy_flags": []
+        },
+        {
+          "scenario": "lifecycle",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": -2,
+          "timed_out": false,
+          "interrupted": true,
+          "elapsed_ms": 30391,
+          "signal_scope": "client_leader",
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 1
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "write",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 2
+            },
+            {
+              "operation": "wait",
+              "authenticated_fixture": true,
+              "phase": "start"
+            }
+          ],
+          "output": {
+            "stdout": {
+              "byte_length": 32936,
+              "sha256": "c602ce1973d09aa98bf9c37a8de073973d35fcb5f809541b0b5a132238e83966"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_write"
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_wait"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": false,
+              "tool": "locust_probe_wait"
+            }
+          ],
+          "effective_policy_flags": []
+        },
+        {
+          "scenario": "resume",
+          "permission_profile": "default_headless",
+          "client_opt_ins": [],
+          "exit_code": 0,
+          "timed_out": false,
+          "interrupted": false,
+          "elapsed_ms": 380,
+          "signal_scope": null,
+          "natural_cleanup": true,
+          "observed_exit_before_cleanup": true,
+          "forced_cleanup": false,
+          "cleanup_verified": true,
+          "cleanup_scope": "owned_session_and_receipt_identified_bridges",
+          "cleanup_limitation": "Fully detached descendants without a matching bridge receipt are outside cleanup evidence.",
+          "receipts": [
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "start"
+            },
+            {
+              "operation": "read",
+              "authenticated_fixture": true,
+              "phase": "complete",
+              "sequence": 2
+            }
+          ],
+          "same_native_session_id": true,
+          "output": {
+            "stdout": {
+              "byte_length": 11286,
+              "sha256": "0d95f6f9af182cb9a6d4a471ac1524a52a28a5c4f5722b43222f206458b1016c"
+            },
+            "stderr": {
+              "byte_length": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          "mcp_events": [
+            {
+              "event": "initialize",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/list",
+              "phase": "complete",
+              "success": true
+            },
+            {
+              "event": "tools/call",
+              "phase": "start",
+              "tool": "locust_probe_socket"
+            },
+            {
+              "event": "tools/call",
+              "phase": "complete",
+              "success": true,
+              "tool": "locust_probe_socket"
+            }
+          ],
+          "effective_policy_flags": []
+        }
+      ],
+      "provider_tool_selections": [
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "codemode",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_write",
+          "selected_tool": "codemode",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": null,
+          "selected_tool": null,
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "codemode",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_write",
+          "selected_tool": "codemode",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_wait",
+          "selected_tool": "codemode",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": "locust_probe_socket",
+          "selected_tool": "codemode",
+          "namespace": null,
+          "discovery": false
+        },
+        {
+          "path": "/chat/completions",
+          "requested_tool": null,
+          "selected_tool": null,
+          "namespace": null,
+          "discovery": false
+        }
+      ],
+      "interruption_interpretation": "The harness predicate passed with no forced cleanup, but lifecycle elapsed 30391ms against a 30000ms fixture I/O budget and the bridge recorded the held wait completing with success=false. This is consistent with exit after the fixture I/O timeout; immediate cancellation of the bridge by Pi was not established."
+    }
+  ]
+}

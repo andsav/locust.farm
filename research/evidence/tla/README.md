@@ -6,6 +6,14 @@ These are bounded model checks and concrete Rust trace fixtures, not a proof of
 the implementation. Start with the [model guide](../../tla/README.md),
 [property map](../../tla/property-map.md) and [plan](../../../docs/tla-verification-plan.md).
 
+**Integration update, 2026-10-04:** upstream `d253a07` introduces protocol/API
+version 1 and corrects the two goal findings reproduced below. These retained
+results and their hashes describe the version-0 baseline; they are not a claim
+about the merged implementation. The models remain historical. Rust transcript
+fixtures now assert corrected version-1 behavior. See the
+[impact assessment](../../tla/upstream-impact-2026-10-04.md) and
+[integration record](upstream-integration-2026-10-04.json) for the new checks.
+
 ## What was delivered
 
 Stage 0 supplies the rule inventory, private pinned TLC/JDK cache, standard-library
@@ -89,7 +97,8 @@ A named expected violation means different things in different cases:
 - **Findings:** [IR-5 trace](traces/goal-ir5.json) loses two of three accepted
   heads when event 20 forks the middle proposal. [IR-12 trace](traces/goal-ir12.json)
   displays the later submitted result while preserving the accepted result.
-  Both desired guarantees remain unsatisfied; no correction was adopted.
+  Both desired guarantees fail in the historical version-0 model. Upstream
+  version 1 corrects these runtime cases; revised formal checks remain pending.
 - **Witnesses:** intentionally negated reachability properties fail only after
   the requested action is observable. Traces reach acceptance, cancellation,
   removal, fork detection, incremental append, A-B-A stale-write rejection,
@@ -109,15 +118,16 @@ adequacy check; the production model retains the guard.
 
 ## Rust correspondence and review
 
-`locust-core` passes formatting, Clippy with warnings denied, and all 80 tests.
-The new fixtures are:
+At the original version-0 checkpoint, `locust-core` passed formatting, Clippy
+with warnings denied, and all 80 tests. Its original fixtures were:
 
 - `tla_ir5_member_fork_rolls_back_dependent_accepted_heads` and
   `tla_ir12_later_submission_changes_display_without_changing_acceptance` in
   [goal tests](../../../crates/locust-core/src/goal/tests.rs). Signed symbolic
   events map directly to the model. IR-12 checks scrambled/duplicate delivery
   and MemStore reopen; IR-5 checks reverse delivery. Both compare incremental
-  projection with full replay and characterize current behavior.
+  projection with full replay and characterize version-0 behavior. The merged
+  tests retain these transcripts with corrected version-1 assertions and names.
 - `tla_sessions_aba_delayed_write_and_idempotent_retry_survive_reopen` in
   [formal tests](../../../crates/locust-core/src/node/tests/formal.rs). Engine
   rejects stale A1/B2 writes, replays a committed keyed success after A3 and
@@ -152,7 +162,8 @@ truncation and deadlines are also covered by runner refusal tests.
 Docker's daemon is unavailable locally and no remote bootstrap CI run has been
 observed. Linux execution is unqualified. Replication/catch-up, retention,
 flush/power-loss recovery, full model CI, arbitrary parameters and deductive
-proofs remain later stages. IR-6, IR-9, IR-13 and blob findings are not resolved.
+proofs remain later stages. Upstream implements fixes for IR-6, IR-9, IR-13 and
+the blob findings; their formal verification remains outside these models.
 No third physical Mac was needed. The existing M2 daemon, private state,
 credentials and test goal were left in place; no new goal or client integration
 was created, and this work does not qualify the physical two-Mac run.

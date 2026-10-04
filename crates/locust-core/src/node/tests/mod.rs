@@ -231,3 +231,5 @@ mod failure;
 mod content;
 
 mod formal;
+
+mod authorization;

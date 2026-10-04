@@ -1,8 +1,11 @@
 # TLA+ formal verification implementation plan
 
-Date: 2026-10-03. **Status: Stages 0 and 1 implemented, with local bounded
+Date: 2026-10-03. **Status: Stages 0 and 1 implemented for the version-0 baseline,
+with local bounded
 checks and Rust fixtures recorded in the [stage evidence](../research/evidence/tla/README.md).
 The bootstrap CI workflow is configured but has not been observed running.
+Upstream protocol/API version 1 requires model rebaselining before current
+implementation claims; see the [impact assessment](../research/tla/upstream-impact-2026-10-04.md).
 Stages 2 through 5 remain proposed; no deductive proof is delivered.**
 Implementation began at `86980594acee708b2f9bf303afc9ee636dc55337`; the original
 plan baseline was `3cb9c5da86d6351ccbeb620674e10ad5c9ea0d28`. The independent review
@@ -47,7 +50,8 @@ Keep two kinds of specifications explicit:
 - **Proposed behavior:** evaluates a documented rule change against desired
   properties. A passing proposed model does not qualify the current binary.
 
-The [protocol contract](protocol-v0.md) defines the intended rules. Stage 0
+The [archived version-0 contract](protocol-v0.md) defines the modeled rules;
+the [version-1 contract](protocol-v1.md) defines current implementation rules. Stage 0
 corrected its stale scaffold status without changing protocol rules. The
 [property map](../research/tla/property-map.md) separates implemented behavior,
 desired guarantees and assumptions; contract prose alone is not verification.
@@ -83,16 +87,19 @@ and compare it with an independently defined canonical replay. Defining both
 replicas' state as the same pure function would make equality automatic and
 provide little evidence about the incremental implementation.
 
-## Known failures to reproduce
+## Historical failures to reproduce
 
-Each case starts with the current rules. Save its counterexample, map the steps
+These scenarios originate in the version-0 review. Preserve their historical
+counterexamples; version-1 revisions must model the implemented fixes identified
+in the [impact assessment](../research/tla/upstream-impact-2026-10-04.md).
+Each historical case starts with the version-0 rules. Save its counterexample, map the steps
 to the existing review probe or a Rust regression, and evaluate any correction
 in a separately identified model revision. Expected violations are evidence of
 a reproduced finding, not passing verification of the violated property.
 
 | Review finding | Required model scenario | Decision or correction to evaluate |
 |---|---|---|
-| IR-5 | A member forks a proposal's author position after another worker's results and dependent heads have been accepted. Use three tasks for the full downstream example. | Whether decisions pin the author history they depend on, so later equivocation cannot undo those decisions. Acceptance permanence is a proposed guarantee; it fails under the current rules. |
+| IR-5 | A member forks a proposal's author position after another worker's results and dependent heads have been accepted. Use three tasks for the full downstream example. | Whether decisions pin the author history they depend on, so later equivocation cannot undo those decisions. Fork protection fails under the version-0 rules; version 1 implements canonical commitments, still to be modeled. |
 | IR-6 | Screening drops a proposal referenced by a retained coordinator decision; a new replica cannot complete replay or joining. | Dependency-aware retention under bounded screening. Parameterize the current limits of 16 fork variants and 1,024 waiting events down to small values and document the correspondence. |
 | IR-12 | A later submission changes the displayed result of an already accepted task. | Whether the accepted result remains the displayed result, and what subsequent submissions mean. |
 | IR-13 | A coordinator fork removes newer admissions from the endpoint map, preventing those peers from receiving the halt evidence. | Which historically admitted endpoints must remain eligible to exchange evidence after a halt. Do not assume the implementation continues dialing them. |
@@ -217,7 +224,8 @@ contribution order by anchor, author and sequence, missing references, coordinat
 chain validity, removal/readmission, reassignment, cancellation, acceptance and
 A-to-B-to-A takeover. Include duplicate requests and uncertain commit outcomes.
 
-Reproduce IR-5 and IR-12 under current rules before evaluating proposed changes.
+The delivered models reproduce IR-5 and IR-12 under version-0 rules. A separately
+identified revision must now evaluate the version-1 corrections.
 Use the goal permutation/replay tests and session lifecycle tests as the first
 conformance targets. Begin trace-to-Rust mapping here, rather than postponing it
 until all models exist.

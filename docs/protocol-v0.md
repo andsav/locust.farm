@@ -1,9 +1,8 @@
 # Locust protocol contract, version 0
 
-Date: 2026-10-03. **Status: contract revision 2 of version 0. The protocol types, encodings, structural checks, sealing, golden vectors, storage/engine seams and local client exist in [`locust-proto`](../crates/locust-proto/src/lib.rs). Goal replay, authorization, task decisions and claims exist in [`locust-core`](../crates/locust-core/src/lib.rs); the persistent daemon, CLI and transport wiring are integrated.** The SQLite implementation in [`locust-store`](../crates/locust-store/src/lib.rs) runs the store conformance suite. Rules marked "core" describe intended runtime semantics; they are not a claim that every rule is independently verified. The [release ledger](release-evidence.md) records observed qualification, and the [candidate review](../research/t1-candidate-independent-review.md) records unresolved failures. The [formal property map](../research/tla/property-map.md) separates implementation behavior, desired guarantees and modeling assumptions. This replaces the stale scaffold-only status without changing protocol rules.
+Date: 2026-10-03. **Status: archived protocol/API version-0 contract, superseded by [version 1](protocol-v1.md).** Version 0 was implemented by the core, SQLite daemon, CLI and Iroh transport in the T1 candidate; its [independent review](../research/t1-candidate-independent-review.md) and [assessment](../research/t1-candidate-review-response.md) record defects outside the passing workflow. The earlier description of an empty core/name-only binary was stale. The text below preserves version-0 rules for interpreting those historical artifacts; use version 1 for current implementation decisions.
 
-Revision 2 is the second reviewed design of version 0. The version numbers on the wire did not change: `PROTOCOL_VERSION` (signed events, invitations, peer frames) and `API_VERSION` (the local socket) are both 0. Version 0 carries no compatibility promise until the first release; after that, a change to a golden vector needs a new version. Crate ownership is in [workstreams](workstreams.md), and the notices that announced each change to the other lanes are in the [lane A log](lane-a-log.md).
-
+Version-0 binaries and homes are retained as historical evidence. Version 1 refuses their event and wire versions; no in-place event migration is implemented. Preserve old state and create fresh version-1 goals for remediation qualification.
 ## Decisions recorded here
 
 | Topic | Decision | Reason |
@@ -441,7 +440,7 @@ A credential or secret file holds exactly the 32 secret bytes and nothing else, 
 
 ## Command contract
 
-These are the names and outputs of the `locust` binary that the installer, the operating skill, the first-contact guide and the three-machine test depend on. They are fixed here before the commands exist; the binary does not implement them yet.
+These are the names and outputs of the `locust` binary that the installer, the operating skill, the first-contact guide and the three-machine test depend on. These commands were implemented in the historical T1 candidate; the version-1 contract describes current behavior.
 
 ### Version
 
