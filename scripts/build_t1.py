@@ -121,6 +121,8 @@ def verify_version(output: str, version: str, commit: str) -> None:
     versions = re.findall(r"(?<![0-9A-Za-z.])\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?(?![0-9A-Za-z.])", output)
     if version not in versions:
         raise BuildError("version_mismatch", f"locust --version does not identify package version {version}")
+    if re.search(r"(?<![0-9A-Za-z])[0-9a-fA-F]{7,64}-dirty(?![0-9A-Za-z])", output):
+        raise BuildError("version_dirty", "locust --version identifies dirty source; a published artifact must identify a clean Git commit")
     commits = re.findall(r"(?<![0-9A-Za-z])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])", output)
     if not commits:
         raise BuildError("version_contract_missing", "locust --version must include at least seven hexadecimal characters of the built Git commit")

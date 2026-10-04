@@ -14,6 +14,10 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+### T1 runtime integration — 2026-10-03
+
+- [Runtime integration and discovery findings](t1-integration-2026-10-03.md): reviewed runtime fixes, the failed multicast-only run, passing default-network three-process flow and exact evidence boundaries.
+
 ### Lane A implementation review — 2026-10-03
 
 - [Implementation and takeover assessment](lane-a-review-2026-10-03.md): committed versus unfinished behavior, reproduced correctness gaps, verification results and a proposed integration sequence.

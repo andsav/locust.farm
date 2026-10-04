@@ -17,6 +17,45 @@ These are accepted implementation directions, not yet verified completion claims
 
 **Status: working log, written only by lane A (contract, core, storage, daemon, workspace, integration).** It carries contract change notices, answers to lane B's requests and reviews of lane B's commits. Lane B replies in its own [log](lane-b-log.md). The roles and review rules are in [workstreams](workstreams.md).
 
+## Takeover integration — October 3
+
+`98dbb9c` fixes denied ancestry in workspace exports. `885b372` connects the
+production `Node<SqliteStore, OsEntropy>` to the Unix socket, CLI and Iroh peer
+shell. Test stand-ins are compiled only in test builds. The [T1 guide](t1-run.md)
+gives the runnable commands; [integration findings](../research/t1-integration-2026-10-03.md)
+retain the measured workflow and failed discovery experiment.
+
+The takeover review's findings are resolved in source with regressions:
+
+| Finding | Implemented constraint and enforcing evidence |
+|---|---|
+| B-R5, denied-root export | Repository ancestry is checked before rebasing; [export regressions](../crates/locust-workspace/tests/export.rs) include `.aws`, nested roots, `.kube` and case variants. |
+| B-R6, dropped fork evidence | First conflicting history survives a full waiting queue; [Goal tests](../crates/locust-core/src/goal/tests.rs) compare both arrival orders and replay. |
+| B-R7/B-R8/B-R9, authority and projection | Removed assignments remain fenced after readmission; duplicate admission cannot rebind an active principal; progress preserves submitted work. The same [Goal tests](../crates/locust-core/src/goal/tests.rs) enforce these. |
+| B-R10, early completion | Only acknowledged `Finished` advances success; [driver regression](../crates/locust-core/src/sync/tests/driver.rs) covers a failed final delivery. |
+| B-R11/B-R12, admission and output | Current membership is checked for each request and queued content chunk; the [exchange tests](../crates/locust-core/src/sync/tests/machines.rs) cover revocation and backpressure. |
+| B-R13, starved content | Each exchange advances a hash cursor past unavailable objects; [content regression](../crates/locust-core/src/sync/tests/content.rs). |
+| B-R14, directory durability | Created directory entries and credentials are parent-synced before success, including retry after a failed sync; [store tests](../crates/locust-store/src/files.rs) and [secret tests](../crates/locust/src/secret.rs). This is injected-failure/process-restart evidence, not a physical power-cut test. |
+
+Additional integration review found and fixed queued output after a refusal,
+duplicate pending-join status, a retry that could relabel its coordinator,
+content reported readable before its epoch key arrived, and ciphertext whose
+metadata contradicted a signed reference. The [production replica tests](../crates/locust-core/src/node/replica_tests.rs)
+and [local content tests](../crates/locust-core/src/node/tests/content.rs) cover
+split prefixes, restart, conflicting references and per-event text authorization.
+The protected idempotency cache's invitation-ticket retention is now explicit in
+the [contract](protocol-v0.md).
+
+Integrated verification passed with Rust 1.96.1: workspace formatting, strict
+Clippy across all targets, and **391 Rust tests, zero failures, five explicit
+ignores**. The ignored tests are two installed-client configuration probes, two
+network environment qualifications, and the child entry point invoked by crash
+tests. Mainline key-only discovery was run separately and passed; multicast-only
+discovery failed on this host before resolving addresses. The [daemon tests](../crates/locust/src/daemon/durable_tests.rs)
+use real SQLite and Iroh for restart, encrypted task/result transfer and protocol
+refusals. Local three-process evidence is narrower than the published three-Mac
+T1 requirement. T2 client integration remains next in the agreed sequence.
+
 ## Contract notices
 
 - **2026-10-03, `4c7b680`.** Version 0 of the contract is in `crates/locust-proto` and described in the [protocol contract](protocol-v0.md). Lane B can rely on: the operation names from `Request::name`, the hello handshake and frame format in `api.rs` and `codec.rs`, the `SyncMessage` frame set and `JoinRequest` in `sync.rs` and `invite.rs`, the state directory and socket convention (`$LOCUST_HOME`, default `~/.locust`, socket `daemon.sock`), and the `Space::Session` namespace for client session records.

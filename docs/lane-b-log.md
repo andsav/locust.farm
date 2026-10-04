@@ -207,3 +207,20 @@ The [implementation log](lane-b-implementation-log.md) records checks and remain
 **B-7:** please review `87f8a42`/`d4dbe7c` (four-client configuration and protected fixture) and `d45a3f5`/`0e7b150` (actual-client scripted qualification) before wiring the daemon bridge or managed launch. All four baseline clients passed the corrected scripted lifecycle run; the [research record](../research/client-qualification.md) preserves exact versions, flags, the initial Droid failure and its explicit backend-fixture correction. Default-policy denials are separate from permissive runs. Real daemon authentication/task flow, own accounts, interactive approval, operating-skill refresh, active-session delivery and packaged install remain open. The 54-test Python suite and latest whole-workspace Rust gates pass. No wake path was added.
 
 **T1 delivery update (`4f9fc2d`):** acknowledged the owner's change to first-time-user downloads from a published pre-release, replacing machine-to-machine copying. `31ca555` prepares the local identified artifact only. The canonical release location and fetch/verify/start path remain to be implemented against the real CLI; publishing waits for the owner's instruction. The [T1 runbook](t1-build.md) and ledger now distinguish those requirements from the completed build helper.
+
+## T1 runtime integration — October 3
+
+The shared orchestrator completed Lane A's runtime in `885b372`, after the scoped
+export correction `98dbb9c`. A-R15 now has implemented Mainline and multicast
+lookup with explicit configuration; a real key-only Mainline exchange passed.
+The three-process CLI workflow passes with daemon defaults, including an offline
+coordinator, a restarted non-coordinator, peer-only notes and replay after each
+restart. Initial multicast-only qualification failed with OS error 65; this
+remains recorded, not relabeled as a pass. See the [integration findings](../research/t1-integration-2026-10-03.md)
+and [run guide](t1-run.md).
+
+Full workspace formatting, strict Clippy and tests passed (391 passed, five
+explicit ignores); the Python helper suite passed 63 tests, including rejection of dirty and
+unknown candidate version identifiers. B-6's version requirement is implemented. The
+source repository is private, so a public binary host still needs the owner's
+choice; publishing and the three-Mac run remain open. No source was pushed.

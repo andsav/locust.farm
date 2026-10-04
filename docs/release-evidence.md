@@ -8,11 +8,11 @@ The repository owner decides release go/no-go and changes to required scope or s
 
 | Gate | Required evidence and plan mapping | Status | Evidence records |
 |---|---|---|---|
-| R1 — Protocol and identity | M0–M3: byte/signature fixtures, authority, goal scoping, restore/copy and per-goal conflict behavior | Not run | None |
-| R2 — Authorization and confidentiality | M1/M2: scoped local API, membership, event/blob admission, encryption/key changes and malformed/member-input controls | Not run | None |
-| R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Not run | None |
-| R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Not run | None |
-| R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Not run | None |
+| R1 — Protocol and identity | M0–M3: byte/signature fixtures, authority, goal scoping, restore/copy and per-goal conflict behavior | Partial; gate open | A-C1 |
+| R2 — Authorization and confidentiality | M1/M2: scoped local API, membership, event/blob admission, encryption/key changes and malformed/member-input controls | Partial; gate open | A-C1 |
+| R3 — Durable state and transfer | M1/M2: commit/crash/replay, pending delivery, retained/resumable blobs and lost acknowledgments | Partial; gate open | A-C1 |
+| R4 — Work ownership and cancellation | M3: claim recovery/takeover, stale fencing, authored policy, cancellation and three-instance outage/ancestry tests | Partial; gate open | A-C1 |
+| R5 — Workspace and integration | M4: reviewed export, safe materialization, no automatic hooks/filters, dirty-work preservation, accepted/integrated distinction | Partial; gate open | A-C1 |
 | R6 — Real client behavior | M1/M5/M6: default-profile Codex, Claude Code, Factory Droid and Pi, CLI/MCP, skill setup, wait/interruption/manual resume and own-account authentication | Partial; gate open | B-C2; B-C5; B-C6 (scripted fixture only) |
 | R6L — Locust client lifecycle | M1/M3/M5/M6: all four baseline clients; Locust-owned launch/configuration, readiness, attempt/session binding, launch/restart recovery, cancellation and active-session delivery; hooks where claimed; optional Merak-only wake qualified separately | Partial; gate open | B-C2; B-C5; B-C6 (scripted fixture only) |
 | R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, migration, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7 (build helper only) |
@@ -38,19 +38,21 @@ Exact reproduction commands, observations and remaining boundaries are in the [i
 
 **B-C7, relevant to R7 and T1:** `31ca555` adds the [identified Apple Silicon build helper](t1-build.md). Fifteen helper tests pass. An actual pinned release compile passed; publication returned `version_contract_missing` for the name-only scaffold, so no T1 bundle was produced. This is verified refusal and build-tooling evidence, not daemon readiness, a signed release or three-machine behavior.
 
+**A-C1, relevant to R1–R5/R9 and T1:** `98dbb9c` fixes workspace export ancestry; `885b372` integrates the real core, SQLite daemon, CLI and Iroh peer synchronization. Workspace formatting, strict Clippy and 391 Rust tests pass (five explicit ignores); 63 Python helper tests pass. The [integration findings](../research/t1-integration-2026-10-03.md) retain a complete default-network three-process workflow and its earlier multicast-only failure, with exact debug hashes and event/route evidence. A separate key-only Mainline exchange passed. This is source/component and same-host multiprocess evidence, not public-artifact, three-Mac, sleep/wake, physical-power-loss or real-client qualification. The [lane A log](lane-a-log.md) maps the reviewed fixes and their enforcing tests.
+
 ## T1 preparation and run status
 
 The first integrated run uses one binary on the owner's three Apple Silicon Macs; the full sequence is in [workstreams](workstreams.md).
 
 | Required record | Current evidence |
 |---|---|
-| One identified `aarch64-apple-darwin` binary | Build helper implemented/tested; current scaffold refused for missing version/commit identity |
+| One identified `aarch64-apple-darwin` binary | Version/commit CLI implemented in `885b372`; identified release rebuild pending |
 | Published pre-release and first-run fetch/verify/start path | Not implemented or published; owner must instruct publication |
-| Matching downloaded version, commit and SHA-256 on all three Macs | Not run; no identified download candidate |
-| Three members; observed peer routes | Not run |
-| Propose → assign → claim → submit → inspect → accept; third peer observes history | Not run |
-| Coordinator offline while other peers exchange notes; catch-up | Not run |
-| Restart each daemon and sleeping-laptop reconnect | Not run |
+| Matching downloaded version, commit and SHA-256 on all three Macs | Not run; publication pending |
+| Three members; observed peer routes | Local three-process pass; three-Mac run pending |
+| Propose → assign → claim → submit → inspect → accept; third peer observes history | Local three-process pass; three-Mac run pending |
+| Coordinator offline while other peers exchange notes; catch-up | Local pass after M3 restart, relay paths observed; three-Mac run pending |
+| Restart each daemon and sleeping-laptop reconnect | Local process restarts pass; physical restart/reconnect and OS sleep/wake pending |
 
 
 ## Evidence record format

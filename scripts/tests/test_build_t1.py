@@ -171,6 +171,9 @@ class T1BuildTests(unittest.TestCase):
         verify_version(f"locust 0.1.0 ({self.commit})", "0.1.0", self.commit)
         for output, state in [
             ("locust 0.1.0", "version_contract_missing"),
+            ("locust 0.1.0 (unknown) api 0 protocol 0", "version_contract_missing"),
+            (f"locust 0.1.0 ({self.commit[:12]}-dirty) api 0 protocol 0", "version_dirty"),
+            (f"locust 0.1.0 ({self.commit}-dirty)", "version_dirty"),
             ("locust 0.1.0 (fffffff)", "version_commit_mismatch"),
             (f"locust 0.2.0 ({self.commit})", "version_mismatch"),
             (f"locust 0.1.0 ({self.commit})\nextra output", "version_contract_missing"),
@@ -178,6 +181,7 @@ class T1BuildTests(unittest.TestCase):
             with self.subTest(output=output):
                 self.runner.version_output = output
                 self.assert_state(state)
+                self.assertFalse((self.repo / "output/t1" / self.commit).exists())
 
     def test_target_and_pinned_compiler_are_verified(self):
         self.runner.installed = "x86_64-apple-darwin"

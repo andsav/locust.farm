@@ -1,6 +1,6 @@
 # Crates and workstreams
 
-Date: 2026-10-03. **Status: accepted layout and working rules for the October 4 push. `locust-proto` holds the contract; `locust-net`, `locust-adapter` and `locust-workspace` have behavior and tests; `locust-core` and `locust-store` are being built; the `locust` binary still only prints its name.** The repository owner approved the crate split on 2026-10-03, chose to keep all streams in one checkout without worktrees, and divided the work between two orchestrating sessions that review each other. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
+Date: 2026-10-03. **Status: the persistent daemon, CLI, core, store and peer synchronization are integrated in `885b372`; the local three-process T1 workflow passes. The published build and three-Mac run remain open.** The repository owner approved the crate split and shared checkout without worktrees. One orchestrator now owns lanes A and B; lane C remains independent. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
 
 **Ownership update, October 3:** the owner has now assigned Lane A to Lane B's
 orchestrating session, including responsibility for completing and integrating
@@ -11,10 +11,9 @@ records the captured starting state: the committed foundation passes checks,
 while the working Goal, sync and daemon are incomplete. The reviewed working
 files were preserved in a scratch snapshot before editing.
 
-Current implementation scopes are disjoint: an Astra agent owns Goal and local
-Node behavior, an Astra agent owns sync and Node peer integration, a Sol agent
-owns the bounded storage/export fixes, and the orchestrator owns contract
-changes, daemon networking, CLI/release integration and full-workspace checks.
+The takeover used disjoint subagent scopes for Goal/local Node behavior, sync and
+peer integration, and bounded storage/export/CLI work. The orchestrator owns
+contract changes, integration, release preparation and full-workspace checks.
 Each reassignment is explicit; agents do not commit another scope's work. T1
 remains the first milestone, with three local processes preceding the published
 build on the owner's three Macs. The owner has not yet instructed publication.
@@ -36,7 +35,7 @@ flowchart BT
 
 ## Ownership
 
-Two orchestrating sessions run the streams. **Lane A** owns the contract, the daemon's core path and every integration commit. **Lane B** owns everything that faces the coding clients, the network and the release. Each lane may run its streams as sub-agents; the lane's orchestrator is answerable for them.
+The lane labels retain functional ownership under the current shared orchestrator. **Lane A** owns the contract, the daemon's core path and every integration commit. **Lane B** owns everything that faces the coding clients, the network and the release. Each lane may run its streams as sub-agents; the lane's orchestrator is answerable for them.
 
 | Crate or path | Lane | Responsibility | Tests alone against |
 |---|---|---|---|
@@ -68,7 +67,7 @@ Read, in order: this document, the [version 0 contract](protocol-v0.md), plan se
 4. **Installer, skill and client configuration**, against the operation names in the contract.
 5. **CI and release packaging.**
 
-Lane B never edits lane A's paths. A needed contract change or new dependency is written as a request in the [lane B log](lane-b-log.md); lane A answers in the [lane A log](lane-a-log.md) and makes the change.
+Subagents keep explicit path ownership. The shared A/B orchestrator handles contract and dependency changes and records them in the [lane A log](lane-a-log.md); the [lane B log](lane-b-log.md) retains network, client and release findings.
 
 ## Cross-review
 

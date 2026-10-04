@@ -1,0 +1,178 @@
+{
+  "architecture": "arm64",
+  "binary": {
+    "api_version": 0,
+    "embedded_commit": "98956f1728a2-dirty",
+    "protocol_version": 0,
+    "sha256": "45ec989b91461d0afde6acd95ef3e6441aca18d988d5d519de5864ad76cfd465",
+    "version": "0.1.0",
+    "version_line": "locust 0.1.0 (98956f1728a2-dirty) api 0 protocol 0"
+  },
+  "binary_identification": "SHA256 recorded before startup; immutable private execution copies were added to the harness after this first run.",
+  "cleanup": {
+    "all_launched_daemons_reaped": true,
+    "clean_stops": [
+      {
+        "exit_status": 0,
+        "generation": 0,
+        "machine": 1
+      },
+      {
+        "exit_status": 0,
+        "generation": 0,
+        "machine": 3
+      },
+      {
+        "exit_status": 0,
+        "generation": 1,
+        "machine": 3
+      },
+      {
+        "exit_status": 0,
+        "generation": 0,
+        "machine": 2
+      }
+    ]
+  },
+  "events": {
+    "acceptance": "c95b838e48c87f1dbda9504a47f99a3d338c82e07e14a815b6ac7260e000cac5",
+    "assignment": "eda84f74f4cdadf53ce3e0487c088817ac47b8639780e9808e810cf69c6d9362",
+    "note_m2": "e3e0abcefb9fe7538dee387ba52ee6fa2ea39b2cd8cd4c82b38b8b007cbeb322",
+    "note_m3": "cf8af041e825ff84ad175bbbee844d4c0ed892ffec51920647ca4b172d99e8c0",
+    "result": "e242b8c1eb9eac065443d07f80b53f8172cd124c58a3df7f4d2c3b4be5611017",
+    "task": "97633ddb3ec86c4e7edd08ec65d5993a2c1ebd87e5f9e0cde177a29ae39c2e2e"
+  },
+  "evidence_limits": [
+    "No published artifact was fetched.",
+    "Three processes shared one macOS host; this is not three-Mac qualification.",
+    "Actual OS sleep/wake was not exercised.",
+    "The first invitations carried coordinator address hints; initial joins do not prove key-only discovery.",
+    "Coordinator catchup and subsequent sequential restarts were not reached after the offline note timeout.",
+    "The observation identifies failed offline connectivity/reconciliation; it does not isolate an mDNS library root cause."
+  ],
+  "failure": {
+    "condition": "M2 and M3 exchange and decrypt both notes after M1 stops and M3 restarts",
+    "observed": "M2 continued to hold only its own note; no M2-to-M3 or M3-to-M2 route snapshot was reported.",
+    "outcome": "explicit qualification wait expired after 40 seconds",
+    "phase": "coordinator_offline"
+  },
+  "goal": "3e9cf50a722f3d1fc4d7676666ec54b9619584387ba32229569f271abef797c9",
+  "machines": [
+    {
+      "endpoint": "2aa56247f18dbb6368050896a08c2316d413c83fc72142a77d4d30dfd797e388",
+      "machine": 1,
+      "principal": "65d5bb507fc110234e7ef02f7fce5f168168243a6eda4248f688d077bb0e4219"
+    },
+    {
+      "endpoint": "c9321a20cbc4cc3b5d925e58f392340b5bd37a79ed6918e292bb407d470024c1",
+      "machine": 2,
+      "principal": "29daa7d9a8c08683d05336803cfb1bfe86f0f902b21c9f953a9f8ccee4733d00"
+    },
+    {
+      "endpoint": "6dafbf2efdfe1c10357e21b45137a4be137e1276d442d6bff3e0cf41a6f866fe",
+      "machine": 3,
+      "principal": "2fcbd1a5485c56a83c63ef5d6bf5ab4029f97f7854a18d1fcd1df8026411c8d7"
+    }
+  ],
+  "passed_checks": [
+    "M1 daemon endpoint ready",
+    "M2 daemon endpoint ready",
+    "M3 daemon endpoint ready",
+    "all three replicas admit all three principals and decrypt title",
+    "all three daemons report a selected direct peer path",
+    "M2 receives assignment",
+    "M1 reads/decrypts the actual submitted result",
+    "all replicas show accepted task and submitted content",
+    "M3 holds the full effective task history",
+    "M3 daemon endpoint ready"
+  ],
+  "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+  "redaction_review": {
+    "credential_or_session_secret_bytes_read_by_harness": false,
+    "durable_evidence_omits_private_local_paths": true,
+    "non_redacted_ticket_or_secret_fields_found": 0,
+    "raw_invitation_strings_found": 0,
+    "records_checked": 270
+  },
+  "route_facts": [
+    {
+      "generation": 0,
+      "kind": "route_snapshot",
+      "machine": 2,
+      "paths": [
+        {
+          "kind": "direct",
+          "rtt": "2.379792ms",
+          "selected": true
+        }
+      ],
+      "peer_endpoint": "2aa56247f18dbb6368050896a08c2316d413c83fc72142a77d4d30dfd797e388",
+      "phase": "join",
+      "time": "2026-10-04T01:41:26.481849+00:00"
+    },
+    {
+      "generation": 0,
+      "kind": "route_snapshot",
+      "machine": 1,
+      "paths": [
+        {
+          "kind": "direct",
+          "rtt": "1.101161ms",
+          "selected": true
+        }
+      ],
+      "peer_endpoint": "c9321a20cbc4cc3b5d925e58f392340b5bd37a79ed6918e292bb407d470024c1",
+      "phase": "join",
+      "time": "2026-10-04T01:41:26.484351+00:00"
+    },
+    {
+      "generation": 0,
+      "kind": "route_snapshot",
+      "machine": 3,
+      "paths": [
+        {
+          "kind": "direct",
+          "rtt": "1.555834ms",
+          "selected": true
+        }
+      ],
+      "peer_endpoint": "2aa56247f18dbb6368050896a08c2316d413c83fc72142a77d4d30dfd797e388",
+      "phase": "join",
+      "time": "2026-10-04T01:41:26.508288+00:00"
+    },
+    {
+      "generation": 0,
+      "kind": "route_snapshot",
+      "machine": 1,
+      "paths": [
+        {
+          "kind": "direct",
+          "rtt": "795.003\u00b5s",
+          "selected": true
+        }
+      ],
+      "peer_endpoint": "6dafbf2efdfe1c10357e21b45137a4be137e1276d442d6bff3e0cf41a6f866fe",
+      "phase": "join",
+      "time": "2026-10-04T01:41:26.511651+00:00"
+    }
+  ],
+  "run_finished_at": "2026-10-04T01:42:14.654140+00:00",
+  "run_started_at": "2026-10-04T01:41:24.969807+00:00",
+  "status": "observed failure; local process qualification only",
+  "task_history": [
+    "18888f9f465eb5a2ae3bef91a0ae3c6a09e4361daab191d41a29b9f328a15b7f",
+    "26916a2eab30352b58e1c6123c643ecef6415065701af5ddb07f9db8cc3ba95e",
+    "3098ec4609b3cf592910808f294aa388fecbc34440a4740955dcc67beb0e2ba0",
+    "5f40da1aef825f5ad95dcda26941f8bae8527e52aa111fd585fa3b9e71ebcc0c",
+    "8ea05823360d857c189f4154b197443d45ecf181f7c2d7f632e0fde9d8e37f9a",
+    "97633ddb3ec86c4e7edd08ec65d5993a2c1ebd87e5f9e0cde177a29ae39c2e2e",
+    "c95b838e48c87f1dbda9504a47f99a3d338c82e07e14a815b6ac7260e000cac5",
+    "e242b8c1eb9eac065443d07f80b53f8172cd124c58a3df7f4d2c3b4be5611017",
+    "eda84f74f4cdadf53ce3e0487c088817ac47b8639780e9808e810cf69c6d9362"
+  ],
+  "timeout_seconds": 40.0,
+  "transport": {
+    "LOCUST_LOOKUP": "local",
+    "LOCUST_RELAY": "none"
+  }
+}

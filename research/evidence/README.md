@@ -2,6 +2,7 @@
 
 These files preserve local characterization probes and captured results from 2026-10-03. Each names its target revision and distinguishes upstream research from Locust implementation evidence.
 
+- [T1 default-network local run](t1-local-2026-10-03-default-network.json) and [initial multicast-only failure](t1-local-2026-10-03-failed-discovery.json): exact frozen debug identities, routes, task/offline/restart outcomes and redaction checks; interpreted in the [integration findings](../t1-integration-2026-10-03.md).
 - [Lane A review probes](lane-a-review-probes.md): workspace export and unfinished authority/sync reproductions; [capture hashes](lane-a-review-snapshot.json) identify the reviewed working source. See the [review](../lane-a-review-2026-10-03.md) for findings and takeover assessment.
 
 - [Task lifecycle probes](task-probes.md): five store/RPC observations.
