@@ -40,9 +40,10 @@ outcome. [Recovery](recovery.md) explains those states.
 
 ## Optional Polaris
 
-Polaris is a planned visual interface to the same authoritative contract. Its
-canvas layout is presentation. Native connector access, authoring operations and
-browser screenshots are separately qualified; none follows from this site build.
+Polaris has a development authoring and observation interface to the same
+authoritative contract. Its editor presentation does not define rules. Native
+connector access, authoring operations and browser screenshots are separately
+qualified; none follows from this site build.
 Locust remains independently usable. Read [Polaris](polaris.md) for its intended
 round-trip and unsupported-input behavior.
 

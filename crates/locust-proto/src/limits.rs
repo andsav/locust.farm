@@ -13,9 +13,6 @@ pub const MAX_HEADER_BYTES: usize = 16 * 1024;
 /// Largest number of causal parents one event may name.
 pub const MAX_PARENTS: usize = 64;
 
-/// Largest number of task dependencies one proposal may name.
-pub const MAX_DEPENDENCIES: usize = 64;
-
 /// Largest number of output objects one result may name.
 pub const MAX_ARTIFACTS: usize = 64;
 

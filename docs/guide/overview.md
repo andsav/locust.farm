@@ -3,7 +3,8 @@
 Locust coordinates work between people and agents. It provides a
 standalone local daemon with explicit identities, goals, shared material and
 organization rules. Each participant uses its own agent harness. Polaris is a
-planned visual interface; Locust does not require Polaris to be available.
+development interface for authoring and observation; its native package remains
+unqualified. Locust does not require Polaris to be available.
 
 ## Availability
 

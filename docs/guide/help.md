@@ -8,7 +8,7 @@
 | Service request succeeded but API does not answer | Manager request and authenticated readiness differ | Inspect settled service status, then authenticated daemon diagnosis |
 | MCP configuration exists but no tools appear | Native discovery/readiness is unverified | Inspect the client's MCP view and supported refresh; preserve policy |
 | Blueprint JSON parses but validation fails | Shape or semantics are unsupported | Follow diagnostic code/phase/path and correction; inspect exact schema |
-| Offline validation passes but work cannot run | Contextual bindings or local permissions may be missing | Inspect the instance/action readiness once runtime supports it |
+| Offline validation passes but work cannot run | Contextual bindings or local permissions may be missing | Inspect `rules effective`, `pending` and the requested action's diagnostic |
 | Review arrives before binding proof | Evidence is pending verification | Fetch/retain dependency proof and reevaluate; do not count or reject early |
 | Two candidates meet review threshold | Both can qualify | Use explicit selection only if a unique output is required |
 | Authority is offline | Its dependent decision waits | Continue unaffected authorized work; do not invent replacement authority |
@@ -18,7 +18,7 @@
 
 ## Frequently asked questions
 
-**Do I need Polaris?** No. It is an optional proposed visual interface. The
+**Do I need Polaris?** No. It is an optional development interface; its native package remains unqualified. The
 standalone daemon and agent surfaces are the core boundary.
 
 **Does installing grant access to my files or account?** No. Setup, local work,
