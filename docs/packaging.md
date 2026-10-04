@@ -31,6 +31,17 @@ the archive itself remains unsigned by a publisher. The separately selected
 trust key and registry required by the [installer](installation.md) cannot be
 inferred from a checksum sidecar.
 
+## Local Linux cross-build
+
+The owner selected build-only Linux scope on 2026-10-04. A native ARM-host
+`cargo zigbuild` release build for `x86_64-unknown-linux-gnu.2.28` completed in
+92.032 seconds from source `95d986045f4f711527d335012d94f1776f2b4498`.
+The [build record](../research/linux-installation-qualification.md) retains
+compiler versions, ELF checks, binary/archive hashes and the exact command.
+The archive contains the binary, Apache-2.0 license, skill and build metadata;
+it is separate from the native builder's three-file installer format below.
+No Linux execution, runtime or installation qualification was performed.
+
 ## Build and source identity
 
 Run [`python3 scripts/build_release.py`](../scripts/build_release.py) on macOS arm64 or Linux x86_64. It uses the exact Rust version in `rust-toolchain.toml` and builds only the native target (`aarch64-apple-darwin` or `x86_64-unknown-linux-gnu`) with `cargo build --locked --release`. The helper builds a verified archive of the captured Git `HEAD`, reusing the committed-blob check in [`build_t1.py`](../scripts/build_t1.py), and refuses dirty Rust/build and packaging inputs. Unrelated checkout changes are excluded from the archive. It checks the resulting Mach-O or ELF architecture, executable bit, exact `locust --version` output, embedded source commit, and source protocol/API constants. The archived operating skill is included. The helper uses isolated home, Cargo home and target directories, a pinned absolute compiler, and two build jobs. It does not claim an independently reproducible binary: host SDK, native libraries, build scripts, and dependency resolution remain relevant.
@@ -41,7 +52,7 @@ The output is `output/release/locust-<target>-<12-character-commit>-unsigned.tar
 
 `manifest.json` is UTF-8 JSON with sorted keys, compact separators, and one trailing newline. The format marker is `locust-release-v1`. Its fields are `format`, full `source_commit`, package `version`, Rust `target`, `machine_format` (`mach-o-arm64` or `elf-x86_64`), pinned `toolchain`, numeric `protocol_version` and `api_version`, and `files`. `files` lists `locust` then `skills/locust/SKILL.md`, each with relative `path`, SHA-256 hex `sha256`, byte `size`, and integer permission `mode` (493 for executable `0755`, 420 for skill `0644`). The archive checksum is separate; the manifest identifies its contained files.
 
-This builder emits **no signing key or signature**. A signed candidate requires a detached `manifest.sig` containing a raw 64-byte Ed25519 signature over the **exact `manifest.json` bytes**, with a separately supplied, explicit 32-byte public trust root. The installer must verify that signature before trusting the manifest or installing any bytes, then check the target, format, paths, sizes, modes, and file hashes. The signed manifest hash is the candidate content identity; package version alone is not an upgrade order. A `.sha256` sidecar checks transport integrity, not release authenticity. The unsigned archive is for inspection and signing; it is not install-trusted. Key custody, distribution license, and release publication remain owner decisions.
+This builder emits **no signing key or signature**. A signed candidate requires a detached `manifest.sig` containing a raw 64-byte Ed25519 signature over the **exact `manifest.json` bytes**, with a separately supplied, explicit 32-byte public trust root. The installer must verify that signature before trusting the manifest or installing any bytes, then check the target, format, paths, sizes, modes, and file hashes. The signed manifest hash is the candidate content identity; package version alone is not an upgrade order. A `.sha256` sidecar checks transport integrity, not release authenticity. The unsigned archive is for inspection and signing; it is not install-trusted. Apache-2.0 is selected; key custody and release publication remain owner decisions.
 
 ## CI and qualification
 

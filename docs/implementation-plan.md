@@ -1,6 +1,6 @@
 # Locust implementation plan
 
-Updated: 2026-10-04. **Current execution: operational workflows, native macOS installation/upgrade/services and the installed Codex/Claude/Pi experience have retained local results against identified source `5bb254d`. Managed lifecycle and recovery were refreshed against the same installed artifact. Linux x86_64 checks are running under Docker emulation. Physical-machine, sleep/wake, interactive approval and independent-account acceptance stay at the end, when the owner is available. Production signing and publication remain deferred. See [installation](installation.md), [installed-client findings](../research/installed-client-qualification.md) and section 10.**
+Updated: 2026-10-04. **Current execution: operational workflows, native macOS installation/upgrade/services and the installed Codex/Claude/Pi experience have retained local results against identified source `5bb254d`. Managed lifecycle and recovery were refreshed against the same installed artifact. Linux x86_64 has a completed cross-build; runtime testing is outside the owner's current build-only scope. Physical-machine, sleep/wake, interactive approval and independent-account acceptance stay at the end, when the owner is available. Production signing and publication remain deferred. See [installation](installation.md), [installed-client findings](../research/installed-client-qualification.md) and section 10.**
 
 **Prior T1 checkpoint:** persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. The physical-machine qualification uses the owner's two available Macs. The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass remains a separate qualification activity; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.
 
@@ -64,7 +64,7 @@ The runtime was integrated in `885b372`. The [application](../crates/locust/src/
 | Coding clients | Four earlier actual clients with production MCP and real-model flows; current identified macOS candidate additionally passes installed skill/MCP discovery, native workspace flow and managed lifecycle/recovery for Codex, Claude and Pi | Droid provider-key-only native resume and externally guarded native execution failures; default interactive approvals, independent accounts, claimed hooks and Droid installed qualification |
 | Workspace | Named preview/export/materialize and base-bound patch create/review/submit/accept/apply; typed manifest/contribution descendants replicate; local safety and recovery tests pass | Multi-peer retained-content and conflicting-worker workflow qualification through real clients and identified artifacts |
 | Later runtime features | Six integrated same-host workflows cover conflicting revisions, interrupted retained-content transfer, competing patches, cancellation, withdrawal/leave and offline-member rotation; [retained evidence](../research/operational-qualification.md) | Physical network/account qualification and remaining release requirements; local campaigns do not close entire gates |
-| Delivery | Identified native candidate builder; macOS/Linux CI declarations; signed manifest and withdrawal checks; reviewed activation, service ownership and persistent client setup; ten macOS native install/upgrade/launchd cases and three installed clients qualified locally; [local prompt](install-prompt.md) | Linux emulated checks in progress; production signing custody, license, public origin and download verification remain open |
+| Delivery | Identified native candidate builder; macOS/Linux CI declarations; signed manifest and withdrawal checks; reviewed activation, service ownership and persistent client setup; ten macOS native install/upgrade/launchd cases and three installed clients qualified locally; [local prompt](install-prompt.md) | Linux cross-build complete with runtime behavior unverified; production signing custody, public origin and download verification remain open |
 | Formal models | TLA+ stages 0/1 have bounded checks against the historical protocol-0 baseline | Protocol-1 rebaseline under the separate [formal verification plan](tla-verification-plan.md); stages 2–5 remain proposed |
 
 The [integration findings](../research/t1-integration-2026-10-03.md), [candidate identity](t1-build.md) and [release ledger](release-evidence.md) retain exact evidence and limitations. Multicast-only discovery failed on the development host; daemon-default lookup and relay configuration passed the same-host workflow. No complete release gate is recorded as passed. The [first-contact document](first-contact.md) describes the target journey and an older source snapshot, not current daemon readiness.
@@ -339,7 +339,7 @@ Module/file ownership should be explicit before concurrent edits. Shared event t
 | Final acceptance: physical qualification | Use one identified current artifact on two Macs; complete task acceptance, offline catch-up, restart and OS sleep/wake; add a third daemon for coordinator-offline exchange and retained-content fetch | Historical mixed-build join/note/assignment-readiness evidence exists; complete current-artifact qualification remains open. Retain hash/version, OS, routes and exact process/host topology |
 | Managed implementation and local campaigns completed | Locally authorized launch/readiness/binding, explicit resume, ordinary-tool pending delivery, cancellation and conservative crash recovery for four clients | A-C7/B-C11: actual-binary normal and fault checks with exact separate artifact identities; no active hook, automatic wake or confinement claim |
 | Operational and installed macOS campaigns completed | Six integrated operational workflows, ten native install/upgrade/launchd cases and the prioritized three-client installed experience | A-C8 through A-C10 / B-C12 through B-C14; exact `5bb254d` artifact for the final campaigns, including measured resources and explicit limits |
-| Remaining platform and acceptance work | Finish emulated Linux qualification; retain actual Linux systemd, physical-machine, independent-account and production trust requirements | Section 10 sequence, full M0–M6 exit evidence and exact artifact/platform/client matrix |
+| Remaining platform and acceptance work | Linux build-only scope completed; continue physical-machine, independent-account and production trust acceptance | Section 10 sequence, full M0–M6 exit evidence and exact artifact/platform/client matrix |
 | Publication: deferred | Revisit only when requested by the owner and after go/no-go | Public-artifact verification against the exact tested candidate |
 
 These are execution priorities, not passing records. The two-Mac first pass replaces waiting for a third physical laptop; it does not waive three-instance fault tests or the four-client baseline. Deterministic tests continue alongside integrated work. A failed required check is recorded and fixed; an unverified behavior is never presented as supported.
@@ -447,7 +447,7 @@ Steps 1–3 now have implemented harnesses/runtime and retained local campaign
 results in A-C6/B-C10 and A-C7/B-C11. Failed and unrun qualification cases remain
 open. Step 4 has retained local workflow results; step 5 implementation is
 complete, native macOS installation and step 6 local campaigns have passed, and
-Linux emulated checks remain in progress. This sequence
+Linux cross-compilation has passed under the owner's build-only scope. This sequence
 does not authorize publication or replace M0–M6 acceptance criteria.
 
 **Owner sequencing update:** finish operational hardening, packaging and local
@@ -505,10 +505,11 @@ and Pi. This changes work order, not the evidence already recorded.
    cross-commit upgrade, launchd failure/retry, restart and conservative removal
    cases. Identity, notes and unrelated files were preserved. The
    [local prompt](install-prompt.md) composes reviewed software, service and
-   profile operations. Linux checks under Docker x86_64 emulation are in progress;
-   actual Linux systemd, schema migration, production trust and physical-machine
-   evidence remain distinct requirements. CI declarations do not establish a
-   hosted run. License, signing custody and public origin stay owner choices.
+   profile operations. The [Linux cross-build](../research/linux-installation-qualification.md)
+   passed; the owner chose to skip Linux runtime qualification for this scope.
+   Schema migration, production trust and physical-machine acceptance remain
+   separate. CI declarations do not establish a hosted run. Apache-2.0 is
+   selected; signing custody and public origin remain owner choices.
 6. **Prioritized local installed experience exercised.** Actual Codex 0.153.4,
    Claude Code 2.1.280 and Pi 1.0.1 passed persistent skill metadata discovery,
    native skill reads, setup-installed MCP calls, task/contribution acceptance

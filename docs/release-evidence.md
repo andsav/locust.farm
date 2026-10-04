@@ -185,6 +185,15 @@ boundary. No real model or interactive human approval ran in these installed
 campaigns. Droid was omitted by priority; its prior record and failed cases
 remain unchanged. No hooks, automatic wake or worker confinement are qualified.
 
+**A-C11 / B-C15, Linux build-only scope selected by the owner:** native ARM-host
+cross-compilation produced an x86-64 Linux ELF from `95d986045f4f`, with Rust
+1.96.1, cargo-zigbuild 0.23.0 and Zig 0.16.0, in 92.032 seconds. The
+[retained build record](../research/linux-installation-qualification.md) records
+architecture and hashes; its archive includes Apache-2.0 license text. The
+emulated campaign was stopped and its container removed. Linux runtime,
+installation and systemd tests were explicitly omitted under the revised scope;
+compilation does not count as a runtime pass or close the other release gates.
+
 ## T1 preparation and run status
 
 **Owner update, October 3:** start the physical run on the two available Apple Silicon Macs. Publication remains deferred; AirDrop or a shared folder can carry the executable bundle. Each Mac initializes independent state. The [T1 run guide](t1-run.md) defines the first pass and optional third-peer extension. The owner subsequently authorized a mixed-build smoke test when M2 lacked the original bundle and verified matching Rust/build inputs; identical-artifact qualification remains pending.
