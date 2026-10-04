@@ -29,7 +29,7 @@ repository root. Untracked drafts are excluded from the check.
 
 ### Simulating multi-machine tests — 2026-10-03
 
-- [Simulation on one computer](multi-machine-simulation.md): an in-process machine simulator and a multi-process scenario runner, how to run them, what each can and cannot show, eight findings (one a likely regression in the current source) and recommended deadlines.
+- [Simulation on one computer](multi-machine-simulation.md): the in-process machine simulator and the multi-process scenario runner now in the repository, how to run them, what each can and cannot show, nine findings with their verdicts, and the fixes applied in `24ddd21`.
 
 ### Independent review of the T1 candidate — 2026-10-03
 

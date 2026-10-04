@@ -1,6 +1,17 @@
 # Simulating multi-machine tests on one computer — 2026-10-03
 
-**Status: both prototypes are built, run and saved as evidence, and every finding has been checked by a second reviewer; the verdicts are in the table under "Verdicts". Two of this note's earlier statements were wrong and are corrected there (SIM-3 and SIM-5).** Written by the independent reviewer (see the [candidate review](t1-candidate-independent-review.md)); no source was changed. The prototypes are in `evidence/multi-machine-simulation/`, listed in the [evidence index](evidence/README.md), for the owner of the source to adopt.
+**Status: applied. The fixes are in `24ddd21`, the in-process simulator in `c58bd30` and the scenario runner in `c7fa716`, committed by the reviewer on the owner's instruction. Every finding was checked by a second reviewer; the verdicts are in the table under "Verdicts", and two of this note's earlier statements were wrong and are corrected there (SIM-3 and SIM-5).** The patches under `evidence/multi-machine-simulation/` are kept as the record of what was prepared and measured.
+
+How to run both levels at the current source:
+
+```sh
+cargo test --locked -p locust-core --lib node::sim                       # level 1, about 2 seconds
+LOCUST_SIM_SEEDS=10000 cargo test --locked -p locust-core --lib node::sim::tests::sim_many -- --ignored --nocapture
+python3 scripts/simulate_machines/run.py --binary target/release/locust --quick   # level 2, under a minute
+python3 scripts/simulate_machines/run.py --binary target/release/locust           # every scenario, about half an hour
+```
+
+After the fixes: the workspace passes 526 tests with none failed; 10,000 simulator seeds under 97,000 faults pass; and the runner's quick set (two machines, three machines, crash) passes against a release build in 42 seconds, the crash scenario taking 25 seconds where it took 134 on the candidate.
 
 The owner asked for the multi-machine tests to be simulated on one computer for everyday use, keeping real machines as a final gate. Two levels were built.
 
@@ -64,7 +75,7 @@ Because SIM-3 is withdrawn, the row "Dialing with a remembered address" in the d
 
 ## Fix patch
 
-Prepared by the reviewer in scratch copies and not applied: `evidence/multi-machine-simulation/fixes.patch` (10 files, 914 lines) applies to `040da11`, and `simulator-on-fixes.patch` adds the simulator on top of it, with its model of the shell updated to match. The owner of the source decides whether to apply them.
+Prepared by the reviewer in scratch copies as `evidence/multi-machine-simulation/fixes.patch` (10 files, 914 lines) and `simulator-on-fixes.patch`, then applied and committed as `24ddd21` and `c58bd30`.
 
 | Finding | Change | Before | After |
 |---|---|---|---|
