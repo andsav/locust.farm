@@ -7,14 +7,24 @@ not an implementation or a claim of qualification.** Baseline inspected:
 organization, easy agent authoring, and a Polaris visual editor over one contract.
 The [research](../research/organization-blueprints.md) supplies source mappings
 and alternatives. Recommendations in the decision register below are proposed
-implementation choices until resolved at their dependent package, except D3,
-which the owner resolved as a greenfield replacement.
+implementation choices until resolved at their dependent package, except D2/D3
+and the D4/D5 authority approach, which the owner resolved.
+Implementation is authorized; exact signed semantics remain engineering gates.
 
 **Owner clarification, 2026-10-04:** no migrations, backward compatibility, or
 dead code. Replace the current implementation directly; remove superseded paths
 as their replacements land. Old goals, formats and runtimes have no continuity
 requirement. This supersedes every earlier migration/compatibility proposal in
 the linked plans and research.
+
+**Plan review, 2026-10-04:** the owner accepted the review's findings. O0 now
+ends in a written protocol contract. M1 delivers Open collaboration and
+Coordinator together. YAML, materialized flow effects and exclusive reservations
+leave the first delivery. Shared documents, a performance baseline and D3's
+lifetime are covered. Commits may break `main` during the engine swap as long
+as each milestone lands clean with no dead code (D13). Use judgement over
+ritual: a gate in this plan exists to catch a real failure, not to be satisfied
+for its own sake.
 
 **Full scope includes public documentation on locust.farm.** The companion
 [public documentation plan](public-documentation-plan.md) specifies the complete
@@ -25,18 +35,18 @@ workstream of this plan, not a post-release cleanup task.
 This plan supersedes the universal-coordinator target in the older
 [implementation plan](implementation-plan.md). Writing it changes no behavior;
 implementing it replaces protocol 1 under D3, and historical evidence stays as a
-labeled record. The
-[last-mile plan](last-mile-implementation-plan.md) still supplies installation,
-permission, and delivery work; organization-sensitive portions must use this
-plan's new identities and state model. Publishing software/site content, paid
+labeled record. It also supersedes the
+[last-mile plan](last-mile-implementation-plan.md): do not start that plan's
+unbuilt packages against protocol 1. Its requirements are revisited once this
+plan's contract exists. Publishing software/site content, paid
 campaigns, and changing platform qualification scope remain separate actions.
 
 ## 1. Outcome and completion of the project
 
 A participant can describe an arrangement to an agent, inspect a short effective
 agreement, validate and publish it, and create a goal with that exact definition.
-Agents can collaborate freely, use coordinator assignment, reserve open work,
-make independent attempts, hand off work, use dependencies, and apply explicit
+Agents can collaborate freely, use coordinator assignment, take work from a
+shared pool, make independent attempts, hand off work, use dependencies, and apply explicit
 review/completion rules. Tasks can specialize the goal's arrangement within its
 delegated authority. Polaris can open the same definition, edit it visually,
 and return it to an agent without semantic loss.
@@ -66,15 +76,17 @@ scripted clients real-model evidence, or a built site publicly available.
 ### Non-goals and boundaries
 
 No arbitrary executable policy language, mandatory workflow DAG, required cloud
-coordinator, private-conversation harvesting, automatic closed-client wake, or
-automatic widening of local permissions. Keep Merak optional as a local executor.
+coordinator, private-conversation harvesting, automatic closed-client wake,
+events the daemon signs on its own from rule evaluation (D14), or automatic
+widening of local permissions. Keep Merak optional as a local executor.
 Do not model remote participants as local Merak child runs.
 
 Multi-administrator Byzantine consensus, private topics inside one encrypted
 goal, and timing-based veto/lease semantics are not prerequisites to the accepted
 model. Do not claim them through a generic field the engine cannot enforce.
 Independent attempts, reviewer thresholds, and named decision authorities remain
-in scope without those stronger guarantees.
+in scope without those stronger guarantees. Exclusive reservations are deferred
+to O13 and built only if the M3 review selects them (D5).
 
 Do not invent limits on tasks, attempts, reasoning tokens, rule iterations, or
 execution time. Retain explicitly authored limits and documented physical/wire
@@ -113,22 +125,38 @@ settled and does not need another approval.
 
 | ID | Recommended choice | Resolve before |
 | --- | --- | --- |
-| D1 — Definition language | Typed declarative JSON contract; offer YAML as a restricted authoring representation if its parser round-trip/diagnostic prototype passes. One normalized semantic representation. No arbitrary scripts or model calls in evaluation | O1 schema freeze |
-| D2 — Organization/governance | Separate administration, work organization, evaluation, and local execution. Initially one explicit membership/rule administrator; it does not approve each work event. Open collaboration is the proposed default | O0 transcript acceptance, O3 |
-| D3 — Greenfield replacement (resolved) | No migrations, backward compatibility, old-format readers, parallel runtimes or dead code. Initialize current state directly; remove superseded implementation and fixtures; refuse unsupported formats without interpreting/converting them | Enforce in every package, especially O2/O8 |
-| D4 — Completion/finality | Positive review evidence can satisfy a non-exclusive completion condition without a central finalizer. Exactly-one selection and authoritative closure use a named scope-specific decision authority initially. Threshold approval does not imply threshold consensus on one winner | O0 model, O5 |
-| D5 — Exclusive reservations | Optional named task-scoped single-writer reservation authority, with durable generations and explicit release/replacement; new exclusive claims wait when it is unreachable. Independent attempts remain available when the blueprint allows them. No clock-only reassignment | O5 reservation implementation |
+| D1 — Definition language (accepted) | Typed declarative JSON, the only authoring text; no YAML. One normalized semantic representation. Recommended identity: the hash of the normalized typed value in the existing canonical codec, so no JSON canonicalization scheme is invented. No arbitrary scripts or model calls in evaluation | Identity encoding at O1 schema freeze |
+| D2 — Organization/governance (accepted) | Separate administration, work organization, evaluation, and local execution. Initially one explicit membership/rule administrator; it does not approve each work event. Open collaboration is the initial authoring default | Engineer signed context/proofs in O0/O3 |
+| D3 — Greenfield replacement (resolved) | No migrations, backward compatibility, old-format readers, parallel runtimes or dead code. Initialize current state directly; remove superseded implementation and fixtures; refuse unsupported formats without interpreting/converting them | Enforce in every package, especially O2/O8; post-release continuity policy before O12 |
+| D4 — Completion/finality (approach accepted) | Positive review evidence can satisfy a non-exclusive completion condition without a central finalizer. Exactly-one selection and authoritative closure use a named scope-specific decision authority initially. Threshold approval does not imply threshold consensus on one winner | O0 model, O5 |
+| D5 — Exclusive reservations (approach accepted, build deferred) | Not in the first delivery: a shared pool shows attempt starts and keeps concurrent attempts as independent attempts. If built, an optional named task-scoped single-writer reservation authority, with durable generations and explicit release/replacement; new exclusive claims wait when it is unreachable. No clock-only reassignment | M3 review decides whether O13 is built |
 | D6 — Rule revisions | Pin definition, bindings, and completion context for active work. Amend future defaults explicitly under current authority; revise/reopen work through an explicit current-model transition, never reinterpret past signatures. No old-format conversion | O1/O3/O6 |
 | D7 — Sharing | Initial goal membership remains the read boundary. Topics/roles organize attention but do not grant confidentiality. Different membership means a separate goal with explicit shared inputs | O3/O6 and public privacy docs |
 | D8 — Editor authority | Local private draft ownership and scoped authoring credentials. Polaris retains credentials in native Rust and uses Locust APIs; viewers remain read-only. Publishing a definition is distinct from creating/changing a goal | O7/O10 |
 | D9 — Public documentation | One canonical manual, versioned release snapshots, generated contract references, checked examples, and distinct released/development views. Implementation detail in [site plan](public-documentation-plan.md) | O9a |
 | D10 — Qualification/release | Keep the four-client baseline. Preserve the current Linux build-only boundary until explicitly expanded. Select actual model/account/spend inputs for paid tests and public hosting/signing inputs before executing those campaigns | O11/O12 |
+| D11 — Anchoring, evidence and forks | Keep protocol 1's shape with a narrower chain. One administrator chain carries membership, goal-level role bindings, rule revisions and key epochs; every event names the chain position it was written against, and those values derive from that one reference. A scope needing a unique decision gets its own single-writer chain with the same succession and fork-halt rule. Everything else is grow-only evidence, evaluated as a function of the held set and counted once per principal. An author's log is usable up to its fork point; events past it count only when an administrator cutoff or a scoped decision pins their exact branch, and evidence resting on them returns to pending | O0 protocol contract |
+| D12 — Shared documents | A plan or summary revision is a contribution to a named document. An accepted revision exists only where the arrangement names a selection authority for that document, as Coordinator does; otherwise revisions coexist with provenance. Leave requests go to the administrator | O0 protocol contract |
+| D13 — Cutover (resolved) | Replace the engine in place on `main`. Commits inside the swap may fail workspace checks or leave harness scripts broken, and say so in their message. Each milestone is a clean point: all checks pass and nothing superseded remains. No parallel runtime, feature flag or scaffolding exists only to keep intermediate commits green | From O3 to M1, and any later swap |
+| D14 — Flow effects (accepted) | Flow is derived. Readiness, review requests and next-stage offers are views over held evidence. The daemon signs no event a participant did not request, so no effect keys or deduplication store exist. Participants create child tasks and handoff offers explicitly | Revisit only with evidence that derived flow is insufficient |
+
+The owner selected one membership/rule administrator per goal and optional
+scope-specific reservation/selection authorities. Unavailability blocks only
+the dependent decision. D4/D5 acceptance does not settle exact signed subjects,
+removal cutoffs, evidence retention, fork recovery, or irreversible finality.
+Those obligations and concrete scenarios are recorded in
+[semantics and removal inventory](organization-blueprints-semantics.md).
 
 D3 removes the former side-by-side and mixed-version options from scope. Version
 markers identify supported formats and permit clear rejection; they do not imply
 decoders, negotiation fallbacks or conversion for older formats. Current-model
 crash recovery, durable evidence, definition revisions and repeat installation
 remain required. Rejecting unsupported local state does not silently delete it.
+
+D3 governs the replacement of protocol 1 and all work before a public release.
+Under it, a later release that changes the contract refuses goals created by an
+earlier one. Decide the post-release continuity policy at O12 step 1; until
+then the manual must not promise that state survives a release.
 
 ## 4. Target contracts
 
@@ -145,6 +173,7 @@ Keep these separate:
 | Task instance | Creator, inputs/criteria, inherited or allowed specialized definition, binding context, dependencies, and completion rule |
 | Attempt | Independent participant effort; optional local execution-session association; requested/running/reported/abandoned/cancelled/uncertain facts without claiming remote process liveness |
 | Contribution | Immutable finding/artifact/output and provenance, optionally linked to task/attempt; no assignment required for the open case |
+| Shared document | A named plan or summary whose revisions are contributions; an accepted revision exists only under a configured selection authority (D12) |
 | Review/attestation | Exact subject hash, author/eligibility proof, rule context, verdict or check evidence; identity and assertion scope are explicit |
 | Completion evidence | Proof that the pinned task criterion is satisfied, potentially by more than one contribution; does not itself choose a unique code head |
 | Selection/closure | Optional explicit decision, selected exact outputs, authority/rule context, prior decision reference where uniqueness is required |
@@ -165,9 +194,8 @@ Canonicalization must define integer/enum semantics, object ordering, omitted
 defaults, strings, normalized selector forms, and precisely which fields affect
 identity. Reject unknown behavior-bearing fields/versions at publication, rather
 than silently discarding them. Preserve raw newer source as read-only if it
-cannot be interpreted. A YAML loader must reject executable/custom tags, duplicate
-keys, ambiguous scalar coercions, and unsupported aliases without inventing
-semantics. Do not promise comment-preserving formatting unless implemented.
+cannot be interpreted. The JSON loader rejects duplicate keys and numbers
+outside the typed range instead of choosing a reading.
 
 ### 4.2 Typed rule vocabulary
 
@@ -178,19 +206,22 @@ plan's illustrative descriptions.
 - Selectors: member, specific authenticated identity, bound role, task creator,
   contribution author, and explicit exclusion of that author.
 - Work policies: propose, start independent attempt, offer/assign, recipient
-  accept/decline, optional confirmed reservation, release, and handoff offer.
+  accept/decline, and handoff offer. Confirmed reservation and release arrive
+  with O13 if it is built.
 - Evidence predicates: an exact contribution exists; a permitted author reports
   completion; a check attestation matches its subject; distinct eligible reviews
   meet a specified threshold; named authority records a decision.
 - Composition: `all`, `any`, and explicit count thresholds over a defined set.
   Positive evidence should be monotonic within a pinned decision context.
-- Flow: explicitly named prerequisite evidence, work/review offer, and authorized
-  creation of a child task with mapped inputs. No automatic local process launch.
+- Flow: explicitly named prerequisite evidence makes work or review ready as a
+  derived view (D14); a participant may create a child task with mapped inputs.
+  No automatic local process launch and no daemon-authored events.
 - Outcomes: ongoing scope, criteria satisfied, optional selected outputs, and
   explicit closure/reopen. No inference that an empty locally seen board is done.
 
 Reject or mark unsupported negative/absence conditions, mutable-electorate
-majority selection, automatic lease expiry, and other constructs until their
+majority selection, automatic lease expiry, exclusive reservation before O13,
+and other constructs until their
 protocol semantics are defined. This is capability validation, not an arbitrary
 runtime cap. A validator should explain the unsupported guarantee and offer an
 expressible alternative.
@@ -204,6 +235,10 @@ Do not collapse these into one overloaded epoch:
 2. Organization/rule and role-binding revision: which actions and reviewers are
    authorized for this scope or round.
 3. Content-key epoch: which encrypted content the participant can decrypt.
+
+One reference to the administrator chain can supply all three at goal level
+(D11); they stay distinct values, and task-level bindings are pinned in the
+task's own creation event.
 
 Work events reference sufficient authenticated context to be validated without
 a new administrator signature per work event. Role strings are selectors, not
@@ -219,8 +254,8 @@ The first complete set of blueprints must express:
 | Arrangement | Completion behavior | Additional guarantee |
 | --- | --- | --- |
 | Open collaboration | Unattached findings need no task completion; optional tasks explicitly choose contributor declaration or another rule | No common accepted head required |
-| Coordinator | A scoped coordinator accepts an exact contribution | Named decision stream for selection, preserving current-style behavior |
-| Shared pool with peer review | One eligible non-author review satisfies each candidate's approval rule | Exclusive pickup only if the configured reservation service confirms it |
+| Coordinator | A scoped coordinator accepts an exact contribution | Named decision stream for selection, including accepted document revisions (D12), preserving current-style behavior |
+| Shared pool with peer review | One eligible non-author review satisfies each candidate's approval rule | Attempt starts are visible and concurrent attempts stay independent attempts; exclusive pickup is deferred (D5) |
 | Independent attempts | Keep all candidates; complete after authored positive evidence or a named choice | No inferred winner from earliest arrival, timestamps, or hash order |
 | Review panel | A specified threshold of distinct eligible identities approves an exact candidate | Multiple candidates may qualify; unique selection is separately configured |
 | Pipeline/handoff | Required input evidence makes the next work available; recipient accepts an offer | No promise of wake, automatic execution, or handoff before acknowledgment |
@@ -231,18 +266,13 @@ for open or non-exclusive approval. Evidence may be missing locally, so distingu
 pending verification from unsatisfied, invalid, or disputed.
 
 For unique decisions, use an explicit per-scope authority/serial decision stream
-under D4; this identity need not be the membership administrator. For reservations,
-separate distributed reservation generation from local execution-session fencing.
-Persist the reservation and retry receipt atomically before confirming ownership.
-Lost replies, release, cancellation, and replacement must not allow duplicate
-currently effective reservation generations; reject writes using a stale
-generation under the defined authority context. Disconnected peers may retain an
-old confirmation or keep executing, so this does not promise globally unique
-observed ownership or physical execution. A discovered authority fork halts the
-affected authority scope; it does not silently choose a winner. Do not claim
-Byzantine tolerance.
+under D4 and D11; this identity need not be the membership administrator. A
+discovered authority fork halts the affected authority scope; it does not
+silently choose a winner. Do not claim Byzantine tolerance. Reservation rules
+live with O13.
 
-O0 must settle which review/fork evidence a completion proof pins, when a round
+Starting from D11's recommendation, O0 must settle which review/fork evidence a
+completion proof pins, when a round
 closes relative to membership changes, and the treatment of superseded or disputed
 evidence. Approved output updates require a new contribution and review context.
 Where irrevocable finality has not been established, the API must say so. Do not
@@ -261,25 +291,27 @@ acceptance. Cycles in static readiness dependencies are rejected with a path;
 intentional iterative work creates explicit new attempts/tasks or authored
 feedback semantics rather than an implicit recursive scheduler.
 
-Reactive creation uses a logical effect key derived from rule version, trigger,
-scope, and intended effect. Signed event IDs remain author-specific. Define which
-identity may author a materialized effect and deduplicate it durably. Derived
-readiness itself does not need to mint events.
+Flow is derived (D14). Readiness, review requests and next-stage offers are views
+over held evidence, identical on every replica holding the same events, and
+they mint no events. Child tasks and handoff offers are events a participant
+authors on purpose.
 
 ## 5. Work packages and dependency order
 
-All packages are unstarted under this plan. Package IDs are planning identifiers,
-not claims that new CLI commands or modules already exist.
+O0 specification and an offline subset of O1/O7 are in progress. The first
+authoring slice supplies JSON types, validation/explanation, schema, presets and
+CLI operations. It neither replaces the signed runtime nor completes O0/O1/O7.
+Package IDs identify the full deliverables below.
 
 | Package | Deliverable | Depends on | Primary owner |
 | --- | --- | --- | --- |
-| O0 | Semantic decisions, golden scenarios, protocol/model obligations | Accepted direction | Protocol/integration |
+| O0 | Semantic decisions, golden scenarios, written protocol contract, model obligations, performance baseline | Accepted direction | Protocol/integration |
 | O1 | Definition types, canonicalization, schema, pure validator/explainer | O0 vocabulary; D1 | Contract/core |
 | O2 | Current storage schema, local draft/published catalog, obsolete-path removal | O1; resolved D3 | Storage/integration |
 | O3 | New governance references, admission, typed content and peer validation | O0/O1/O2 | Protocol/core/network |
 | O4 | Open contributions, tasks, independent attempts, local execution bindings | O3 | Core/clients |
-| O5 | Completion/reviews, selections, exclusive reservation | O0/O4; D4/D5 | Core/protocol |
-| O6 | Task variations, dependencies, handoff, deduplicated flow | O4/O5; D6/D7 | Core/integration |
+| O5 | Completion/reviews and scoped selections | O0/O4; D4 | Core/protocol |
+| O6 | Task variations, dependencies, handoff, derived flow | O4/O5; D6/D7/D14 | Core/integration |
 | O7 | Agent authoring and operating CLI/MCP/skill | O1/O2 early; O3–O6 integration | Agent experience |
 | O8 | Workspace, managed clients, installed packages, integration cleanup | O4–O7 | Runtime/release |
 | O9a | Documentation content/build/navigation infrastructure | O1 contracts; D9 | Site/docs |
@@ -287,6 +319,7 @@ not claims that new CLI commands or modules already exist.
 | O10 | Polaris native adapter and visual authoring/inspection | O1/O2/O7 stable API; runtime for live flows | Polaris/Merak |
 | O11 | Integrated deterministic, real-client, multi-machine qualification | O3–O10 incrementally | Integration/qualification |
 | O12 | Release readiness, public site and artifact verification | O8/O9b/O11; D10 | Release/site |
+| O13 | Exclusive reservations, only if selected at the M3 review | M3 evidence; D5 | Core/protocol |
 
 ```mermaid
 flowchart TD
@@ -294,7 +327,7 @@ flowchart TD
     O1 --> O2[O2 catalog and current storage]
     O2 --> O3[O3 protocol and governance]
     O3 --> O4[O4 open work and attempts]
-    O4 --> O5[O5 decisions and reservations]
+    O4 --> O5[O5 decisions]
     O5 --> O6[O6 composition and flow]
     O1 --> O7[O7 agent authoring]
     O2 --> O7
@@ -309,6 +342,7 @@ flowchart TD
     O10 --> O11
     O9b --> O12[O12 release and live verification]
     O11 --> O12
+    O8 -.-> O13[O13 reservations, if selected]
 ```
 
 The diagram shows integration gates, not a demand to finish all runtime work
@@ -316,26 +350,47 @@ before starting agent/UI/docs design. Prepare fixtures, schema consumers, docs
 navigation, and editor components in parallel against versioned contract fixtures.
 Avoid parallel edits to shared contract registries without an integration owner.
 
+Packages group capability; delivery is by vertical slice. A slice carries its
+events, fold, API operations, CLI/MCP surface, skill text and tests together,
+because `Body` and `Request` are consumed by all of them and a replaced contract
+cannot leave its callers behind. O7 and O8 therefore contribute to every
+milestone instead of starting after O6. The first slice brings up Open
+collaboration and Coordinator on the one evaluator (M1). Coordinator keeps the
+existing tests and qualification harness usable as a regression net once
+ported; Open proves the coordinator is no longer universal.
+
 ### O0 — Specify the semantics with executable examples
 
 1. Resolve the register entries needed for the first signed contract, particularly
-   D2 and D4–D6; D3 is resolved. Record the current protocol contract and mark old
-   contracts as historical evidence, with no obligation to keep their runtime.
+   the exact signed semantics under accepted D2/D4/D5 and the D6 revision rules;
+   D3 is resolved; D11 and D12 are recommendations to settle here. Write the
+   result as `docs/protocol-v2.md`, in the form of the
+   [version 1 contract](protocol-v1.md): event set, header and anchoring,
+   genesis, the authority rule per event, the fork rule, evidence and proof
+   identity, and the golden vectors O3 must produce. Mark old contracts as
+   historical evidence, with no obligation to keep their runtime.
 2. Write plaintext stories and fixture transcripts for every arrangement in
    section 4.4, plus one goal mixing open research, reviewed coding, and competing
    benchmarks. Include a no-task contribution and a human/external contribution.
-3. Define authority, fork/evidence selection, closure, removal, and unknown-rule
-   outcomes before implementing their event shapes. Document availability/trust
-   assumptions for the optional reservation and decision authorities.
+3. Define authority, fork/evidence selection, closure, removal, shared-document
+   acceptance, and unknown-rule outcomes before implementing their event shapes.
+   Document availability/trust assumptions for the scoped decision authorities.
 4. Extend the existing TLA+ work with models for governance/work separation,
-   completion evidence, and reservation/session interaction. Replace superseded
+   completion evidence, and scoped selection streams. Replace superseded
    executable models and fixtures; retain useful findings as labeled historical
    evidence with source commits. Identify bounds, omissions and source mappings.
 5. Inventory code, APIs, CLI flags, schemas, fixtures and dependencies made obsolete
    by the new contract, assign each removal to its replacing package, and define
    fresh-state setup plus clear unsupported-format refusal. No conversion path.
+6. Record a performance baseline before the protocol-1 engine is removed:
+   replaying a stored goal and ingesting a synchronized batch at a few history
+   sizes, including one forked member log. A small repeatable measurement in
+   `locust-core` is enough; add no dependency for it. Keep the numbers and
+   their source commit in tracked research, because the code they measure will
+   be deleted.
 
-**Exit:** reviewed state-transition tables and scenario expectations; every
+**Exit:** the protocol contract is written and reviewed, and the baseline is
+recorded; reviewed state-transition tables and scenario expectations; every
 exclusive/finalizing operation names its conflict rule; finite models cover the
 principal race cases. Resolve safety counterexamples or explicitly withhold the
 affected capability before dependent implementation/release; retain them as
@@ -362,11 +417,11 @@ exist yet. Keep semantics outside the CLI and UI.
 5. Add fixture definitions for all presets and compositions, malformed documents,
    forbidden privilege widening, missing identities, newer/unknown versions,
    contradictory completion conditions, and unsatisfiable reviewer bindings.
-6. Prototype JSON/YAML ingestion under D1 and preserve exact source separately
+6. Implement JSON ingestion under D1 and preserve exact source separately
    where needed. Demonstrate semantic round trips and useful error locations.
 
-**Exit:** all examples pass the Rust validator; equivalent authoring representations
-produce identical semantic hashes; layout changes preserve those hashes; generated
+**Exit:** all examples pass the Rust validator; formatting and key-order changes
+to a source keep its semantic hash; layout changes preserve those hashes; generated
 contract drift fails CI; completion explanations identify which facts would satisfy a task.
 Offline validation needs no daemon, model account, or network.
 
@@ -410,8 +465,9 @@ Source owners: [event contract](../crates/locust-proto/src/event.rs),
 [sync](../crates/locust-core/src/sync/mod.rs),
 [content graph](../crates/locust-core/src/node/content_graph.rs).
 
-1. Introduce the new genesis/control references, definition hash, explicit
-   administration, and independent rule/binding/content-key revisions.
+1. Implement the O0 protocol contract and replace its golden vectors: the new
+   genesis/control references, definition hash, explicit administration, and
+   independent rule/binding/content-key revisions.
 2. Build governance validation for invitations, admission/removal, role grants,
    future-rule revisions, and authority delegation. Separate these from task actions.
 3. Replace the global coordinator check/classification with typed scoped
@@ -430,7 +486,8 @@ Source owners: [event contract](../crates/locust-proto/src/event.rs),
 offline; equal held evidence produces equal state regardless of arrival order;
 role spoofing, cross-goal references, revoked/forked authorities, and missing
 proofs cannot become authorized work. Existing crypto and transport tests remain
-passing; new behavior has source-specific conformance tests.
+passing; new behavior has source-specific conformance tests. Replay and batch
+ingestion are measured against the O0 baseline (V22).
 
 ### O4 — Implement open work, attempts, and contributions
 
@@ -457,7 +514,7 @@ Source owners: [task state](../crates/locust-core/src/goal/state.rs),
 peers retain all permitted candidates; stale sessions cannot submit for a replaced
 local attempt; local owner authorization remains separate from goal membership.
 
-### O5 — Implement completion, reviews, selection, and reservations
+### O5 — Implement completion, reviews, and selection
 
 1. Add immutable subject-bound reviews/check attestations and positive-evidence
    evaluation. Distinguish a worker's reported test result from an independently
@@ -470,17 +527,16 @@ local attempt; local owner authorization remains separate from goal membership.
 4. Implement D4's optional scoped selection/closure stream and conflict handling.
    Two approved alternatives may coexist; only an explicit valid selection chooses
    a common output. A threshold alone is not a unique decision protocol.
-5. Implement D5's optional reservation authority: atomic acquisition/receipt,
-   ownership generation, release, cancellation, restart recovery, replacement,
-   and unavailable status. Do not retry an uncertain acquisition as a fresh request.
-6. Preserve exact evidence selected by valid decisions across missing content and
+   Coordinator needs this stream, so it lands with the first slice (M1).
+5. Preserve exact evidence selected by valid decisions across missing content and
    member forks according to O0, rather than using arrival order. Add explicit
    disputed/halted states for authority equivocation.
 
 **Exit:** thresholds cannot count the same principal twice, the wrong revision,
-the author when excluded, or an ineligible binding. Races between reviews/removal,
-selection/cancellation, and competing acquisitions match the specified outcomes.
+the author when excluded, or an ineligible binding. Races between reviews/removal
+and selection/cancellation match the specified outcomes.
 Proof-based non-exclusive completion works without a hidden central finalizer.
+Replay cost is measured again against the O0 baseline (V22).
 
 ### O6 — Add scoped composition and optional flow
 
@@ -491,16 +547,17 @@ Proof-based non-exclusive completion works without a hidden central finalizer.
    dependency metadata alone does not establish execution order.
 3. Add handoff offers with recipient acknowledgment, stage-specific criteria,
    parallel work and collection, and explicit mapping into child task definitions.
-4. Add durable logical-effect deduplication and retry/authority rules for
-   materialized work/review requests. Avoid generating work repeatedly on replay.
+4. Derive work and review requests from held evidence under D14. The same
+   events give the same requests on every replica; replay and reconnect mint
+   nothing.
 5. Implement explicit future-default amendment and active-work revision/reopen
    paths where supported. Preserve historical rule identity and finalized records.
 6. Keep different-member subgoals separate, with deliberate exported inputs and
    returned outputs. Do not leak all parent context through nesting.
 
 **Exit:** mixed-mode goal scenario passes; child approvals cannot bypass parent
-selection; static dependency cycles give useful errors; reconnect/replay creates
-no duplicate child work; an offline or unwilling recipient leaves an honest
+selection; static dependency cycles give useful errors; reconnect/replay mints
+no flow events and shows each derived request once; an offline or unwilling recipient leaves an honest
 pending handoff rather than a falsely running task.
 
 ### O7 — Make authoring and operation easy for agents
@@ -531,7 +588,8 @@ Source owners: [API/operation registry](../crates/locust-proto/src/api.rs),
    related paths, and correction guidance. Preserve these fields in MCP errors.
 5. Make installed contract/schema/examples discoverable from the binary and API;
    do not depend on a sibling source checkout. Return full retrievable source and
-   provenance. Add capability/version negotiation and actionable mismatches.
+   provenance. Report the contract version and refuse a mismatch with an
+   actionable message; one contract needs no negotiation.
 6. Replace the skill's universal assignment/coordinator assumptions with a short
    loop: inspect effective rules and allowed actions; obtain separate local
    execution authorization if needed; contribute; inspect evidence and next
@@ -577,11 +635,10 @@ Source owners: [workspace CLI](../crates/locust/src/cli/workspace.rs),
    files to the current strict package format, update builder, manifest/signature,
    verifier, activation, repeat installation and removal together. Prove discovery after
    installation without a checkout or development environment.
-7. Reconcile the organization-sensitive W4–W9 items in the
-   [last-mile plan](last-mile-implementation-plan.md) with this model. Preserve its
-   reliable context, consent, naming and explicit application requirements; use
-   its selected delivery work without reinstating a mandatory coordinator. W9's
-   deferred extensions remain deferred unless separately selected.
+7. Revisit the superseded [last-mile plan](last-mile-implementation-plan.md)
+   against this model. Carry over the requirements that still apply (reliable
+   context, consent, naming, explicit application) without reinstating a
+   mandatory coordinator; drop the rest.
 
 **Exit:** an installed candidate completes a reviewed coding task through actual
 CLI/MCP/native-client boundaries; an open artifact can be shared with no task;
@@ -625,8 +682,8 @@ and standalone lifecycle gates. The concrete starting seams are listed in sectio
 1. Choose a supported versioned distribution path for the Rust client/types and
    generated TypeScript contract. Pin an immutable package/source revision. A
    sibling-checkout path dependency or copied protocol is not the release strategy.
-2. Implement the typed native Locust adapter, daemon discovery, protocol/capability
-   negotiation, reconnect and errors. Store a separately issued authoring credential
+2. Implement the typed native Locust adapter, daemon discovery, a
+   contract-version check, reconnect and errors. Store a separately issued authoring credential
    in native Rust. Authorize catalog/draft edit and publish independently of goal
    creation, administration, execution and sharing; read-only viewers stay read-only.
 3. Build a dedicated organization library/editor with source, visual, effective
@@ -688,7 +745,8 @@ machine and public-download results remain separately identified.
 
 ### O12 — Publish a coherent release and verify it live
 
-1. Review remaining D10 choices, supported capabilities, evidence ledger, known
+1. Review remaining D10 choices, the post-release continuity policy D3 leaves
+   open, supported capabilities, evidence ledger, known
    limitations, obsolete-code removal, artifact origin/signing and hosting. A
    proposed plan is not authorization to publish software or modify a public site.
 2. Build software, operating skill, schemas/examples, references and immutable
@@ -710,6 +768,27 @@ through a successful collaborative task; the deployed manual and advertised
 qualification match the downloadable artifact. A successful build or HTTP accept
 response alone does not complete this package.
 
+### O13 — Exclusive reservations (deferred, decided at M3)
+
+Not part of M1–M3. At the M3 review, decide from observed pooled work whether
+duplicate attempts cost enough to justify this package. If not, nothing is built
+for it and it stays out of the definition of done.
+
+If selected, implement D5: a named task-scoped reservation authority with atomic
+acquisition/receipt, ownership generation, release, cancellation, restart
+recovery, replacement and unavailable status. Separate the distributed
+reservation generation from local execution-session fencing. Persist the
+reservation and retry receipt atomically before confirming ownership; do not
+retry an uncertain acquisition as a fresh request. Lost replies, release,
+cancellation and replacement must not allow two currently effective
+generations; reject writes using a stale generation. Disconnected peers may
+retain an old confirmation or keep executing, so this promises neither globally
+unique observed ownership nor physical execution. The authority's daemon answers
+requests on its own, which D14 otherwise excludes: state that dependency and its
+availability cost in the contract and the manual.
+
+**Exit:** V04 passes; unavailable and forked-authority states are explicit.
+
 ## 6. Delivery slices and ownership
 
 Assign one integration owner for protocol/API changes and release state. Use the
@@ -724,12 +803,18 @@ misleading active docs are deleted. The Coordinator preset uses the same new
 evaluator as other arrangements. Do not preserve a second engine behind it or
 keep dead enum positions just to preserve old serialization.
 
+Cutover follows D13. The engine swap happens in place on `main`; commits inside
+it may fail checks or break harness scripts, and say so. What counts is the
+state at each milestone: full checks pass, ported harnesses run, and that
+slice's removal-inventory entries are gone. Do not build scaffolding whose only
+purpose is to keep intermediate commits green.
+
 | Milestone | Reviewable delivery | Gate |
 | --- | --- | --- |
-| M0 — Contract ready | State tables, greenfield removal inventory, JSON/YAML decision, fixtures, typed schema and validator | O0/O1; implementation blockers resolved for the first slice |
-| M1 — Open collaboration | New-version admission/content/proofs, no-task findings, independent attempts, first installed agent flow | O2–O4 plus minimal O7/O8; administrator-offline scenario |
-| M2 — Selectable organization | All arrangements, explicit completion, reservations/selection where configured, composition and contextual actions | O5–O7 and mixed-goal tests |
-| M3 — Standalone candidate | Full workspace/fresh-install/recovery flow, four-client qualification, full standalone public manual in preview | O8, standalone pages of O9b, standalone portion of O11 |
+| M0 — Contract ready | Protocol contract, state tables, greenfield removal inventory, performance baseline, fixtures, typed schema and validator | O0/O1; implementation blockers resolved for the first slice |
+| M1 — Open collaboration and Coordinator | Both arrangements from the same primitives on the new contract: admission/content/proofs, no-task findings, independent attempts, coordinator assignment and selection, with their CLI/MCP/skill surface and ported harness | O2–O4, the selection stream of O5 and the O7/O8 surface for these two; administrator-offline scenario; first clean point after the engine swap |
+| M2 — Selectable organization | Remaining arrangements, reviews and thresholds, explicit completion, composition and contextual actions | O5–O7 and mixed-goal tests |
+| M3 — Standalone candidate | Full workspace/fresh-install/recovery flow, four-client qualification, full standalone public manual in preview, decision on O13 | O8, standalone pages of O9b, standalone portion of O11 |
 | M4 — Polaris candidate | Native adapter and complete visual/agent round trip, matching editor manual | O10 and remaining O11 |
 | M5 — Complete release | Matching public artifacts, full manual, supported-platform evidence and verified live journey | O12; all definition-of-done items |
 
@@ -741,8 +826,9 @@ environment; this plan does not invent a calendar estimate.
 
 Parallel lanes after O0/O1: core/protocol (O2–O6), agent/workspace (O7/O8), site/docs
 (O9), and Polaris (O10 once its stable interface is available). Keep fixture/schema
-generation under one owner. Each feature commit updates its contract, examples,
-reference and public page; website launch cannot repair a stale runtime contract.
+generation under one owner. Each slice updates its contract, examples and
+reference by its clean point; public prose follows once that slice's contract is
+stable. A website launch cannot repair a stale runtime contract.
 
 ## 7. Verification matrix
 
@@ -751,14 +837,14 @@ These are tests to implement/run, not results already established by this plan.
 | ID | Scenario and required assertion | Primary package |
 | --- | --- | --- |
 | V01 | Minimal open template publishes with unbound declared slots; valid bindings instantiate it; findings need no task, assignment or review | O1/O4/O7 |
-| V02 | Coordinator template reproduces assignment/acceptance semantics without making coordinator checks universal | O3/O5 |
+| V02 | Coordinator template reproduces assignment/acceptance semantics, including accepted document revisions, without making coordinator checks universal | O3/O5 |
 | V03 | Two peers start independently while disconnected; reconnect preserves both contributions and equal evidence gives equal projection | O4/O11 |
-| V04 | Two exclusive acquisition requests, uncertain reply, restart and retry yield one confirmed reservation generation; unavailable authority is explicit | O5 |
+| V04 | Only if O13 is selected: two exclusive acquisition requests, uncertain reply, restart and retry yield one confirmed reservation generation; unavailable authority is explicit | O13 |
 | V05 | Peer/threshold review counts distinct eligible identities for the exact subject and rule; forged, self-excluded and stale-context reviews fail | O5 |
 | V06 | Two approved alternatives coexist; configured unique selection follows its authority stream; equivocation halts only the affected scope | O5 |
 | V07 | Administrator offline does not block authorized open work or non-exclusive completion with already available proofs | O3/O5 |
 | V08 | Removal/re-admission, binding changes, forks and missing proof closure obey specified cutoffs; local missing evidence is not invented permission | O3/O5 |
-| V09 | Child task variation cannot widen parent delegation; dependencies name exact evidence; replay creates no duplicate handoff/child effect | O6 |
+| V09 | Child task variation cannot widen parent delegation; dependencies name exact evidence; replay and reconnect mint no flow events and each derived request appears once | O6 |
 | V10 | Different-member subgroup receives only explicitly exported inputs; topic names do not imply read isolation | O3/O6 |
 | V11 | Replicated authority/effect rules agree through authoring, ingestion and replay; local consent/session guards remain local; crash/retry preserves event, receipt, feed and claim atomicity | O2–O8 |
 | V12 | Replaced local session cannot submit on its old generation; distributed reservation does not assert the old process physically stopped | O4/O8 |
@@ -771,6 +857,7 @@ These are tests to implement/run, not results already established by this plan.
 | V19 | Every documentation example validates; required routes/anchors/raw assets work; version support claims match release evidence; tutorials actually execute | O9/O11 |
 | V20 | Independent public download and deployed manual match recorded hashes/versions; fresh setup and website rollback match shipped behavior without an old-runtime support promise | O12 |
 | V21 | Removal inventory is empty: no superseded code/API/CLI/MCP path, compatibility flag/alias, unused dependency, old-format executable fixture, or stale active documentation remains | Every replacement; O11/O12 |
+| V22 | Replay and batch-ingest cost on the new engine is measured against the protocol-1 baseline at M1 and M2; a regression is explained or fixed. No numeric budget is invented | O0/O3/O5 |
 
 Use the pinned Rust toolchain and run `cargo fmt --all --check`,
 `cargo clippy --locked --workspace --all-targets -- -D warnings`, and
@@ -814,7 +901,10 @@ buttons. Source/visual parity does not require shipping every Merak graph featur
 | Completion accidentally becomes universal coordinator acceptance | Require V01/V03/V07 early; separate candidate approval, scoped selection and local application |
 | New fold loses current fork-proof guarantees | Specify evidence/authority rules in O0; extend typed proof retention and adversarial replay tests before O5 |
 | Obsolete implementation survives behind the new design | Enforce resolved D3 and V21; remove old paths with replacements; use fresh state and explicit unsupported-format refusal |
-| Single-writer reservation mistaken for distributed consensus | Expose named dependency and unavailable/fork states; make independent attempts explicit |
+| A scoped decision stream, or a later reservation authority, mistaken for distributed consensus | Expose named dependency and unavailable/fork states; make independent attempts explicit |
+| Wire contract designed piecemeal during O3 | O0 ends in the written protocol contract; O3 implements it |
+| Rule evaluation slows replay and ingestion | Resolve each arrangement once when pinned; measure against the O0 baseline (V22) |
+| Engine swap leaves `main` half-replaced | D13: breakage inside the swap is fine; each milestone is a clean point with nothing superseded left |
 | Rules appear to grant execution or confidential topic access | Enforce local grants separately and document goal membership as read boundary |
 | Agent, UI and website diverge | One types/validator/export pipeline and checked fixtures; fail drift checks |
 | Source or visual edits destroy newer definitions | Preserve unsupported source read-only and protect updates with revisions |
@@ -823,9 +913,12 @@ buttons. Source/visual parity does not require shipping every Merak graph featur
 
 The accepted product model is sufficient to begin O0 and prototype O1/O9a.
 It is not sufficient to freeze the signed protocol or promise a release date.
-The blocking design decisions are D2 and D4–D6's exact authority, evidence and revision
-rules. D3 is settled: greenfield, no migrations/backward compatibility/dead code.
-Language/representation, editor credentials, public build and
+The remaining protocol gates are D4–D6's exact authority, evidence and revision
+rules under the accepted D2 governance model. D3 is settled: greenfield,
+no migrations/backward compatibility/dead code.
+D11 and D12 join those gates as recommendations to settle in O0. D1, D13 and
+D14 are settled; D5's build is deferred to the M3 review.
+Editor credentials, public build and
 qualification inputs have their own later gates. Prototype reversible work while
 those decisions are made; do not declare a placeholder implementation complete.
 
@@ -845,8 +938,13 @@ and qualification boundary. A merged implementation and a passed release gate
 are different facts. Store useful findings in tracked `research/` with its index;
 accepted behavior and enforcing code/test links belong in `docs/`.
 
-**Current status:** O0–O12 and V01–V21 are planned; D3 is resolved by the owner.
-This document records a code-backed implementation sequence and future
-verification obligations only.
-No organization-blueprint runtime, Polaris connector, site manual or public
-release is implemented or qualified by the documentation change itself.
+**Current status:** O0 and the offline subset of O1/O7 are in progress; the
+remaining packages and V01–V22 qualification scenarios are planned; O13 waits
+for the M3 decision. D2/D3 are resolved, the D4/D5 authority approach is
+accepted by the owner, and the 2026-10-04 review settled D1, D13 and D14. The
+[semantics document](organization-blueprints-semantics.md) provides scenario
+expectations and the source-based removal inventory, with remaining proofs
+explicitly open. An offline authoring success is not a published goal, signed
+runtime implementation, completed O0/O1, or evidence of distributed safety.
+No Polaris connector, complete site manual or public release is qualified by
+this first slice.
