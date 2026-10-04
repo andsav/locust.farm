@@ -733,7 +733,7 @@ Local sources, read 2026-10-04:
   [formation implementation plan](../docs/formations-implementation-plan.md),
   [public documentation plan](../docs/public-documentation-plan.md),
   [first contact](../docs/first-contact.md), [workstreams](../docs/workstreams.md),
-  the [lane C log](../docs/lane-c-log.md), the site under
+  the [lane C log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-c-log.md), the site under
   [sites/locust.farm](../sites/locust.farm/README.md) including its
   [fonts](../sites/locust.farm/src/lib/styles/fonts.css) and
   [tokens](../sites/locust.farm/src/lib/styles/tokens.css), the

@@ -21,29 +21,16 @@ the repository root to check coverage and local link paths.
 - [Formation editor on locust.farm plan](formation-authoring-plan.md): the `/formations` editor that opens with six ways of working, shows a compact four-column rules matrix with steps as rows under it, checks formations in TypeScript against Locust-generated test cases, and copies a prompt that has the agent check, draft and publish with Locust; implemented, not yet tried with real first-time users.
 - [Formation prompt contract](formation-prompt.md): the exact fixed text of the prompt the formation editor copies, its data blocks and integrity values, its limits, and why it does not start a goal.
 
-- [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
-- [Last-mile implementation plan](last-mile-implementation-plan.md): proposed work packages for distribution, recoverable setup, reliable task context, human permissions, a reviewed and applied change, two-person qualification and consented visualization; dependencies, decisions, tests and complete research coverage.
 - [Live farm pages and the farms gallery](swarm-visualization-plan.md): revised proposal for consented live publishing, precise work-state projection and recovery, plus a real multi-harness demo across two owner-controlled machines building a small chat app; farm publishing is not implemented.
-- [Archived protocol contract, version 1](protocol-v1.md): historical authority, encoding and local API rules; superseded by the current protocol without an old reader.
-- [Archived protocol contract, version 0](protocol-v0.md): historical encoding, event, invitation, synchronization and local API rules for interpreting version-0 artifacts.
 - [TLA+ formal verification implementation plan](tla-verification-plan.md): current organization, attempt/session and durable-effect models; bounded checks, witnesses, mutation evidence and explicit proof limits.
 - [Crates and workstreams](workstreams.md): accepted crate split, lane responsibilities and current shared A/B ownership, cross-review, and the rules for sharing one checkout.
-- [Lane A log](lane-a-log.md): contract notices, answers to lane B and reviews of lane B's commits.
-- [Lane B log](lane-b-log.md): requests to lane A, reviews of lane A's commits and replies.
-- [Lane B implementation log](lane-b-implementation-log.md): product objective, implemented slices, verification boundaries and useful client/transport observations.
-- [T1 CLI run](t1-run.md): two-Mac command sequence, optional third-peer extension, network operators, restart/sleep evidence and the local three-process harness.
-- [T1 build](t1-build.md): identified Apple Silicon artifact for local transfer to the two Macs; publication and public-download qualification are deferred.
 - [Native release candidate packaging](packaging.md): unsigned macOS arm64 and Linux x86_64 candidate format, source identity, signature boundary and manual CI declarations.
 - [Client qualification harness](client-qualification.md): isolated four-client scripted-provider checks, policy distinctions and recovery evidence boundaries.
 - [Explicit managed client sessions](managed-clients.md): local launch, readiness, exact binding, native resume, pending work and conservative crash recovery.
 - [Transport probe](transport-probe.md): runnable direct, relay-only and automatic transport qualification, local process checks and two-machine instructions.
-- [Implementation plan review](implementation-plan-review.md): adversarial review of the proposed plan with prioritized objections, strengths and pre-implementation gates.
-- [Second review response](implementation-plan-review-response.md): adopted plan refinements, qualified simplifications and claims not adopted.
 - [Release evidence ledger](release-evidence.md): October 4 gate status and partial component evidence; complete release gates remain open.
 - [First contact](first-contact.md): proposed first-session journey from one pasted prompt, harness routing, readiness and approval states, and the Polaris handoff; lists current status.
-- [Lane C log](lane-c-log.md): lane C's requests to lanes A and B and the Polaris work, and its source reviews.
 - [ecdsa.fail swarm demonstration proposal](ecdsa-fail-swarm-proposal.md): proposed roles, records, measurement stages and lanes for agents working the ecdsa.fail circuit benchmark as one goal; success levels, mapping to the current Locust commands, time-boxed run plan and owner decisions. Nothing built or run.
-- [T2 coding-agent workflow](t2-workflow.md): MCP, operating skill, snapshots and contribution review/application.
 
 - [Local verified installation](installation.md): explicit trust, withdrawal registry, reviewed activation and conservative software removal.
 - [Resumable client onboarding](onboarding.md): implemented owner-driven `up` and `agent add`, explicit profile selection, protected identity recovery and separate readiness/permission boundaries.

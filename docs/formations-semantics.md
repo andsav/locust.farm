@@ -493,7 +493,7 @@ from successful decoding of old state, which is not supported.
 The audit checked current source names and callers, Rust module declarations,
 CLI/MCP/generated schemas, dependency manifests and active guide claims.
 Refusal tests deliberately contain unsupported markers; historical research and
-[protocol-1 documentation](protocol-v1.md) retain their historical names. Neither
+[protocol-1 documentation](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v1.md) retain their historical names. Neither
 is an executable compatibility path. The final combined cleanup checks passed
 formatting, strict workspace Clippy, 624 Rust tests (12 explicit ignores), 195
 Python tests and documentation checks. Native campaigns exposed and removed two

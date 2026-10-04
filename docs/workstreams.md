@@ -14,16 +14,16 @@ superseded implementations, APIs, fixtures and dependencies. Earlier contract
 stability/reuse guidance below describes the prior implementation and must not
 force legacy readers, enum tombstones, fallback modes or a second runtime.
 
-Date: 2026-10-03. **Current execution: T2 production-client campaigns and managed launch, recovery, ordinary-tool delivery and cancellation are implemented and locally exercised. The retained [production findings](../research/t2-production-qualification.md) distinguish passing paths from Droid failures and unrun account/approval/install gates. Operational workflows and packaging are next; owner-operated physical-machine and independent-account testing are deferred to final acceptance. See [managed sessions](managed-clients.md) and section 10 of the [implementation plan](implementation-plan.md).**
+Date: 2026-10-03. **Current execution: T2 production-client campaigns and managed launch, recovery, ordinary-tool delivery and cancellation are implemented and locally exercised. The retained [production findings](../research/t2-production-qualification.md) distinguish passing paths from Droid failures and unrun account/approval/install gates. Operational workflows and packaging are next; owner-operated physical-machine and independent-account testing are deferred to final acceptance. See [managed sessions](managed-clients.md) and section 10 of the [implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md).**
 
 **T1 baseline:** runtime remediation is implemented in `d253a07`; its identified
 protocol-1 artifact passes all 21 local three-process checks. The owner handles
 further physical-machine testing separately; publication remains deferred. See
-[the candidate record](t1-build.md) for exact identity and qualified boundaries.
+[the candidate record](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t1-build.md) for exact identity and qualified boundaries.
 The repository owner approved the crate split and shared checkout without
 worktrees. One orchestrator owns lanes A and B; lane C remains independent.
 This supersedes the earlier guidance in the
-[implementation plan](implementation-plan.md) to keep every module inside one crate.
+[implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) to keep every module inside one crate.
 
 **Ownership update, October 3:** the owner has now assigned Lane A to Lane B's
 orchestrating session, including responsibility for completing and integrating
@@ -76,15 +76,15 @@ The lane labels retain functional ownership under the current shared orchestrato
 | `.github/`, release manifest and signing | B | macOS and Linux CI, release-build smoke test on a fresh database, artifacts | — |
 | [`release-evidence.md`](release-evidence.md) | B | Keeps the gate ledger; lane A supplies records for its own gates | — |
 | [`sites/locust.farm/`](../sites/locust.farm/README.md) | C | The website and its short `/start` guide with the entry prompt | The site's `npm` lint, check, test and build |
-| [`first-contact.md`](first-contact.md), [`lane-c-log.md`](lane-c-log.md), [first-contact research](../research/first-contact-integrations.md) | C | First-contact experience contract, harness routing, Polaris handoff and requests to other owners | `python3 scripts/check_docs.py` |
+| [`first-contact.md`](first-contact.md), [`lane-c-log.md`](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-c-log.md), [first-contact research](../research/first-contact-integrations.md) | C | First-contact experience contract, harness routing, Polaris handoff and requests to other owners | `python3 scripts/check_docs.py` |
 
 Lane A makes each integration commit that wires crates together, including the one that connects `locust-net` to the daemon.
 
-**Lane C** owns the first-contact experience: the website and the documents above. It implements no runtime, setup or client integration. It asks lanes A and B, and the separate Polaris work, for what it needs in its own [log](lane-c-log.md), and updates its copy when their records show new behavior.
+**Lane C** owns the first-contact experience: the website and the documents above. It implements no runtime, setup or client integration. It asks lanes A and B, and the separate Polaris work, for what it needs in its own [log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-c-log.md), and updates its copy when their records show new behavior.
 
 ### Continuing lane B
 
-Read the [formation direction](formations.md) and its [implementation plan](formations-implementation-plan.md) first. Use the [version 1 contract](protocol-v1.md), [T2 implementation record](t2-workflow.md), [hcom assessment](../research/hcom-dissection.md) and client findings in the [independent review](../research/implementation-plan-independent-review.md) as source evidence. Reuse transport, configuration, harness and skill components only where they remain useful under the new model; remove superseded pieces. The formation plan supplies the execution sequence.
+Read the [formation direction](formations.md) and its [implementation plan](formations-implementation-plan.md) first. Use the [version 1 contract](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v1.md), [T2 implementation record](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t2-workflow.md), [hcom assessment](../research/hcom-dissection.md) and client findings in the [independent review](../research/implementation-plan-independent-review.md) as source evidence. Reuse transport, configuration, harness and skill components only where they remain useful under the new model; remove superseded pieces. The formation plan supplies the execution sequence.
 
 1. **Transport probe.** Two machines on separate networks connect with Iroh 1.3 at the pinned version; the direct and the forced-relay path are both observed; an alternate relay works; the default relay and address-lookup operator and what each observes are written down. Deliver in `locust-net` a framed link that carries `locust_proto::sync::SyncMessage` frames using `locust_proto::codec`, exposes the authenticated remote `EndpointId` of each link, and has an in-memory twin for tests. Evaluate the blob layer separately at pinned versions, including unauthorized fetch and push and crash durability. The transport decides nothing about membership: the daemon feeds received frames to the state machine and writes back what it returns.
 2. **Default-profile client qualification.** In isolated, default-configured profiles (never the owner's own, which are permissive), establish for Codex, Claude Code, Factory Droid and Pi: whether a registered stdio MCP server reaches a Unix socket under `$LOCUST_HOME`, which tool calls prompt, how a blocking wait behaves at each client's limits, what interruption and explicit resume look like, and which hooks deliver between tool calls. Run scripted-provider checks without real credentials where the selected client supports that path; real-account checks need the owner to sign in to those isolated profiles. Record client/version, effective permissions, provider/authentication mode and any missing capability separately in the [client matrix](release-evidence.md).
@@ -92,7 +92,7 @@ Read the [formation direction](formations.md) and its [implementation plan](form
 4. **Installer, skill installation and client configuration**, using the implemented operating skill and current operation names. The skill source, configuration generation, reviewed persistent setup and conservative removal are implemented; actual installed-client qualification is recorded separately.
 5. **CI and release packaging.**
 
-Subagents keep explicit path ownership. The shared A/B orchestrator handles contract and dependency changes and records them in the [lane A log](lane-a-log.md); the [lane B log](lane-b-log.md) retains network, client and release findings.
+Subagents keep explicit path ownership. The shared A/B orchestrator handles contract and dependency changes and records them in the [lane A log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-a-log.md); the [lane B log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-b-log.md) retains network, client and release findings.
 
 ## Cross-review
 
@@ -114,9 +114,9 @@ These are conventions; nothing enforces them except the checks named below.
 
 ## Integration order
 
-**T2, managed sessions and operational workflows have retained local campaign results.** Packaging, user services and persistent client setup are implemented; the current identified macOS artifact passed installation, operations and the prioritized installed-client campaigns. Linux cross-compilation passed; runtime testing is outside the owner's current build-only scope. Owner-operated physical testing and independent-account acceptance are deferred until the end, when the owner is available. Droid follow-up is lower priority. The T1 physical-run instructions remain: test an identified integrated binary on the **two Macs currently available**, rather than wait for a third. Use the [two-Mac run guide](t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
+**T2, managed sessions and operational workflows have retained local campaign results.** Packaging, user services and persistent client setup are implemented; the current identified macOS artifact passed installation, operations and the prioritized installed-client campaigns. Linux cross-compilation passed; runtime testing is outside the owner's current build-only scope. Owner-operated physical testing and independent-account acceptance are deferred until the end, when the owner is available. Droid follow-up is lower priority. The T1 physical-run instructions remain: test an identified integrated binary on the **two Macs currently available**, rather than wait for a third. Use the [two-Mac run guide](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
 
-**Scaffolding** is done when these exist together: contract revision 2 complete (lane A); the core state machine and the SQLite store (lane A); the daemon shell with its socket and a CLI for the operations below (lane A); a transport that the daemon can bind and dial with contract types, with the hello-then-peer frame limit and delivery of a final frame (lane B; findings A-R1, A-R2 and A-R4 in the [lane A log](lane-a-log.md)).
+**Scaffolding** is done when these exist together: contract revision 2 complete (lane A); the core state machine and the SQLite store (lane A); the daemon shell with its socket and a CLI for the operations below (lane A); a transport that the daemon can bind and dial with contract types, with the hello-then-peer frame limit and delivery of a final frame (lane B; findings A-R1, A-R2 and A-R4 in the [lane A log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-a-log.md)).
 
 ### T1: the first binary on two Macs, then a third-peer extension
 
@@ -134,7 +134,7 @@ These are conventions; nothing enforces them except the checks named below.
 
 ### T2: coding agents on the same machines
 
-[The T2 MCP and workspace flow](t2-workflow.md) is implemented and locally verified at `8a7d170` (A-C5/B-C9). Subsequent production campaigns cover all four clients in both real-model roles, plus scripted managed lifecycle and crash recovery (A-C6/B-C10 and A-C7/B-C11). Exact artifacts, permission modes, explicit skill reads, failed Droid paths and unrun cases are retained in the [production findings](../research/t2-production-qualification.md). Automatic metadata discovery and installed behavior now have separate Codex/Claude/Pi evidence in the [installed-client campaign](../research/installed-client-qualification.md). Continue with independent accounts, default interactive approval, Droid follow-up and the two available Macs. Pin source and artifact identity for each run; the earlier identified T1 artifact does not contain T2.
+[The T2 MCP and workspace flow](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t2-workflow.md) is implemented and locally verified at `8a7d170` (A-C5/B-C9). Subsequent production campaigns cover all four clients in both real-model roles, plus scripted managed lifecycle and crash recovery (A-C6/B-C10 and A-C7/B-C11). Exact artifacts, permission modes, explicit skill reads, failed Droid paths and unrun cases are retained in the [production findings](../research/t2-production-qualification.md). Automatic metadata discovery and installed behavior now have separate Codex/Claude/Pi evidence in the [installed-client campaign](../research/installed-client-qualification.md). Continue with independent accounts, default interactive approval, Droid follow-up and the two available Macs. Pin source and artifact identity for each run; the earlier identified T1 artifact does not contain T2.
 
 ### After T2
 

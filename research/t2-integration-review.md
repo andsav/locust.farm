@@ -1,7 +1,7 @@
 # T2 integration findings
 
 Date: 2026-10-03 (local). Status: fixes implemented; final workspace integration
-checks are recorded in [the T2 workflow](../docs/t2-workflow.md). This is source
+checks are recorded in [the T2 workflow](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t2-workflow.md). This is source
 and local deterministic evidence, not a real-client or physical-network result.
 The owner explicitly keeps live qualification in a separate testing effort.
 
@@ -74,6 +74,6 @@ removed an implication that preview returns stored content IDs. Its structure
 validator passes; behavioral validation here is a source-based forward review,
 not a claim of real-model skill use.
 
-The accepted [T2 workflow](../docs/t2-workflow.md) documents these choices and
+The accepted [T2 workflow](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t2-workflow.md) documents these choices and
 remaining proof boundaries. Managed client launch, installer behavior, signed
 release artifacts and publication are not part of this checkpoint.

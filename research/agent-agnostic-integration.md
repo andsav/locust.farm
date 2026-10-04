@@ -2,7 +2,7 @@
 
 Date: 2026-10-03. **Status: researched recommendation, not an accepted design or implemented adapter.** The goal is to connect different coding agents to Locust while enforcing a locally chosen sandbox. Merak native integration and a Pi extension are candidate adapters, not requirements for participation.
 
-**Scope update, October 3:** the owner subsequently made Codex, Claude Code, Factory Droid and Pi the first-release baseline. The [accepted plan](../docs/implementation-plan.md) and [client qualification matrix](../docs/release-evidence.md) supersede any implication here that Pi participation is deferred. The owner also restricted automatic wake to Merak for now; the four baseline clients use active sessions and explicit resume. Optional execution/sandbox extensions remain separate work; the source observations below are not runtime qualification.
+**Scope update, October 3:** the owner subsequently made Codex, Claude Code, Factory Droid and Pi the first-release baseline. The [accepted plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) and [client qualification matrix](../docs/release-evidence.md) supersede any implication here that Pi participation is deferred. The owner also restricted automatic wake to Merak for now; the four baseline clients use active sessions and explicit resume. Optional execution/sandbox extensions remain separate work; the source observations below are not runtime qualification.
 
 ## Finding
 
@@ -10,7 +10,7 @@ Transport need not make Locust agent-specific. Codex, Claude Code, Factory Droid
 
 The more consequential differences are **session lifecycle and execution control**: whether the adapter can deliver work to an idle session, observe cancellation, resume an attempt, and enforce a particular local filesystem/network policy. Test and describe these separately from successful connectivity.
 
-The [implementation plan](../docs/implementation-plan.md) provides the base: one daemon state-transition implementation behind local IPC, a structured CLI and a portable skill. Following the second review, the plan now includes the thin stdio MCP bridge in the first release. Following the [hcom dissection](hcom-dissection.md), the owner selected Locust-owned Rust client lifecycle adapters, using its ideas rather than adopting its runtime, fork or source. Locally initiated launch, session binding and qualified delivery now have an implementation workstream; unattended runners and deeper execution/sandbox extensions remain deferred. Automatic wake is a separate Merak-only target for now.
+The [implementation plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) provides the base: one daemon state-transition implementation behind local IPC, a structured CLI and a portable skill. Following the second review, the plan now includes the thin stdio MCP bridge in the first release. Following the [hcom dissection](hcom-dissection.md), the owner selected Locust-owned Rust client lifecycle adapters, using its ideas rather than adopting its runtime, fork or source. Locally initiated launch, session binding and qualified delivery now have an implementation workstream; unattended runners and deeper execution/sandbox extensions remain deferred. Automatic wake is a separate Merak-only target for now.
 
 ## Three separate interfaces
 

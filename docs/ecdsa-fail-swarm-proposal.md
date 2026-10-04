@@ -144,7 +144,7 @@ Costs are observed and shown per agent. There is no ceiling unless the owner nam
 
 ## 5. Mapping to Locust
 
-**State at `1738150`.** The daemon, command line, SQLite store and encrypted peer transport are integrated. A release candidate passes a 21-check workflow as three processes on one Mac: found and join a goal, propose, assign, authorize, claim, submit, inspect, accept, exchange notes with the coordinator offline, catch up, and restart. No physical multi-machine run is recorded yet; the lanes' next step is a two-Mac test. Sleep and wake, real coding clients and object transfer are not qualified, and no release gate is recorded as passed. See the [T1 run guide](t1-run.md) and the [release evidence ledger](release-evidence.md).
+**State at `1738150`.** The daemon, command line, SQLite store and encrypted peer transport are integrated. A release candidate passes a 21-check workflow as three processes on one Mac: found and join a goal, propose, assign, authorize, claim, submit, inspect, accept, exchange notes with the coordinator offline, catch up, and restart. No physical multi-machine run is recorded yet; the lanes' next step is a two-Mac test. Sleep and wake, real coding clients and object transfer are not qualified, and no release gate is recorded as passed. See the [T1 run guide](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t1-run.md) and the [release evidence ledger](release-evidence.md).
 
 | Design element | Locust operation | Evidence today | Caveat |
 |---|---|---|---|

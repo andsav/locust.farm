@@ -1,6 +1,6 @@
 # T1 runtime integration and discovery findings
 
-Date: 2026-10-03 (America/Los_Angeles). **Status: implemented runtime and local integration evidence; no published three-Mac qualification.** This records the takeover of Lane A following the [review](lane-a-review-2026-10-03.md), the runtime now committed in `885b372`, and the workspace exclusion fix in `98dbb9c`. The [lane A log](../docs/lane-a-log.md) maps each review finding to its regression; the [T1 run guide](../docs/t1-run.md) is the operator sequence.
+Date: 2026-10-03 (America/Los_Angeles). **Status: implemented runtime and local integration evidence; no published three-Mac qualification.** This records the takeover of Lane A following the [review](lane-a-review-2026-10-03.md), the runtime now committed in `885b372`, and the workspace exclusion fix in `98dbb9c`. The [lane A log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-a-log.md) maps each review finding to its regression; the [T1 run guide](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t1-run.md) is the operator sequence.
 
 ## What is now real
 
@@ -36,7 +36,7 @@ The harness never reads credential or session-secret bytes. Redaction review of 
 
 ## Exact release-candidate run: all 21 checks passed
 
-The [identified Apple Silicon candidate](../docs/t1-build.md) was built from clean source commit `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1` using Rust 1.96.1. It reports `locust 0.1.0 (3422c7b51948) api 0 protocol 0`; its SHA-256 is `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`. The original bundle's hash was checked before and after qualification, and all subprocesses used one independently verified private copy.
+The [identified Apple Silicon candidate](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t1-build.md) was built from clean source commit `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1` using Rust 1.96.1. It reports `locust 0.1.0 (3422c7b51948) api 0 protocol 0`; its SHA-256 is `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`. The original bundle's hash was checked before and after qualification, and all subprocesses used one independently verified private copy.
 
 The [release run summary](evidence/t1-release-local-2026-10-03.json) and [redacted command transcript](evidence/t1-release-local-2026-10-03.jsonl) record all 21 checks passing in 12.53 seconds with daemon-default networking. Three principals joined; the encrypted task reached acceptance and M3 held the effective history; M2 and restarted M3 exchanged notes with M1 absent; M1 caught up; sequential restarts retained identities, task state and content. Initial selected routes were direct, and coordinator-offline routes were relayed. All eight daemon generations exited cleanly, with no forced cleanup. Temporary homes and the private executable copy were removed.
 

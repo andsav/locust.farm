@@ -1,6 +1,6 @@
 # First contact
 
-Date: 2026-10-03. **Status: experience contract (lane C). It describes a target; most steps are not available yet.** The entry prompt and the `/start` guide are implemented in the site and available locally; they are not deployed. Each step's current status is listed below and in the [source review](#current-status). Runtime behavior belongs to lanes A and B; this document asks for it in the [lane C log](lane-c-log.md). Source notes are in [first-contact integrations](../research/first-contact-integrations.md).
+Date: 2026-10-03. **Status: experience contract (lane C). It describes a target; most steps are not available yet.** The entry prompt and the `/start` guide are implemented in the site and available locally; they are not deployed. Each step's current status is listed below and in the [source review](#current-status). Runtime behavior belongs to lanes A and B; this document asks for it in the [lane C log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-c-log.md). Source notes are in [first-contact integrations](../research/first-contact-integrations.md).
 
 ## The story
 
@@ -122,12 +122,12 @@ Connection rules for the connector: check `api_version` in the hello and show "n
 
 Not allowed: using Polaris's development mirror as a product API, reading Locust's database directly, representing Locust goals as fake Merak sessions, putting the credential in the webview, or inventing a download or deep link.
 
-These are existing local API types/reads, not proof of a qualified native Polaris connector or completed organization replacement. The open requests are in the [lane C log](lane-c-log.md).
+These are existing local API types/reads, not proof of a qualified native Polaris connector or completed organization replacement. The open requests are in the [lane C log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-c-log.md).
 
 ## Current status
 
 Reviewed 2026-10-04. Earlier scaffold observations remain historical in the
-[lane C log](lane-c-log.md); they no longer describe the current source.
+[lane C log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-c-log.md); they no longer describe the current source.
 The [shared availability record](reference/availability.json) supplies reviewed
 publication/qualification facts to the site and machine entry.
 

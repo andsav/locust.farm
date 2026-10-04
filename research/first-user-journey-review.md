@@ -3,7 +3,7 @@
 Date: 2026-10-04. **Status: baseline review with an implemented follow-up below.**
 Reviewed source: `c1d27db68cce2dbc5f59208c84c62f9446485573`, API 2 / protocol 2.
 This review compares the [original first-contact contract](../docs/first-contact.md)
-and [historical last-mile plan](../docs/last-mile-implementation-plan.md) with the
+and [historical last-mile plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/last-mile-implementation-plan.md) with the
 current runtime, CLI, skill, manual and qualification records. It does not revive
 protocol-1 APIs or the universal-coordinator model.
 

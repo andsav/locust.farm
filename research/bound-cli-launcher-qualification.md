@@ -2,7 +2,7 @@
 
 Date: 2026-10-04. **Measured:** Codex CLI 0.153.4 and Claude Code 2.1.280
 passed the installed launcher workflow on macOS arm64. This qualifies the X3
-step in the [last-mile plan](../docs/last-mile-implementation-plan.md), using
+step in the [last-mile plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/last-mile-implementation-plan.md), using
 actual native clients and scripted loopback providers. No real model ran.
 
 ## Candidate and method
