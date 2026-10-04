@@ -1,7 +1,9 @@
 # Local verified installation
 
-Status: signed package verification and software activation implemented; native
-installation qualification in progress. Publication, production
+Status: signed package verification and software activation implemented; the
+[identified macOS candidate](packaging.md) passed ten local native installation,
+upgrade and launchd cases. Client and other-platform evidence is recorded
+separately. Publication, production
 signing custody, distribution origin and license remain owner decisions. This
 procedure starts with an independently trusted Locust executable and an extracted
 candidate made by the [native builder](packaging.md). A verifier downloaded with

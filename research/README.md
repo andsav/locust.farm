@@ -119,3 +119,5 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 
 - [Local installation qualification](installation-qualification.md): trusted bootstrap, signed native install, upgrade, launchd lifecycle, failure/retry, data preservation and resource measurement harness.
 - [Installed-client qualification](installed-client-qualification.md): persistent skill/MCP discovery, native task/workspace execution, policy denials and cleanup through test-signed installed candidates.
+- [Current local macOS candidate identity](evidence/local-candidate-5bb254d-2026-10-03.json): source, binary, manifest and archive identities independently checked before the local installation/client campaigns.
+- [Local installation qualification evidence](installation-qualification-evidence.json): exact native candidate, ten passing installation/upgrade/launchd cases and sampled resource observations.

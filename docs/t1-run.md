@@ -5,19 +5,36 @@ Date: 2026-10-03. **Status: current commands target the remediated API-1/protoco
 Version 1 refuses version-0 peers, tickets and stored events. Preserve the previous binaries and `~/.locust-t1` homes. This sequence uses a fresh `~/.locust-t1-v1` on each Mac; it does not migrate the earlier goal.
 ## Verify and start the candidate
 
-Copy one newly [identified protocol-1 local bundle](t1-build.md) to the second Mac using AirDrop or a shared folder. If supplied as an archive, extract it on each Mac. The bundle contains `locust`, `SHA256SUMS` and `metadata.json`; both machines use these same bytes. Do not copy the daemon's `~/.locust-t1` directory: each Mac creates its own identity and state. No public download or rebuild is needed.
+The current [identified local candidate](packaging.md) is `5bb254d` and includes
+T2. Copy the same archive to both Macs using AirDrop or a shared folder and
+compare its SHA-256 with that independently provided record before extraction.
+The archive contains `locust`, `skills/locust/SKILL.md` and `manifest.json`.
+It is a locally built candidate with test-only signing evidence, not a public
+publisher-trusted release. Do not copy a daemon home: each Mac creates its own
+identity and state. No rebuild is needed.
 
-Set `LOCUST` to the absolute path of the candidate executable. From the directory containing its `SHA256SUMS`, verify the bundle before starting the daemon:
+The older [T1 bundles](t1-build.md) instead contain `locust`, `SHA256SUMS` and
+`metadata.json`. Their historical checks remain valid for their recorded bytes;
+they do not include the current installed-client implementation.
+
+Set `LOCUST` to the absolute path of the locally trusted candidate executable.
+Check its SHA-256 against the current candidate record before starting it:
 
 ```sh
 export LOCUST=/absolute/path/to/locust
 cd "$(dirname "$LOCUST")"
-shasum -a 256 -c SHA256SUMS
+shasum -a 256 "$LOCUST"
 chmod u+x "$LOCUST"
 "$LOCUST" --version
 ```
 
-The version must report `api 1 protocol 1` and the commit recorded in that bundle's `metadata.json`; its checksum must match `SHA256SUMS`. Both Macs must report the same commit and checksum. The old `3422c7b` candidate in the historical build record is protocol 0 and cannot be used for this sequence. Once both agree, start the daemon:
+For the current candidate the hash must be
+`abe1c0271de5c8fdbd8145d35b6b0932233d02eee7b5957fc99fc3211eac8580`
+and the version must be `locust 0.1.0 (5bb254d97504) api 1 protocol 1`.
+Both Macs must agree. The old `3422c7b` candidate is protocol 0 and cannot be used
+for this sequence. Signed installation and client configuration follow the
+separate [local installation procedure](installation.md); this CLI sequence
+does not by itself qualify that experience. Once both agree, start the daemon:
 
 ```sh
 export LOCUST_HOME="$HOME/.locust-t1-v1"

@@ -100,14 +100,17 @@ path establishment from successful authorized goal synchronization. These
 assertions prevent a header-only read, an unrelated session or a mere network
 connection from being counted as the requested workflow evidence.
 
-The source-pinned current candidate is built from archived commit
-`c74e4511f120c57a6440ffc6cfa99ff749faed04`, with the same full commit embedded in
-its version. Its SHA-256 is
-`38a34d798e73d2e1b00eae03af9a45355c3f2b424bf84e9eb79865a71b0bda33`.
-The archive excludes concurrent implementation changes. Results against this
-candidate do not qualify subsequent binaries without another campaign.
+The final native candidate is built from source commit
+`5bb254d97504209c1ee4277e74c1365c2d8620e0`, with its 12-character commit
+embedded in the version. Its SHA-256 is
+`abe1c0271de5c8fdbd8145d35b6b0932233d02eee7b5957fc99fc3211eac8580`.
+This matches the exact artifact used by the separate
+[installation and native upgrade campaign](installation-qualification.md).
+The prior `c74e4511f120c57a6440ffc6cfa99ff749faed04` campaign also passed all
+six cases, but this new run is the evidence for the final changed executable.
 
-Campaign `20261004T063215Z-2b2b564c` passed all six cases with no cleanup failure:
+Campaign `20261004T065745Z-cd79d5a1` passed all six cases with no cleanup failure
+in 45.9 seconds:
 
 | Case | Retained observation |
 |---|---|
@@ -123,10 +126,10 @@ the binary and harness hashes, public event/object identifiers, prefix hashes,
 whole-file hash, platform, transport selection and raw-artifact hashes. Both
 relay and direct selected paths were observed; this does not mean every
 operation used both. Raw redacted artifacts remain under
-`output/operations/20261004T063215Z-2b2b564c/`; the tracked evidence preserves
+`output/operations/20261004T065745Z-cd79d5a1/`; the tracked evidence preserves
 the useful results independently of that disposable directory.
 
-Focused verification passed: four Python harness assertion tests, nine core
+Earlier focused verification passed: four Python harness assertion tests, nine core
 content tests, five workspace contribution tests, 32 store unit tests and two
 store process-crash tests. Three existing store tests were ignored: two helper
 entrypoints launched only by their parent tests and the separate macOS flush
@@ -134,7 +137,12 @@ interposer qualification. Clippy passed for core/store/workspace with all
 targets and warnings denied. Full workspace gates and staged documentation
 index checking belong to the final integration pass.
 
-Final integration verification of the staged source snapshot passed: workspace formatting, strict all-target Clippy, and 533 Rust tests (11 existing ignored tests). Four operational harness tests and the staged documentation checker also passed. This source gate does not requalify a different native artifact.
+Earlier integration verification passed workspace formatting, strict all-target
+Clippy and 533 Rust tests (11 existing ignored tests). The final service/setup
+source gate passed 571 Rust tests (11 ignored) with formatting and strict Clippy;
+the completed harness commit passed 171 Python tests and the staged documentation
+checker. The operational harness now has five focused assertion tests. These
+source gates complement the exact final native artifact campaign recorded here.
 
 ## Resource observation scope
 
@@ -146,6 +154,15 @@ keeps the partial receiver state from advancing while `ps` reads RSS; the owned
 process is then killed for the existing interruption scenario. Network bytes
 and operation-campaign CPU consumption are explicitly unmeasured. Native install
 startup and idle measurements are recorded separately in the
-[installation campaign](installation-qualification.md). The earlier retained
-operational evidence below predates these new samples until replaced by the
-final-candidate run.
+[installation campaign](installation-qualification.md). The final run observed:
+
+| Receiver checkpoint | Sampled RSS |
+|---|---:|
+| Snapshot receiver paused at 1 MiB durable prefix | 25,083,904 bytes |
+| Snapshot receiver after complete resume | 54,280,192 bytes |
+| Patch receiver paused at 1 MiB durable prefix | 24,788,992 bytes |
+| Patch receiver after resumed patches and integration | 58,130,432 bytes |
+
+The campaign ran concurrently with local installation qualification. The
+checkpoint values do not establish peak memory or a performance regression
+threshold; network byte consumption and operational CPU remain unmeasured.

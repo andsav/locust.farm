@@ -1,7 +1,7 @@
 # Local installation qualification
 
-Date: 2026-10-03. **Status: repeatable harness implemented; native release and
-service campaign pending.** This record covers local qualification of the
+Date: 2026-10-03. **Status: all ten local native installation, upgrade and
+launchd cases passed on the identified final candidate.** This record covers local qualification of the
 [package format](../docs/packaging.md), trusted bootstrap, installer and
 installed daemon. It is not production signing, publication, cross-platform,
 physical-machine or independent-account evidence.
@@ -80,7 +80,7 @@ the wrong state, and a job that remains loaded cannot qualify. This adds no
 daemon execution limit and does not reinterpret an accepted manager command
 as application readiness. The preparatory retry passed all nine non-upgrade
 cases, including actual daemon-process failure/retry and exact owned cleanup;
-final-candidate and distinct-baseline upgrade evidence remains pending.
+the final-candidate run below additionally passed the distinct-baseline upgrade.
 
 ## Measurements and limitations
 
@@ -109,7 +109,51 @@ It retains the fixture and reports failure if owned-service cleanup cannot finis
 it does not delete a profile under a still-registered job. A missing GUI domain
 is explicitly not run, not passed. Native Linux systemd remains a separate gate.
 
-Raw redacted CLI evidence and resource observations are saved under ignored
-`output/installation/`. A reviewed compact record and identified native results
-will be retained here after the campaign. No native installer, service or
-resource result has yet been claimed by this document.
+## Final native campaign
+
+The [retained result](installation-qualification-evidence.json) records a pass
+for all ten scenarios on macOS 26.4 arm64. The native source is
+`5bb254d97504209c1ee4277e74c1365c2d8620e0`; executable SHA-256 is
+`abe1c0271de5c8fdbd8145d35b6b0932233d02eee7b5957fc99fc3211eac8580` and
+manifest SHA-256 is
+`3793145c1aa0aa7aae24e8572d4b60683ff8d5205d1ce26202d4d01843c4d8c7`.
+The trusted bootstrap is this same explicitly trusted local source build;
+trust did not derive from running an unknown candidate's self-verifier.
+The harness hash is
+`29b88365b33fd533d2a1dfe7373d3a14ac5ff5c43df35eb0c36ba48758558b51`.
+
+The real upgrade installed source
+`6757d755b6f3eb515dfa1c451ff2b76ec497f3de` first, created a principal, goal and
+note with its installed daemon, then activated the final candidate through the
+verified installer. The restarted final daemon retained its endpoint identity
+and prior note and passed doctor. Both releases use version 0.1.0; their full
+source, manifest and executable identities differ and are recorded. This is
+an actual native cross-commit upgrade, not a substituted probe or manifest-only
+fixture.
+
+The launchd failure case observed daemon exit code 6 with the synthetic
+non-directory home, preserved the owned unit and ownership record, and passed
+API readiness/doctor after explicit bootout and fixture repair. The normal
+lifecycle refused removal while both running and loaded without a process,
+then completed explicit stop/removal and retained the original daemon note
+through restart. Test signing keys and every synthetic service were cleaned up.
+
+| Measurement | Observed value |
+|---|---:|
+| Installed executable | 13,678,896 bytes |
+| Fresh direct spawn to authenticated status | 69.7 ms |
+| Direct restart to authenticated status | 66.8 ms |
+| Native launchd start to authenticated status | 123.9 ms |
+| Idle RSS, three samples one second apart | 15,745,024 bytes each |
+| Accumulated CPU delta over 2.017 seconds | 0.00 seconds at `ps` precision |
+| Network bytes | Unmeasured |
+
+These measurements ran concurrently with the operational qualification on the
+same host. The zero CPU counter delta is a short sampled observation, not a
+claim of zero CPU work or a benchmark threshold. This campaign does not qualify
+Linux systemd, another machine/account, production signing, publication or
+third-party client operation.
+
+The raw redacted transcript is kept under ignored
+`output/installation/20261004T065745Z-494b989f/`; its hash, the original summary
+hash and the complete compact result are retained in the tracked evidence file.

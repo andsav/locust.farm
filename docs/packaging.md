@@ -1,6 +1,35 @@
 # Native release candidate packaging
 
-Date: 2026-10-03. **Status: implemented unsigned candidate builder and CI declarations; no signed, installed, or published release is qualified.** This extends the narrower [T1 identified build](t1-build.md). Installation and service behavior require separate packaged tests in the [release evidence ledger](release-evidence.md).
+Date: 2026-10-03. **Status: native candidate builder and CI declarations implemented; one identified macOS arm64 candidate has passed local installation, upgrade and launchd qualification with disposable test signing.** Production signing and publication remain open. This extends the narrower [T1 identified build](t1-build.md); the [release evidence ledger](release-evidence.md) keeps platform, client and physical-machine checks separate.
+
+## Current local macOS candidate
+
+The [retained identity record](../research/evidence/local-candidate-5bb254d-2026-10-03.json)
+identifies the exact native candidate used by the
+[installation campaign](../research/installation-qualification.md). It includes
+T2 and the installed service/profile commands. This is a local candidate, not a
+published release or a completed release gate.
+
+| Field | Observed value |
+|---|---|
+| Source | `5bb254d97504209c1ee4277e74c1365c2d8620e0` |
+| Target | `aarch64-apple-darwin` |
+| Version | `locust 0.1.0 (5bb254d97504) api 1 protocol 1` |
+| Executable size | 13,678,896 bytes |
+| Executable SHA-256 | `abe1c0271de5c8fdbd8145d35b6b0932233d02eee7b5957fc99fc3211eac8580` |
+| Manifest SHA-256 | `3793145c1aa0aa7aae24e8572d4b60683ff8d5205d1ce26202d4d01843c4d8c7` |
+| Unsigned archive SHA-256 | `5f9a51ec62cc4d34cfe8dfdda0cffc945c10caf946d267a19bc3146fb9e413af` |
+| Archive filename | `locust-aarch64-apple-darwin-5bb254d97504-unsigned.tar.gz` |
+
+The archive and checksum are retained under local `output/final-native/`, with
+the fixed-file extraction under `output/final-bundle/`. Independent checks
+confirmed all three archive members, file modes, payload hashes, Mach-O arm64
+format and exact embedded version. `codesign` reports a linker-generated ad hoc
+signature and no TeamIdentifier; Developer ID signing and notarization were not
+performed. Qualification made private copies and used disposable Ed25519 keys;
+the archive itself remains unsigned by a publisher. The separately selected
+trust key and registry required by the [installer](installation.md) cannot be
+inferred from a checksum sidecar.
 
 ## Build and source identity
 
