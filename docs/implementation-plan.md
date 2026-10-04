@@ -1,5 +1,13 @@
 # Locust implementation plan
 
+**Organization model update, 2026-10-04:** the accepted
+[organization blueprint direction](organization-blueprints.md) and its
+[implementation plan](organization-blueprints-implementation-plan.md) supersede
+this document's universal-coordinator target. Existing protocol-1 behavior and
+historical qualification below remain documented for that version. Future work must
+support selectable organization, agent/Polaris authoring, and the
+[complete public manual](public-documentation-plan.md).
+
 Updated: 2026-10-04. **Current execution: operational workflows, native macOS installation/upgrade/services and the installed Codex/Claude/Pi experience have retained local results against identified source `5bb254d`. Managed lifecycle and recovery were refreshed against the same installed artifact. Linux x86_64 has a completed cross-build; runtime testing is outside the owner's current build-only scope. Physical-machine, sleep/wake, interactive approval and independent-account acceptance stay at the end, when the owner is available. Production signing and publication remain deferred. See [installation](installation.md), [installed-client findings](../research/installed-client-qualification.md) and section 10.**
 
 **Prior T1 checkpoint:** persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. The physical-machine qualification uses the owner's two available Macs. The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass remains a separate qualification activity; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.

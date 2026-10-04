@@ -1,14 +1,20 @@
 # Organization blueprints: accepted direction
 
 Date: 2026-10-04. **Status: accepted product direction and authoring requirements;
-not implemented.** The concrete schema, distributed decision semantics, migration
-strategy, and implementation plan remain open. The current
+not implemented.** The [implementation plan](organization-blueprints-implementation-plan.md)
+now sequences the runtime, agent authoring, Polaris, and complete public manual.
+The concrete schema, distributed decision semantics, and migration strategy
+remain proposed choices with explicit decision gates. The current
 [protocol-1 coordinator behavior](protocol-v1.md) remains enforced until replaced.
 
 This decision follows the [organization blueprint research](../research/organization-blueprints.md)
 and the owner's agreement that agents must easily author blueprints and Polaris
 should offer a visual authoring experience. It does not adopt every tentative
 protocol mechanism or example field name in that research or the conversation.
+
+The [public documentation plan](public-documentation-plan.md) specifies the full
+locust.farm manual required alongside implementation, including versioned human
+and agent references, tested tutorials, and publication verification.
 
 ## Accepted model
 

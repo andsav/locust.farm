@@ -1,5 +1,13 @@
 # Last-mile implementation plan
 
+**Organization model update, 2026-10-04:** the
+[organization blueprints plan](organization-blueprints-implementation-plan.md)
+supersedes a universal coordinator as the future product target and adds agent
+authoring, Polaris, and the [complete public manual](public-documentation-plan.md).
+This plan's installation, permission, context and delivery work remains relevant;
+organization-sensitive work must follow the new contract. Existing protocol-1
+behavior and the historical evidence below remain unchanged.
+
 Date: 2026-10-04. **Status: implementation plan; work packages remain proposed except for the partial W3 implementation noted below.** The owner requested this plan and the amendments to its source research. That does not select the remaining distribution, permission, protocol, publication or paid-run decisions. Apache-2.0 was separately selected and is already present.
 
 This plan sequences work from the revised [last-mile research](../research/last-mile-experience.md). It supplements the [main implementation plan](implementation-plan.md), [protocol-1 contract](protocol-v1.md), [installation contract](installation.md) and [coding workflow](t2-workflow.md). Their implemented authorization and recovery rules remain authoritative until a specific replacement is accepted and tested. All command names and data shapes introduced below are proposed interfaces, not commands to run today.
