@@ -24,7 +24,9 @@ signature is `manifest.sig` (64 bytes). The current `locust-release-v2` candidat
 payload paths: `locust`, `skills/locust/SKILL.md` and `manual.tar`. Their SHA-256 digests, lengths,
 Unix modes and binary architecture must match. Symlinks, hardlinks and special
 files in the declared payload paths are refused. Verification does not execute
-the candidate.
+the candidate. The [matching manual](packaging.md) includes the repository license,
+versioned documentation, contracts, examples and availability metadata; installed
+readers need no checkout.
 
 Every verification and install takes an explicit signed withdrawal registry:
 
@@ -211,14 +213,13 @@ entry from a document with unrelated edits. A modified owned entry, skill or lau
 preserved and reported as a conflict. Removal remains available after software
 uninstall; credentials and session files remain.
 
-Setup ownership/plans now use version 2 for the fourth owned path. Reapplying
-upgrades an intact version-1 installation without replacing its principal or
-session. Old pending three-path operations can finish or be removed with their
-original review; after finishing an old apply, `reapply_required` reports that
-a fresh plan/apply is needed to add the launcher. Older binaries refuse the new
-ownership format. Unknown launcher files are never adopted or deleted. The
-[setup tests](../crates/locust/src/installation/setup/tests.rs) cover legacy
-upgrade, interruption at every write, quoted paths, overrides and owned edits.
+Setup ownership and plans accept only the current version-2 formats, with all
+four owned paths: configuration, skill, bound launcher and ownership record.
+Unsupported ownership or pending-journal formats are refused before changing
+files. Unknown launcher files are never adopted or deleted. The
+[setup tests](../crates/locust/src/installation/setup/tests.rs) cover current
+interruption at every write, unsupported-format refusal with byte preservation,
+quoted paths, overrides and owned edits.
 
 Restart the client so it discovers the registration and skill. Setup reports
 `reload_required`, with discovery and API readiness unobserved. Only the actual

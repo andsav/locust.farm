@@ -49,8 +49,7 @@ struct Record {
     original: Image,
     config: Image,
     skill: Image,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    launcher: Option<Image>,
+    launcher: Image,
     entry: String,
 }
 #[derive(Clone, Serialize, Deserialize)]
@@ -210,10 +209,7 @@ fn read_record(p: &Paths) -> Result<(Image, Option<Record>), Failure> {
     Ok((image, record))
 }
 fn record_format(record: &Record) -> bool {
-    matches!(
-        (record.format.as_str(), &record.launcher),
-        ("locust-setup-owner-v1", None) | ("locust-setup-owner-v2", Some(_))
-    )
+    record.format == "locust-setup-owner-v2" && record.launcher.bytes.is_some()
 }
 fn protected(path: &Path) -> Result<Value, Failure> {
     let file = package::regular(path)?;
@@ -443,11 +439,10 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
             "finish the pending setup operation with its original binding first",
         ));
     }
-    let owned_paths = match tx.plan.review["format"].as_str() {
-        Some("locust-setup-plan-v1") => vec![&p.config, &p.skill, &p.record],
-        Some("locust-setup-plan-v2") => vec![&p.config, &p.skill, &p.launcher, &p.record],
-        _ => return Err(corrupt("unknown setup journal plan format")),
-    };
+    if tx.plan.review["format"].as_str() != Some("locust-setup-plan-v2") {
+        return Err(corrupt("unknown setup journal plan format"));
+    }
+    let owned_paths = [&p.config, &p.skill, &p.launcher, &p.record];
     if tx.changes.len() != owned_paths.len()
         || owned_paths.iter().any(|path| {
             tx.changes
@@ -458,7 +453,7 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
         })
     {
         return Err(corrupt(
-            "setup journal must contain exactly its version's owned paths",
+            "setup journal must contain exactly the current owned paths",
         ));
     }
     for change in &tx.changes {
@@ -470,10 +465,8 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
             return Err(conflict("a pending setup file was modified; preserving it"));
         }
     }
-    if remove && !tx.remove {
-        // This is a fresh reviewed cleanup, not resumption of the old apply.
-        // All current bytes were checked above against the durable intent.
-        // The intended ownership record includes any pre-apply unrelated edits.
+    let intended_record = if !tx.remove {
+        // Validate ownership before any current apply or cleanup can resume.
         let owned = tx
             .changes
             .iter()
@@ -509,11 +502,17 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
                 .iter()
                 .find(|c| c.path == p.launcher)
                 .map(|c| &c.after)
-                != record.launcher.as_ref()
+                != Some(&record.launcher)
         {
             return Err(corrupt("pending apply ownership disagrees with journal"));
         }
-        let mut changes = vec![
+        Some(record)
+    } else {
+        None
+    };
+    if remove && !tx.remove {
+        let record = intended_record.expect("validated pending apply ownership");
+        let changes = vec![
             Change {
                 path: p.config.clone(),
                 before: snapshot(&p.config)?,
@@ -525,21 +524,16 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
                 after: Image::absent(),
             },
             Change {
+                path: p.launcher.clone(),
+                before: snapshot(&p.launcher)?,
+                after: Image::absent(),
+            },
+            Change {
                 path: p.record.clone(),
                 before: snapshot(&p.record)?,
                 after: Image::absent(),
             },
         ];
-        if record.launcher.is_some() {
-            changes.insert(
-                2,
-                Change {
-                    path: p.launcher.clone(),
-                    before: snapshot(&p.launcher)?,
-                    after: Image::absent(),
-                },
-            );
-        }
         let review = json!({"format":tx.plan.review["format"],"action":"remove","spec":s,
             "cleanup_pending_apply_sha256":tx.plan.digest()?,
             "files":changes.iter().map(|c|json!({"path":c.path,"before":c.before.summary(),"after":c.after.summary()})).collect::<Vec<_>>(),
@@ -589,7 +583,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
         }
         if entry(s.client, &config)?.as_deref() != Some(&r.entry)
             || skill != r.skill
-            || r.launcher.as_ref().is_some_and(|owned| &launcher != owned)
+            || launcher != r.launcher
         {
             return Err(conflict(
                 "owned Locust entry, skill or launcher changed; preserving user edits",
@@ -613,15 +607,10 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
             } else {
                 merge(s.client, &config, None)?
             };
-            let after_launcher = if r.launcher.is_some() {
-                Image::absent()
-            } else {
-                launcher.clone()
-            };
             (
                 restored,
                 Image::absent(),
-                after_launcher,
+                Image::absent(),
                 Image::absent(),
                 Value::Null,
             )
@@ -643,7 +632,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
                 "Locust MCP entry or skill directory already exists and is not owned",
             ));
         }
-        if record.as_ref().is_none_or(|r| r.launcher.is_none()) && launcher.bytes.is_some() {
+        if record.is_none() && launcher.bytes.is_some() {
             return Err(conflict(
                 "Locust CLI launcher already exists and is not owned",
             ));
@@ -678,7 +667,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
             original,
             config: new_config.clone(),
             skill: new_skill.clone(),
-            launcher: Some(new_launcher.clone()),
+            launcher: new_launcher.clone(),
             entry,
         };
         let new_record = Image {
@@ -833,7 +822,7 @@ fn execute(
             .iter()
             .any(|c| c.path == p.launcher && c.after.bytes.is_some());
     Ok(
-        json!({"changed":tx.changes.iter().any(|c|c.before!=c.after),"configured":launcher_ready,"removed":remove,"launcher":p.launcher,"launcher_ready":launcher_ready,"reapply_required":!remove&&!launcher_ready,"reload_required":true,"discovered":false,"api_ready":false,"plan_sha256":expected}),
+        json!({"changed":tx.changes.iter().any(|c|c.before!=c.after),"configured":launcher_ready,"removed":remove,"launcher":p.launcher,"launcher_ready":launcher_ready,"reload_required":true,"discovered":false,"api_ready":false,"plan_sha256":expected}),
     )
 }
 pub fn apply(spec: &SetupSpec, expected: &str) -> Result<Value, Failure> {
@@ -854,8 +843,7 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
     let launcher_image = snapshot(&p.launcher)?;
     let launcher_ready = r
         .as_ref()
-        .and_then(|r| r.launcher.as_ref())
-        .is_some_and(|owned| owned.bytes.is_some() && *owned == launcher_image);
+        .is_some_and(|record| record.launcher == launcher_image);
     let intact = if let Some(r) = &r {
         entry(s.client, &snapshot(&p.config)?)?.as_deref() == Some(&r.entry)
             && snapshot(&p.skill)? == r.skill
@@ -872,7 +860,7 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
             && r.spec.profile_home == s.profile_home
     });
     Ok(
-        json!({"owned":r.is_some(),"configured":intact,"binding_matches":binding_matches,"pending":exists(&p.intent)?,"client":s.client,"profile_home":s.profile_home,"launcher":p.launcher,"launcher_ready":launcher_ready,"reapply_required":r.as_ref().is_some_and(|r|r.launcher.is_none()),"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"}),
+        json!({"owned":r.is_some(),"configured":intact,"binding_matches":binding_matches,"pending":exists(&p.intent)?,"client":s.client,"profile_home":s.profile_home,"launcher":p.launcher,"launcher_ready":launcher_ready,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"}),
     )
 }
 #[cfg(test)]

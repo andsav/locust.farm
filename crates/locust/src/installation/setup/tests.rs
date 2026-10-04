@@ -603,7 +603,7 @@ fn launcher_refuses_authority_and_binding_overrides_anywhere() {
 }
 
 #[test]
-fn modified_launcher_and_unowned_legacy_collision_are_preserved() {
+fn modified_or_unowned_launchers_are_preserved() {
     for mode_only in [false, true] {
         let (_d, s) = fixture(Client::Pi);
         let p = paths(&s).unwrap();
@@ -623,97 +623,119 @@ fn modified_launcher_and_unowned_legacy_collision_are_preserved() {
     }
     let (_d, s) = fixture(Client::Claude);
     let p = paths(&s).unwrap();
-    let legacy = legacy_transaction(&s);
-    for change in &legacy.changes {
-        write_change(&s, change).unwrap();
-    }
     put(&p.launcher, b"unowned");
     assert!(plan(&s, false).is_err());
     let cleanup = plan(&s, true).unwrap();
     remove(&s, &cleanup.digest().unwrap()).unwrap();
     assert_eq!(fs::read(&p.launcher).unwrap(), b"unowned");
     assert!(!p.skill.exists());
+    assert!(!p.record.exists());
 }
 
-// Reproduce the actual v1 three-path ownership/journal shape, whose skill was
-// copied verbatim. This lets upgrades exercise the same decoding as old installs.
-fn legacy_transaction(s: &SetupSpec) -> Transaction {
+fn setup_images(s: &SetupSpec) -> Vec<Image> {
     let p = paths(s).unwrap();
-    let mut tx = prepare(s, false).unwrap();
-    tx.changes.retain(|c| c.path != p.launcher);
-    let skill = tx.changes.iter_mut().find(|c| c.path == p.skill).unwrap();
-    skill.after.bytes = Some(fs::read(&s.skill_source).unwrap());
-    let legacy_skill = skill.after.clone();
-    let owned = tx.changes.iter_mut().find(|c| c.path == p.record).unwrap();
-    let mut r: Record = serde_json::from_slice(owned.after.bytes.as_ref().unwrap()).unwrap();
-    r.format = "locust-setup-owner-v1".into();
-    r.skill = legacy_skill;
-    r.launcher = None;
-    owned.after.bytes = Some(encode(&r).unwrap());
-    tx.plan.review["format"] = json!("locust-setup-plan-v1");
-    tx.plan.review.as_object_mut().unwrap().remove("launcher");
-    tx.plan.review["files"] = json!(
-        tx.changes
-            .iter()
-            .map(|c| json!({"path":c.path,"before":c.before.summary(),"after":c.after.summary()}))
-            .collect::<Vec<_>>()
-    );
-    tx
+    [
+        &p.config,
+        &p.skill,
+        &p.launcher,
+        &p.record,
+        &p.intent,
+        &s.credential,
+        &s.session,
+        &s.skill_source,
+    ]
+    .into_iter()
+    .map(|path| snapshot(path).unwrap())
+    .collect()
 }
 
 #[test]
-fn legacy_setup_upgrades_without_changing_signed_source_or_identity_files() {
+fn unsupported_ownership_formats_refuse_every_operation_without_mutation() {
     for client in [Client::Codex, Client::Claude, Client::Pi] {
-        let (_d, s) = fixture(client);
-        let legacy = legacy_transaction(&s);
-        for change in &legacy.changes {
-            write_change(&s, change).unwrap();
+        for format in ["locust-setup-owner-v1", "unknown-setup-format"] {
+            let (_d, s) = fixture(client);
+            let initial = plan(&s, false).unwrap();
+            apply(&s, &initial.digest().unwrap()).unwrap();
+            let p = paths(&s).unwrap();
+            let mut record: serde_json::Value =
+                serde_json::from_slice(&fs::read(&p.record).unwrap()).unwrap();
+            record["format"] = json!(format);
+            atomic(&p.record, &encode(&record).unwrap()).unwrap();
+            let before = setup_images(&s);
+            for result in [
+                status(&s),
+                plan(&s, false).map(|_| Value::Null),
+                plan(&s, true).map(|_| Value::Null),
+                apply(&s, &initial.digest().unwrap()),
+                remove(&s, &initial.digest().unwrap()),
+            ] {
+                assert_eq!(
+                    result.unwrap_err().code,
+                    locust_proto::api::ErrorCode::Corrupted
+                );
+                assert_eq!(setup_images(&s), before);
+            }
         }
-        let source = fs::read(&s.skill_source).unwrap();
-        let credential = fs::read(&s.credential).unwrap();
-        let session = fs::read(&s.session).unwrap();
-        let before = status(&s).unwrap();
-        assert_eq!(before["owned"], true);
-        assert_eq!(before["configured"], false);
-        assert_eq!(before["reapply_required"], true);
-        let upgrade = plan(&s, false).unwrap();
-        apply(&s, &upgrade.digest().unwrap()).unwrap();
-        assert_eq!(status(&s).unwrap()["configured"], true);
-        assert_eq!(status(&s).unwrap()["reapply_required"], false);
-        assert_eq!(fs::read(&s.skill_source).unwrap(), source);
-        assert_eq!(fs::read(&s.credential).unwrap(), credential);
-        assert_eq!(fs::read(&s.session).unwrap(), session);
     }
 }
 
 #[test]
-fn legacy_interrupted_setup_can_finish_or_be_removed_without_owning_a_launcher() {
-    for remove_pending in [false, true] {
-        for stop in 0..3 {
-            let (_d, s) = fixture(Client::Codex);
+fn unsupported_pending_journal_formats_refuse_before_resuming_or_cleanup() {
+    for client in [Client::Codex, Client::Claude, Client::Pi] {
+        for applied_paths in 0..=4 {
+            let (_d, s) = fixture(client);
             let p = paths(&s).unwrap();
-            let legacy = legacy_transaction(&s);
-            private_dir(&s.prefix.join("setup"), true).unwrap();
-            atomic(&p.intent, &encode(&legacy).unwrap()).unwrap();
-            for change in &legacy.changes[..=stop] {
+            let mut tx = prepare(&s, false).unwrap();
+            for change in &tx.changes[..applied_paths] {
                 write_change(&s, change).unwrap();
             }
-            if remove_pending {
-                let cleanup = plan(&s, true).unwrap();
-                remove(&s, &cleanup.digest().unwrap()).unwrap();
-                assert!(!p.record.exists());
-                assert!(!p.skill.exists());
-            } else {
-                let completed = apply(&s, &legacy.plan.digest().unwrap()).unwrap();
-                assert_eq!(completed["configured"], false);
-                assert_eq!(completed["reapply_required"], true);
+            tx.plan.review["format"] = json!("locust-setup-plan-v1");
+            private_dir(&s.prefix.join("setup"), true).unwrap();
+            atomic(&p.intent, &encode(&tx).unwrap()).unwrap();
+            let before = setup_images(&s);
+            for result in [
+                plan(&s, false).map(|_| Value::Null),
+                plan(&s, true).map(|_| Value::Null),
+                apply(&s, &tx.plan.digest().unwrap()),
+                remove(&s, &tx.plan.digest().unwrap()),
+            ] {
+                assert_eq!(
+                    result.unwrap_err().code,
+                    locust_proto::api::ErrorCode::Corrupted
+                );
+                assert_eq!(setup_images(&s), before);
             }
-            assert!(!p.launcher.exists());
-            assert!(!p.intent.exists());
-            let upgrade = plan(&s, false).unwrap();
-            apply(&s, &upgrade.digest().unwrap()).unwrap();
-            assert_eq!(status(&s).unwrap()["configured"], true);
         }
+    }
+}
+
+#[test]
+fn current_journal_refuses_unsupported_intended_ownership_without_mutation() {
+    let (_d, s) = fixture(Client::Codex);
+    let p = paths(&s).unwrap();
+    let mut tx = prepare(&s, false).unwrap();
+    let owned = tx
+        .changes
+        .iter_mut()
+        .find(|change| change.path == p.record)
+        .unwrap();
+    let mut record: Value = serde_json::from_slice(owned.after.bytes.as_ref().unwrap()).unwrap();
+    record["format"] = json!("locust-setup-owner-v1");
+    owned.after.bytes = Some(encode(&record).unwrap());
+    private_dir(&s.prefix.join("setup"), true).unwrap();
+    atomic(&p.intent, &encode(&tx).unwrap()).unwrap();
+    let before = setup_images(&s);
+    for result in [
+        plan(&s, false).map(|_| Value::Null),
+        plan(&s, true).map(|_| Value::Null),
+        apply(&s, &tx.plan.digest().unwrap()),
+        remove(&s, &tx.plan.digest().unwrap()),
+    ] {
+        assert_eq!(
+            result.unwrap_err().code,
+            locust_proto::api::ErrorCode::Corrupted
+        );
+        assert_eq!(setup_images(&s), before);
     }
 }
 

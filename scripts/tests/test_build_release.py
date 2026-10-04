@@ -22,6 +22,7 @@ class ReleaseCandidateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             repo = Path(temporary)
             (repo / "docs").mkdir()
+            (repo / "LICENSE").write_text("License fixture\n")
             (repo / "docs/page.md").write_text("# Installed manual\n")
             (repo / "docs/site.json").write_text(json.dumps({
                 "versions": {"api": 2, "protocol": 2, "blueprintSchema": 1},
@@ -63,11 +64,16 @@ class ReleaseCandidateTests(unittest.TestCase):
     def test_manual_is_self_contained_and_rejects_identity_drift(self):
         _, _, manual, _ = self.fixture()
         identity = build_release.verify_manual(manual, COMMIT, 2, 2)
-        self.assertEqual([entry["path"] for entry in identity["files"]], ["docs/page.md", "docs/site.json"])
+        self.assertEqual([entry["path"] for entry in identity["files"]], ["LICENSE", "docs/page.md", "docs/site.json"])
         with self.assertRaisesRegex(build_release.BuildError, "identity"):
             build_release.verify_manual(manual, "b" * 40, 2, 2)
         with self.assertRaisesRegex(build_release.BuildError, "identity"):
             build_release.verify_manual(manual, COMMIT, 3, 2)
+        with tarfile.open(fileobj=io.BytesIO(manual), mode="r:") as tar:
+            self.assertEqual(tar.extractfile("LICENSE").read(), b"License fixture\n")
+        license_changed = manual.replace(b"License fixture", b"License changed", 1)
+        with self.assertRaisesRegex(build_release.BuildError, "records differ"):
+            build_release.verify_manual(license_changed, COMMIT, 2, 2)
         changed = manual.replace(b"# Installed manual", b"# Corrupted manual", 1)
         with self.assertRaisesRegex(build_release.BuildError, "records differ"):
             build_release.verify_manual(changed, COMMIT, 2, 2)
@@ -105,6 +111,7 @@ class ReleaseCandidateTests(unittest.TestCase):
             (repo / "scripts/build_release.py").write_text("# fixture")
             (repo / "skills/locust/SKILL.md").write_text("# fixture")
             (repo / "docs").mkdir()
+            (repo / "LICENSE").write_text("License fixture\n")
             (repo / "docs/site.json").write_text(json.dumps({"sourceLinks": [], "pages": [], "artifacts": []}))
             with self.assertRaisesRegex(build_release.BuildError, "skills/locust/SKILL.md"):
                 build_release.verify_release_inputs(repo, runner)

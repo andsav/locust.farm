@@ -114,7 +114,7 @@ def file_record(path: str, content: bytes, mode: int) -> dict:
 
 def manual_paths(repo: Path) -> list[str]:
     site = json.loads((repo / "docs/site.json").read_bytes())
-    paths = {"docs/site.json", *site["sourceLinks"]}
+    paths = {"LICENSE", "docs/site.json", *site["sourceLinks"]}
     paths.update(item["source"] for item in site["pages"] + site["artifacts"])
     for name in paths:
         path = Path(name)
@@ -168,7 +168,7 @@ def verify_manual(data: bytes, commit: str, protocol: int, api: int) -> dict:
             or identity["files"] != [file_record(name, value, 0o644) for name, value in contents.items()]):
         raise BuildError("manual_mismatch", "Manual identity or file records differ")
     site = json.loads(contents["docs/site.json"])
-    required = {"docs/site.json", *site["sourceLinks"]}
+    required = {"LICENSE", "docs/site.json", *site["sourceLinks"]}
     required.update(item["source"] for item in site["pages"] + site["artifacts"])
     if set(contents) != required or identity["versions"] != site["versions"]:
         raise BuildError("manual_mismatch", "Manual differs from its documentation manifest")
