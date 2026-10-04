@@ -4,8 +4,8 @@
   "repository": "https://github.com/andsav/locust.farm",
   "versions": {
     "software": "unreleased",
-    "api": 2,
-    "protocol": 2,
+    "api": 4,
+    "protocol": 4,
     "blueprintSchema": 1
   },
   "pages": [
