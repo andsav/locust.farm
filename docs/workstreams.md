@@ -1,6 +1,6 @@
 # Crates and workstreams
 
-Date: 2026-10-03. **Status: the persistent daemon, CLI, core, store and peer synchronization are integrated in `885b372`; the exact release candidate from `3422c7b` passes all 21 local three-process T1 checks. The published build and three-Mac run remain open.** The repository owner approved the crate split and shared checkout without worktrees. One orchestrator now owns lanes A and B; lane C remains independent. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
+Date: 2026-10-03. **Status: the persistent daemon, CLI, core, store and peer synchronization are integrated in `885b372`; the exact release candidate from `3422c7b` passes all 21 local three-process T1 checks. Publication is deferred by the owner; the three-Mac run remains open.** The repository owner approved the crate split and shared checkout without worktrees. One orchestrator now owns lanes A and B; lane C remains independent. This supersedes the earlier guidance in the [implementation plan](implementation-plan.md) to keep every module inside one crate.
 
 **Ownership update, October 3:** the owner has now assigned Lane A to Lane B's
 orchestrating session, including responsibility for completing and integrating
@@ -15,8 +15,9 @@ The takeover used disjoint subagent scopes for Goal/local Node behavior, sync an
 peer integration, and bounded storage/export/CLI work. The orchestrator owns
 contract changes, integration, release preparation and full-workspace checks.
 Each reassignment is explicit; agents do not commit another scope's work. T1
-remains the first milestone, with three local processes preceding the published
-build on the owner's three Macs. The owner has not yet instructed publication.
+remains the first milestone, with three local processes preceding the run on the
+owner's three Macs. The owner has now deferred publication; it is not an immediate
+prerequisite. The three-Mac and sleep/wake evidence requirements remain open.
 
 ## Why the workspace is split
 
@@ -95,7 +96,7 @@ The owner's priority, set on 2026-10-03: as soon as the scaffolding links into a
 
 ### T1: the first binary on three machines
 
-- **Binary.** The owner's three machines are Apple Silicon Macs, so one release build for `aarch64-apple-darwin` serves all three. The owner wants to get it the way a first-time user would: by downloading a published build on each machine, not by copying a file between them. T1 therefore needs a download location and a first-run path (a published pre-release with the binary and its checksum, and one command or the entry prompt that fetches, verifies and starts it). Publishing is lane B's; it happens only when the owner says to publish. A file fetched by a command-line tool starts normally on macOS; one saved through a browser is quarantined, and an unsigned binary is then blocked until the owner allows it, so the first-run path uses a command-line fetch until builds are signed and notarized. `locust --version` prints the version and the commit, so every record names exactly what ran. Lane A provides the daemon and CLI. Linux x86_64 stays a release target and is not part of T1.
+- **Binary.** The owner's three machines are Apple Silicon Macs, so one release build for `aarch64-apple-darwin` serves all three. **Owner update, October 3: publication is not needed now.** The identified local candidate remains available for implementation and verification; no public repository or release is to be created for the current work. The earlier first-time-user download requirement is deferred, including host selection and public fetch/verify/start qualification. Publication can be revisited when the owner requests it. Every runtime record still identifies the exact binary by version, source commit and SHA-256; a local check does not establish public-download or three-Mac behavior. Lane A provides the daemon and CLI. Linux x86_64 stays a release target and is not part of T1.
 - **Network.** Not a variable of the test. Peers find and reach each other the way BitTorrent peers do (see the owner's direction in the [implementation plan](implementation-plan.md), section 3), so the run is the same wherever the machines are. The three machines happen to share a local network; the route each peer reports is recorded as a fact.
 - **Operations in the binary.** `daemon run`, `status`, `agent enroll`, `goal create`, `goal invite`, `goal join`, `goal status`, `note add`, `notes`, `task propose`, `task assign`, `task claim`, `task submit`, `event show`, `result accept`, `board`, `pending`. Content is sealed, so key exchange and single-chunk content transfer between daemons are included.
 - **Run, driven from the CLI on each machine.**

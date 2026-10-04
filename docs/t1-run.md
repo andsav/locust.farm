@@ -1,22 +1,26 @@
 # T1 CLI run on three Apple Silicon Macs
 
-Date: 2026-10-03. **Status: the exact release candidate passes all 21 three-process workflow checks on one Mac. The published build and three-Mac run are not yet qualified.** The [build guide](t1-build.md) identifies the candidate; the [release ledger](release-evidence.md) records the evidence boundary. These commands exercise the production CLI, authenticated local API, SQLite store and encrypted Iroh synchronization. They do not require a coding client or MCP.
+Date: 2026-10-03. **Status: the exact release candidate passes all 21 three-process workflow checks on one Mac. Publication is deferred by the owner; the three-Mac run is not yet qualified.** The [build guide](t1-build.md) identifies the candidate; the [release ledger](release-evidence.md) records the evidence boundary. These commands exercise the production CLI, authenticated local API, SQLite store and encrypted Iroh synchronization. They do not require a coding client or MCP.
 
-## Download and start
+## Verify and start the candidate
 
-The first-contact path must download the same published binary and verify its pinned SHA-256 on each Mac before starting it. The source repository is private; a public binary download location requires the owner's choice and publication instruction. A local build copied between machines does not complete this step. The [candidate record](t1-build.md) contains a pinned download/start command for the proposed release-only repository. It becomes usable only after the owner approves the destination and publication, followed by public-fetch verification.
+The owner has deferred publication. Use the [identified local candidate](t1-build.md) for local checks; the public download draft is not an immediate prerequisite. This guide retains the three-Mac sequence for when the same verified candidate is available on each machine. Those machine and sleep/wake checks remain unqualified.
 
-The download/start command already runs the daemon in the foreground. Keep that terminal open and skip directly to the second-terminal setup below. If you downloaded and verified the candidate separately, start it with:
+Set `LOCUST` to the absolute path of the candidate executable. From the directory containing its `SHA256SUMS`, verify the bundle before starting the daemon:
 
 ```sh
+export LOCUST=/absolute/path/to/locust
+cd "$(dirname "$LOCUST")"
+shasum -a 256 -c SHA256SUMS
+"$LOCUST" --version
 export LOCUST_HOME="$HOME/.locust-t1"
-"$HOME/.local/share/locust/t1/3422c7b51948/locust" --home "$LOCUST_HOME" daemon run
+"$LOCUST" --home "$LOCUST_HOME" daemon run
 ```
 
 Keep that terminal open. In a second terminal, set `LOCUST` to the absolute path of the same verified binary and choose `m1`, `m2` or `m3` for this machine:
 
 ```sh
-export LOCUST="$HOME/.local/share/locust/t1/3422c7b51948/locust"
+export LOCUST=/absolute/path/to/locust
 export LOCUST_HOME="$HOME/.locust-t1"
 PARTICIPANT=m1
 "$LOCUST" --owner agent enroll "$PARTICIPANT" --manage-goals

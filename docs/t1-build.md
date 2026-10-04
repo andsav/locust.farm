@@ -1,6 +1,6 @@
 # T1: one binary for three Apple Silicon Macs
 
-Date: 2026-10-03. **Status: identified Apple Silicon candidate passes all 21 local workflow checks; public download and the three-Mac run remain unqualified.** The accepted [T1 sequence](workstreams.md) comes before real-client integration. The owner now requires each machine to download the same published `aarch64-apple-darwin` build through a first-time-user path. This helper prepares the local artifact; it does not publish a release or implement that fetch/verify/start path. Network routes are observations of the run.
+Date: 2026-10-03. **Status: identified Apple Silicon candidate passes all 21 local workflow checks; publication is deferred by the owner and the three-Mac run remains unqualified.** The [current T1 direction](workstreams.md) no longer requires publication now. The local artifact remains available for implementation and verification. The prepared public-download command below is retained for later use and has not been executed against a published release. Network routes are observations of the run.
 
 ## Build identity
 
@@ -14,7 +14,7 @@ The [helper](../scripts/build_t1.py) requires committed Rust/build inputs, uses 
 
 After building and checking identity, the helper writes `output/t1/<full-commit>/locust`, `SHA256SUMS` and `metadata.json`. It hashes the copied bytes, records compiler/target/version/commit and checks source identity again. Existing identical bundles can be reused; differing or incomplete output is refused. The metadata explicitly says `qualification: not_run`: build identity does not establish daemon behavior, signing, notarization or a successful installation.
 
-## Prepared candidate
+## Local candidate
 
 The pinned release build succeeded for source commit `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1`:
 
@@ -25,7 +25,9 @@ The pinned release build succeeded for source commit `3422c7b51948a409481cf2cd9d
 
 The checksum and embedded identity were verified independently after the helper completed. The executable has an ad hoc linker signature, without a Developer ID signature or notarization. Its metadata's `qualification: not_run` describes the build helper's scope; subsequent runtime checks are recorded separately in the [evidence ledger](release-evidence.md).
 
-The proposed public destination is a separate release-only repository, `andsav/locust-releases`, with tag `v0.1.0-t1.3422c7b`. It has not been created or approved. This keeps source-repository visibility unchanged. The following download/start command is prepared for that destination and will fail until publication; the owner must choose or approve the destination first:
+## Deferred publication draft
+
+The owner has said publication is not needed now. The following is a retained draft, not an action awaiting immediate approval or a prerequisite for local work. The proposed public destination is a separate release-only repository, `andsav/locust-releases`, with tag `v0.1.0-t1.3422c7b`. It has not been created or approved. This keeps source-repository visibility unchanged. The following download/start command is prepared for that destination and will fail until publication; it must not be used until the owner later requests publication and chooses the destination:
 
 ```sh
 (
@@ -52,9 +54,9 @@ The proposed public destination is a separate release-only repository, `andsav/l
 
 The digest is pinned in the command rather than fetched from a peer. Publication still needs a fresh public fetch/check before this becomes a verified first-contact path. Once downloaded, continue with the [three-Mac CLI sequence](t1-run.md).
 
-## Publish, download and compare
+## Later public-download qualification
 
-The owner's [updated T1 direction](workstreams.md) requires a published pre-release and a first-run command or entry prompt that downloads, verifies and starts it on each Mac. Publishing requires the owner's explicit instruction. The destination above and its fetch/verify/start command are prepared but unapproved and untested over public download; a local bundle or a file copied between Macs does not satisfy this first-contact test.
+The owner has [deferred publication](workstreams.md). The earlier first-contact scenario remains unqualified: a published pre-release and a command that downloads, verifies and starts it. The destination above and its command are unapproved and untested over public download. Local runtime verification can proceed independently; it does not satisfy the deferred public-download test.
 
 Once that path is implemented and the release is published, compare the downloaded artifact from a second terminal on each Mac:
 
@@ -76,4 +78,4 @@ The helper's tests cover dirty/untracked input rejection, allowed unrelated edit
 python3 -m unittest discover -s scripts/tests -p test_build_t1.py
 ```
 
-The runtime and version contract are committed in `885b372`; publication and the first-run download path are additional T1 requirements. The [release-candidate local workflow](../research/t1-integration-2026-10-03.md) passed all 21 checks against this exact artifact in 12.53 seconds. The same published download must still pass on all three Macs, including sleeping-laptop recovery.
+The runtime and version contract are committed in `885b372`; publication and the public first-run path are deferred. The [release-candidate local workflow](../research/t1-integration-2026-10-03.md) passed all 21 checks against this exact artifact in 12.53 seconds. The three-Mac runtime check, including sleeping-laptop recovery, remains unqualified. No public-download qualification is claimed.

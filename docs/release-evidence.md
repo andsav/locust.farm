@@ -44,13 +44,13 @@ Exact reproduction commands, observations and remaining boundaries are in the [i
 
 ## T1 preparation and run status
 
-The first integrated run uses one binary on the owner's three Apple Silicon Macs; the full sequence is in [workstreams](workstreams.md).
+The first integrated run uses one binary on the owner's three Apple Silicon Macs; the full sequence is in [workstreams](workstreams.md). The owner has deferred publication. Local implementation and verification do not wait on a publishing decision; three-Mac, sleep/wake and later public-download claims still require their own evidence.
 
 | Required record | Current evidence |
 |---|---|
 | One identified `aarch64-apple-darwin` binary | Candidate from `3422c7b` passes all 21 local workflow checks; version and SHA-256 verified; see [candidate record](t1-build.md) |
-| Published pre-release and first-run fetch/verify/start path | Pinned download/start command prepared for proposed release-only repository; host choice and publication remain pending |
-| Matching downloaded version, commit and SHA-256 on all three Macs | Not run; publication pending |
+| Published pre-release and first-run fetch/verify/start path | Deferred by owner; draft retained for later, with no host selection or publication required now |
+| Matching candidate version, commit and SHA-256 on all three Macs | Not run; publication is deferred and local candidate identity is verified |
 | Three members; observed peer routes | Exact release candidate passes locally; three-Mac run pending |
 | Propose → assign → claim → submit → inspect → accept; third peer observes history | Exact release candidate passes locally; three-Mac run pending |
 | Coordinator offline while other peers exchange notes; catch-up | Exact candidate passes after M3 restart, relay paths observed; three-Mac run pending |
