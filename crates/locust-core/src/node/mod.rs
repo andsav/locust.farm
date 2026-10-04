@@ -30,6 +30,8 @@ mod sessions;
 mod views;
 
 #[cfg(test)]
+mod sim;
+#[cfg(test)]
 mod tests;
 
 use std::cell::RefCell;
