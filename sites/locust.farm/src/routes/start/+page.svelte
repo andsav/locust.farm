@@ -2,7 +2,6 @@
 	import CopyPrompt from '#lib/components/CopyPrompt.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import {
-		AVAILABILITY,
 		AGENT_INTRO,
 		AGENT_RULE,
 		AGENT_STEPS,
@@ -11,12 +10,13 @@
 		HARNESS_ROUTES,
 		ROUTE_LABELS,
 		ROUTING_QUESTIONS,
-		SETUP_ARTIFACT
+		INSTALL_GUIDE_URL,
+		PORTABLE_STEPS
 	} from '#lib/onboarding/guide.ts';
 	import { HOME_PATH } from '#lib/site.ts';
 
 	const description =
-		'Paste one prompt into the agent you already use. It reads this guide, tells you what it can do, and asks before it changes anything.';
+		'Paste one prompt into the agent you already use. It installs or updates Locust and connects your agent to the local daemon.';
 </script>
 
 <svelte:head>
@@ -32,35 +32,31 @@
 			<h1 id="start-title">Start with one prompt<span class="accent">.</span></h1>
 			<p>
 				Paste this into the agent you already use: Claude Code, Codex, pi, Droid or another. It
-				reads this guide, tells you what it can do, and asks before it changes anything.
+				installs or updates Locust, starts the local daemon and connects your agent.
 			</p>
 			<CopyPrompt id="entry-prompt" text={ENTRY_PROMPT} />
 			<p class="note">
-				The macOS Apple Silicon <a href={AVAILABILITY.publication.installationGuideUrl}
-					>terminal preview</a
-				>
-				is published. This first-contact route remains unqualified, so your agent reports what it found
-				and stops. Availability reviewed {AVAILABILITY.reviewed};
-				<a href="/docs/next/status">read the qualification boundaries</a>.
+				The verified <a href={INSTALL_GUIDE_URL}>macOS Apple Silicon preview</a> is available. The prompt
+				authorizes setup. Your existing data and agent settings are preserved. Work and sharing need their
+				own choices.
 			</p>
 		</section>
 
 		<section aria-labelledby="journey">
-			<h2 id="journey">Planned collaboration journey</h2>
+			<h2 id="journey">What happens next</h2>
 			<p>
-				This describes the intended public journey. It is not a published installation procedure.
+				Your agent checks the installation and setup plans, then applies the changes covered by the
+				prompt.
 			</p>
 			<ol class="steps">
-				<li>Your agent says which harness it is and what it can use.</li>
-				<li>It lists every change setup would make. You approve or decline.</li>
-				<li>A second agent on your machine joins the same task. You decide what it may do.</li>
+				<li>It installs the verified preview, or updates the existing installation.</li>
+				<li>It starts the local daemon and checks a connection from your agent.</li>
+				<li>You can use the installed CLI immediately. Native MCP discovery may need a refresh.</li>
 				<li>
-					Later, you invite someone. You choose who and exactly what to share. They approve on their
-					side.
+					When you choose to collaborate, you decide who joins and what each participant may do.
 				</li>
 				<li>
-					Results come back for review. Accepting one does not change your files; you apply it when
-					you choose.
+					Real-model behavior and native agent discovery are checked separately from installation.
 				</li>
 			</ol>
 		</section>
@@ -88,14 +84,12 @@
 						{/each}
 					</dl>
 				</li>
+				<li>{AGENT_STEPS.inspect}</li>
+				<li>{AGENT_STEPS.install}</li>
 				<li>{AGENT_STEPS.route}</li>
-				<li>
-					{#if SETUP_ARTIFACT}
-						Follow <a href={SETUP_ARTIFACT}>Locust’s setup</a> for your route. {AGENT_STEPS.approve}
-					{:else}
-						{AGENT_STEPS.report}
-					{/if}
-				</li>
+				<li>{AGENT_STEPS.setup}</li>
+				<li>{AGENT_STEPS.update}</li>
+				<li>{AGENT_STEPS.verify}</li>
 			</ol>
 			<p>{AGENT_RULE}</p>
 
@@ -114,6 +108,12 @@
 					</details>
 				{/each}
 			</div>
+			<h3>Portable CLI setup</h3>
+			<ol class="steps">
+				{#each PORTABLE_STEPS as step (step)}
+					<li>{step}</li>
+				{/each}
+			</ol>
 		</section>
 
 		<footer>
@@ -155,6 +155,7 @@
 	li,
 	dd {
 		color: var(--color-text-muted);
+		overflow-wrap: anywhere;
 		text-wrap: pretty;
 	}
 

@@ -1,120 +1,117 @@
 import availability from '../../../../../docs/reference/availability.json' with { type: 'json' };
 
-/**
- * Content of the first-contact guide at /start. The entry prompt and the routing
- * table follow docs/first-contact.md; change both together.
- */
-
+/** Shared by /start, /llms.txt and the copy button; see docs/first-contact.md. */
 export const GUIDE_PATH = '/start';
-
-/** The canonical public address the entry prompt points agents at. */
 export const GUIDE_URL = `https://locust.farm${GUIDE_PATH}`;
-
-export const ENTRY_PROMPT = `Read ${GUIDE_URL} and follow the instructions for agents. First tell me which harness you are and what you can use. Do not install or change anything until I approve.`;
-
-/**
- * The qualified first-contact harness setup, once published. The terminal-only
- * preview is listed separately and does not qualify this route.
- */
+export const INSTALL_GUIDE_URL = 'https://locust.farm/downloads/install.md';
+export const INSTALLER_URL = 'https://locust.farm/downloads/install.sh';
+export const RELEASE_METADATA_URL = 'https://locust.farm/downloads/latest.json';
 export const AVAILABILITY = availability;
-export const SETUP_ARTIFACT: string | undefined =
-	availability.publication.installerUrl ?? undefined;
 
-/** The questions an agent answers about its own session before choosing a route. */
+/** Self-contained: the agent does not need access to the authenticated website. */
+export const ENTRY_PROMPT = `Install or update Locust on this machine and connect the agent I am using now. Use the official public instructions at ${INSTALL_GUIDE_URL} and the verified installer at ${INSTALLER_URL}; you do not need access to /start. Identify your agent and where your tools run, then inspect the current installation. If Locust already exists, update its existing software prefix and preserve its daemon data, identity, credentials and sessions. Inspect the install and setup plans, then apply them: this request authorizes the verified installation or update, the local user daemon and this agent's connection. Use locust up with --yes for the selected client and current workspace; use the installed CLI if MCP needs a refresh. Inspect up --help: choose codex, claude, pi, droid or shell only when supported. Otherwise finish daemon setup with service plan/apply/start, enroll a dedicated CLI principal without work grants, create its protected session and use that scoped CLI connection. Do not stop just because a route lacks end-to-end qualification. Respect tool permissions, preserve unrelated settings, and ask only for a missing choice or a real blocker. Do not create or join goals, grant work permissions or share files. Finish by checking the running daemon and a harmless authenticated status call; report the installed version, agent connection and any refresh still needed.`;
+
 export const ROUTING_QUESTIONS = [
+	{
+		name: 'Execution host',
+		question:
+			'Do your tools run on the person’s computer, a remote machine or a container? Name the OS and architecture. A remote install does not install on their computer.'
+	},
 	{
 		name: 'Transport',
 		question:
-			'Can this session reach a local stdio MCP server, or run a command line that can reach a local socket under its current policy?'
+			'Can this session run local shell commands or reach a local stdio MCP server under its current policy? CLI access can complete setup without waiting for native MCP discovery.'
 	},
 	{
 		name: 'Instructions',
-		question: 'Can it load a SKILL.md skill, and what refresh does a new or changed skill need?'
-	},
-	{
-		name: 'Approvals',
 		question:
-			'Can it ask the person before a change, and does a policy block MCP servers, local commands or file writes?'
+			'Can you load the installed SKILL.md, or read it directly as a file? Report whether native discovery needs a refresh or a new chat.'
 	}
 ] as const;
 
 export interface HarnessRoute {
 	name: string;
-	/** What the client itself documents. This is not Locust support. */
 	upstream: string;
-	/** What Locust has actually tested with this client. */
 	locust: string;
-	/** What has to exist before this route can be followed. */
 	prerequisite: string;
 }
 
 export const HARNESS_ROUTES: readonly HarnessRoute[] = [
 	{
 		name: 'Claude Code',
-		upstream:
-			'Stdio MCP. Skills reload live in watched directories; a new top-level skills directory needs /reload-skills.',
-		locust:
-			'Locust implements installed onboarding and authenticated daemon readiness. Disposable macOS onboarding checks used Claude profiles. These earlier checks do not qualify the API 2/protocol 2 replacement or a native real-model tool roundtrip.',
+		upstream: 'Stdio MCP and local skills. Refresh or start a new chat if discovery is stale.',
+		locust: 'Select --client claude. Setup owns one MCP entry, skill and bound CLI launcher.',
 		prerequisite:
-			'A published verified candidate and qualification of real native tool calls and approvals.'
+			'An existing workspace and the active profile home; defaults use the current directory and HOME.'
 	},
 	{
 		name: 'Codex',
-		upstream:
-			'Stdio MCP in config.toml. Skills are detected automatically; restart if one is missing, and after config changes.',
-		locust:
-			'Locust implements installed onboarding and authenticated daemon readiness. Disposable macOS onboarding checks used Codex profiles. These earlier checks do not qualify the API 2/protocol 2 replacement or a native real-model tool roundtrip.',
+		upstream: 'Stdio MCP and local skills. A configuration change may require a new chat.',
+		locust: 'Select --client codex. Setup owns one MCP entry, skill and bound CLI launcher.',
 		prerequisite:
-			'A published verified candidate and qualification of real native tool calls and approvals.'
+			'An existing workspace and the active profile home; inspect CODEX_HOME before selecting the standard layout.'
 	},
 	{
 		name: 'pi',
 		upstream:
-			'Built-in MCP since v0.99.0, unless an extension owns /mcp, it is turned off, or the session uses the SDK. Run /reload after outside changes.',
-		locust: 'Locust prepares a configuration file change. Not qualified.',
-		prerequisite: 'A published verified candidate, then a tested pi version and mode.'
+			'Local CLI and skills; native MCP availability depends on the installed version and mode.',
+		locust:
+			'Select --client pi. Read the installed skill and use its bound CLI while native MCP refresh is pending.',
+		prerequisite:
+			'An existing workspace and the active profile home; inspect PI_CODING_AGENT_DIR before selecting the standard layout.'
 	},
 	{
 		name: 'Droid',
 		upstream:
-			'Stdio MCP. MCP config reloads live; a new skill may need a new session. Organization policy can block servers.',
-		locust: 'Locust prepares a configuration file change. Not qualified.',
-		prerequisite: 'A published verified candidate, then MCP and skill refresh tested separately.'
+			'Stdio MCP in .factory/mcp.json reloads live. Skills live under .factory/skills; a new chat may be needed.',
+		locust:
+			'Select --client droid when the installed up command supports it. Setup preserves unrelated Factory configuration and provides a bound CLI launcher.',
+		prerequisite:
+			'Inspect locust up --help: earlier published binaries may require the portable CLI route below until a release includes Droid onboarding.'
 	},
 	{
 		name: 'Any other harness',
-		upstream: 'Unknown until you answer the three questions above.',
-		locust: 'No generic route yet.',
+		upstream:
+			'Local shell commands and the ability to read a file are enough for the portable CLI route.',
+		locust:
+			'Select --client shell when supported. It writes portable instructions, a bound CLI and an MCP connection descriptor under .local/share/locust-agent in the selected profile; it does not edit another app’s configuration.',
 		prerequisite:
-			'A generic route that names the minimum tools, instructions and approvals a harness needs.'
+			'If the published binary lacks shell onboarding, install/start its user service and enroll a scoped CLI principal using the installed manual. No native adapter is required to install the daemon.'
 	}
 ];
 
-/**
- * The instructions for agents, shared by the /start page and /llms.txt. The steps
- * are followed in order; the standing rule applies throughout and sits outside
- * them, so it is not read as something to do after stopping.
- */
-export const AGENT_INTRO = 'A person pasted the entry prompt and sent you here. Do this, in order:';
+export const AGENT_INTRO =
+	'The entry prompt authorizes local setup. Inspect the plans and continue within that scope:';
 
 export const AGENT_STEPS = {
 	identify:
-		'Tell the person your harness, its version and its mode. Name the harness, not the model. Say “unknown” when you cannot tell.',
-	answer: 'Answer three questions about this session:',
-	route: 'Find your harness below. If it is not listed, use “Any other harness”.',
-	/** The last step while no setup is published. */
-	report:
-		'The terminal preview is published, but this first-contact route is not qualified. Report your harness, your answers and your route’s prerequisite, then stop. Do not install, download or run anything for Locust.',
-	/** The last step once SETUP_ARTIFACT is set; it follows the link to the setup. */
-	approve: 'Show every change it would make and wait for the person to approve.'
+		'Briefly identify the agent application, its version if known, and the execution host. Unknown version or refresh behavior is not itself an installation blocker.',
+	answer: 'Check these capabilities without turning them into a separate approval round:',
+	inspect:
+		'Inspect the OS/architecture, locust on PATH, the default software prefix, existing onboarding/service records and the current workspace. Read records without printing secret files. Reuse an existing owned prefix, daemon home and profile binding. Do not silently select a new identity or daemon because setup already exists.',
+	install: `Read ${INSTALL_GUIDE_URL} and ${RELEASE_METADATA_URL}; if your web reader cannot fetch plain text, use curl through the permitted shell. Only macOS Apple Silicon is currently published. Download ${INSTALLER_URL} to a temporary file, inspect it and run sh INSTALLER --plan with the selected --prefix and --bin-dir. Inspect the verified plan, then run the same installer without --plan. This also updates an existing owned installation; use the absolute installed current/locust path without changing shell startup files. Preserve a foreign executable or unowned service and report the collision.`,
+	route:
+		'Inspect the installed executable’s up --help and choose the matching route below. Follow commands supported by those bytes, rather than assuming the development source has already been released. Missing qualification is evidence to report, not a command to stop.',
+	setup:
+		'For a supported client, run CURRENT/locust --home DATA_HOME up --client CLIENT --profile-home PROFILE_HOME --workspace WORKSPACE --plan. Review it, then repeat the same selections with --yes instead of --plan. Setup authorization includes the user service, enrollment, protected session, instructions, launcher and scoped MCP entry; it does not include work grants. Read the installed skill and use its bound locust-cli now when shell access is permitted. If the binary lacks this client, use the portable CLI procedure below to finish daemon setup without changing another client’s profile.',
+	update:
+		'Software activation does not replace a running daemon. For an update, use service status to inspect the owned service and service start with its original prefix, kind, profile home, daemon home and log directory to restart it when the running code differs. Recheck API readiness. Preserve incompatible existing state and report it for a fresh-state choice; never erase or migrate it or kill an unrelated/foreground process.',
+	verify:
+		'Check install status, service state and authenticated daemon API readiness. Run the installed bound locust-cli status, or the harmless locust_status MCP tool if already available. Report CLI and native MCP discovery separately. If a refresh is needed, give its exact next step; successful CLI access is usable now. Preserve the journal on interruption and retry the same selections. Finish with version/source, installed paths, daemon result and agent connection; name unverified boundaries.'
 } as const;
 
-export const AGENT_RULE =
-	'At every step: never edit stored approvals, weaken a policy or work around a block. Tell the person what was refused and let them decide.';
+/** Works with the existing public CLI even before new up adapters are released. */
+export const PORTABLE_STEPS = [
+	'Use CURRENT/locust --json service plan --prefix PREFIX --kind launchd --profile-home HOME --daemon-home DATA_HOME --log-dir DATA_HOME/logs. Inspect the plan; apply those same selections with service apply --expect-plan PLAN_SHA256, then service start. Run CURRENT/locust --home DATA_HOME --owner doctor to verify the daemon. On a supported locally supplied Linux candidate, select systemd instead.',
+	'Inspect owner status and existing named credentials first. Reuse a dedicated principal for this agent, or enroll a uniquely named one with CURRENT/locust --home DATA_HOME --owner agent enroll NAME, without --manage-goals. The command returns its protected credential file path; keep secret bytes out of the conversation. Create/reuse its fixed session with CURRENT/locust session create ABSOLUTE_SESSION_PATH. Retain the name and those paths for retries.',
+	'Use CURRENT/locust --home DATA_HOME --credential CREDENTIAL_PATH --session SESSION_PATH status for a harmless agent-authenticated check. Read the installed current/skills/locust/SKILL.md and use that same scoped command prefix for CLI operations. Native MCP registration can be configured separately through the agent’s documented interface using locust mcp and those protected-file paths; no policy change is authorized.'
+] as const;
 
-/** Labels for the three fields of a harness route. */
+export const AGENT_RULE =
+	'Keep client approvals, sandbox rules and organization policy intact. Use CLI access only when that access is allowed; never route around a denied operation. Ask for a decision when tools are unavailable, a required workspace/profile choice is ambiguous, existing state is incompatible or a change exceeds the setup request. Setup never authorizes goals, work, invitations or file sharing.';
+
 export const ROUTE_LABELS = {
-	upstream: 'The client documents',
-	locust: 'Locust today',
-	prerequisite: 'Needed first'
+	upstream: 'Connection',
+	locust: 'Setup',
+	prerequisite: 'Check first'
 } as const;

@@ -18,7 +18,7 @@ pub(super) fn command() -> Command {
     Command::new("doctor")
         .about("Check daemon readiness and a selected installation or enrolled client profile")
         .arg(Arg::new("prefix").long("prefix").help("Software prefix; defaults to the selected onboarding journal"))
-        .arg(Arg::new("client").long("client").value_parser(["codex", "claude", "pi"]).help("Inspect this enrolled client in the selected profile"))
+        .arg(Arg::new("client").long("client").value_parser(["codex", "claude", "pi", "droid", "shell"]).help("Inspect this enrolled client in the selected profile"))
         .arg(Arg::new("profile-home").long("profile-home").requires("client").help("Selected client profile home (defaults to HOME)"))
         .arg(Arg::new("workspace").long("workspace").requires("client").help("Workspace to inspect (defaults to the enrolled workspace)"))
         .arg(Arg::new("service").long("service").value_parser(["launchd", "systemd", "none"]).help("Service manager to inspect; defaults to this platform when inspecting a client"))

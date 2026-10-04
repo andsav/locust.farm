@@ -48,6 +48,7 @@ fn selected(
             Client::Codex => ("CODEX_HOME", ".codex"),
             Client::Claude => ("CLAUDE_CONFIG_DIR", ".claude"),
             Client::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent"),
+            Client::Droid | Client::Shell => ("HOME", ""),
         };
         if let Some(value) = std::env::var_os(variable).filter(|value| !value.is_empty())
             && (client == Client::Claude
@@ -83,7 +84,10 @@ pub(super) fn inspect(args: &ArgMatches, daemon_home: &Path, checks: &mut Vec<Va
         .map(|value| match value.as_str() {
             "codex" => Client::Codex,
             "claude" => Client::Claude,
-            _ => Client::Pi,
+            "pi" => Client::Pi,
+            "droid" => Client::Droid,
+            "shell" => Client::Shell,
+            _ => unreachable!("validated client"),
         });
     let selected = client.map(|client| selected(args, daemon_home, client));
     if let Some(selected) = &selected {
@@ -183,9 +187,17 @@ pub(super) fn inspect(args: &ArgMatches, daemon_home: &Path, checks: &mut Vec<Va
     let preserve = "Inspect the selected profile's Locust files and preserve any user edits; restore the owned files or review the same locust up selections to resume an interrupted setup.";
     for (name, field, message) in [
         (
-            "mcp_registration",
+            if selected.spec.client == Client::Shell {
+                "connection_descriptor"
+            } else {
+                "mcp_registration"
+            },
             "mcp_ready",
-            "owned Locust MCP entry matches",
+            if selected.spec.client == Client::Shell {
+                "portable MCP connection descriptor matches; no native app registration requested"
+            } else {
+                "owned Locust MCP entry matches"
+            },
         ),
         ("skill", "skill_ready", "owned Locust skill matches"),
         (

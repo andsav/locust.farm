@@ -6,6 +6,22 @@ There is no public release origin or production signing identity in this templat
 The [qualification records](release-evidence.md) determine which client and
 platform behavior has actually been exercised.
 
+## Public install or update
+
+The self-contained [first-contact prompt](first-contact.md#entry-prompt) uses the
+public HTTPS installer and installation guide. It authorizes the verified local
+software update, selected user service and agent connection in one request.
+Inspect the concrete plans and continue within that authorization using `--yes`.
+Reuse existing owned software/state/profile selections and preserve their identity.
+Restart an owned running service after code changes and check authenticated
+readiness; software activation alone does not replace a process.
+
+Read the installed command help before selecting an adapter. Current source
+supports `codex`, `claude`, `pi`, `droid` and portable `shell`; older public bytes
+may lack the last two. The shared guide also gives a portable service and scoped
+CLI enrollment procedure for those bytes. Agent/model qualification is reported
+separately and does not prohibit installing published software.
+
 ## New client through `up`
 
 For a fresh selected profile, the implemented [onboarding route](onboarding.md)
@@ -22,7 +38,7 @@ Independent public trust key: [absolute path]
 Signed withdrawal registry: [absolute path]
 Software prefix: [absolute path]
 Daemon data home: [absolute path]
-Client: [codex, claude, or pi]
+Client: [codex, claude, pi, droid, or shell]
 Client profile home: [absolute path]
 Workspace: [absolute path]
 Service: [launchd, systemd, or none]
@@ -73,7 +89,7 @@ Independent public trust key: [absolute path]
 Signed withdrawal registry: [absolute path]
 Software prefix: [absolute path]
 Daemon data home: [absolute path]
-Client: [codex, claude, or pi]
+Client: [codex, claude, pi, droid, or shell]
 Client profile home: [absolute path]
 Workspace: [absolute path]
 Service: [launchd, systemd, or none]

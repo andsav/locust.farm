@@ -57,6 +57,18 @@ absolute and free of traversal components. The supported standard layouts are:
 | Codex | `.codex/config.toml` | `.agents/skills/locust/` |
 | Claude Code | `.claude.json` | `.claude/skills/locust/` |
 | Pi | `.pi/agent/mcp.json` | `.pi/agent/skills/locust/` |
+| Droid | `.factory/mcp.json` | `.factory/skills/locust/` |
+| Portable CLI (`shell`) | `.local/share/locust-agent/mcp.json` connection descriptor | `.local/share/locust-agent/skills/locust/` |
+
+Droid and portable CLI onboarding are implemented source additions and are covered
+by the shared setup/enrollment tests; this does not publish new binary bytes.
+Inspect the installed `up --help` before selecting them. The portable route
+installs instructions and a bound CLI without editing any native app configuration.
+Read that skill directly in the current agent and run its `locust-cli status`.
+Its MCP file is a connection descriptor, not proof of native registration.
+Droid workspace/ancestor `.factory` entries are checked for collisions. Factory
+organization policy remains authoritative. See [Factory MCP](https://docs.factory.com/harness/mcp)
+and [Factory skills](https://docs.factory.com/harness/skills) for the native paths.
 
 When using the default profile home, a custom `CODEX_HOME` or
 `PI_CODING_AGENT_DIR` that differs from the supported layout blocks onboarding
@@ -122,7 +134,7 @@ qualification is implied by these component and local installation tests.
 
 ## Inspect a configured profile
 
-Run `locust doctor --client codex` (or `claude`/`pi`) with the same daemon home
+Run `locust doctor --client codex` (or `claude`/`pi`/`droid`/`shell`) with the same daemon home
 and selected `--profile-home`. The protected journal supplies the recorded
 software prefix and workspace; explicit overrides must agree. Checks cover
 installation signatures, the chosen service, authenticated daemon access, saved

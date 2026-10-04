@@ -19,7 +19,7 @@ pub(super) fn commands() -> Command {
     for operation in ["plan", "apply", "remove-plan", "remove", "status"] {
         let mut sub = Command::new(operation)
             .arg(path("prefix"))
-            .arg(path("client").value_parser(["codex", "claude", "pi"]))
+            .arg(path("client").value_parser(["codex", "claude", "pi", "droid", "shell"]))
             .arg(path("profile-home"))
             .arg(path("workspace"))
             .arg(path("daemon-home"))
@@ -38,7 +38,10 @@ pub(super) fn run(operation: &str, args: &ArgMatches) -> Result<Output, Failure>
     let client = match args.get_one::<String>("client").unwrap().as_str() {
         "codex" => Client::Codex,
         "claude" => Client::Claude,
-        _ => Client::Pi,
+        "pi" => Client::Pi,
+        "droid" => Client::Droid,
+        "shell" => Client::Shell,
+        _ => unreachable!("validated client"),
     };
     let spec = SetupSpec {
         executable: prefix.join("current/locust"),
