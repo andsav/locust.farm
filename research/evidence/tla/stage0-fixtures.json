@@ -1,0 +1,335 @@
+{
+  "schema": 1,
+  "source_commit": "86980594acee708b2f9bf303afc9ee636dc55337",
+  "dirty_status": "M crates/locust-core/src/goal/tests.rs\n M crates/locust-core/src/node/tests/mod.rs\n M docs/protocol-v0.md\n M research/README.md\n?? .github/workflows/tla-bootstrap.yml\n?? crates/locust-core/src/node/tests/formal.rs\n?? research/tla/\n?? scripts/check_tla.py\n?? scripts/tests/test_check_tla.py",
+  "source_hashes": {
+    "crates/locust-core/src/goal/append.rs": "7f2da17776efec4f263829319a45684ed35af5064358a373a1c1a1df2860d216",
+    "crates/locust-core/src/goal/chain.rs": "9b861faeca0e9ef714ca0a29ab76f624877cdf09e0d573a7384aa3d399a6349e",
+    "crates/locust-core/src/goal/fold.rs": "74eea44c4a22501c0a21572da484ea438ecc98c9a504df9ed920d5d5589195fd",
+    "crates/locust-core/src/goal/history.rs": "feb78cc8a630e29551c0dbbb7ca23ba5e4a6d769b3e4c978900567cedc8a72a5",
+    "crates/locust-core/src/goal/ids.rs": "116b8bfef681f639059a4784ec7fb134b05ce828d1b96c8866007b468a54bfc0",
+    "crates/locust-core/src/goal/mod.rs": "f1923208234bf66d3a0c22df6478a817294f5f67a544944c71979136b745cd48",
+    "crates/locust-core/src/goal/screen.rs": "ace1f1a45af97881e5ced8743c2197131f052f1a6c0dcf8cb5644f654a60b64f",
+    "crates/locust-core/src/goal/standing.rs": "70ef59e0d558be7eecf0e534e28a03180f44123bf53849a8cb8f723d88fa0107",
+    "crates/locust-core/src/goal/state.rs": "12c6ac68d9b45ff5185935dbb6f340b08a4229295befa5a34f825201976b376b",
+    "crates/locust-core/src/goal/tests.rs": "b162cd8c45b7c8cd2c9b3c49f6bc1ec8122a0e17f9bff9431310c7dbb0497165",
+    "crates/locust-core/src/goal/transition.rs": "a608cc99f9e5d420c7e7f765645dcc5726a776a4a45e7d69a182aab235565148",
+    "crates/locust-core/src/node/access.rs": "dd459e9f4df2be0dccf4a7437907044236a22df3fbf40b8c8848adcc9ed4611b",
+    "crates/locust-core/src/node/authoring.rs": "7369e1ab4621809216bde00cbaf5b9fc91e864455cc4555092465a4facf4a084",
+    "crates/locust-core/src/node/callers.rs": "155c3b57940700e03e7c59629918666d2f84b0b5de6c5fec379203c1ed10aecc",
+    "crates/locust-core/src/node/commit.rs": "b2d79fac77e585430071b99b42173b1c04c3231fbc56c6a654683579ca1f1599",
+    "crates/locust-core/src/node/entry.rs": "03202d6ce43e33c714c76d9fd3dc79d61295cec02b576d3afda9d1ae111705c4",
+    "crates/locust-core/src/node/feed.rs": "f8cfb66f787151effd9b3918f2d15504480870eec6009db239bd32b88ed04bd7",
+    "crates/locust-core/src/node/identity.rs": "ff73077612a577f2d03b86cdc42bdce681df136176595cea3ad5a18f2d3f8ad3",
+    "crates/locust-core/src/node/local.rs": "1904ecdec4d91971a7bd1d3842a8829d3978d1bb7b2a65c0d4f2c3cf6b353013",
+    "crates/locust-core/src/node/mod.rs": "ccdde9cece50078ec5aab25646a8fea1045148b746b7510f609800477b533db5",
+    "crates/locust-core/src/node/peers.rs": "76885bf92712c94b478507aed4a8b2900df7327b593e6302b65b04030d9b4d4f",
+    "crates/locust-core/src/node/records.rs": "75672173346bd91407a57e0b04f997888b74b8ea8cdec7cd074c1f9488f62f82",
+    "crates/locust-core/src/node/replica.rs": "74eedb33404d1909e4cc5d8668e80dc16d8fb5b7b2de11dc7e9d4c44c36e5e48",
+    "crates/locust-core/src/node/replica_tests.rs": "9240159ae88d447969d19e04235c56cd6fd7aa4ec84698d6829d6e631fd36fef",
+    "crates/locust-core/src/node/requests/claims.rs": "414f240bb92ceec9f73dec22f14103d4bef47d5e2afdf8f21e0ba9d3d0b1fca5",
+    "crates/locust-core/src/node/requests/content.rs": "6b8b42718c9f85c6eeb3df9c9add01769f1794d414975ddde620581c827aae47",
+    "crates/locust-core/src/node/requests/daemon.rs": "7a48b64ab86e016ed3e4296f5b275f85c1479da79559065b94dab58f0d4afe50",
+    "crates/locust-core/src/node/requests/goals.rs": "0edf84c695c012c9171b79047e56d2268168543a556da327901b16e35f076ee7",
+    "crates/locust-core/src/node/requests/invitations.rs": "60866f5ad228ff19095e11710c76740b2117da4399a8468b359d81b40ad8037a",
+    "crates/locust-core/src/node/requests/mod.rs": "23dee0eee5f0270407315245ea4a090297e70e8441326afd1bdd68e2374bc140",
+    "crates/locust-core/src/node/requests/notes.rs": "5f33a53f575fa67ec36d1f1b782aec6f0aa0552e8de2054d7a619f927487ba14",
+    "crates/locust-core/src/node/requests/reading.rs": "a4972700719fdf6dfec16b44c62b100141e62c06c318d6cfb562cbe47521aea7",
+    "crates/locust-core/src/node/requests/sessions.rs": "3af225baa2f71843f39880cb88cb70e23b75369c07a8c04cc42dd984c8e912e2",
+    "crates/locust-core/src/node/requests/tasks.rs": "84f6117cd584310055c8673e5af2d37f67494962474a8f7df642ca7cc90b17d9",
+    "crates/locust-core/src/node/sessions.rs": "217421697a5205401bb7ef33c7c34ef2e4f21bab98fe272dd16734369ed4693a",
+    "crates/locust-core/src/node/tests/content.rs": "5db4cd69eacf50808a1e5c57863deed2d6d93269dd295602fbad1ec49acd6deb",
+    "crates/locust-core/src/node/tests/daemon.rs": "3b2603136f8b8f7516eef910bc86dd92c8ae1bc3838ebb3532b81548ac08da0b",
+    "crates/locust-core/src/node/tests/failure.rs": "bc652fa4a253ab8ff959cb821da8486849bf2e50876213125ee4d46bc907a1b7",
+    "crates/locust-core/src/node/tests/formal.rs": "cae7a4ecd857b69e910f9a3801007e1b5d39a11e487736434dbc9ff729af8244",
+    "crates/locust-core/src/node/tests/lifecycle.rs": "10e7fa840beb7a8ae8c05de8b0db32f39ef349730a3f70d8f864aabfd73b274d",
+    "crates/locust-core/src/node/tests/mod.rs": "7a8c8179888d83e17dcea71d0f5d1223b406c7a443d4832d1af52ddbdee601bd",
+    "crates/locust-core/src/node/views.rs": "54e53f00b7b699dbada73db8cb2d0c68047e3de5b27165c8443b8c2ea6700aed",
+    "crates/locust-proto/src/event.rs": "9b2dbf5195d3153885d40aa0b95b3add2fc77ed5ef5c2f4737e85a0ebfdd6062",
+    "crates/locust-proto/src/store.rs": "e940a285b79e0bbbf29f8816bd08909a1d05caa69165d5dbe0095349dcd975ff"
+  },
+  "input_hashes": {
+    "research/tla/GoalLog.tla": "8cb6fcebcdc993b8f1b54e04aa605191ff4d0ee8c2c29c1b91f145ed3b3215dd",
+    "research/tla/Sessions.tla": "2c186d2c2a61045c907c177712b3fd7538d9e03d66f7095e93386975d6675fe2",
+    "research/tla/configs/goal-authority-anchor.cfg": "08f5e9211da3b6ee434d4d37092d0299acf18e1d4d1fc0754c3aab0f691ac0b6",
+    "research/tla/configs/goal-broken-anchor.cfg": "7119f1e97191de0e69d722f0722f5dd74e672c21b39e37dde2f8d85bc94d446a",
+    "research/tla/configs/goal-cancel-accept.cfg": "789423dcbac48adecace86ac2df3d719277eeff48d606dad3c7bd9da80f04832",
+    "research/tla/configs/goal-cancel-reassign.cfg": "ceaf9f6b59dbb71cbf49a28dc7a5f288782c8ed5697c47a1e211c1e283d73846",
+    "research/tla/configs/goal-canonical-order.cfg": "a29ad61918589742d8164b07da4f55120a0d5b52b5287935ea00f5ff16398ca6",
+    "research/tla/configs/goal-coordinator-fork.cfg": "2914ef3f3adcc640e94c09a2f44089d34355ca5133c494b0a599f5c189b1338f",
+    "research/tla/configs/goal-ir12-current.cfg": "80a7f67161e74051e418f8fe9eae5675804a84c2c30c408a0037e558c32f54d2",
+    "research/tla/configs/goal-ir12.cfg": "92f51a9071a2fed79c543eadaab41467b8a3046824b9a6e3d624a5908405ccf9",
+    "research/tla/configs/goal-ir5-current.cfg": "7d67f3439f464e09422564ee36be43c88537c3c6250020af77b5b48ca887e033",
+    "research/tla/configs/goal-ir5.cfg": "e0edb36997541c69f3202d97f262ca0a874e3941cf499430e4f7b86fcdf5abf0",
+    "research/tla/configs/goal-member-fork.cfg": "340b3c3ab457ef058725450c5803f3b3038105f326977d1315c309aa0b156350",
+    "research/tla/configs/goal-removal-readmission.cfg": "3cb03df4f8faf260ae5773ce3638da8562b79a10acfe6313d12ca755431a183b",
+    "research/tla/configs/goal-safety.cfg": "b9fd915073d79c06a9858a7731b3652182c0439b5db8b6f7c3e4c6b25367082c",
+    "research/tla/configs/goal-witness-acceptance.cfg": "cb1a5ede2c66a1a011281a783381a9bbce967c05b115a1ac7c0d1460d9545043",
+    "research/tla/configs/goal-witness-append.cfg": "fcc50741311c29c9cfb3734cafb775755d0daf4f1383151f6a719e19209fcf45",
+    "research/tla/configs/goal-witness-cancellation.cfg": "b87f8a3a98e5fc6647215e57556e89f99d1bf4d059df582e78ea795e5bc8078d",
+    "research/tla/configs/goal-witness-fork.cfg": "d64cde2f9a5ae2f512456eb8a88af2deff11b99fee33a0b43408e977a3822853",
+    "research/tla/configs/goal-witness-removal.cfg": "51647a77d8cb8e9c60c978a12ad87cc120d9bc75b724a9bb5100af85dc2bf3d2",
+    "research/tla/configs/session-aba-witness.cfg": "35b0b672110cfafd84cfafc5ba3a7046d6d83f9b3ded7e83acaf79314827bc47",
+    "research/tla/configs/session-cancellation-witness.cfg": "e4d700e3f30c2556c3c8854fc924fb1ce52c96c6f3c1f2c17d61663e76752c6c",
+    "research/tla/configs/session-failure-after-witness.cfg": "cdbe380b7588e55f97c80fa95aeeb63b7eae8dfc467b4aeb3e568d0033779f97",
+    "research/tla/configs/session-failure-before-witness.cfg": "b8d01386e7186b171dffc65b8e4b39c3a1b0c6eb7ecc2179c2ad6dae077fb87c",
+    "research/tla/configs/session-generation-mutation.cfg": "95bb691dc93d2d12a317aed3ca26e0d5370015f362fe7f28e7d90bd19216950a",
+    "research/tla/configs/session-principal-witness.cfg": "95eca36399ce7d404e62f0980fe2a76bfc52aac43b6481329d9488f7be073b56",
+    "research/tla/configs/session-restart-replay-witness.cfg": "5e8b7669564578062aaaab0bcd71ea391133401e56e82147517ab88e922161a0",
+    "research/tla/configs/session-safety.cfg": "a015b3859f1c3f32cc57ee621cef20a217f3de4033faa18d4a467156ea13bf28",
+    "research/tla/fixtures/RunnerFixture.tla": "3faaad7a086e3af73d0e3d4adf6ddaa5322c6544bbd59fc3a63367b90eb10330",
+    "research/tla/fixtures/pass.cfg": "a51bf748c4ddef76be88aa4205bdee6329385211cb91775b51e9c4f733aaf1b4",
+    "research/tla/fixtures/violation.cfg": "4e2e6309ce7215879db2b5b2ecff0b46a91b006e952af4a65747a38df9c8d95f"
+  },
+  "runner_sha256": "b13c43cdb8d1bbcddb831eaf4a7d5e7136b973db6ea5295a5910e3bbcc74baa7",
+  "toolchain_manifest_sha256": "c305b44e876cff8cb3701d9ecad857adee49a3e383c590cffa97c6d1218aa801",
+  "cases_manifest_sha256": "451538fd266a19788089918b2f649f0d9b3fb28f60d1426b204c500afefbd090",
+  "toolchain": {
+    "schema": 1,
+    "tlc": {
+      "release": "v1.7.4",
+      "version": "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)",
+      "url": "https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar",
+      "sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+    },
+    "java": {
+      "vendor": "Eclipse Adoptium",
+      "runtime_version": "21.0.8+9-LTS",
+      "release": "jdk-21.0.8+9",
+      "platforms": {
+        "Darwin-arm64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.8_9.tar.gz",
+          "sha256": "59422c2292ae4e76b87e00d8808dbe49cffa39af731e08bb0292ddb0af4e0261",
+          "archive": "jdk-macos-aarch64.tar.gz",
+          "java": "jdk-21.0.8+9/Contents/Home/bin/java",
+          "arch": "aarch64"
+        },
+        "Linux-x86_64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jdk_x64_linux_hotspot_21.0.8_9.tar.gz",
+          "sha256": "f2dc5418092c43003db8f9005c4a286e1c0104fea96ccdd49e8ebd037cac9219",
+          "archive": "jdk-linux-x64.tar.gz",
+          "java": "jdk-21.0.8+9/bin/java",
+          "arch": "amd64"
+        }
+      }
+    }
+  },
+  "java": {
+    "platform": "Darwin-arm64",
+    "archive_sha256": "59422c2292ae4e76b87e00d8808dbe49cffa39af731e08bb0292ddb0af4e0261",
+    "executable_sha256": "0045ae168ee132bbf469a26fb17dac6d1dee431c9b7826474f3b6ee574a997c9",
+    "properties": {
+      "file.encoding": "UTF-8",
+      "file.separator": "/",
+      "ftp.nonProxyHosts": "local|*.local|169.254/16|*.169.254/16",
+      "http.nonProxyHosts": "local|*.local|169.254/16|*.169.254/16",
+      "java.class.version": "65.0",
+      "java.home": "/Users/andrei/Projects26/locust.farm/output/tla/tools/jdk-21.0.8+9/Contents/Home",
+      "java.io.tmpdir": "/var/folders/22/61v9z9kd34x959r1k7tbdw480000gn/T/",
+      "java.library.path": "/Users/andrei/Library/Java/Extensions",
+      "java.runtime.name": "OpenJDK Runtime Environment",
+      "java.runtime.version": "21.0.8+9-LTS",
+      "java.specification.name": "Java Platform API Specification",
+      "java.specification.vendor": "Oracle Corporation",
+      "java.specification.version": "21",
+      "java.vendor": "Eclipse Adoptium",
+      "java.vendor.url": "https://adoptium.net/",
+      "java.vendor.url.bug": "https://github.com/adoptium/adoptium-support/issues",
+      "java.vendor.version": "Temurin-21.0.8+9",
+      "java.version": "21.0.8",
+      "java.version.date": "2025-07-15",
+      "java.vm.compressedOopsMode": "Zero based",
+      "java.vm.info": "mixed mode, sharing",
+      "java.vm.name": "OpenJDK 64-Bit Server VM",
+      "java.vm.specification.name": "Java Virtual Machine Specification",
+      "java.vm.specification.vendor": "Oracle Corporation",
+      "java.vm.specification.version": "21",
+      "java.vm.vendor": "Eclipse Adoptium",
+      "java.vm.version": "21.0.8+9-LTS",
+      "jdk.debug": "release",
+      "line.separator": "\\n ",
+      "native.encoding": "UTF-8",
+      "os.arch": "aarch64",
+      "os.name": "Mac OS X",
+      "os.version": "26.2",
+      "path.separator": ":",
+      "socksNonProxyHosts": "local|*.local|169.254/16|*.169.254/16",
+      "stderr.encoding": "UTF-8",
+      "stdout.encoding": "UTF-8",
+      "sun.arch.data.model": "64",
+      "sun.boot.library.path": "/Users/andrei/Projects26/locust.farm/output/tla/tools/jdk-21.0.8+9/Contents/Home/lib",
+      "sun.cpu.endian": "little",
+      "sun.io.unicode.encoding": "UnicodeBig",
+      "sun.java.launcher": "SUN_STANDARD",
+      "sun.jnu.encoding": "UTF-8",
+      "sun.management.compiler": "HotSpot 64-Bit Tiered Compilers",
+      "user.country": "CA",
+      "user.dir": "/Users/andrei/Projects26/locust.farm",
+      "user.home": "/Users/andrei",
+      "user.language": "en",
+      "user.name": "andrei"
+    }
+  },
+  "platform": "Darwin-25.2.0-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "results": [
+    {
+      "counts": {
+        "generated": 5,
+        "distinct": 4,
+        "queue": 0
+      },
+      "trace": [],
+      "matched_expectation": true,
+      "depth": 4,
+      "fingerprint_collision_estimates": {
+        "calculated (optimistic)": "2.2E-19"
+      },
+      "status": "complete",
+      "case": {
+        "id": "fixture-pass",
+        "suite": [
+          "fixtures",
+          "fast"
+        ],
+        "module": "fixtures/RunnerFixture.tla",
+        "config": "fixtures/pass.cfg",
+        "expect": "pass",
+        "kind": "runner-fixture",
+        "timeout_seconds": 30,
+        "properties": [
+          "TypeOK",
+          "BelowLimit"
+        ]
+      },
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "-Xmx1024m",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/Users/andrei/Projects26/locust.farm/output/tla/tools/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-fp",
+        "0",
+        "-seed",
+        "1",
+        "-coverage",
+        "1",
+        "-metadir",
+        "/Users/andrei/Projects26/locust.farm/output/tla/runs/20261004T040803Z-73c8a91b/fixture-pass/states",
+        "-config",
+        "/Users/andrei/Projects26/locust.farm/output/tla/runs/20261004T040803Z-73c8a91b/inputs/fixtures/pass.cfg",
+        "/Users/andrei/Projects26/locust.farm/output/tla/runs/20261004T040803Z-73c8a91b/inputs/fixtures/RunnerFixture.tla"
+      ],
+      "elapsed_seconds": 0.689,
+      "returncode": 0,
+      "timeout_seconds": 30,
+      "memory_mb": 1024,
+      "mode": "exhaustive-breadth-first",
+      "workers": 1,
+      "fingerprint": 0,
+      "seed": 1,
+      "config_sha256": "a51bf748c4ddef76be88aa4205bdee6329385211cb91775b51e9c4f733aaf1b4",
+      "module_sha256": "3faaad7a086e3af73d0e3d4adf6ddaa5322c6544bbd59fc3a63367b90eb10330",
+      "configuration_tla": "INIT Init\nNEXT Next\nCONSTANT Limit = 4\nINVARIANTS TypeOK BelowLimit\n",
+      "raw_log_path": "output/tla/runs/20261004T040803Z-73c8a91b/fixture-pass/tlc.log",
+      "raw_log_sha256": "3c6ba4ef08a0fc112fae8e39e872a229536f9b1f39d9fc905aa648605e893dd3"
+    },
+    {
+      "counts": {
+        "generated": 3,
+        "distinct": 3,
+        "queue": 0
+      },
+      "trace": [
+        {
+          "state": 1,
+          "action": "Initial predicate",
+          "variables_tla": {
+            "x": "0"
+          }
+        },
+        {
+          "state": 2,
+          "action": "Next line 6, col 9 to line 6, col 49 of module RunnerFixture",
+          "variables_tla": {
+            "x": "1"
+          }
+        },
+        {
+          "state": 3,
+          "action": "Next line 6, col 9 to line 6, col 49 of module RunnerFixture",
+          "variables_tla": {
+            "x": "2"
+          }
+        }
+      ],
+      "matched_expectation": true,
+      "depth": 3,
+      "fingerprint_collision_estimates": {},
+      "status": "counterexample",
+      "violation": "BelowLimit",
+      "case": {
+        "id": "fixture-violation",
+        "suite": [
+          "fixtures",
+          "fast"
+        ],
+        "module": "fixtures/RunnerFixture.tla",
+        "config": "fixtures/violation.cfg",
+        "expect": "violation",
+        "kind": "runner-fixture",
+        "timeout_seconds": 30,
+        "properties": [
+          "TypeOK",
+          "BelowLimit"
+        ],
+        "violation": "BelowLimit",
+        "trace_require": [
+          {
+            "x": "2"
+          }
+        ]
+      },
+      "command": [
+        "/Users/andrei/Projects26/locust.farm/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "-Xmx1024m",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/Users/andrei/Projects26/locust.farm/output/tla/tools/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-fp",
+        "0",
+        "-seed",
+        "1",
+        "-coverage",
+        "1",
+        "-metadir",
+        "/Users/andrei/Projects26/locust.farm/output/tla/runs/20261004T040803Z-73c8a91b/fixture-violation/states",
+        "-config",
+        "/Users/andrei/Projects26/locust.farm/output/tla/runs/20261004T040803Z-73c8a91b/inputs/fixtures/violation.cfg",
+        "/Users/andrei/Projects26/locust.farm/output/tla/runs/20261004T040803Z-73c8a91b/inputs/fixtures/RunnerFixture.tla"
+      ],
+      "elapsed_seconds": 0.694,
+      "returncode": 12,
+      "timeout_seconds": 30,
+      "memory_mb": 1024,
+      "mode": "exhaustive-breadth-first",
+      "workers": 1,
+      "fingerprint": 0,
+      "seed": 1,
+      "config_sha256": "4e2e6309ce7215879db2b5b2ecff0b46a91b006e952af4a65747a38df9c8d95f",
+      "module_sha256": "3faaad7a086e3af73d0e3d4adf6ddaa5322c6544bbd59fc3a63367b90eb10330",
+      "configuration_tla": "INIT Init\nNEXT Next\nCONSTANT Limit = 2\nINVARIANTS TypeOK BelowLimit\n",
+      "raw_log_path": "output/tla/runs/20261004T040803Z-73c8a91b/fixture-violation/tlc.log",
+      "raw_log_sha256": "01fd8ff612ba3db18571914e9ffaa1d302a0a002101a3886146e156e0a375175"
+    }
+  ],
+  "source_changed_during_run": false,
+  "raw_record_path": "output/tla/runs/20261004T040803Z-73c8a91b/results.json",
+  "raw_record_sha256": "71ced1f477e74cee52c1788c87ae05dfd363f236b5964743cc14d1409cd7e10e"
+}

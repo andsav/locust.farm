@@ -265,8 +265,11 @@ def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_ro
     directory = run_dir / case["id"]
     directory.mkdir()
     module, config = model_root / case["module"], model_root / case["config"]
+    # Pinned TLC coverage instrumentation exhausts the heap before initial
+    # states for recursive GoalLog operators. Named witness cases establish
+    # action reachability separately, without altering safety exploration.
     command = [str(java), f"-Xmx{memory_mb}m", "-XX:+UseParallelGC", "-cp", str(jar),
-               "tlc2.TLC", "-workers", "1", "-fp", "0", "-seed", "1", "-coverage", "1",
+               "tlc2.TLC", "-workers", "1", "-fp", "0", "-seed", "1",
                "-metadir", str(directory / "states"), "-config", str(config), str(module)]
     started = time.monotonic()
     process = subprocess.Popen(command, cwd=model_root, env=clean_java_env(), stdout=subprocess.PIPE,
@@ -284,6 +287,7 @@ def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_ro
     result.update(case=case, command=command, elapsed_seconds=round(time.monotonic() - started, 3),
                   returncode=process.returncode, timeout_seconds=deadline, memory_mb=memory_mb,
                   mode="exhaustive-breadth-first", workers=1, fingerprint=0, seed=1,
+                  coverage_instrumentation=False,
                   config_sha256=sha256(config), module_sha256=sha256(module),
                   configuration_tla=config.read_text(),
                   coverage_output=output.split("The coverage statistics", 1)[-1].split("End of statistics.", 1)[0]
@@ -299,7 +303,7 @@ def main(argv=None):
     parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended"))
     parser.add_argument("--case", action="append", help="run only specified case IDs")
     parser.add_argument("--timeout", type=float, help="override per-case seconds (timeout never passes)")
-    parser.add_argument("--memory-mb", type=int, default=1024)
+    parser.add_argument("--memory-mb", type=int, default=4096)
     args = parser.parse_args(argv)
     if (args.timeout is not None and args.timeout <= 0) or args.memory_mb <= 0:
         parser.error("resource limits must be positive")

@@ -187,6 +187,8 @@ The depth of the complete state graph search is 17.
             self.assertEqual(result["reason"], "timeout")
             self.assertFalse(result["matched_expectation"])
             self.assertTrue((root / "timeout/tlc.log").exists())
+            self.assertNotIn("-coverage", result["command"])
+            self.assertFalse(result["coverage_instrumentation"])
 
     def test_model_snapshot_records_the_bytes_it_executes(self):
         with tempfile.TemporaryDirectory() as directory:

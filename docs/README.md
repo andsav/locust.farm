@@ -15,7 +15,7 @@ the repository root to check coverage and local link paths.
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
 - [Protocol contract, version 0](protocol-v0.md): encoding, hashing and signature decisions, the signed event header and event kinds, invitations, sync frames, local API and storage seam; implemented types and runtime invariants; complete release qualification remains open.
-- [TLA+ formal verification implementation plan](tla-verification-plan.md): proposed models for goal replay, local claims, replication and durability; staged bounded checks, known counterexamples, Rust conformance, CI and optional safety proofs. No models or formal results delivered yet.
+- [TLA+ formal verification implementation plan](tla-verification-plan.md): Stages 0 and 1 delivered: pinned runner, bounded goal/session models, known counterexamples and Rust fixtures; replication, durability, full model CI and optional safety proofs remain proposed.
 - [Crates and workstreams](workstreams.md): accepted crate split, lane responsibilities and current shared A/B ownership, cross-review, and the rules for sharing one checkout.
 - [Lane A log](lane-a-log.md): contract notices, answers to lane B and reviews of lane B's commits.
 - [Lane B log](lane-b-log.md): requests to lane A, reviews of lane A's commits and replies.

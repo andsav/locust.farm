@@ -4,21 +4,665 @@
     "crates/locust-core/src/goal",
     "crates/locust-core/src/node",
     "crates/locust-proto/src/event.rs",
-    "crates/locust-proto/src/store.rs"
+    "crates/locust-proto/src/store.rs",
+    "crates/locust-proto/src/api.rs",
+    "crates/locust-proto/src/engine.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    "crates/locust-core/Cargo.toml"
   ],
   "cases": [
     {
-      "id": "fixture-pass", "suite": ["fixtures", "fast"],
-      "module": "fixtures/RunnerFixture.tla", "config": "fixtures/pass.cfg",
-      "expect": "pass", "kind": "runner-fixture", "timeout_seconds": 30,
-      "properties": ["TypeOK", "BelowLimit"]
+      "id": "fixture-pass",
+      "suite": [
+        "fixtures",
+        "fast",
+        "extended"
+      ],
+      "module": "fixtures/RunnerFixture.tla",
+      "config": "fixtures/pass.cfg",
+      "expect": "pass",
+      "kind": "runner-fixture",
+      "timeout_seconds": 30,
+      "properties": [
+        "TypeOK",
+        "BelowLimit"
+      ]
     },
     {
-      "id": "fixture-violation", "suite": ["fixtures", "fast"],
-      "module": "fixtures/RunnerFixture.tla", "config": "fixtures/violation.cfg",
-      "expect": "violation", "kind": "runner-fixture", "timeout_seconds": 30,
-      "properties": ["TypeOK", "BelowLimit"], "violation": "BelowLimit",
-      "trace_require": [{"x": "2"}]
+      "id": "fixture-violation",
+      "suite": [
+        "fixtures",
+        "fast",
+        "extended"
+      ],
+      "module": "fixtures/RunnerFixture.tla",
+      "config": "fixtures/violation.cfg",
+      "expect": "violation",
+      "kind": "runner-fixture",
+      "timeout_seconds": 30,
+      "properties": [
+        "TypeOK",
+        "BelowLimit"
+      ],
+      "violation": "BelowLimit",
+      "trace_require": [
+        {
+          "x": "2"
+        }
+      ]
+    },
+    {
+      "id": "goal-authority-anchor",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-authority-anchor.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-broken-anchor",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-broken-anchor.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-cancel-accept",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-cancel-accept.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-cancel-reassign",
+      "suite": [
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-cancel-reassign.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 900,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-canonical-order",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-canonical-order.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-coordinator-fork",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-coordinator-fork.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-ir12-current",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-ir12-current.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-ir12",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-ir12.cfg",
+      "expect": "violation",
+      "kind": "finding",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedResultDisplayed"
+      ],
+      "violation": "AcceptedResultDisplayed",
+      "trace_require": [
+        {
+          "lastDelivery": "9",
+          "displayedAcceptedMismatch": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "goal-ir5-current",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-ir5-current.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-ir5",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-ir5.cfg",
+      "expect": "violation",
+      "kind": "finding",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "AcceptedHeadsPermanent"
+      ],
+      "violation": "AcceptedHeadsPermanent",
+      "trace_require": [
+        {
+          "lastDelivery": "20",
+          "acceptedHeadCount": "1",
+          "acceptedHeadsLost": "TRUE",
+          "hasFork": "TRUE"
+        }
+      ],
+      "trace_prefix": [
+        {
+          "lastDelivery": "19",
+          "acceptedHeadCount": "3",
+          "acceptedHeadsLost": "FALSE"
+        }
+      ]
+    },
+    {
+      "id": "goal-member-fork",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-member-fork.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-removal-readmission",
+      "suite": [
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-removal-readmission.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 900,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-safety",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-safety.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments"
+      ]
+    },
+    {
+      "id": "goal-witness-acceptance",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-witness-acceptance.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "NoAcceptance"
+      ],
+      "violation": "NoAcceptance",
+      "trace_require": [
+        {
+          "lastDelivery": "8",
+          "hasAcceptance": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "goal-witness-append",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-witness-append.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "NoAppendContribution"
+      ],
+      "violation": "NoAppendContribution",
+      "trace_require": [
+        {
+          "lastDelivery": "4",
+          "hasAppendContribution": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "goal-witness-cancellation",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-witness-cancellation.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "NoCancellation"
+      ],
+      "violation": "NoCancellation",
+      "trace_require": [
+        {
+          "lastDelivery": "7",
+          "hasCancellation": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "goal-witness-fork",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-witness-fork.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "NoForkDetection"
+      ],
+      "violation": "NoForkDetection",
+      "trace_require": [
+        {
+          "lastDelivery": "9",
+          "hasFork": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "goal-witness-removal",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "GoalLog.tla",
+      "config": "configs/goal-witness-removal.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "IncrementalEqualsReplay",
+        "CoordinatorAuthority",
+        "AssignmentAttempts",
+        "AcceptedPreconditions",
+        "RemovalFencesAssignments",
+        "NoRemoval"
+      ],
+      "violation": "NoRemoval",
+      "trace_require": [
+        {
+          "lastDelivery": "8",
+          "hasRemoval": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "session-aba-witness",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "Sessions.tla",
+      "config": "configs/session-aba-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "StaleWritesCannotAuthor",
+        "WitnessABADelayedReject"
+      ],
+      "violation": "WitnessABADelayedReject",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "session-cancellation-witness",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "Sessions.tla",
+      "config": "configs/session-cancellation-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "OnlyCurrentAuthorizedWrites",
+        "WitnessCancellationFence"
+      ],
+      "violation": "WitnessCancellationFence",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "session-failure-after-witness",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "Sessions.tla",
+      "config": "configs/session-failure-after-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "UncertainCommitFencesSigning",
+        "IdempotentRequestsAuthorOnce",
+        "WitnessFailureAfterRecovery"
+      ],
+      "violation": "WitnessFailureAfterRecovery",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "session-failure-before-witness",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "Sessions.tla",
+      "config": "configs/session-failure-before-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "UncertainCommitFencesSigning",
+        "IdempotentRequestsAuthorOnce",
+        "WitnessFailureBeforeRecovery"
+      ],
+      "violation": "WitnessFailureBeforeRecovery",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "session-generation-mutation",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "Sessions.tla",
+      "config": "configs/session-generation-mutation.cfg",
+      "expect": "violation",
+      "kind": "mutation",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "StaleWritesCannotAuthor"
+      ],
+      "violation": "StaleWritesCannotAuthor",
+      "trace_require": [
+        {
+          "staleWriteSigned": "TRUE",
+          "staleWriteAuthored": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "session-principal-witness",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "Sessions.tla",
+      "config": "configs/session-principal-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "NoCrossPrincipalEvents",
+        "WitnessPrincipalBoundary"
+      ],
+      "violation": "WitnessPrincipalBoundary",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "session-restart-replay-witness",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "Sessions.tla",
+      "config": "configs/session-restart-replay-witness.cfg",
+      "expect": "violation",
+      "kind": "witness",
+      "timeout_seconds": 180,
+      "properties": [
+        "TypeOK",
+        "StaleWritesCannotAuthor",
+        "IdempotentRequestsAuthorOnce",
+        "WitnessRestartReplay"
+      ],
+      "violation": "WitnessRestartReplay",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "session-safety",
+      "suite": [
+        "fast",
+        "extended"
+      ],
+      "module": "Sessions.tla",
+      "config": "configs/session-safety.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "timeout_seconds": 900,
+      "properties": [
+        "TypeOK",
+        "ClaimHolderBound",
+        "GenerationsNeverDecrease",
+        "NoCrossPrincipalEvents",
+        "StaleWritesCannotAuthor",
+        "OnlyCurrentAuthorizedWrites",
+        "IdempotentRequestsAuthorOnce",
+        "IdempotencyMatchesEvent",
+        "UncertainCommitFencesSigning",
+        "HealthyMemoryMatchesStore"
+      ]
     }
   ]
 }

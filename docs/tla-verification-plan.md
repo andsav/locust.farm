@@ -1,10 +1,13 @@
 # TLA+ formal verification implementation plan
 
-Date: 2026-10-03. **Status: proposed implementation plan. No TLA+ model,
-model-checking result or proof is delivered by this document.** The source
-baseline is `3cb9c5da86d6351ccbeb620674e10ad5c9ea0d28`; the independent review
-examined candidate `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1`. Record a fresh source
-identity when implementation begins.
+Date: 2026-10-03. **Status: Stages 0 and 1 implemented, with local bounded
+checks and Rust fixtures recorded in the [stage evidence](../research/evidence/tla/README.md).
+The bootstrap CI workflow is configured but has not been observed running.
+Stages 2 through 5 remain proposed; no deductive proof is delivered.**
+Implementation began at `86980594acee708b2f9bf303afc9ee636dc55337`; the original
+plan baseline was `3cb9c5da86d6351ccbeb620674e10ad5c9ea0d28`. The independent review
+examined candidate `3422c7b51948a409481cf2cd9df1cc3f3a1b4dd1`. The evidence records
+actual source identities, dirty state and checked path hashes.
 
 Locust is a good candidate for formal modeling because its difficult failures
 involve event ordering, authority, competing task actions and recovery. Start
@@ -44,12 +47,12 @@ Keep two kinds of specifications explicit:
 - **Proposed behavior:** evaluates a documented rule change against desired
   properties. A passing proposed model does not qualify the current binary.
 
-The [protocol contract](protocol-v0.md) defines the intended rules, but its opening
-status still describes core, daemon and CLI work as unimplemented. The referenced
-code and tests exist. Reconcile that status and any semantic discrepancies during
-the baseline stage; do not treat every sentence of the document as a verified
-implementation fact. The [independent review](../research/t1-candidate-independent-review.md)
-provides the initial failure cases and probes.
+The [protocol contract](protocol-v0.md) defines the intended rules. Stage 0
+corrected its stale scaffold status without changing protocol rules. The
+[property map](../research/tla/property-map.md) separates implemented behavior,
+desired guarantees and assumptions; contract prose alone is not verification.
+The [independent review](../research/t1-candidate-independent-review.md) provides
+the initial failure cases and probes.
 
 ## Models and properties
 
@@ -159,6 +162,10 @@ of globally disabling deadlock checking. Label simulation as non-exhaustive.
 
 ## Implementation stages
 
+The [model guide](../research/tla/README.md) documents the delivered runner and
+models. The stage requirements below remain the roadmap; measured outcomes and
+remaining qualifications belong to the [evidence](../research/evidence/tla/README.md).
+
 These stages are sequential checkpoints; source fixes are separate changes with
 their own review. Proposed responsibility follows the [workstream boundaries](workstreams.md):
 the A orchestrator owns protocol/core/store semantics and integration; transport
@@ -182,16 +189,16 @@ needs them.
 Add a standard-library Python runner, `scripts/check_tla.py`, and tests under
 `scripts/tests/`. Pin a supported JDK distribution/build and an immutable
 `tla2tools.jar` release URL and SHA-256 in the tool manifest. Version 1.7.4 is the
-proposed initial TLC pin; its
+adopted initial TLC pin; its
 [release notes](https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4)
 include a fix for unsound liveness checking with multiple workers. Compute and
-record the jar SHA-256 when acquiring it; this plan has not downloaded or hashed
-it. Reevaluate the pin explicitly if implementation starts with a newer stable
-release. Use one worker for the initial liveness runs.
+record the jar SHA-256 when acquiring it. Stage 0 acquired and hashed that release
+and pinned Temurin 21.0.8+9 in [the manifest](../research/tla/toolchain.json).
+Reevaluate the pin explicitly before adopting another release. Use one worker
+for the initial liveness runs; delivered Stage 1 checks are safety only.
 
 Keep downloaded tools, TLC state files and routine full logs under ignored
-`output/tla/`. Proposed commands, available only after the runner is implemented,
-are `python3 scripts/check_tla.py --suite fast` and
+`output/tla/`. Implemented commands are `python3 scripts/check_tla.py --suite fast` and
 `python3 scripts/check_tla.py --suite extended`. The runner must distinguish a
 completed check, expected counterexample, unexpected violation, timeout and tool
 failure. Validate those outcomes with small known-good and known-bad fixtures;

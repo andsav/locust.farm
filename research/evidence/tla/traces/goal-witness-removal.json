@@ -1,0 +1,268 @@
+{
+  "schema": 1,
+  "case": {
+    "id": "goal-witness-removal",
+    "suite": [
+      "fast",
+      "extended"
+    ],
+    "module": "GoalLog.tla",
+    "config": "configs/goal-witness-removal.cfg",
+    "expect": "violation",
+    "kind": "witness",
+    "timeout_seconds": 180,
+    "properties": [
+      "TypeOK",
+      "IncrementalEqualsReplay",
+      "CoordinatorAuthority",
+      "AssignmentAttempts",
+      "AcceptedPreconditions",
+      "RemovalFencesAssignments",
+      "NoRemoval"
+    ],
+    "violation": "NoRemoval",
+    "trace_require": [
+      {
+        "lastDelivery": "8",
+        "hasRemoval": "TRUE"
+      }
+    ]
+  },
+  "source_commit": "9234f88748c0848b6f5e4ece15c511fa9d204d38",
+  "source_hashes": {
+    "Cargo.lock": "95a61fea38fa59159ff45d93f4f1eaa7409d61f4eda784e723121a01b7a18580",
+    "Cargo.toml": "3dc0ba9d664ca6f6a3146eca3f0cc2669e5426254e6c8a2e5513a873bd2976e4",
+    "crates/locust-core/Cargo.toml": "fdb90cc041e90cf691dc4ff3dc6fafb3edcfacf5f85356ee86d73e026e0f4f25",
+    "crates/locust-core/src/goal/append.rs": "7f2da17776efec4f263829319a45684ed35af5064358a373a1c1a1df2860d216",
+    "crates/locust-core/src/goal/chain.rs": "9b861faeca0e9ef714ca0a29ab76f624877cdf09e0d573a7384aa3d399a6349e",
+    "crates/locust-core/src/goal/fold.rs": "74eea44c4a22501c0a21572da484ea438ecc98c9a504df9ed920d5d5589195fd",
+    "crates/locust-core/src/goal/history.rs": "feb78cc8a630e29551c0dbbb7ca23ba5e4a6d769b3e4c978900567cedc8a72a5",
+    "crates/locust-core/src/goal/ids.rs": "116b8bfef681f639059a4784ec7fb134b05ce828d1b96c8866007b468a54bfc0",
+    "crates/locust-core/src/goal/mod.rs": "f1923208234bf66d3a0c22df6478a817294f5f67a544944c71979136b745cd48",
+    "crates/locust-core/src/goal/screen.rs": "ace1f1a45af97881e5ced8743c2197131f052f1a6c0dcf8cb5644f654a60b64f",
+    "crates/locust-core/src/goal/standing.rs": "70ef59e0d558be7eecf0e534e28a03180f44123bf53849a8cb8f723d88fa0107",
+    "crates/locust-core/src/goal/state.rs": "12c6ac68d9b45ff5185935dbb6f340b08a4229295befa5a34f825201976b376b",
+    "crates/locust-core/src/goal/tests.rs": "b162cd8c45b7c8cd2c9b3c49f6bc1ec8122a0e17f9bff9431310c7dbb0497165",
+    "crates/locust-core/src/goal/transition.rs": "a608cc99f9e5d420c7e7f765645dcc5726a776a4a45e7d69a182aab235565148",
+    "crates/locust-core/src/node/access.rs": "dd459e9f4df2be0dccf4a7437907044236a22df3fbf40b8c8848adcc9ed4611b",
+    "crates/locust-core/src/node/authoring.rs": "7369e1ab4621809216bde00cbaf5b9fc91e864455cc4555092465a4facf4a084",
+    "crates/locust-core/src/node/callers.rs": "155c3b57940700e03e7c59629918666d2f84b0b5de6c5fec379203c1ed10aecc",
+    "crates/locust-core/src/node/commit.rs": "b2d79fac77e585430071b99b42173b1c04c3231fbc56c6a654683579ca1f1599",
+    "crates/locust-core/src/node/entry.rs": "03202d6ce43e33c714c76d9fd3dc79d61295cec02b576d3afda9d1ae111705c4",
+    "crates/locust-core/src/node/feed.rs": "f8cfb66f787151effd9b3918f2d15504480870eec6009db239bd32b88ed04bd7",
+    "crates/locust-core/src/node/identity.rs": "ff73077612a577f2d03b86cdc42bdce681df136176595cea3ad5a18f2d3f8ad3",
+    "crates/locust-core/src/node/local.rs": "1904ecdec4d91971a7bd1d3842a8829d3978d1bb7b2a65c0d4f2c3cf6b353013",
+    "crates/locust-core/src/node/mod.rs": "ccdde9cece50078ec5aab25646a8fea1045148b746b7510f609800477b533db5",
+    "crates/locust-core/src/node/peers.rs": "76885bf92712c94b478507aed4a8b2900df7327b593e6302b65b04030d9b4d4f",
+    "crates/locust-core/src/node/records.rs": "75672173346bd91407a57e0b04f997888b74b8ea8cdec7cd074c1f9488f62f82",
+    "crates/locust-core/src/node/replica.rs": "74eedb33404d1909e4cc5d8668e80dc16d8fb5b7b2de11dc7e9d4c44c36e5e48",
+    "crates/locust-core/src/node/replica_tests.rs": "9240159ae88d447969d19e04235c56cd6fd7aa4ec84698d6829d6e631fd36fef",
+    "crates/locust-core/src/node/requests/claims.rs": "414f240bb92ceec9f73dec22f14103d4bef47d5e2afdf8f21e0ba9d3d0b1fca5",
+    "crates/locust-core/src/node/requests/content.rs": "6b8b42718c9f85c6eeb3df9c9add01769f1794d414975ddde620581c827aae47",
+    "crates/locust-core/src/node/requests/daemon.rs": "7a48b64ab86e016ed3e4296f5b275f85c1479da79559065b94dab58f0d4afe50",
+    "crates/locust-core/src/node/requests/goals.rs": "0edf84c695c012c9171b79047e56d2268168543a556da327901b16e35f076ee7",
+    "crates/locust-core/src/node/requests/invitations.rs": "60866f5ad228ff19095e11710c76740b2117da4399a8468b359d81b40ad8037a",
+    "crates/locust-core/src/node/requests/mod.rs": "23dee0eee5f0270407315245ea4a090297e70e8441326afd1bdd68e2374bc140",
+    "crates/locust-core/src/node/requests/notes.rs": "5f33a53f575fa67ec36d1f1b782aec6f0aa0552e8de2054d7a619f927487ba14",
+    "crates/locust-core/src/node/requests/reading.rs": "a4972700719fdf6dfec16b44c62b100141e62c06c318d6cfb562cbe47521aea7",
+    "crates/locust-core/src/node/requests/sessions.rs": "3af225baa2f71843f39880cb88cb70e23b75369c07a8c04cc42dd984c8e912e2",
+    "crates/locust-core/src/node/requests/tasks.rs": "84f6117cd584310055c8673e5af2d37f67494962474a8f7df642ca7cc90b17d9",
+    "crates/locust-core/src/node/sessions.rs": "217421697a5205401bb7ef33c7c34ef2e4f21bab98fe272dd16734369ed4693a",
+    "crates/locust-core/src/node/tests/content.rs": "5db4cd69eacf50808a1e5c57863deed2d6d93269dd295602fbad1ec49acd6deb",
+    "crates/locust-core/src/node/tests/daemon.rs": "3b2603136f8b8f7516eef910bc86dd92c8ae1bc3838ebb3532b81548ac08da0b",
+    "crates/locust-core/src/node/tests/failure.rs": "bc652fa4a253ab8ff959cb821da8486849bf2e50876213125ee4d46bc907a1b7",
+    "crates/locust-core/src/node/tests/formal.rs": "cae7a4ecd857b69e910f9a3801007e1b5d39a11e487736434dbc9ff729af8244",
+    "crates/locust-core/src/node/tests/lifecycle.rs": "10e7fa840beb7a8ae8c05de8b0db32f39ef349730a3f70d8f864aabfd73b274d",
+    "crates/locust-core/src/node/tests/mod.rs": "7a8c8179888d83e17dcea71d0f5d1223b406c7a443d4832d1af52ddbdee601bd",
+    "crates/locust-core/src/node/views.rs": "54e53f00b7b699dbada73db8cb2d0c68047e3de5b27165c8443b8c2ea6700aed",
+    "crates/locust-proto/src/api.rs": "a5b8f7115ef6749b0bc3ad3c601b3fff54b9f9fe29d6af2793a931fafcec2016",
+    "crates/locust-proto/src/engine.rs": "0bb74a2b68ae9b7e9a8bbebfa1ff805c73d1a064875c3ee075ac847cf4ab70e6",
+    "crates/locust-proto/src/event.rs": "9b2dbf5195d3153885d40aa0b95b3add2fc77ed5ef5c2f4737e85a0ebfdd6062",
+    "crates/locust-proto/src/store.rs": "e940a285b79e0bbbf29f8816bd08909a1d05caa69165d5dbe0095349dcd975ff",
+    "rust-toolchain.toml": "080d1c422a980a506912db5c2cc9fbedcf1df1fe4c8de676934ab7c421c5d768"
+  },
+  "module_sha256": "8cb6fcebcdc993b8f1b54e04aa605191ff4d0ee8c2c29c1b91f145ed3b3215dd",
+  "config_sha256": "51647a77d8cb8e9c60c978a12ad87cc120d9bc75b724a9bb5100af85dc2bf3d2",
+  "runner_sha256": "2cbf33287c52f89ca3d1b59365cd8ac09db3ae07acadd4af69215d9be9e16277",
+  "toolchain_manifest_sha256": "c305b44e876cff8cb3701d9ecad857adee49a3e383c590cffa97c6d1218aa801",
+  "counts": {
+    "generated": 15,
+    "distinct": 9,
+    "queue": 0
+  },
+  "violation": "NoRemoval",
+  "matched_expectation": true,
+  "trace": [
+    {
+      "state": 1,
+      "action": "Initial predicate",
+      "variables_tla": {
+        "hasAppendContribution": "FALSE",
+        "hasRemoval": "FALSE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "0",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 0),\n        head |-> 0,\n        members |-> {},\n        tasks |-> {},\n        assignments |-> {},\n        results |-> {},\n        taskOrder |-> <<>>,\n        resultOrder |-> <<>>,\n        taskState |-> (4 :> \"absent\"),\n        current |-> (4 :> 0),\n        result |-> (4 :> 0),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> FALSE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 0 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 0,\n  lastAuthor |-> -1,\n  lastSeq |-> 0 ]",
+        "witnesses": "[ removal |-> FALSE,\n  appendContribution |-> FALSE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    },
+    {
+      "state": 2,
+      "action": "Deliver line 398, col 3 to line 413, col 59 of module GoalLog",
+      "variables_tla": {
+        "hasAppendContribution": "FALSE",
+        "hasRemoval": "FALSE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "1",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 0),\n        head |-> 1,\n        members |-> {},\n        tasks |-> {},\n        assignments |-> {},\n        results |-> {},\n        taskOrder |-> <<>>,\n        resultOrder |-> <<>>,\n        taskState |-> (4 :> \"absent\"),\n        current |-> (4 :> 0),\n        result |-> (4 :> 0),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> FALSE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 0 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"effective\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 1,\n  lastAuthor |-> -1,\n  lastSeq |-> 0 ]",
+        "witnesses": "[ removal |-> FALSE,\n  appendContribution |-> FALSE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{1}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    },
+    {
+      "state": 3,
+      "action": "Deliver line 398, col 3 to line 413, col 59 of module GoalLog",
+      "variables_tla": {
+        "hasAppendContribution": "FALSE",
+        "hasRemoval": "FALSE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "2",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 0),\n        head |-> 2,\n        members |-> {0},\n        tasks |-> {},\n        assignments |-> {},\n        results |-> {},\n        taskOrder |-> <<>>,\n        resultOrder |-> <<>>,\n        taskState |-> (4 :> \"absent\"),\n        current |-> (4 :> 0),\n        result |-> (4 :> 0),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> FALSE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 0 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"effective\",\n         \"effective\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 2,\n  lastAuthor |-> -1,\n  lastSeq |-> 0 ]",
+        "witnesses": "[ removal |-> FALSE,\n  appendContribution |-> FALSE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{1, 2}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    },
+    {
+      "state": 4,
+      "action": "Deliver line 398, col 3 to line 413, col 59 of module GoalLog",
+      "variables_tla": {
+        "hasAppendContribution": "FALSE",
+        "hasRemoval": "FALSE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "3",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 0),\n        head |-> 3,\n        members |-> {0, 1},\n        tasks |-> {},\n        assignments |-> {},\n        results |-> {},\n        taskOrder |-> <<>>,\n        resultOrder |-> <<>>,\n        taskState |-> (4 :> \"absent\"),\n        current |-> (4 :> 0),\n        result |-> (4 :> 0),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> FALSE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 0 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"effective\",\n         \"effective\",\n         \"effective\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 3,\n  lastAuthor |-> -1,\n  lastSeq |-> 0 ]",
+        "witnesses": "[ removal |-> FALSE,\n  appendContribution |-> FALSE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{1, 2, 3}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    },
+    {
+      "state": 5,
+      "action": "Deliver line 398, col 3 to line 413, col 59 of module GoalLog",
+      "variables_tla": {
+        "hasAppendContribution": "TRUE",
+        "hasRemoval": "FALSE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "4",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 0),\n        head |-> 3,\n        members |-> {0, 1},\n        tasks |-> {4},\n        assignments |-> {},\n        results |-> {},\n        taskOrder |-> <<4>>,\n        resultOrder |-> <<>>,\n        taskState |-> (4 :> \"proposed\"),\n        current |-> (4 :> 0),\n        result |-> (4 :> 0),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> FALSE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 0 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 3,\n  lastAuthor |-> 0,\n  lastSeq |-> 3 ]",
+        "witnesses": "[ removal |-> FALSE,\n  appendContribution |-> TRUE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{1, 2, 3, 4}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    },
+    {
+      "state": 6,
+      "action": "Deliver line 398, col 3 to line 413, col 59 of module GoalLog",
+      "variables_tla": {
+        "hasAppendContribution": "TRUE",
+        "hasRemoval": "FALSE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "5",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 1),\n        head |-> 5,\n        members |-> {0, 1},\n        tasks |-> {4},\n        assignments |-> {5},\n        results |-> {},\n        taskOrder |-> <<4>>,\n        resultOrder |-> <<>>,\n        taskState |-> (4 :> \"assigned\"),\n        current |-> (4 :> 5),\n        result |-> (4 :> 0),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> FALSE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 0 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 4,\n  lastAuthor |-> -1,\n  lastSeq |-> 0 ]",
+        "witnesses": "[ removal |-> FALSE,\n  appendContribution |-> TRUE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{1, 2, 3, 4, 5}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    },
+    {
+      "state": 7,
+      "action": "Deliver line 398, col 3 to line 413, col 59 of module GoalLog",
+      "variables_tla": {
+        "hasAppendContribution": "TRUE",
+        "hasRemoval": "FALSE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "6",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 1),\n        head |-> 5,\n        members |-> {0, 1},\n        tasks |-> {4},\n        assignments |-> {5},\n        results |-> {},\n        taskOrder |-> <<4>>,\n        resultOrder |-> <<>>,\n        taskState |-> (4 :> \"taken\"),\n        current |-> (4 :> 5),\n        result |-> (4 :> 0),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> FALSE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 0 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 4,\n  lastAuthor |-> 1,\n  lastSeq |-> 0 ]",
+        "witnesses": "[ removal |-> FALSE,\n  appendContribution |-> TRUE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{1, 2, 3, 4, 5, 6}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    },
+    {
+      "state": 8,
+      "action": "Deliver line 398, col 3 to line 413, col 59 of module GoalLog",
+      "variables_tla": {
+        "hasAppendContribution": "TRUE",
+        "hasRemoval": "FALSE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "7",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 1),\n        head |-> 5,\n        members |-> {0, 1},\n        tasks |-> {4},\n        assignments |-> {5},\n        results |-> {7},\n        taskOrder |-> <<4>>,\n        resultOrder |-> <<7>>,\n        taskState |-> (4 :> \"submitted\"),\n        current |-> (4 :> 5),\n        result |-> (4 :> 7),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> FALSE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 7 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 4,\n  lastAuthor |-> 1,\n  lastSeq |-> 1 ]",
+        "witnesses": "[ removal |-> FALSE,\n  appendContribution |-> TRUE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{1, 2, 3, 4, 5, 6, 7}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    },
+    {
+      "state": 9,
+      "action": "Deliver line 398, col 3 to line 413, col 59 of module GoalLog",
+      "variables_tla": {
+        "hasAppendContribution": "TRUE",
+        "hasRemoval": "TRUE",
+        "hasCancellation": "FALSE",
+        "acceptedHeadsLost": "FALSE",
+        "lastDelivery": "8",
+        "incremental": "[ halt |-> \"none\",\n  state |->\n      [ attempt |-> (4 :> 1),\n        head |-> 8,\n        members |-> {0},\n        tasks |-> {4},\n        assignments |-> {5},\n        results |-> {},\n        taskOrder |-> <<4>>,\n        resultOrder |-> <<>>,\n        taskState |-> (4 :> \"assigned\"),\n        current |-> (4 :> 5),\n        result |-> (4 :> 0),\n        accepted |-> (4 :> 0),\n        cancel |-> (5 :> 0 @@ 10 :> 0),\n        revoked |-> (5 :> TRUE @@ 10 :> FALSE),\n        assignmentResult |-> (5 :> 0 @@ 10 :> 0),\n        verdict |-> (7 :> \"none\" @@ 12 :> \"none\"),\n        heads |-> <<>> ],\n  standings |->\n      << \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"effective\",\n         \"excluded-removal\",\n         \"excluded-removal\",\n         \"effective\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\",\n         \"absent\" >>,\n  applied |-> 5,\n  lastAuthor |-> -1,\n  lastSeq |-> 0 ]",
+        "witnesses": "[ removal |-> TRUE,\n  appendContribution |-> TRUE,\n  acceptance |-> FALSE,\n  cancellation |-> FALSE,\n  forkDetection |-> FALSE ]",
+        "hasFork": "FALSE",
+        "everHeads": "{}",
+        "hasAcceptance": "FALSE",
+        "acceptedHeadCount": "0",
+        "held": "{1, 2, 3, 4, 5, 6, 7, 8}",
+        "displayedAcceptedMismatch": "FALSE"
+      }
+    }
+  ]
+}
