@@ -8,6 +8,7 @@ mod daemon;
 mod documents;
 mod goals;
 pub(super) mod invitations;
+mod permissions;
 mod reading;
 mod sessions;
 mod tasks;
@@ -69,6 +70,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
         };
         frame.request.check()?;
         let actor = callers::resolve(&self.principals, state.caller, state.session, &frame)?;
+        // Receipt replay must never bypass its execution-session boundary.
+        if let Request::ContextAcknowledge { receipt, .. } = &frame.request
+            && (Some(receipt.principal) != actor.principal
+                || Some(receipt.session) != actor.session)
+        {
+            return Err(ApiError::new(
+                ErrorCode::Denied,
+                "context receipt belongs to another principal or session",
+            ));
+        }
         let id = frame.id;
         if let Request::Wait {
             goal,
@@ -124,6 +135,48 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// Plans one request without changing anything.
     fn plan(&self, actor: &Actor, request: Request, now: u64) -> Plan {
         match request {
+            Request::Context {
+                goal,
+                task,
+                after,
+                limit,
+                preview_chars,
+                unread_only,
+            } => self.context_read(actor, goal, task, after, limit, preview_chars, unread_only),
+            Request::ContextAcknowledge { goal, receipt } => {
+                self.context_acknowledge(actor, goal, receipt)
+            }
+            Request::InvitationInspect { ticket } => self.invitation_inspect(ticket, now),
+            Request::GoalInvitations { goal } => self.goal_invitations(actor, goal, now),
+            Request::InvitationRevoke { goal, invitation } => {
+                self.invitation_revoke(actor, goal, invitation, now)
+            }
+            Request::InvitationJoin {
+                principal,
+                ticket,
+                review,
+            } => self.invitation_join(actor, principal, ticket, review, now),
+            Request::Permissions { goal, agent } => self.permissions(actor, goal, agent),
+            Request::PermissionAllow {
+                goal,
+                agent,
+                permissions,
+            } => self.permission_change(actor, goal, agent, permissions, true),
+            Request::PermissionRevoke {
+                goal,
+                agent,
+                permissions,
+            } => self.permission_change(actor, goal, agent, permissions, false),
+            Request::PermissionTaskAllow {
+                goal,
+                agent,
+                task,
+                takeover,
+            } => self.permission_task_allow(actor, goal, agent, task, takeover),
+            Request::PermissionTaskRevoke { goal, agent, task } => {
+                self.permission_task_revoke(actor, goal, agent, task)
+            }
+            Request::Inbox => self.inbox(actor),
             Request::AgentGrant { agent, grants } => self.agent_grant(agent, grants),
             Request::AgentRevoke { agent } => self.agent_revoke(agent),
             Request::ViewerEnroll { agent, credential } => self.viewer_enroll(agent, credential),

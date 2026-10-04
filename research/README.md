@@ -33,6 +33,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ### Last-mile experience — 2026-10-04
 
+- [Real-model shared-context pilot](shared-context-real-model-pilot.md): Merak/GPT Luna finding to Codex/GPT Luna implementation, independent patch/oracle evidence, session acknowledgment and retained citation/receipt friction.
+
 - [First-user journey after organization blueprints](first-user-journey-review.md): current API-2 source and local-browser review separating completed setup/authoring work from remaining first-goal, human-view, shared-context, invitation and natural-language qualification gaps.
 
 - [Bound CLI launcher qualification](bound-cli-launcher-qualification.md): committed candidate, fresh Codex and Claude Code profiles, native workspace commands through setup's launcher, and explicit scripted-provider limits.

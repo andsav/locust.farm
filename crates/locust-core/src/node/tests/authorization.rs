@@ -311,6 +311,9 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
     let ticket = invite(&mut daemon, agent, goal);
     let mut invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     invitation.endpoint = EndpointId([88; 32]);
+    invitation
+        .sign(daemon.node.signer(&invitation.administrator).unwrap())
+        .unwrap();
     let principal = daemon.enroll("joiner", 4, true);
     let conn = daemon.connect(credential(4), None);
     assert_eq!(
@@ -323,6 +326,9 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
         ErrorCode::Conflict
     );
     invitation.goal = GoalId([77; 32]);
+    invitation
+        .sign(daemon.node.signer(&invitation.administrator).unwrap())
+        .unwrap();
     daemon.ok(
         conn,
         Request::GoalJoin {

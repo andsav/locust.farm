@@ -1,6 +1,6 @@
 # First-user journey after organization blueprints
 
-Date: 2026-10-04. **Status: review and proposed follow-up, not implementation.**
+Date: 2026-10-04. **Status: baseline review with an implemented follow-up below.**
 Reviewed source: `c1d27db68cce2dbc5f59208c84c62f9446485573`, API 2 / protocol 2.
 This review compares the [original first-contact contract](../docs/first-contact.md)
 and [historical last-mile plan](../docs/last-mile-implementation-plan.md) with the
@@ -210,3 +210,56 @@ visualization. Public installer/trust decisions can progress separately.
 This is a follow-up over the current organization runtime. It requires no return
 to a universal coordinator, no mandatory Polaris application and no revival of
 the entire historical last-mile plan.
+
+## Implemented follow-up: status, shared findings and invitations
+
+The owner selected these three functional areas and explicitly declined further
+onboarding/tutorial work. The review above preserves what was missing at its
+identified source; its onboarding-first recommendation is superseded by that
+scope decision. The follow-up uses API 3 / protocol 3 and store schema 3; older
+formats are refused without migration.
+
+- Human CLI views now show participant names, task titles, state, reasons and
+  actions across status, boards, tasks, pending work and sessions. Owner `inbox`
+  collects local work requiring attention; `watch` shows current state and waits
+  for one change with a visible timeout. Explicit `permission inspect/allow/revoke`
+  controls preserve unrelated grants and expose task-specific authorizations.
+  Task allow preserves existing takeover rights; task revoke deletes every
+  retained round authorization for that agent/task. Neither implies a running
+  process has stopped.
+- `context.read` gives a coherent goal/task brief and attributed findings, progress,
+  review reasons, inputs, document references and pending actions. Reads never
+  acknowledge content. Signed receipts acknowledge exact fully delivered content
+  for one principal/session, survive restart and cannot be replayed by another
+  session. Previewed and unavailable text stays unread. Pagination survives
+  per-page acknowledgments; changed goal state requires a fresh read. The agent
+  skill and MCP instructions make read/reuse/cite/publish/acknowledge normal work.
+- Signed invitation inspection works offline without consuming the ticket.
+  It exposes title provenance, issuer key, expiry and the actual whole-goal
+  sharing boundary. Reviewed joining selects an existing local principal and
+  confirms the exact ticket digest without adding grants. Inventory exposes no
+  capability; unused invitation revocation is durable. Refused joins can recover
+  with a fresh invitation. Ticket-bearing operations are absent from model tools.
+
+The [runtime reference](../docs/guide/runtime-reference.md) documents the public
+commands. The source and executable checks are in
+[human rendering](../crates/locust/src/cli/presentation.rs),
+[permission controls](../crates/locust-core/src/node/requests/permissions.rs),
+[context checks](../crates/locust-core/src/node/tests/context.rs),
+[invitation checks](../crates/locust-core/src/node/tests/invitations.rs),
+[CLI/MCP flow](../crates/locust/tests/t2_flow.rs), and
+[durable two-daemon checks](../crates/locust/src/daemon/durable_tests.rs).
+
+Local source verification covers named permission edits, observational watch,
+MCP publication/read/acknowledgment, independent session news, revoked-ticket
+refusal, fresh-ticket remote admission and restart using two real SQLite/Unix/Iroh
+daemons on one machine. This does not establish natural-language model uptake,
+two physical people/machines, native client approval behavior, an updated Polaris
+SDK/package, or published artifacts. Those retain their separate evidence gates.
+
+Final source gates: `cargo fmt --all --check`, strict workspace Clippy, and
+`cargo test --locked --workspace` passed: 663 tests, 12 explicit ignores.
+Generated API/CLI contracts and all six blueprint exports match the binary;
+documentation links and all four executable manual recipes pass. Independent
+review found no blockers in receipt boundaries, pagination, invitation lifecycle
+or owner permission controls.

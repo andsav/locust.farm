@@ -117,6 +117,17 @@ pub(super) fn authorization_write(
     )
 }
 
+pub(super) fn authorization_delete(
+    goal: &GoalId,
+    round: &EventId,
+    principal: &PublicKey,
+) -> LocalWrite {
+    records::delete(
+        Space::Goal,
+        records::key(AUTHORIZATION, &[&goal.0, &round.0, &principal.0]),
+    )
+}
+
 /// Records that `principal` is or was a member here, and whether it left.
 pub(super) fn part_write(goal: &GoalId, principal: &PublicKey, left: bool) -> LocalWrite {
     records::put(Space::Goal, key(PART, goal, &principal.0), &left)
@@ -162,11 +173,17 @@ impl Local {
                     records::read(value)?,
                 );
             }
+            (AUTHORIZATION, None) => {
+                self.authorized.remove(&(
+                    EventId(subject()?),
+                    PublicKey(records::part(key, REST + 32).ok_or_else(records::bad_key)?),
+                ));
+            }
             (PART, Some(value)) => {
                 self.part
                     .insert(PublicKey(subject()?), records::read(value)?);
             }
-            (REVISION | TITLE | GRANTS | WORKSPACE | AUTHORIZATION | PART, None) => {}
+            (REVISION | TITLE | GRANTS | WORKSPACE | PART, None) => {}
             _ => return Err(records::bad_key()),
         }
         Ok(())

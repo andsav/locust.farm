@@ -451,7 +451,9 @@ fn pending_join_cannot_relabel_the_administrator() {
         },
     );
     let mut altered = Invitation::from_ticket(ticket.as_str()).unwrap();
-    altered.administrator = PublicKey([99; 32]);
+    let other_administrator = locust_proto::crypto::Keypair::from_seed([99; 32]);
+    altered.administrator = other_administrator.public();
+    altered.sign(&other_administrator).unwrap();
     assert_eq!(
         code(joining.call(
             actor,

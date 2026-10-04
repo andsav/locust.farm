@@ -1,0 +1,379 @@
+{
+  "all_acceptance_predicates_passed": false,
+  "api_version": 3,
+  "artifact_sha256": "a85ec6c9d43a29b1b5b29196403cca63c4a055fba84f8fed8a19001c2be0ea1a",
+  "assertions": {
+    "builder_acknowledged_exact_receipt": true,
+    "builder_pending_empty": true,
+    "builder_read_finding_with_exact_receipt": true,
+    "builder_real_completion_with_usage": true,
+    "context_survives_restart": true,
+    "contribution_is_bound_to_citing_task_and_attempt": true,
+    "control_session_kept_finding_unread": true,
+    "different_principals": true,
+    "different_sessions": true,
+    "direct_contribution_summary_cites_finding_event": false,
+    "git_head_preserved": true,
+    "hidden_oracle_passes": true,
+    "independent_review_reconstructs_saved_artifact": true,
+    "model_process_cleanup": true,
+    "native_patch_submit_matches_signed_contribution": true,
+    "readme_preserved": true,
+    "researcher_real_completion_with_usage": true,
+    "researcher_signed_goal_wide_finding_contains_rule": true,
+    "starter_fails_oracle": true,
+    "task_opening_cites_finding_event": true,
+    "unrelated_file_preserved": true
+  },
+  "base_manifest": "b79c63564edabef155bbb93bca6e78220dafcbc2c750dcc959a32e5ad5778fd4",
+  "binary_sha256": {
+    "locust": "fc56869fce2bdc3fd54231e1a32ae1d27e86fe6f6a521e666dbab06a65f8b2f7",
+    "merak": "6c6f83e65103b2d2c65eb6a51c257b1eced498f8275bf63736f292dc30f06a25"
+  },
+  "boundaries": [
+    "One host and one real SQLite daemon; separate principals, sessions and workspaces; same provider account; permissive native tools; no OS filesystem separation, distributed peer or packaged release claim",
+    "Sequential finding handoff; no concurrency or automatic wake.",
+    "Private constraint absent from builder prompt and initial workspace; no OS-level exclusion or paired no-finding model control.",
+    "Owner setup and invitations are harness-authored; task and attempt were model-authored.",
+    "No installed-package, selection/application to another workspace, physical-machine, independent-account or release qualification."
+  ],
+  "citation_observation": "The task-opening text cites the finding ID, and the contribution references that task; the contribution summary itself has no finding citation.",
+  "client_versions": {
+    "codex": "codex-cli 0.153.4",
+    "locust": "locust 0.1.0 (3ca78265119c-dirty) api 3 protocol 3",
+    "merak": "merak 0.1.0"
+  },
+  "contribution": {
+    "anchor": "c4d1a4ea4c65a8ac4f108e7f4b65f602909f474c57e62c290d9c1189c96ab901",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "b13c331547ed4951bded0e049288d89eb622ad10b919d144222d1ea1f8fbcdae"
+        ],
+        "attempt": "2f86a04400738a9699a4ed10f1386adc9e18e876224fc12cc9432940a14ac078",
+        "base": "b79c63564edabef155bbb93bca6e78220dafcbc2c750dcc959a32e5ad5778fd4",
+        "context": {
+          "round": "8e60f6c53e61989fc6a2d6e6ee06f5ce895c62c1581b1f02f2295b05235dc68f",
+          "scope": {
+            "task": "task:8e60f6c53e61989fc6a2d6e6ee06f5ce895c62c1581b1f02f2295b05235dc68f"
+          }
+        },
+        "patch": "1e60aa54efb71a4688bd2162f2bf4fb419b4949c8180e4fc2207c3e5f8c37e42"
+      }
+    },
+    "content": [
+      {
+        "hash": "1e60aa54efb71a4688bd2162f2bf4fb419b4949c8180e4fc2207c3e5f8c37e42",
+        "state": "held"
+      },
+      {
+        "hash": "a792949671812d7cf3069bc1a5403e462eb8b9c06dbb347832661d8d496c957a",
+        "state": "held"
+      },
+      {
+        "hash": "b13c331547ed4951bded0e049288d89eb622ad10b919d144222d1ea1f8fbcdae",
+        "state": "held"
+      },
+      {
+        "hash": "b79c63564edabef155bbb93bca6e78220dafcbc2c750dcc959a32e5ad5778fd4",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "a792949671812d7cf3069bc1a5403e462eb8b9c06dbb347832661d8d496c957a",
+      "key_epoch": 0,
+      "len": 102
+    },
+    "task": "task:8e60f6c53e61989fc6a2d6e6ee06f5ce895c62c1581b1f02f2295b05235dc68f",
+    "text": "Implement portable safe archive member path normalization",
+    "view": {
+      "at_ms": 1791135014520,
+      "author": "f82661c7005604cf027b501eef5e6e93e03c132b16028e3ea75f66b1b0031173",
+      "event": "96220734f89b9e17989ff6f4c54ebeee775729f9c01a110490042e6addc5700c",
+      "kind": "contribution_published",
+      "position": 9,
+      "standing": "effective"
+    }
+  },
+  "daemon_exits": [
+    {
+      "event": "daemon_exit",
+      "exit_code": 0,
+      "forced_cleanup": false,
+      "generation": 1,
+      "socket_removed": true
+    },
+    {
+      "event": "daemon_exit",
+      "exit_code": 0,
+      "forced_cleanup": false,
+      "generation": 2,
+      "socket_removed": true
+    }
+  ],
+  "diagnostics": {
+    "acknowledgement_attempts": 6,
+    "builder_contributions": 1,
+    "complete_finding_receipts": 3,
+    "direct_contribution_citations": 0,
+    "exact_finding_acknowledgements": 1,
+    "rejected_acknowledgements": 1,
+    "task_event_citations": 1
+  },
+  "evaluator_repair": {
+    "provider_reruns": 0,
+    "reason": "Correct publication detection to support native CLI; add receipt, artifact and citation predicates; preserve report.initial.json."
+  },
+  "experiment": "Merak researcher to Codex builder via API-3 shared findings",
+  "finding": {
+    "anchor": "c4d1a4ea4c65a8ac4f108e7f4b65f602909f474c57e62c290d9c1189c96ab901",
+    "body": {
+      "contribution_published": {
+        "artifacts": [],
+        "attempt": null,
+        "base": null,
+        "context": {
+          "round": "a517a9b8a3fd5400a2ef24a40065a9cf66567e2bd4cf2b30d3aa390ed1de4f84",
+          "scope": "goal"
+        },
+        "patch": null
+      }
+    },
+    "content": [
+      {
+        "hash": "a1c8cf78c391a40e64b62e9caf441e6bfd5ebf2bb80bab09e3e84386eda5c646",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "a1c8cf78c391a40e64b62e9caf441e6bfd5ebf2bb80bab09e3e84386eda5c646",
+      "key_epoch": 0,
+      "len": 530
+    },
+    "task": null,
+    "text": "Finding from `private/archive-operations.md` (researcher): archive member names can contain Windows backslashes although extraction runs on Linux. POSIX-only path validation may miss `..` traversal and drive/UNC absolute forms before extraction (e.g. `assets\\\\..\\\\outside.txt`, `C:\\\\temp\\\\outside.txt`, `\\\\\\\\server\\\\share\\\\outside.txt`). Normalize `\\\\` to `/` before path checks; reject names that become absolute or contain a `..` component, while allowing safe nested relative paths.",
+    "view": {
+      "at_ms": 1791134886085,
+      "author": "5c3079edb04e21b8ab686047b53f19f3aa9a8fb5347ce814e257e4e6494f596a",
+      "event": "552c42b41f6019adea91e37c139747ab8236d7d7960bdf6b06c4baa42fe79d8e",
+      "kind": "contribution_published",
+      "position": 6,
+      "standing": "effective"
+    }
+  },
+  "finished": "2026-10-04T17:30:52.068072+00:00",
+  "goal": "d10168f3cf017e8457d12fe25d8c54876e9ebaaad700f42f2c0195ceefbc992b",
+  "independent_oracle": {
+    "artifact_passed": true,
+    "assertions": [
+      {
+        "name": "artifact_present",
+        "passed": true
+      },
+      {
+        "case_count": 9,
+        "exit_code": 0,
+        "name": "behavior_oracle",
+        "passed": true,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 28,
+        "stdout_sha256": "3a39295737cff1ae5ee6e277accbef231f663144a09d19f2cb6eb5395203d3b1",
+        "success_marker_observed": true
+      }
+    ],
+    "case_count": 9,
+    "starter_passed": false
+  },
+  "independent_patch_review": {
+    "base": "b79c63564edabef155bbb93bca6e78220dafcbc2c750dcc959a32e5ad5778fd4",
+    "changes": [
+      {
+        "after": {
+          "bytes": 580,
+          "executable": false,
+          "plaintext_hash": "5ba363124acf9422cffa33578516e26df4d5cb36c7b1ecb67010f2ce445138de"
+        },
+        "before": {
+          "bytes": 364,
+          "executable": false,
+          "plaintext_hash": "c71d8830a5b5478c778c9ee3fe35378289e227ab8b8d91811e11c59c3985c241"
+        },
+        "path": "safe_member.py",
+        "unified_diff": "--- a/safe_member.py\n+++ b/safe_member.py\n@@ -1,12 +1,17 @@\n \"\"\"Normalize an untrusted archive member to a relative path.\"\"\"\n \n-from pathlib import PurePosixPath\n-\n-\n-def normalize_member_path(name: str) -> str | None:\n-    if not isinstance(name, str) or not name or \"\\x00\" in name:\n-        return None\n-    path = PurePosixPath(name)\n-    if path.is_absolute() or \"..\" in path.parts:\n+import ntpath\n+from pathlib import PurePosixPath\n+\n+\n+def normalize_member_path(name: str) -> str | None:\n+    if not isinstance(name, str) or not name or \"\\x00\" in name:\n+        return None\n+    normalized_name = name.replace(\"\\\\\", \"/\")\n+    drive, _ = ntpath.splitdrive(normalized_name)\n+    path = PurePosixPath(normalized_name)\n+    if drive or path.is_absolute() or not path.parts or \"..\" in path.parts:\n+        return None\n+    if any(\":\" in part for part in path.parts):\n         return None\n     return path.as_posix()\n"
+      }
+    ],
+    "contribution_id": "1e60aa54efb71a4688bd2162f2bf4fb419b4949c8180e4fc2207c3e5f8c37e42",
+    "head": "b13c331547ed4951bded0e049288d89eb622ad10b919d144222d1ea1f8fbcdae"
+  },
+  "known_provider_key_scan": {
+    "files": 21,
+    "matches": 0
+  },
+  "mcp_errors": [
+    {
+      "error": {
+        "code": "denied",
+        "details": null,
+        "message": "context receipt was not issued by this daemon"
+      },
+      "tool": "locust_context_acknowledge"
+    }
+  ],
+  "merak_transcript_evidence": {
+    "context_acknowledged_effect": 28,
+    "context_read_effect": 22,
+    "contribution_readback_effect": 34,
+    "effects": 36,
+    "events": 155,
+    "finding_publish_effect": 30,
+    "private_note_read_effect": 18,
+    "skill_read_effects": [
+      3,
+      9
+    ],
+    "truncated": false
+  },
+  "model_cleanup": [
+    {
+      "cleanup_verified": true,
+      "client": "merak",
+      "exit_code": 0,
+      "forced_cleanup": false,
+      "natural_cleanup": true
+    },
+    {
+      "cleanup_verified": true,
+      "client": "codex",
+      "exit_code": 0,
+      "forced_cleanup": false,
+      "natural_cleanup": true
+    }
+  ],
+  "principals": {
+    "builder": {
+      "instance": "ca9211354b938d330314176827482324",
+      "principal": "f82661c7005604cf027b501eef5e6e93e03c132b16028e3ea75f66b1b0031173"
+    },
+    "researcher": {
+      "instance": "1b498f8ecb09f84fe875c94ab47ed2d9",
+      "principal": "5c3079edb04e21b8ab686047b53f19f3aa9a8fb5347ce814e257e4e6494f596a"
+    }
+  },
+  "protocol_version": 3,
+  "provider_runs": 2,
+  "receipt_observation": "One later acknowledgment request transposed hex characters in a returned event-version hash; it was denied, then recovered by rereading and submitting the exact receipt.",
+  "result": "Productive handoff and artifact verified; direct contribution-summary citation criterion failed; task-level citation retained.",
+  "retained_local_evidence": [
+    {
+      "path": "output/shared-context-models-20261004-01/researcher-5n1c3drh/research.transcript.json",
+      "sha256": "41a8947817d899cfa5846ed11f70d6d9d72a90d1036f4f94d735f277e4852c1c"
+    },
+    {
+      "path": "output/shared-context-models-20261004-01/researcher-5n1c3drh/research.events.txt",
+      "sha256": "292849d6f2381b1a9b04510281a6ed5e852925bb2cf3edb1eb4bbca52a570cda"
+    },
+    {
+      "path": "output/shared-context-models-20261004-01/builder-8rg6xb1i/build.stdout",
+      "sha256": "43ad4a3b23776e73ac3e631f50ffb5746feb727ea08ccf5715893b4477e26c3e"
+    },
+    {
+      "path": "output/shared-context-models-20261004-01/builder-8rg6xb1i/build.mcp.jsonl",
+      "sha256": "53294bda099339caaa6392a65bfdb08ba40a778cae329ec2532163dbc7308754"
+    },
+    {
+      "path": "output/shared-context-models-20261004-01/independent-patch-review.json",
+      "sha256": "3510fcb5752f4641e83327c4d3e614912dae9640bc786b6db31d529c24826af7"
+    },
+    {
+      "path": "output/shared-context-models-20261004-01/builder-artifact/safe_member.py",
+      "sha256": "a85ec6c9d43a29b1b5b29196403cca63c4a055fba84f8fed8a19001c2be0ea1a"
+    },
+    {
+      "path": "output/shared-context-models-20261004-01/report.initial.json",
+      "sha256": "60165ad1f00c3e833fa085d9d9670053cef3a366b782e16661611176912f5994"
+    }
+  ],
+  "scenario_attempts": 1,
+  "session_control": {
+    "builder_unread": {
+      "unacknowledged": 0,
+      "unavailable": 0
+    },
+    "daemon_restart_context_equal": true,
+    "fresh_session_unread": {
+      "unacknowledged": 11,
+      "unavailable": 0
+    }
+  },
+  "skill_sha256": "98bb722f6e8e8cdd757aef112ec3fb0378a87ce1591ba1d677410550954f4801",
+  "source_commit": "510fcdb34af9997a3c47e086311f975c930806c4",
+  "source_provenance": "Checkout 510fcdb; tested debug binary identifies 3ca78265119c-dirty (built during preceding implementation), pinned by binary SHA256. No clean committed-build claim.",
+  "started": "2026-10-04T17:27:12.069027+00:00",
+  "task": {
+    "anchor": "c4d1a4ea4c65a8ac4f108e7f4b65f602909f474c57e62c290d9c1189c96ab901",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "a517a9b8a3fd5400a2ef24a40065a9cf66567e2bd4cf2b30d3aa390ed1de4f84",
+          "stage": null,
+          "variation": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "8868eae975bb529f3fef78ce9e003f7487d346ab3e545293285c2a08ff8f5c7d",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "8868eae975bb529f3fef78ce9e003f7487d346ab3e545293285c2a08ff8f5c7d",
+      "key_epoch": 0,
+      "len": 373
+    },
+    "task": "task:8e60f6c53e61989fc6a2d6e6ee06f5ce895c62c1581b1f02f2295b05235dc68f",
+    "text": "Implement normalize_member_path in safe_member.py for portable, safe relative archive destinations. Account for Windows backslashes before checking absolute paths and '..' components, as documented by shared finding 552c42b41f6019adea91e37c139747ab8236d7d7960bdf6b06c4baa42fe79d8e. Change only the requested implementation file.",
+    "view": {
+      "at_ms": 1791134934300,
+      "author": "f82661c7005604cf027b501eef5e6e93e03c132b16028e3ea75f66b1b0031173",
+      "event": "8e60f6c53e61989fc6a2d6e6ee06f5ce895c62c1581b1f02f2295b05235dc68f",
+      "kind": "task_opened",
+      "position": 7,
+      "standing": "effective"
+    }
+  },
+  "timings_ms": {
+    "codex": 150273,
+    "merak": 62357
+  },
+  "usage": {
+    "codex": {
+      "cache_write_input_tokens": 62899,
+      "cached_input_tokens": 960758,
+      "input_tokens": 1025357,
+      "output_tokens": 12931,
+      "reasoning_output_tokens": 5178
+    },
+    "codex_cost": "Not reported by client stream; no total estimated",
+    "merak": {
+      "cache_read_tokens": 258056,
+      "cache_read_tokens_reported": true,
+      "cache_write_tokens": 28462,
+      "cache_write_tokens_reported": true,
+      "cost": 0.008065,
+      "cost_micros": 8065,
+      "cost_micros_reported": true,
+      "input_tokens": 286560,
+      "model": "openai/gpt-6-luna",
+      "models": [
+        "openai/gpt-6-luna"
+      ],
+      "output_tokens": 3832,
+      "reasoning_tokens": 1063,
+      "reasoning_tokens_reported": true
+    }
+  }
+}

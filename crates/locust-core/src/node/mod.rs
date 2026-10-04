@@ -18,6 +18,7 @@ mod authoring;
 mod callers;
 mod commit;
 mod content_graph;
+mod context;
 mod definitions;
 mod delivery;
 mod entry;
@@ -241,6 +242,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 Ok(())
             }
             Space::Cursor => match value {
+                Some(value) if context::is_acknowledgment(key) => {
+                    let goal = context::goal_of(key)?;
+                    self.entry_mut(goal).context.absorb(key, value)
+                }
                 Some(value) if feed::is_entry(key) => {
                     let goal = feed::goal_of(key)?;
                     self.entry_mut(goal).feed.absorb(key, value)

@@ -339,7 +339,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                     enqueue(&mut outgoing, response(id, json!({
                         "protocolVersion": version, "capabilities": {"tools": {"listChanged": false}},
                         "serverInfo": {"name": "locust", "version": env!("CARGO_PKG_VERSION")},
-                        "instructions": "Inspect the goal rules, allowed actions and pending work. Shared eligibility is separate from local execution authorization. Independent work begins with an attempt; publishing a contribution does not select it or apply files. Durable deliveries remain pending until acknowledged. Cancellation of an MCP call does not undo committed work. Retry uncertain writes with the same idempotency_key."
+                        "instructions": "Start each work step with context.read for the goal or task. Read attributed findings, inputs, progress and review reasons; cite useful event IDs and publish new findings with contribution.publish. Follow context pagination, then acknowledge only complete content you actually read with the returned session receipt. pending.context_news reports unread and unavailable content. Inspect the goal rules, allowed actions and pending work. Shared eligibility is separate from local execution authorization. Independent work begins with an attempt; publishing a contribution does not select it or apply files. Durable deliveries remain pending until acknowledged. Cancellation of an MCP call does not undo committed work. Retry uncertain writes with the same idempotency_key."
                     })), false);
                     continue;
                 }

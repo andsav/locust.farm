@@ -15,6 +15,7 @@ use std::net::SocketAddr;
 use serde::{Deserialize, Serialize};
 
 use crate::PROTOCOL_VERSION;
+use crate::api::{InvitationPreview, InvitationSharing};
 use crate::codec;
 use crate::crypto::{self, Keypair, domain};
 use crate::id::{EndpointId, GoalId, Hex, PublicKey, Signature, hex_to_vec};
@@ -107,6 +108,9 @@ pub struct Invitation {
     pub version: u8,
     /// The goal the holder is invited to.
     pub goal: GoalId,
+    /// Presentation supplied and signed by the administrator. A title does
+    /// not authenticate a human identity or establish the genesis record.
+    pub goal_title: Option<String>,
     /// The goal's administrator, which in the current protocol is also the issuer. Shown
     /// to the joiner as a fingerprint and checked against the genesis record
     /// once it arrives.
@@ -120,6 +124,11 @@ pub struct Invitation {
     pub secret: InviteSecret,
     /// Issuer-chosen expiry in Unix milliseconds, judged by the issuer's clock.
     pub expires_ms: Option<u64>,
+    /// The actual read boundary offered by this protocol.
+    pub sharing: InvitationSharing,
+    /// Administrator signature over every preceding field, including the
+    /// capability digest. Verified before any preview or join intent.
+    pub signature: Signature,
 }
 
 /// Why text was not accepted as an invitation, or an invitation could not be
@@ -138,6 +147,8 @@ pub enum InviteError {
     /// Too many contact hints, or one that is empty, too long or carries a
     /// control character.
     BadHints,
+    /// The administrator did not sign these exact invitation fields.
+    InvalidSignature,
 }
 
 impl fmt::Display for InviteError {
@@ -150,6 +161,7 @@ impl fmt::Display for InviteError {
                 write!(f, "invitation uses unsupported protocol version {version}")
             }
             Self::BadHints => f.write_str("invitation carries unusable contact hints"),
+            Self::InvalidSignature => f.write_str("invitation signature is invalid; request a fresh invitation from the administrator"),
         }
     }
 }
@@ -187,6 +199,95 @@ fn is_hint_text(hint: &str) -> bool {
 }
 
 impl Invitation {
+    /// Signs all reviewable facts and the capability together.
+    pub fn signed(
+        goal: GoalId,
+        goal_title: Option<String>,
+        endpoint: EndpointId,
+        hints: Vec<String>,
+        secret: InviteSecret,
+        expires_ms: Option<u64>,
+        administrator: &Keypair,
+    ) -> Result<Self, InviteError> {
+        let mut invitation = Self {
+            version: PROTOCOL_VERSION,
+            goal,
+            goal_title,
+            administrator: administrator.public(),
+            endpoint,
+            hints,
+            secret,
+            expires_ms,
+            sharing: InvitationSharing::WholeGoal,
+            signature: Signature([0; 64]),
+        };
+        invitation.sign(administrator)?;
+        Ok(invitation)
+    }
+
+    /// Re-signs administrator-owned fields. A different key cannot attest
+    /// to the named administrator.
+    pub fn sign(&mut self, administrator: &Keypair) -> Result<(), InviteError> {
+        if administrator.public() != self.administrator {
+            return Err(InviteError::InvalidSignature);
+        }
+        self.signature = administrator.sign(INVITATION_SIGNATURE, &self.signing_digest()?);
+        Ok(())
+    }
+
+    fn signing_digest(&self) -> Result<[u8; 32], InviteError> {
+        let bytes = codec::encode(&(
+            self.version,
+            self.goal,
+            &self.goal_title,
+            self.administrator,
+            self.endpoint,
+            &self.hints,
+            self.secret.digest(),
+            self.expires_ms,
+            self.sharing,
+        ))
+        .map_err(|_| InviteError::Malformed)?;
+        Ok(crypto::domain_hash(INVITATION_SIGNATURE, &bytes))
+    }
+
+    pub fn verify(&self) -> Result<(), InviteError> {
+        self.check()?;
+        if crypto::verify(
+            &self.administrator,
+            INVITATION_SIGNATURE,
+            &self.signing_digest()?,
+            &self.signature,
+        ) {
+            Ok(())
+        } else {
+            Err(InviteError::InvalidSignature)
+        }
+    }
+
+    /// Verified, capability-free review. The digest covers the complete
+    /// canonical signed invitation, so whitespace wrapping does not change
+    /// it and substituting a different valid ticket does.
+    pub fn preview(&self, now_ms: u64) -> Result<InvitationPreview, InviteError> {
+        self.verify()?;
+        let bytes = codec::encode(self).map_err(|_| InviteError::Malformed)?;
+        Ok(InvitationPreview {
+            goal: self.goal,
+            goal_title: self.goal_title.clone(),
+            administrator: self.administrator,
+            endpoint: self.endpoint,
+            hints: self.hints.clone(),
+            expires_ms: self.expires_ms,
+            expired: self.expires_ms.is_some_and(|expiry| now_ms >= expiry),
+            sharing: self.sharing,
+            review: format!("{}", Hex(&crypto::domain_hash(INVITATION_REVIEW, &bytes))),
+            signature_verified: true,
+            title_provenance: "administrator_signed_presentation".into(),
+            identity_provenance: "signing_key_only; human_identity_not_verified".into(),
+            admission_status: "unconfirmed; checked_with_issuer_on_join".into(),
+            sharing_facts: InvitationPreview::sharing_facts(),
+        })
+    }
     /// Checks the version and the contact hints. Runs when a ticket is
     /// written and again when one is read.
     fn check(&self) -> Result<(), InviteError> {
@@ -200,11 +301,14 @@ impl Invitation {
         }
     }
 
-    /// The pasteable form. An invitation that passes its checks always fits
-    /// [`MAX_INVITATION_BYTES`].
+    /// The pasteable form, bounded by [`MAX_INVITATION_BYTES`] including its
+    /// title. Readers authenticate the signature before showing a preview.
     pub fn to_ticket(&self) -> Result<Ticket, InviteError> {
         self.check()?;
         let bytes = codec::encode(self).map_err(|_| InviteError::Malformed)?;
+        if bytes.len() > MAX_INVITATION_BYTES {
+            return Err(InviteError::TooLong);
+        }
         Ok(Ticket(format!("{TICKET_PREFIX}{}", Hex(&bytes))))
     }
 
@@ -236,7 +340,7 @@ impl Invitation {
             None => return Err(InviteError::Malformed),
         }
         let invitation: Self = codec::decode(&bytes).map_err(|_| InviteError::Malformed)?;
-        invitation.check()?;
+        invitation.verify()?;
         Ok(invitation)
     }
 
@@ -245,6 +349,9 @@ impl Invitation {
         self.secret.digest()
     }
 }
+
+const INVITATION_SIGNATURE: &str = "locust invitation signature";
+const INVITATION_REVIEW: &str = "locust invitation review";
 
 /// Sent to the inviting daemon before the joiner is a member. The signature
 /// proves the joiner holds the key that the invitation will be bound to.
@@ -324,22 +431,25 @@ mod tests {
     use crate::testkit;
 
     fn invitation() -> Invitation {
-        Invitation {
-            version: PROTOCOL_VERSION,
-            goal: GoalId([1; 32]),
-            administrator: testkit::keypair(1).public(),
-            endpoint: EndpointId([2; 32]),
-            hints: vec!["https://relay.example".to_string()],
-            secret: InviteSecret([0x5a; 32]),
-            expires_ms: Some(1_790_000_000_000),
-        }
+        Invitation::signed(
+            GoalId([1; 32]),
+            Some("Shared compiler work".into()),
+            EndpointId([2; 32]),
+            vec!["https://relay.example".to_string()],
+            InviteSecret([0x5a; 32]),
+            Some(1_790_000_000_000),
+            &testkit::keypair(1),
+        )
+        .unwrap()
     }
 
     fn with_hints(hints: &[&str]) -> Invitation {
-        Invitation {
+        let mut invitation = Invitation {
             hints: hints.iter().map(|hint| hint.to_string()).collect(),
             ..invitation()
-        }
+        };
+        invitation.sign(&testkit::keypair(1)).unwrap();
+        invitation
     }
 
     #[test]
@@ -350,6 +460,63 @@ mod tests {
             Invitation::from_ticket(&format!("  {}\n", ticket.as_str())),
             Ok(invitation())
         );
+    }
+
+    #[test]
+    fn every_reviewed_fact_and_capability_is_signed() {
+        let original = invitation();
+        let changes: [fn(&mut Invitation); 8] = [
+            |i| i.goal = GoalId([9; 32]),
+            |i| i.goal_title = Some("Different goal".into()),
+            |i| i.administrator = testkit::keypair(9).public(),
+            |i| i.endpoint = EndpointId([9; 32]),
+            |i| i.hints = vec!["https://other.example".into()],
+            |i| i.secret = InviteSecret([9; 32]),
+            |i| i.expires_ms = None,
+            |i| i.signature.0[0] ^= 1,
+        ];
+        for change in changes {
+            let mut altered = original.clone();
+            change(&mut altered);
+            assert_eq!(
+                Invitation::from_ticket(altered.to_ticket().unwrap().as_str()),
+                Err(InviteError::InvalidSignature)
+            );
+            assert_eq!(altered.preview(0), Err(InviteError::InvalidSignature));
+        }
+    }
+
+    #[test]
+    fn preview_identifies_exact_ticket_without_rendering_its_capability() {
+        let invitation = invitation();
+        let preview = invitation.preview(0).unwrap();
+        let serialized = serde_json::to_string(&preview).unwrap();
+        assert!(!serialized.contains(&"5a".repeat(32)));
+        assert!(!serialized.contains(TICKET_PREFIX));
+        assert!(preview.signature_verified);
+        assert!(!preview.expired);
+        assert_eq!(preview.sharing, InvitationSharing::WholeGoal);
+        assert!(invitation.preview(u64::MAX).unwrap().expired);
+        let mut changed = invitation.clone();
+        changed.expires_ms = None;
+        changed.sign(&testkit::keypair(1)).unwrap();
+        assert_ne!(preview.review, changed.preview(0).unwrap().review);
+        let wrapped = format!("  {}\n", invitation.to_ticket().unwrap().as_str());
+        assert_eq!(
+            preview,
+            Invitation::from_ticket(&wrapped)
+                .unwrap()
+                .preview(0)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn signed_title_must_fit_the_published_ticket_envelope() {
+        let mut invitation = invitation();
+        invitation.goal_title = Some("x".repeat(MAX_INVITATION_BYTES));
+        invitation.sign(&testkit::keypair(1)).unwrap();
+        assert_eq!(invitation.to_ticket(), Err(InviteError::TooLong));
     }
 
     #[test]
@@ -443,11 +610,12 @@ mod tests {
 
     #[test]
     fn the_largest_valid_invitation_fits_the_published_size() {
-        let largest = Invitation {
+        let mut largest = Invitation {
             hints: vec!["h".repeat(MAX_HINT_BYTES); MAX_HINTS],
             expires_ms: Some(u64::MAX),
             ..invitation()
         };
+        largest.sign(&testkit::keypair(1)).unwrap();
         let ticket = largest.to_ticket().unwrap();
         assert!(codec::encode(&largest).unwrap().len() <= MAX_INVITATION_BYTES);
         assert!(ticket.as_str().len() <= MAX_TICKET_BYTES);

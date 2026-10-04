@@ -84,7 +84,7 @@ pub enum Space {
     Invite = 4,
     /// Session-bound claims and their generations.
     Claim = 5,
-    /// Consumer positions in a goal's event feed.
+    /// Event feed entries and explicit session context acknowledgments.
     Cursor = 6,
     /// Request keys with the digest and result of their first execution.
     Idempotency = 7,

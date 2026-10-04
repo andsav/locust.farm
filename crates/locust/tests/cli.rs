@@ -673,15 +673,16 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
     use locust_proto::invite::{Invitation, InviteSecret};
     let home = scratch();
     write_secret(&home.path().join("owner.credential"), &[1; 32]);
-    let invitation = Invitation {
-        version: locust_proto::PROTOCOL_VERSION,
-        goal: GoalId([3; 32]),
-        administrator: PublicKey([4; 32]),
-        endpoint: EndpointId([5; 32]),
-        hints: vec![],
-        secret: InviteSecret([6; 32]),
-        expires_ms: None,
-    };
+    let invitation = Invitation::signed(
+        GoalId([3; 32]),
+        Some("Stdin invitation".into()),
+        EndpointId([5; 32]),
+        vec![],
+        InviteSecret([6; 32]),
+        None,
+        &locust_proto::crypto::Keypair::from_seed([4; 32]),
+    )
+    .unwrap();
     let ticket = invitation.to_ticket().unwrap();
     let expected = ticket.clone();
     let handle = server(home.path(), 1, move |frame| {
@@ -717,13 +718,22 @@ fn human_status_names_membership_and_halt_with_stable_tags() {
     let home = scratch();
     write_secret(&home.path().join("owner.credential"), &[1; 32]);
     let handle = server(home.path(), 1, |_| {
-        Ok(status(vec![GoalSummary {
-            goal: GoalId([3; 32]),
-            member: PublicKey([4; 32]),
-            title: Some("a goal".into()),
-            membership: Membership::Refused,
-            halted: Some(locust_proto::api::Halt::AuthorityConflict),
-        }]))
+        Ok(status(vec![
+            GoalSummary {
+                goal: GoalId([3; 32]),
+                member: PublicKey([4; 32]),
+                title: Some("a goal".into()),
+                membership: Membership::Refused,
+                halted: Some(locust_proto::api::Halt::AuthorityConflict),
+            },
+            GoalSummary {
+                goal: GoalId([5; 32]),
+                member: PublicKey([4; 32]),
+                title: None,
+                membership: Membership::Joining,
+                halted: None,
+            },
+        ]))
     });
     let output = Command::new(env!("CARGO_BIN_EXE_locust"))
         .env_remove("LOCUST_CREDENTIAL")
@@ -735,7 +745,13 @@ fn human_status_names_membership_and_halt_with_stable_tags() {
         .unwrap();
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
-    assert!(text.contains(" refused a goal halted authority_conflict"));
+    assert!(text.contains(&format!("Goal a goal ({})", GoalId([3; 32]))));
+    assert!(text.contains(&format!("{} · refused", PublicKey([4; 32]))));
+    assert!(text.contains("Blocked: conflicting authority history"));
+    assert!(text.contains("decisions cannot advance"));
+    assert!(text.contains("fresh invitation, inspect it, and join again"));
+    assert!(text.contains(&format!("Title unavailable ({})", GoalId([5; 32]))));
+    assert!(text.contains("Admission has not arrived. Check connectivity to the issuer"));
     handle.join().unwrap();
 }
 

@@ -5,8 +5,11 @@ mod client;
 mod connection;
 mod doctor;
 mod install;
+mod invitations;
 mod onboarding;
 mod package;
+mod permissions;
+mod presentation;
 mod service;
 mod setup;
 mod workspace;
@@ -196,6 +199,12 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     if operation.starts_with("client.") {
         return client::run(matches, &operation, selected);
     }
+    if operation.starts_with("invitation.") {
+        return invitations::run(matches, &operation, selected);
+    }
+    if operation.starts_with("permission.") || matches!(operation.as_str(), "inbox" | "watch") {
+        return permissions::run(matches, &operation, selected);
+    }
     let named_enrollment = matches!(operation.as_str(), "agent.enroll" | "author.enroll");
     let author_enrollment = operation == "author.enroll";
     let generic_call = operation == "call";
@@ -299,7 +308,16 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         let goal = resolve_goal(&mut client, &socket, goal, on_behalf)?;
         fields.insert("goal".to_owned(), json!(goal));
     }
+    if !generic_call {
+        for field in ["agent", "member", "recipient", "principal"] {
+            if let Some(Value::String(value)) = fields.get(field) {
+                let principal = resolve_principal(&mut client, &socket, value)?;
+                fields.insert(field.to_owned(), json!(principal));
+            }
+        }
+    }
     let request = request(&operation, fields)?;
+    let response_goal = request.goal();
     request.check().map_err(Failure::from)?;
     if matches!(
         request,
@@ -319,12 +337,28 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     let response = client
         .call_with(request, idempotency, on_behalf)
         .map_err(|error| connection::client_error(error, &socket))?;
-    let status = match response {
+    let exit_status = match response {
         Response::Waited(WaitOutcome::NoEvent) => 20,
         Response::Waited(WaitOutcome::Disconnected) => 21,
         _ => 0,
     };
-    let human = human(&response, credential_path.as_deref());
+    let response_principal = on_behalf.or(match client.caller() {
+        locust_proto::api::Caller::Agent(key)
+        | locust_proto::api::Caller::Viewer(key)
+        | locust_proto::api::Caller::Author(key) => Some(key),
+        locust_proto::api::Caller::Owner => None,
+    });
+    let names = if matches.get_flag("json") {
+        Vec::new()
+    } else if let Response::Status(status) = &response {
+        status.agents.clone()
+    } else {
+        status(&mut client, &socket, on_behalf)
+            .map(|status| status.agents)
+            .unwrap_or_default()
+    };
+    let human = presentation::render(&response, &names, response_goal, response_principal)
+        .unwrap_or_else(|| human(&response, credential_path.as_deref()));
     let mut result =
         serde_json::to_value(&response).map_err(|error| Failure::internal(error.to_string()))?;
     if let Some(path) = credential_path {
@@ -338,7 +372,7 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     Ok(Output {
         result,
         human,
-        status,
+        status: exit_status,
         ok: true,
     })
 }
@@ -356,6 +390,16 @@ fn validate_fields(operation: &str, fields: &Map<String, Value>) -> Result<(), F
     if let Some(Value::String(goal)) = fields.get("goal") {
         validate_goal(goal)?;
         fields.insert("goal".to_owned(), json!(GoalId([0; 32])));
+    }
+    for name in ["agent", "member", "recipient", "principal"] {
+        if let Some(Value::String(value)) = fields.get(name) {
+            if value.parse::<PublicKey>().is_err() && !locust_proto::api::is_agent_name(value) {
+                return Err(Failure::usage(format!(
+                    "--{name} requires an enrolled name or a full principal key"
+                )));
+            }
+            fields.insert(name.to_owned(), json!(PublicKey([0; 32])));
+        }
     }
     request(operation, fields)?.check().map_err(Failure::from)
 }
@@ -382,7 +426,7 @@ fn resolve_principal(
     }
     if !locust_proto::api::is_agent_name(principal) {
         return Err(Failure::usage(
-            "--as requires an enrolled name or a full principal key",
+            "principal requires an enrolled name or a full principal key",
         ));
     }
     status(client, socket, None)?
