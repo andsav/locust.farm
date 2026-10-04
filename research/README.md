@@ -116,3 +116,5 @@ Documents distinguish implemented behavior, source-based findings, locally repro
 - [Final network hardening](network-hardening-final.md): retained founding proof recovery, monotonic retry time, asynchronous invite address discovery and offline removal boundaries.
 - [Operational qualification](operational-qualification.md): pinned three-daemon document, transfer, workspace, cancellation, withdrawal and rotation workflows.
 - [Operational qualification evidence](operational-qualification-evidence.json): retained structured results for the six operational cases.
+
+- [Local installation qualification](installation-qualification.md): trusted bootstrap, signed native install, upgrade, launchd lifecycle, failure/retry, data preservation and resource measurement harness.

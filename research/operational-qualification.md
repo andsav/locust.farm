@@ -135,3 +135,17 @@ targets and warnings denied. Full workspace gates and staged documentation
 index checking belong to the final integration pass.
 
 Final integration verification of the staged source snapshot passed: workspace formatting, strict all-target Clippy, and 533 Rust tests (11 existing ignored tests). Four operational harness tests and the staged documentation checker also passed. This source gate does not requalify a different native artifact.
+
+## Resource observation scope
+
+The final-candidate campaign samples receiver RSS after pausing the owned daemon
+at an observed partial-transfer boundary and again after completed snapshot
+resume or patch integration. These are individual resident-memory samples, not
+peak memory and not a performance pass/fail threshold. Pausing before sampling
+keeps the partial receiver state from advancing while `ps` reads RSS; the owned
+process is then killed for the existing interruption scenario. Network bytes
+and operation-campaign CPU consumption are explicitly unmeasured. Native install
+startup and idle measurements are recorded separately in the
+[installation campaign](installation-qualification.md). The earlier retained
+operational evidence below predates these new samples until replaced by the
+final-candidate run.

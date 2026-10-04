@@ -19,6 +19,9 @@ class Process:
         self.killed = False
         self.stderr = types.SimpleNamespace(close=lambda: None)
 
+    def send_signal(self, value):
+        self.signal = value
+
     def kill(self):
         self.killed = True
 
@@ -30,6 +33,7 @@ class OperationsTests(unittest.TestCase):
     def fixture(self, root):
         check = operations.Operations(Path("/unused"), 0.02, root / "artifacts")
         self.addCleanup(check.transcript.close)
+        check.sample_rss = lambda machine, checkpoint: {"resident_bytes": 1024, "checkpoint": checkpoint}
         home = root / "home"
         (home / "blobs").mkdir(parents=True)
         process = Process()
@@ -62,9 +66,28 @@ class OperationsTests(unittest.TestCase):
                 lambda: (machine.home / "blobs" / ("a" * 64 + ".staged")).write_bytes(prefix),
                 3 * 1024 * 1024)
             self.assertTrue(process.killed)
+            self.assertEqual(process.signal, operations.signal.SIGSTOP)
+            self.assertEqual(result["rss"]["checkpoint"], "paused_at_partial_transfer")
             self.assertIsNone(machine.process)
             self.assertEqual(result["durable_prefix_bytes"], len(prefix))
             self.assertEqual(result["prefix_sha256"], operations.hashlib.sha256(prefix).hexdigest())
+
+    def test_sampling_failure_still_kills_and_reaps_paused_receiver(self):
+        with tempfile.TemporaryDirectory() as directory:
+            check, machine, process = self.fixture(Path(directory))
+            check.timeout = 1
+
+            def unavailable(*args):
+                raise operations.CheckFailure("ps unavailable")
+
+            check.sample_rss = unavailable
+            with self.assertRaisesRegex(operations.CheckFailure, "resource sample failed"):
+                check.interrupt_transfer(machine,
+                    lambda: (machine.home / "blobs" / ("a" * 64 + ".staged")).write_bytes(b"x" * (1024 * 1024)),
+                    3 * 1024 * 1024)
+            self.assertTrue(process.killed)
+            self.assertEqual(process.signal, operations.signal.SIGSTOP)
+            self.assertIsNone(machine.process)
 
     def test_completed_stage_racing_kill_does_not_count_as_partial_resume(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import os
+import signal
 from pathlib import Path
 import subprocess
 import threading
@@ -31,6 +32,9 @@ class Operations(Qualification):
         super().__init__(binary, timeout, artifact_dir, network=network)
         self.summary["qualification"] = "three production daemons on one host; synthetic operational workflows"
         self.summary["cases"] = {}
+        self.summary["resources"] = {"verdict": "measurements only; no performance thresholds",
+            "rss_scope": "receiver paused at observed partial transfer and after completed resume; sampled, not maximum",
+            "network_bytes": "unmeasured", "cpu": "unmeasured"}
         self.summary["harness_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 
     def environment(self, machine):
@@ -70,6 +74,17 @@ class Operations(Qualification):
                                           args=(machine, process, machine.generation), daemon=True)
         machine.reader.start()
 
+    def sample_rss(self, machine, checkpoint):
+        require(machine.process is not None, "resource sample has no owned daemon")
+        result = subprocess.run(["/bin/ps", "-p", str(machine.process.pid), "-o", "rss="],
+            capture_output=True, text=True, timeout=self.timeout, env=self.environment(machine))
+        require(result.returncode == 0 and result.stdout.strip().isdigit(), "owned daemon RSS sample unavailable")
+        value = int(result.stdout.strip()) * 1024
+        require(value > 0, "owned daemon RSS sample must be positive")
+        sample = {"checkpoint": checkpoint, "resident_bytes": value, "sampled_not_maximum": True}
+        self.record("resource_sample", machine=machine.number, **sample)
+        return sample
+
     def interrupt_transfer(self, machine, trigger, minimum_size):
         """Kill only this harness's receiver after an actual partial object exists."""
         observed = {}
@@ -83,8 +98,15 @@ class Operations(Qualification):
                     except FileNotFoundError:
                         continue
                     if 1024 * 1024 <= size < minimum_size and machine.process is not None:
-                        machine.process.kill()
-                        observed.update(hash=path.stem, prefix_bytes=size)
+                        process = machine.process
+                        process.send_signal(signal.SIGSTOP)
+                        try:
+                            observed.update(hash=path.stem, prefix_bytes=size,
+                                rss=self.sample_rss(machine, "paused_at_partial_transfer"))
+                        except Exception as error:
+                            observed["sampling_error"] = str(error)
+                        finally:
+                            process.kill()
                         return
                 stop.wait(0.001)
 
@@ -101,6 +123,7 @@ class Operations(Qualification):
         machine.reader.join(timeout=self.timeout)
         machine.process.stderr.close()
         machine.process = None
+        require("sampling_error" not in observed, "partial transfer resource sample failed: " + observed.get("sampling_error", ""))
         staged = machine.home / "blobs" / (observed["hash"] + ".staged")
         require(staged.is_file(), "interrupted durable staging was lost")
         observed["durable_prefix_bytes"] = staged.stat().st_size
@@ -171,7 +194,8 @@ class Operations(Qualification):
         require((destinations[1] / "large.bin").read_bytes() == content, "resumed snapshot bytes differ")
         require(not (second.home / "blobs" / (interrupted["hash"] + ".staged")).exists(), "completed stage was not promoted")
         self.passed("snapshot_resume_retained_replica", original_source_offline=True,
-                    bytes=len(content), sha256=hashlib.sha256(content).hexdigest(), interruption=interrupted)
+                    bytes=len(content), sha256=hashlib.sha256(content).hexdigest(), interruption=interrupted,
+                    resumed_rss=self.sample_rss(second, "snapshot_resume_complete"))
         self.start(lead)
 
         self.phase = "competing_patches"
@@ -219,7 +243,8 @@ class Operations(Qualification):
         require((destinations[1] / "code.txt").read_text() == "worker 3\n", "losing worker output changed")
         require(self.goal_status(lead, goal)["workspace"]["integrated"] == patches[0]["contribution"]["head"], "integration not recorded")
         self.passed("competing_patches", base=base, patches=[p["contribution_id"] for p in patches],
-                    results=results, patch_interruption=interruption, stale_acceptance="conflict", dirty_apply="conflict")
+                    results=results, patch_interruption=interruption,
+                    resumed_rss=self.sample_rss(lead, "patches_resumed_and_integrated"), stale_acceptance="conflict", dirty_apply="conflict")
 
         self.phase = "offline_cancellation"
         task = self.recorded(lead, ["task", "propose", "--goal", goal, "Explicit cancellation acknowledgment"])
