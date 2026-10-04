@@ -1,6 +1,6 @@
 # Architecture and local boundaries
 
-**Status: implemented development architecture, API 2 / protocol 2.**
+**Status: implemented development architecture, API 3 / protocol 3.**
 The daemon, local harness and distributed participants have separate duties.
 The [verification ledger](../organization-blueprints-status.md) names the tests
 and external boundaries for this implementation.

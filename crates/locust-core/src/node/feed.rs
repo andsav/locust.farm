@@ -1,20 +1,19 @@
-//! A goal's event feed and its readers' cursors: `Space::Cursor`.
+//! A goal's event feed: `Space::Cursor`.
 //!
 //! The feed numbers standing changes from 1, including retractions and
 //! missing-proof transitions. An event may therefore appear more than once. That order depends on arrival, so it
 //! cannot be recomputed from the log and is stored: one record per position,
-//! written in the commit that judges the event. A cursor is one caller's
-//! acknowledged position.
+//! written in the commit that judges the event. Reading this feed changes
+//! nothing; context acknowledgments live separately in `context`.
 
 use std::collections::HashMap;
 
-use locust_proto::id::{EventId, GoalId, PublicKey};
+use locust_proto::id::{EventId, GoalId};
 use locust_proto::store::{LocalWrite, Space, StoreError};
 
 use super::records;
 
 const ENTRY: u8 = b'f';
-const CURSOR: u8 = b'c';
 
 /// The feed of one goal, in memory: position `n` is `order[n - 1]`.
 #[derive(Debug, Default)]
@@ -69,7 +68,7 @@ impl Feed {
     }
 }
 
-/// True if `key` is a feed entry rather than a cursor.
+/// True if `key` is a feed entry rather than a context acknowledgment.
 pub(super) fn is_entry(key: &[u8]) -> bool {
     key.first() == Some(&ENTRY)
 }
@@ -79,17 +78,4 @@ pub(super) fn goal_of(key: &[u8]) -> Result<GoalId, StoreError> {
     records::part(key, 1)
         .map(GoalId)
         .ok_or_else(records::bad_key)
-}
-
-/// The key of a reader's cursor in a goal: one per principal, shared by its
-/// sessions, and one for the owner asking directly (`None`).
-pub(super) fn cursor_key(goal: &GoalId, reader: Option<&PublicKey>) -> Vec<u8> {
-    match reader {
-        None => records::key(CURSOR, &[&goal.0]),
-        Some(principal) => records::key(CURSOR, &[&goal.0, &principal.0]),
-    }
-}
-
-pub(super) fn cursor_write(goal: &GoalId, reader: Option<&PublicKey>, position: u64) -> LocalWrite {
-    records::put(Space::Cursor, cursor_key(goal, reader), &position)
 }

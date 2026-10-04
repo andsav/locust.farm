@@ -55,7 +55,7 @@ launch still requires client-specific evidence.
 
 ## Development release notes
 
-The development runtime now uses API 2 / protocol 2 with organization rules,
+The development runtime now uses API 3 / protocol 3 with organization rules,
 private drafts/publication, taskless contributions, independent attempts, scoped
 completion and durable flow. The site includes raw Markdown, versioned inventories,
 search and generated CLI/API/MCP/event references. Public software publication and

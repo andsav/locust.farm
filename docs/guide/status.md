@@ -9,12 +9,17 @@ reviewed machine-readable source for these facts.
 
 The existing source includes a local daemon, CLI, stdio MCP bridge, signed
 candidate installation, user-session service support and resumable onboarding.
-API 2 / protocol 2 adds organization rules, offline authoring and semantic diff,
+API 3 / protocol 3 contains organization rules, offline authoring and semantic diff,
 private revisioned drafts and immutable publication, taskless contributions,
 independent attempts, exact completion/review, scoped decisions and durable flow.
 The current [implementation ledger](../organization-blueprints-status.md)
 links the code, tests and qualification boundaries. Publishing a definition does
 not instantiate a goal or authorize local execution.
+
+The current format also adds readable status and permission controls, session-bound
+shared-context acknowledgments, and signed invitation inspection, joining and
+revocation. It initializes store schema 3 directly; older homes and peers are
+refused without migration.
 
 ## What local qualification establishes
 
@@ -25,9 +30,9 @@ unselected patch, catalog conflicts and restart. Four Markdown tutorials execute
 against the local binary through `scripts/check_documentation.py`; they do not
 launch models or contact external providers.
 
-The exact `0a295cd` macOS arm64 candidate passed ten installation cases, three
+The earlier API 2 / protocol 2 `0a295cd` macOS arm64 candidate passed ten installation cases, three
 supported installed client setups, four-client managed lifecycle and recovery,
-and all four installed tutorial recipes. These used actual native executables,
+and all four installed tutorial recipes. Those results do not qualify the API 3 / protocol 3 changes. They used actual native executables,
 private profiles and scripted providers. The [native record](../../research/organization-native-qualification.md)
 keeps policy denials and unrun real-model/human-approval cases separate. Droid's
 full contribution workflow failed when its native Execute child received

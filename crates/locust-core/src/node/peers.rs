@@ -311,7 +311,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .map_err(|_| refused)?
             .ok_or(refused)?;
         let mut invite: InviteRecord = records::read(&bytes).map_err(|_| refused)?;
-        if invite.goal != request.goal {
+        if invite.goal != request.goal || invite.revoked_ms.is_some() {
             return Err(refused);
         }
         let entry = self.goals.get(&request.goal).ok_or(refused)?;
@@ -356,6 +356,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         )
         .map_err(|_| refused)?;
         invite.redeemed = Some((request.member, *remote));
+        invite.redeemed_ms = Some(now_ms);
         tx.local(records::put(Space::Invite, digest.to_vec(), &invite));
         Ok(tx)
     }

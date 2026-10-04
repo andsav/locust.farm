@@ -29,6 +29,7 @@ pub(super) struct Entry {
     /// Claims by assignment.
     pub claims: BTreeMap<EventId, ClaimRecord>,
     pub feed: Feed,
+    pub context: super::context::Acknowledgments,
     pub deliveries: BTreeMap<(locust_proto::id::EffectId, PublicKey), super::delivery::Delivery>,
     /// Every content object a held event names.
     named: HashSet<BlobHash>,
@@ -59,6 +60,7 @@ impl Entry {
             keys: BTreeMap::new(),
             claims: BTreeMap::new(),
             feed: Feed::default(),
+            context: super::context::Acknowledgments::default(),
             deliveries: BTreeMap::new(),
             named: HashSet::new(),
         }

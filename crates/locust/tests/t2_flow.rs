@@ -411,3 +411,155 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
     assert_eq!(board["board"][0]["completed"], true);
     assert_eq!(board["board"][0]["selected"], result);
 }
+
+#[test]
+fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
+    let participant = Participant::new();
+    let enrollment = participant.cli(
+        &["--owner"],
+        &["agent", "enroll", "reader", "--manage-goals"],
+    );
+    let principal = enrollment["agent_enrolled"]["agent"].as_str().unwrap();
+    let credential = enrollment["agent_enrolled"]["credential_path"]
+        .as_str()
+        .unwrap();
+    let first_session_path = participant.home.path().join("first.session");
+    let first_session = first_session_path.to_str().unwrap();
+    participant.cli(&[], &["session", "create", first_session]);
+    let created = participant.cli(
+        &["--credential", credential],
+        &["goal", "create", "--title", "Shared decisions"],
+    );
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    let permission_args = [
+        "permission",
+        "allow",
+        "--goal",
+        goal,
+        "--agent",
+        "reader",
+        "contribute",
+        "review",
+    ];
+    let grants = participant.cli(&["--owner"], &permission_args);
+    assert_eq!(grants["permissions"]["grants"]["contribute"], true);
+    assert_eq!(grants["permissions"]["grants"]["review"], true);
+    assert_eq!(grants["permissions"]["grants"]["execute"], false);
+    let human = participant
+        .command()
+        .args([
+            "--owner",
+            "permission",
+            "inspect",
+            "--goal",
+            goal,
+            "--agent",
+            "reader",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        human.status.success(),
+        "{}",
+        String::from_utf8_lossy(&human.stderr)
+    );
+    let human = String::from_utf8(human.stdout).unwrap();
+    assert!(human.contains(&format!("Permissions for reader ({principal})")));
+    assert!(human.contains("not allowed"));
+    assert!(!human.trim_start().starts_with('{'));
+    let revoked = participant.cli(
+        &["--owner"],
+        &[
+            "permission",
+            "revoke",
+            "--goal",
+            goal,
+            "--agent",
+            "reader",
+            "review",
+        ],
+    );
+    assert_eq!(revoked["permissions"]["grants"]["review"], false);
+    assert_eq!(revoked["permissions"]["grants"]["contribute"], true);
+
+    let authority = ["--credential", credential, "--session", first_session];
+    let pending_before = participant.cli(&authority, &["pending", "--goal", goal]);
+    let watched = participant.cli(&authority, &["watch", "--goal", goal, "--timeout-ms", "0"]);
+    assert_eq!(watched["initial"], pending_before["pending"]);
+    assert!(matches!(
+        watched["result"]["waited"].as_str(),
+        Some("no_event" | "disconnected")
+    ));
+    let pending_after = participant.cli(&authority, &["pending", "--goal", goal]);
+    assert_eq!(pending_after, pending_before);
+    let watched_human = participant
+        .command()
+        .args(authority)
+        .args(["watch", "--goal", goal, "--timeout-ms", "0"])
+        .output()
+        .unwrap();
+    assert!(
+        watched_human.status.success(),
+        "{}",
+        String::from_utf8_lossy(&watched_human.stderr)
+    );
+    let watched_human = String::from_utf8(watched_human.stdout).unwrap();
+    assert!(watched_human.contains("Observed revision"));
+    assert!(watched_human.contains("Observing for up to 0 ms"));
+    assert!(watched_human.contains("Observation only: no work or context was acknowledged."));
+    assert!(!watched_human.contains("--owner --as"));
+
+    let mut mcp = Mcp::new(&participant, credential, first_session);
+    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"task":null,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","base":null,"patch":null,"artifacts":[]}));
+    let event = finding["recorded"]["event"].as_str().unwrap();
+    let query = json!({"goal":goal,"task":null,"after":null,"limit":2,"preview_chars":null,"unread_only":true});
+    let mut after = Value::Null;
+    let mut read_finding = false;
+    let mut last_receipt = Value::Null;
+    loop {
+        let mut arguments = query.clone();
+        arguments["after"] = after;
+        let brief = mcp.tool("locust_context_read", arguments);
+        let brief = &brief["context"];
+        for item in brief["items"].as_array().unwrap() {
+            if item["event"]["view"]["event"] == event {
+                assert_eq!(item["event"]["view"]["author"], principal);
+                assert_eq!(
+                    item["event"]["text"],
+                    "Use exact source hashes; the previous cache is stale."
+                );
+                assert_eq!(item["text_complete"], true);
+                read_finding = true;
+            }
+        }
+        if !brief["receipt"].is_null() {
+            last_receipt = brief["receipt"].clone();
+            mcp.tool(
+                "locust_context_acknowledge",
+                json!({"goal":goal,"receipt":last_receipt}),
+            );
+        }
+        after = brief["next"].clone();
+        if after.is_null() {
+            break;
+        }
+    }
+    assert!(read_finding);
+    let pending = mcp.tool("locust_pending", json!({"goal":goal}));
+    assert_eq!(pending["pending"]["context_news"]["unacknowledged"], 0);
+    drop(mcp);
+    let second_session_path = participant.home.path().join("second.session");
+    let second_session = second_session_path.to_str().unwrap();
+    participant.cli(&[], &["session", "create", second_session]);
+    let mut other = Mcp::new(&participant, credential, second_session);
+    let pending = other.tool("locust_pending", json!({"goal":goal}));
+    assert!(
+        pending["pending"]["context_news"]["unacknowledged"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    let denied = other.request("tools/call", json!({"name":"locust_context_acknowledge","arguments":{"goal":goal,"receipt":last_receipt}}));
+    assert_eq!(denied["isError"], true);
+    assert_eq!(denied["structuredContent"]["error"]["code"], "denied");
+}

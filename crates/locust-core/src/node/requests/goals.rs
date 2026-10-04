@@ -170,7 +170,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
 
     /// `goal.status`: the goal as this daemon holds it, with the parts that
     /// are about the calling principal.
-    pub(super) fn goal_status(&self, actor: &Actor, goal: GoalId) -> Plan {
+    pub(in crate::node) fn goal_status(&self, actor: &Actor, goal: GoalId) -> Plan {
         let entry = self.readable(actor, &goal)?;
         let state = entry.state();
         // Before any history has arrived the ticket's word is all there is.

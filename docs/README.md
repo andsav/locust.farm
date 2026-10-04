@@ -13,7 +13,7 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
-- [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements; API 2/protocol 2 runtime and authoring are implemented; current qualification is tracked separately.
+- [Organization blueprints](organization-blueprints.md): accepted product direction and agent/Polaris authoring requirements; API 3/protocol 3 runtime and authoring are implemented; current qualification is tracked separately.
 - [Organization blueprint implementation status](organization-blueprints-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
 - [Organization blueprints implementation plan](organization-blueprints-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
 - [Organization blueprint semantics and removal inventory](organization-blueprints-semantics.md): accepted administration and scoped-authority model, concrete scenario expectations, outstanding signed-proof obligations and source-based replacement inventory.
@@ -21,7 +21,7 @@ the repository root to check coverage and local link paths.
 
 - [Locust implementation plan](implementation-plan.md): design and current implementation status, the two-Mac first pass, remaining client/workspace work and release acceptance tests.
 - [Last-mile implementation plan](last-mile-implementation-plan.md): proposed work packages for distribution, recoverable setup, reliable task context, human permissions, a reviewed and applied change, two-person qualification and consented visualization; dependencies, decisions, tests and complete research coverage.
-- [Archived protocol contract, version 1](protocol-v1.md): historical authority, encoding and local API rules; superseded by protocol 2 without an old reader.
+- [Archived protocol contract, version 1](protocol-v1.md): historical authority, encoding and local API rules; superseded by the current protocol without an old reader.
 - [Archived protocol contract, version 0](protocol-v0.md): historical encoding, event, invitation, synchronization and local API rules for interpreting version-0 artifacts.
 - [TLA+ formal verification implementation plan](tla-verification-plan.md): current organization, attempt/session and durable-effect models; bounded checks, witnesses, mutation evidence and explicit proof limits.
 - [Crates and workstreams](workstreams.md): accepted crate split, lane responsibilities and current shared A/B ownership, cross-review, and the rules for sharing one checkout.

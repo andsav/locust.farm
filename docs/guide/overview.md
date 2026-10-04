@@ -18,13 +18,13 @@ resumable client onboarding. Disposable macOS qualification exercised installed
 onboarding with Codex and Claude profiles. Configuration and authenticated daemon
 readiness are distinct from a native model discovering and calling Locust.
 No public distribution or real-model end-to-end qualification follows from those
-checks. This earlier candidate evidence does not qualify the API 2/protocol 2
+checks. This earlier candidate evidence does not qualify the API 3/protocol 3
 organization replacement. The [onboarding evidence](../onboarding.md) records the actual boundary.
 
 ## Development direction
 
 The [organization model](concepts.md) introduces declarative blueprints for rules,
-roles and decision authority. API 2 / protocol 2 implements these rules in the daemon. The CLI supports offline
+roles and decision authority. API 3 / protocol 3 implements these rules in the daemon. The CLI supports offline
 schema, validation, explanations and examples, private draft/publication operations,
 and explicit goal creation with role/input bindings. Publishing a blueprint alone
 does not create a goal or launch a process.

@@ -222,6 +222,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn pending_work(&self, entry: &Entry, actor: &Actor) -> PendingWork {
         let mut work = PendingWork {
             revision: entry.revision(),
+            context_news: self.context_news(entry, actor),
             ..PendingWork::default()
         };
         let candidates: Vec<_> = match actor.principal {

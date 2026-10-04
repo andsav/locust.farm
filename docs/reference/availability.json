@@ -23,14 +23,29 @@
     "explicit-local-patch-choice",
     "durable-flow-inboxes-and-receipts",
     "packaged-offline-manual",
-    "polaris-native-organization-authoring"
+    "polaris-native-organization-authoring",
+    "readable-status-and-permission-controls",
+    "session-bound-shared-context",
+    "signed-reviewed-invitations-and-revocation"
   ],
-  "organizationRuntime": "implemented-development-api-2-protocol-2",
+  "organizationRuntime": "implemented-development-api-3-protocol-3",
   "qualification": [
     {
       "platform": "macOS arm64",
-      "scope": "Current API 2/protocol 2 source gates, persistent local CLI/daemon acceptance, six blueprint exports, four executable manual recipes and three-process default-network collaboration and all six operational cases",
-      "limits": "No public release, real-provider or physical-machine claim. Same-host default networking passes while isolated key-only multicast discovery fails.",
+      "scope": "API 3/protocol 3 collaboration UX source: workspace formatting, strict Clippy, 663 Rust tests (12 explicit ignores), generated contracts, four executable manual recipes, integrated CLI/MCP shared findings and permission controls, and two real local SQLite/Unix/Iroh daemons for reviewed invitation admission/revocation/restart",
+      "limits": "Local development source only. No updated installed native client or Polaris package, natural-language real-model uptake, two physical machines, or published release qualification.",
+      "evidence": [
+        "research/first-user-journey-review.md",
+        "docs/guide/runtime-reference.md",
+        "crates/locust/tests/t2_flow.rs",
+        "crates/locust/src/daemon/durable_tests.rs"
+      ],
+      "track": "current-api-3-collaboration-ux-source"
+    },
+    {
+      "platform": "macOS arm64",
+      "scope": "Earlier API 2/protocol 2 source gates, persistent local CLI/daemon acceptance, six blueprint exports, four executable manual recipes and three-process default-network collaboration and all six operational cases",
+      "limits": "No public release, real-provider or physical-machine claim. Same-host default networking passes while isolated key-only multicast discovery fails. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
         "docs/organization-blueprints-status.md",
         "docs/guide/collaboration.md",
@@ -39,40 +54,40 @@
         "docs/guide/sharing.md",
         "research/organization-local-discovery.md"
       ],
-      "track": "current-organization-development"
+      "track": "earlier-organization-development"
     },
     {
       "platform": "macOS arm64",
       "scope": "Exact source 0a295cd candidate: ten installation cases, three supported persistent client setup/workspace campaigns, all four baseline managed lifecycle/recovery campaigns, four installed tutorials and offline contracts",
-      "limits": "Scripted loopback providers and disposable test signing only. Droid full workflow failed at native Execute child SIGKILL; same guarded driver passed directly. Default-policy not_run cases, real-model use and human approval remain separate.",
+      "limits": "Scripted loopback providers and disposable test signing only. Droid full workflow failed at native Execute child SIGKILL; same guarded driver passed directly. Default-policy not_run cases, real-model use and human approval remain separate. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
         "research/organization-native-qualification.md",
         "research/documentation-qualification.md"
       ],
-      "track": "current-native-installed-candidate"
+      "track": "earlier-native-installed-candidate"
     },
     {
       "platform": "macOS arm64",
       "scope": "Polaris source aaaf62ae3 pins the Locust 1b81bef typed SDK with exact schema parity. An isolated Developer ID signed QA package passed native editing/publication/goal/readback/restart/revocation against immutable Locust candidate 0a295cd; the exact-byte native adapter test passed.",
-      "limits": "The package uses a separate QA identifier/product/title. Canonical installed release, notarization and public fetch remain unqualified. The SDK revision is unpublished and local Cargo verification used an explicitly seeded cache. Broader Merak gates retain failures.",
+      "limits": "The package uses a separate QA identifier/product/title. Canonical installed release, notarization and public fetch remain unqualified. The SDK revision is unpublished and local Cargo verification used an explicitly seeded cache. Broader Merak gates retain failures. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
         "docs/guide/polaris.md"
       ],
-      "track": "current-isolated-polaris-native-package"
+      "track": "earlier-isolated-polaris-native-package"
     },
     {
       "platform": "Linux x86_64",
       "scope": "Exact source 0a295cd release cross-compilation with pinned Rust and existing cargo-zigbuild/Zig; ELF architecture and archive/input hashes verified",
-      "limits": "Build only; binary never executed, no Linux installation/systemd/runtime or signed-install package qualification.",
+      "limits": "Build only; binary never executed, no Linux installation/systemd/runtime or signed-install package qualification. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
         "research/linux-installation-qualification.md"
       ],
-      "track": "current-linux-build-only"
+      "track": "earlier-linux-build-only"
     },
     {
       "platform": "macOS arm64",
       "scope": "Local signed candidate installation and launchd cases; disposable Codex and Claude onboarding profiles and authenticated daemon readiness",
-      "limits": "Not public distribution, physical-machine acceptance or native real-model end-to-end qualification; this earlier candidate evidence does not qualify the API 2/protocol 2 replacement",
+      "limits": "Not public distribution, physical-machine acceptance or native real-model end-to-end qualification; this earlier candidate evidence does not qualify the API 2/protocol 2 replacement. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
         "docs/installation.md",
         "docs/onboarding.md",
@@ -103,5 +118,5 @@
       "publicRoute": false
     }
   },
-  "runtimeQualification": "deterministic-local-daemon-installed-scripted-clients-and-isolated-polaris-verified; real-provider-physical-machine-and-release-gates-open"
+  "runtimeQualification": "api-3-local-source-cli-mcp-and-two-local-daemon-checks-passed; earlier-api-2-native-evidence-retained; real-provider-physical-machine-and-release-gates-open"
 }

@@ -1,11 +1,15 @@
 # October 4 release evidence ledger
 
-**Current status: API 2 / protocol 2 is implemented and locally verified; release
+**Current status: API 3 / protocol 3 is implemented; release
 qualification remains open.** The
 [organization implementation ledger](organization-blueprints-status.md) tracks
 the current runtime, full manual, native integration and V01–V22 scenarios.
-Formatting, strict workspace Clippy and 624 Rust tests pass (12 explicit
-ignores), as do 195 Python tests and all 54 finite-model cases. Exact candidate
+The earlier API 2 / protocol 2 baseline passed formatting, strict workspace
+Clippy, 624 Rust tests (12 explicit ignores), 195 Python tests and 54 finite-model
+cases. API 3 adds the [selected UX follow-up](../research/first-user-journey-review.md)
+and passes formatting, strict Clippy and 663 Rust tests (12 explicit ignores),
+contract export checks, documentation links and the four manual recipes. This
+local source evidence does not refresh native package qualification. Exact earlier candidate
 `0a295cd` has [native installation/client evidence](../research/organization-native-qualification.md),
 [all four installed manual recipes](../research/documentation-qualification.md),
 [same-host default-network collaboration/operations](../research/organization-local-discovery.md),
@@ -19,7 +23,7 @@ custody, canonical public artifacts and public-download acceptance remain open.
 
 The R1–R10 table and dated records below preserve the earlier implementation
 plan's evidence. **Pre-organization-cutover candidates do not qualify the current
-API 2 / protocol 2 runtime.** Their historical version/hash, old operation names
+API 3 / protocol 3 runtime.** Their historical version/hash, old operation names
 and format descriptions are retained as evidence rather than current operating
 instructions. Public release remains deferred by the owner; no complete release
 gate is recorded as passed.

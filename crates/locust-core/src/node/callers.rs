@@ -158,7 +158,9 @@ pub(super) fn resolve(
             if principals.active(&principal).is_none() {
                 return Err(denied("the credential was revoked"));
             }
-            if !operation.read_only || operation.audience == Audience::Author {
+            if !operation.read_only
+                || matches!(operation.audience, Audience::Author | Audience::Owner)
+            {
                 return Err(denied("a viewer makes read-only requests only"));
             }
             Ok(actor(Some(principal), false))

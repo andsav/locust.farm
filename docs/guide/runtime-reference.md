@@ -1,6 +1,6 @@
 # Local API, MCP and event reference
 
-**Status: implemented development API 2 / protocol 2; no public release.**
+**Status: implemented development API 3 / protocol 3; no public release.**
 The tables below are generated from the Rust request, response and event types,
 operation registry and actual CLI command builder. Download the
 [full runtime contract](../reference/generated/runtime.contract.json), or run
@@ -13,7 +13,8 @@ The local API uses authenticated local transport and structured envelopes.
 It is not a public HTTP API; no OpenAPI facade is implied. The current operation
 registry is the authority for names, audience and effects. Owner administration,
 agent work and read-only viewer calls have different audiences. A viewer read
-cannot acquire a claim or move an agent's feed cursor.
+cannot acquire a claim or acknowledge shared context. All event and context reads
+are observational; acknowledgment is an explicit session-bound write.
 
 Requests and replies use the current canonical local framing and typed response
 variants. CLI JSON output wraps results as `{ "ok": true, "result": ... }` and
@@ -30,6 +31,16 @@ call are separate observations. Native policy can refuse a call; configuration o
 an organization rule must not weaken it. An owner-only operation cannot be
 advertised as an ordinary agent tool. Read-only pending inspection does not accept
 work or acknowledge cancellation.
+
+Invitation issuance, inspection, inventory, revocation and redemption are not
+model tools. The person-facing `invitation inspect` command verifies a signed
+preview offline; `invitation join` requires direct owner authority, an existing
+local principal and the exact review identifier. It grants membership without
+changing local execution permissions or workspace bindings. `invitation list`
+exposes capability-free issuer inventory; `invitation revoke` durably refuses
+unused tickets and cannot undo a redeemed membership. Existing authorized
+CLI/API callers retain their explicit authority; hiding these operations from
+MCP does not revoke a principal's grants. See the [invitation journey](collaboration.md#invite-a-person).
 
 ## Signed event and proof context
 
@@ -61,3 +72,42 @@ layout metadata does not define executable identity.
 
 The generated tables document executable source. They do not qualify a client,
 platform, public download or remote transport path; see [availability](status.md).
+
+## Status, local permissions and shared context
+
+`locust status`, `goal status`, `board`, `task show`, `pending`, `sessions` and
+`session show` render names, states, reasons and suggested actions for people.
+`--json` retains the typed machine response. Session reports include the last
+reported state and timestamp; connection attachment and a held claim do not prove
+that an external client is running. `locust --owner inbox` collects local
+participants needing attention without accepting work or acknowledging content.
+`locust watch --goal GOAL` prints the current pending view, waits for a changed
+revision, then prints the new view; `--timeout-ms` is an explicit observation wait.
+
+Use `locust --owner permission inspect --goal GOAL --agent NAME` to inspect
+membership, all seven local permission categories and task-specific authorizations.
+`permission allow` and `permission revoke` take named categories and change only
+those categories. For example, `permission allow --goal GOAL --agent NAME review`
+permits eligible reviews without enabling execution. Add `--task TASK execute`
+to `permission allow` for a task-specific execution authorization. Use
+`permission revoke --goal GOAL --agent NAME --task TASK` to remove that task's
+local authorizations. Revoking a standing category leaves task exceptions visible;
+neither permission edit terminates an external process or cancels an attempt.
+Membership and organization eligibility remain separate requirements.
+
+`context.read` takes a goal, optional task, positive page `limit`, optional
+`preview_chars`, `unread_only`, and its previous `next` as `after`. It returns a
+coherent brief with pinned rules, inputs, task state, shared document references,
+pending work and attributed events, including finding text and review reasons.
+Full available text is the default. Follow every page; no first-page completeness
+is implied. A changed goal revision requires restarting pagination.
+
+`context.acknowledge` accepts the exact signed receipt from a page. Only complete
+content in that receipt becomes read for its principal and execution session.
+Previews, missing text, lost read responses and another session remain unread.
+Later text availability or changed event standing becomes new context again.
+Acknowledgments survive restart, do not change the goal revision, and do not wake
+goal waiters. Pending reads immediately reflect the session's `context_news`.
+Reads without a session and viewer reads have no acknowledgment receipt. Agents
+use the installed skill to read, reuse and cite findings, publish new findings,
+and acknowledge what they actually read as part of ordinary work.

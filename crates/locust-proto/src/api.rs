@@ -79,6 +79,13 @@
 //! show is an invitation [`Ticket`], because showing it is how it is handed
 //! over.
 
+pub mod context;
+pub mod invitations;
+pub mod permissions;
+pub use context::*;
+pub use invitations::*;
+pub use permissions::*;
+
 use crate::organization::catalog::{Draft, Presentation, Publication};
 use schemars::{JsonSchema, schema_for};
 use std::{collections::BTreeMap, fmt};
@@ -285,9 +292,8 @@ pub enum Caller {
     /// - It is never an execution session. A hello that presents a viewer's
     ///   credential with a session is refused as [`ErrorCode::Invalid`], so a
     ///   viewer holds no claim and `pending` lists no `claimed` work for it.
-    /// - Its reads store nothing. It has no feed cursor: `events` reads after
-    ///   the position it passes, or from the start without one, and moves no
-    ///   cursor, the principal's included. Its `blob.get` of an object not
+    /// - Its reads store nothing. `events` reads after the position it passes,
+    ///   or from the start without one. Context acknowledgment is unavailable. Its `blob.get` of an object not
     ///   held is `Unavailable` without noting a want. Its idempotency keys
     ///   are not recorded, so a repeated read runs again.
     ///
@@ -638,6 +644,62 @@ pub enum Request {
     BlueprintValidate { source: String },
     #[serde(rename = "blueprint.explain")]
     BlueprintExplain { source: String },
+
+    #[serde(rename = "context.read")]
+    Context {
+        goal: GoalId,
+        task: Option<TaskId>,
+        after: Option<ContextCursor>,
+        limit: u32,
+        preview_chars: Option<u32>,
+        unread_only: bool,
+    },
+    #[serde(rename = "context.acknowledge")]
+    ContextAcknowledge {
+        goal: GoalId,
+        receipt: ContextReceipt,
+    },
+    #[serde(rename = "invitation.inspect")]
+    InvitationInspect { ticket: Ticket },
+    #[serde(rename = "invitation.list")]
+    GoalInvitations { goal: GoalId },
+    #[serde(rename = "invitation.revoke")]
+    InvitationRevoke { goal: GoalId, invitation: String },
+    #[serde(rename = "invitation.join")]
+    InvitationJoin {
+        principal: PublicKey,
+        ticket: Ticket,
+        review: String,
+    },
+    #[serde(rename = "permission.inspect")]
+    Permissions { goal: GoalId, agent: PublicKey },
+    #[serde(rename = "permission.allow")]
+    PermissionAllow {
+        goal: GoalId,
+        agent: PublicKey,
+        permissions: Vec<GoalPermission>,
+    },
+    #[serde(rename = "permission.task.allow")]
+    PermissionTaskAllow {
+        goal: GoalId,
+        agent: PublicKey,
+        task: TaskId,
+        takeover: bool,
+    },
+    #[serde(rename = "permission.task.revoke")]
+    PermissionTaskRevoke {
+        goal: GoalId,
+        agent: PublicKey,
+        task: TaskId,
+    },
+    #[serde(rename = "permission.revoke")]
+    PermissionRevoke {
+        goal: GoalId,
+        agent: PublicKey,
+        permissions: Vec<GoalPermission>,
+    },
+    #[serde(rename = "inbox")]
+    Inbox,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Audience {
@@ -661,8 +723,8 @@ pub struct Operation {
     pub name: &'static str,
     /// True if the operation authors no event and changes nothing another
     /// caller can observe. Bridges advertise these as read-only so clients
-    /// need not prompt for them. `events` moves only the caller's own
-    /// reading position and counts as read-only.
+    /// need not prompt for them. Reading events or context never acknowledges
+    /// content; context acknowledgment is a separate session-bound write.
     pub read_only: bool,
     /// True if the request names a goal; see [`Request::goal`].
     pub goal_scoped: bool,
@@ -736,8 +798,8 @@ operations! {
     Sessions => ("sessions", true, false, Agent, false, "sessions"),
     SessionDrop { .. } => ("session.drop", false, false, Agent, false, "session drop"),
     GoalCreate { .. } => ("goal.create", false, false, Agent, true, "goal create"),
-    GoalJoin { .. } => ("goal.join", false, false, Agent, true, "goal join"),
-    GoalInvite { .. } => ("goal.invite", false, true, Administrator, true, "goal invite"),
+    GoalJoin { .. } => ("goal.join", false, false, Agent, false, "goal join"),
+    GoalInvite { .. } => ("goal.invite", false, true, Administrator, false, "goal invite"),
     GoalLeave { .. } => ("goal.leave", false, true, Agent, true, "goal leave"),
     GoalGrant { .. } => ("goal.grant", false, true, Owner, false, "goal grant"),
     GoalStatus { .. } => ("goal.status", true, true, Agent, true, "goal status"),
@@ -786,6 +848,18 @@ operations! {
     BlueprintPresentationUpdate { .. } => ("blueprint.presentation.update", false, false, Author, true, "blueprint presentation update"),
     BlueprintValidate { .. } => ("blueprint.validate", true, false, Author, true, "blueprint validate"),
     BlueprintExplain { .. } => ("blueprint.explain", true, false, Author, true, "blueprint explain"),
+    Context { .. } => ("context.read", true, true, Agent, true, "Read a coherent goal or task brief with attributed findings, progress, review reasons and pending actions; reads do not acknowledge content"),
+    ContextAcknowledge { .. } => ("context.acknowledge", false, true, Agent, true, "Acknowledge the complete content delivered to this execution session using its exact receipt; other sessions remain unread"),
+    InvitationInspect { .. } => ("invitation.inspect", true, false, Agent, false, "Verify a signed invitation and preview its issuer, goal and sharing boundary without joining"),
+    GoalInvitations { .. } => ("invitation.list", true, true, Administrator, false, "List issued invitations and their current redemption, expiry or revocation state without revealing ticket secrets"),
+    InvitationRevoke { .. } => ("invitation.revoke", false, true, Owner, false, "Revoke an issued invitation; existing membership remains a separate decision"),
+    InvitationJoin { .. } => ("invitation.join", false, false, Owner, false, "Join as the selected enrolled principal after reviewing this exact signed invitation; grants remain unchanged"),
+    Permissions { .. } => ("permission.inspect", true, true, Owner, false, "Inspect an enrolled principal's explicit local permissions and membership"),
+    PermissionAllow { .. } => ("permission.allow", false, true, Owner, false, "Allow only the selected local goal permissions for an enrolled principal"),
+    PermissionTaskAllow { .. } => ("permission.task.allow", false, true, Owner, false, "Allow local execution for this task, preserving existing takeover permission"),
+    PermissionTaskRevoke { .. } => ("permission.task.revoke", false, true, Owner, false, "Remove every local execution authorization for this agent and task; running processes are not terminated"),
+    PermissionRevoke { .. } => ("permission.revoke", false, true, Owner, false, "Revoke only the selected local goal permissions; this does not terminate a running process"),
+    Inbox => ("inbox", true, false, Owner, false, "Show local participants and work needing permission, action or review across goals without acknowledging it"),
 }
 impl Request {
     pub fn name(&self) -> &'static str {
@@ -858,6 +932,16 @@ impl Request {
             Self::BlueprintPresentationUpdate { .. } => None,
             Self::BlueprintValidate { .. } => None,
             Self::BlueprintExplain { .. } => None,
+            Self::Context { goal, .. }
+            | Self::ContextAcknowledge { goal, .. }
+            | Self::GoalInvitations { goal }
+            | Self::InvitationRevoke { goal, .. }
+            | Self::Permissions { goal, .. }
+            | Self::PermissionAllow { goal, .. }
+            | Self::PermissionRevoke { goal, .. }
+            | Self::PermissionTaskRevoke { goal, .. }
+            | Self::PermissionTaskAllow { goal, .. } => Some(*goal),
+            Self::InvitationInspect { .. } | Self::InvitationJoin { .. } | Self::Inbox => None,
         }
     }
     pub fn check(&self) -> Result<(), ApiError> {
@@ -893,6 +977,21 @@ impl Request {
     pub fn is_answered_by(&self, response: &Response) -> bool {
         match self {
             Self::Status => matches!(response, Response::Status(_)),
+            Self::Context { .. } => matches!(response, Response::Context(_)),
+            Self::ContextAcknowledge { .. } => matches!(response, Response::ContextAcknowledged(_)),
+            Self::InvitationInspect { .. } => {
+                matches!(response, Response::InvitationInspected { .. })
+            }
+            Self::GoalInvitations { .. } => matches!(response, Response::Invitations { .. }),
+            Self::InvitationRevoke { .. } => matches!(response, Response::InvitationRevoked { .. }),
+            Self::InvitationJoin { .. } => matches!(response, Response::Joined { .. }),
+            Self::Permissions { .. }
+            | Self::PermissionAllow { .. }
+            | Self::PermissionRevoke { .. }
+            | Self::PermissionTaskRevoke { .. }
+            | Self::PermissionTaskAllow { .. } => matches!(response, Response::Permissions(_)),
+            Self::Inbox => matches!(response, Response::Inbox(_)),
+
             Self::Shutdown => matches!(response, Response::Done),
             Self::AgentEnroll { .. } => matches!(response, Response::AgentEnrolled { .. }),
             Self::AuthorEnroll { .. } => matches!(response, Response::AuthorEnrolled { .. }),
@@ -1092,6 +1191,19 @@ pub enum Response {
     BlueprintInspection {
         json: String,
     },
+    Context(Box<ContextView>),
+    ContextAcknowledged(ContextAcknowledgment),
+    InvitationInspected {
+        preview: InvitationPreview,
+    },
+    Invitations {
+        invitations: Vec<InvitationSummary>,
+    },
+    InvitationRevoked {
+        invitation: InvitationSummary,
+    },
+    Permissions(GoalPermissions),
+    Inbox(Vec<AttentionEntry>),
 }
 
 /// What `status` shows: the daemon, and as much of its principals and goals
@@ -1312,6 +1424,8 @@ pub struct DeliveryItem {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PendingWork {
     pub revision: u64,
+    /// Shared content not yet acknowledged by this execution session.
+    pub context_news: Option<ContextNews>,
     pub to_authorize: Vec<WorkItem>,
     pub to_start: Vec<WorkItem>,
     pub claimed: Vec<Claim>,
@@ -1695,6 +1809,7 @@ impl From<InviteError> for ApiError {
     fn from(error: InviteError) -> Self {
         let code = match error {
             InviteError::UnsupportedVersion(_) => ErrorCode::UnsupportedVersion,
+            InviteError::InvalidSignature => ErrorCode::Denied,
             InviteError::NotATicket
             | InviteError::TooLong
             | InviteError::Malformed
@@ -1809,7 +1924,7 @@ mod tests {
     }
     #[test]
     fn unsupported_handshake_is_refused_before_decoding_its_body() {
-        for version in [0u16, 1, 3, u16::MAX] {
+        for version in (0..API_VERSION).chain([API_VERSION + 1, u16::MAX]) {
             let bytes = codec::encode(&version).unwrap();
             assert_eq!(
                 ClientHello::decode(&bytes).unwrap_err().code,
