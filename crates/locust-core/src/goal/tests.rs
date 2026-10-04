@@ -1,11 +1,15 @@
 //! Regressions over the public held-event interface.
-use super::{Goal, Halt, Standing, TaskState};
+use super::{Exclusion, Goal, Halt, Standing, TaskState};
 use locust_proto::event::{AuthorPoint, Body, Event};
-use locust_proto::id::EndpointId;
+use locust_proto::id::{BlobHash, EndpointId};
 use locust_proto::store::{Commit, MemStore, Store};
 use locust_proto::testkit::Author;
 
 fn transcript() -> (Author, Author, Vec<Event>) {
+    transcript_with_budget(None)
+}
+
+fn transcript_with_budget(max_attempts: Option<u32>) -> (Author, Author, Vec<Event>) {
     let mut coordinator = Author::new(1);
     let mut worker = Author::new(2);
     let (genesis, own) = coordinator.found_goal(EndpointId([1; 32]));
@@ -25,7 +29,7 @@ fn transcript() -> (Author, Author, Vec<Event>) {
             input: None,
             depends_on: vec![],
             deadline_ms: None,
-            max_attempts: None,
+            max_attempts,
         },
     );
     let assignment = coordinator.event(
@@ -370,4 +374,235 @@ fn removal_readmission_and_fork_replay_are_independent_of_arrival_order() {
             assert_same(&expected, &actual, &events);
         }
     }
+}
+
+/// Concrete replay of GoalLog's IR12 symbolic events 1..9. These signed
+/// contributions enter through the held-event seam: the local task.submit API
+/// already refuses submission after acceptance, but peers may send it.
+#[test]
+fn tla_ir12_later_submission_changes_display_without_changing_acceptance() {
+    let (mut coordinator, mut worker, mut events) = transcript_with_budget(Some(2));
+    let goal_id = events[0].header().goal;
+    let task = events[3].id();
+    let assignment = events[4].id();
+    let accepted_result = events[6].id();
+    let accept = coordinator.event(
+        goal_id,
+        Some(assignment),
+        Body::ResultAccepted {
+            result: accepted_result,
+            head: Some(BlobHash([8; 32])),
+        },
+    );
+    events.push(accept.clone());
+    let mut chronological = held(&events);
+    assert_eq!(
+        chronological.state().task(&task).unwrap().result,
+        Some(accepted_result)
+    );
+    let later = worker.event(
+        goal_id,
+        Some(accept.id()),
+        Body::ResultSubmitted {
+            assignment,
+            base: None,
+            patch: None,
+            artifacts: vec![],
+        },
+    );
+    events.push(later.clone());
+    chronological.apply(std::slice::from_ref(&later));
+    let view = chronological.state().task(&task).unwrap();
+    assert_eq!(view.state, TaskState::Accepted);
+    assert_eq!(view.accepted, Some(accepted_result));
+    // Current behavior, not a proposed accepted-result display guarantee.
+    assert_eq!(view.result, Some(later.id()));
+    assert_eq!(view.accepted_head, Some(BlobHash([8; 32])));
+    assert_eq!(
+        chronological.standing(&later.id()),
+        Some(Standing::Effective)
+    );
+
+    // Acceptance and the later submission arrive before their prerequisites;
+    // duplicates are harmless, and the incremental view agrees at every prefix.
+    let mut scrambled = Goal::new(goal_id);
+    let mut store = MemStore::new();
+    for index in [7, 8, 6, 4, 8, 3, 5, 2, 1, 0, 7] {
+        let event = events[index].clone();
+        store
+            .commit(&Commit {
+                events: vec![event.clone()],
+                ..Commit::default()
+            })
+            .unwrap();
+        scrambled.apply(&[event]);
+        assert_eq!(scrambled.folded, super::fold::fold(&scrambled.history).0);
+    }
+    assert_same(&chronological, &scrambled, &events);
+    assert_same(
+        &chronological,
+        &Goal::load(&store.reopen(), goal_id).unwrap(),
+        &events,
+    );
+}
+
+/// Concrete replay of GoalLog's IR5 events 1..21: three accepted heads, with
+/// the middle task proposed by M; M then equivocates at author position zero.
+#[test]
+fn tla_ir5_member_fork_rolls_back_dependent_accepted_heads() {
+    let mut coordinator = Author::new(1);
+    let mut worker = Author::new(2);
+    let mut proposer = Author::new(3);
+    let (genesis, own) = coordinator.found_goal(EndpointId([1; 32]));
+    let goal_id = genesis.header().goal;
+    let worker_admission = coordinator.event(
+        goal_id,
+        Some(own.id()),
+        Body::MemberAdmitted {
+            member: worker.key.public(),
+            endpoint: EndpointId([2; 32]),
+        },
+    );
+    let proposer_admission = coordinator.event(
+        goal_id,
+        Some(worker_admission.id()),
+        Body::MemberAdmitted {
+            member: proposer.key.public(),
+            endpoint: EndpointId([3; 32]),
+        },
+    );
+    let mut anchor = proposer_admission.id();
+    let mut base = None;
+    let mut tasks = Vec::new();
+    let mut results = Vec::new();
+    let mut acceptances = Vec::new();
+    let mut events = vec![genesis, own, worker_admission, proposer_admission];
+    for (index, head) in [BlobHash([9; 32]), BlobHash([14; 32]), BlobHash([19; 32])]
+        .into_iter()
+        .enumerate()
+    {
+        let author = if index == 1 {
+            &mut proposer
+        } else {
+            &mut coordinator
+        };
+        let proposal = author.event(
+            goal_id,
+            Some(anchor),
+            Body::TaskProposed {
+                input: None,
+                depends_on: tasks.last().copied().into_iter().collect(),
+                deadline_ms: None,
+                max_attempts: Some(2),
+            },
+        );
+        let assignment = coordinator.event(
+            goal_id,
+            Some(anchor),
+            Body::TaskAssigned {
+                task: proposal.id(),
+                assignee: worker.key.public(),
+                attempt: 1,
+            },
+        );
+        let take = worker.event(
+            goal_id,
+            Some(assignment.id()),
+            Body::AssignmentAccepted {
+                assignment: assignment.id(),
+            },
+        );
+        let result = worker.event(
+            goal_id,
+            Some(assignment.id()),
+            Body::ResultSubmitted {
+                assignment: assignment.id(),
+                base,
+                patch: None,
+                artifacts: vec![],
+            },
+        );
+        let accept = coordinator.event(
+            goal_id,
+            Some(assignment.id()),
+            Body::ResultAccepted {
+                result: result.id(),
+                head: Some(head),
+            },
+        );
+        tasks.push(proposal.id());
+        results.push(result.id());
+        acceptances.push(accept.id());
+        anchor = accept.id();
+        base = Some(head);
+        events.extend([proposal, assignment, take, result, accept]);
+    }
+    let mut chronological = held(&events);
+    assert_eq!(chronological.state().accepted_heads.len(), 3);
+    for task in &tasks {
+        assert_eq!(
+            chronological.state().task(task).unwrap().state,
+            TaskState::Accepted
+        );
+    }
+
+    let mut conflicting = events[9].header().clone();
+    conflicting.body = Body::Note {
+        about: None,
+        supersedes: None,
+    };
+    let fork = Event::sign(conflicting, &proposer.key).unwrap();
+    events.push(fork.clone());
+    chronological.apply(&[fork]);
+    // The coordinator did not fork: replay continues, but M's proposal is
+    // unusable. The final acceptance no longer matches the accepted base.
+    assert_eq!(chronological.halt(), None);
+    assert_eq!(
+        chronological.standing(&events[9].id()),
+        Some(Standing::Excluded(Exclusion::Forked))
+    );
+    assert!(chronological.state().task(&tasks[1]).is_none());
+    assert_eq!(chronological.state().accepted_heads.len(), 1);
+    assert_eq!(
+        chronological.state().accepted_head(),
+        Some(BlobHash([9; 32]))
+    );
+    assert_eq!(
+        chronological.state().task(&tasks[2]).unwrap().state,
+        TaskState::Submitted
+    );
+    assert_eq!(
+        chronological.standing(&results[2]),
+        Some(Standing::Effective)
+    );
+    for accept in &acceptances[1..] {
+        assert!(matches!(
+            chronological.standing(accept),
+            Some(Standing::Excluded(_))
+        ));
+    }
+
+    let removal = coordinator.event(
+        goal_id,
+        Some(anchor),
+        Body::MemberRemoved {
+            member: proposer.key.public(),
+            last_accepted: None,
+        },
+    );
+    events.push(removal.clone());
+    chronological.apply(&[removal]);
+    assert!(!chronological.state().is_member(&proposer.key.public()));
+    assert_eq!(chronological.state().accepted_heads.len(), 1);
+    assert_eq!(
+        chronological.state().task(&tasks[2]).unwrap().state,
+        TaskState::Submitted
+    );
+
+    let mut scrambled = Goal::new(goal_id);
+    for event in events.iter().rev() {
+        scrambled.apply(std::slice::from_ref(event));
+        assert_eq!(scrambled.folded, super::fold::fold(&scrambled.history).0);
+    }
+    assert_same(&chronological, &scrambled, &events);
 }
