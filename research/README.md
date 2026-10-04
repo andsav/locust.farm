@@ -16,6 +16,7 @@ repository root. Untracked drafts are excluded from the check.
 
 - [Installed onboarding qualification](onboarding-qualification.md): committed macOS candidate, launchd and existing-daemon onboarding, identity/grant preservation and verified cleanup.
 - [Organization blueprints](organization-blueprints.md): research behind the accepted organization and authoring direction, with Merak comparison, primary sources, open collaboration and review/pool examples; detailed protocol mechanisms and migration remain proposals.
+- [Blueprint authoring on locust.farm](blueprint-authoring.md): research for the web editor plan: contract targets, Polaris canvas extraction audit, site and copy-prompt constraints, agent/daemon hand-off, xyflow/SvelteKit 3/paste-limit/share-link/validator measurements, three compared UX concepts and the adversarial review record; probes listed with method, nothing implemented.
 
 - [T2 integration findings](t2-integration-review.md): nested-content replication, materialization races, CLI error/session boundaries and local verification scope.
 - [Production T2 qualification](t2-production-qualification.md): production daemon/client experiments, real-model and scripted-provider boundaries, managed sessions and discovered compatibility defects.
