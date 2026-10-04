@@ -13,6 +13,7 @@ pub mod api;
 pub mod client;
 pub mod codec;
 pub mod crypto;
+pub mod engine;
 pub mod event;
 pub mod id;
 pub mod invite;
