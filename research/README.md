@@ -14,6 +14,11 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+### Lane A implementation review — 2026-10-03
+
+- [Implementation and takeover assessment](lane-a-review-2026-10-03.md): committed versus unfinished behavior, reproduced correctness gaps, verification results and a proposed integration sequence.
+- [Reproduction appendix](evidence/lane-a-review-probes.md): workspace export, authority and sync probes with exact setup and evidence limits.
+
 ### ecdsa.fail as a swarm demonstration — 2026-10-03
 
 - [Benchmark, rules and state of the field](ecdsa-fail-benchmark.md): scoring contract, statistical validity and nonce search, evaluation cost, leaderboard figures, the frontier circuit, technique lineage and open directions. Source review and data analysis; no challenge code run.

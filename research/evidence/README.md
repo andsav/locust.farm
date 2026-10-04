@@ -2,6 +2,8 @@
 
 These files preserve local characterization probes and captured results from 2026-10-03. Each names its target revision and distinguishes upstream research from Locust implementation evidence.
 
+- [Lane A review probes](lane-a-review-probes.md): workspace export and unfinished authority/sync reproductions; [capture hashes](lane-a-review-snapshot.json) identify the reviewed working source. See the [review](../lane-a-review-2026-10-03.md) for findings and takeover assessment.
+
 - [Task lifecycle probes](task-probes.md): five store/RPC observations.
 - [Raft restart probe](raft-restart-probe.md): duplicate application after an unsnapshotted component restart.
 - [hcom validation](hcom-validation.md): isolated suites, scripted-provider native-client results and failure evidence, plus a storage-error characterization.

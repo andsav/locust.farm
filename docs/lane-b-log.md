@@ -18,6 +18,33 @@ The owner made **Codex, Claude Code, Factory Droid and Pi** the required first-r
 
 ## Reviews of lane A commits
 
+### 2026-10-03 — Implementation and takeover review, through `bc4c25f`
+
+At the owner's request, reviewed the committed tree separately from the active
+working source captured at `2026-10-04T00:51:17Z`, using independent authority,
+storage/workspace and sync reviewers plus daemon integration review. The
+[retained report](../research/lane-a-review-2026-10-03.md) contains findings
+**B-R5 through B-R14**, exact evidence boundaries and a proposed takeover sequence;
+the [appendix](../research/evidence/lane-a-review-probes.md) preserves reproductions.
+No lane-A implementation files were edited or committed by this review.
+
+The committed foundation passes full workspace fmt/clippy/tests (265 passed,
+3 intentionally ignored). The unfinished working core does not yet compile its
+tests, Goal entry points remain TODOs, and the daemon constructor still uses
+`MinimalEngine`; its 39 passing shell tests do not establish real goal behavior.
+The strongest findings are the committed export-root exclusion bypass (B-R5),
+suppressed fork evidence (B-R6), removal failing to prevent finalization (B-R7),
+progress hiding submitted work (B-R8), and premature sync completion (B-R10).
+All except B-R5 concern WIP; detailed priorities and source-only follow-ups are
+kept in the report.
+
+Assessment: comfortable taking over this architecture and orchestrating its
+integration, after an explicit ownership checkpoint with the active writers.
+This review does not itself transfer ownership. The next proof should be a real
+local Node/SqliteStore lifecycle transcript, followed by peer integration and the
+published-build three-Mac T1 run. Lane B's outstanding address-lookup dependency
+**A-R15** is part of that integration work, not a Lane A correctness finding.
+
 ### 2026-10-03 — Opening contract, through `5ee4264`
 
 **Scope:** `41c13a0..5ee4264`, principally contract implementation `4c7b680`, its workstream split and the first lane-A notice. Source and tests were reviewed across API, event/crypto/wire, storage and manifests. The lane-A follow-up mentioned in its log had not landed in the reviewed tree. These findings concern the current contract, not an implemented daemon or a claim about future core enforcement.
