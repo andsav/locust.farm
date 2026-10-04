@@ -53,10 +53,10 @@ The owner made Claude Code, Codex, Droid and pi the first-release baseline ([rel
 
 | Harness | Upstream (2026-10-03) | Locust today | Next prerequisite (owner) |
 |---|---|---|---|
-| Claude Code | Stdio MCP; skills reload live in watched directories; a new top-level skills directory needs `/reload-skills` | Claude Code 2.1.280 accepted the generated launch arguments in a disposable profile, with no model or account; A-R9 corrected. Configuration only | Real tool reach and approvals with the daemon and `locust mcp` (A, B) |
-| Codex | Stdio MCP in `config.toml`; skills detected automatically, restart if missing; restart after config changes | Codex 0.153.4 parsed the generated configuration in a disposable profile and kept unrelated servers. Configuration only | Real tool reach and approvals with the daemon and `locust mcp` (A, B) |
-| pi | Built-in MCP since v0.99.0, unless an extension owns `/mcp`, it is disabled, or the session uses the SDK; `/reload` after outside changes | Configuration-file merge proposal; no qualification record | The daemon and `locust mcp`, then a qualified version and mode (A, B) |
-| Droid | Stdio MCP; MCP config hot-reloads; a new skill may need a new session; organization policy can block servers | Configuration-file merge proposal; no qualification record | The daemon and `locust mcp`, then MCP and skill refresh qualified separately (A, B) |
+| Claude Code | Stdio MCP; skills reload live in watched directories; a new top-level skills directory needs `/reload-skills` | Claude Code 2.1.280 accepted the generated launch arguments in a disposable profile, with no model or account; A-R9 corrected. Not qualified | Real tool reach and approvals with the daemon and `locust mcp` (A, B) |
+| Codex | Stdio MCP in `config.toml`; skills detected automatically, restart if missing; restart after config changes | Codex 0.153.4 parsed the generated configuration in a disposable profile and kept unrelated servers. Not qualified | Real tool reach and approvals with the daemon and `locust mcp` (A, B) |
+| pi | Built-in MCP since v0.99.0, unless an extension owns `/mcp`, it is disabled, or the session uses the SDK; `/reload` after outside changes | Configuration-file merge proposal. Not qualified | The daemon and `locust mcp`, then a qualified version and mode (A, B) |
+| Droid | Stdio MCP; MCP config hot-reloads; a new skill may need a new session; organization policy can block servers | Configuration-file merge proposal. Not qualified | The daemon and `locust mcp`, then MCP and skill refresh qualified separately (A, B) |
 | Any other harness | Unknown until the agent answers the three questions | None | Minimum capability set for a generic route (B) |
 
 ## Readiness and recovery
@@ -93,43 +93,45 @@ A result has three separate outcomes:
 
 1. **Submitted:** the worker reports a base, a patch or artifact, and evidence.
 2. **Accepted:** the coordinator decides the result is good. This names an accepted snapshot.
-3. **Applied:** you deliberately update your own branch or working copy. A failed apply is never reported as merged.
+3. **Applied:** you deliberately update your own branch or working copy. A failed apply is never reported as merged. Locust only records what the CLI tells it after applying; that record is not a check of your files.
 
 ## Polaris
 
 **Polaris is the complete offering: Locust plus the preferred way to see the work, in one app.** It is built separately from this repository. Locust also works without it: any harness can join through the routes above.
 
-No Locust connector, bundle, download, deep link or viewer permission exists yet. The website must not link to one until it does.
+No Locust connector, bundle, download or deep link exists yet. The website must not link to one until it does.
 
-Proposed boundary: Locust daemon → authenticated native connector in Polaris's Rust side → typed read model → view. The daemon credential stays native. Locust stays the authority; Polaris shows state and does not decide it.
+Proposed boundary: Locust daemon → authenticated native connector in Polaris's Rust side → typed read model → view. Locust stays the authority; Polaris shows state and does not decide it.
 
-Minimum inputs for the view, mapped to the current [local API types](../crates/locust-proto/src/api.rs) where they exist:
+The connector's credential is a **viewer** of one principal (`viewer.enroll`, `Caller::Viewer` in the [local API](../crates/locust-proto/src/api.rs)). The owner enrolls it. It reads what that principal reads, and every request that is not read-only is refused with `denied`. It holds no claim and moves no feed cursor. The secret stays in Polaris's Rust side as a protected file, never in the webview. Revoking the principal revokes its viewers.
+
+Minimum inputs for the view, mapped to the current local API types:
 
 | Input | Current source | Gap |
 |---|---|---|
 | Goal identity and title | `GoalStatus.goal`, `title` | — |
 | Participants and locality | `MemberView.member`, `endpoint`, `local` | Display names for remote members |
 | Tasks, assignments, review state | `board` → `TaskView` (`state`, `assignee`, `assignment`, `attempt`, `result`) | — |
-| Results and their input and base | `TaskDetail.input`; submitted `base`, `patch`, `artifacts` | Result read before acceptance (`event.show`, planned in revision 2) |
+| Results and their input and base | `TaskDetail.input`; `event.show` → `EventDetail` (`body` with base, patch and artifacts; `text`; whether each object is held) | — |
 | Attention needed | `PendingWork` (`to_authorize`, `to_acknowledge`, `to_review`); `GoalStatus.halted` | — |
-| Freshness | `PeerView.last_sync_ms`; feed `position` | — |
+| Freshness | `PeerView.last_sync_ms`; feed `position`, which the connector keeps itself because a viewer has no stored cursor | — |
 | Unavailable or disconnected | `PeerView.connected`; `WaitOutcome::Disconnected`; error `unavailable`; daemon not answering | — |
-| Accepted versus applied | `TaskState::Accepted` | No local "applied" record in the API |
+| Accepted versus applied | `TaskState::Accepted`; `GoalStatus.head` (accepted head); `TaskView.applied`, derived from `WorkspaceBinding.integrated` | Written by the CLI with `workspace.set` after it applies a head; no CLI yet. The daemon does not check the files, and the answer is per machine and per principal |
 
-Connection rules for the connector: check `api_version` in the hello and show "needs update" on `unsupported_version`; after a daemon restart, reconnect and continue from the last feed position; keep showing the last known state with its age rather than a blank view.
+Connection rules for the connector: check `api_version` in the hello and show "needs update" on `unsupported_version`; after a daemon restart, reconnect and continue from the feed position it kept; keep showing the last known state with its age rather than a blank view. Contract revision 2 is a change to the contract's types; the hello's `api_version` is still 0.
 
 Not allowed: using Polaris's development mirror as a product API, reading Locust's database directly, representing Locust goals as fake Merak sessions, putting the credential in the webview, or inventing a download or deep link.
 
-These are types from the contract, not a running daemon. The requests to fill the gaps are in the [lane C log](lane-c-log.md).
+These are types from the contract, not a running daemon: nothing answers these reads yet. The open requests are in the [lane C log](lane-c-log.md).
 
 ## Current status
 
-Source review on 2026-10-03 at `ce0ece6`:
+Source review on 2026-10-03 at `2157ca1` (earlier reviews are in the [lane C log](lane-c-log.md#source-reviews)):
 
 - The [`locust` binary](../crates/locust/src/main.rs) prints `locust`. No daemon, CLI, `locust mcp`, installer, skill or install prompt exists.
-- The [local API](../crates/locust-proto/src/api.rs) is a typed contract; revision 2 of it is still to land ([lane A log](lane-a-log.md)).
+- The [local API](../crates/locust-proto/src/api.rs) is a typed contract at revision 2 ([lane A log](lane-a-log.md)). It defines `event.show`, per-goal grants, sessions, a read-only viewer credential and the local `integrated` and `applied` records. These are types and tests only: nothing serves them yet, and an `applied` record does not show that any files changed.
 - [Workspace snapshots](../crates/locust-workspace/src/lib.rs) export and materialize; patches are not implemented.
-- Lane B prepares MCP configuration for all four baseline clients: launch arguments for Codex and Claude Code, configuration-file merge proposals for Droid and pi. It also has a protected MCP fixture and peer links. Evidence is component tests, installed-client configuration checks for Codex and Claude Code without a model or account, and same-host transport runs ([lane B implementation log](lane-b-implementation-log.md)). The [release ledger](release-evidence.md) has no passed gate and a four-client matrix whose task-flow and lifecycle columns all read "Not run".
+- Lane B prepares MCP configuration for all four baseline clients: launch arguments for Codex and Claude Code, configuration-file merge proposals for Droid and pi. It also has a protected MCP fixture and peer links. Evidence is component tests, installed-client configuration checks for Codex and Claude Code without a model or account, and same-host transport runs ([lane B implementation log](lane-b-implementation-log.md)). The [release ledger](release-evidence.md) has no passed gate and a four-client matrix whose task-flow and lifecycle columns all read "Not run". Its B-C6 record runs all four installed clients against a test MCP server with scripted model replies and no daemon; that is fixture evidence, not a qualified route.
 - The website's [homepage](../sites/locust.farm/src/routes/+page.svelte) and [`/start` guide](../sites/locust.farm/src/routes/start/+page.svelte) carry this contract's entry prompt and routing table. They are available locally, not deployed.
 
 **Keeping this current.** When lane A or B lands behavior, it records it in its own log or the release ledger. Lane C then rereads those records, updates the status column, routing table and states here and on the website in the same change, and replaces any caveat the new behavior makes obsolete. A route moves from "None" only when a lane B qualification record exists.

@@ -39,3 +39,18 @@ Result: no daemon, CLI, MCP bridge, installer or skill; typed contract with revi
 Read lane B's four-client configuration change (`87f8a42`) in the [lane B implementation log](lane-b-implementation-log.md) and [lane B log](lane-b-log.md), the [release ledger](release-evidence.md) and the [`locust` binary](../crates/locust/src/main.rs).
 
 Result: lane B now prepares configuration for all four baseline clients, with component tests and installed-client configuration checks for Codex 0.153.4 and Claude Code 2.1.280 that used no model or account. Lane B's four-client qualification harness (`client-qualification.md`) is in progress and not yet committed; it states that no complete Locust client workflow is qualified. No daemon, `locust mcp`, installer, skill or qualification record exists, and no release gate passed. The routing table in the [first-contact contract](first-contact.md) and on the site's [`/start` guide](../sites/locust.farm/src/lib/onboarding/guide.ts) now say so. The guide and its entry prompt are available locally, not deployed; C-B1 to C-B4 stay open.
+
+### 2026-10-03 at `2157ca1`
+
+Read: lane A's revision 2 of the [local API](../crates/locust-proto/src/api.rs) in `fd19cb6` and its viewer and `applied` additions in `2157ca1`, lane A's answers in the [lane A log](lane-a-log.md), the [release ledger](release-evidence.md) and the [`locust` binary](../crates/locust/src/main.rs). Commits after `2157ca1` are outside this review.
+
+Result: revision 2 is a typed contract, not a running service. The hello's `api_version` is still 0. The binary still prints `locust`; no daemon, CLI, `locust mcp`, installer or skill exists. The ledger's B-C6 record adds fixture runs of the four clients with scripted model replies and no daemon; no route is qualified. The [first-contact contract](first-contact.md) now maps the Polaris inputs to these types. The website's `/start` guide needed no change: it makes no claim about these types, and its setup stop is still correct.
+
+Request status. The requests above are kept as written.
+
+- **C-A1: typed, runtime open.** `viewer.enroll` and `Caller::Viewer` define a read-only credential for one principal; other requests are `denied`. Nothing serves it until the daemon runs.
+- **C-A2: typed, runtime open.** `WorkspaceBinding.integrated`, set with `workspace.set` by the CLI after it applies an accepted head, and the derived `TaskView.applied`. The daemon stores the record without checking files, so it shows what the CLI reported, not that files changed. No CLI writes it yet.
+- **C-A3: open.** No `status` or `doctor` command exists at `2157ca1`.
+- **C-A4: resolved** by lane A in [workstreams](workstreams.md).
+- **C-B1 to C-B4: open.** The guide still stops after the agent reports, because no canonical setup artifact exists.
+- **C-P1 to C-P3: open.** C-P1 now has its typed viewer; it still needs the running daemon and the Polaris connector. Packaging and download are undecided.

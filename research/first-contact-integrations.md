@@ -53,12 +53,12 @@ Read-only inspection of `crates/polaris` in `merak10`:
 - It is a Tauri 2 desktop app with a static SvelteKit front end. The front end reaches the Rust side through one Tauri command (`tauri_api_fetch`) that routes requests natively and returns typed adapter payloads; DTOs are generated from Rust (`frontend/src/lib/api/transport.ts`, `frontend/src/lib/generated/`).
 - `frontend/src/lib/desktopMirror.ts` is a development mirror: a browser tab on the Vite server proxies to the running app's loopback automation bridge. It is a development tool, not a product API.
 - The `@33ccff/galaxy` `GalaxyHost` seam is a code-view data source. It is not a Locust collaboration view.
-- No Locust connector, bundle, download, stable deep link or viewer permission exists.
+- No Locust connector, bundle, download or stable deep link exists. At `9fbbf74` Locust had no viewer permission either; `2157ca1` added a typed one.
 
 Implication: the native facade is the right shape for Locust. A Rust-side connector can hold the daemon credential, make typed reads and hand the webview only display data. The development mirror, direct reads of Locust's database and fake Merak sessions are not acceptable substitutes. The repository owner has said Polaris is the complete offering that includes Locust and its preferred view; it is built separately, and Locust must also work without it.
 
 ## Open questions
 
 - Which versions and modes of the four baseline clients lane B will qualify, and what the minimum capability set for any other harness is.
-- Whether a read-only viewer principal belongs in the local API (requested in the [lane C log](../docs/lane-c-log.md)).
+- Whether a read-only viewer principal belongs in the local API (requested in the [lane C log](../docs/lane-c-log.md)). Answered at `2157ca1`: the API defines a typed viewer credential; nothing serves it yet.
 - How Polaris will run Locust: attach to a user's existing daemon, or start one it manages. Either way there must be only one daemon per state directory.
