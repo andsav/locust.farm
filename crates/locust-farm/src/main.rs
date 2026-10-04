@@ -98,8 +98,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
             });
+            let shutdown_service = service.clone();
             axum::serve(listener, service.router())
-                .with_graceful_shutdown(shutdown())
+                .with_graceful_shutdown(async move {
+                    shutdown().await;
+                    shutdown_service.shutdown();
+                })
                 .await?;
         }
         Command::Enroll { database, farm_id } => {
