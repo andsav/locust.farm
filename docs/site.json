@@ -1,6 +1,6 @@
 {
   "track": "next",
-  "label": "Development \u00b7 unreleased",
+  "label": "Development · unreleased",
   "repository": "https://github.com/andsav/locust.farm",
   "versions": {
     "software": "unreleased",
@@ -316,6 +316,14 @@
       "title": "pipeline",
       "kind": "example",
       "status": "implemented"
+    },
+    {
+      "id": "runtime-contract",
+      "source": "docs/reference/generated/runtime.contract.json",
+      "url": "/docs/next/reference/runtime.contract.json",
+      "title": "Runtime API, CLI, MCP and event contract",
+      "kind": "contract",
+      "status": "development"
     }
   ],
   "sourceLinks": [
@@ -601,8 +609,8 @@
     },
     {
       "slug": "reference/cli",
-      "page": "schema-reference",
-      "section": "offline-cli-operations"
+      "page": "runtime-reference",
+      "section": "generated-cli"
     },
     {
       "slug": "reference/local-api",

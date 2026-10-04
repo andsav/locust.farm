@@ -1,10 +1,11 @@
-# Local API, MCP and event reference boundaries
+# Local API, MCP and event reference
 
-**Status: replacement runtime contract in development; generated runtime operation
-coverage is not yet qualified.** Offline blueprint operations have a separate
-[generated reference](schema-reference.md). This page identifies the authoritative
-runtime sources and interpretation rules without inventing an HTTP interface or
-hand-maintained wire signatures.
+**Status: implemented development API 2 / protocol 2; no public release.**
+The tables below are generated from the Rust request, response and event types,
+operation registry and actual CLI command builder. Download the
+[full runtime contract](../reference/generated/runtime.contract.json), or run
+`locust --json contract` without a daemon or credentials. Offline blueprint
+inspection has a separate [schema reference](schema-reference.md).
 
 ## Local API transport and effects
 
@@ -14,12 +15,12 @@ registry is the authority for names, audience and effects. Owner administration,
 agent work and read-only viewer calls have different audiences. A viewer read
 cannot acquire a claim or move an agent's feed cursor.
 
-The replacement exporter must derive commands from actual CLI builders and MCP
-input schemas from actual bridge metadata. It must include success/error response
-coverage and pagination, not only input field names. A generated reference must
-match those executable sources before being labeled verified. Unknown/unsupported
-operations must fail explicitly instead of entering a previous coordinator-only
-runtime path.
+Requests and replies use the current canonical local framing and typed response
+variants. CLI JSON output wraps results as `{ "ok": true, "result": ... }` and
+errors as `{ "ok": false, "error": ... }`. Error details retain current draft
+revisions and structured diagnostics where applicable. `events` takes a feed
+position and an explicit page limit; `wait` takes a known revision and explicit
+timeout. These are observation controls, not work execution budgets.
 
 ## MCP and native tools
 
@@ -58,7 +59,5 @@ and persistent formats must be rejected before using an old decoder or mutating
 state. Definition normalization and semantic hash use the current core model;
 layout metadata does not define executable identity.
 
-Runtime command/API/MCP response and error tables will be rendered from the
-regenerated operation exports when they pass source parity. Until then this
-substantive transport/effect/proof contract is a reference boundary, not complete
-machine signature coverage or a verified runtime quickstart.
+The generated tables document executable source. They do not qualify a client,
+platform, public download or remote transport path; see [availability](status.md).

@@ -155,3 +155,19 @@ test('documentation source markers match current Rust API and protocol identifie
 		Number(protocol.match(/pub const PROTOCOL_VERSION: u8 = (\d+)/)![1])
 	);
 });
+
+test('runtime reference renders the executable operation and CLI contract', () => {
+	const runtime = JSON.parse(artifactFor('/docs/next/reference/runtime.contract.json')!.bytes);
+	const reference = articleFor('runtime-reference')!;
+	assert.equal(runtime.api_version, manifest.versions.api);
+	assert.equal(runtime.protocol_version, manifest.versions.protocol);
+	for (const operation of runtime.operations) {
+		assert.ok(reference.text.includes(operation.name), operation.name);
+		if (operation.mcp_tool) assert.ok(reference.text.includes(operation.mcp_tool));
+	}
+	assert.ok(reference.text.includes('locust contract'));
+	assert.ok(reference.text.includes('contribution_published'));
+	assert.ok(reference.text.includes('effect_materialized'));
+	assert.ok(runtime.response_schema.$defs.Draft);
+	assert.equal(articleFor('reference/cli')!.section, 'generated-cli');
+});

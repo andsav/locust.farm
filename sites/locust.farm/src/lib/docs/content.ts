@@ -258,13 +258,118 @@ function generatedReference() {
 		'\n'
 	);
 }
+interface ContractSchema {
+	properties?: Record<string, ContractSchema>;
+	required?: string[];
+	oneOf?: ContractSchema[];
+	$defs?: Record<string, ContractSchema>;
+	$ref?: string;
+	description?: string;
+	enum?: string[];
+}
+interface CommandContract {
+	name: string;
+	summary?: string;
+	arguments: {
+		name: string;
+		long?: string;
+		positional: boolean;
+		required: boolean;
+		help?: string;
+	}[];
+	commands: CommandContract[];
+}
+function generatedRuntimeReference() {
+	const contract = JSON.parse(artifactFor('/docs/next/reference/runtime.contract.json')!.bytes) as {
+		api_version: number;
+		protocol_version: number;
+		operations: {
+			name: string;
+			audience: string;
+			read_only: boolean;
+			mcp_tool: string | null;
+			summary: string;
+		}[];
+		request_schema: ContractSchema;
+		response_schema: ContractSchema;
+		event_schema: ContractSchema;
+		error_schema: ContractSchema;
+		cli: CommandContract;
+	};
+	if (
+		contract.api_version !== manifest.versions.api ||
+		contract.protocol_version !== manifest.versions.protocol
+	)
+		throw new Error('Runtime contract/version export drift');
+	const fields = (schema: ContractSchema) =>
+		Object.keys(schema.properties ?? {})
+			.map((name) => `\`${cell(name)}${schema.required?.includes(name) ? '*' : ''}\``)
+			.join(', ') || 'none';
+	const variants = (schema: ContractSchema) =>
+		(schema.oneOf ?? []).flatMap(
+			(branch) =>
+				branch.enum?.map((name) => [name, 'none']) ??
+				Object.entries(branch.properties ?? {}).map(([name, value]) => [
+					name,
+					value.$ref ? `\`${cell(value.$ref.replace('#/$defs/', ''))}\`` : fields(value)
+				])
+		);
+	const requests = new Map(
+		variants(contract.request_schema).map(([name, fields]) => [name, fields] as const)
+	);
+	const commands: string[] = [];
+	function visit(command: CommandContract, path: string[]) {
+		const name = [...path, command.name];
+		if (!command.commands.length)
+			commands.push(
+				`| \`${cell(name.join(' '))}\` | ${
+					command.arguments
+						.map(
+							(argument) =>
+								`\`${cell(argument.positional ? `<${argument.name}>` : `--${argument.long}`)}${argument.required ? '*' : ''}\``
+						)
+						.join(', ') || 'none'
+				} | ${cell(command.summary)} |`
+			);
+		for (const child of command.commands) visit(child, name);
+	}
+	visit(contract.cli, []);
+	return (
+		'\n\n## Generated local API and MCP operations\n\nAn asterisk marks a required field in the wire schema; nullable values can still be explicitly null. Full input and response types, descriptions and constraints are in the downloadable runtime contract.\n\n| Operation | Audience | Read only | MCP tool | Input fields |\n| --- | --- | --- | --- | --- |\n' +
+		contract.operations
+			.map(
+				(operation) =>
+					`| \`${cell(operation.name)}\` | ${cell(operation.audience)} | ${operation.read_only ? 'yes' : 'no'} | ${operation.mcp_tool ? `\`${cell(operation.mcp_tool)}\`` : 'not exposed'} | ${requests.get(operation.name) ?? 'see schema'} |`
+			)
+			.join('\n') +
+		'\n\n## Generated CLI\n\nArguments come from the actual command builder. An asterisk marks a required argument. Global flags include `--home`, `--credential`, `--session`, `--owner`, `--as`, `--json` and `--idempotency-key`; their accepted combination depends on the command. Composite values use JSON.\n\n| Command | Arguments | Purpose |\n| --- | --- | --- |\n' +
+		commands.join('\n') +
+		'\n\n## Generated response variants\n\n| Variant | Shape |\n| --- | --- |\n' +
+		variants(contract.response_schema)
+			.map(([name, shape]) => `| \`${cell(name)}\` | ${shape} |`)
+			.join('\n') +
+		'\n\n## Generated signed event variants\n\n| Event | Body fields |\n| --- | --- |\n' +
+		variants(contract.event_schema)
+			.map(([name, shape]) => `| \`${cell(name)}\` | ${shape} |`)
+			.join('\n') +
+		'\n\n## Generated error codes\n\n' +
+		(contract.error_schema.$defs?.ErrorCode.enum ?? [])
+			.map((code) => `- \`${cell(code)}\``)
+			.join('\n') +
+		'\n'
+	);
+}
 export function articleFor(slug: string) {
 	const subject = manifest.routes.find((route) => route.slug === slug);
 	const page = manifest.pages.find((page) => page.slug === (subject?.page ?? slug));
 	if (!page) return undefined;
 	const markdown =
 		readFileSync(resolve(root, page.source), 'utf8') +
-		(page.slug === 'schema-reference' ? generatedReference() : '');
+		(page.slug === 'schema-reference'
+			? generatedReference()
+			: page.slug === 'runtime-reference'
+				? generatedRuntimeReference()
+				: '');
 	return {
 		...page,
 		...parseArticle(markdown, page.source),
