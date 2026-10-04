@@ -82,6 +82,10 @@ repository root. Untracked drafts are excluded from the check.
 - [Prior art for an agent swarm](ecdsa-fail-swarm-prior-art.md): the July Merak attempt and its root cause, Merak's swarm doctrine, how public solvers organise agents, published multi-agent evidence and derived design rules.
 - [Leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md): a reduced capture of the public submissions data, the script and its output behind the recomputed figures.
 
+### Groups of agents versus one — 2026-10-04
+
+- [Published evidence on groups of agents versus one](swarm-evidence.md): a demo pitch, then the published evidence for and against many participants on one hard problem, grouped by mechanism (pooling, best of many attempts, checking, shared archives, parallel breadth), what mixture of experts does and does not show, when groups lose, claims to avoid and answers to common objections. Source review; nothing run.
+
 ### First-contact integrations — 2026-10-03
 
 - [Harness and Polaris sources](first-contact-integrations.md): documented MCP, skill, refresh and policy behavior of Claude Code, Codex, pi and Droid; Locust's current state; Polaris's native facade. Source notes, not qualification.
