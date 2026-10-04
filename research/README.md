@@ -14,6 +14,8 @@ repository root. Untracked drafts are excluded from the check.
 
 ## Index
 
+- [Protocol-1 replay and ingestion baseline](organization-protocol1-performance.md): measured healthy and pinned-member-fork histories before the organization engine replacement; exact harness, results and measurement limits.
+
 - [Installed onboarding qualification](onboarding-qualification.md): committed macOS candidate, launchd and existing-daemon onboarding, identity/grant preservation and verified cleanup.
 - [Organization blueprints](organization-blueprints.md): research behind the accepted organization and authoring direction, with Merak comparison, primary sources, open collaboration and review/pool examples; detailed protocol mechanisms and migration remain proposals.
 

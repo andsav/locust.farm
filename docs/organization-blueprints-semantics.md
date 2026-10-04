@@ -356,6 +356,60 @@ second child. Do not use a process-local set or an in-memory feed cursor as the
 only duplicate protection. Do not call the network exactly-once: delivery is
 retryable and acknowledgment-driven, with durable logical deduplication.
 
+### Evaluator interface for the runtime cutover
+
+The node supplies decoded definitions through an immutable lookup; the evaluator
+checks normalized semantic identity rather than trusting a catalog key. Missing
+objects remain pending and can be supplied later without inserting a fake event.
+The initial public seam is:
+
+```rust
+pub trait DefinitionLookup {
+    fn definition(&self, hash: &DefinitionHash) -> Option<&Blueprint>;
+}
+
+pub struct Evaluation {
+    pub state: State,
+    pub standings: BTreeMap<EventId, Standing>,
+    pub admin_halt: Option<Halt>,
+    pub scope_halts: BTreeMap<ScopeKey, Halt>,
+    pub missing: BTreeSet<Dependency>,
+    pub retained: BTreeSet<EventId>,
+    pub desired_effects: BTreeMap<EffectId, DesiredEffect>,
+}
+
+impl Goal {
+    pub fn new(id: GoalId) -> Self;
+    pub fn load<S: Store, D: DefinitionLookup + ?Sized>(
+        store: &S, id: GoalId, definitions: &D,
+    ) -> Result<Self, StoreError>;
+    pub fn apply<D: DefinitionLookup + ?Sized>(
+        &mut self, events: &[Event], definitions: &D,
+    ) -> Changes;
+    pub fn refresh<D: DefinitionLookup + ?Sized>(
+        &mut self, definitions: &D,
+    ) -> Changes;
+    pub fn evaluation(&self) -> &Evaluation;
+    pub fn state(&self) -> &State;
+}
+```
+
+`DefinitionHash` and `EffectId` are separate 32-byte identifiers. `Dependency`
+distinguishes missing event, definition and content proof. `DesiredEffect`
+contains logical ID, scope/round, transition/trigger, resolved action, materializer,
+recipients and exact witness roots. It contains no signing key or local grant.
+`Changes` must report all changed standings, including formerly effective facts
+that become pending/disputed, so a durable feed and delivery outbox cannot miss
+retractions. Keep `event`, `holds`, `frontier`, `screen` and `next` as current-model
+primitives; `next` returns author sequence/predecessor and the current verified
+administrator anchor. Replace the old global `halt()` assumption with explicit
+administrator and scope halts.
+
+`refresh` reruns the same evaluator after definitions/proof objects arrive; it
+does not sign. Node startup loads definitions, replays events and automatically
+reconciles desired effects with durable effect/outbox records. A failed lookup
+never selects `Blueprint::default()` for an already pinned scope.
+
 ### Reusable code and immediate implementation split
 
 Retain canonical codec/signature/sealed-object validation, author-log indexing
@@ -393,7 +447,7 @@ to the current design and remove obsolete variants, interfaces and fixtures.
 | O4/O5 | [state.rs](../crates/locust-core/src/goal/state.rs): current assignment/result, coordinator identity and `accepted_heads` | Replace projection with contributions, attempts, explicit approval and scoped selection; remove universal accepted-head assumptions |
 | O3/O4 | [access.rs](../crates/locust-core/src/node/access.rs): `coordinator()` gate; [claims.rs](../crates/locust-core/src/node/requests/claims.rs): assigned task requirement | Replace operation authority checks with explicit effective rules; retain local fencing invariants under new attempt/session identities |
 | O3/O4 | [content_graph.rs](../crates/locust-core/src/node/content_graph.rs), [content requests](../crates/locust-core/src/node/requests/content.rs): existing typed admissibility roots | Add current definition/contribution/evidence roots and remove superseded root variants; do not bypass admission for arbitrary blobs |
-| O2/O8 | [schema.rs](../crates/locust-store/src/schema.rs): `MIGRATIONS`, `migrate`, append-only SQL upgrade guidance; [connection.rs](../crates/locust-store/src/connection.rs), [store.rs](../crates/locust-store/src/store.rs): schema/open sequencing | Initialize current schema directly and refuse unsupported state before mutation; remove migration runner and conversion-era guidance; keep same-model restart tests |
+| O2/O8 | [schema.rs](../crates/locust-store/src/schema.rs): current schema 2 direct initialization; [connection.rs](../crates/locust-store/src/connection.rs), [store.rs](../crates/locust-store/src/store.rs): schema/open sequencing | Implemented: direct atomic initialization, unsupported-format preflight and current-format restart tests; migration runner removed. Node record replacement remains part of the runtime cutover |
 | O2/O8 | [records.rs](../crates/locust-core/src/node/records.rs), [sessions.rs](../crates/locust-core/src/node/sessions.rs): persisted local identities and assignment bindings | Replace record layout directly, identify supported current state and test its recovery; no postcard fallback decoders for previous records |
 | O7/O8 | [API registry](../crates/locust-proto/src/api.rs), [CLI arguments](../crates/locust/src/cli/args.rs), [MCP schema](../crates/locust/src/mcp/schema.rs) | Remove replaced coordinator/assignment-only operations and flags across every exported surface; generate and verify current references |
 | O8 | [workspace CLI](../crates/locust/src/cli/workspace.rs): required assignment/generation submission; [apply.rs](../crates/locust-workspace/src/apply.rs): accepted-head parameter | Submit explicit contributions under applicable rules; allow explicit local application of selected/taskless outputs without universal goal accepted head |

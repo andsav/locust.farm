@@ -1,0 +1,170 @@
+//! Temporary measurement harness; archived as text when protocol 1 is removed.
+use std::hint::black_box;
+use std::time::Instant;
+
+use locust_core::goal::Goal;
+use locust_proto::event::{Body, Event};
+use locust_proto::id::EndpointId;
+use locust_proto::store::{Commit, MemStore, Store};
+use locust_proto::testkit::Author;
+
+fn history(tasks: usize, forked: bool) -> Vec<Event> {
+    let mut admin = Author::new(1);
+    let mut worker = Author::new(2);
+    let (genesis, self_admission) = admin.found_goal(EndpointId([1; 32]));
+    let goal = genesis.header().goal;
+    let admission = admin.event(
+        goal,
+        Some(self_admission.id()),
+        Body::MemberAdmitted {
+            member: worker.key.public(),
+            endpoint: EndpointId([2; 32]),
+        },
+    );
+    let mut anchor = admission.id();
+    let mut events = vec![genesis, self_admission, admission];
+    let mut fork = None;
+    for index in 0..tasks {
+        let task = worker.event(
+            goal,
+            Some(anchor),
+            Body::TaskProposed {
+                input: None,
+                depends_on: Vec::new(),
+                deadline_ms: None,
+                max_attempts: None,
+            },
+        );
+        let assignment = admin.event(
+            goal,
+            Some(anchor),
+            Body::TaskAssigned {
+                task: task.id(),
+                assignee: worker.key.public(),
+                attempt: 1,
+            },
+        );
+        anchor = assignment.id();
+        let take = worker.event(
+            goal,
+            Some(anchor),
+            Body::AssignmentAccepted {
+                assignment: assignment.id(),
+            },
+        );
+        let result = worker.event(
+            goal,
+            Some(anchor),
+            Body::ResultSubmitted {
+                assignment: assignment.id(),
+                base: None,
+                patch: None,
+                artifacts: Vec::new(),
+            },
+        );
+        if forked && index == tasks / 2 {
+            let mut sibling = result.header().clone();
+            sibling.at_ms += 1;
+            fork = Some(Event::sign(sibling, &worker.key).unwrap());
+        }
+        let accept = admin.event(
+            goal,
+            Some(anchor),
+            Body::ResultAccepted {
+                result: result.id(),
+                head: None,
+            },
+        );
+        anchor = accept.id();
+        events.extend([task, assignment, take, result, accept]);
+    }
+    events.extend(fork);
+    events
+}
+
+fn sample(mut run: impl FnMut(), repeats: usize) -> (u128, u128, u128) {
+    run(); // untimed warmup
+    let mut times: Vec<_> = (0..repeats)
+        .map(|_| {
+            let start = Instant::now();
+            run();
+            start.elapsed().as_micros()
+        })
+        .collect();
+    times.sort_unstable();
+    (times[0], times[times.len() / 2], times[times.len() - 1])
+}
+
+#[test]
+#[ignore = "measurement only; no numeric performance gate"]
+fn measure_protocol1_goal_baseline() {
+    println!("kind,tasks,events,mode,min_us,median_us,max_us");
+    for tasks in [16, 128, 512] {
+        for forked in [false, true] {
+            let events = history(tasks, forked);
+            let id = events[0].header().goal;
+            let mut store = MemStore::new();
+            store
+                .commit(&Commit {
+                    events: events.clone(),
+                    ..Commit::default()
+                })
+                .unwrap();
+            let expected = Goal::load(&store, id).unwrap();
+            assert_eq!(expected.state().tasks.len(), tasks);
+            assert_eq!(
+                expected
+                    .state()
+                    .tasks
+                    .iter()
+                    .filter(|task| task.state == locust_core::goal::TaskState::Accepted)
+                    .count(),
+                tasks
+            );
+            let wire: Vec<_> = events.iter().map(Event::to_wire).collect();
+            let kind = if forked {
+                "member_fork_pinned"
+            } else {
+                "healthy"
+            };
+            for mode in [
+                "store_replay",
+                "decoded_batch_ingest",
+                "wire_decode_batch_ingest",
+            ] {
+                let (low, median, high) = sample(
+                    || {
+                        let actual = match mode {
+                            "store_replay" => Goal::load(black_box(&store), id).unwrap(),
+                            "decoded_batch_ingest" => {
+                                let mut goal = Goal::new(id);
+                                for batch in events.chunks(128) {
+                                    goal.apply(black_box(batch));
+                                }
+                                goal
+                            }
+                            _ => {
+                                let mut goal = Goal::new(id);
+                                for batch in wire.chunks(128) {
+                                    let decoded: Vec<_> = batch
+                                        .iter()
+                                        .map(|event| Event::from_wire(black_box(event)).unwrap())
+                                        .collect();
+                                    goal.apply(&decoded);
+                                }
+                                goal
+                            }
+                        };
+                        assert_eq!(actual.state(), expected.state());
+                        black_box(actual);
+                    },
+                    7,
+                );
+                println!(
+                    "{kind},{tasks},{},{mode},{low},{median},{high}",
+                    events.len()
+                );
+            }
+        }
+    }
+}
