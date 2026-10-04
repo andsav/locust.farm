@@ -78,9 +78,10 @@ def provider_settings(client, profile, url):
         private_write(profile.home / ".factory/settings.json", json.dumps({"customModels": [{
             "model": "locust-fixture", "displayName": "Locust Fixture", "baseUrl": url + "/v1",
             "apiKey": "locust-dummy-key", "provider": "generic-chat-completion-api"}]}))
-        # Droid may still require Factory authentication before selecting BYOK.
-        # A fake key plus egress denial records that blocker, never a real login.
-        return {"FACTORY_API_KEY": "fk-locust-dummy-key"}
+        # Native resume checks the Factory backend first. A scripted local 404
+        # permits its local-session fallback; dummy auth remains isolated.
+        return {"FACTORY_API_KEY": "fk-locust-dummy-key", "FACTORY_API_BASE_URL": url,
+                "FACTORY_API_BASE_URL_EU": url}
     private_write(profile.home / ".pi/agent/models.json", json.dumps({"providers": {"locust-fixture": {
         "baseUrl": url + "/v1", "api": "openai-completions", "apiKey": "locust-dummy-key",
         "models": [{"id": "locust-fixture", "reasoning": False}]}}}))
@@ -235,6 +236,10 @@ def _qualify(name, binary, args, result, profile):
         env.update(proposal.get("environment", {}))
         result["provider"] = {"mode": "scripted-loopback", "base_url": provider.url,
                               "network_guard": "macOS sandbox-exec: deny network except localhost/Unix sockets"}
+        if name == "factory-droid":
+            result["provider"]["factory_backend"] = {
+                "mode": "scripted-loopback-session-lookup-404", "base_url": provider.url,
+                "purpose": "Native Droid resume performs a backend lookup; fixture 404 allows its local-session fallback"}
 
         def execute(label, plan, permissive=False, resume=None, interrupt=False):
             provider.plan, provider.index = list(plan), 0
@@ -317,6 +322,7 @@ def _qualify(name, binary, args, result, profile):
         authenticated = bool(fixture.receipts) and all(receipt.get("authenticated_fixture") is True for receipt in fixture.receipts)
         checks["fixture_authentication"] = assertion("pass" if authenticated else "fail", "Socket fixture compared session/credential bytes without retaining them")
         result["provider_requests"] = provider.requests
+        result["backend_requests"] = provider.backend_requests
         result["provider_errors"] = provider.errors
         good_execution = not provider.errors and all(not run["timed_out"] and run["cleanup_verified"] and
                             (run["exit_code"] == 0 or run["interrupted"] or bool(run.get("observed_policy_denials"))) for run in result["runs"])

@@ -16,6 +16,7 @@ class Provider:
         self.plan = list(plan)
         self.index = 0
         self.requests = []
+        self.backend_requests = []
         self.errors = []
         self.lock = threading.Lock()
         provider = self
@@ -28,7 +29,13 @@ class Provider:
                 self.send_error(403, "External network prohibited")
 
             def do_GET(self):
-                if self.path.endswith("/models"):
+                path = urlsplit(self.path).path
+                if path.startswith("/api/sessions/") and len(path.split("/")) == 4 and path.split("/")[-1]:
+                    with provider.lock:
+                        provider.backend_requests.append({"method": "GET", "path_template": "/api/sessions/<id>",
+                                                          "status": 404, "purpose": "scripted local-session fallback"})
+                    self.send_error(404, "Scripted session lookup: use local session")
+                elif path.endswith("/models"):
                     self.reply({"object": "list", "data": [{"id": "locust-fixture", "object": "model"}]})
                 else:
                     self.send_error(404)

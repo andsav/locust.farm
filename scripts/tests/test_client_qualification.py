@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
@@ -127,6 +128,28 @@ class QualificationTests(unittest.TestCase):
             with urlopen(request) as response:
                 body = json.load(response)
             self.assertEqual(body["choices"][0]["message"]["tool_calls"][0]["function"]["name"], "mcp__locust__" + harness.READ)
+
+    def test_factory_native_session_lookup_is_scripted_redacted_404(self):
+        with Provider([harness.READ]) as provider:
+            with self.assertRaises(HTTPError) as response:
+                urlopen(provider.url + "/api/sessions/private-session-id")
+            self.assertEqual(response.exception.code, 404)
+            response.exception.close()
+            self.assertEqual(provider.requests, [])
+            self.assertEqual(provider.index, 0)
+            self.assertEqual(provider.backend_requests, [{"method": "GET", "path_template": "/api/sessions/<id>",
+                                                        "status": 404, "purpose": "scripted local-session fallback"}])
+            self.assertNotIn("private-session-id", json.dumps(provider.backend_requests))
+
+    def test_droid_model_and_backend_urls_are_all_loopback_fixture(self):
+        with tempfile.TemporaryDirectory() as output:
+            profile = self.profile(output)
+            env = harness.provider_settings("factory-droid", profile, "http://127.0.0.1:9999")
+            self.assertEqual(env["FACTORY_API_BASE_URL"], "http://127.0.0.1:9999")
+            self.assertEqual(env["FACTORY_API_BASE_URL_EU"], "http://127.0.0.1:9999")
+            settings = json.loads((profile.home / ".factory/settings.json").read_text())
+            self.assertEqual(settings["customModels"][0]["baseUrl"], "http://127.0.0.1:9999/v1")
+            self.assertEqual(env["FACTORY_API_KEY"], "fk-locust-dummy-key")
 
     def test_responses_and_anthropic_streams_complete_with_tool_identity(self):
         for endpoint in ("responses", "messages"):
