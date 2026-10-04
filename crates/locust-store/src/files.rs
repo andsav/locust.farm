@@ -231,7 +231,12 @@ impl Files {
                 Some((hex, "staged")) => (hex, Kind::Staged),
                 Some(_) => continue,
             };
+            // Exactly the names `path` writes: lowercase hex of a hash.
+            let lowercase_hex = hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
             if hex.len() == 2 * BlobHash::LEN
+                && lowercase_hex
                 && let Ok(hash) = hex.parse()
             {
                 entries.push((hash, kind));

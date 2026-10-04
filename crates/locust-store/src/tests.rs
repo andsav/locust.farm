@@ -110,6 +110,31 @@ fn a_second_open_of_one_state_directory_fails_until_the_first_is_dropped() {
 }
 
 #[test]
+fn the_database_is_opened_for_power_loss_durability_under_an_exclusive_lock() {
+    let (dir, mut store) = scratch();
+    store
+        .commit(&Commit {
+            local: vec![put(Space::Goal, b"g", b"1")],
+            ..Commit::default()
+        })
+        .unwrap();
+    let pragma = |name: &str| -> String {
+        store
+            .connection()
+            .pragma_query_value(None, name, |row| row.get::<_, rusqlite::types::Value>(0))
+            .map(|value| format!("{value:?}"))
+            .unwrap()
+    };
+    assert_eq!(pragma("journal_mode"), r#"Text("wal")"#);
+    assert_eq!(pragma("synchronous"), "Integer(2)", "FULL");
+    assert_eq!(pragma("fullfsync"), "Integer(1)");
+    assert_eq!(pragma("locking_mode"), r#"Text("exclusive")"#);
+    // The WAL index lives in process memory: no shared-memory file.
+    assert!(dir.path().join("locust.db-wal").exists());
+    assert!(!dir.path().join("locust.db-shm").exists());
+}
+
+#[test]
 fn a_database_from_a_newer_schema_is_refused() {
     let (dir, store) = scratch();
     drop(store);
@@ -448,6 +473,11 @@ fn leftovers_in_the_object_directory_are_collected_on_open() {
     drop(store);
     let orphan = object(INLINE_MAX_BYTES + 2).hash();
     let resumable = object(INLINE_MAX_BYTES + 3).hash();
+    // Not a name this crate writes (it writes lowercase hex).
+    let foreign = object(INLINE_MAX_BYTES + 4)
+        .hash()
+        .to_string()
+        .to_uppercase();
     let blobs = dir.path().join("blobs");
     for name in [
         orphan.to_string(),
@@ -456,6 +486,7 @@ fn leftovers_in_the_object_directory_are_collected_on_open() {
         format!("{resumable}.staged"),
         inline.hash().to_string(),
         format!("{orphan}.other"),
+        foreign.clone(),
         "notes.txt".to_owned(),
     ] {
         fs::write(blobs.join(name), b"leftover").unwrap();
@@ -468,6 +499,7 @@ fn leftovers_in_the_object_directory_are_collected_on_open() {
             held.to_string(),
             format!("{resumable}.staged"),
             format!("{orphan}.other"),
+            foreign.clone(),
             "notes.txt".to_owned(),
         ])
     );
