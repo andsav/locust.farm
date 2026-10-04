@@ -142,7 +142,11 @@
 					source: item.stage,
 					target: name,
 					markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-					data: { label: EVIDENCE_WORDS[item.evidence].arrow, requirement: index }
+					data: {
+						sentence: `"${name}" starts when ${EVIDENCE_WORDS[item.evidence].when(item.stage)}.`,
+						early: item.evidence !== 'completion',
+						requirement: index
+					}
 				}))
 		);
 	});
@@ -689,16 +693,15 @@
 		stroke: var(--color-text-faint);
 	}
 
-	.map :global(.stage-edge-label) {
-		padding: 1px 6px;
-		border: var(--border-hairline);
-		background: var(--color-bg);
-		color: var(--color-text-muted);
-		font: 400 10px / 1.4 var(--font-mono);
+	.map :global(.stage-edge.early) {
+		stroke-dasharray: 5 5;
 	}
 
-	.map :global(.svelte-flow__edge-interaction) {
+	.map :global(.stage-edge-hit) {
+		fill: none;
+		stroke: transparent;
 		stroke-width: 20;
+		pointer-events: stroke;
 	}
 
 	.map :global(.svelte-flow__connectionline path) {

@@ -163,10 +163,13 @@ do instead.
 ### 3.4 Stage map
 
 Nodes are the keys of `flow`. Arrows are each stage's `requires` entries,
-drawn from the earlier stage to the later one and labelled in plain words:
-"when draft is published", "when draft has a review", "when draft is
-complete", "when a result of draft is picked" (evidence `publication`,
-`review`, `completion`, `selection`). Nothing else is drawn.
+drawn from the earlier stage to the later one, with no words on them; the
+owner found labels on arrows confusing. A solid arrow waits until the earlier
+stage is complete (`completion`); a dashed one starts sooner, on a published
+result, a review or a picked result (`publication`, `review`, `selection`).
+Hovering an arrow shows the sentence, such as "review" starts when "draft" is
+complete, and the stage's settings list the same conditions. Nothing else is
+drawn.
 
 - **Empty map.** A large animated picture of the current rules, chosen by
   `pictureFor` in [presets](../sites/locust.farm/src/lib/blueprint-editor/model/presets.ts):
@@ -429,7 +432,7 @@ holds the script.
 | Risk | Answer |
 | --- | --- |
 | The TypeScript checks drift from Locust | Generated vectors; the export check fails on a code without a case; the agent re-checks with Locust |
-| People read arrows as automatic execution | The fixed sentence in section 3.5; arrows say "when … is complete" |
+| People read arrows as automatic execution | The runner sentence under "In words"; arrow tooltips and stage settings say "starts when … is complete" |
 | The six ways do not fit someone's team | Every choice stays editable; "Open a blueprint" accepts anything an agent writes |
 | Pasted prompts get cut or altered | Byte count, SHA-256, END lines and a final line |
 | Names or advice try to instruct the agent | They appear only inside data blocks; the prompt says they are data |

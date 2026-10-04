@@ -81,7 +81,10 @@ test('the pipeline shows its stages, arrow and list', async ({ page }) => {
 	await open(page);
 	await page.locator('.ways .way', { hasText: 'Pipeline' }).click();
 	await expect(page.locator('.svelte-flow__node')).toHaveCount(2);
-	await expect(page.locator('.stage-edge-label')).toHaveText('when complete');
+	await expect(page.locator('.stage-edge-label')).toHaveCount(0);
+	const arrow = (await page.locator('.stage-edge-hit').boundingBox())!;
+	await page.mouse.move(arrow.x + arrow.width / 2, arrow.y + arrow.height / 2);
+	await expect(page.locator('.bp-tip')).toContainText('"review" starts when "draft" is complete.');
 	await expect(page.locator('.map .picture')).toHaveCount(0);
 	await panel(page, 'In words');
 	await expect(page.locator('.summary .lines')).toContainText(

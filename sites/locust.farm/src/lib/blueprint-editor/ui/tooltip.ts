@@ -7,7 +7,7 @@
 export type TipText = string | { label: string; description?: string };
 
 let shared: HTMLDivElement | null = null;
-let owner: HTMLElement | null = null;
+let owner: Element | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 function tipElement(): HTMLDivElement {
@@ -36,7 +36,7 @@ function render(text: TipText) {
 	}
 }
 
-function place(node: HTMLElement) {
+function place(node: Element) {
 	const element = tipElement();
 	element.hidden = false;
 	const anchor = node.getBoundingClientRect();
@@ -62,7 +62,7 @@ function onEscape(event: KeyboardEvent) {
 	if (event.key === 'Escape') hideTip();
 }
 
-export function tip(node: HTMLElement, text: TipText) {
+export function tip(node: HTMLElement | SVGElement, text: TipText) {
 	let current = text;
 
 	function describe() {
@@ -86,11 +86,11 @@ export function tip(node: HTMLElement, text: TipText) {
 		if (owner === node || owner === null) hideTip();
 	}
 
-	const onEnter = (event: PointerEvent) => {
-		if (event.pointerType === 'mouse') show(350);
+	const onEnter = (event: Event) => {
+		if ((event as PointerEvent).pointerType === 'mouse') show(350);
 	};
-	const onFocus = (event: FocusEvent) => {
-		if ((event.target as HTMLElement).matches(':focus-visible')) show(0);
+	const onFocus = (event: Event) => {
+		if ((event.target as Element).matches(':focus-visible')) show(0);
 	};
 
 	node.addEventListener('pointerenter', onEnter);
