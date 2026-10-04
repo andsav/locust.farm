@@ -484,15 +484,11 @@ fn active_round_revision_never_reinterprets_old_evidence() {
 
 fn pipeline() -> Blueprint {
     let mut blueprint = Blueprint::default();
-    let runner = Authority::Participant {
-        key: testkit::keypair(1).public().to_string(),
-    };
     blueprint.flow.insert(
         "research".into(),
         Stage {
             task_type: None,
             requires: Vec::new(),
-            runner: runner.clone(),
             recipients: Selector::Members,
         },
     );
@@ -504,7 +500,6 @@ fn pipeline() -> Blueprint {
                 stage: "research".into(),
                 evidence: EvidenceKind::Completion,
             }],
-            runner,
             recipients: Selector::Members,
         },
     );

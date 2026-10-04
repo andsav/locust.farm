@@ -120,12 +120,7 @@ fn role_key_scope_threshold_and_cycles_report_actionable_locations() {
             "/flow/b/requires/0/evidence",
         ),
     ];
-    for (mut source, code, path) in cases {
-        if let Some(flow) = source.get_mut("flow").and_then(Value::as_object_mut) {
-            for stage in flow.values_mut() {
-                stage["runner"] = json!({"kind":"participant","key":"ab".repeat(32)});
-            }
-        }
+    for (source, code, path) in cases {
         let result = checked(source);
         assert!(!result.valid);
         assert!(

@@ -221,8 +221,6 @@ pub struct TaskType {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Stage {
-    /// One explicitly bound principal whose daemon runs this stage.
-    pub runner: Authority,
     /// Eligible recipients of durable ready-work delivery, resolved at binding.
     #[serde(default)]
     pub recipients: Selector,

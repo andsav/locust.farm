@@ -36,8 +36,11 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             .flow
             .get(name)
             .ok_or(invalid("unknown configured flow stage"))?;
-        let runner = rules::authority(&stage.runner, &resolved.effective)
-            .ok_or(invalid("stage runner is not uniquely bound"))?;
+        // The goal's administrator runs every stage.
+        let runner = self
+            .history
+            .administrator
+            .ok_or(invalid("goal has no administrator"))?;
         let binding = TaskBinding {
             rules,
             task_type: stage.task_type.clone(),
@@ -197,12 +200,12 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                     .definitions
                     .definition(&resolved.effective.definition)
                     .expect("resolved definition exists");
-                let configured = definition
-                    .flow
-                    .get(stage)
-                    .ok_or(invalid("task names an unknown stage"))?;
-                rules::authority(&configured.runner, &resolved.effective)
-                    .ok_or(invalid("review runner is not uniquely bound"))?
+                if !definition.flow.contains_key(stage) {
+                    return Err(invalid("task names an unknown stage"));
+                }
+                self.history
+                    .administrator
+                    .ok_or(invalid("goal has no administrator"))?
             } else {
                 event.header().author
             };

@@ -33,8 +33,9 @@ not make private subgroups.
 
 D14 requires configured transitions to advance and ready work to be durably
 delivered by the daemon without an agent requesting each step. Readiness is a
-pure projection; materialization is an authorized signed mutation. A configured
-runner signs child-task, review-request and handoff effects. The logical
+pure projection; materialization is an authorized signed mutation. The goal's
+administrator signs the child-task, review-request and handoff effects of
+configured stages; a result's author signs review requests outside a stage. The logical
 effect ID binds the current rule revision, trigger, scope and intended action.
 The event, effect deduplication record and delivery outbox are committed together.
 Restart resumes pending work and retries unacknowledged deliveries with the same
@@ -190,7 +191,7 @@ not enum declaration order.
 | `ReviewRecorded` / `CheckAttested` | Exact candidate, round, verdict/check name | Eligible reviewer/check selector; immutable evidence |
 | `ScopeDecided` | Scope/round, decision predecessor, action, exact evidence roots | Named selection/closure authority; selects output or closes/reopens under its rule |
 | `DocumentRevised` | Document name, optional exact base revision, new content reference | Authorized publisher; revisions coexist unless a document selection scope chooses one |
-| `EffectMaterialized` | Logical effect ID, rule transition, trigger, explicit action and witnesses | Configured runner; daemon-created child, review request or offer |
+| `EffectMaterialized` | Logical effect ID, rule transition, trigger, explicit action and witnesses | The goal administrator for stage effects, or the result's author for a review request outside a stage; daemon-created child, review request or offer |
 | `DeliveryAcknowledged` | Exact logical effect and recipient | Recipient; explicit agent acknowledgment, distinct from the daemon transport receipt and execution start |
 | `LeaveRequested` | Requester's admission tenure | Member; routes to administrator, grants no self-authored membership mutation |
 
@@ -311,14 +312,20 @@ lookup. Missing definition bytes yield pending-definition status, never guessed
 defaults. This replaces the existing assumption that headers alone contain every
 rule needed to authorize work.
 
-### Effect identity, runner and durable delivery
+### Effect identity, signer and durable delivery
 
-A goal/round binding identifies one runner principal for each configured
-transition plus its target recipients. This is an explicit role of that scope,
-not a default universal coordinator. Its daemon must hold the signing key and
-an appropriate standing local grant. Other replicas derive the same desired
-effect and can show that the authorized runner is unavailable. They cannot
-impersonate it. Availability blocks only this transition's materialization.
+The goal's administrator runs every configured stage: its daemon signs the
+stage's child task, offers and review requests, and a stage names only its
+recipients. This replaces the per-stage runner of the first design, which was
+an explicitly bound role of each stage. The owner decided on 2026-10-04 that
+the goal's creator, administrator and runner are the same principal, because a
+separate runner role confused blueprint authors
+([review](../research/blueprint-editor-review.md)). The rule is enforced in
+[flow evaluation](../crates/locust-core/src/goal/flow.rs). The administrator's
+daemon must hold the signing key and the local `flow` grant. Other replicas
+derive the same desired effect and can show that the administrator is
+unavailable. They cannot impersonate it. Availability blocks only the
+materialization of stage effects.
 
 Compute `EffectId = H(domain, goal, source_scope, source_round, transition_id,
 trigger_identity, action_kind, target_slot)`. Use canonical encoding. A review
@@ -374,7 +381,7 @@ these records share [one commit](../crates/locust-core/src/node/commit.rs).
 committed currently available entries, checks the authenticated recipient endpoint,
 and commits positive receipts before retiring retries. Missing proof or content
 returns a negative receipt for later anti-entropy. All replicas may relay an
-already verified signed effect; only the named runner signs it. A recipient
+already verified signed effect; only its authorized signer signs it. A recipient
 local to the same daemon receives its inbox record in the materialization commit.
 
 [Encoded driver tests](../crates/locust-core/src/node/tests/delivery.rs) exercise

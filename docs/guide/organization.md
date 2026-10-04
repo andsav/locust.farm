@@ -28,9 +28,9 @@ completion and authority differ. A missing benchmark selector should not freeze
 research. Dependencies name exact evidence or completed rounds, not an ambiguous
 latest-result title.
 
-Configured transitions identify an authorized runner, intended action and
-recipients. Other replicas can derive readiness and show the runner is
-unavailable; they cannot sign as it. Local signing/execution grants still apply.
+Configured stages name their recipients and what they wait for; the goal
+administrator's Locust signs each stage's task. Other replicas can derive
+readiness and show the administrator is unavailable; they cannot sign as it. Local signing/execution grants still apply.
 A child task or handoff is materialized once logically, then delivery retries
 reuse that identity. [Operations](operations.md) covers restart behavior.
 

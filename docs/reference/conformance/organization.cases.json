@@ -158,20 +158,20 @@
       "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": 5}}"
     },
     {
-      "id": "structure/runner-members",
+      "id": "structure/stage-unknown-field",
       "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"members\"}}}}"
     },
     {
-      "id": "structure/stage-missing-runner",
+      "id": "flow/stage-defaults",
       "source": "{\"schema_version\": 1, \"flow\": {\"s\": {}}}"
     },
     {
       "id": "structure/requires-missing-evidence",
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\"}]}}}"
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\"}]}}}"
     },
     {
       "id": "structure/requires-bad-evidence",
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\", \"evidence\": \"x\"}]}}}"
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\", \"evidence\": \"x\"}]}}}"
     },
     {
       "id": "structure/count-negative",
@@ -199,7 +199,7 @@
     },
     {
       "id": "structure/stage-task-type-type",
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": 5}}}"
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"task_type\": 5}}}"
     },
     {
       "id": "structure/task-type-nested-unknown-kind",
@@ -239,7 +239,7 @@
     },
     {
       "id": "rules/invalid_name-stage-and-task-type",
-      "source": "{\"schema_version\": 1, \"task_types\": {\" \": {}}, \"flow\": {\"\\n\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}}, \"roles\": {\"r\": {}}}"
+      "source": "{\"schema_version\": 1, \"task_types\": {\" \": {}}, \"flow\": {\"\\n\": {}}, \"roles\": {\"r\": {}}}"
     },
     {
       "id": "rules/unknown_role",
@@ -259,7 +259,7 @@
     },
     {
       "id": "rules/selector_scope-recipients",
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"recipients\": {\"kind\": \"task_creator\"}}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"recipients\": {\"kind\": \"task_creator\"}}}}"
     },
     {
       "id": "rules/empty_selector",
@@ -291,27 +291,27 @@
     },
     {
       "id": "rules/unknown_task_type",
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": \"missing\"}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"task_type\": \"missing\"}}}"
     },
     {
       "id": "rules/unknown_stage",
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\", \"evidence\": \"completion\"}]}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\", \"evidence\": \"completion\"}]}}}"
     },
     {
       "id": "rules/unavailable_evidence",
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}, \"b\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}]}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {}, \"b\": {\"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}]}}}"
     },
     {
       "id": "rules/flow_cycle",
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"b\", \"evidence\": \"completion\"}]}, \"b\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"completion\"}]}, \"c\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"requires\": [{\"stage\": \"b\", \"evidence\": \"completion\"}]}, \"b\": {\"requires\": [{\"stage\": \"a\", \"evidence\": \"completion\"}]}, \"c\": {}}}"
     },
     {
       "id": "rules/several",
-      "source": "{\"schema_version\": 1, \"roles\": {\"\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}, \"publish\": {\"kind\": \"task_creator\"}}, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}, \"finish\": {\"kind\": \"role\", \"name\": \"y\"}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"z\"}, \"task_type\": \"t\"}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}, \"publish\": {\"kind\": \"task_creator\"}}, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}, \"finish\": {\"kind\": \"role\", \"name\": \"y\"}}, \"flow\": {\"s\": {\"task_type\": \"t\"}}}"
     },
     {
       "id": "rules/pointer-escaping",
-      "source": "{\"schema_version\": 1, \"roles\": {\"a/b~c\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x/y\"}}, \"flow\": {\"p/q\": {\"runner\": {\"kind\": \"role\", \"name\": \"a/b~c\"}, \"task_type\": \"m~n\"}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"a/b~c\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x/y\"}}, \"flow\": {\"p/q\": {\"task_type\": \"m~n\"}}}"
     },
     {
       "id": "explain/check-and-any",
@@ -359,7 +359,7 @@
     },
     {
       "id": "explain/stage-requires-order",
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, \"selection\": {\"kind\": \"role\", \"name\": \"r\"}}}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": \"t\"}, \"b\": {\"runner\": {\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, \"recipients\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"r\"}, {\"kind\": \"members\"}]}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}, {\"stage\": \"a\", \"evidence\": \"publication\"}, {\"stage\": \"a\", \"evidence\": \"review\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}]}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, \"selection\": {\"kind\": \"role\", \"name\": \"r\"}}}}, \"flow\": {\"a\": {\"task_type\": \"t\"}, \"b\": {\"recipients\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"r\"}, {\"kind\": \"members\"}]}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}, {\"stage\": \"a\", \"evidence\": \"publication\"}, {\"stage\": \"a\", \"evidence\": \"review\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}]}}}"
     },
     {
       "id": "explain/name-escaping",

@@ -48,7 +48,7 @@ launch still requires client-specific evidence.
 - **Attempt:** one participant's work occurrence, distinct from a global reservation.
 - **Criterion satisfaction:** candidate evidence meets its pinned supported rule.
 - **Selection:** explicit authority chooses an exact output when uniqueness is required.
-- **Runner:** explicitly authorized signer of configured flow effects.
+- **Runner:** the signer of a configured flow effect. For stages this is the goal administrator.
 - **Delivery:** committed ready work reaches an inbox; not execution start.
 - **Tenure:** one authenticated admission interval, distinct from later re-admission.
 - **Proof closure:** retained signed dependencies needed to reproduce a verdict.

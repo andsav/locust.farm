@@ -185,7 +185,10 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
         .find(|preset| preset.name == "pipeline")
         .unwrap()
         .blueprint;
-    blueprint.flow.remove("review");
+    blueprint.flow.remove("ship");
+    // One member drives the draft alone, so it uses the default rules.
+    blueprint.flow.get_mut("draft").unwrap().task_type = None;
+    blueprint.task_types.clear();
     let expected = net.nodes[0].node.goals[&goal]
         .state()
         .current_rules
@@ -196,7 +199,7 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
             goal,
             expected,
             blueprint_json: serde_json::to_string(&blueprint).unwrap(),
-            roles: BTreeMap::from([("runner".into(), vec![source])]),
+            roles: BTreeMap::new(),
             inputs: BTreeMap::new(),
         },
     );

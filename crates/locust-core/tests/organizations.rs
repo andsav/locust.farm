@@ -17,6 +17,14 @@ impl Entropy for Random {
         }
     }
 }
+fn preset_blueprint(name: &str) -> locust_proto::organization::Blueprint {
+    locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == name)
+        .unwrap()
+        .blueprint
+}
+
 struct Harness {
     node: Node<MemStore, Random>,
     store: MemStore,
@@ -109,11 +117,9 @@ impl Harness {
             .unwrap_or_else(|error| panic!("{name}: {error}"))
     }
     fn goal(&mut self, preset: &str) -> GoalId {
-        let blueprint = locust_proto::organization::presets()
-            .into_iter()
-            .find(|p| p.name == preset)
-            .unwrap()
-            .blueprint;
+        self.goal_from(preset_blueprint(preset))
+    }
+    fn goal_from(&mut self, blueprint: locust_proto::organization::Blueprint) -> GoalId {
         let roles = blueprint
             .roles
             .keys()
@@ -333,7 +339,11 @@ fn independent_attempts_and_local_aba_takeover_remain_distinct() {
 #[test]
 fn pipeline_materializes_on_grant_and_completion_without_agent_polling() {
     let mut h = Harness::new();
-    let goal = h.goal("pipeline");
+    // One member drives both stages alone, so the draft uses the default rules.
+    let mut blueprint = preset_blueprint("pipeline");
+    blueprint.flow.get_mut("draft").unwrap().task_type = None;
+    blueprint.task_types.clear();
+    let goal = h.goal_from(blueprint);
     assert_eq!(
         h.ok(h.agent, Request::Board { goal }),
         Response::Board(vec![])

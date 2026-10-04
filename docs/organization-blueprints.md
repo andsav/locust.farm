@@ -82,7 +82,9 @@ avoid engineering those obligations.
 
 The accepted D14 correction requires the daemon to advance configured transitions
 and durably deliver ready work without waiting for agents to request each step.
-Deterministic readiness feeds an explicitly authorized runner. Stable
+Deterministic readiness feeds one authorized signer: the goal's administrator
+for configured stages (owner decision, 2026-10-04) and a result's author for
+review requests outside a stage. Stable
 logical effect IDs and atomic event/outbox/deduplication writes make retry and
 restart resume the same work. Delivery, acknowledgment and execution start are
 separate facts. Local execution requires the existing local permission grants;

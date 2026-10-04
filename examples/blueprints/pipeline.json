@@ -19,13 +19,9 @@
         "kind": "members"
       },
       "requires": [],
-      "runner": {
-        "kind": "role",
-        "name": "runner"
-      },
-      "task_type": null
+      "task_type": "draft"
     },
-    "review": {
+    "ship": {
       "recipients": {
         "kind": "members"
       },
@@ -35,21 +31,13 @@
           "stage": "draft"
         }
       ],
-      "runner": {
-        "kind": "role",
-        "name": "runner"
-      },
-      "task_type": "reviewed"
+      "task_type": null
     }
   },
-  "roles": {
-    "runner": {
-      "description": "Their Locust hands out each stage's work when it is ready. One person."
-    }
-  },
+  "roles": {},
   "schema_version": 1,
   "task_types": {
-    "reviewed": {
+    "draft": {
       "decisions": {
         "completion": {
           "by": {

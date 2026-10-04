@@ -410,10 +410,6 @@
           },
           "type": "array"
         },
-        "runner": {
-          "$ref": "#/$defs/Authority",
-          "description": "One explicitly bound principal whose daemon runs this stage."
-        },
         "task_type": {
           "default": null,
           "type": [
@@ -422,9 +418,6 @@
           ]
         }
       },
-      "required": [
-        "runner"
-      ],
       "type": "object"
     },
     "StartRule": {

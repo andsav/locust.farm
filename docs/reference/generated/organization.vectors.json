@@ -373,9 +373,7 @@
       "result": {
         "diagnostics": [],
         "explanation": {
-          "authority_roles": [
-            "runner"
-          ],
+          "authority_roles": [],
           "contextual_checks": [
             "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
@@ -384,9 +382,7 @@
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
-          "required_roles": [
-            "runner"
-          ],
+          "required_roles": [],
           "summary": [
             "The goal administrator manages membership and rules separately from work permissions.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
@@ -394,15 +390,15 @@
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
             "Default rules: no one may declare it finished; an empty task list is not completion.",
-            "Task type \"reviewed\": goal members may propose tasks; goal members may publish contributions without a task.",
-            "Task type \"reviewed\": goal members may start independent attempts; concurrent attempts may coexist.",
-            "Task type \"reviewed\": completion requires 1 distinct approving reviewer(s) from goal members, excluding the contribution author on the exact candidate.",
-            "Task type \"reviewed\": qualifying contributions coexist; no single output is selected.",
-            "Task type \"reviewed\": no one may declare it finished; an empty task list is not completion.",
-            "Stage \"draft\": the single member bound to role \"runner\" runs this stage: it creates the configured task and durably delivers ready work to goal members.",
-            "Stage \"draft\" requires no upstream evidence and uses default rules.",
-            "Stage \"review\": the single member bound to role \"runner\" runs this stage: it creates the configured task and durably delivers ready work to goal members.",
-            "Stage \"review\" requires completion from \"draft\" and uses task type \"reviewed\"."
+            "Task type \"draft\": goal members may propose tasks; goal members may publish contributions without a task.",
+            "Task type \"draft\": goal members may start independent attempts; concurrent attempts may coexist.",
+            "Task type \"draft\": completion requires 1 distinct approving reviewer(s) from goal members, excluding the contribution author on the exact candidate.",
+            "Task type \"draft\": qualifying contributions coexist; no single output is selected.",
+            "Task type \"draft\": no one may declare it finished; an empty task list is not completion.",
+            "Stage \"draft\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"draft\" requires no upstream evidence and uses task type \"draft\".",
+            "Stage \"ship\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"ship\" requires completion from \"draft\" and uses default rules."
           ]
         },
         "normalized": {
@@ -426,13 +422,9 @@
                 "kind": "members"
               },
               "requires": [],
-              "runner": {
-                "kind": "role",
-                "name": "runner"
-              },
-              "task_type": null
+              "task_type": "draft"
             },
-            "review": {
+            "ship": {
               "recipients": {
                 "kind": "members"
               },
@@ -442,21 +434,13 @@
                   "stage": "draft"
                 }
               ],
-              "runner": {
-                "kind": "role",
-                "name": "runner"
-              },
-              "task_type": "reviewed"
+              "task_type": null
             }
           },
-          "roles": {
-            "runner": {
-              "description": "Their Locust hands out each stage's work when it is ready. One person."
-            }
-          },
+          "roles": {},
           "schema_version": 1,
           "task_types": {
-            "reviewed": {
+            "draft": {
               "decisions": {
                 "completion": {
                   "by": {
@@ -504,10 +488,10 @@
             ]
           }
         },
-        "semantic_hash": "589669695c5b972706ff4b066d16d2e98a362cb6058c627758c3b48245cc9296",
+        "semantic_hash": "561c9135726f48d4d691ce8e8a4201ca146fc812b433bad02fe44da971334e0e",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {\n    \"draft\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [],\n      \"runner\": {\n        \"kind\": \"role\",\n        \"name\": \"runner\"\n      },\n      \"task_type\": null\n    },\n    \"review\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [\n        {\n          \"evidence\": \"completion\",\n          \"stage\": \"draft\"\n        }\n      ],\n      \"runner\": {\n        \"kind\": \"role\",\n        \"name\": \"runner\"\n      },\n      \"task_type\": \"reviewed\"\n    }\n  },\n  \"roles\": {\n    \"runner\": {\n      \"description\": \"Their Locust hands out each stage's work when it is ready. One person.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {\n    \"reviewed\": {\n      \"decisions\": {\n        \"completion\": {\n          \"by\": {\n            \"kind\": \"members\"\n          },\n          \"count\": 1,\n          \"exclude_author\": true,\n          \"kind\": \"reviews\"\n        },\n        \"finish\": null,\n        \"selection\": null\n      },\n      \"work\": null\n    }\n  },\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {\n    \"draft\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [],\n      \"task_type\": \"draft\"\n    },\n    \"ship\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [\n        {\n          \"evidence\": \"completion\",\n          \"stage\": \"draft\"\n        }\n      ],\n      \"task_type\": null\n    }\n  },\n  \"roles\": {},\n  \"schema_version\": 1,\n  \"task_types\": {\n    \"draft\": {\n      \"decisions\": {\n        \"completion\": {\n          \"by\": {\n            \"kind\": \"members\"\n          },\n          \"count\": 1,\n          \"exclude_author\": true,\n          \"kind\": \"reviews\"\n        },\n        \"finish\": null,\n        \"selection\": null\n      },\n      \"work\": null\n    }\n  },\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
     },
     {
       "id": "load/eof",
@@ -1203,14 +1187,14 @@
       "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": 5}}"
     },
     {
-      "id": "structure/runner-members",
+      "id": "structure/stage-unknown-field",
       "result": {
         "diagnostics": [
           {
             "code": "invalid_structure",
             "correction": "Use blueprint schema or a bundled example for supported fields and values.",
-            "message": "unknown variant `members`, expected `role` or `participant`",
-            "path": "/flow/s/runner/kind",
+            "message": "unknown field `runner`, expected one of `recipients`, `task_type`, `requires`",
+            "path": "/flow/s/runner",
             "phase": "definition",
             "related_paths": [],
             "severity": "error"
@@ -1224,23 +1208,77 @@
       "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"members\"}}}}"
     },
     {
-      "id": "structure/stage-missing-runner",
+      "id": "flow/stage-defaults",
       "result": {
-        "diagnostics": [
-          {
-            "code": "invalid_structure",
-            "correction": "Use blueprint schema or a bundled example for supported fields and values.",
-            "message": "missing field `runner`",
-            "path": "/flow/s",
-            "phase": "definition",
-            "related_paths": [],
-            "severity": "error"
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion.",
+            "Stage \"s\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"s\" requires no upstream evidence and uses default rules."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {
+            "s": {
+              "recipients": {
+                "kind": "members"
+              },
+              "requires": [],
+              "task_type": null
+            }
+          },
+          "roles": {},
+          "schema_version": 1,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
           }
-        ],
-        "explanation": null,
-        "normalized": null,
-        "semantic_hash": null,
-        "valid": false
+        },
+        "semantic_hash": "6f4e11faf3a984c5b6a6cbc52b3209f563e5e2aa9b6a4982acdbd8176ecae637",
+        "valid": true
       },
       "source": "{\"schema_version\": 1, \"flow\": {\"s\": {}}}"
     },
@@ -1263,7 +1301,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\"}]}}}"
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\"}]}}}"
     },
     {
       "id": "structure/requires-bad-evidence",
@@ -1284,7 +1322,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\", \"evidence\": \"x\"}]}}}"
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\", \"evidence\": \"x\"}]}}}"
     },
     {
       "id": "structure/count-negative",
@@ -1431,7 +1469,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": 5}}}"
+      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"task_type\": 5}}}"
     },
     {
       "id": "structure/task-type-nested-unknown-kind",
@@ -1650,7 +1688,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"task_types\": {\" \": {}}, \"flow\": {\"\\n\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}}, \"roles\": {\"r\": {}}}"
+      "source": "{\"schema_version\": 1, \"task_types\": {\" \": {}}, \"flow\": {\"\\n\": {}}, \"roles\": {\"r\": {}}}"
     },
     {
       "id": "rules/unknown_role",
@@ -1755,7 +1793,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"recipients\": {\"kind\": \"task_creator\"}}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"recipients\": {\"kind\": \"task_creator\"}}}}"
     },
     {
       "id": "rules/empty_selector",
@@ -1923,7 +1961,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": \"missing\"}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"task_type\": \"missing\"}}}"
     },
     {
       "id": "rules/unknown_stage",
@@ -1944,7 +1982,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"t\", \"evidence\": \"completion\"}]}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\", \"evidence\": \"completion\"}]}}}"
     },
     {
       "id": "rules/unavailable_evidence",
@@ -1965,7 +2003,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}, \"b\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}]}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {}, \"b\": {\"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}]}}}"
     },
     {
       "id": "rules/flow_cycle",
@@ -1986,7 +2024,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"b\", \"evidence\": \"completion\"}]}, \"b\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"completion\"}]}, \"c\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"requires\": [{\"stage\": \"b\", \"evidence\": \"completion\"}]}, \"b\": {\"requires\": [{\"stage\": \"a\", \"evidence\": \"completion\"}]}, \"c\": {}}}"
     },
     {
       "id": "rules/several",
@@ -2038,15 +2076,6 @@
             "severity": "error"
           },
           {
-            "code": "unknown_role",
-            "correction": "Declare the role in roles or reference an existing role.",
-            "message": "Role \"z\" is not declared",
-            "path": "/flow/s/runner/name",
-            "phase": "definition",
-            "related_paths": [],
-            "severity": "error"
-          },
-          {
             "code": "unknown_task_type",
             "correction": "Declare the task type or remove the reference to inherit the default rules.",
             "message": "Task type \"t\" is not declared",
@@ -2061,7 +2090,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}, \"publish\": {\"kind\": \"task_creator\"}}, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}, \"finish\": {\"kind\": \"role\", \"name\": \"y\"}}, \"flow\": {\"s\": {\"runner\": {\"kind\": \"role\", \"name\": \"z\"}, \"task_type\": \"t\"}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}, \"publish\": {\"kind\": \"task_creator\"}}, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}, \"finish\": {\"kind\": \"role\", \"name\": \"y\"}}, \"flow\": {\"s\": {\"task_type\": \"t\"}}}"
     },
     {
       "id": "rules/pointer-escaping",
@@ -2091,7 +2120,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"a/b~c\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x/y\"}}, \"flow\": {\"p/q\": {\"runner\": {\"kind\": \"role\", \"name\": \"a/b~c\"}, \"task_type\": \"m~n\"}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"a/b~c\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x/y\"}}, \"flow\": {\"p/q\": {\"task_type\": \"m~n\"}}}"
     },
     {
       "id": "explain/check-and-any",
@@ -3025,9 +3054,9 @@
             "Task type \"t\": completion requires a completion declaration by the contribution author on the exact candidate.",
             "Task type \"t\": the single member bound to role \"r\" may select one qualifying output; approval alone does not select it.",
             "Task type \"t\": no one may declare it finished; an empty task list is not completion.",
-            "Stage \"a\": the single member bound to role \"r\" runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"a\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to goal members.",
             "Stage \"a\" requires no upstream evidence and uses task type \"t\".",
-            "Stage \"b\": participant abababababababababababababababababababababababababababababababab runs this stage: it creates the configured task and durably delivers ready work to members bound to role \"r\" or goal members.",
+            "Stage \"b\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to members bound to role \"r\" or goal members.",
             "Stage \"b\" requires publication from \"a\" and eligible review from \"a\" and completion from \"a\" and selection from \"a\" and uses default rules."
           ]
         },
@@ -3052,10 +3081,6 @@
                 "kind": "members"
               },
               "requires": [],
-              "runner": {
-                "kind": "role",
-                "name": "r"
-              },
               "task_type": "t"
             },
             "b": {
@@ -3089,10 +3114,6 @@
                   "stage": "a"
                 }
               ],
-              "runner": {
-                "key": "abababababababababababababababababababababababababababababababab",
-                "kind": "participant"
-              },
               "task_type": null
             }
           },
@@ -3152,10 +3173,10 @@
             ]
           }
         },
-        "semantic_hash": "b6057f1c1e77a8b213344c1936abb3198fb37cb8c7ae52ac214d873c16d06a2b",
+        "semantic_hash": "5342e53f9068ae268aad0a763ba00b64c8a2059ee6ff41321ea943efbde5e044",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, \"selection\": {\"kind\": \"role\", \"name\": \"r\"}}}}, \"flow\": {\"a\": {\"runner\": {\"kind\": \"role\", \"name\": \"r\"}, \"task_type\": \"t\"}, \"b\": {\"runner\": {\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, \"recipients\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"r\"}, {\"kind\": \"members\"}]}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}, {\"stage\": \"a\", \"evidence\": \"publication\"}, {\"stage\": \"a\", \"evidence\": \"review\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}]}}}"
+      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, \"selection\": {\"kind\": \"role\", \"name\": \"r\"}}}}, \"flow\": {\"a\": {\"task_type\": \"t\"}, \"b\": {\"recipients\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"r\"}, {\"kind\": \"members\"}]}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}, {\"stage\": \"a\", \"evidence\": \"publication\"}, {\"stage\": \"a\", \"evidence\": \"review\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}]}}}"
     },
     {
       "id": "explain/name-escaping",

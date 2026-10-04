@@ -472,10 +472,6 @@ fn validate_binding<D: DefinitionLookup + ?Sized>(
     if decisions
         .flat_map(|rules| rules.selection.iter().chain(rules.finish.iter()))
         .any(|authority| !authority_ok(authority))
-        || definition
-            .flow
-            .values()
-            .any(|stage| !authority_ok(&stage.runner))
     {
         return Standing::Excluded(Exclusion::Precondition(
             "an authority must bind exactly one admitted principal",

@@ -47,9 +47,9 @@ daemon or silently fall back. Preserve the rejected state for inspection.
 
 ## Advance configured transitions
 
-The accepted D14 loop derives readiness as a pure projection. An explicitly
-configured runner with a signing key and applicable local grant signs the
-child-task, review-request or handoff effect. The daemon drives this loop after
+The accepted D14 loop derives readiness as a pure projection. The goal
+administrator's daemon, with its signing key and the local `flow` grant, signs
+the child-task, review-request or handoff effect of a configured stage. The daemon drives this loop after
 replay/ingestion/local action without asking an agent for every next step.
 
 Its logical effect identity binds rule context, trigger, scope, action and target.
@@ -74,7 +74,7 @@ outbox entries. Work offers, local attempt claims and managed-session process
 observations are separate records. Neither transport receipt nor agent
 acknowledgment proves that a remote process started.
 
-An unavailable runner blocks its configured transition; other replicas do
+An unavailable administrator blocks configured stage transitions; other replicas do
 not impersonate it. A recipient without local permission retains ready work
 instead of automatically executing it. A newly disputed proof stops affected
 undelivered offers and reports the change; it cannot silently undo a filesystem

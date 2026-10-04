@@ -75,7 +75,7 @@ pub fn presets() -> Vec<Preset> {
 
     let mut pipeline = Blueprint::default();
     pipeline.task_types.insert(
-        "reviewed".into(),
+        "draft".into(),
         TaskType {
             work: None,
             decisions: Some(DecisionRules {
@@ -89,26 +89,19 @@ pub fn presets() -> Vec<Preset> {
             }),
         },
     );
-    declare_role(
-        &mut pipeline,
-        "runner",
-        "Their Locust hands out each stage's work when it is ready. One person.",
-    );
     pipeline.flow.insert(
         "draft".into(),
         Stage {
-            runner: authority("runner"),
             recipients: Selector::Members,
-            task_type: None,
+            task_type: Some("draft".into()),
             requires: Vec::new(),
         },
     );
     pipeline.flow.insert(
-        "review".into(),
+        "ship".into(),
         Stage {
-            runner: authority("runner"),
             recipients: Selector::Members,
-            task_type: Some("reviewed".into()),
+            task_type: None,
             requires: vec![Prerequisite {
                 stage: "draft".into(),
                 evidence: EvidenceKind::Completion,
@@ -144,7 +137,7 @@ pub fn presets() -> Vec<Preset> {
         ),
         preset(
             "pipeline",
-            "A review stage requires completed draft evidence and uses a named peer-review task type.",
+            "A draft stage needs one review by another member; a ship stage starts when the draft is complete.",
             pipeline,
         ),
     ]

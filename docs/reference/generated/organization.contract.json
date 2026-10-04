@@ -255,13 +255,9 @@
               "kind": "members"
             },
             "requires": [],
-            "runner": {
-              "kind": "role",
-              "name": "runner"
-            },
-            "task_type": null
+            "task_type": "draft"
           },
-          "review": {
+          "ship": {
             "recipients": {
               "kind": "members"
             },
@@ -271,21 +267,13 @@
                 "stage": "draft"
               }
             ],
-            "runner": {
-              "kind": "role",
-              "name": "runner"
-            },
-            "task_type": "reviewed"
+            "task_type": null
           }
         },
-        "roles": {
-          "runner": {
-            "description": "Their Locust hands out each stage's work when it is ready. One person."
-          }
-        },
+        "roles": {},
         "schema_version": 1,
         "task_types": {
-          "reviewed": {
+          "draft": {
             "decisions": {
               "completion": {
                 "by": {
@@ -318,7 +306,7 @@
           ]
         }
       },
-      "description": "A review stage requires completed draft evidence and uses a named peer-review task type.",
+      "description": "A draft stage needs one review by another member; a ship stage starts when the draft is complete.",
       "name": "pipeline"
     }
   ],
@@ -784,10 +772,6 @@
             },
             "type": "array"
           },
-          "runner": {
-            "$ref": "#/$defs/Authority",
-            "description": "One explicitly bound principal whose daemon runs this stage."
-          },
           "task_type": {
             "default": null,
             "type": [
@@ -796,9 +780,6 @@
             ]
           }
         },
-        "required": [
-          "runner"
-        ],
         "type": "object"
       },
       "StartRule": {
