@@ -62,6 +62,32 @@ Each finding was reproduced or refuted by a second reviewer, with instrumented b
 
 Because SIM-3 is withdrawn, the row "Dialing with a remembered address" in the deadline table below is worth doing only for daemons run with lookup off; with lookup on, the transport consults discovery about 200 ms into a dial that has addresses.
 
+## Fix patch
+
+Prepared by the reviewer in scratch copies and not applied: `evidence/multi-machine-simulation/fixes.patch` (10 files, 620 lines) applies to `040da11`, and `simulator-on-fixes.patch` adds the simulator on top of it, with its model of the shell updated to match. The owner of the source decides whether to apply them.
+
+| Finding | Change | Before | After |
+|---|---|---|---|
+| SIM-6, shell half | In [network.rs](../crates/locust/src/daemon/network.rs), a connection that is not admitted is no longer closed while an exchange this daemon opened is in flight on it | 2 of 14 joins slow on real daemons while the inviter is busy (1.1 and 3.1 s) | 14 of 14 between 0.04 and 0.16 s |
+| SIM-6, driver half | In [driver.rs](../crates/locust-core/src/sync/driver.rs), each backoff wait falls between half the delay and the full delay, drawn from the node's entropy so a seed still reproduces a run | Simulator seed 5252 never joins; slowest join in 100,000 fault-free seeds 69.2 s | 10,000 seeds under faults pass; slowest join 23.5 s |
+| SIM-7 | When an exchange a peer opened completes, the driver clears its backoff toward that peer and, if the goal still wants keys or content, opens a fetch at once | Text after a peer returns: median 1.5 s, 90th percentile 30.5, longest 61.0 | Median 0.2 s, 90th percentile 1.0, longest 1.5 |
+| SIM-2 | The newest connection to an endpoint is used for new exchanges, and connections at least 2 seconds old are closed when a newer one arrives; the transport idle timeout is set to 15 seconds with a 5-second keep-alive in [locust-net](../crates/locust-net/src/lib.rs) | A note from a daemon restarted after `kill -9` readable on peers after 30.9 to 35.1 s | 0.6 to 3.9 s |
+| SIM-1 | The whole network teardown runs under one 5-second deadline, and the runtime shuts down under the same bound, so the process always exits | Candidate: never exits after a suspension | Bounded at 5 s. On the current source the hang did not reproduce (7 stops of suspended daemons all exited, the slowest in 3.1 s, spent in the transport's close) |
+
+Each change has a regression test that fails without it, except the idle timeout. Checked on the combined result: formatting and Clippy clean; 497 workspace tests passed, none failed, 11 ignored; 5,000 simulator seeds under 48,000 faults passed; the product-only patch passes its three crates' tests on its own.
+
+Left out on purpose:
+
+- **SIM-3** is withdrawn. A 5-second hinted dial was prototyped and removed: it changed nothing measurable and made a dial that fails both ways hold its permit for 35 seconds.
+- **SIM-5.** Waiting for a relay address before the first report fixed the early ticket but delayed start-up by up to 3 seconds without a network, before the local socket answers. That is a poor trade for a ticket issued in the first third of a second, so it was removed. A better fix is for `goal invite` to wait briefly when relays are enabled and no relay address is known yet.
+- **SIM-8** changes the engine contract (elapsed time at the seam).
+- **SIM-4** needs a sentence in the guide, or addresses carried between members, which is a design change.
+- **SIM-9** has its own patch in preparation.
+
+For a reviewer of the patch: the 15-second idle timeout is negotiated as the lower of both ends, so a patched daemon shortens it for unpatched peers too, and a process stalled for more than 15 seconds loses its connections; a restart within 2 seconds of connecting falls back to that timeout instead of being replaced at once; stopping can take up to 5 seconds, about 3 shortly after a suspension; and the jitter draws from the node's entropy, so simulator seed numbers quoted elsewhere in this note name different runs once the patch is applied.
+
+One observation from the fix work that is not yet explained: on real daemons, a goal's title was not readable on a new joiner within 15 seconds while the inviter kept writing, before and after the shell change (the joiner held the goal and its own membership within 0.2 seconds). It was measured before the SIM-7 change was combined in, which targets that kind of lag in the simulator; it should be re-measured on the combined patch.
+
 ## Findings to start on
 
 Found by the scenario runner against the candidate, before the [remediation](t1-remediation.md). None has been re-run against the current source, but the lines each one points at are unchanged at `ea72523`. They are new: none is among IR-1 to IR-36.

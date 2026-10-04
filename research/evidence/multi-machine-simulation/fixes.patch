@@ -1,0 +1,620 @@
+--- a/crates/locust/src/daemon/durable_tests.rs
++++ b/crates/locust/src/daemon/durable_tests.rs
+@@ -444,3 +444,144 @@
+     // Refused unauthenticated peers are closed; local service remains healthy.
+     agent.call(Request::Status).unwrap();
+ }
++
++#[test]
++fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
++    use locust_net::FrameLimits;
++    use locust_proto::invite::InviteSecret;
++    use locust_proto::sync::{Frontier, Refusal, SyncMessage};
++    let dir = short_dir();
++    let running = Running::start(dir.path());
++    running.enroll(1);
++    let mut agent = running.client(Credential([1; 32]), None);
++    tokio::runtime::Builder::new_current_thread()
++        .enable_all()
++        .build()
++        .unwrap()
++        .block_on(async {
++            let inviter = local_endpoint([93; 32]).await.unwrap();
++            let goal = GoalId([94; 32]);
++            let ticket = Invitation {
++                version: locust_proto::PROTOCOL_VERSION,
++                goal,
++                coordinator: locust_proto::crypto::Keypair::from_seed([95; 32]).public(),
++                endpoint: inviter.id(),
++                hints: inviter.hints(),
++                secret: InviteSecret([96; 32]),
++                expires_ms: None,
++            }
++            .to_ticket()
++            .unwrap();
++            agent.call(Request::GoalJoin { ticket }).unwrap();
++            let within = |seconds| Duration::from_secs(seconds);
++            let connection = tokio::time::timeout(within(10), async {
++                inviter.accept().await.unwrap().accept().await.unwrap()
++            })
++            .await
++            .expect("the joining daemon did not dial its inviter");
++            let mut join = connection.accept_link(FrameLimits::peer()).await.unwrap();
++            let hello = SyncMessage::Hello {
++                version: locust_proto::PROTOCOL_VERSION,
++                goal,
++            };
++            assert_eq!(join.recv().await.unwrap(), Some(hello.clone()));
++            assert!(matches!(
++                join.recv().await.unwrap(),
++                Some(SyncMessage::Join(_))
++            ));
++            // The inviter dials the joiner on the same connection before the
++            // joiner holds the goal, and is refused.
++            let mut link = connection.open_link(FrameLimits::peer()).await.unwrap();
++            link.send(&hello).await.unwrap();
++            link.send(&SyncMessage::Frontier(Frontier {
++                authors: Vec::new(),
++            }))
++            .await
++            .unwrap();
++            let reply = tokio::time::timeout(within(5), link.recv())
++                .await
++                .expect("timed out waiting for the refusal")
++                .unwrap();
++            assert_eq!(reply, Some(SyncMessage::Refused(Refusal::NotAMember)));
++            assert!(
++                tokio::time::timeout(within(2), connection.closed())
++                    .await
++                    .is_err(),
++                "the refused exchange closed the connection under the join in flight"
++            );
++            // Once the join itself ends, the unadmitted connection closes.
++            join.send(&SyncMessage::Refused(Refusal::NotAMember))
++                .await
++                .unwrap();
++            tokio::time::timeout(within(5), connection.closed())
++                .await
++                .expect("the unadmitted connection outlived its last exchange");
++            inviter.close().await;
++        });
++    agent.call(Request::Status).unwrap();
++}
++
++#[test]
++fn newer_connection_replaces_older_ones_from_the_same_endpoint() {
++    let dir = short_dir();
++    let running = Running::start(dir.path());
++    running.enroll(1);
++    let mut agent = running.client(Credential([1; 32]), None);
++    let goal = goal(&mut agent);
++    let Response::Invited { ticket } = agent
++        .call(Request::GoalInvite {
++            goal,
++            expires_ms: None,
++        })
++        .unwrap()
++    else {
++        panic!()
++    };
++    let daemon = Invitation::from_ticket(ticket.as_str()).unwrap();
++    tokio::runtime::Builder::new_current_thread()
++        .enable_all()
++        .build()
++        .unwrap()
++        .block_on(async {
++            // One identity three times: a peer and the processes that
++            // replace it after a crash, while its old sockets stay silent.
++            let mut peers = Vec::new();
++            let mut connections = Vec::new();
++            for _ in 0..2 {
++                let peer = local_endpoint([97; 32]).await.unwrap();
++                let connection = peer.connect(daemon.endpoint, &daemon.hints).await.unwrap();
++                connections.push(connection);
++                peers.push(peer);
++            }
++            // Two connections made together are simultaneous dials: both stay.
++            for connection in &connections {
++                assert!(
++                    tokio::time::timeout(Duration::from_millis(500), connection.closed())
++                        .await
++                        .is_err()
++                );
++            }
++            tokio::time::sleep(super::network::REPLACED_AFTER).await;
++            let restarted = local_endpoint([97; 32]).await.unwrap();
++            let newest = restarted
++                .connect(daemon.endpoint, &daemon.hints)
++                .await
++                .unwrap();
++            for connection in &connections {
++                tokio::time::timeout(Duration::from_secs(5), connection.closed())
++                    .await
++                    .expect("an older connection outlived the one that replaced it");
++            }
++            assert!(
++                tokio::time::timeout(Duration::from_millis(500), newest.closed())
++                    .await
++                    .is_err(),
++                "the newest connection was not kept"
++            );
++            restarted.close().await;
++            for peer in peers {
++                peer.close().await;
++            }
++        });
++    agent.call(Request::Status).unwrap();
++}
+--- a/crates/locust/src/daemon/mod.rs
++++ b/crates/locust/src/daemon/mod.rs
+@@ -167,7 +167,9 @@
+         Ok(())
+     });
+     let stopped = engine.shutdown();
+-    drop(runtime);
++    // Bounded like the transport teardown: blocking work the transport left
++    // behind cannot hold the process either.
++    runtime.shutdown_timeout(network::TEARDOWN);
+     drop(state);
+     served.and(stopped)
+ }
+--- a/crates/locust/src/daemon/network.rs
++++ b/crates/locust/src/daemon/network.rs
+@@ -2,6 +2,7 @@
+ //! the engine; each stream has one reader and one ordered writer.
+ 
+ use std::collections::HashMap;
++use std::future::Future;
+ use std::sync::Arc;
+ use std::sync::atomic::{AtomicBool, Ordering};
+ use std::sync::mpsc::Sender;
+@@ -27,15 +28,24 @@
+ /// This also bounds initial handshakes and connection admission; an admitted
+ /// exchange that keeps completing frames has no overall duration limit.
+ const IO_IDLE: Duration = Duration::from_secs(30);
++/// Longest the transport teardown may hold a stopping daemon. A healthy
++/// endpoint closes well within it; see [`Endpoint::close`].
++pub(crate) const TEARDOWN: Duration = Duration::from_secs(5);
+ /// Aggregate QUIC receive credit reserved for unauthenticated connections.
+ const UNADMITTED_RECEIVE_BYTES: usize = 64 * 1024 * 1024;
+ const EVIDENCE_FRAME_BYTES: usize = 2 * (MAX_HEADER_BYTES + 128);
+ fn admission_slots() -> usize {
+     (UNADMITTED_RECEIVE_BYTES / TransportBudget::default().connection_receive_bytes as usize).max(1)
+ }
++/// Age from which a held connection gives way to a newer one to the same
++/// endpoint. A peer dials again only when it no longer holds the old
++/// connection, as after a restart; a younger one is the other half of a
++/// simultaneous dial and is kept, up to the cap.
++pub(super) const REPLACED_AFTER: Duration = Duration::from_secs(2);
+ struct Connection {
+     connection: PeerConnection,
+     admitted: watch::Sender<bool>,
++    since: Instant,
+ }
+ 
+ pub(crate) async fn bind(secret_key: [u8; 32]) -> Result<Endpoint, Failure> {
+@@ -143,7 +153,8 @@
+                 NetworkOutput::Processed(done) => { let _ = done.send(()); }
+                 NetworkOutput::Action(action) => match action {
+                     PeerOutput::Open { exchange, endpoint: peer, hints } => {
+-                        let known = connections.get(&peer).and_then(|items| items.iter().find(|item| !item.connection.is_closed())).map(|item| (item.connection.clone(), item.admitted.clone()));
++                        // The newest connection: an older one may be to a process that is gone.
++                        let known = connections.get(&peer).and_then(|items| items.iter().rev().find(|item| !item.connection.is_closed())).map(|item| (item.connection.clone(), item.admitted.clone()));
+                         let events = events.clone();
+                         if let Some((connection, admission)) = known {
+                             tasks.spawn(open_link(connection, exchange, admission, events));
+@@ -185,15 +196,23 @@
+                     let peer = connection.remote_id();
+                     let held = connections.entry(peer).or_default();
+                     held.retain(|item| !item.connection.is_closed());
++                    // The newest connection replaces the older ones at once;
++                    // exchanges stalled on them end and are retried on it.
++                    let now = Instant::now();
++                    held.retain(|item| {
++                        let replaced = now.duration_since(item.since) >= REPLACED_AFTER;
++                        if replaced { item.connection.close(); }
++                        !replaced
++                    });
+                     // Keep the two connections needed by simultaneous dials.
+-                    // Later exchanges reuse them; extra connections close.
++                    // Later exchanges reuse the newer; extra connections close.
+                     if held.len() >= 2 {
+                         connection.close();
+                         if let Some(exchange) = opening { let _ = jobs.send(Job::Peer(PeerInput::OpenFailed(exchange))); }
+                         continue;
+                     }
+                     let (admission, admitted) = watch::channel(false);
+-                    held.push(Connection { connection: connection.clone(), admitted: admission.clone() });
++                    held.push(Connection { connection: connection.clone(), admitted: admission.clone(), since: now });
+                     let _ = jobs.send(Job::Peer(PeerInput::Connection { endpoint: peer, connected: true }));
+                     super::log(format_args!("locust: peer {peer} paths {:?}", connection.path_snapshot()));
+                     tasks.spawn(accept_links(connection.clone(), admission.clone(), events.clone(), stop.clone()));
+@@ -223,7 +242,15 @@
+                     }
+                 }
+                 Event::Ended(exchange) => {
+-                    if let Some(link) = exchanges.remove(&exchange) && !*link.connection_admitted.borrow() { link.connection.close(); }
++                    // An unadmitted connection closes with its exchange, but not
++                    // under an exchange this daemon opened on it: the inviter's
++                    // refused dial to a joiner shares the join's connection.
++                    if let Some(link) = exchanges.remove(&exchange)
++                        && !*link.connection_admitted.borrow()
++                        && !carries_own_exchange(&exchanges, &link.connection_admitted)
++                    {
++                        link.connection.close();
++                    }
+                 }
+             },
+             connection = endpoint.accept() => match connection {
+@@ -252,14 +279,43 @@
+             }
+         }
+     }
+-    tasks.abort_all();
+-    while tasks.join_next().await.is_some() {}
+-    for connection in connections.into_values().flatten() {
+-        connection.connection.close();
++    // One deadline for the whole teardown: the daemon exits whatever the
++    // transport does. The step it was abandoned in is logged.
++    let (step, reached) = watch::channel("stopping peer tasks");
++    let teardown = async {
++        tasks.abort_all();
++        while tasks.join_next().await.is_some() {}
++        for connection in connections.into_values().flatten() {
++            connection.connection.close();
++        }
++        step.send_replace("closing the peer endpoint");
++        endpoint.close().await;
++    };
++    if !finished_within(TEARDOWN, teardown).await {
++        super::log(format_args!(
++            "locust: peer transport teardown abandoned after {TEARDOWN:?} while {}",
++            *reached.borrow()
++        ));
+     }
+-    endpoint.close().await;
+ }
+ 
++/// Whether `teardown` completed before the deadline. Otherwise it is dropped.
++async fn finished_within(limit: Duration, teardown: impl Future<Output = ()>) -> bool {
++    tokio::time::timeout(limit, teardown).await.is_ok()
++}
++
++/// Whether an exchange this daemon opened is in flight on the connection
++/// that `admission` belongs to.
++fn carries_own_exchange(
++    exchanges: &HashMap<ExchangeId, Exchange>,
++    admission: &watch::Sender<bool>,
++) -> bool {
++    exchanges.iter().any(|(exchange, link)| {
++        matches!(exchange, ExchangeId::Dialed(_))
++            && link.connection_admitted.same_channel(admission)
++    })
++}
++
+ async fn open_link(
+     connection: PeerConnection,
+     exchange: ExchangeId,
+@@ -498,6 +554,15 @@
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++
++    #[tokio::test]
++    async fn teardown_that_never_completes_is_abandoned_at_its_deadline() {
++        let limit = Duration::from_millis(100);
++        let started = Instant::now();
++        assert!(!finished_within(limit, std::future::pending()).await);
++        assert!(started.elapsed() >= limit);
++        assert!(finished_within(TEARDOWN, async {}).await);
++    }
+ 
+     #[tokio::test]
+     async fn either_direction_progress_keeps_an_exchange_alive_until_both_stall() {
+--- a/crates/locust-core/src/node/peers.rs
++++ b/crates/locust-core/src/node/peers.rs
+@@ -275,6 +275,11 @@
+         }
+         let _ = self.land(tx);
+     }
++    fn random(&mut self) -> u64 {
++        let mut bytes = [0; 8];
++        self.entropy.borrow_mut().fill(&mut bytes);
++        u64::from_le_bytes(bytes)
++    }
+ }
+ 
+ impl<S: Store, E: Entropy> Node<S, E> {
+--- a/crates/locust-core/src/sync/driver.rs
++++ b/crates/locust-core/src/sync/driver.rs
+@@ -123,6 +123,10 @@
+     /// Records the outcome of an exchange about a goal. Not called for an
+     /// accepted exchange that never named one.
+     fn exchange_ended(&mut self, report: Report);
++
++    /// A number drawn from the node's entropy, which spreads retries so that
++    /// two daemons whose exchange failed together do not retry together.
++    fn random(&mut self) -> u64;
+ }
+ 
+ /// The exchange bookkeeping of one daemon. The node feeds it every
+@@ -131,10 +135,11 @@
+ /// It opens at most one exchange per (goal, endpoint) at a time. A goal that
+ /// changes while one is in flight runs once more after it ends. An endpoint
+ /// whose exchange failed is retried after a wait that starts at
+-/// [`MIN_BACKOFF_MS`] and doubles up to [`MAX_BACKOFF_MS`]; a completed
+-/// exchange clears it. Every pair is reconciled at least every
+-/// [`ANTI_ENTROPY_MS`] even when nothing changed here, which is what finds
+-/// changes a missed push left behind.
++/// [`MIN_BACKOFF_MS`] and doubles up to [`MAX_BACKOFF_MS`], each wait cut
++/// short by a random part of up to half drawn through [`Host::random`]; a
++/// completed exchange clears it, whichever side opened it. Every pair is
++/// reconciled at least every [`ANTI_ENTROPY_MS`] even when nothing changed
++/// here, which is what finds changes a missed push left behind.
+ #[derive(Debug, Default)]
+ pub struct Driver {
+     next_dialed: u64,
+@@ -413,7 +418,10 @@
+             // Exchanges opened before the last failure do not double it.
+             if now_ms >= backoff.retry_at_ms {
+                 backoff.delay_ms = (backoff.delay_ms * 2).clamp(MIN_BACKOFF_MS, MAX_BACKOFF_MS);
+-                backoff.retry_at_ms = now_ms + backoff.delay_ms;
++                // Both ends of a failed exchange back off; jitter keeps them
++                // from retrying in the same order again and again.
++                let jitter = host.random() % (backoff.delay_ms / 2);
++                backoff.retry_at_ms = now_ms + backoff.delay_ms - jitter;
+             }
+         }
+         host.exchange_ended(Report {
+@@ -427,6 +435,33 @@
+         });
+     }
+ 
++    /// A member's endpoint just completed an exchange it opened, so it is
++    /// reachable now: its backoff is cleared. Content and keys travel only on
++    /// exchanges this daemon opens, so when the exchange brought new events
++    /// and the goal still wants either, one opens at once rather than when
++    /// the backoff or anti-entropy says. Without new events nothing is
++    /// opened, so two daemons that want content neither holds do not keep
++    /// answering each other.
++    fn peer_completed(
++        &mut self,
++        host: &mut dyn Host,
++        goal: GoalId,
++        endpoint: EndpointId,
++        received: bool,
++        now_ms: u64,
++        out: &mut Vec<PeerOutput>,
++    ) {
++        self.backoff.remove(&endpoint);
++        let wants = received
++            && host.replica(&goal).is_some_and(|replica| {
++                replica.next_wanted_blob(None).is_some() || !replica.wanted_keys().is_empty()
++            });
++        if wants {
++            self.links.entry((goal, endpoint)).or_default().due = true;
++            self.poll(host, now_ms, out);
++        }
++    }
++
+     /// Feeds an accepted exchange its next frame. Emits `Admit` as soon as
+     /// the remote endpoint speaks for a member, before the answer.
+     fn accepted_step(
+@@ -456,8 +491,15 @@
+         send(exchange, &mut self.frames, out);
+         if let Some(ended) = responder.ended() {
+             out.push(PeerOutput::Finish(exchange));
+-            let _ = ended;
+             self.finishing_accepted.insert(number);
++            // The peer's `Done` arrived, whatever the transport makes of
++            // the finish that follows.
++            if let (Ended::Completed, Some(goal), true) =
++                (ended, responder.goal(), responder.is_admitted())
++            {
++                let (endpoint, received) = (responder.remote(), responder.received());
++                self.peer_completed(host, goal, endpoint, received, now_ms, out);
++            }
+         }
+     }
+     fn dialed_writable(&mut self, host: &mut dyn Host, number: u64, out: &mut Vec<PeerOutput>) {
+--- a/crates/locust-core/src/sync/responder.rs
++++ b/crates/locust-core/src/sync/responder.rs
+@@ -20,6 +20,7 @@
+     goal: Option<GoalId>,
+     admitted: bool,
+     evidence: bool,
++    received: bool,
+     ended: Option<Ended>,
+     outbox: Outbox,
+ }
+@@ -32,6 +33,7 @@
+             goal: None,
+             admitted: false,
+             evidence: false,
++            received: false,
+             ended: None,
+             outbox: Outbox::default(),
+         }
+@@ -57,6 +59,11 @@
+         self.evidence
+     }
+ 
++    /// True once the peer pushed an event this daemon did not hold.
++    pub fn received(&self) -> bool {
++        self.received
++    }
++
+     /// True once the exchange is over: after `Done`, or after a refusal.
+     pub fn is_finished(&self) -> bool {
+         self.ended.is_some()
+@@ -188,7 +195,7 @@
+                 next: 0,
+             }),
+             SyncMessage::Events(events) => {
+-                replica.receive(events)?;
++                self.received |= replica.receive(events)? > 0;
+             }
+             SyncMessage::InventoryRequest { author, after } => {
+                 self.outbox.task(Work::Inventory { author, after });
+--- a/crates/locust-core/src/sync/tests/content.rs
++++ b/crates/locust-core/src/sync/tests/content.rs
+@@ -50,3 +50,57 @@
+     assert!(left.holds_blob(&payload.hash));
+     assert_eq!(left.key(0), Some(testkit::content_key(1)));
+ }
++
++/// A peer that returns pushes its new event; the receiver, backed off from
++/// it for most of a minute, fetches the event's text and key at once
++/// instead of after its backoff runs out.
++#[test]
++fn a_returning_peers_push_is_followed_by_an_immediate_fetch() {
++    use crate::sync::Replica;
++    use locust_proto::testkit::{self, Author};
++    let founded = Founded::new();
++    let (payload, blob) = testkit::sealed_payload(&founded.goal, 0, b"written after waking");
++    let event =
++        Author::new(2).event_with(founded.goal, founded.anchor(), super::note(), Some(payload));
++    let mut right = founded.replica(std::slice::from_ref(&event));
++    right.add_blob(blob);
++    right.set_key(0, testkit::content_key(1));
++    let mut net = Net::new(vec![
++        host(1, founded.replica(&[]), &[1, 2]),
++        host(2, right, &[1, 2]),
++    ]);
++    // The first node keeps failing to reach the second until its wait has
++    // grown to a minute, with most of the last one still to run.
++    net.set_online(1, false);
++    for _ in 0..70 {
++        net.tick(1_000);
++    }
++    net.set_online(1, true);
++    net.poll(&[1]);
++    let left = net.host(0).replica_mut(&founded.goal);
++    assert!(left.ids().contains(&event.id()), "the event is pushed");
++    assert!(left.holds_blob(&payload.hash));
++    assert_eq!(left.key(0), Some(testkit::content_key(1)));
++}
++
++/// Two members that want an object neither holds do not answer each
++/// other's exchanges with new ones for ever: only an exchange that brought
++/// new events is followed by an immediate fetch.
++#[test]
++fn content_nobody_holds_does_not_start_a_fetch_loop() {
++    use locust_proto::sync::SyncMessage;
++    let founded = Founded::new();
++    let missing = BlobHash([7; 32]);
++    let mut left = founded.replica(&[]);
++    left.wants.insert(missing, 32);
++    let mut right = founded.replica(&[]);
++    right.wants.insert(missing, 32);
++    let mut net = Net::new(vec![host(1, left, &[1, 2]), host(2, right, &[1, 2])]);
++    net.poll(&[0]);
++    let requests = net
++        .log
++        .iter()
++        .filter(|(_, frame)| matches!(frame, SyncMessage::BlobRequest { .. }))
++        .count();
++    assert_eq!(requests, 1);
++}
+--- a/crates/locust-core/src/sync/tests/driver.rs
++++ b/crates/locust-core/src/sync/tests/driver.rs
+@@ -61,3 +61,31 @@
+         }
+     }
+ }
++
++/// Two daemons whose exchanges failed together retry apart: each wait is cut
++/// short by a part of up to half drawn from its host, so a bad order of
++/// events does not repeat on the same schedule for ever.
++#[test]
++fn failed_exchanges_retry_at_jittered_times() {
++    let founded = Founded::new();
++    let mut retried = Vec::new();
++    // The first wait is one second, and may lose up to 500 ms of it.
++    for draw in [0, 300, 1_700] {
++        let mut host = host(1, founded.replica(&[]), &[1, 2]);
++        host.random = vec![draw];
++        let mut driver = Driver::new();
++        let mut out = Vec::new();
++        driver.handle(&mut host, PeerInput::Poll, 0, &mut out);
++        let [PeerOutput::Open { exchange, .. }] = out.as_slice() else {
++            panic!("open");
++        };
++        let exchange = *exchange;
++        out.clear();
++        driver.handle(&mut host, PeerInput::OpenFailed(exchange), 6, &mut out);
++        retried.push((7..=1_006).find(|&now| {
++            driver.handle(&mut host, PeerInput::Poll, now, &mut out);
++            !out.is_empty()
++        }));
++    }
++    assert_eq!(retried, [Some(1_006), Some(706), Some(806)]);
++}
+--- a/crates/locust-core/src/sync/tests/host.rs
++++ b/crates/locust-core/src/sync/tests/host.rs
+@@ -24,6 +24,9 @@
+     /// Signs the admission of a joined key, anchored at the given event.
+     pub coordinator: Option<(Author, EventId)>,
+     pub reports: Vec<Report>,
++    /// What [`Host::random`] returns, in turn and then again from the start.
++    pub random: Vec<u64>,
++    draws: usize,
+     seen: BTreeMap<GoalId, u64>,
+ }
+ 
+@@ -38,6 +41,8 @@
+             admitted: BTreeMap::new(),
+             coordinator: None,
+             reports: Vec::new(),
++            random: vec![0],
++            draws: 0,
+             seen: BTreeMap::new(),
+         }
+     }
+@@ -169,5 +174,11 @@
+             }
+         }
+         self.reports.push(report);
++    }
++
++    fn random(&mut self) -> u64 {
++        let value = self.random[self.draws % self.random.len()];
++        self.draws += 1;
++        value
+     }
+ }
+--- a/crates/locust-net/src/lib.rs
++++ b/crates/locust-net/src/lib.rs
+@@ -19,7 +19,7 @@
+ 
+ use iroh::endpoint::{
+     Connection, ConnectionError, Incoming, NetReportConfig, PortmapperConfig, QuicTransportConfig,
+-    RecvStream, SendStream, presets,
++    RecvStream, SendStream, VarInt, presets,
+ };
+ use iroh::{EndpointAddr, Watcher};
+ use locust_proto::id::EndpointId;
+@@ -30,6 +30,12 @@
+ /// Protocol identifier negotiated by the authenticated Iroh handshake.
+ pub const SYNC_ALPN: &[u8] = b"locust/sync/0";
+ 
++/// A connection whose peer has been silent this long is closed: three missed
++/// keep-alives. A dead process or a sleeping machine is noticed in this time.
++pub const CONNECTION_IDLE: Duration = Duration::from_secs(15);
++/// How often an otherwise idle connection is kept alive.
++pub const KEEP_ALIVE: Duration = Duration::from_secs(5);
++
+ /// Transport category of an observed open network path.
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub enum PathKind {
+@@ -235,6 +241,10 @@
+             .receive_window(budget.connection_receive_bytes.into())
+             .datagram_receive_buffer_size(None)
+             .datagram_send_buffer_size(0)
++            .max_idle_timeout(Some(
++                VarInt::from_u32(CONNECTION_IDLE.as_millis() as u32).into(),
++            ))
++            .keep_alive_interval(KEEP_ALIVE)
+             .build();
+         let mut builder = iroh::Endpoint::builder(presets::Minimal)
+             .secret_key(iroh::SecretKey::from_bytes(&config.secret_key))
