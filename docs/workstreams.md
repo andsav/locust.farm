@@ -1,6 +1,6 @@
 # Crates and workstreams
 
-Date: 2026-10-03. **Current execution: T2 production-client campaigns and managed launch, recovery, ordinary-tool delivery and cancellation are implemented and locally exercised. The retained [production findings](../research/t2-production-qualification.md) distinguish passing paths from Droid failures and unrun account/approval/install gates. Operational workflows are next; the owner handles physical-machine testing separately. See [managed sessions](managed-clients.md) and section 10 of the [implementation plan](implementation-plan.md).**
+Date: 2026-10-03. **Current execution: T2 production-client campaigns and managed launch, recovery, ordinary-tool delivery and cancellation are implemented and locally exercised. The retained [production findings](../research/t2-production-qualification.md) distinguish passing paths from Droid failures and unrun account/approval/install gates. Operational workflows and packaging are next; owner-operated physical-machine and independent-account testing are deferred to final acceptance. See [managed sessions](managed-clients.md) and section 10 of the [implementation plan](implementation-plan.md).**
 
 **T1 baseline:** runtime remediation is implemented in `d253a07`; its identified
 protocol-1 artifact passes all 21 local three-process checks. The owner handles
@@ -100,7 +100,7 @@ These are conventions; nothing enforces them except the checks named below.
 
 ## Integration order
 
-**T2 and managed-session implementation below have retained local campaign results; operational workflows are the next checkpoint.** Remaining client qualification and owner-operated physical testing can proceed in parallel. The T1 physical-run instructions remain: test an identified integrated binary on the **two Macs currently available**, rather than wait for a third. Use the [two-Mac run guide](t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
+**T2 and managed-session implementation below have retained local campaign results; operational workflows are the next checkpoint.** Operational workflows, packaging and local installed-client checks can proceed first. Owner-operated physical testing and independent-account acceptance are deferred until the end, when the owner is available. Droid follow-up is lower priority. The T1 physical-run instructions remain: test an identified integrated binary on the **two Macs currently available**, rather than wait for a third. Use the [two-Mac run guide](t1-run.md), fix its failures, and keep three-peer fault coverage separate. The existing three-process local record remains valid for its recorded topology. Publication remains deferred.
 
 **Scaffolding** is done when these exist together: contract revision 2 complete (lane A); the core state machine and the SQLite store (lane A); the daemon shell with its socket and a CLI for the operations below (lane A); a transport that the daemon can bind and dial with contract types, with the hello-then-peer frame limit and delivery of a final frame (lane B; findings A-R1, A-R2 and A-R4 in the [lane A log](lane-a-log.md)).
 

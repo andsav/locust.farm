@@ -1,6 +1,6 @@
 # October 4 release evidence ledger
 
-**Status: production-client campaigns and managed-session implementation have local evidence; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is deferred by the owner. Operational workflows are next. Remaining client/account/installation qualification and the owner's two-Mac testing stay separate. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace detailed M0–M6 exit evidence or the conformance matrix.
+**Status: production-client campaigns and managed-session implementation have local evidence; no complete release gate is recorded as passed.** Original target: October 4, 2026, at night, America/Los_Angeles; publication is deferred by the owner. Operational workflows are next. Packaging and local installed-client checks precede the final two-Mac, sleep/wake and independent-account acceptance pass, deferred until the owner is available. Droid follow-up is lower priority. This ledger tracks the [implementation plan](implementation-plan.md); its summary rows do not replace detailed M0–M6 exit evidence or the conformance matrix.
 
 The repository owner decides release go/no-go and changes to required scope or support claims. Agents record failures and remediate them; they cannot waive requirements. The [review response](implementation-plan-review-response.md) explains the changes that introduced this register.
 

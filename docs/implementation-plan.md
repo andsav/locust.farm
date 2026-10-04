@@ -1,6 +1,6 @@
 # Locust implementation plan
 
-Updated: 2026-10-03. **Current execution: production-client campaigns and managed launch, recovery, delivery and cancellation are implemented and locally exercised. All four clients completed the real-model workspace flow in both roles; Droid required a fresh coordinator session after native resume failed. Four-client scripted managed lifecycle/recovery checks passed. Default interactive approval, automatic skill discovery, independent accounts and physical-machine qualification remain open. Next: operational workflows, then packaging. See [production findings](../research/t2-production-qualification.md), [managed sessions](managed-clients.md) and section 10.**
+Updated: 2026-10-03. **Current execution: production-client campaigns and managed launch, recovery, delivery and cancellation are implemented and locally exercised. All four clients completed the real-model workspace flow in both roles; Droid required a fresh coordinator session after native resume failed. Four-client scripted managed lifecycle/recovery checks passed. Default interactive approval, automatic skill discovery, independent accounts and physical-machine qualification remain open. Next: operational workflows and packaging; physical-machine and independent-account acceptance tests are deferred to the end. See [production findings](../research/t2-production-qualification.md), [managed sessions](managed-clients.md) and section 10.**
 
 **Prior T1 checkpoint:** persistent daemon, CLI and peer synchronization implemented; exact release candidate verified with three processes on one Mac. The physical-machine qualification uses the owner's two available Macs. The earlier October 4 release target is retained as planning history; the owner has since deferred publication. Neither that date nor this plan authorizes publication. The two-Mac first pass remains a separate qualification activity; three-peer checks and later release gates retain their separate evidence requirements. This document combines accepted design and remaining work; section 2 and the [release ledger](release-evidence.md) distinguish implementation from qualification.
 
@@ -336,7 +336,7 @@ Module/file ownership should be explicit before concurrent edits. Shared event t
 | Completed local foundation | Protocol/API 1 daemon, CLI, core, store and peer transport; identified candidate passes the three-process workflow | A-C3/A-C4; historical A-C1/A-C2 remain attributable to their earlier source/artifacts |
 | Completed T2 implementation | Production MCP bridge, operating skill, workspace snapshots and manifest-bound contribution review/accept/apply | A-C5/B-C9 at `8a7d170`: 483 passing Rust tests, nine explicit ignores, independent review and local real-core MCP/CLI integration |
 | Local production-client campaigns completed | Scripted production MCP and real-provider synthetic workspace task; all four clients in both roles | A-C6/B-C10: exact versions, artifacts, policies, explicit skill reads and public object IDs. Droid native resume and guarded native execution remain failed; broader account/approval/install gates remain open |
-| Parallel: physical qualification | Use one identified current artifact on two Macs; complete task acceptance, offline catch-up, restart and OS sleep/wake; add a third daemon for coordinator-offline exchange and retained-content fetch | Historical mixed-build join/note/assignment-readiness evidence exists; complete current-artifact qualification remains open. Retain hash/version, OS, routes and exact process/host topology |
+| Final acceptance: physical qualification | Use one identified current artifact on two Macs; complete task acceptance, offline catch-up, restart and OS sleep/wake; add a third daemon for coordinator-offline exchange and retained-content fetch | Historical mixed-build join/note/assignment-readiness evidence exists; complete current-artifact qualification remains open. Retain hash/version, OS, routes and exact process/host topology |
 | Managed implementation and local campaigns completed | Locally authorized launch/readiness/binding, explicit resume, ordinary-tool pending delivery, cancellation and conservative crash recovery for four clients | A-C7/B-C11: actual-binary normal and fault checks with exact separate artifact identities; no active hook, automatic wake or confinement claim |
 | Remaining product and release work | Complete operational workflows, diagnostics, platform packaging, installer/services and independent-collaborator qualification | Section 10 sequence, full M0–M6 exit evidence and exact artifact/platform/client matrix |
 | Publication: deferred | Revisit only when requested by the owner and after go/no-go | Public-artifact verification against the exact tested candidate |
@@ -447,6 +447,12 @@ results in A-C6/B-C10 and A-C7/B-C11. Failed and unrun qualification cases remai
 open. Step 4 is the next implementation/workflow checkpoint. This sequence does
 not authorize publication or replace M0–M6 acceptance criteria.
 
+**Owner sequencing update:** finish operational hardening, packaging and local
+installed-client verification before requesting physical-machine testing. The
+owner will be away; machine, sleep/wake and independent-account tests belong in
+the final acceptance pass. Droid follow-up is lower priority than Codex, Claude
+and Pi. This changes work order, not the evidence already recorded.
+
 1. **Production T2 campaigns executed; broader qualification remains open.**
    [Scripted and real-model harnesses](client-qualification.md) exercise the
    production daemon and MCP in four isolated clients. Real models explicitly
@@ -484,18 +490,7 @@ not authorize publication or replace M0–M6 acceptance criteria.
    discovered gaps and document retention/garbage-collection policy, metadata
    pins and active-transfer protection. Done means enforcing tests plus retained
    workflow results; no replacement key-rotation or document engine is planned.
-5. **Close physical-network and operational evidence in parallel.** The owner
-   continues the [two-Mac guide](t1-run.md) using one identified current artifact
-   and independent homes: task completion, offline catch-up, each daemon's
-   restart and OS sleep/wake. Add a third daemon for coordinator-offline exchange
-   and retained-content checks; record two-host and three-host topologies
-   accurately. Exercise separate networks, direct and forced-relay routes, an
-   independently operated alternate relay, discovery outage and unavailable
-   holders. Finish redacted diagnostics joined by task/event/session IDs and
-   measure binary size, idle CPU/memory/network, startup and transfer memory.
-   Done means retained route/recovery/resource records, with unsupported or
-   unavailable cases kept open rather than inferred from local tests.
-6. **Build platform packaging and the deterministic installer.** Add macOS CI
+5. **Build platform packaging and the deterministic installer.** Add macOS CI
    alongside the configured Linux checks. Build identified macOS arm64 and Linux
    x86_64 artifacts and smoke-test fresh-database write/read/restart. Implement
    the signed manifest/trust-root and withdrawn-version checks, installer,
@@ -506,16 +501,29 @@ not authorize publication or replace M0–M6 acceptance criteria.
    and report reload/discovery status. Resolve the owner's license,
    distribution-origin and signing-custody choices before release signing;
    local implementation and artifact testing can proceed without publication.
-7. **Qualify the complete installed experience.** On clean environments for each
-   claimed platform/client combination, use the same identified artifacts and
-   pasteable install prompt. Two people on separate machines and independent
-   accounts complete the mixed-client task without a shared forge account.
-   Cover all four clients in both roles, unmanaged CLI/MCP and claimed managed
-   lifecycle behavior, acceptance versus actual integration, disconnect/restart
-   and denied setup/reload paths. Lane C updates the website and first-contact
-   instructions from these verified commands and artifacts. Done means the full
-   M0–M6/ledger requirements are satisfied for the declared support matrix;
-   a local build or successful install alone does not close it.
+6. **Verify the local installed experience.** On available clean local test
+   environments, exercise the identified artifacts and pasteable install prompt.
+   Prioritize Codex, Claude and Pi: automatic skill/bridge discovery, normal
+   permission and denied setup paths, managed launch/resume, task completion,
+   contribution acceptance and actual application. Preserve unrelated settings
+   and dirty work. Finish redacted diagnostics joined by task/event/session IDs;
+   measure binary size, idle CPU/memory/network, startup and transfer memory.
+   Record unavailable platform/account cases for the final acceptance pass.
+   Lane C updates onboarding from verified commands and artifacts.
+7. **Final acceptance: physical machines, networks and independent accounts.**
+   Resume only when the owner is available, using the [two-Mac guide](t1-run.md)
+   and one identified candidate with independent homes/accounts. Verify task
+   completion, offline catch-up, each daemon's restart and real OS sleep/wake.
+   Add a third daemon for coordinator-offline exchange and retained-content
+   checks; record two-host and three-host topologies accurately. Exercise
+   separate networks, direct and forced-relay routes, an independently operated
+   alternate relay, discovery outage and unavailable holders. Two people complete
+   the installed mixed-client task without a shared forge account. Retain the
+   baseline client requirements in both coordinator and worker roles, unmanaged
+   CLI/MCP and each claimed managed lifecycle capability. Droid remains lower
+   priority, and any release support claim must match its actual evidence. Complete the
+   M0–M6/ledger requirements for the selected support matrix. Local simulations,
+   process suspension and successful installation do not substitute for this pass.
 8. **Publication remains deferred.** When the owner reopens it, review the exact
    candidate and all gate records for go/no-go, publish only the authorized
    artifacts and independently verify the public manifest, signatures, hashes
@@ -526,8 +534,8 @@ not authorize publication or replace M0–M6 acceptance criteria.
 have landed together with separate research evidence. Follow-up owners should
 keep qualification and runtime changes coordinated. Assign disjoint files before both touch `locust-adapter`, the CLI or
 shared types. Operational workflow tests and packaging can run in separate
-scopes against pinned interfaces; the owner retains physical/account testing,
-and lane C retains website/first-contact copy. None of these lanes silently
+scopes against pinned interfaces; the owner retains physical/account testing
+for final acceptance, and lane C retains website/first-contact copy. None of these lanes silently
 substitutes its evidence for another's.
 
 **Separate formal-model track:** rebase the delivered protocol-0 models to

@@ -11,8 +11,9 @@ implemented. Local production-client campaigns cover Codex, Claude Code, Droid
 and Pi, with exact successes, failures and limits in the
 [qualification findings](research/t2-production-qualification.md). Operational
 workflows, independent-account and installed-client qualification remain open.
-Continue physical task/recovery and sleep/wake testing on the two available Macs
-with the [T1 run guide](docs/t1-run.md). Public distribution is deferred.
+Physical task/recovery, sleep/wake and independent-account tests are deferred to
+the final acceptance pass, using the [T1 run guide](docs/t1-run.md). Public
+distribution is deferred.
 
 See the [implementation plan](docs/implementation-plan.md),
 [current workstreams](docs/workstreams.md) and
