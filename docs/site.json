@@ -341,7 +341,9 @@
     "docs/packaging.md",
     "research/organization-native-qualification.md",
     "research/linux-installation-qualification.md",
-    "research/organization-local-discovery.md"
+    "research/organization-local-discovery.md",
+    "docs/public-preview-release.md",
+    "research/evidence/public-preview-release-2026-10-04.json"
   ],
   "routes": [
     {

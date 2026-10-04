@@ -7,6 +7,15 @@ const output = resolve('build');
 const bytes = (path) => readFileSync(resolve(output, `.${path}`), 'utf8');
 const pageFile = (path) => (path === '/' ? '/index.html' : `${path}.html`);
 const index = JSON.parse(bytes('/docs/next/index.json'));
+const publication = JSON.parse(bytes('/docs/next/reference/availability.json')).publication;
+// Nginx serves these reviewed downloads outside the static website build.
+// Their public bytes are checked by the release acceptance campaign.
+const hostedDownloads = new Set([
+	publication.terminalInstallerUrl,
+	publication.installationGuideUrl,
+	publication.releaseMetadataUrl,
+	publication.downloadUrl
+]);
 const routes = [
 	'/',
 	'/start',
@@ -23,6 +32,7 @@ for (const route of routes) {
 	for (const match of html.matchAll(/<a\b[^>]*href="([^"]+)"/g)) {
 		const url = new URL(match[1], `https://locust.farm${route}`);
 		if (url.origin !== 'https://locust.farm') continue;
+		if (hostedDownloads.has(url.href)) continue;
 		const target = url.pathname.includes('.') ? url.pathname : pageFile(url.pathname);
 		assert.ok(
 			existsSync(resolve(output, `.${target}`)),

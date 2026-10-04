@@ -36,8 +36,11 @@
 			</p>
 			<CopyPrompt id="entry-prompt" text={ENTRY_PROMPT} />
 			<p class="note">
-				Locust is in early development. Setup is not published yet, so today your agent reports what
-				it found and stops. Nothing is installed. Availability reviewed {AVAILABILITY.reviewed};
+				The macOS Apple Silicon <a href={AVAILABILITY.publication.installationGuideUrl}
+					>terminal preview</a
+				>
+				is published. This first-contact route remains unqualified, so your agent reports what it found
+				and stops. Availability reviewed {AVAILABILITY.reviewed};
 				<a href="/docs/next/status">read the qualification boundaries</a>.
 			</p>
 		</section>

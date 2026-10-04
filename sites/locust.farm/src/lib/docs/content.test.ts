@@ -103,9 +103,10 @@ test('generated references and exact example assets share the exported Rust cont
 	assert.throws(() => resolveLink('../README.md', 'docs/guide/overview.md'), /Unapproved/);
 });
 
-test('availability keeps public setup unavailable and retains existing evidence sources', () => {
+test('availability distinguishes the published CLI from unqualified first-contact setup', () => {
 	const facts = JSON.parse(artifactFor('/docs/next/reference/availability.json')!.bytes);
-	assert.equal(facts.publication.software, 'unpublished');
+	assert.equal(facts.publication.software, 'published-developer-preview');
+	assert.equal(facts.publication.terminalInstallerUrl, 'https://locust.farm/downloads/install.sh');
 	assert.equal(facts.publication.installerUrl, null);
 	for (const client of Object.values(facts.clients) as { publicRoute: boolean }[])
 		assert.equal(client.publicRoute, false);

@@ -2,6 +2,10 @@
 
 **Current status: API 4 / protocol 4 is implemented; release
 qualification remains open.** The
+[macOS terminal developer preview](public-preview-release.md) is now publicly
+downloadable through a verified curl installer. It identifies the exact API-4
+binary, signing custody, notarization, public fetches and native qualification
+limits; it does not close the full production gates below. The
 [organization implementation ledger](formations-status.md) tracks
 the current runtime, full manual, native integration and V01–V22 scenarios.
 The earlier API 2 / protocol 2 baseline passed formatting, strict workspace
@@ -27,15 +31,16 @@ required here.
 
 Droid's native Execute child failed before its full workspace flow, key-only
 local mDNS still fails, and broader Merak gates remain unresolved. Physical
-machines, sleep/wake, independent accounts/real providers, production signing
-custody, canonical public artifacts and public-download acceptance remain open.
+machines, sleep/wake, independent accounts/real providers and broader platform
+acceptance remain open. Signing custody, canonical macOS preview artifacts and
+public-download acceptance are recorded in the terminal preview record.
 
 The R1–R10 table and dated records below preserve the earlier implementation
 plan's evidence. **Pre-organization-cutover candidates do not qualify the current
 API 4 / protocol 4 runtime.** Their historical version/hash, old operation names
 and format descriptions are retained as evidence rather than current operating
-instructions. Public release remains deferred by the owner; no complete release
-gate is recorded as passed.
+instructions. The owner authorized the terminal developer preview; no complete
+production release gate is recorded as passed.
 
 The repository owner decides release go/no-go and changes to required scope or support claims. Agents record failures and remediate them; they cannot waive requirements. The [review response](implementation-plan-review-response.md) explains the changes that introduced this register.
 
@@ -53,7 +58,7 @@ The repository owner decides release go/no-go and changes to required scope or s
 | R7 — Packaging and platform | M5: claimed macOS arm64/Linux x86_64 installs and the four-client matrix; fresh-DB write/read/restart; repeat install, current-format recovery, service and uninstall, including owned client-configuration cleanup | Partial; gate open | B-C7; A-C2; A-C4 (identified protocol-1 T1 candidate); A-C9/B-C13 (ten native macOS install/upgrade/launchd cases); A-C10/B-C14 (installed client setup/removal) |
 | R8 — Real collaboration | M6: two people/machines, mixed-client flows covering all four baseline clients, independent accounts, no shared forge, actual artifact and restart/reconnect | Not run | None |
 | R9 — Network and operations | M0/M2: direct/relayed paths, named relay/discovery operators, alternate relay, no-overlap status and redacted diagnostics | Partial; gate open | B-C1; B-C3; B-C4; A-C1; A-C2; A-C3/A-C4 (same-host component/artifact evidence); M1 observation and T1-M2-S1/S2 (mixed-build two-Mac join, note and assignment); A-C8/B-C12 (clock and same-host operational hardening) |
-| R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Partial; gate open | A-C2; A-C4; A-C9/B-C13 (explicit test trust and signed withdrawal implementation; production custody/public distribution open) |
+| R10 — Release integrity | M5/M6: owner-selected license, signing custody, manifest/withdrawal handling, exact tested artifact and public download verification | Partial; gate open | A-C2; A-C4; A-C9/B-C13 (test trust and signed withdrawal implementation); [macOS preview](public-preview-release.md) (publisher custody, signed exact artifact and verified public curl installation; full production scope open) |
 
 ## Partial component evidence — October 3
 

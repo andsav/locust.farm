@@ -10,7 +10,9 @@ The development runtime implements API 4 / protocol 4: offline formation
 inspection, private drafts and publication, taskless findings, independent
 attempts, exact review/completion, scoped selection and daemon-driven flow. CLI,
 MCP, workspace patches and managed-session adapters use the same typed contract.
-There is no published installer or public release.
+A [macOS Apple Silicon developer preview](docs/public-preview-release.md) is
+published with a verified curl installer. The public first-contact journey and
+full production release qualification remain open.
 
 Start with the [reader manual](docs/guide/overview.md), the executable
 [two-participant tutorial](docs/guide/collaboration.md), and the

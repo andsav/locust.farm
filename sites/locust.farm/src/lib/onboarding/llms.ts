@@ -30,7 +30,7 @@ export function llmsText(): string {
 
 	const status = SETUP_ARTIFACT
 		? 'Locust is in early development.'
-		: 'Locust is in early development. Setup is not published yet: there is nothing to install, and no harness route is qualified.';
+		: `Locust is in early development. A macOS Apple Silicon terminal preview is published: ${AVAILABILITY.publication.installationGuideUrl}. This first-contact harness route remains unqualified.`;
 
 	const questions = ROUTING_QUESTIONS.map(({ name, question }) => `   - ${name}: ${question}`).join(
 		'\n'

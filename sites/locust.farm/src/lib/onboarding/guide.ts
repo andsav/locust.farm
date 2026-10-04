@@ -13,8 +13,8 @@ export const GUIDE_URL = `https://locust.farm${GUIDE_PATH}`;
 export const ENTRY_PROMPT = `Read ${GUIDE_URL} and follow the instructions for agents. First tell me which harness you are and what you can use. Do not install or change anything until I approve.`;
 
 /**
- * Where Locust's canonical setup lives, once it is published. Until then the guide
- * tells agents to report and stop instead of installing anything.
+ * The qualified first-contact harness setup, once published. The terminal-only
+ * preview is listed separately and does not qualify this route.
  */
 export const AVAILABILITY = availability;
 export const SETUP_ARTIFACT: string | undefined =
@@ -104,7 +104,7 @@ export const AGENT_STEPS = {
 	route: 'Find your harness below. If it is not listed, use “Any other harness”.',
 	/** The last step while no setup is published. */
 	report:
-		'No setup is published and no route is qualified yet. Report your harness, your answers and your route’s prerequisite, then stop. Do not install, download or run anything for Locust.',
+		'The terminal preview is published, but this first-contact route is not qualified. Report your harness, your answers and your route’s prerequisite, then stop. Do not install, download or run anything for Locust.',
 	/** The last step once SETUP_ARTIFACT is set; it follows the link to the setup. */
 	approve: 'Show every change it would make and wait for the person to approve.'
 } as const;

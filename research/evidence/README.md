@@ -2,6 +2,7 @@
 
 These files preserve local characterization probes and captured results from 2026-10-03. Each names its target revision and distinguishes upstream research from Locust implementation evidence.
 
+- [Published terminal preview](public-preview-release-2026-10-04.json): exact API-4 binary and installer identities, publisher signatures, Apple notarization, native/scripted qualification limits, public HTTPS hashes and curl planning/install/reinstall; interpreted in the [release record](../../docs/public-preview-release.md).
 - [Local demo qualification](demo-qualification-2026-10-04.json): candidate and harness identities, native-client assertions, named administration, earlier failures and cleanup; interpreted in the [demo findings](../demo-qualification.md).
 - [Performance and cost measurements](performance-cost-2026-10-04.json): paired API-3 release binaries, schema bytes, CLI/MCP timings, context response hashes and full engine evaluation fingerprints; interpreted in the [performance report](../performance-cost-pass.md).
 - [Real-model shared-context pilot](shared-context-models-2026-10-04.json): separate Merak and Codex principals using GPT Luna on API 3; exact finding/read/acknowledgment and patch evidence, independent oracle, missing citation and recovered receipt error; interpreted in the [pilot findings](../shared-context-real-model-pilot.md).

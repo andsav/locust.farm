@@ -8,17 +8,17 @@ unqualified. Locust does not require Polaris to be available.
 
 ## Availability
 
-This is the unreleased development manual. Public installation is unavailable:
-there is no published installer or qualified public first-contact route.
-Use the [first-contact page](https://locust.farm/start) to identify your harness
-and report its available tools before changing your machine.
+This is the development manual. The macOS Apple Silicon terminal CLI is a
+[published developer preview](../public-preview-release.md); use the
+[curl installation instructions](https://locust.farm/downloads/install.md).
+The authenticated [first-contact page](https://locust.farm/start) still stops at
+harness capability reporting because its full public route is unqualified.
 
 The source includes a daemon, CLI, local MCP bridge, candidate installation and
 resumable client onboarding. Disposable macOS qualification exercised installed
 onboarding with Codex and Claude profiles. Configuration and authenticated daemon
 readiness are distinct from a native model discovering and calling Locust.
-No public distribution or real-model end-to-end qualification follows from those
-checks. This earlier candidate evidence does not qualify the API 4/protocol 4
+This earlier candidate evidence does not qualify the API 4/protocol 4
 organization replacement. The [onboarding evidence](../onboarding.md) records the actual boundary.
 
 ## Development direction

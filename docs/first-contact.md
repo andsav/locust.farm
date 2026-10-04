@@ -145,8 +145,9 @@ publication/qualification facts to the site and machine entry.
   earlier candidate checks do not qualify it or a native Polaris connector.
 - The site has a substantive [development manual](guide/README.md), versioned raw
   Markdown and machine inventory. A local build is not public deployment.
-  No public installer or qualified public first-contact route exists; agents
-  report capabilities and stop.
+  The [macOS terminal preview](public-preview-release.md) has a public curl
+  installer. The full public first-contact route remains unqualified; agents
+  using that route report capabilities and stop.
 
 The target journey above is not executable new-organization instructions.
 Historical universal-coordinator assumptions do not define the replacement model:

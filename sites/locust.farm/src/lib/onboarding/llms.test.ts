@@ -57,7 +57,8 @@ test('llms.txt carries the entry prompt and the guide’s instructions for agent
 test('llms.txt tells agents to stop while no setup is published', () => {
 	if (SETUP_ARTIFACT) return;
 	assert.ok(text.includes(`4. ${AGENT_STEPS.report}`));
-	assert.ok(text.includes('nothing to install'));
+	assert.ok(text.includes('terminal preview is published'));
+	assert.ok(text.includes('first-contact harness route remains unqualified'));
 	const links = text.match(/https?:\/\/[^\s)]+/g) ?? [];
 	for (const link of links) assert.equal(new URL(link).hostname, 'locust.farm', link);
 });

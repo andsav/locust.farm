@@ -13,6 +13,7 @@ the repository root to check coverage and local link paths.
 
 ## Index
 
+- [Published macOS terminal preview](public-preview-release.md): public curl installer, exact API-4 binary/signatures, native and public-download verification, and remaining readiness boundaries.
 - [Formations](formations.md): accepted product direction and agent/Polaris authoring requirements; API 4/protocol 4 runtime and authoring are implemented; current qualification is tracked separately.
 - [Formation implementation status](formations-status.md): current package checks, code-enforced boundaries and remaining native, networking, performance and release qualification.
 - [Formation implementation plan](formations-implementation-plan.md): phased greenfield runtime replacement, agent authoring, Polaris, qualification and release work; no migrations, backward compatibility or dead code; frozen authorized scope with explicit verification gates.
