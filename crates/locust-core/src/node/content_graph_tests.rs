@@ -1,8 +1,8 @@
 //! Typed reachability through real nodes, stores, and the peer driver.
 use super::*;
+use crate::node::content_graph::ManifestState;
 use crate::sync::{Host, Staged};
 use locust_proto::api::{ApiError, ErrorCode};
-use locust_proto::contribution::{Change, Contribution};
 use locust_proto::event::Body;
 use locust_proto::id::{BlobHash, EventId};
 use locust_proto::manifest::{Entry, Manifest};
@@ -82,6 +82,21 @@ fn root(input: BlobHash) -> Body {
             stage: None,
         },
     }
+}
+fn workspace_root(input: BlobHash) -> Body {
+    Body::WorkspaceProposed {
+        context: Context {
+            scope: Scope::Workspace,
+            round: EventId([0; 32]),
+        },
+        parent: None,
+        result_manifest: input,
+        sources: Vec::new(),
+    }
+}
+fn manifest_state(peer: &Peer, goal: GoalId, hash: BlobHash) -> Result<ManifestState, ApiError> {
+    peer.node
+        .workspace_manifest(&peer.node.goals[&goal], hash, Some(&peer.principal))
 }
 fn stage(peer: &mut Peer, goal: GoalId, blob: &Blob) -> Staged {
     Host::replica(&mut peer.node, &goal).unwrap().stage(
@@ -176,32 +191,14 @@ fn task_manifest_files_replicate_reopen_and_withdraw_without_sniffing_leaves() {
 }
 
 #[test]
-fn contribution_follows_only_base_and_head_and_artifacts_stay_opaque() {
+fn workspace_result_manifest_is_typed_and_generic_artifacts_stay_opaque() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
-    let before = put(&mut peers[0], goal, b"before");
-    let after = put(&mut peers[0], goal, b"after");
+    let shared = put(&mut peers[0], goal, b"shared");
     let unrelated = put(&mut peers[0], goal, b"unrelated");
-    let base = manifest(&mut peers[0], goal, vec![file("a", before, 6)]);
-    let head = manifest(&mut peers[0], goal, vec![file("a", after, 5)]);
     let artifact = manifest(&mut peers[0], goal, vec![file("secret", unrelated, 9)]);
-    let patch = put(
-        &mut peers[0],
-        goal,
-        &Contribution {
-            version: 1,
-            base,
-            head,
-            changes: vec![Change {
-                path: "a".into(),
-                before: Some(file("a", before, 6)),
-                after: Some(file("a", unrelated, 9)),
-            }],
-        }
-        .encode()
-        .unwrap(),
-    );
-    // A retained signed contribution is a content root without any attempt; validating the review against manifests is a separate concern.
+    let snapshot = manifest(&mut peers[0], goal, vec![file("a", shared, 6)]);
+    publish(&mut peers, goal, workspace_root(snapshot));
     publish(
         &mut peers,
         goal,
@@ -211,25 +208,23 @@ fn contribution_follows_only_base_and_head_and_artifacts_stay_opaque() {
                 round: EventId([0; 32]),
             },
             attempt: None,
-            base: None,
-            patch: Some(patch),
             sources: Vec::new(),
             artifacts: vec![artifact],
         },
     );
     rounds(&mut peers);
-    for (hash, expected) in [(before, b"before".as_slice()), (after, b"after".as_slice())] {
-        assert_eq!(get(&mut peers[1], goal, hash).unwrap(), expected);
-    }
-    for hash in [base, head, patch, artifact] {
-        assert!(peers[1].store.blob_len(&hash).unwrap().is_some());
-    }
+    assert_eq!(get(&mut peers[1], goal, shared).unwrap(), b"shared");
+    assert!(peers[1].store.blob_len(&artifact).unwrap().is_some());
     assert_eq!(
         get(&mut peers[1], goal, unrelated).unwrap_err().code,
         ErrorCode::NotFound
     );
+    assert!(matches!(
+        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        ManifestState::Ready { .. }
+    ));
     peers[1].restart();
-    assert_eq!(get(&mut peers[1], goal, after).unwrap(), b"after");
+    assert_eq!(get(&mut peers[1], goal, shared).unwrap(), b"shared");
 }
 
 #[test]
@@ -369,11 +364,23 @@ fn removed_principal_and_viewer_need_an_older_path_even_for_an_old_file() {
     propose(&mut peers[0], goal, wrong_old_manifest);
     rounds(&mut peers);
     assert!(peers[1].node.goals[&goal].keys.contains_key(&1));
+    // The host has already decoded this manifest using its remaining member's
+    // key. A removed reader still cannot consume that cached new-epoch tree.
+    assert_eq!(
+        manifest_state(&peers[1], goal, new_manifest)
+            .unwrap_err()
+            .code,
+        ErrorCode::Denied
+    );
     assert_eq!(
         get(&mut peers[1], goal, old_file).unwrap_err().code,
         ErrorCode::Denied
     );
     peers[1].principal = current;
+    assert!(matches!(
+        manifest_state(&peers[1], goal, new_manifest).unwrap(),
+        ManifestState::Ready { .. }
+    ));
     assert_eq!(get(&mut peers[1], goal, old_file).unwrap(), b"old bytes");
     peers[1].restart();
     assert!(matches!(
@@ -509,89 +516,220 @@ fn descendant_epoch_is_bounded_by_container_not_only_event_epoch() {
 }
 
 #[test]
-fn independent_contribution_bases_are_manifest_roots() {
+fn complete_workspace_snapshots_reuse_unchanged_opaque_files() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
-    let first = put(&mut peers[0], goal, b"base");
+    let unchanged = put(&mut peers[0], goal, b"base");
     let second = put(&mut peers[0], goal, b"head");
-    let base = manifest(&mut peers[0], goal, vec![file("a", first, 4)]);
-    let head = manifest(&mut peers[0], goal, vec![file("b", second, 4)]);
-    publish(
-        &mut peers,
+    let first = manifest(&mut peers[0], goal, vec![file("a", unchanged, 4)]);
+    let complete = manifest(
+        &mut peers[0],
         goal,
-        Body::ContributionPublished {
-            context: Context {
-                scope: Scope::Goal,
-                round: EventId([0; 32]),
-            },
-            attempt: None,
-            base: Some(base),
-            patch: None,
-            sources: Vec::new(),
-            artifacts: vec![],
-        },
+        vec![file("a", unchanged, 4), file("b", second, 4)],
     );
-    publish(
-        &mut peers,
-        goal,
-        Body::ContributionPublished {
-            context: Context {
-                scope: Scope::Goal,
-                round: EventId([0; 32]),
-            },
-            attempt: None,
-            base: Some(head),
-            patch: None,
-            sources: Vec::new(),
-            artifacts: vec![],
-        },
-    );
+    publish(&mut peers, goal, workspace_root(first));
+    publish(&mut peers, goal, workspace_root(complete));
     rounds(&mut peers);
-    assert_eq!(get(&mut peers[1], goal, first).unwrap(), b"base");
+    assert_eq!(get(&mut peers[1], goal, unchanged).unwrap(), b"base");
     assert_eq!(get(&mut peers[1], goal, second).unwrap(), b"head");
+    peers[1].call(Request::BlobWithdraw { goal, hash: first });
+    assert_eq!(get(&mut peers[1], goal, unchanged).unwrap(), b"base");
 }
 
 #[test]
-fn noncanonical_contribution_cannot_authorize_its_manifests() {
+fn manifest_readiness_distinguishes_missing_key_invalid_and_withdrawn() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
-    let base = BlobHash([91; 32]);
-    let head = BlobHash([92; 32]);
-    let mut plain = Contribution {
-        version: 1,
-        base,
-        head,
-        changes: vec![Change {
-            path: "a".into(),
-            before: None,
-            after: Some(file("a", BlobHash([93; 32]), 4)),
-        }],
+    let absent = BlobHash([91; 32]);
+    publish(&mut peers, goal, workspace_root(absent));
+    assert!(matches!(
+        manifest_state(&peers[1], goal, absent).unwrap(),
+        ManifestState::Missing
+    ));
+    let child = put(&mut peers[0], goal, b"file");
+    let snapshot = manifest(&mut peers[0], goal, vec![file("a", child, 4)]);
+    publish(&mut peers, goal, workspace_root(snapshot));
+    let key = peers[0].node.goals[&goal].keys[&0];
+    let LocalWrite::Put {
+        space,
+        key: record_key,
+        ..
+    } = crate::node::entry::key_write(&goal, 0, &key)
+    else {
+        unreachable!()
+    };
+    let mut tx = crate::node::commit::Tx::none();
+    tx.local(LocalWrite::Delete {
+        space,
+        key: record_key,
+    })
+    .touch(goal);
+    peers[1].node.land(tx).unwrap();
+    let sealed = Blob::new(peers[0].store.blob(&snapshot).unwrap().unwrap());
+    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    assert!(matches!(
+        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        ManifestState::KeyMissing { epoch: 0 }
+    ));
+    assert!(
+        Host::replica(&mut peers[1].node, &goal)
+            .unwrap()
+            .offer_key(0, key)
+    );
+    assert!(matches!(
+        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        ManifestState::Ready { .. }
+    ));
+    let mut invalid = Manifest {
+        entries: vec![file("a", child, 4)],
     }
     .encode()
     .unwrap();
-    plain.push(0);
-    let patch = put(&mut peers[0], goal, &plain);
-    publish(
-        &mut peers,
+    invalid.push(0);
+    let invalid = put(&mut peers[0], goal, &invalid);
+    publish(&mut peers, goal, workspace_root(invalid));
+    let sealed = Blob::new(peers[0].store.blob(&invalid).unwrap().unwrap());
+    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    assert!(matches!(
+        manifest_state(&peers[1], goal, invalid).unwrap(),
+        ManifestState::Invalid { .. }
+    ));
+    let before = peers[1].node.blob_index.stats(&goal);
+    manifest_state(&peers[1], goal, invalid).unwrap();
+    manifest_state(&peers[1], goal, invalid).unwrap();
+    let after = peers[1].node.blob_index.stats(&goal);
+    assert_eq!(before.manifest_decodes, after.manifest_decodes);
+    assert_eq!(after.cache_hits - before.cache_hits, 2);
+    peers[1].call(Request::BlobWithdraw {
         goal,
-        Body::ContributionPublished {
-            context: Context {
-                scope: Scope::Goal,
-                round: EventId([0; 32]),
-            },
-            attempt: None,
-            base: None,
-            patch: Some(patch),
-            sources: Vec::new(),
-            artifacts: vec![],
-        },
-    );
-    rounds(&mut peers);
-    assert_eq!(get(&mut peers[1], goal, patch).unwrap(), plain);
-    for hash in [base, head] {
-        assert_eq!(
-            get(&mut peers[1], goal, hash).unwrap_err().code,
-            ErrorCode::NotFound
-        );
+        hash: snapshot,
+    });
+    assert!(matches!(
+        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        ManifestState::Withdrawn
+    ));
+    peers[1].restart();
+    assert!(matches!(
+        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        ManifestState::Withdrawn
+    ));
+}
+
+#[test]
+fn growing_workspace_history_does_not_redecode_or_rescan_on_unrelated_work() {
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    let data = put(&mut peers[0], goal, b"same");
+    let started = std::time::Instant::now();
+    for size in 1..=128 {
+        let entries = (0..size)
+            .map(|index| file(&format!("file-{index:04}"), data, 4))
+            .collect();
+        let snapshot = manifest(&mut peers[0], goal, entries);
+        publish(&mut peers, goal, workspace_root(snapshot));
+        let sealed = Blob::new(peers[0].store.blob(&snapshot).unwrap().unwrap());
+        assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+        if [8, 32, 128].contains(&size) {
+            let before = peers[1].node.blob_index.stats(&goal);
+            for _ in 0..3 {
+                publish(
+                    &mut peers,
+                    goal,
+                    Body::ContributionPublished {
+                        context: Context {
+                            scope: Scope::Goal,
+                            round: EventId([0; 32]),
+                        },
+                        attempt: None,
+                        sources: Vec::new(),
+                        artifacts: vec![],
+                    },
+                );
+            }
+            let after = peers[1].node.blob_index.stats(&goal);
+            assert_eq!(before.history_rebuilds, after.history_rebuilds);
+            assert_eq!(before.manifest_decodes, after.manifest_decodes);
+            assert_eq!(after.event_roots - before.event_roots, 3);
+            eprintln!(
+                "workspace-index trees={size} entries={} decodes={} unrelated_root_visits={} rebuilds={} elapsed_ms={}",
+                size * (size + 1) / 2,
+                after.manifest_decodes,
+                after.event_roots - before.event_roots,
+                after.history_rebuilds,
+                started.elapsed().as_millis()
+            );
+        }
     }
+    assert_eq!(peers[1].node.blob_index.stats(&goal).manifest_decodes, 128);
+    let before = peers[0].node.blob_index.stats(&goal);
+    let removed = peers[1].principal;
+    peers[0].call(Request::MemberRemove {
+        goal,
+        member: removed,
+    });
+    rounds(&mut peers);
+    let after = peers[0].node.blob_index.stats(&goal);
+    assert!(after.history_rebuilds > before.history_rebuilds);
+    assert_eq!(after.manifest_decodes, before.manifest_decodes);
+    assert!(after.cache_hits > before.cache_hits);
+}
+
+#[test]
+fn cache_does_not_authorize_dropped_manifest_or_replaced_key() {
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    let data = put(&mut peers[0], goal, b"data");
+    let snapshot = manifest(&mut peers[0], goal, vec![file("a", data, 4)]);
+    publish(&mut peers, goal, workspace_root(snapshot));
+    rounds(&mut peers);
+    assert!(matches!(
+        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        ManifestState::Ready { .. }
+    ));
+    let before = peers[1].node.blob_index.stats(&goal);
+    let key = peers[1].node.goals[&goal].keys[&0];
+    let mut tx = crate::node::commit::Tx::none();
+    tx.local(crate::node::entry::key_write(
+        &goal,
+        0,
+        &locust_proto::crypto::ContentKey([99; 32]),
+    ))
+    .touch(goal);
+    peers[1].node.land(tx).unwrap();
+    assert!(!matches!(
+        manifest_state(&peers[1], goal, snapshot),
+        Ok(ManifestState::Ready { .. })
+    ));
+    assert!(get(&mut peers[1], goal, data).is_err());
+    let mut tx = crate::node::commit::Tx::none();
+    tx.local(crate::node::entry::key_write(&goal, 0, &key))
+        .touch(goal);
+    peers[1].node.land(tx).unwrap();
+    assert!(matches!(
+        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        ManifestState::Ready { .. }
+    ));
+    assert_eq!(
+        peers[1].node.blob_index.stats(&goal).manifest_decodes,
+        before.manifest_decodes
+    );
+    let mut tx = crate::node::commit::Tx::none();
+    tx.commit.drop_blobs.push(snapshot);
+    tx.touch(goal);
+    peers[1].node.land(tx).unwrap();
+    assert!(matches!(
+        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        ManifestState::Missing
+    ));
+    assert_eq!(
+        get(&mut peers[1], goal, data).unwrap_err().code,
+        ErrorCode::NotFound
+    );
+    let sealed = Blob::new(peers[0].store.blob(&snapshot).unwrap().unwrap());
+    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    assert_eq!(get(&mut peers[1], goal, data).unwrap(), b"data");
+    assert_eq!(
+        peers[1].node.blob_index.stats(&goal).manifest_decodes,
+        before.manifest_decodes
+    );
 }

@@ -4,8 +4,8 @@ A formation is the set of rules a goal follows, as one JSON document.
 
 ## What a formation contains
 
-A formation has `"schema_version": 1` and six parts, each with a default.
-`{"schema_version":1}` alone is the `open` preset.
+A formation has `"schema_version": 2` and seven parts, each with a default.
+`{"schema_version":2}` alone is the `open` preset.
 
 - `roles`: named groups of members.
 - `context`: `guidance` text and named `inputs`.
@@ -13,6 +13,7 @@ A formation has `"schema_version": 1` and six parts, each with a default.
 - `decisions`: when a result counts, who picks one, and who closes work.
 - `task_types`: alternative rule sets that a task can choose.
 - `flow`: steps that start in order.
+- `workspace`: optional shared-tree integrator and completion rule.
 
 Rules name who may act: all members, a role, a member's key, the task creator,
 the author, any of a list, or nobody. A formation never grants
@@ -57,6 +58,14 @@ locust contributions --goal GOAL
 ```
 
 Each command needs the matching permission.
+
+## Shared-tree acceptance
+
+A workspace policy chooses one integrator and the completion rule for exact tree
+proposals. The administrator pins it through an explicit workspace epoch.
+Integration advances the accepted shared tree; each participant separately
+updates their own directory. Generic task/document selection below does not
+advance that tree. See [the workspace guide](apply.md).
 
 ## Picking one result and closing work
 

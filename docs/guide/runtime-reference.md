@@ -6,7 +6,7 @@ without a daemon.
 
 ## Versions
 
-The runtime uses API 5, protocol 5, formation schema 1 and store schema 5.
+The runtime uses API 6, protocol 6, formation schema 2 and store schema 6.
 `locust --version` prints the version, API and
 protocol.
 
@@ -60,7 +60,8 @@ directory and credential paths, usually set through `LOCUST_HOME`,
 `LOCUST_CREDENTIAL` and `LOCUST_SESSION`. It refuses the owner credential. It supports MCP versions 2025-11-25, 2025-06-18 and 2025-03-26.
 
 A tool name is `locust_` plus the operation name with `_` for `.`, so
-`goal.status` becomes `locust_goal_status`. 51 of the 81 operations are tools.
+`goal.status` becomes `locust_goal_status`. The generated operation table identifies
+which operations are tools.
 Not tools: invitations, permission changes, enrollment, grants, `goal.join`,
 `goal.invite`, `task.authorize`, `blob.put`, `blob.get`, sessions, `inbox`,
 `daemon.stop` and the farm commands.
@@ -69,7 +70,8 @@ Not tools: invitations, permission changes, enrollment, grants, `goal.join`,
 
 `context read --goal GOAL --view full --limit N` returns goal context in pages.
 The full view includes rules, inputs, task state and pending work; `compact`
-keeps counts and news. Pass the previous page's `next` as `--after`.
+keeps counts and news. Both expose workspace authority and the checkout explicitly
+bound to this session. Pass the previous page's `next` as `--after`.
 
 A read in a session returns a `ctx:` reference.
 `context acknowledge --goal GOAL --receipt REF` marks that content read. Only
@@ -79,10 +81,28 @@ session.
 `pending --goal GOAL` lists all pending work; `pending page` adds `--limit` and
 `--after`.
 
-When you publish, name the events you used: `patch submit --source EVENT` or
-`contribution publish --sources '["EVENT"]'`.
+When publishing a generic finding, name assessed evidence with
+`contribution publish --sources '["EVENT"]'`. Workspace composition records its
+exact source proposals; those sources do not approve the combined candidate.
 `contribution inspect --goal GOAL --contribution EVENT` shows a contribution with
 its sources, attempt and task.
+
+## Shared workspace operations
+
+`workspace.head`, `workspace.tree`, `workspace.read`, `workspace.proposals`,
+`workspace.proposal` and `workspace.revision` inspect signed authority and verified
+content. MCP exposes the corresponding `locust_workspace_*` tools. Received file
+bytes are inert. File capture, copies and update journals run through the CLI,
+which durably registers exact candidates and recovery descriptors with the daemon.
+The daemon never opens a supplied host path.
+
+Bind a session with `checkout.bind_session` (MCP:
+`locust_checkout_bind_session`; CLI: `workspace bind --goal GOAL --checkout ID`).
+Context and pending responses then include this checkout's exact base and recovery
+state. `workspace.operation.show` and `workspace.operations` expose durable handles
+and receipts. Publication uses a prepared candidate; integration uses a prepared
+expected epoch/head and proposal; completion commits verified file disposition
+and the checkout base together. See the [workflow](apply.md).
 
 ## Events
 

@@ -102,7 +102,7 @@ mod tests {
     fn normalized_defaults_and_whitespace_are_equivalent() {
         let full =
             serde_json::to_string(&locust_proto::organization::Formation::default()).unwrap();
-        let diff = compare("{\"schema_version\":1}", &full);
+        let diff = compare("{\"schema_version\":2}", &full);
         assert_eq!(diff.equivalent, Some(true));
         assert!(diff.changes.is_empty());
         assert_eq!(diff.before.semantic_hash, diff.after.semantic_hash);
@@ -110,8 +110,8 @@ mod tests {
     #[test]
     fn exact_changes_escape_pointer_keys_and_preserve_values() {
         let diff = compare(
-            r#"{"schema_version":1,"roles":{"a/b~c":{"description":"old"}}}"#,
-            r#"{"schema_version":1,"roles":{"a/b~c":{"description":"new"}}}"#,
+            r#"{"schema_version":2,"roles":{"a/b~c":{"description":"old"}}}"#,
+            r#"{"schema_version":2,"roles":{"a/b~c":{"description":"new"}}}"#,
         );
         assert_eq!(diff.equivalent, Some(false));
         assert_eq!(diff.changes.len(), 1);
@@ -121,7 +121,7 @@ mod tests {
     }
     #[test]
     fn invalid_input_retains_side_diagnostics_without_equivalence_claim() {
-        let diff = compare(r#"{"schema_version":1}"#, r#"{"schema_version":2}"#);
+        let diff = compare(r#"{"schema_version":2}"#, r#"{"schema_version":1}"#);
         assert!(!diff.valid);
         assert_eq!(diff.equivalent, None);
         assert!(diff.before.diagnostics.is_empty());

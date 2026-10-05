@@ -29,6 +29,7 @@ pub(super) struct Verifier<'a, D: DefinitionLookup + ?Sized> {
     visiting: RefCell<BTreeSet<CacheKey>>,
     proofs: RefCell<BTreeMap<EventId, Result<Rc<Proof>, Standing>>>,
     resolved: RefCell<BTreeMap<Context, Result<Resolved, Standing>>>,
+    pub checkpoint_lineages: RefCell<BTreeMap<EventId, Result<BTreeSet<EventId>, Standing>>>,
     pub missing: RefCell<BTreeSet<Dependency>>,
     pub scope_halts: RefCell<BTreeMap<ScopeKey, Halt>>,
     witnesses: BTreeMap<EventId, Vec<EventId>>,
@@ -82,6 +83,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             visiting: RefCell::new(BTreeSet::new()),
             proofs: RefCell::new(BTreeMap::new()),
             resolved: RefCell::new(BTreeMap::new()),
+            checkpoint_lineages: RefCell::new(BTreeMap::new()),
             missing: RefCell::new(chain.missing.clone()),
             scope_halts: RefCell::new(BTreeMap::new()),
         }
@@ -143,11 +145,38 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         let h = event.header();
         // A scoped decision always validates its own authority and its own exact
         // proof. Another scope may not select a branch of this authority for it.
-        if matches!(h.body, Body::ScopeDecided { .. }) && proof.is_some() {
+        let checkpoint = proof.filter(|owner| self.checkpoint_contains(*owner, id));
+        if matches!(h.body, Body::ScopeDecided { .. }) && proof.is_some() && checkpoint.is_none() {
             return self.require(id, None);
         }
+        if let Some(owner) = checkpoint {
+            self.checkpoint_signer(event, owner)?;
+        }
         let exact = proof.map(|id| self.proof(id)).transpose()?;
-        let pins = exact.as_ref().map(|proof| &proof.retained);
+        // A later workspace decision may retain its own signer's exact earlier
+        // checkpoint branch. This scope-local continuation does not authorize
+        // that signer in other scopes or a sibling outside checkpoint ancestry.
+        let continuation = if proof.is_none()
+            && let Body::ScopeDecided {
+                context:
+                    Context {
+                        scope: Scope::Workspace,
+                        round,
+                    },
+                ..
+            } = h.body
+            && self.workspace_boundary(round).ok().flatten().is_some()
+            && self.checkpoint_signer(event, round).is_ok()
+        {
+            let mut retained = self.proof(round)?.retained.clone();
+            retained.insert(self.history.slot(&id).expect("event is held"));
+            Some(retained)
+        } else {
+            None
+        };
+        let pins = continuation
+            .as_ref()
+            .or_else(|| exact.as_ref().map(|proof| &proof.retained));
         let base = self
             .chain
             .authorize(self.history, event, pins, &mut self.missing.borrow_mut());
@@ -156,19 +185,31 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             // though neither branch belongs to the ordinary usable prefix.
             if base == Standing::Pending(Waiting::ForkProof)
                 && matches!(h.body, Body::ScopeDecided { .. })
-                && self.decision(event) == Err(Standing::Disputed)
+                && self.decision(event, None) == Err(Standing::Disputed)
             {
                 return Err(Standing::Disputed);
             }
             return Err(base);
         }
-        if h.body.is_governance() && !matches!(h.body, Body::TaskRevised { .. }) {
+        if h.body.is_governance()
+            && !matches!(
+                h.body,
+                Body::TaskRevised { .. } | Body::WorkspaceEpoch { .. }
+            )
+        {
             return Ok(());
         }
         if matches!(h.body, Body::ScopeDecided { .. }) {
-            return self.decision(event);
+            return self.decision(event, checkpoint);
+        }
+        if matches!(h.body, Body::WorkspaceEpoch { .. }) {
+            return self.workspace_epoch(event);
         }
         for dependency in h.body.dependencies() {
+            if matches!(h.body, Body::WorkspaceProposed { parent: Some(parent), .. } if dependency == parent)
+            {
+                continue;
+            }
             self.require(dependency, proof)?;
         }
         match &h.body {
@@ -315,8 +356,10 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 context, attempt, ..
             } => {
                 self.active_context(*context, event, proof)?;
-                if matches!(context.scope, Scope::Document(_)) {
-                    return Err(invalid("document revisions use their typed event"));
+                if matches!(context.scope, Scope::Document(_) | Scope::Workspace) {
+                    return Err(invalid(
+                        "documents and workspace candidates use their typed events",
+                    ));
                 }
                 let resolved = self.resolve(*context)?;
                 if !rules::matches(
@@ -338,6 +381,35 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     }
                 }
             }
+            Body::WorkspaceProposed {
+                context,
+                parent,
+                sources,
+                ..
+            } => {
+                if context.scope != Scope::Workspace {
+                    return Err(invalid("workspace proposal requires workspace scope"));
+                }
+                self.active_context(*context, event, proof)?;
+                let resolved = self.resolve(*context)?;
+                if resolved.effective.decisions.selection.is_none() {
+                    return Err(invalid("workspace writes are disabled in this epoch"));
+                }
+                if !rules::matches(
+                    &resolved.effective.work.publish,
+                    h.author,
+                    &resolved.effective,
+                    Some(h.author),
+                ) {
+                    return Err(invalid("principal may not publish workspace proposals"));
+                }
+                self.workspace_parent(*context, *parent, proof)?;
+                let mut distinct = BTreeSet::new();
+                if sources.iter().any(|source| !distinct.insert(*source)) {
+                    return Err(invalid("workspace source proposals must be distinct"));
+                }
+                self.source_authors(id)?;
+            }
             Body::CompletionDeclared { context, subject } => {
                 let author = self.subject(*subject, *context)?;
                 let resolved = self.resolve(*context)?;
@@ -355,11 +427,12 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             } => {
                 let author = self.subject(*subject, *context)?;
                 let resolved = self.resolve(*context)?;
-                if !rules::may_review(
+                if !rules::may_review_with_authors(
                     &resolved.effective.decisions.completion,
                     h.author,
                     &resolved.effective,
                     author,
+                    &self.source_authors(*subject)?,
                 ) {
                     return Err(invalid("reviewer is not eligible for this exact candidate"));
                 }
@@ -441,6 +514,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             | Body::MemberAdmitted { .. }
             | Body::MemberRemoved { .. }
             | Body::RulesBound { .. }
+            | Body::WorkspaceEpoch { .. }
             | Body::ScopeDecided { .. } => unreachable!(),
         }
         Ok(())
@@ -501,7 +575,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
     }
     pub fn subject(&self, id: EventId, context: Context) -> Result<PublicKey, Standing> {
         let event = self.event(id)?;
-        if !matches!(event.header().body,Body::ContributionPublished{context:subject,..}|Body::DocumentRevised{context:subject,..} if subject==context)
+        if !matches!(event.header().body,Body::ContributionPublished{context:subject,..}|Body::DocumentRevised{context:subject,..}|Body::WorkspaceProposed{context:subject,..} if subject==context)
         {
             return Err(invalid(
                 "evidence subject is not a contribution in this exact round",
@@ -574,6 +648,18 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
     ) -> Result<(), Standing> {
         let anchor = event.header().anchor.unwrap();
         match context.scope {
+            Scope::Workspace => {
+                if self
+                    .chain
+                    .snapshot(&anchor)
+                    .and_then(|snapshot| snapshot.workspace_epoch)
+                    != Some(context.round)
+                {
+                    return Err(invalid(
+                        "workspace context is fenced at its governance anchor",
+                    ));
+                }
+            }
             Scope::Task(task) => {
                 if self.current_round(task, anchor, proof)? != context.round {
                     return Err(invalid(
@@ -596,7 +682,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         }
         Ok(())
     }
-    fn decision(&self, event: &Event) -> Result<(), Standing> {
+    fn decision(&self, event: &Event, checkpoint: Option<EventId>) -> Result<(), Standing> {
         let Body::ScopeDecided {
             context,
             previous,
@@ -611,6 +697,14 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             purpose: action.purpose(),
         };
         let resolved = self.resolve(*context)?;
+        if context.scope == Scope::Workspace {
+            self.active_context(*context, event, checkpoint)?;
+            if !matches!(action, DecisionAction::Select { .. }) {
+                return Err(invalid(
+                    "workspace epochs manage enablement; closure decisions are invalid",
+                ));
+            }
+        }
         let authority = match action.purpose() {
             DecisionPurpose::Selection => resolved.effective.decisions.selection.as_ref(),
             DecisionPurpose::Closure => resolved.effective.decisions.finish.as_ref(),
@@ -638,7 +732,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 )
             })
             .collect();
-        if successors.len() > 1 {
+        if checkpoint.is_none() && successors.len() > 1 {
             let mut events = successors;
             events.sort();
             self.scope_halts.borrow_mut().insert(
@@ -656,7 +750,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             {
                 return Err(invalid("decision predecessor belongs to another stream"));
             }
-            self.require(*previous, None)?;
+            self.require(*previous, checkpoint)?;
         }
         let proof = self.proof(event.id()).inspect_err(|standing| {
             if *standing == Standing::Disputed {
@@ -665,21 +759,34 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     .insert(key, Halt::IncompatibleProof { event: event.id() });
             }
         })?;
-        self.require(context.round, Some(event.id()))?;
+        let proof_owner = checkpoint.or(Some(event.id()));
+        self.require(context.round, proof_owner)?;
         for root in evidence {
-            self.require(*root, Some(event.id()))?;
+            self.require(*root, proof_owner)?;
         }
         match action {
             DecisionAction::Select { subject } => {
-                self.require(*subject, Some(event.id()))?;
+                self.require(*subject, proof_owner)?;
                 self.subject(*subject, *context)?;
+                if context.scope == Scope::Workspace {
+                    let Body::WorkspaceProposed { parent, .. } =
+                        self.event(*subject)?.header().body
+                    else {
+                        unreachable!()
+                    };
+                    if parent != previous.or(self.workspace_boundary(context.round)?) {
+                        return Err(invalid(
+                            "workspace selection parent does not match predecessor or epoch checkpoint",
+                        ));
+                    }
+                }
                 if let Scope::Document(doc) = context.scope
                     && !matches!(self.event(*subject)?.header().body,Body::DocumentRevised{doc:target,..} if target==doc)
                 {
                     return Err(invalid("selection subject belongs to another document"));
                 }
                 if self
-                    .approval(*subject, Some(event.id()), Some(&proof.roots))?
+                    .approval(*subject, proof_owner, Some(&proof.roots))?
                     .is_none()
                 {
                     return Err(Standing::Pending(Waiting::Evidence));
@@ -697,8 +804,9 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
     ) -> Result<Option<BTreeSet<EventId>>, Standing> {
         self.require(subject, proof)?;
         let event = self.event(subject)?;
-        let (Body::ContributionPublished { context, .. } | Body::DocumentRevised { context, .. }) =
-            event.header().body
+        let (Body::ContributionPublished { context, .. }
+        | Body::DocumentRevised { context, .. }
+        | Body::WorkspaceProposed { context, .. }) = event.header().body
         else {
             return Err(invalid("completion subject is not a contribution"));
         };
@@ -722,6 +830,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         allowed: Option<&BTreeSet<EventId>>,
     ) -> Result<Option<BTreeSet<EventId>>, Standing> {
         let author = self.event(subject)?.header().author;
+        let authors = self.source_authors(subject)?;
         let mut found = BTreeSet::from([subject]);
         match rule {
             CompletionRule::Contribution { by } => {
@@ -783,7 +892,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 ) => {
                     *other == context
                         && *id == subject
-                        && (!exclude_author || principal != author)
+                        && (!exclude_author || !authors.contains(&principal))
                         && rules::matches(by, principal, &resolved.effective, Some(author))
                 }
                 (

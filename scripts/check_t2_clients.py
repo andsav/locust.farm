@@ -33,7 +33,7 @@ READ, WRITE, CLAIM, PROGRESS, WAIT = (
 ASSERTIONS = (
     "configuration", "network_isolation", "initialize", "tools_list", "default_read", "default_write",
     "scoped_daemon_authentication", "claim", "progress", "workspace_native_tool", "contribution_flow",
-    "selected_before_integrated", "dirty_work_preserved", "held_wait", "interruption", "explicit_resume",
+    "accepted_before_updated", "dirty_work_preserved", "held_wait", "interruption", "explicit_resume",
     "bridge_restart", "daemon_restart", "receipt_integrity", "client_execution", "default_interactive_approval",
     "real_model", "skill_discovery", "independent_accounts", "packaged_install")
 
@@ -220,26 +220,38 @@ def git(profile, directory, args):
                           capture_output=True, text=True, check=True).stdout.strip()
 
 
+def seed_workspace(daemon, root, paths, destination):
+    """Publish/review/accept a synthetic seed, then bind a fresh ordinary copy."""
+    completion = {"kind": "reviews", "by": {"kind": "members"}, "count": 1, "exclude_author": False}
+    arguments = ["workspace", "init", "--goal", daemon.goal, "--root", root,
+                 "--completion", json.dumps(completion), "--publish"]
+    for path in paths:
+        arguments += ["--path", path]
+    seed = daemon.call(arguments)
+    proposal = seed["operation"]["state"]["recorded"]["event"]
+    daemon.call(["review", "record", "--goal", daemon.goal, "--subject", proposal,
+                 "--verdict", "approve", "Harness-reviewed synthetic seed"])
+    accepted = daemon.call(["workspace", "integrate", "--goal", daemon.goal, "--proposal", proposal])
+    revision = accepted["workspace_operation"]["state"]["recorded"]["event"]
+    checkout = daemon.call(["workspace", "checkout", "--goal", daemon.goal, "--destination", destination])["checkout"]
+    return {"base": seed["candidate"]["result_manifest"], "seed_revision": revision,
+            "source_checkout": checkout["id"], "preview": seed["preview"]}
+
+
 def prepare_work(profile, daemon, client):
+    seed = profile.workspace / "seed"
+    seed.mkdir(mode=0o700)
+    private_write(seed / "code.txt", "before\n")
     source = profile.workspace / "source"
-    source.mkdir(mode=0o700)
-    git(profile, source, ["init", "-q"])
-    git(profile, source, ["config", "user.name", "Locust synthetic fixture"])
-    git(profile, source, ["config", "user.email", "qualification@example.invalid"])
-    private_write(source / "code.txt", "before\n")
-    git(profile, source, ["add", "code.txt"])
-    git(profile, source, ["commit", "-qm", "synthetic base"])
-    commit = git(profile, source, ["rev-parse", "HEAD"])
+    shared = seed_workspace(daemon, seed, ["code.txt"], source)
     private_write(source / "unrelated.txt", "local work\n")
-    base = daemon.call(["workspace", "export", "--goal", daemon.goal, "--root", source,
-                        "--commit", commit])["manifest"]
-    task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "--inputs", json.dumps({"snapshot": base}),
+    task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "--inputs", json.dumps({"snapshot": shared["base"]}),
                        "Update only code.txt in the synthetic qualification workspace"])["recorded"]["event"]
     offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
                              "--recipient", daemon.principal])["recorded"]["event"]
     daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
-    return {"source": str(source), "destination": str(profile.workspace / "worker"), "commit": commit,
-            "base": base, "task": task, "offer": offer, "goal": daemon.goal,
+    return {"source": str(source), "destination": str(profile.workspace / "worker"),
+            **shared, "task": task, "offer": offer, "goal": daemon.goal,
             "expected": "after-" + client + "\n", "principal": daemon.principal}
 
 
@@ -267,37 +279,42 @@ def call(*args):
     return body['result']
 w=settings['work']; goal=w['goal']; source=pathlib.Path(w['source'])
 claim=next(x for x in call('pending','--goal',goal)['pending']['claimed'] if x['task']==w['task'])
-preview=call('workspace','preview','--root',w['source'],'--commit',w['commit'])
-exported=call('workspace','export','--goal',goal,'--root',w['source'],'--commit',w['commit'])
-assert exported['manifest']==w['base']
-call('workspace','materialize','--goal',goal,'--manifest',w['base'],'--destination',w['destination'])
+checkout=call('workspace','checkout','--goal',goal,'--destination',w['destination'],
+              '--task',w['task'],'--attempt',claim['attempt'])['checkout']
+call('workspace','bind','--goal',goal,'--checkout',checkout['id'])
 path=pathlib.Path(w['destination'])/'code.txt'
 assert path.read_text()=='before\\n'
 path.write_text(w['expected'])
-patch=call('patch','create','--goal',goal,'--base',w['base'],'--root',w['destination'],'--path','code.txt')
-pid=patch['contribution_id']; head=patch['contribution']['head']
-review=call('patch','review','--goal',goal,'--patch',pid)
-assert len(review['changes'])==1 and '+after-' in review['changes'][0]['unified_diff']
-submitted=call('patch','submit','--goal',goal,'--patch',pid,'--attempt',claim['attempt'],
-               '--generation',str(claim['generation']),'Verified synthetic workspace change')
+frozen=call('workspace','propose','--goal',goal,'--checkout',checkout['id'],'--path','code.txt','--only')
+assert len(frozen['preview'])==1 and '+after-' in frozen['preview'][0]['unified_diff']
+published=call('workspace','publish','--goal',goal,'--operation',frozen['operation']['id'])
+proposal=published['workspace_operation']['state']['recorded']['event']
+review=call('workspace','review','--goal',goal,'--proposal',proposal)
+submitted=call('contribution','publish','--goal',goal,'--task',w['task'],'--attempt',claim['attempt'],
+               '--generation',str(claim['generation']),'--sources',json.dumps([proposal]),'Verified synthetic workspace proposal')
 rid=submitted['recorded']['event']
-call('review','record','--goal',goal,'--subject',rid,'--verdict','approve','Verified synthetic change')
-call('patch','select','--goal',goal,'--subject',rid)
-accepted=call('goal','status','--goal',goal)['goal_status']
+for subject in (proposal,rid):
+    call('review','record','--goal',goal,'--subject',subject,'--verdict','approve','Verified synthetic change')
+accepted=call('workspace','integrate','--goal',goal,'--proposal',proposal)
+revision=accepted['workspace_operation']['state']['recorded']['event']
+call('scope','select','--goal',goal,'--subject',rid)
 assert call('task','show','--goal',goal,'--task',w['task'])['task']['view']['selected']==rid
-assert accepted['workspace']['integrated']==w['base']
+before=call('workspace','status','--goal',goal,'--checkout',w['source_checkout'])
+assert before['checkout']['base_revision']==w['seed_revision']
+assert before['workspace']['head']['revision']==revision
 assert (source/'code.txt').read_text()=='before\\n'
-call('patch','apply','--goal',goal,'--subject',rid,'--root',w['source'],
-     '--expected-git-head',w['commit'])
-integrated=call('goal','status','--goal',goal)['goal_status']
-assert integrated['workspace']['integrated']==head
+call('workspace','update','--goal',goal,'--checkout',w['source_checkout'])
+integrated=call('workspace','status','--goal',goal,'--checkout',w['source_checkout'])
+assert integrated['checkout']['base_revision']==revision
 assert (source/'code.txt').read_text()==w['expected']
 assert (source/'unrelated.txt').read_text()=='local work\\n'
-receipt={'patch':pid,'head':head,'result':rid,'generation':claim['generation'],
-         'selected_before_integrated':True,'preview':preview,'review':review}
+assert not (source/'.git').exists()
+receipt={'proposal':proposal,'head':frozen['candidate']['result_manifest'],'revision':revision,'result':rid,
+         'generation':claim['generation'],'accepted_before_updated':True,'preview':frozen['preview'],'review':review}
 pathlib.Path(settings['receipt']).write_text(json.dumps(receipt))
-print(json.dumps({'workspace_driver':'completed','result':rid,'head':head}))
+print(json.dumps({'workspace_driver':'completed','result':rid,'revision':revision}))
 '''
+
 
 
 def workspace_driver(profile, daemon, work, timeout, *, cli=None):
@@ -529,13 +546,14 @@ def validate_workspace(checks, daemon, profile, work, receipt_path):
     result = daemon.call(["event", "show", "--goal", daemon.goal, "--event", receipt["result"]])["event"]
     passed = (task["view"]["completed"] is True and
               task["view"]["selected"] == receipt["result"] and result["view"]["author"] == daemon.principal and
-              status["workspace"]["integrated"] == receipt["head"] and
+              status["workspace"]["head"]["revision"] == receipt["revision"] and
+              receipt["proposal"] in result["body"]["contribution_published"]["sources"] and
               (Path(work["source"]) / "code.txt").read_text() == work["expected"])
     checks["contribution_flow"] = fixture.assertion("pass" if passed else "fail", "Independent task/event/head/binding and file observations agree with actual client-produced contribution", str(receipt_path))
-    checks["selected_before_integrated"] = fixture.assertion("pass" if receipt.get("selected_before_integrated") is True else "fail", "Client-executed driver observed selected contribution while source remained unchanged and source integration still identified the base", str(receipt_path))
+    checks["accepted_before_updated"] = fixture.assertion("pass" if receipt.get("accepted_before_updated") is True else "fail", "Client-executed driver observed accepted shared revision while source files and checkout base remained unchanged", str(receipt_path))
     untouched = ((Path(work["source"]) / "unrelated.txt").read_text() == "local work\n" and
-                 git(profile, work["source"], ["rev-parse", "HEAD"]) == work["commit"])
-    checks["dirty_work_preserved"] = fixture.assertion("pass" if untouched else "fail", "Independent file/HEAD checks preserve untracked local work and original commit")
+                 not (Path(work["source"]) / ".git").exists())
+    checks["dirty_work_preserved"] = fixture.assertion("pass" if untouched else "fail", "Independent file checks preserve untracked local work in a Git-free directory")
 
 
 def main(argv=None):
@@ -557,7 +575,7 @@ def main(argv=None):
             parser.error(name + " executable is missing")
         setattr(args, name, binary)
     clients = {client: fixture.checked_binary(getattr(args, client.replace("-", "_"))) for client in fixture.CLIENTS}
-    report = {"schema": "locust-t2-client-qualification", "schema_version": 1,
+    report = {"schema": "locust-t2-client-qualification", "schema_version": 2,
               "created_at": datetime.now(timezone.utc).isoformat(), "timeout_ms": args.timeout_ms,
               "evidence_level": "actual-client/scripted-provider/production-daemon/local-synthetic-workspace",
               "scope": "One host, same principal in worker/coordinator roles; not real-model, independent-account, peer, managed-launch or installed-release qualification",

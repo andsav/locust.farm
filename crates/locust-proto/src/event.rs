@@ -189,6 +189,7 @@ pub enum Scope {
     Goal,
     Task(TaskId),
     Document(Doc),
+    Workspace,
 }
 
 #[derive(
@@ -206,7 +207,8 @@ pub enum Scope {
 )]
 pub struct Context {
     pub scope: Scope,
-    /// RulesBound for goal/document scopes; TaskOpened/TaskRevised/effect for tasks.
+    /// RulesBound for goal/document scopes; TaskOpened/TaskRevised/effect for tasks;
+    /// WorkspaceEpoch for the shared file tree.
     pub round: EventId,
 }
 
@@ -380,6 +382,17 @@ impl Effect {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum WorkspaceCheckpoint {
+    Unseeded,
+    Revision(EventId),
+    /// Explicitly restore the inherited boundary before one prior transition.
+    RetainBefore {
+        epoch: EventId,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum Body {
     PublicationSet(crate::farm::PublicationSet),
     PublicationConsent(crate::farm::PublicationConsent),
@@ -396,6 +409,17 @@ pub enum Body {
     RulesBound {
         expected: Option<EventId>,
         binding: RulesBinding,
+    },
+    WorkspaceEpoch {
+        expected_epoch: Option<EventId>,
+        rules: EventId,
+        checkpoint: WorkspaceCheckpoint,
+    },
+    WorkspaceProposed {
+        context: Context,
+        parent: Option<EventId>,
+        result_manifest: BlobHash,
+        sources: Vec<EventId>,
     },
     TaskRevised {
         task: TaskId,
@@ -435,8 +459,6 @@ pub enum Body {
         attempt: Option<EventId>,
         /// Author-declared citations, not causal dependencies or proof of use.
         sources: Vec<EventId>,
-        base: Option<BlobHash>,
-        patch: Option<BlobHash>,
         artifacts: Vec<BlobHash>,
     },
     CompletionDeclared {
@@ -485,6 +507,7 @@ impl Body {
                 | Self::MemberAdmitted { .. }
                 | Self::MemberRemoved { .. }
                 | Self::RulesBound { .. }
+                | Self::WorkspaceEpoch { .. }
                 | Self::TaskRevised { .. }
         )
     }
@@ -497,6 +520,8 @@ impl Body {
             Self::MemberAdmitted { .. } => "member_admitted",
             Self::MemberRemoved { .. } => "member_removed",
             Self::RulesBound { .. } => "rules_bound",
+            Self::WorkspaceEpoch { .. } => "workspace_epoch",
+            Self::WorkspaceProposed { .. } => "workspace_proposed",
             Self::TaskRevised { .. } => "task_revised",
             Self::TaskOpened { .. } => "task_opened",
             Self::WorkOffered { .. } => "work_offered",
@@ -522,6 +547,7 @@ impl Body {
             Self::WorkOffered { context, .. }
             | Self::AttemptStarted { context, .. }
             | Self::ContributionPublished { context, .. }
+            | Self::WorkspaceProposed { context, .. }
             | Self::CompletionDeclared { context, .. }
             | Self::ReviewRecorded { context, .. }
             | Self::CheckAttested { context, .. }
@@ -552,6 +578,29 @@ impl Body {
             }
             Self::RulesBound { expected, .. } => {
                 ids.extend(expected);
+            }
+            Self::WorkspaceEpoch {
+                expected_epoch,
+                rules,
+                checkpoint,
+            } => {
+                ids.extend(expected_epoch);
+                ids.insert(*rules);
+                match checkpoint {
+                    WorkspaceCheckpoint::Unseeded => {}
+                    WorkspaceCheckpoint::Revision(revision) => {
+                        ids.insert(*revision);
+                    }
+                    WorkspaceCheckpoint::RetainBefore { epoch } => {
+                        ids.insert(*epoch);
+                    }
+                }
+            }
+            Self::WorkspaceProposed {
+                parent, sources, ..
+            } => {
+                ids.extend(parent);
+                ids.extend(sources);
             }
             Self::TaskOpened { binding } => {
                 ids.insert(binding.rules);
@@ -739,17 +788,15 @@ impl Header {
                 blobs.insert(binding.definition.object.hash);
                 blobs.extend(binding.inputs.values());
             }
+            Body::WorkspaceProposed {
+                result_manifest, ..
+            } => {
+                blobs.insert(*result_manifest);
+            }
             Body::TaskOpened { binding } | Body::TaskRevised { binding, .. } => {
                 blobs.extend(binding.inputs.values());
             }
-            Body::ContributionPublished {
-                base,
-                patch,
-                artifacts,
-                ..
-            } => {
-                blobs.extend(base);
-                blobs.extend(patch);
+            Body::ContributionPublished { artifacts, .. } => {
                 blobs.extend(artifacts);
             }
             Body::EffectMaterialized { effect } => {

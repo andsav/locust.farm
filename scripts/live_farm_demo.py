@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 ROLES = {
@@ -139,6 +140,32 @@ class Demo:
                                ": " + error.get("message", "operation failed"))
         return envelope["result"]
 
+    def proposal(self, proposal, role="coordinator", destination=None):
+        args = ["workspace", "review", "--goal", self.data["goal"], "--proposal", proposal]
+        if destination is not None:
+            args += ["--destination", destination]
+        return self.call(args, role=role)
+
+    def integrate(self, proposal):
+        # Signed review/declaration evidence must already exist for this exact candidate.
+        keys = self.data.setdefault("integration_operations", {})
+        if proposal not in keys:
+            keys[proposal] = uuid.uuid4().hex
+            self.save()
+        result = self.call(["--idempotency-key", keys[proposal], "workspace", "integrate",
+                            "--goal", self.data["goal"], "--proposal", proposal])
+        revision = result["workspace_operation"]["state"]["recorded"]["event"]
+        self.data["head_revision"] = revision
+        self.save()
+        return result
+
+    def update(self, role, revision=None):
+        checkout = self.data["checkouts"][role]
+        args = ["workspace", "update", "--goal", self.data["goal"], "--checkout", checkout]
+        if revision:
+            args += ["--revision", revision]
+        return self.call(args, role=role)
+
     def start(self):
         if not self.binary.is_file():
             raise RuntimeError("Run prepare first")
@@ -168,6 +195,8 @@ class Demo:
         raise RuntimeError("Demo daemon did not become ready; inspect its private log")
 
     def prepare(self, binary, clients, service):
+        if self.data and self.data.get("schema") != 2:
+            raise RuntimeError("This shared-tree controller requires fresh schema-2 state; retained earlier demo state uses its historical binary")
         if self.data.get("prepared"):
             self.start()
             return self.status()
@@ -176,7 +205,7 @@ class Demo:
         if not self.binary.exists():
             private_write(self.binary, Path(binary).read_bytes(), executable=True)
         if not self.data:
-            self.data = {"schema": 1, "clients": clients, "service": service,
+            self.data = {"schema": 2, "clients": clients, "service": service,
                      "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                      "agents": {}, "phases": {}, "topology": "four principals on one local daemon"}
         self.start()
@@ -237,29 +266,38 @@ class Demo:
         base = self.root / "base"
         base.mkdir(mode=0o700, exist_ok=True)
         private_create(base / "README.md", BRIEF)
-        if not (base / ".git").exists():
-            subprocess.run(["git", "init", "-q", str(base)], check=True)
-        head = subprocess.run(["git", "-C", str(base), "rev-parse", "--verify", "HEAD"], capture_output=True, text=True)
-        if head.returncode:
-            subprocess.run(["git", "-C", str(base), "add", "README.md"], check=True)
-            subprocess.run(["git", "-C", str(base), "-c", "user.name=Locust demo", "-c", "user.email=demo@locust.farm",
-                            "commit", "-qm", "docs: define the tiny chat demo"], check=True)
-        commit = subprocess.check_output(["git", "-C", str(base), "rev-parse", "HEAD"], text=True).strip()
-        if not self.data.get("base"):
-            binding = self.call(["goal", "status", "--goal", goal])["goal_status"].get("workspace") or {}
-            if binding.get("export_root") == str(base) and binding.get("source_commit") == commit and binding.get("exported"):
-                self.data["base"] = binding["exported"]
-            else:
-                self.data["base"] = self.call(["workspace", "export", "--goal", goal, "--root", base, "--commit", commit])["manifest"]
+        if not self.data.get("seed_operation"):
+            if not self.data.get("seed_key"):
+                self.data["seed_key"] = uuid.uuid4().hex
+                self.save()
+            preview = self.call(["--idempotency-key", self.data["seed_key"], "workspace", "init", "--goal", goal, "--root", base,
+                                 "--path", "README.md"])
+            self.data["seed_operation"] = preview["operation"]["id"]
             self.save()
+        if not self.data.get("seed_proposal"):
+            published = self.call(["workspace", "publish", "--goal", goal,
+                                   "--operation", self.data["seed_operation"]])
+            self.data["seed_proposal"] = published["workspace_operation"]["state"]["recorded"]["event"]
+            self.save()
+        if not self.data.get("seed_revision"):
+            self.proposal(self.data["seed_proposal"])
+            self.call(["completion", "declare", "--goal", goal, "--subject", self.data["seed_proposal"]])
+            accepted = self.integrate(self.data["seed_proposal"])
+            self.data["seed_revision"] = accepted["workspace_operation"]["state"]["recorded"]["event"]
+            self.save()
+        self.data.setdefault("checkouts", {})
         for role in ROLES:
             destination = self.workspace(role)
             if destination.exists():
-                binding = self.call(["goal", "status", "--goal", goal], role=role)["goal_status"].get("workspace") or {}
-                if binding.get("destination") != str(destination) or binding.get("integrated") != self.data["base"]:
-                    raise RuntimeError("Existing workspace requires explicit reconciliation: " + str(destination))
+                checkouts = self.call(["checkouts", "--goal", goal], role=role)["checkouts"]
+                bindings = [bound for bound in checkouts if bound["root"] == str(destination.resolve())]
+                if len(bindings) != 1 or bindings[0]["base_revision"] != self.data["seed_revision"]:
+                    raise RuntimeError("Existing checkout requires explicit reconciliation: " + str(destination))
+                self.data["checkouts"][role] = bindings[0]["id"]
             else:
-                self.materialize(role, self.data["base"], destination)
+                self.checkout(role, self.data["seed_revision"], destination)
+            self.call(["workspace", "bind", "--goal", goal, "--checkout", self.data["checkouts"][role]], role=role)
+            self.save()
         self.data["prepared"] = True
         self.save()
         return self.status()
@@ -296,11 +334,14 @@ class Demo:
         override = self.data.get("workspaces", {}).get(role)
         return Path(override) if override else self.root / "workspaces" / role
 
-    def materialize(self, role, manifest, destination):
+    def checkout(self, role, revision, destination):
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        return self.call(["workspace", "materialize", "--goal", self.data["goal"],
-                          "--manifest", manifest, "--destination", destination], role=role)
+        result = self.call(["workspace", "checkout", "--goal", self.data["goal"],
+                            "--revision", revision, "--destination", destination], role=role)
+        self.data.setdefault("checkouts", {})[role] = result["checkout"]["id"]
+        self.save()
+        return result
 
     def board(self):
         return self.call(["board", "--goal", self.data["goal"]])["board"]
@@ -318,7 +359,7 @@ class Demo:
             args += ["--task", task]
         return self.call(args)["contributions"]
 
-    def launch(self, role, phase, prompt, stage=None, base=None):
+    def launch(self, role, phase, prompt, stage=None, revision=None):
         self.start()
         prior = self.data["phases"].get(phase)
         if prior and prior.get("finished"):
@@ -347,12 +388,21 @@ Use real progress reports when work changes; do not generate artificial activity
 """
         if claim:
             instructions += "\nThe local controller already authorized and started your exact attempt:\n" + json.dumps(claim) + "\n"
-            instructions += f"""Use this attempt and generation. Before any completed report, capture your actual changed files with
-`{wrapper} patch create --goal {goal} --root {self.workspace(role)} --base {base or self.data['base']} --path FILE` (repeat --path),
-then `patch submit --goal {goal} --patch PATCH --attempt {claim['attempt']} --generation {claim['generation']} 'summary'`.
-Include --source CONTRIBUTION for prerequisite work you actually used. Read command help if needed.
-Only after publishing the patch, report the attempt completed through Locust. Do not select or close the goal.
-No commit is needed in your materialized workspace. Publish actual checks and failures honestly.
+            checkout = self.data["checkouts"][role]
+            instructions += f"""Use this attempt and generation. Your registered checkout is {checkout}.
+Read `workspace status --goal {goal} --checkout {checkout}`. If you need accepted revision {revision or self.data['seed_revision']},
+inspect its exact proposal with `workspace review`, then explicitly `workspace update --goal {goal} --checkout {checkout} --revision REVISION`.
+Before a completed report, freeze actual managed changes plus explicitly selected new regular files:
+`{wrapper} workspace propose --goal {goal} --checkout {checkout} --path NEW_FILE` (repeat --path only for new files; no directory recursion).
+Read the returned frozen preview, then `{wrapper} workspace publish --goal {goal} --operation OPERATION_ID` without recapturing.
+Read `workspace review --goal {goal} --proposal PROPOSAL_EVENT` for the exact published snapshot.
+Publish a separate `contribution publish --goal {goal} --task {claim['task']} --attempt {claim['attempt']} --generation {claim['generation']}
+--sources '["PROPOSAL_EVENT"]' --artifacts '[]' --summary 'actual checks and result'`.
+For a read-only verification with no changes, cite the accepted proposal you actually checked instead of manufacturing a changed snapshot.
+Only then report the attempt completed through Locust. Task reports cite proposal events; they do not integrate files.
+Record review/declaration evidence on an exact workspace proposal before `workspace integrate`; only the coordinator may integrate.
+Update each checkout explicitly after acceptance. Do not select or close the goal unless this phase's user prompt authorizes it.
+No Git repository or commit is needed. Publish actual checks and failures honestly.
 """
         full = instructions + "\n" + prompt
         private_write(self.root / "prompts" / (phase + ".txt"), full)
@@ -400,12 +450,16 @@ No commit is needed in your materialized workspace. Publish actual checks and fa
             self.save()
             raise RuntimeError("Native phase failed; inspect private log: " + phase)
         if claim:
-            contributions = [c for c in self.contributions(claim["task"]) if c["attempt"] == claim["attempt"] and c["patch"]]
-            if not contributions:
+            proposals = {p["proposal"]: p for p in self.call(["workspace", "pending", "--goal", goal], role=role)["workspace_proposals"]}
+            reports = [c for c in self.contributions(claim["task"]) if c["attempt"] == claim["attempt"]
+                       and len(c["sources"]) == 1 and c["sources"][0] in proposals]
+            if not reports:
                 self.save()
-                raise RuntimeError("Native phase did not publish an actual patch: " + phase)
-            row["contribution"] = contributions[-1]["contribution"]
-            row["artifact"] = contributions[-1]["artifacts"][0]
+                raise RuntimeError("Native phase did not publish a task report citing an exact workspace proposal: " + phase)
+            report = reports[-1]
+            row["contribution"] = report["contribution"]
+            row["proposal"] = report["sources"][0]
+            row["result_manifest"] = proposals[row["proposal"]]["result_manifest"]
         row["finished"] = True
         self.save()
         print(json.dumps({"phase": phase, "state": "finished", "contribution": row.get("contribution")}), flush=True)
@@ -436,7 +490,16 @@ def main():
     launch.add_argument("--role", choices=ROLES, required=True)
     launch.add_argument("--phase", required=True)
     launch.add_argument("--stage")
-    launch.add_argument("--base")
+    launch.add_argument("--revision")
+    review = commands.add_parser("review")
+    review.add_argument("--proposal", required=True)
+    review.add_argument("--role", choices=ROLES, default="reviewer")
+    review.add_argument("--destination", type=Path)
+    integrate = commands.add_parser("integrate")
+    integrate.add_argument("--proposal", required=True)
+    update = commands.add_parser("update")
+    update.add_argument("--role", choices=ROLES, required=True)
+    update.add_argument("--revision")
     launch.add_argument("--prompt-file", type=Path, required=True)
     args = parser.parse_args()
     demo = Demo(args.state)
@@ -446,7 +509,13 @@ def main():
             parser.error("Supply an installed executable for every client role")
         result = demo.prepare(args.binary, clients, args.service)
     elif args.command == "launch":
-        result = demo.launch(args.role, args.phase, args.prompt_file.read_text(), args.stage, args.base)
+        result = demo.launch(args.role, args.phase, args.prompt_file.read_text(), args.stage, args.revision)
+    elif args.command == "review":
+        result = demo.proposal(args.proposal, args.role, args.destination)
+    elif args.command == "integrate":
+        result = demo.integrate(args.proposal)
+    elif args.command == "update":
+        result = demo.update(args.role, args.revision)
     elif args.command == "start":
         demo.start()
         result = demo.status()

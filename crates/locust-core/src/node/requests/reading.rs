@@ -82,8 +82,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     approved: contribution.approved,
                     selected: *selected,
                     evidence: contribution.evidence.iter().copied().collect(),
-                    base: contribution.base,
-                    patch: contribution.patch,
                     artifacts: contribution.artifacts.clone(),
                     text: entry
                         .goal
@@ -204,7 +202,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
     ) -> Result<Step, ApiError> {
         let entry = self.readable(&actor, &goal)?;
         let outcome = if entry.revision() != seen {
-            WaitOutcome::Work(self.pending_work(entry, &actor))
+            WaitOutcome::Work(Box::new(self.pending_work(entry, &actor)))
         } else if timeout_ms == 0 {
             self.quiet(&goal)
         } else {
@@ -273,9 +271,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
         };
         let outcome = match access {
             Err(error) => Err(error),
-            Ok(entry) if entry.revision() != waiting.seen => {
-                Ok(WaitOutcome::Work(self.pending_work(entry, &waiting.actor)))
-            }
+            Ok(entry) if entry.revision() != waiting.seen => Ok(WaitOutcome::Work(Box::new(
+                self.pending_work(entry, &waiting.actor),
+            ))),
             Ok(_) if timed_out => Ok(self.quiet(&waiting.goal)),
             Ok(_) => return Step::Park(*parked),
         };

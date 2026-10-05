@@ -104,13 +104,13 @@ impl Validator<'_> {
             }
         }
     }
-    fn completion(&mut self, rule: &CompletionRule, path: &str) {
+    fn completion(&mut self, rule: &CompletionRule, path: &str, task: bool) {
         match rule {
             CompletionRule::Contribution { by }
             | CompletionRule::Declaration { by }
             | CompletionRule::Check { by, .. }
             | CompletionRule::Reviews { by, .. } => {
-                self.selector(by, &format!("{path}/by"), true, true);
+                self.selector(by, &format!("{path}/by"), task, true);
                 if fixed_members(by).is_some_and(|members| members.is_empty()) {
                     self.error(
                         "impossible_completion",
@@ -156,13 +156,13 @@ impl Validator<'_> {
                     );
                 }
                 for (index, rule) in rules.iter().enumerate() {
-                    self.completion(rule, &format!("{path}/rules/{index}"));
+                    self.completion(rule, &format!("{path}/rules/{index}"), task);
                 }
             }
         }
     }
     fn decisions(&mut self, decisions: &DecisionRules, path: &str) {
-        self.completion(&decisions.completion, &format!("{path}/completion"));
+        self.completion(&decisions.completion, &format!("{path}/completion"), true);
         if let Some(authority) = &decisions.selection {
             self.authority(authority, &format!("{path}/selection"));
         }
@@ -179,6 +179,10 @@ impl Validator<'_> {
         }
         self.work(&self.formation.work, "/work");
         self.decisions(&self.formation.decisions, "/decisions");
+        if let Some(workspace) = &self.formation.workspace {
+            self.authority(&workspace.integrator, "/workspace/integrator");
+            self.completion(&workspace.completion, "/workspace/completion", false);
+        }
         for (name, task_type) in &self.formation.task_types {
             let path = format!("/task_types/{}", escape(name));
             self.name(name, &path);

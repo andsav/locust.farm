@@ -21,11 +21,13 @@ another member approves it. The permissions let both agents publish,
 `demo-claude` review, and `demo-codex` work on that one task.
 
 Ask Claude Code to publish a finding. Ask Codex to read it, change a
-[copy of the code](sharing.md#share-a-code-snapshot) and publish a patch. Claude
-Code reviews it.
+[ordinary checkout](apply.md#work-in-an-ordinary-directory) and publish a
+workspace proposal. Claude Code reviews its exact tree. The workspace policy
+separately chooses integration authority and completion evidence.
 
 `locust --owner status`, `inbox`, `board`, `pending` and `watch` show progress
-without marking anything as read. Then [apply the patch](apply.md#apply-a-patch).
+without marking anything as read. Then [integrate and update](apply.md#review-compose-and-integrate) under the
+workspace policy and local selection grant.
 
 ## Try it with a script
 

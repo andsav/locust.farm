@@ -1,15 +1,16 @@
 # Git-independent shared file tree implementation plan
 
-Status: implementation in progress, revised 2026-10-05 after source-backed review
-and the [bounded workspace model](../research/tla/workspace.md).
-The user has accepted the product direction: Locust owns a versioned shared tree;
-agents work in ordinary directories
-and publish selected changes. Git is optional at import/export boundaries. The
-protocol and API design below are recommendations, not implemented behavior.
-[Research and source mapping](../research/shared-file-tree-2026-10-04.md) support
-this plan. The [review findings](../research/shared-file-tree-review-2026-10-05.md)
-explain the simpler event model, publication path and local update rules adopted
-here. Protocol extensions still require the modeling and implementation below.
+Status: implemented source contract with qualification in progress, revised
+2026-10-05. The user accepted the product direction: Locust owns a versioned
+shared tree; agents work in ordinary directories and publish selected changes.
+Git is optional for import. [Implemented ownership and recovery](workspace.md)
+and the [command guide](guide/apply.md) map the current runtime.
+[Research and source mapping](../research/shared-file-tree-2026-10-04.md),
+[review findings](../research/shared-file-tree-review-2026-10-05.md) and the
+[bounded workspace model](../research/tla/workspace.md) support this design.
+The qualification matrix below includes work beyond the focused source tests;
+it is not a claim that every scenario has passed or that the new protocol is
+published.
 
 The [Gas Town source assessment](../research/gastown-shared-workspace-assessment.md)
 informs durable proposal, receipt and checkout recovery. Its supervisor hierarchy,
@@ -105,12 +106,12 @@ storage does not grant the daemon authority to execute filesystem operations.
 
 ## Git-independent starting point
 
-The existing [workspace library](../crates/locust-workspace/src/lib.rs) already
-materializes manifests into ordinary directories. Its
-[selected-path capture](../crates/locust-workspace/src/capture.rs) reads explicit
-files against a base manifest without Git. The current
-[snapshot export](../crates/locust-workspace/src/export.rs) still starts from a
-named Git commit; a Git-free seed is new work, not an existing command.
+The [workspace library](../crates/locust-workspace/src/lib.rs) materializes
+manifests into ordinary directories. Its
+[selected-path capture and seed](../crates/locust-workspace/src/tree.rs) read
+explicit regular files without Git. Optional
+[commit import](../crates/locust-workspace/src/export.rs) starts from a named
+Git commit; ordinary seed creation is implemented separately.
 
 Add seed capture from an ordinary owner-selected directory and explicit relative
 file paths, reusing the same safe file reads, exclusions and canonical manifest
@@ -167,7 +168,7 @@ The seed proposal has no parent and can contain an empty manifest. Every later
 proposal names a revision in this workspace lineage. The parent determines the
 base manifest; the result manifest determines the complete proposed tree. Derive
 the delta for review/composition, as the existing
-[tree comparison](../crates/locust-workspace/src/contribution.rs) does. Do not sign
+[tree comparison](../crates/locust-workspace/src/tree.rs) does. Do not sign
 another base manifest or serialized patch alongside those identities.
 
 Proposal sources are authenticated, typed causal references to proposals in the
@@ -445,7 +446,7 @@ If the bound base cannot be read, preserve the checkout and materialize a usable
 accepted target into a fresh directory instead of guessing a delta.
 
 Reuse [descriptor-relative operations](../crates/locust-workspace/src/safe_fs.rs)
-and [recoverable application](../crates/locust-workspace/src/apply.rs). Store durable
+and [recoverable update](../crates/locust-workspace/src/transaction.rs). Store durable
 bindings, operation plans/progress and receipts in daemon-owned local records,
 keyed by goal, principal, checkout and operation ID; never replicate them. The CLI
 uses a private sibling recovery directory on the checkout's filesystem, outside
@@ -669,7 +670,7 @@ all permission surfaces together rather than silently broadening an existing gra
 ## Replacement and contract cleanup
 
 Replace the manual patch-to-local-binding workflow with the one workspace runtime.
-Retain snapshot export/materialization and the internal tree/delta/review/application
+Retain optional Git import and the internal tree/copy/review/update
 primitives still needed. Remove public `patch create/review/submit/select/apply`,
 their `--local-choice` route, and obsolete dispatch/documentation. Remove task
 contribution base/patch fields, unused serialized contribution format and its typed
@@ -720,15 +721,30 @@ live editing, path-level private membership and multi-authority consensus are
 subsequent decisions. Current object/manifest bounds must be reported honestly;
 do not add new arbitrary agent, work, traversal or execution caps.
 
-## Readiness
+## Implementation evidence and remaining qualification
 
-The storage and local file foundations are substantial enough to proceed without
-replacing the transport. The highest-risk work is exact checkpoint authority,
-epoch fencing and proof isolation, followed by content indexing/repair and
-crash-safe checkout bookkeeping. Start the stage 1 executable scenarios and
-independent stage 2 tree operations together. No mutable authoritative
-`current_manifest` pointer or directory watcher is needed.
+The current implementation uses the existing crates and transport. The thin
+workspace proposal and explicit epoch/checkpoint contract drive one shared-tree
+runtime. Public patch commands, task contribution base/patch fields and the
+serialized patch traversal have been removed. Generic task/document contributions
+and scope selection remain. Protocol/API versions and formation contracts change
+with the new event shapes; this requires a fresh-state release rather than legacy
+readers or automatic data deletion.
 
-This planning change requires documentation/link review only. It does not prove
-that any proposed shared-tree behavior works; implementation and the verification
-matrix above remain future work.
+| Boundary | Current evidence | Limit |
+| --- | --- | --- |
+| Authority | [Workspace evaluator and tests](../crates/locust-core/src/goal/workspace_tests.rs), [request tests](../crates/locust-core/src/node/tests/workspace.rs), [signed lifecycle tests](../crates/locust-core/src/node/tests/workspace_lifecycle.rs) | Signed replay and local metadata tests do not prove host filesystem recovery |
+| Modeled contract | [Workspace model](../research/tla/workspace.md): 26 safety, 18 reachability and 10 guard-mutation outcomes matched in its recorded run | Bounded model evidence; no automatic Rust conformance or unbounded proof |
+| Tree operations | [Capture/composition/update tests](../crates/locust-workspace/tests/tree.rs) | Source library fixtures; no real-agent workflow claim |
+| Durable files | Ten journal tests in [transaction.rs](../crates/locust-workspace/src/transaction.rs) passed, including before/after phase interruption and cross-process locking | Injected interruption boundaries; actual kill, disk failure and power loss remain qualification |
+| Content and indexing | Eleven [content graph tests](../crates/locust-core/src/node/content_graph_tests.rs) passed; [growing-history measurements](../research/shared-file-tree-content-index-2026-10-05.md) show zero old manifest decodes/history rebuilds for unrelated ordinary events | In-memory fixture; no paired latency win, SQLite or WAN throughput claim |
+| Ordinary-directory commands | [CLI implementation](../crates/locust/src/cli/workspace.rs), [typed API fixture tests](../crates/locust/tests/workspace.rs), and [local SQLite daemon loop](../research/shared-file-tree-local-loop-2026-10-05.md) | Deterministic local tests; no provider-model qualification |
+| Native replication | [Two- and three-daemon campaigns](../research/shared-file-tree-local-loop-2026-10-05.md) pass replication, restart, exact receipts, interrupted large transfer with the source offline, stale integration refusal and conflict preservation | Identified development binaries and same-host processes; no two-host or WAN qualification |
+
+The local qualification includes independently checked copied bytes and daemon
+termination during object transfer. Process termination during checkout mutation,
+disk failure, two-host operation and real-agent workflows remain separate
+qualification boundaries. Before each release, run the full Rust,
+generated-contract, manual and applicable site gates against its exact source.
+The detailed verification matrix remains the exit checklist; passing one focused
+layer does not qualify the others.

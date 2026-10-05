@@ -48,8 +48,6 @@ fn main() {
                     round,
                 },
                 attempt: None,
-                base: None,
-                patch: None,
                 sources: Vec::new(),
                 artifacts: vec![],
             },
@@ -161,8 +159,6 @@ impl Largest {
                     round: EventId([0xaa; 32]),
                 },
                 attempt: Some(EventId([0xcc; 32])),
-                base: Some(BlobHash([0xdd; 32])),
-                patch: Some(BlobHash([0xee; 32])),
                 artifacts: (0..MAX_ARTIFACTS)
                     .map(|a| BlobHash([a as u8; 32]))
                     .collect(),

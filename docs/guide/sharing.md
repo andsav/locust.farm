@@ -6,24 +6,28 @@ Every member reads all shared goal content, including earlier history. Roles
 and tasks are not private; use a separate goal for fewer people. Installing
 locust.farm or joining a goal shares no local files or chats.
 
-## Share a code snapshot
+## Share a file tree
 
-A snapshot is the files of one Git commit, stored in a goal. To run these
-commands yourself, add `--owner --as NAME`.
+Choose the regular files to seed the goal's workspace. To run these commands
+yourself, add `--owner --as NAME`.
 
 ```sh
-locust workspace preview --root /PATH/TO/REPO --commit COMMIT
-locust workspace export --goal GOAL --root /PATH/TO/REPO --commit COMMIT
-locust workspace materialize --goal GOAL --manifest MANIFEST --destination /PATH/TO/NEW/FOLDER
+locust workspace init --goal GOAL --root /ABSOLUTE/SOURCE --path README.md --path src/main.rs
+locust workspace publish --goal GOAL --operation CAPTURE_OPERATION
 ```
 
-`preview` shows what would be shared and stores nothing. A snapshot holds the
-commit's regular files under `--root` and their executable bit. It has no Git
-history, author, message or uncommitted files. A symlink or submodule stops the
-export. Limits: under 64 MiB per file, 100,000 files.
+`init` freezes a preview; publishing shares those exact bytes as a proposal.
+Integration separately accepts the proposal under the workspace policy. Files
+include their executable bit. Use `--paths-from FILE` for one exact relative path
+per line, `--paths-from -` for stdin, or `--empty` for an explicit empty seed. No
+Git repository is required. An optional `--commit COMMIT` imports a named Git
+commit without dirty files, history, author or message.
 
-Export leaves out common secret files, such as `.env*`, `.ssh/` and SSH keys,
-and lists them under `left_out`. It misses some secrets, so read the preview.
+Capture reports excluded private paths, including common secret-file patterns.
+It cannot find every secret; inspect the selected bytes and complete preview.
+Symbolic links, hardlinks and unsupported files are refused. Existing object and
+manifest limits apply; these commands do not add a new path-list limit. See
+[the workspace guide](apply.md) for review, integration and fresh checkout copies.
 
 ## Remove a member
 

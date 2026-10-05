@@ -140,7 +140,7 @@ class Validator {
 		});
 	}
 
-	completion(rule: CompletionRule, path: string) {
+	completion(rule: CompletionRule, path: string, task = true) {
 		if (rule.kind === 'all' || rule.kind === 'any') {
 			if (rule.rules.length === 0) {
 				this.error(
@@ -150,10 +150,10 @@ class Validator {
 					'Add an explicit completion criterion.'
 				);
 			}
-			rule.rules.forEach((item, index) => this.completion(item, `${path}/rules/${index}`));
+			rule.rules.forEach((item, index) => this.completion(item, `${path}/rules/${index}`, task));
 			return;
 		}
-		this.selector(rule.by, `${path}/by`, true, true);
+		this.selector(rule.by, `${path}/by`, task, true);
 		const fixed = fixedMembers(rule.by);
 		if (fixed !== null && fixed.size === 0) {
 			this.error(
@@ -201,6 +201,10 @@ class Validator {
 		}
 		this.work(value.work, '/work');
 		this.decisions(value.decisions, '/decisions');
+		if (value.workspace) {
+			this.authority(value.workspace.integrator, '/workspace/integrator');
+			this.completion(value.workspace.completion, '/workspace/completion', false);
+		}
 		for (const name of sortedKeys(value.task_types)) {
 			const taskType = value.task_types[name];
 			const path = `/task_types/${escapePointer(name)}`;

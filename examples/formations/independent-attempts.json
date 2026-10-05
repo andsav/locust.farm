@@ -22,7 +22,7 @@
       "description": "Picks which result to use. One member."
     }
   },
-  "schema_version": 1,
+  "schema_version": 2,
   "task_types": {},
   "work": {
     "propose": {
@@ -39,5 +39,6 @@
         "kind": "independent"
       }
     ]
-  }
+  },
+  "workspace": null
 }

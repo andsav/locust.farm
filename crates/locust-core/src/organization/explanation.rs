@@ -103,6 +103,14 @@ pub(super) fn explain(value: &Formation) -> Explanation {
     ];
     work(&value.work, "Default rules", &mut summary);
     decisions(&value.decisions, "Default rules", &mut summary);
+    if let Some(workspace) = &value.workspace {
+        summary.push(format!(
+            "Shared tree: {} may integrate an exact candidate after {}. Host signing permission is separate.",
+            authority(&workspace.integrator),
+            completion(&workspace.completion),
+        ));
+        summary.push("Shared-tree reviews that exclude authors also exclude every declared composition-source author.".into());
+    }
     for (name, task_type) in &value.task_types {
         let prefix = format!("Task type {name:?}");
         work(

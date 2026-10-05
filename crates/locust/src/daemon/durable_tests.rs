@@ -254,8 +254,6 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
         task: None,
         attempt: None,
         generation: None,
-        base: None,
-        patch: None,
         sources: Vec::new(),
         artifacts: vec![],
         summary: "Retried safely".into(),
@@ -296,8 +294,6 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
                 attempt: Some(claim.attempt),
                 generation: Some(1),
                 summary: "Restarted work is complete".into(),
-                base: None,
-                patch: None,
                 sources: Vec::new(),
                 artifacts: vec![],
             })
@@ -452,7 +448,13 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
                 if status.members.iter().any(|entry| entry.member == principal) =>
             {
                 assert_eq!(status.grants, GoalGrants::default());
-                assert!(status.workspace.is_none());
+                let workspace = status.workspace.as_ref().unwrap();
+                assert!(!workspace.enabled);
+                assert!(workspace.head.is_none());
+                assert_eq!(
+                    workspace.authority,
+                    locust_proto::api::WorkspaceAuthority::Uninitialized
+                );
                 Some(())
             }
             _ => None,
@@ -502,7 +504,13 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
         panic!()
     };
     assert_eq!(status.grants, GoalGrants::default());
-    assert!(status.workspace.is_none());
+    let workspace = status.workspace.as_ref().unwrap();
+    assert!(!workspace.enabled);
+    assert!(workspace.head.is_none());
+    assert_eq!(
+        workspace.authority,
+        locust_proto::api::WorkspaceAuthority::Uninitialized
+    );
 }
 
 #[test]
@@ -609,8 +617,6 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
             attempt: Some(claim.attempt),
             generation: Some(1),
             summary: summary.clone(),
-            base: None,
-            patch: None,
             sources: Vec::new(),
             artifacts: vec![],
         })

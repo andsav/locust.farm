@@ -234,8 +234,6 @@ fn stdin_text_and_idempotency_are_forwarded_without_changing_text() {
                 attempt: None,
                 generation: None,
                 summary: "first\nsecond\n".into(),
-                base: None,
-                patch: None,
                 sources: Vec::new(),
                 artifacts: vec![]
             }

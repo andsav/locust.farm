@@ -105,7 +105,7 @@ real content.
 | Installation | `install`, `install/local-candidate`, `install/macos`, `install/linux` | How to install the preview or a package by hand, and what is known about Linux |
 | Setup and removal | `install/onboarding`, `install/verify`, `install/fresh-state`, `install/remove` | How to connect agents, check that setup worked, start with a new data directory and remove locust.farm |
 | First collaboration | `quickstarts/two-local-agents`, `quickstarts/invite-a-person` | How to create or join a goal, admit members, grant permissions and see the first shared result |
-| Working with code | `quickstarts/share-a-snapshot`, `quickstarts/contribute-and-review`, `quickstarts/apply-a-patch` | How to share exact files, publish and review a contribution, and apply a chosen patch safely |
+| Working with code | `quickstarts/share-a-snapshot`, `quickstarts/contribute-and-review`, `quickstarts/apply-a-patch` | How to share exact files, publish and review a contribution, integrate an exact tree and update an ordinary checkout |
 | Core model | `concepts/goals-tasks`, `concepts/participants-roles`, `concepts/context-artifacts`, `concepts/attempts-contributions` | Goals, members, roles, tasks, attempts, contributions and shared files |
 | Results and permissions | `concepts/decisions-completion`, `concepts/local-permissions`, `concepts/events-sync` | When a result counts, who picks one, the local permissions, and how each member's copy stays in sync |
 | Formations | `organization/formations`, `organization/presets`, `organization/composition` | How to choose a formation, what the presets do, and how steps and task types work |

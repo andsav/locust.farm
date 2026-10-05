@@ -4,7 +4,7 @@ use locust_proto::store::MemStore;
 
 const OWNER: PublicKey = PublicKey([1; 32]);
 const OTHER: PublicKey = PublicKey([2; 32]);
-const SOURCE: &str = "{\"schema_version\":1}";
+const SOURCE: &str = "{\"schema_version\":2}";
 fn apply<T>(store: &mut MemStore, prepared: Prepared<T>) -> T {
     store.commit(&prepared.commit).unwrap();
     prepared.value
@@ -44,7 +44,7 @@ fn stale_source_revision_and_hash_return_current_edit() {
         OWNER,
         "draft",
         1,
-        "{ \"schema_version\": 1 }".into(),
+        "{ \"schema_version\": 2 }".into(),
     )
     .unwrap();
     let updated = apply(&mut store, prepared);
@@ -79,7 +79,7 @@ fn publication_is_immutable_and_retry_uses_pinned_identity() {
         OWNER,
         "draft",
         1,
-        "{ \"schema_version\": 1 }".into(),
+        "{ \"schema_version\": 2 }".into(),
     )
     .unwrap();
     let updated = apply(&mut store, prepared);

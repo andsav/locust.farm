@@ -1,10 +1,8 @@
 """Independent evidence checks for the shared-context real-model fixture."""
 
 import json
-import os
+import re
 from pathlib import Path
-import subprocess
-import tempfile
 
 from client_qualification import collaboration_case
 from client_qualification.runtime import records
@@ -25,37 +23,57 @@ def _calls(events, name):
     return result
 
 
-def _review(report, output):
-    reviews = report.get("patch_reviews") or []
-    value = reviews[0] if reviews else None
-    if value is None:
-        try:
-            value = json.loads((output / "independent-patch-review.json").read_text())
-        except (OSError, ValueError):
-            return {}
-    return value.get("result", value) if isinstance(value, dict) else {}
+def _review(report):
+    reviews = report.get("tree_reviews") or []
+    value = reviews[-1] if reviews else {}
+    return value.get("review", {}), value.get("artifact")
 
 
-def _patch_matches(review, artifact, base):
-    if not artifact.is_file() or artifact.is_symlink() or review.get("base") != base:
+def _tree_matches(review, artifact, parent, reviewed_artifact):
+    """An authenticated CLI review copy must equal the saved worker artifact.
+
+    A contributor diff alone cannot establish exact bytes. This deliberately
+    requires the harness's independent workspace-review materialization.
+    """
+    if not reviewed_artifact or not artifact.is_file() or artifact.is_symlink():
+        return False
+    reviewed = Path(reviewed_artifact)
+    proposal = review.get("proposal", {})
+    if (not reviewed.is_file() or reviewed.is_symlink()
+            or review.get("review_mode") != "base_diff"
+            or proposal.get("parent") != parent or not proposal.get("result_manifest")):
         return False
     changes = review.get("changes", [])
     if len(changes) != 1 or changes[0].get("path") != "safe_member.py":
         return False
-    diff = changes[0].get("unified_diff", "")
-    if ("--- a/safe_member.py\n+++ b/safe_member.py\n" not in diff
-            or changes[0].get("after", {}).get("bytes") != artifact.stat().st_size):
-        return False
-    with tempfile.TemporaryDirectory(prefix="locust-collab-review-") as directory:
-        root = Path(directory)
-        (root / "safe_member.py").write_text(collaboration_case.STARTER, encoding="utf-8")
-        env = {"PATH": os.defpath, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null"}
-        for args in (["git", "apply", "--check", "--"], ["git", "apply", "--"]):
-            applied = subprocess.run(args, cwd=root, env=env, input=diff, text=True,
-                                     capture_output=True, check=False)
-            if applied.returncode:
-                return False
-        return (root / "safe_member.py").read_bytes() == artifact.read_bytes()
+    after = changes[0].get("after") or {}
+    return (after.get("bytes") == artifact.stat().st_size
+            and after.get("executable") is False
+            and not reviewed.stat().st_mode & 0o111
+            and reviewed.read_bytes() == artifact.read_bytes())
+
+
+def _native_publication(calls, proposal):
+    """Require a successful native CLI write receipt naming this exact event."""
+    for call in calls:
+        command = call.get("arguments", {}).get("command", "")
+        if call.get("success") is not True or not re.search(r"\bworkspace\s+(publish|propose)\b", command):
+            continue
+        decoder = json.JSONDecoder()
+        output = str(call.get("output", ""))
+        for match in re.finditer(r"\{", output):
+            try:
+                value, _ = decoder.raw_decode(output[match.start():])
+            except ValueError:
+                continue
+            if not isinstance(value, dict) or value.get("ok") is not True:
+                continue
+            result = value.get("result", {})
+            state = result.get("operation", {}).get("state", {})
+            if (result.get("recorded", {}).get("event") == proposal
+                    or state.get("recorded", {}).get("event") == proposal):
+                return True
+    return False
 
 
 def evaluate(report):
@@ -129,21 +147,23 @@ def evaluate(report):
         and any(event_id in (opened[item["event"]["task"]].get("event", {}).get("text") or "")
                 for event_id in finding_ids)]
 
-    review = _review(report, output)
+    review, reviewed_artifact = _review(report)
     artifact = Path(report.get("artifact_path", output / "builder-artifact/safe_member.py"))
-    linked = any(
-        (body := item.get("event", {}).get("body", {}).get("contribution_published", {})).get("patch")
-            == review.get("contribution_id")
-        and body.get("base") == review.get("base") == report.get("base")
-        and review.get("head") in body.get("artifacts", [])
-        for item in attempted)
-    signed_event = next((item.get("event", {}).get("view", {}).get("event") for item in attempted
-        if item.get("event", {}).get("body", {}).get("contribution_published", {}).get("patch")
-        == review.get("contribution_id")), "")
-    native_submit = any(call.get("success") is True
-        and "patch submit" in call.get("arguments", {}).get("command", "")
-        and review.get("contribution_id", "") in call.get("arguments", {}).get("command", "")
-        and signed_event in str(call.get("output", "")) for call in runs[1].get("native_calls", []))
+    reviewed_proposal = review.get("proposal", {})
+    proposal_id = reviewed_proposal.get("proposal")
+    proposals = [item for item in final
+        if item.get("event", {}).get("view", {}).get("author") == builder.get("principal")
+        and item.get("event", {}).get("view", {}).get("kind") == "workspace_proposed"
+        and item.get("event", {}).get("view", {}).get("standing") == "effective"]
+    signed = next((item for item in proposals
+        if item["event"]["view"].get("event") == proposal_id), {})
+    body = signed.get("event", {}).get("body", {}).get("workspace_proposed", {})
+    linked = bool(proposal_id and signed
+        and body.get("parent") == reviewed_proposal.get("parent") == report.get("base_revision")
+        and body.get("result_manifest") == reviewed_proposal.get("result_manifest")
+        and any(proposal_id in item.get("event", {}).get("body", {}).get("contribution_published", {}).get("sources", [])
+                for item in attempted))
+    native_publish = _native_publication(runs[1].get("native_calls", []), proposal_id)
 
     control_items = report.get("control_context", [])
     control_unread = any(item.get("event", {}).get("view", {}).get("event") in finding_ids
@@ -165,15 +185,16 @@ def evaluate(report):
         "task_opening_cites_finding_event": bool(task_citations),
         "contribution_is_bound_to_citing_task_and_attempt": bool(attributed),
         "direct_contribution_summary_cites_finding_event": bool(direct_citations),
-        "native_patch_submit_matches_signed_contribution": linked and native_submit,
-        "independent_review_reconstructs_saved_artifact": _patch_matches(review, artifact, report.get("base")),
+        "native_workspace_publication_matches_signed_proposal": linked and native_publish,
+        "independent_review_copy_matches_saved_artifact": _tree_matches(
+            review, artifact, report.get("base_revision"), reviewed_artifact),
         "hidden_oracle_passes": report.get("verification", {}).get("passed") is True,
         "starter_fails_oracle": report.get("baseline", {}).get("passed") is False,
         "researcher_real_completion_with_usage": runs[0].get("exit_code") == 0
             and research_response.get("status") == "completed" and research_tokens > 0,
         "builder_real_completion_with_usage": runs[1].get("exit_code") == 0 and any(event.get("type") == "turn.completed"
             and event.get("usage", {}).get("output_tokens", 0) > 0 for event in build_events),
-        "git_head_preserved": report.get("git_head_preserved") is True,
+        "ordinary_directory": report.get("ordinary_directory") is True,
         "unrelated_file_preserved": report.get("unrelated_preserved") is True,
         "readme_preserved": report.get("readme_preserved") is True,
         "builder_pending_empty": report.get("builder_pending", {}).get("pending", {}).get("context_news", {}).get("unacknowledged") == 0,

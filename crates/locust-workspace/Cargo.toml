@@ -1,6 +1,6 @@
 [package]
 name = "locust-workspace"
-description = "Locust workspace snapshots: manifest export, materialization and patches"
+description = "Locust shared trees: capture, composition, materialization and recoverable updates"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,6 +10,7 @@ publish.workspace = true
 locust-proto.workspace = true
 rustix.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 locust-proto = { workspace = true, features = ["testkit"] }

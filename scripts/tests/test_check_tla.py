@@ -42,6 +42,19 @@ BAD = {"expect": "violation", "violation": "Fence", "trace_require": [{"found": 
 
 
 class TlaRunnerTests(unittest.TestCase):
+    def test_workspace_suite_selects_only_its_registered_protocol_cases(self):
+        # Stop after selecting and classifying the actual registry. No Java or
+        # tool-cache access occurs, and historical suites cannot leak in.
+        with patch.object(tla, "model_scope", wraps=tla.model_scope) as scope, \
+             patch.object(tla, "tools", side_effect=tla.CheckError("selection complete")), \
+             patch("sys.stderr", new_callable=io.StringIO):
+            self.assertEqual(tla.main(["--suite", "workspace"]), 1)
+        registry, selected = scope.call_args.args
+        expected = [case for case in registry["cases"] if "workspace" in case["suite"]]
+        self.assertTrue(expected)
+        self.assertEqual(selected, expected)
+        self.assertTrue(all(case["model_baseline"]["status"] != "historical" for case in selected))
+
     def test_completed_check_requires_success_finish_and_empty_queue(self):
         self.assertTrue(tla.classify(PASS, 0, GOOD)["matched_expectation"])
         for output, code in [(PASS.split("Finished")[0], 0), (PASS, 1),

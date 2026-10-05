@@ -205,6 +205,20 @@ pub fn every_body() -> Vec<Body> {
             expected: None,
             binding,
         },
+        Body::WorkspaceEpoch {
+            expected_epoch: None,
+            rules: id,
+            checkpoint: WorkspaceCheckpoint::Unseeded,
+        },
+        Body::WorkspaceProposed {
+            context: Context {
+                scope: Scope::Workspace,
+                round: id,
+            },
+            parent: None,
+            result_manifest: hash,
+            sources: Vec::new(),
+        },
         Body::TaskRevised {
             task,
             expected_round: id,
@@ -235,8 +249,6 @@ pub fn every_body() -> Vec<Body> {
         Body::ContributionPublished {
             context,
             attempt: None,
-            base: Some(hash),
-            patch: Some(hash),
             sources: Vec::new(),
             artifacts: vec![hash],
         },

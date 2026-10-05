@@ -20,7 +20,7 @@ impl EventSet {
     pub fn new(count: usize) -> Self {
         Self(vec![0; count.div_ceil(64)])
     }
-    fn insert(&mut self, slot: usize) {
+    pub(super) fn insert(&mut self, slot: usize) {
         self.0[slot / 64] |= 1 << (slot % 64);
     }
     pub fn contains(&self, slot: usize) -> bool {
@@ -206,24 +206,38 @@ pub(super) fn build(
     decision: &Event,
     missing: &mut BTreeSet<Dependency>,
 ) -> Result<Proof, Standing> {
-    let Body::ScopeDecided {
-        context,
-        previous,
-        action,
-        evidence,
-    } = &decision.header().body
-    else {
-        return Err(invalid("proof owner is not a scoped decision"));
-    };
     let mut proof = Proof {
         retained: EventSet::new(history.events.len()),
         roots: BTreeSet::new(),
     };
-    proof.roots.extend(evidence);
-    proof.roots.insert(context.round);
-    proof.roots.extend(previous);
-    if let DecisionAction::Select { subject } = action {
-        proof.roots.insert(*subject);
+    match &decision.header().body {
+        Body::ScopeDecided {
+            context,
+            previous,
+            action,
+            evidence,
+        } => {
+            proof.roots.extend(evidence);
+            proof.roots.insert(context.round);
+            proof.roots.extend(previous);
+            if let DecisionAction::Select { subject } = action {
+                proof.roots.insert(*subject);
+            }
+        }
+        Body::WorkspaceEpoch { rules, .. } => {
+            proof.roots.insert(*rules);
+            proof.roots.extend(super::workspace::boundary(
+                history,
+                chain,
+                decision.id(),
+                missing,
+            )?);
+        }
+        _ => {
+            return Err(invalid(
+                "proof owner is not a scoped decision or workspace epoch",
+            ));
+        }
     }
     let decision_anchor = decision
         .header()

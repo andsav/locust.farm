@@ -204,8 +204,6 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                 context,
                 attempt,
                 sources,
-                base,
-                patch,
                 artifacts,
             } => {
                 let witness = v.approval(id, None, None).ok().flatten();
@@ -218,8 +216,6 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                         context: *context,
                         attempt: *attempt,
                         sources: sources.clone(),
-                        base: *base,
-                        patch: *patch,
                         artifacts: artifacts.clone(),
                         approved,
                         evidence: witness.unwrap_or_default(),
@@ -256,6 +252,28 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                     .or_default()
                     .revisions
                     .insert(id);
+            }
+            Body::WorkspaceProposed {
+                context,
+                parent,
+                result_manifest,
+                sources,
+            } => {
+                let witness = v.approval(id, None, None).ok().flatten();
+                out.state.workspace_proposals.insert(
+                    id,
+                    WorkspaceProposal {
+                        id,
+                        author: h.author,
+                        context: *context,
+                        parent: *parent,
+                        result_manifest: *result_manifest,
+                        sources: sources.clone(),
+                        source_authors: v.source_authors(id).unwrap_or_default(),
+                        approved: witness.is_some(),
+                        evidence: witness.unwrap_or_default(),
+                    },
+                );
             }
             Body::ScopeDecided {
                 context,
@@ -345,8 +363,6 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                     context,
                     attempt,
                     sources,
-                    base,
-                    patch,
                     artifacts,
                 } => SelectedSubject::Contribution(Contribution {
                     id: subject,
@@ -354,8 +370,6 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                     context: *context,
                     attempt: *attempt,
                     sources: sources.clone(),
-                    base: *base,
-                    patch: *patch,
                     artifacts: artifacts.clone(),
                     approved: true,
                     evidence,
@@ -371,6 +385,24 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                         evidence,
                     })
                 }
+                Body::WorkspaceProposed {
+                    context,
+                    parent,
+                    result_manifest,
+                    sources,
+                } => SelectedSubject::Workspace(WorkspaceProposal {
+                    id: subject,
+                    author: h.author,
+                    context: *context,
+                    parent: *parent,
+                    result_manifest: *result_manifest,
+                    sources: sources.clone(),
+                    source_authors: v
+                        .source_authors(subject)
+                        .expect("selected provenance is complete"),
+                    approved: true,
+                    evidence,
+                }),
                 _ => unreachable!("selection requires a contribution or revision"),
             };
             let task = v
@@ -418,6 +450,58 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                 out.state.documents.entry(*doc).or_default().selected = Some(*subject);
             }
             _ => {}
+        }
+    }
+    if let Some(epoch) = out
+        .state
+        .head
+        .and_then(|head| v.chain.snapshot(&head))
+        .and_then(|snapshot| snapshot.workspace_epoch)
+    {
+        let ready = v.status(epoch, None) == Standing::Effective;
+        let checkpoint = v.workspace_boundary(epoch).ok().flatten();
+        let context = Context {
+            scope: Scope::Workspace,
+            round: epoch,
+        };
+        let key = ScopeKey {
+            context,
+            purpose: locust_proto::event::DecisionPurpose::Selection,
+        };
+        let head = if ready {
+            out.state
+                .decisions
+                .get(&key)
+                .and_then(|decisions| decisions.last())
+                .map(|decision| decision.id)
+                .or(checkpoint)
+        } else {
+            None
+        };
+        let enabled = ready
+            && v.resolve(context)
+                .is_ok_and(|rules| rules.effective.decisions.selection.is_some());
+        out.state.workspace = Some(Workspace {
+            epoch,
+            checkpoint,
+            head,
+            ready,
+            enabled,
+        });
+        if ready {
+            for event in &v.history.events {
+                if matches!(event.header().body, Body::WorkspaceProposed { .. })
+                    && v.status(event.id(), Some(epoch)) == Standing::Effective
+                {
+                    out.state.workspace_sources.insert(event.id());
+                }
+            }
+        }
+        if let Ok(lineage) = super::workspace::lineage(v.history, head) {
+            for revision in lineage {
+                out.state.workspace_lineage.insert(revision.id);
+                out.state.workspace_revisions.insert(revision.id, revision);
+            }
         }
     }
 }

@@ -12,6 +12,7 @@
 import { field, isNumber, isObject, type JsonObject, type JsonValue } from './json.ts';
 import { escapePointer } from './text.ts';
 import {
+	SCHEMA_VERSION,
 	defaultDecisions,
 	defaultWork,
 	type Authority,
@@ -28,6 +29,7 @@ import {
 	type Stage,
 	type StartRule,
 	type TaskType,
+	type WorkspacePolicy,
 	type WorkRules
 } from './types.ts';
 
@@ -423,16 +425,33 @@ function stage(value: JsonValue, place: Place): Stage {
 	return out;
 }
 
+function workspace(value: JsonValue, place: Place): WorkspacePolicy {
+	let integrator: Authority | undefined;
+	let criterion = defaultDecisions().completion;
+	struct(
+		value,
+		place,
+		'a workspace policy object',
+		{
+			integrator: (v, p) => (integrator = authority(v, p)),
+			completion: (v, p) => (criterion = completion(v, p))
+		},
+		['integrator']
+	);
+	return { integrator: integrator!, completion: criterion };
+}
+
 export function decodeFormation(
 	value: JsonValue
 ): { ok: true; formation: Formation } | { ok: false; error: StructureError } {
 	const root: Place = { path: '', tagged: null };
 	const out: Formation = {
-		schema_version: 1,
+		schema_version: SCHEMA_VERSION,
 		roles: {},
 		context: { guidance: '', inputs: {} },
 		work: defaultWork(),
 		decisions: defaultDecisions(),
+		workspace: null,
 		task_types: {},
 		flow: {}
 	};
@@ -447,6 +466,7 @@ export function decodeFormation(
 				context: (v, p) => (out.context = context(v, p)),
 				work: (v, p) => (out.work = work(v, p)),
 				decisions: (v, p) => (out.decisions = decisions(v, p)),
+				workspace: (v, p) => (out.workspace = v === null ? null : workspace(v, p)),
 				task_types: (v, p) => (out.task_types = map(v, p, taskType)),
 				flow: (v, p) => (out.flow = map(v, p, stage))
 			},

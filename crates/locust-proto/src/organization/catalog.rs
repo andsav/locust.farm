@@ -65,7 +65,7 @@ mod tests {
     }
     #[test]
     fn every_catalog_record_round_trips_the_binary_codec() {
-        let source = "{\"schema_version\":1}".to_owned();
+        let source = "{\"schema_version\":2}".to_owned();
         let owner = PublicKey([7; 32]);
         round_trip(&Draft {
             id: "draft".into(),

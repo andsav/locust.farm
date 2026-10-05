@@ -487,8 +487,6 @@ mod tests {
                 round: crate::id::EventId([1; 32]),
             },
             attempt: None,
-            base: None,
-            patch: None,
             sources: Vec::new(),
             artifacts: vec![],
         }
@@ -767,8 +765,6 @@ mod tests {
                     round: root.id(),
                 },
                 attempt: None,
-                base: None,
-                patch: None,
                 sources: Vec::new(),
                 artifacts: vec![],
             },

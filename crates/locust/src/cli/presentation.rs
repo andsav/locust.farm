@@ -40,6 +40,7 @@ fn tag(value: &impl serde::Serialize) -> String {
 fn scope(scope: Scope) -> String {
     match scope {
         Scope::Goal => "goal".into(),
+        Scope::Workspace => "workspace".into(),
         Scope::Task(task) => task.to_string(),
         Scope::Document(doc) => format!("{} document", tag(&doc)),
     }
@@ -433,8 +434,8 @@ pub(super) fn render(
             }
             if let Some(rules) = view.current_rules { lines.push(format!("Rules revision: {rules}")); }
             if let Some(workspace) = &view.workspace {
-                if let Some(root) = &workspace.export_root { lines.push(format!("Workspace export root: {}", safe(root))); }
-                if let Some(destination) = &workspace.destination { lines.push(format!("Received workspace: {}", safe(destination))); }
+                lines.push(format!("Shared workspace: {}", tag(&workspace.authority)));
+                if let Some(head) = &workspace.head { lines.push(format!("Shared revision: {}", head.revision)); }
             }
             if principal.is_some() {
                 lines.push("This participant's local standing permissions:".into());
@@ -470,7 +471,8 @@ pub(super) fn render(
             lines.push(format!("Effective rules: {}", safe(&task.effective_rules_json)));
             lines
         }
-        Response::Pending(work) | Response::Waited(WaitOutcome::Work(work)) => pending(work, goal, principal, &[]),
+        Response::Pending(work) => pending(work, goal, principal, &[]),
+        Response::Waited(WaitOutcome::Work(work)) => pending(work, goal, principal, &[]),
         Response::Waited(WaitOutcome::NoEvent) => vec!["No observed change before the requested timeout.".into()],
         Response::Waited(WaitOutcome::Disconnected) => vec!["No observed change before the requested timeout. No peer of this goal is currently reachable.".into()],
         Response::Contributions(contributions) => {
@@ -479,7 +481,6 @@ pub(super) fn render(
                 lines.push(format!("Contribution {} · {} · {}", contribution.contribution, label(contribution.author, names), scope(contribution.context.scope)));
                 lines.push(format!("  Review: {} · Selection: {}", if contribution.approved { "approved" } else { "not approved" }, if contribution.selected { "selected" } else { "not selected" }));
                 lines.push(format!("  {}", contribution.text.as_deref().map(safe).unwrap_or_else(|| "Text is not held locally.".into())));
-                if let Some(patch) = contribution.patch { lines.push(format!("  Patch: {patch}")); }
                 for source in &contribution.sources { lines.push(format!("  Declared source: {source}")); }
                 for artifact in &contribution.artifacts { lines.push(format!("  Artifact: {artifact}")); }
                 for evidence in &contribution.evidence { lines.push(format!("  Evidence: {evidence}")); }

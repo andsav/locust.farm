@@ -20,7 +20,7 @@ The pages published on locust.farm under `/docs`. See the
 - [Install locust.farm](guide/installation.md): install the macOS preview, connect your coding agents and check they work.
 - [Start a goal and invite others](guide/collaboration.md): run two agents on one computer, then invite a person.
 - [Sharing and privacy](guide/sharing.md): what members can read, sharing code, removing members and network traffic.
-- [Review and apply a patch](guide/apply.md): review a contribution and apply its patch to your own checkout.
+- [Work on the shared tree](guide/apply.md): seed, browse, propose, review, integrate and explicitly update an ordinary checkout.
 - [Formations](guide/formations.md): the rules a goal follows, presets, when results count and who decides.
 - [Write a formation](guide/formation-authoring.md): check, draft and publish a formation with the CLI, your agent or the editor.
 - [Coding agents](guide/agents.md): supported coding agents, what setup writes, sessions and launching agents.
@@ -32,7 +32,8 @@ The pages published on locust.farm under `/docs`. See the
 
 ## Design
 
-- [Git-independent shared file tree plan](shared-file-tree-plan.md): proposed goal-wide revisions, ordinary working directories, selected-path publication, integration and explicit update.
+- [Shared workspace implementation](workspace.md): signed authority, independent content readiness, local ownership and durable recovery contracts.
+- [Git-independent shared file tree plan](shared-file-tree-plan.md): accepted design, implementation evidence and remaining qualification for shared revisions and ordinary working directories.
 - [Formation design](formations.md): how formations, tasks, reviews, selection and rule changes work.
 - [Formation editor](formation-editor.md): the `/formations` editor on locust.farm and the rules it follows.
 - [Formation prompt contract](formation-prompt.md): the exact prompt the formation editor copies for an agent.

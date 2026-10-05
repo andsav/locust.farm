@@ -112,6 +112,14 @@ export function explain(value: Formation): Explanation {
 	];
 	work(value.work, 'Default rules', summary);
 	decisions(value.decisions, 'Default rules', summary);
+	if (value.workspace) {
+		summary.push(
+			`Shared tree: ${authority(value.workspace.integrator)} may integrate an exact candidate after ${completion(value.workspace.completion)}. Host signing permission is separate.`
+		);
+		summary.push(
+			'Shared-tree reviews that exclude authors also exclude every declared composition-source author.'
+		);
+	}
 	for (const name of sortedKeys(value.task_types)) {
 		const taskType = value.task_types[name];
 		const prefix = `Task type ${rustDebug(name)}`;

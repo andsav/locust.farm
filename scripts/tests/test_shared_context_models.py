@@ -1,6 +1,5 @@
 """False-pass guards for the shared-context real-model experiment."""
 import copy
-import difflib
 import json
 from pathlib import Path
 import sys
@@ -9,7 +8,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from client_qualification import collaboration_case as case
-from client_qualification.collaboration_evidence import evaluate, _patch_matches
+from client_qualification.collaboration_evidence import evaluate, _tree_matches
 
 
 class CollaborationCaseTests(unittest.TestCase):
@@ -123,17 +122,23 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(result['contribution_is_bound_to_citing_task_and_attempt'])
         self.assertFalse(result['direct_contribution_summary_cites_finding_event'])
 
-    def test_patch_must_reconstruct_exact_artifact(self):
+    def test_tree_review_must_match_exact_materialized_artifact(self):
         changed = case.STARTER.replace('path = PurePosixPath(name)', 'path = PurePosixPath(name.strip())')
-        diff = ''.join(difflib.unified_diff(case.STARTER.splitlines(True), changed.splitlines(True),
-                                         fromfile='a/safe_member.py', tofile='b/safe_member.py'))
         artifact = self.root / 'safe_member.py'
         artifact.write_text(changed)
-        review = {'base': 'base', 'changes': [{'path': 'safe_member.py', 'unified_diff': diff,
-                  'after': {'bytes': artifact.stat().st_size}}]}
-        self.assertTrue(_patch_matches(review, artifact, 'base'))
+        copied = self.root / 'verified-copy.py'
+        copied.write_text(changed)
+        review = {'proposal': {'proposal': 'proposal', 'parent': 'revision', 'result_manifest': 'manifest'},
+            'review_mode': 'base_diff', 'changes': [{'path': 'safe_member.py',
+                'after': {'bytes': artifact.stat().st_size, 'executable': False}}]}
+        self.assertTrue(_tree_matches(review, artifact, 'revision', copied))
         artifact.write_text(changed.replace('strip()', 'upper()'))
-        self.assertFalse(_patch_matches(review, artifact, 'base'))
+        self.assertFalse(_tree_matches(review, artifact, 'revision', copied))
+        artifact.write_text(changed)
+        self.assertFalse(_tree_matches(review, artifact, 'wrong-parent', copied))
+        copied.unlink()
+        copied.symlink_to(artifact)
+        self.assertFalse(_tree_matches(review, artifact, 'revision', copied))
 
 
 if __name__ == '__main__':

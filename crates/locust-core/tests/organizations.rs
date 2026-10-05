@@ -177,8 +177,6 @@ impl Harness {
                 attempt: None,
                 generation: None,
                 summary: "Evidence".into(),
-                base: None,
-                patch: None,
                 sources: Vec::new(),
                 artifacts: vec![],
             },
@@ -482,7 +480,7 @@ fn author_credential_is_private_cas_capability_without_goal_or_session_access() 
         Request::FormationDraftCreate {
             id: "design".into(),
             expected_revision: 0,
-            source: "{\"schema_version\":1}".into(),
+            source: "{\"schema_version\":2}".into(),
         },
     ) else {
         panic!()

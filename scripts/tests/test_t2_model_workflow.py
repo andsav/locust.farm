@@ -21,7 +21,7 @@ class ModelWorkflowTests(unittest.TestCase):
 
     def test_generated_prose_and_echoed_prompt_are_not_native_calls(self):
         for client in ("codex", "claude-code", "factory-droid", "pi"):
-            path = self.log([{"type": "user", "message": {"content": "Read skill and run locust patch submit"}},
+            path = self.log([{"type": "user", "message": {"content": "Read skill and run locust workspace publish"}},
                              {"type": "assistant", "message": {"content": [{"type": "text", "text": "All tools succeeded"}]}}])
             self.assertEqual(harness.native_calls(client, path), [])
 
@@ -60,13 +60,13 @@ class ModelWorkflowTests(unittest.TestCase):
         self.assertFalse(harness.skill_read([{**calls[0], "output": "unrelated output"}], "/private/SKILL.md"))
 
     def test_cli_evidence_requires_actual_native_shell_and_success(self):
-        call = {"tool": "Bash", "arguments": {"command": "/pinned/locust --json patch submit --goal g"}, "success": True}
-        self.assertTrue(harness.native_operation([call], "patch submit", "/pinned/locust"))
-        self.assertFalse(harness.native_operation([{**call, "success": False}], "patch submit", "/pinned/locust"))
-        self.assertFalse(harness.native_operation([{**call, "tool": "mcp__locust__locust_contribution_publish"}], "patch submit", "/pinned/locust"))
-        self.assertFalse(harness.native_operation([call], "patch apply", "/pinned/locust"))
+        call = {"tool": "Bash", "arguments": {"command": "/pinned/locust --json workspace publish --goal g"}, "success": True}
+        self.assertTrue(harness.native_operation([call], "workspace publish", "/pinned/locust"))
+        self.assertFalse(harness.native_operation([{**call, "success": False}], "workspace publish", "/pinned/locust"))
+        self.assertFalse(harness.native_operation([{**call, "tool": "mcp__locust__locust_contribution_publish"}], "workspace publish", "/pinned/locust"))
+        self.assertFalse(harness.native_operation([call], "workspace update", "/pinned/locust"))
 
-    def test_original_boundary_includes_tests_unrelated_work_and_exact_git_head(self):
+    def test_original_boundary_preserves_tests_unrelated_work_and_plain_directory(self):
         with tempfile.TemporaryDirectory() as output:
             profile = Profile(output, "model-test")
             self.addCleanup(profile.close)
@@ -75,12 +75,7 @@ class ModelWorkflowTests(unittest.TestCase):
             for name, content in (("calculator.py", harness.BASE_CODE), ("test_calculator.py", harness.TEST_CODE),
                                   ("unrelated.txt", "preserve unrelated local work\n")):
                 private_write(source / name, content)
-            harness.git(profile, source, ["init", "-q"])
-            harness.git(profile, source, ["config", "user.name", "Synthetic test"])
-            harness.git(profile, source, ["config", "user.email", "test@example.invalid"])
-            harness.git(profile, source, ["add", "calculator.py", "test_calculator.py"])
-            harness.git(profile, source, ["commit", "-qm", "base"])
-            work = {"source": str(source), "commit": harness.git(profile, source, ["rev-parse", "HEAD"])}
+            work = {"source": str(source)}
             self.assertTrue(harness.original_preserved(profile, work))
             self.assertNotEqual(harness.check_tests(profile, source)["exit_code"], 0)
             private_write(source / "calculator.py", harness.FIXED_CODE)

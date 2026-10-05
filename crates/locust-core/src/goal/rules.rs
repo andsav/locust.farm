@@ -41,6 +41,12 @@ pub(super) fn resolve<D: DefinitionLookup + ?Sized>(
             }
             (context.round, None, None)
         }
+        Scope::Workspace => {
+            let Body::WorkspaceEpoch { rules, .. } = event.header().body else {
+                return Err(invalid("workspace context round is not an epoch"));
+            };
+            (rules, None, None)
+        }
         Scope::Task(task) => match &event.header().body {
             Body::TaskOpened { binding } if task == TaskId::Authored(event.id()) => (
                 binding.rules,
@@ -71,7 +77,27 @@ pub(super) fn resolve<D: DefinitionLookup + ?Sized>(
             _ => return Err(invalid("context round belongs to another task")),
         },
     };
-    resolve_binding(history, definitions, rules, task, creator)
+    let mut resolved = resolve_binding(history, definitions, rules, task, creator)?;
+    if context.scope == Scope::Workspace {
+        let definition = definitions
+            .definition(&resolved.effective.definition)
+            .expect("resolved definition exists");
+        resolved.effective.decisions = definition.workspace.as_ref().map_or_else(
+            || DecisionRules {
+                completion: CompletionRule::Contribution {
+                    by: Selector::Nobody,
+                },
+                selection: None,
+                finish: None,
+            },
+            |policy| DecisionRules {
+                completion: policy.completion.clone(),
+                selection: Some(policy.integrator.clone()),
+                finish: None,
+            },
+        );
+    }
+    Ok(resolved)
 }
 
 pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
@@ -186,16 +212,26 @@ pub(super) fn may_review(
     rules: &EffectiveRules,
     subject: PublicKey,
 ) -> bool {
+    may_review_with_authors(rule, principal, rules, subject, &BTreeSet::from([subject]))
+}
+
+pub(super) fn may_review_with_authors(
+    rule: &CompletionRule,
+    principal: PublicKey,
+    rules: &EffectiveRules,
+    subject: PublicKey,
+    authors: &BTreeSet<PublicKey>,
+) -> bool {
     match rule {
         CompletionRule::Reviews {
             by, exclude_author, ..
         } => {
-            (!exclude_author || principal != subject)
+            (!exclude_author || !authors.contains(&principal))
                 && matches(by, principal, rules, Some(subject))
         }
         CompletionRule::All { rules: items } | CompletionRule::Any { rules: items } => items
             .iter()
-            .any(|rule| may_review(rule, principal, rules, subject)),
+            .any(|rule| may_review_with_authors(rule, principal, rules, subject, authors)),
         _ => false,
     }
 }

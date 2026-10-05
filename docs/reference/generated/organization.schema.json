@@ -525,6 +525,28 @@
         }
       },
       "type": "object"
+    },
+    "WorkspacePolicy": {
+      "additionalProperties": false,
+      "description": "One named integration authority and exact-candidate completion policy.\nEligibility here does not grant the host permission to sign a decision.",
+      "properties": {
+        "completion": {
+          "$ref": "#/$defs/CompletionRule",
+          "default": {
+            "by": {
+              "kind": "contribution_author"
+            },
+            "kind": "declaration"
+          }
+        },
+        "integrator": {
+          "$ref": "#/$defs/Authority"
+        }
+      },
+      "required": [
+        "integrator"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -568,8 +590,8 @@
     },
     "schema_version": {
       "format": "uint32",
-      "maximum": 1,
-      "minimum": 1,
+      "maximum": 2,
+      "minimum": 2,
       "type": "integer"
     },
     "task_types": {
@@ -598,6 +620,18 @@
           }
         ]
       }
+    },
+    "workspace": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WorkspacePolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Explicit policy for the goal's shared file tree. Absence disables writes."
     }
   },
   "required": [

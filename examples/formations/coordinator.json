@@ -28,7 +28,7 @@
       "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
     }
   },
-  "schema_version": 1,
+  "schema_version": 2,
   "task_types": {},
   "work": {
     "propose": {
@@ -49,5 +49,6 @@
         }
       }
     ]
-  }
+  },
+  "workspace": null
 }

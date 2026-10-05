@@ -83,6 +83,10 @@ fn decisions(value: &mut DecisionRules) {
 pub(super) fn normalize(value: &mut Formation) {
     work(&mut value.work);
     decisions(&mut value.decisions);
+    if let Some(workspace) = &mut value.workspace {
+        authority(&mut workspace.integrator);
+        completion(&mut workspace.completion);
+    }
     for task_type in value.task_types.values_mut() {
         let rules = task_type.work.get_or_insert_with(|| value.work.clone());
         work(rules);

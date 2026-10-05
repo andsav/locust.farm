@@ -239,6 +239,18 @@ byte_id!(
     16
 );
 
+byte_id!(
+    /// One daemon-local ordinary-directory checkout, scoped to a goal and principal.
+    CheckoutId,
+    16
+);
+
+byte_id!(
+    /// Durable local workspace operation, including capture and recovery state.
+    WorkspaceOperationId,
+    16
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;

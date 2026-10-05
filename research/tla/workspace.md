@@ -166,6 +166,12 @@ The unchanged runner's 21 unit tests passed, and the model diff whitespace check
 passed. Documentation index/link checks are deferred to the owner who stages the
 new tracked documents.
 
+A subsequent `--suite workspace` run at
+`output/tla/runs/20261005T092709Z-85262876/` matched all 54 outcomes and returned
+0 with `source_changed_during_run: false`. The frozen model and cases were
+unchanged. This verifies a stable-source model run; it still does not establish
+automatic conformance between the model and the Rust runtime.
+
 The registry labels the modeled baseline as a proposed workspace
 contract based on source commit `5e9d5927c681ac5b36ccfb28d91347001cfe0700`,
 separately from the current running checkout. Runtime conformance is not claimed.

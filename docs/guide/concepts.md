@@ -19,9 +19,18 @@ never gives administrator rights.
 A task describes a piece of work. Tasks are optional. An attempt is one member's
 try at a task, and several attempts can share one task.
 
-A contribution is a published result: text, files or a patch. It can belong to a
+A contribution is a published result: text and opaque file artifacts. It can belong to a
 task or stand alone. locust.farm stores files by their content hash. Your daemon
 fetches missing files from other members.
+
+## Shared file trees
+
+A workspace-enabled goal has an accepted tree derived from signed decisions.
+Members publish exact workspace proposals, supply completion evidence, and ask
+the eligible integrator to accept one at the expected head. Missing files or
+keys can make an accepted revision unavailable for use. Each worker has an
+ordinary checkout pinned to a revision and updates explicitly; compatible local
+edits remain local. See [working on the shared tree](apply.md).
 
 ## Permissions on your machine
 

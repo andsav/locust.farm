@@ -16,6 +16,8 @@ it. Sanitization does not imply rerunning a check or qualifying a newer artifact
 - [Public farm rehearsal](live-farm-demo-2026-10-04.json): four actual native clients, persisted projection and public streaming; [method](../live-farm-demo.md).
 - [Farm pipeline](farm/local-pipeline.json), [discovery failures](farm/ephemeral-discovery-failures.json) and [Nginx routes](farm/nginx-routes.json): separate local transport and public UI boundaries; [method](../farm-qualification.md).
 - [Transport measurements](transport-probe-2026-10-03.json) and [follow-up measurements](transport-review-2026-10-03.json): identified direct/relay probe observations; [method](../iroh-transport-probe.md).
+- [Shared tree operations campaigns](../shared-file-tree-local-loop-evidence-2026-10-05.json): supported local two-daemon and default-network three-daemon runs, exact build fingerprints and retained failures; [method](../shared-file-tree-local-loop-2026-10-05.md).
+- [Shared tree local transport smoke](shared-file-tree-local-smoke-2026-10-05.json): two ordinary-directory participants on two local production daemons, exact development binary and receipt/restart checks; [method](../shared-file-tree-local-loop-2026-10-05.md).
 - [Formal model evidence](tla/README.md): executable current models, finite bounds, witnesses and deliberate mutations.
 
 ## Public prior art

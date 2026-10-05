@@ -13,6 +13,7 @@ mod rules;
 mod screen;
 pub mod standing;
 pub mod state;
+mod workspace;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -272,6 +273,7 @@ impl Goal {
         let round = match scope {
             Scope::Task(task) => self.state().tasks.get(&task)?.current_round,
             Scope::Goal | Scope::Document(_) => self.state().current_rules?,
+            Scope::Workspace => self.state().workspace.as_ref()?.epoch,
         };
         Some(Context { scope, round })
     }
@@ -375,6 +377,12 @@ impl Goal {
                     .revisions
                     .get(&subject)
                     .map(|candidate| (candidate.context, candidate.author))
+            })
+            .or_else(|| {
+                self.state()
+                    .workspace_proposals
+                    .get(&subject)
+                    .map(|candidate| (candidate.context, candidate.author))
             });
         let Some((context, author)) = candidate else {
             return false;
@@ -382,8 +390,20 @@ impl Goal {
         let Some(rules) = self.effective_rules(context, definitions) else {
             return false;
         };
+        let authors = self
+            .state()
+            .workspace_proposals
+            .get(&subject)
+            .map(|candidate| candidate.source_authors.clone())
+            .unwrap_or_else(|| BTreeSet::from([author]));
         self.state().is_member(&principal)
-            && rules::may_review(&rules.decisions.completion, principal, &rules, author)
+            && rules::may_review_with_authors(
+                &rules.decisions.completion,
+                principal,
+                &rules,
+                author,
+                &authors,
+            )
     }
 }
 

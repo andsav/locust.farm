@@ -214,8 +214,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         generation: Option<u32>,
         summary: String,
         sources: Vec<EventId>,
-        base: Option<BlobHash>,
-        patch: Option<BlobHash>,
         artifacts: Vec<BlobHash>,
         now: u64,
     ) -> Plan {
@@ -261,8 +259,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 context,
                 attempt,
                 sources,
-                base,
-                patch,
                 artifacts,
             },
             Some(&summary),

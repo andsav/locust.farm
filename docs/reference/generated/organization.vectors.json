@@ -41,7 +41,7 @@
           },
           "flow": {},
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -58,12 +58,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "1954b82aef03f195b9b054dff5e9b3acb9e3830c9f1357821107d7193ee3ee91",
+        "semantic_hash": "1797e1bccec65f6c296d8fe716636c68a11465f7cbcc480a9770a165f25de18a",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "preset/coordinator",
@@ -123,7 +124,7 @@
               "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -144,12 +145,13 @@
                 }
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "5063b5d5533131b8c72601692f7942943b10d23ae344ccc4d03ede4dd31d2314",
+        "semantic_hash": "57809c414072a4a8d0753c2d5de6ee2f628eebbe2568cea5a90bd496f7b48568",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"coordinator\"\n      },\n      \"count\": 1,\n      \"exclude_author\": false,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    },\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"coordinator\": {\n      \"description\": \"Asks members to do tasks, approves results, picks the result to use and can close a task. One member.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"role\",\n          \"name\": \"coordinator\"\n        },\n        \"kind\": \"offered\",\n        \"to\": {\n          \"kind\": \"members\"\n        }\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"coordinator\"\n      },\n      \"count\": 1,\n      \"exclude_author\": false,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    },\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"coordinator\": {\n      \"description\": \"Asks members to do tasks, approves results, picks the result to use and can close a task. One member.\"\n    }\n  },\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"role\",\n          \"name\": \"coordinator\"\n        },\n        \"kind\": \"offered\",\n        \"to\": {\n          \"kind\": \"members\"\n        }\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "preset/peer-review",
@@ -194,7 +196,7 @@
           },
           "flow": {},
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -211,12 +213,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "90c1265d1a5088aafdb8fa78c7f9cf5c09714a375972a2c024d8cc26a43dc94e",
+        "semantic_hash": "4a09ac9cc2d3c4e57206b115ea39b1a547af4c97688536accc92efa269dc14df",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"members\"\n      },\n      \"count\": 1,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"members\"\n      },\n      \"count\": 1,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "preset/review-panel",
@@ -268,7 +271,7 @@
               "description": "Approves results from other members."
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -285,12 +288,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "b8d62fc3705878ba0c2c8492cc5e254c00d0a1b99d70d79717f4e93cfe09b936",
+        "semantic_hash": "a3e0f49c12f9de5680c07c601bb1e718ff2b56959d46e01dab7bd5d526996830",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"reviewer\"\n      },\n      \"count\": 2,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"reviewer\": {\n      \"description\": \"Approves results from other members.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"reviewer\"\n      },\n      \"count\": 2,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"reviewer\": {\n      \"description\": \"Approves results from other members.\"\n    }\n  },\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "preset/independent-attempts",
@@ -344,7 +348,7 @@
               "description": "Picks which result to use. One member."
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -361,12 +365,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "aed7daad88c885a5a8f8b57a1df48b35b6cf5283e53df8e631c80d808d74aa71",
+        "semantic_hash": "4d1dafafc555d4492f7e2134a87f0226eac966135302032555453e148c53cac7",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"judge\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"judge\": {\n      \"description\": \"Picks which result to use. One member.\"\n    }\n  },\n  \"schema_version\": 1,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"judge\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"judge\": {\n      \"description\": \"Picks which result to use. One member.\"\n    }\n  },\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "preset/pipeline",
@@ -438,7 +443,7 @@
             }
           },
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {
             "draft": {
               "decisions": {
@@ -486,12 +491,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "561c9135726f48d4d691ce8e8a4201ca146fc812b433bad02fe44da971334e0e",
+        "semantic_hash": "2ad956e7db65e0ae7d8fe663f15b0bc99a289c75c4fc9d76800314e9fc0d9648",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {\n    \"draft\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [],\n      \"task_type\": \"draft\"\n    },\n    \"ship\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [\n        {\n          \"evidence\": \"completion\",\n          \"stage\": \"draft\"\n        }\n      ],\n      \"task_type\": null\n    }\n  },\n  \"roles\": {},\n  \"schema_version\": 1,\n  \"task_types\": {\n    \"draft\": {\n      \"decisions\": {\n        \"completion\": {\n          \"by\": {\n            \"kind\": \"members\"\n          },\n          \"count\": 1,\n          \"exclude_author\": true,\n          \"kind\": \"reviews\"\n        },\n        \"finish\": null,\n        \"selection\": null\n      },\n      \"work\": null\n    }\n  },\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  }\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {\n    \"draft\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [],\n      \"task_type\": \"draft\"\n    },\n    \"ship\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [\n        {\n          \"evidence\": \"completion\",\n          \"stage\": \"draft\"\n        }\n      ],\n      \"task_type\": null\n    }\n  },\n  \"roles\": {},\n  \"schema_version\": 2,\n  \"task_types\": {\n    \"draft\": {\n      \"decisions\": {\n        \"completion\": {\n          \"by\": {\n            \"kind\": \"members\"\n          },\n          \"count\": 1,\n          \"exclude_author\": true,\n          \"kind\": \"reviews\"\n        },\n        \"finish\": null,\n        \"selection\": null\n      },\n      \"work\": null\n    }\n  },\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "load/eof",
@@ -512,7 +518,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\":1,"
+      "source": "{\"schema_version\":2,"
     },
     {
       "id": "load/trailing",
@@ -533,7 +539,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\":1} x"
+      "source": "{\"schema_version\":2} x"
     },
     {
       "id": "load/not-json",
@@ -596,7 +602,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\":1,\"a\":1,\"a\":2}"
+      "source": "{\"schema_version\":2,\"a\":1,\"a\":2}"
     },
     {
       "id": "load/duplicate-nested",
@@ -617,7 +623,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\":1,\"roles\":{\"r\":{},\"r\":{}}}"
+      "source": "{\"schema_version\":2,\"roles\":{\"r\":{},\"r\":{}}}"
     },
     {
       "id": "load/duplicate-after-error-free-prefix",
@@ -638,16 +644,16 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\":1,\"roles\":{\"r\":{\"description\":\"x\",\"description\":\"y\"}}}"
+      "source": "{\"schema_version\":2,\"roles\":{\"r\":{\"description\":\"x\",\"description\":\"y\"}}}"
     },
     {
-      "id": "version/two",
+      "id": "version/one",
       "result": {
         "diagnostics": [
           {
             "code": "unsupported_version",
             "correction": "Use the contract exported by this build. Unsupported documents are not converted.",
-            "message": "schema version 2 is unsupported; this build accepts 1",
+            "message": "schema version 1 is unsupported; this build accepts 2",
             "path": "/schema_version",
             "phase": "load",
             "related_paths": [],
@@ -659,16 +665,16 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\":2}"
+      "source": "{\"schema_version\":1}"
     },
     {
-      "id": "version/two-with-unknown-field",
+      "id": "version/one-with-unknown-field",
       "result": {
         "diagnostics": [
           {
             "code": "unsupported_version",
             "correction": "Use the contract exported by this build. Unsupported documents are not converted.",
-            "message": "schema version 2 is unsupported; this build accepts 1",
+            "message": "schema version 1 is unsupported; this build accepts 2",
             "path": "/schema_version",
             "phase": "load",
             "related_paths": [],
@@ -680,7 +686,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\":2,\"extra\":1}"
+      "source": "{\"schema_version\":1,\"extra\":1}"
     },
     {
       "id": "structure/missing-version",
@@ -773,7 +779,7 @@
           {
             "code": "invalid_structure",
             "correction": "Use formation schema or a bundled example for supported fields and values.",
-            "message": "invalid type: floating point `1.0`, expected u32",
+            "message": "invalid type: floating point `2.0`, expected u32",
             "path": "/schema_version",
             "phase": "definition",
             "related_paths": [],
@@ -785,7 +791,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\":1.0}"
+      "source": "{\"schema_version\":2.0}"
     },
     {
       "id": "structure/version-negative",
@@ -836,7 +842,7 @@
           {
             "code": "invalid_structure",
             "correction": "Use formation schema or a bundled example for supported fields and values.",
-            "message": "unknown field `extra`, expected one of `schema_version`, `roles`, `context`, `work`, `decisions`, `task_types`, `flow`",
+            "message": "unknown field `extra`, expected one of `schema_version`, `roles`, `context`, `work`, `decisions`, `workspace`, `task_types`, `flow`",
             "path": "/extra",
             "phase": "definition",
             "related_paths": [],
@@ -848,7 +854,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"extra\": 1}"
+      "source": "{\"schema_version\": 2, \"extra\": 1}"
     },
     {
       "id": "structure/roles-array",
@@ -869,7 +875,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": []}"
+      "source": "{\"schema_version\": 2, \"roles\": []}"
     },
     {
       "id": "structure/role-unknown-field",
@@ -890,7 +896,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {\"desc\": \"\"}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"a\": {\"desc\": \"\"}}}"
     },
     {
       "id": "structure/role-description-type",
@@ -911,7 +917,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {\"description\": 1}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"a\": {\"description\": 1}}}"
     },
     {
       "id": "structure/selector-missing-name",
@@ -932,7 +938,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\"}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"role\"}}}"
     },
     {
       "id": "structure/selector-unknown-kind",
@@ -953,7 +959,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"bogus\"}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"bogus\"}}}"
     },
     {
       "id": "structure/selector-kind-type",
@@ -974,7 +980,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": 5}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": 5}}}"
     },
     {
       "id": "structure/selector-not-object",
@@ -995,7 +1001,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": 5}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": 5}}"
     },
     {
       "id": "structure/selector-extra-field",
@@ -1016,7 +1022,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\", \"y\": 1}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\", \"y\": 1}}}"
     },
     {
       "id": "structure/start-missing-kind",
@@ -1037,7 +1043,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"by\": {\"kind\": \"members\"}}]}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"starts\": [{\"by\": {\"kind\": \"members\"}}]}}"
     },
     {
       "id": "structure/start-missing-by",
@@ -1058,7 +1064,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\"}]}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"starts\": [{\"kind\": \"independent\"}]}}"
     },
     {
       "id": "structure/start-nested-unknown-kind",
@@ -1079,7 +1085,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"bogus\"}}]}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"bogus\"}}]}}"
     },
     {
       "id": "structure/start-nested-type",
@@ -1100,7 +1106,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"role\", \"name\": 5}}]}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"role\", \"name\": 5}}]}}"
     },
     {
       "id": "structure/starts-not-array",
@@ -1121,7 +1127,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"starts\": {}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"starts\": {}}}"
     },
     {
       "id": "structure/authority-unknown-kind",
@@ -1142,7 +1148,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": {\"kind\": \"bogus\"}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"selection\": {\"kind\": \"bogus\"}}}"
     },
     {
       "id": "structure/authority-missing-name",
@@ -1163,7 +1169,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": {\"kind\": \"role\"}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"selection\": {\"kind\": \"role\"}}}"
     },
     {
       "id": "structure/authority-not-object",
@@ -1184,7 +1190,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"selection\": 5}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"selection\": 5}}"
     },
     {
       "id": "structure/stage-unknown-field",
@@ -1205,7 +1211,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"runner\": {\"kind\": \"members\"}}}}"
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {\"runner\": {\"kind\": \"members\"}}}}"
     },
     {
       "id": "flow/stage-defaults",
@@ -1258,7 +1264,7 @@
             }
           },
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -1275,12 +1281,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "6f4e11faf3a984c5b6a6cbc52b3209f563e5e2aa9b6a4982acdbd8176ecae637",
+        "semantic_hash": "e2c824d954c15b42014e339d05c51cc183b6e5e11919e12aae855f736ce2cf89",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {}}}"
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {}}}"
     },
     {
       "id": "structure/requires-missing-evidence",
@@ -1301,7 +1308,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\"}]}}}"
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\"}]}}}"
     },
     {
       "id": "structure/requires-bad-evidence",
@@ -1322,7 +1329,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\", \"evidence\": \"x\"}]}}}"
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\", \"evidence\": \"x\"}]}}}"
     },
     {
       "id": "structure/count-negative",
@@ -1343,7 +1350,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": -1}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": -1}}}"
     },
     {
       "id": "structure/count-float",
@@ -1364,7 +1371,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 1.5}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 1.5}}}"
     },
     {
       "id": "structure/completion-nested-missing-count",
@@ -1385,7 +1392,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}}]}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}}]}}}"
     },
     {
       "id": "structure/input-bad-kind",
@@ -1406,7 +1413,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"x\": {\"kind\": \"file\"}}}}"
+      "source": "{\"schema_version\": 2, \"context\": {\"inputs\": {\"x\": {\"kind\": \"file\"}}}}"
     },
     {
       "id": "structure/input-required-type",
@@ -1427,7 +1434,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"x\": {\"kind\": \"text\", \"required\": \"yes\"}}}}"
+      "source": "{\"schema_version\": 2, \"context\": {\"inputs\": {\"x\": {\"kind\": \"text\", \"required\": \"yes\"}}}}"
     },
     {
       "id": "structure/guidance-type",
@@ -1448,7 +1455,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"context\": {\"guidance\": 1}}"
+      "source": "{\"schema_version\": 2, \"context\": {\"guidance\": 1}}"
     },
     {
       "id": "structure/stage-task-type-type",
@@ -1469,7 +1476,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"flow\": {\"s\": {\"task_type\": 5}}}"
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {\"task_type\": 5}}}"
     },
     {
       "id": "structure/task-type-nested-unknown-kind",
@@ -1490,7 +1497,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"task_types\": {\"t\": {\"work\": {\"propose\": {\"kind\": \"x\"}}}}}"
+      "source": "{\"schema_version\": 2, \"task_types\": {\"t\": {\"work\": {\"propose\": {\"kind\": \"x\"}}}}}"
     },
     {
       "id": "structure/task-type-unknown-field",
@@ -1511,7 +1518,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"task_types\": {\"t\": {\"rules\": {}}}}"
+      "source": "{\"schema_version\": 2, \"task_types\": {\"t\": {\"rules\": {}}}}"
     },
     {
       "id": "structure/any-nested-unknown-kind",
@@ -1532,7 +1539,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"bogus\"}]}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"bogus\"}]}}}"
     },
     {
       "id": "structure/decisions-unknown-field",
@@ -1553,7 +1560,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"closure\": null}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"closure\": null}}"
     },
     {
       "id": "structure/old-name-variations",
@@ -1562,7 +1569,7 @@
           {
             "code": "invalid_structure",
             "correction": "Use formation schema or a bundled example for supported fields and values.",
-            "message": "unknown field `variations`, expected one of `schema_version`, `roles`, `context`, `work`, `decisions`, `task_types`, `flow`",
+            "message": "unknown field `variations`, expected one of `schema_version`, `roles`, `context`, `work`, `decisions`, `workspace`, `task_types`, `flow`",
             "path": "/variations",
             "phase": "definition",
             "related_paths": [],
@@ -1574,7 +1581,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"variations\": {}}"
+      "source": "{\"schema_version\": 2, \"variations\": {}}"
     },
     {
       "id": "rules/invalid_name-blank-role",
@@ -1595,7 +1602,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\" \": {}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\" \": {}}}"
     },
     {
       "id": "rules/invalid_name-control-role",
@@ -1616,7 +1623,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"a\\u0007\": {}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"a\\u0007\": {}}}"
     },
     {
       "id": "rules/invalid_name-input",
@@ -1637,7 +1644,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"context\": {\"inputs\": {\"\": {\"kind\": \"text\"}}}}"
+      "source": "{\"schema_version\": 2, \"context\": {\"inputs\": {\"\": {\"kind\": \"text\"}}}}"
     },
     {
       "id": "rules/invalid_name-check",
@@ -1658,7 +1665,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"check\", \"name\": \"\\t\", \"by\": {\"kind\": \"members\"}}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"check\", \"name\": \"\\t\", \"by\": {\"kind\": \"members\"}}}}"
     },
     {
       "id": "rules/invalid_name-stage-and-task-type",
@@ -1688,7 +1695,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"task_types\": {\" \": {}}, \"flow\": {\"\\n\": {}}, \"roles\": {\"r\": {}}}"
+      "source": "{\"schema_version\": 2, \"task_types\": {\" \": {}}, \"flow\": {\"\\n\": {}}, \"roles\": {\"r\": {}}}"
     },
     {
       "id": "rules/unknown_role",
@@ -1709,7 +1716,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}}}"
     },
     {
       "id": "rules/invalid_participant",
@@ -1730,7 +1737,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"participant\", \"key\": \"abc\"}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"participant\", \"key\": \"abc\"}}}"
     },
     {
       "id": "rules/selector_scope-task-creator",
@@ -1751,7 +1758,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"task_creator\"}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"task_creator\"}}}"
     },
     {
       "id": "rules/selector_scope-contribution-author",
@@ -1772,7 +1779,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"contribution_author\"}}]}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"contribution_author\"}}]}}"
     },
     {
       "id": "rules/selector_scope-recipients",
@@ -1793,7 +1800,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"recipients\": {\"kind\": \"task_creator\"}}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"recipients\": {\"kind\": \"task_creator\"}}}}"
     },
     {
       "id": "rules/empty_selector",
@@ -1814,7 +1821,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": []}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": []}}}"
     },
     {
       "id": "rules/impossible_completion",
@@ -1835,7 +1842,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"nobody\"}}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"nobody\"}}}}"
     },
     {
       "id": "rules/invalid_threshold",
@@ -1856,7 +1863,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}}}"
     },
     {
       "id": "rules/impossible_threshold",
@@ -1877,7 +1884,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}]}, \"count\": 2}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}]}, \"count\": 2}}}"
     },
     {
       "id": "rules/impossible_threshold-exclude-author",
@@ -1898,7 +1905,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"contribution_author\"}, \"count\": 1}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"contribution_author\"}, \"count\": 1}}}"
     },
     {
       "id": "rules/impossible_threshold-case-folded-keys",
@@ -1919,7 +1926,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}]}, \"count\": 2}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}]}, \"count\": 2}}}"
     },
     {
       "id": "rules/empty_criteria",
@@ -1940,7 +1947,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": []}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": []}}}"
     },
     {
       "id": "rules/unknown_task_type",
@@ -1961,7 +1968,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"task_type\": \"missing\"}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"task_type\": \"missing\"}}}"
     },
     {
       "id": "rules/unknown_stage",
@@ -1982,7 +1989,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\", \"evidence\": \"completion\"}]}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"requires\": [{\"stage\": \"t\", \"evidence\": \"completion\"}]}}}"
     },
     {
       "id": "rules/unavailable_evidence",
@@ -2003,7 +2010,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {}, \"b\": {\"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}]}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {}, \"b\": {\"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}]}}}"
     },
     {
       "id": "rules/flow_cycle",
@@ -2024,7 +2031,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"requires\": [{\"stage\": \"b\", \"evidence\": \"completion\"}]}, \"b\": {\"requires\": [{\"stage\": \"a\", \"evidence\": \"completion\"}]}, \"c\": {}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"r\": {}}, \"flow\": {\"a\": {\"requires\": [{\"stage\": \"b\", \"evidence\": \"completion\"}]}, \"b\": {\"requires\": [{\"stage\": \"a\", \"evidence\": \"completion\"}]}, \"c\": {}}}"
     },
     {
       "id": "rules/several",
@@ -2090,7 +2097,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}, \"publish\": {\"kind\": \"task_creator\"}}, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}, \"finish\": {\"kind\": \"role\", \"name\": \"y\"}}, \"flow\": {\"s\": {\"task_type\": \"t\"}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x\"}, \"publish\": {\"kind\": \"task_creator\"}}, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 0}, \"finish\": {\"kind\": \"role\", \"name\": \"y\"}}, \"flow\": {\"s\": {\"task_type\": \"t\"}}}"
     },
     {
       "id": "rules/pointer-escaping",
@@ -2120,7 +2127,7 @@
         "semantic_hash": null,
         "valid": false
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"a/b~c\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x/y\"}}, \"flow\": {\"p/q\": {\"task_type\": \"m~n\"}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"a/b~c\": {}}, \"work\": {\"propose\": {\"kind\": \"role\", \"name\": \"x/y\"}}, \"flow\": {\"p/q\": {\"task_type\": \"m~n\"}}}"
     },
     {
       "id": "explain/check-and-any",
@@ -2184,7 +2191,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2201,12 +2208,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "fee1e254baf29c3a981908e9ba3e1646557881fba8f2197c76526ea6d03b3e45",
+        "semantic_hash": "42a50832a8c291f0e8157c88db3dbf3c2b3ca90c52b1367b0138aff6c31a5f50",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"tester\": {}}, \"decisions\": {\"completion\": {\"kind\": \"any\", \"rules\": [{\"kind\": \"check\", \"name\": \"ci\", \"by\": {\"kind\": \"role\", \"name\": \"tester\"}}, {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 2, \"exclude_author\": false}]}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"tester\": {}}, \"decisions\": {\"completion\": {\"kind\": \"any\", \"rules\": [{\"kind\": \"check\", \"name\": \"ci\", \"by\": {\"kind\": \"role\", \"name\": \"tester\"}}, {\"kind\": \"reviews\", \"by\": {\"kind\": \"members\"}, \"count\": 2, \"exclude_author\": false}]}}}"
     },
     {
       "id": "explain/nested-groups",
@@ -2260,7 +2268,7 @@
           },
           "flow": {},
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2277,12 +2285,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "4fe12b563ef65580353b7a349baa889b6291038f106cca00662baf7c39f3e972",
+        "semantic_hash": "438a2124742d1a6442a1d107df0358e9bf6fec58f20506573acacfb815bd183e",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, {\"kind\": \"all\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}]}, {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}]}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, {\"kind\": \"all\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}]}, {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}]}}}"
     },
     {
       "id": "explain/single-rule-group",
@@ -2325,7 +2334,7 @@
           },
           "flow": {},
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2342,12 +2351,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "e66da4f93435123a9b58b692bbb5963ebd74e90d160bd482528641f5169e8aae",
+        "semantic_hash": "a693639960e0eb91311c9470cd4ef90646a6572d5c0f8059551674ca33038df2",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"decisions\": {\"completion\": {\"kind\": \"any\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}]}}}"
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"any\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}]}}}"
     },
     {
       "id": "explain/selector-flatten",
@@ -2400,7 +2410,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2430,12 +2440,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "01d70c16d966ab3222bb12fe72c523a4b828a9fd25dc31c8885f6bf8fbc60c6c",
+        "semantic_hash": "1e45a156f8693650931c509d77c84f9d58813c802e1a2192f5d2dd62ffeb1090",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {}, \"bb\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"bb\"}, {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"a\"}, {\"kind\": \"members\"}]}, {\"kind\": \"role\", \"name\": \"bb\"}]}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"a\": {}, \"bb\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"bb\"}, {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"a\"}, {\"kind\": \"members\"}]}, {\"kind\": \"role\", \"name\": \"bb\"}]}}}"
     },
     {
       "id": "explain/selector-single",
@@ -2484,7 +2495,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2502,12 +2513,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "ca785572a678519d6a69a53296eecc80c94f7125f771301a828888360816601b",
+        "semantic_hash": "00a0794d80dee2ae317d47afbae98c8039ed1e1b36640813ec52c22c2c2dc286",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"a\": {}}, \"work\": {\"publish\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"a\"}]}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"a\": {}}, \"work\": {\"publish\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"a\"}]}}}"
     },
     {
       "id": "explain/starts-order",
@@ -2557,7 +2569,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2584,12 +2596,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "303b9f905694412d816da4c8fae4f1b8925232c398e8629acd347356a8f2a6fb",
+        "semantic_hash": "b39f48e9a6252e368ced65c57577a06bb5ec1aa4bcaffdc995962ff19bd4ee78",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"c\": {}}, \"work\": {\"starts\": [{\"kind\": \"offered\", \"by\": {\"kind\": \"role\", \"name\": \"c\"}, \"to\": {\"kind\": \"members\"}}, {\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}, {\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}]}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"c\": {}}, \"work\": {\"starts\": [{\"kind\": \"offered\", \"by\": {\"kind\": \"role\", \"name\": \"c\"}, \"to\": {\"kind\": \"members\"}}, {\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}, {\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}]}}"
     },
     {
       "id": "explain/no-starts",
@@ -2632,7 +2645,7 @@
           },
           "flow": {},
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2642,12 +2655,13 @@
               "kind": "nobody"
             },
             "starts": []
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "8f6362a2abb318f1f9db1f2a5ac37090b9126ee6cb69dc015ddbdac32c85ae12",
+        "semantic_hash": "149a92185810538f72f179db495238a33fce309ecc8fbce0e577a790f940595c",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"starts\": [], \"publish\": {\"kind\": \"nobody\"}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"starts\": [], \"publish\": {\"kind\": \"nobody\"}}}"
     },
     {
       "id": "explain/participants",
@@ -2696,7 +2710,7 @@
           },
           "flow": {},
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2714,12 +2728,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "e608f01988dbf96342df0d9224cf5b52b16dcea92d38fed17c416ecff74a4671",
+        "semantic_hash": "70f8c27897cb37f69bf07a5695ceab88b2228f9cc2b8913a63d552268da5d081",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}}, \"decisions\": {\"selection\": {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}, \"finish\": {\"kind\": \"participant\", \"key\": \"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}}, \"decisions\": {\"selection\": {\"kind\": \"participant\", \"key\": \"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\"}, \"finish\": {\"kind\": \"participant\", \"key\": \"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"}}}"
     },
     {
       "id": "explain/authority-roles",
@@ -2784,7 +2799,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -2801,12 +2816,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "0657890460d9a9de9db54b02fe878a41d587c577e9f36ff46d1427e596e679eb",
+        "semantic_hash": "e9f45ef033c09487cde52eea29a15d421a17f3935cc9e748e4646549562eed7e",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"judge\": {}, \"closer\": {}, \"extra\": {}}, \"decisions\": {\"selection\": {\"kind\": \"role\", \"name\": \"judge\"}, \"finish\": {\"kind\": \"role\", \"name\": \"closer\"}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"judge\": {}, \"closer\": {}, \"extra\": {}}, \"decisions\": {\"selection\": {\"kind\": \"role\", \"name\": \"judge\"}, \"finish\": {\"kind\": \"role\", \"name\": \"closer\"}}}"
     },
     {
       "id": "explain/task-type-partial",
@@ -2865,7 +2881,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {
             "a": {
               "decisions": {
@@ -2935,12 +2951,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "41a23db829fd6f4a85ec9239019503843c74c6a372b26b44fc7e3de342e8ff39",
+        "semantic_hash": "1a51c0b1fb853782f7a41900ff04144180d175fa546b647c4026767b20324210",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"rev\": {}}, \"task_types\": {\"z\": {\"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"role\", \"name\": \"rev\"}, \"count\": 1}}}, \"a\": {\"work\": {\"starts\": []}}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"rev\": {}}, \"task_types\": {\"z\": {\"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"role\", \"name\": \"rev\"}, \"count\": 1}}}, \"a\": {\"work\": {\"starts\": []}}}}"
     },
     {
       "id": "explain/inputs",
@@ -2999,7 +3016,7 @@
           },
           "flow": {},
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -3016,12 +3033,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "aee354907ac008bbef9c418bf72ccef9e79c0c7245683e465d95b02b98c030c3",
+        "semantic_hash": "1fd253f69dc7dd8f7820babbfd8d27c8ff360b2a8127bf499215460baf84787b",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"context\": {\"guidance\": \"Run the tests first.\", \"inputs\": {\"repo\": {\"kind\": \"artifact\"}, \"brief\": {\"kind\": \"text\", \"required\": false}, \"a\": {\"kind\": \"text\"}}}}"
+      "source": "{\"schema_version\": 2, \"context\": {\"guidance\": \"Run the tests first.\", \"inputs\": {\"repo\": {\"kind\": \"artifact\"}, \"brief\": {\"kind\": \"text\", \"required\": false}, \"a\": {\"kind\": \"text\"}}}}"
     },
     {
       "id": "explain/stage-requires-order",
@@ -3122,7 +3140,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {
             "t": {
               "decisions": {
@@ -3171,12 +3189,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "5342e53f9068ae268aad0a763ba00b64c8a2059ee6ff41321ea943efbde5e044",
+        "semantic_hash": "98e4c701a55da831a09570bc562e5f37da81b8941904a9f5bcb67b137d703252",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"r\": {}}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, \"selection\": {\"kind\": \"role\", \"name\": \"r\"}}}}, \"flow\": {\"a\": {\"task_type\": \"t\"}, \"b\": {\"recipients\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"r\"}, {\"kind\": \"members\"}]}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}, {\"stage\": \"a\", \"evidence\": \"publication\"}, {\"stage\": \"a\", \"evidence\": \"review\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}]}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"r\": {}}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}, \"selection\": {\"kind\": \"role\", \"name\": \"r\"}}}}, \"flow\": {\"a\": {\"task_type\": \"t\"}, \"b\": {\"recipients\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"r\"}, {\"kind\": \"members\"}]}, \"requires\": [{\"stage\": \"a\", \"evidence\": \"selection\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}, {\"stage\": \"a\", \"evidence\": \"publication\"}, {\"stage\": \"a\", \"evidence\": \"review\"}, {\"stage\": \"a\", \"evidence\": \"completion\"}]}}}"
     },
     {
       "id": "explain/name-escaping",
@@ -3233,7 +3252,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -3264,12 +3283,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "5349402322b0186efcbde47ef34df3bf9d8606a2ab5e842345dad4c235186878",
+        "semantic_hash": "c7608269ed034f4c6be3fedd1584185c70f24a32a4492d09d3ae3be73ee778ed",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"say \\\"hi\\\"\": {}, \"back\\\\slash\": {}, \"ré\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"say \\\"hi\\\"\"}, {\"kind\": \"role\", \"name\": \"back\\\\slash\"}, {\"kind\": \"role\", \"name\": \"ré\"}]}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"say \\\"hi\\\"\": {}, \"back\\\\slash\": {}, \"ré\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"say \\\"hi\\\"\"}, {\"kind\": \"role\", \"name\": \"back\\\\slash\"}, {\"kind\": \"role\", \"name\": \"ré\"}]}}}"
     },
     {
       "id": "explain/name-length-order",
@@ -3326,7 +3346,7 @@
               "description": ""
             }
           },
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -3357,12 +3377,13 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "b95f9bc1cb77bf276e1d09b6cc718e661a4e25b9699d912543c018f1c845cf96",
+        "semantic_hash": "800f78f3bfd1972b22f4cef1799717aa96801065d33ad68b4bdfdb2d870e7e81",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"roles\": {\"b\": {}, \"aa\": {}, \"c\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"aa\"}, {\"kind\": \"role\", \"name\": \"c\"}, {\"kind\": \"role\", \"name\": \"b\"}]}}}"
+      "source": "{\"schema_version\": 2, \"roles\": {\"b\": {}, \"aa\": {}, \"c\": {}}, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"role\", \"name\": \"aa\"}, {\"kind\": \"role\", \"name\": \"c\"}, {\"kind\": \"role\", \"name\": \"b\"}]}}}"
     },
     {
       "id": "explain/unit-selector-extra-field",
@@ -3405,7 +3426,7 @@
           },
           "flow": {},
           "roles": {},
-          "schema_version": 1,
+          "schema_version": 2,
           "task_types": {},
           "work": {
             "propose": {
@@ -3422,12 +3443,315 @@
                 "kind": "independent"
               }
             ]
-          }
+          },
+          "workspace": null
         },
-        "semantic_hash": "1954b82aef03f195b9b054dff5e9b3acb9e3830c9f1357821107d7193ee3ee91",
+        "semantic_hash": "1797e1bccec65f6c296d8fe716636c68a11465f7cbcc480a9770a165f25de18a",
         "valid": true
       },
-      "source": "{\"schema_version\": 1, \"work\": {\"propose\": {\"kind\": \"members\", \"x\": 1}}}"
+      "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"members\", \"x\": 1}}}"
+    },
+    {
+      "id": "workspace/disabled",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 2,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          },
+          "workspace": null
+        },
+        "semantic_hash": "1797e1bccec65f6c296d8fe716636c68a11465f7cbcc480a9770a165f25de18a",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 2, \"workspace\": null}"
+    },
+    {
+      "id": "workspace/participant",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion.",
+            "Shared tree: participant abababababababababababababababababababababababababababababababab may integrate an exact candidate after a completion declaration by the contribution author. Host signing permission is separate.",
+            "Shared-tree reviews that exclude authors also exclude every declared composition-source author."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {},
+          "schema_version": 2,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          },
+          "workspace": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "integrator": {
+              "key": "abababababababababababababababababababababababababababababababab",
+              "kind": "participant"
+            }
+          }
+        },
+        "semantic_hash": "af1632c1de2663582815416a9c7a9b800a909f4475bf868c8a6b00181840344b",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 2, \"workspace\": {\"integrator\": {\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, \"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}}}"
+    },
+    {
+      "id": "workspace/role-review",
+      "result": {
+        "diagnostics": [],
+        "explanation": {
+          "authority_roles": [
+            "integrator"
+          ],
+          "contextual_checks": [
+            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Supply required inputs and verify child rules stay within delegated parent authority.",
+            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
+            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
+          ],
+          "required_inputs": [],
+          "required_roles": [
+            "integrator",
+            "reviewer"
+          ],
+          "summary": [
+            "The goal administrator manages membership and rules separately from work permissions.",
+            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
+            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
+            "Default rules: qualifying contributions coexist; no single output is selected.",
+            "Default rules: no one may declare it finished; an empty task list is not completion.",
+            "Shared tree: the single member bound to role \"integrator\" may integrate an exact candidate after 1 distinct approving reviewer(s) from members bound to role \"reviewer\", excluding the contribution author. Host signing permission is separate.",
+            "Shared-tree reviews that exclude authors also exclude every declared composition-source author."
+          ]
+        },
+        "normalized": {
+          "context": {
+            "guidance": "",
+            "inputs": {}
+          },
+          "decisions": {
+            "completion": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            },
+            "finish": null,
+            "selection": null
+          },
+          "flow": {},
+          "roles": {
+            "integrator": {
+              "description": ""
+            },
+            "reviewer": {
+              "description": ""
+            }
+          },
+          "schema_version": 2,
+          "task_types": {},
+          "work": {
+            "propose": {
+              "kind": "members"
+            },
+            "publish": {
+              "kind": "members"
+            },
+            "starts": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "kind": "independent"
+              }
+            ]
+          },
+          "workspace": {
+            "completion": {
+              "by": {
+                "kind": "role",
+                "name": "reviewer"
+              },
+              "count": 1,
+              "exclude_author": true,
+              "kind": "reviews"
+            },
+            "integrator": {
+              "kind": "role",
+              "name": "integrator"
+            }
+          }
+        },
+        "semantic_hash": "07af8d224ef23101fec6777615657b80b7855c7c782ca2a8b5f385a568f6b9d8",
+        "valid": true
+      },
+      "source": "{\"schema_version\": 2, \"roles\": {\"integrator\": {}, \"reviewer\": {}}, \"workspace\": {\"integrator\": {\"kind\": \"role\", \"name\": \"integrator\"}, \"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"role\", \"name\": \"reviewer\"}, \"count\": 1, \"exclude_author\": true}}}"
+    },
+    {
+      "id": "workspace/unknown-role",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "unknown_role",
+            "correction": "Declare the role in roles or reference an existing role.",
+            "message": "Role \"missing\" is not declared",
+            "path": "/workspace/integrator/name",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"workspace\": {\"integrator\": {\"kind\": \"role\", \"name\": \"missing\"}, \"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}}}"
+    },
+    {
+      "id": "workspace/bad-integrator",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "invalid_structure",
+            "correction": "Use formation schema or a bundled example for supported fields and values.",
+            "message": "unknown variant `members`, expected `role` or `participant`",
+            "path": "/workspace/integrator/kind",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"workspace\": {\"integrator\": {\"kind\": \"members\"}, \"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"contribution_author\"}}}}"
+    },
+    {
+      "id": "workspace/task-relative",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Use members, a role or a participant in goal-level rules.",
+            "message": "There is no task creator in this scope",
+            "path": "/workspace/completion/by",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"workspace\": {\"integrator\": {\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, \"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"task_creator\"}}}}"
     }
   ],
   "generated_by": "scripts/check_formations.py"

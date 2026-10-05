@@ -321,7 +321,7 @@ def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_ro
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bootstrap", action="store_true", help="fetch verified private tool cache")
-    parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended", "organization", "sessions", "effects"))
+    parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended", "organization", "sessions", "effects", "workspace"))
     parser.add_argument("--case", action="append", help="run only specified case IDs")
     parser.add_argument("--timeout", type=float, help="optional wall-time deadline in seconds; no implicit deadline")
     parser.add_argument("--memory-mb", type=int, default=4096)

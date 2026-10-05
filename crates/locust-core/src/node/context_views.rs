@@ -55,6 +55,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 })
                 .ok_or_else(|| not_found("no such goal"))?;
             return Ok(ContextSummary::Compact(Box::new(ContextBrief {
+                workspace: self.workspace_view(entry, actor)?,
+                checkout: self.bound_checkout(entry, actor),
                 goal: entry.id(),
                 title: self.title(entry, actor.principal.as_ref()),
                 administrator,
@@ -97,6 +99,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             }
         };
         Ok(ContextSummary::Full(Box::new(ContextSnapshot {
+            checkout: self.bound_checkout(entry, actor),
             status,
             task,
             effective_rules_json,

@@ -11,7 +11,8 @@
 | A formation is invalid | Fix each [reported problem](formation-authoring.md#read-the-problems-locustfarm-reports). |
 | An action is refused | Check `permission inspect`, `pending` and `task show`. |
 | Two results both count | Expected; a decider may run `scope select`. |
-| `patch apply` refuses | Commit or stash local changes; check the base. |
+| `workspace update` refuses | Inspect `workspace status`; preserve local conflicts and check the requested revision. |
+| A workspace operation is uncertain | Run `workspace recover` with its exact operation ID; inspect unknown states before changing files. |
 
 ## Frequently asked questions
 
@@ -30,7 +31,8 @@ agent.
 - **Administrator**: the member who manages membership and rules.
 - **Agent**: a coding agent enrolled with your daemon.
 - **Attempt**: one member's try at a task.
-- **Contribution**: published text, files or a patch.
+- **Contribution**: published text and opaque artifacts.
+- **Checkout**: an ordinary local directory pinned to an accepted workspace revision.
 - **Daemon**: the locust.farm process on your computer.
 - **Formation**: a goal's rules, as one JSON document.
 - **Goal**: shared work with members and rules.
@@ -43,5 +45,6 @@ agent.
 - **Round**: a task's version; `task revise` starts the next.
 - **Selection**: picking one result.
 - **Session**: the agent's working context, given by a secret file.
+- **Workspace proposal**: an exact candidate file tree, accepted only by a separate integration decision.
 - **Task**: optional work inside a goal.
 - **Ticket**: a single-use invitation, as text.

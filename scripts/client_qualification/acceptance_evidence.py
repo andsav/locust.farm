@@ -10,7 +10,7 @@ import re
 
 from . import acceptance_case as case
 from . import collaboration_case as pilot
-from .collaboration_evidence import _calls, _patch_matches
+from .collaboration_evidence import _calls, _tree_matches, _native_publication
 from .runtime import records
 
 
@@ -190,8 +190,22 @@ def finding_receipts(run, findings, goal, person):
     return delivered, acknowledged
 
 
-def peer_review_read(run, patch, expected):
-    """Bind completed native stdout to independently authenticated patch data."""
+def review_identity(review):
+    """Bind exact candidate/diff while allowing destination and later approval.
+
+    Review copies and native review stdout name different local destinations.
+    Approval evidence can advance after the peer reads the same candidate.
+    These fields do not change immutable content identity or authenticated diff.
+    """
+    proposal = dict(review.get('proposal', {}))
+    for field in ('approved', 'evidence'):
+        proposal.pop(field, None)
+    return {'proposal': proposal, 'review_mode': review.get('review_mode'),
+            'changes': review.get('changes')}
+
+
+def peer_review_read(run, proposal, expected):
+    """Bind completed native stdout to independently authenticated tree review data."""
     if not run.get('transcript'):
         return False
     transcript = json.loads(Path(run['transcript']).read_text())
@@ -202,7 +216,7 @@ def peer_review_read(run, patch, expected):
         for effect in turn.get('effects', []):
             outcome = effect.get('outcome', '')
             if (effect.get('tool') != 'exec.run' or effect.get('status') != 'completed'
-                    or effect.get('tool_truncated') or 'patch review ' not in outcome
+                    or effect.get('tool_truncated') or 'workspace review ' not in outcome
                     or 'exit_code: 0,' not in outcome or 'success: true' not in outcome
                     or 'stdout_truncated: false' not in outcome or ', stdout: ' not in outcome):
                 continue
@@ -213,8 +227,8 @@ def peer_review_read(run, patch, expected):
                 except ValueError:
                     continue
                 result = value.get('result') if isinstance(value, dict) and value.get('ok') is True else None
-                if (isinstance(result, dict) and result.get('contribution_id') == patch
-                        and result == expected and any(change.get('path') == 'safe_member.py'
+                if (isinstance(result, dict) and result.get('proposal', {}).get('proposal') == proposal
+                        and review_identity(result) == review_identity(expected) and any(change.get('path') == 'safe_member.py'
                                                       for change in result.get('changes', []))):
                     return True
     return False
@@ -239,7 +253,10 @@ def evaluate(report):
     delivered, acknowledged = finding_receipts(by_phase['revision'], valid_findings, report.get('goal'), person)
     final = report.get('final_contribution', {}).get('event', {})
     body = final.get('body', {}).get('contribution_published', {})
-    review = report.get('independent_patch_review', {})
+    review = report.get('independent_tree_review', {})
+    proposal_event = report.get('final_proposal', {}).get('event', {})
+    proposal_body = proposal_event.get('body', {}).get('workspace_proposed', {})
+    proposal = proposal_event.get('view', {}).get('event')
     # An explicit direct source declaration is stronger than an unrelated task's
     # prose citation. The API inspector is separately retained for review.
     direct_sources = set(body.get('sources', []))
@@ -252,28 +269,34 @@ def evaluate(report):
     final_source &= inspected == final
     final_source &= bool(body.get('attempt') and final.get('task'))
     final_source &= (inspection.get('attempt') or {}).get('event') == body.get('attempt')
+    final_source &= bool(proposal and proposal in direct_sources)
     peer = [item for item in report.get('final_context', []) if
             item.get('event', {}).get('view', {}).get('kind') == 'review_recorded'
             and item.get('event', {}).get('view', {}).get('author') == researcher.get('principal')
             and item.get('event', {}).get('view', {}).get('standing') == 'effective'
-            and item.get('event', {}).get('body', {}).get('review_recorded', {}).get('subject') == final.get('view', {}).get('event')
+            and item.get('event', {}).get('body', {}).get('review_recorded', {}).get('subject') == proposal
             and item.get('event', {}).get('body', {}).get('review_recorded', {}).get('verdict') == 'approve']
     initial = Path(report['initial_artifact'])
     revised = Path(report['revised_artifact'])
     applied = Path(report.get('applied_artifact', revised.parent / 'not-applied' / 'safe_member.py'))
     changed = initial.is_file() and revised.is_file() and initial.read_bytes() != revised.read_bytes()
-    initial_event = report.get('initial_contribution', {}).get('event', {})
-    initial_body = initial_event.get('body', {}).get('contribution_published', {})
-    initial_review = report.get('initial_patch_review', {})
+    initial_event = report.get('initial_proposal', {}).get('event', {})
+    initial_body = initial_event.get('body', {}).get('workspace_proposed', {})
+    initial_review = report.get('initial_tree_review', {})
+    initial_task = report.get('initial_contribution', {}).get('event', {})
+    initial_task_body = initial_task.get('body', {}).get('contribution_published', {})
+    initial_id = initial_event.get('view', {}).get('event')
     initial_public_implementation = (pilot.verify(initial.parent)['passed'] is True
         and initial_event.get('view', {}).get('author') == person.get('principal')
-        and initial_event.get('view', {}).get('kind') == 'contribution_published'
+        and initial_event.get('view', {}).get('kind') == 'workspace_proposed'
         and initial_event.get('view', {}).get('standing') == 'effective'
-        and bool(initial_event.get('task') and initial_body.get('attempt'))
-        and initial_body.get('patch') == initial_review.get('contribution_id')
-        and initial_body.get('base') == initial_review.get('base') == report.get('base')
-        and initial_review.get('head') in initial_body.get('artifacts', [])
-        and _patch_matches(initial_review, initial, report.get('base')))
+        and bool(initial_task.get('task') and initial_task_body.get('attempt'))
+        and initial_id in initial_task_body.get('sources', [])
+        and initial_id == initial_review.get('proposal', {}).get('proposal')
+        and initial_body.get('parent') == report.get('base_revision')
+        and initial_body.get('result_manifest') == initial_review.get('proposal', {}).get('result_manifest')
+        and _tree_matches(initial_review, initial, report.get('base_revision'), report.get('initial_reviewed_artifact'))
+        and _native_publication(by_phase['initial'].get('native_calls', []), initial_id))
     same_thread = len({thread_id(by_phase[phase]) for phase in ('permission', 'initial', 'revision')}) == 1
     native_commands = [call.get('arguments', {}).get('command', '')
                        for phase in ('permission', 'initial', 'revision')
@@ -300,19 +323,24 @@ def evaluate(report):
         'direct_source_provenance_declared': final_source,
         'artifact_changed_and_private_behavior_recovered': changed and case.verify(initial.parent)['passed'] is False
             and case.verify(revised.parent)['passed'] is True,
-        'submitted_patch_matches_revised_artifact': body.get('patch') == review.get('contribution_id')
-            and body.get('base') == review.get('base') == report.get('base')
-            and review.get('head') in body.get('artifacts', [])
-            and _patch_matches(review, revised, report.get('base')),
+        'submitted_tree_matches_revised_artifact': proposal_event.get('view', {}).get('author') == person.get('principal')
+            and proposal_event.get('view', {}).get('kind') == 'workspace_proposed'
+            and proposal_event.get('view', {}).get('standing') == 'effective'
+            and proposal == review.get('proposal', {}).get('proposal')
+            and proposal_body.get('parent') == report.get('base_revision')
+            and proposal_body.get('result_manifest') == review.get('proposal', {}).get('result_manifest')
+            and _tree_matches(review, revised, report.get('base_revision'), report.get('reviewed_artifact'))
+            and _native_publication(by_phase['revision'].get('native_calls', []), proposal),
         'real_peer_reviewed_and_approved_exact_submission': bool(peer)
-            and peer_review_read(by_phase['review'], body.get('patch') or '<missing>', review),
+            and peer_review_read(by_phase['review'], proposal or '<missing>', review),
         'explicit_application_independently_verified': application.get('actor') == 'person-harness'
-            and application.get('subject') == final.get('view', {}).get('event')
-            and application.get('patch') == body.get('patch')
+            and application.get('subject') == proposal
+            and application.get('result_manifest') == proposal_body.get('result_manifest')
+            and bool(application.get('integration')) and bool(application.get('revision'))
             and bool(application.get('result')) and applied.is_file() and revised.is_file()
             and applied.read_bytes() == revised.read_bytes() and case.verify(applied.parent)['passed'] is True
             and application.get('distinct_workspace') is True and application.get('dirty_work_preserved') is True
-            and application.get('git_head_preserved') is True,
+            and application.get('ordinary_directory') is True,
         'real_model_runs_completed_and_cleaned_up': all(run.get('exit_code') == 0
             and run.get('natural_cleanup') is True and run.get('cleanup_verified') is True
             and isinstance(run.get('accounting', {}).get('output_tokens'), int)

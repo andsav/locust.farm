@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "roles": {
     "coordinator": {
       "description": "Defines the shared contract, selects exact contributions, integrates and closes the goal."

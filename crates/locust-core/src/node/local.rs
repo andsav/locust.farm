@@ -15,8 +15,8 @@
 
 use std::collections::BTreeMap;
 
-use locust_proto::api::{GoalGrants, WorkspaceBinding};
-use locust_proto::id::{EndpointId, EventId, GoalId, PublicKey};
+use locust_proto::api::{Checkout, GoalGrants, WorkspaceOperation};
+use locust_proto::id::{CheckoutId, EndpointId, EventId, GoalId, PublicKey, WorkspaceOperationId};
 use locust_proto::invite::InviteSecret;
 use locust_proto::store::{LocalWrite, Space, StoreError};
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,8 @@ use super::records;
 const REVISION: u8 = b'r';
 const TITLE: u8 = b't';
 const GRANTS: u8 = b'g';
-const WORKSPACE: u8 = b'w';
+const CHECKOUT: u8 = b'W';
+const WORKSPACE_OPERATION: u8 = b'O';
 const JOIN: u8 = b'j';
 const AUTHORIZATION: u8 = b'a';
 const PART: u8 = b'm';
@@ -63,7 +64,8 @@ pub(super) struct Local {
     pub revision: u64,
     pub title: Option<String>,
     pub grants: BTreeMap<PublicKey, GoalGrants>,
-    pub workspace: BTreeMap<PublicKey, WorkspaceBinding>,
+    pub checkouts: BTreeMap<(PublicKey, CheckoutId), Checkout>,
+    pub workspace_operations: BTreeMap<(PublicKey, WorkspaceOperationId), WorkspaceOperation>,
     pub joins: BTreeMap<PublicKey, JoinRecord>,
     pub authorized: BTreeMap<(EventId, PublicKey), Authorization>,
     /// Local principals that are or were members here; true once the
@@ -91,12 +93,31 @@ pub(super) fn grants_write(
     records::put(Space::Goal, key(GRANTS, goal, &principal.0), grants)
 }
 
-pub(super) fn workspace_write(
+pub(super) fn checkout_write(
     goal: &GoalId,
     principal: &PublicKey,
-    binding: &WorkspaceBinding,
+    checkout: &Checkout,
 ) -> LocalWrite {
-    records::put(Space::Goal, key(WORKSPACE, goal, &principal.0), binding)
+    records::put(
+        Space::Goal,
+        records::key(CHECKOUT, &[&goal.0, &principal.0, &checkout.id.0]),
+        checkout,
+    )
+}
+
+pub(super) fn workspace_operation_write(
+    goal: &GoalId,
+    principal: &PublicKey,
+    operation: &WorkspaceOperation,
+) -> LocalWrite {
+    records::put(
+        Space::Goal,
+        records::key(
+            WORKSPACE_OPERATION,
+            &[&goal.0, &principal.0, &operation.id.0],
+        ),
+        operation,
+    )
 }
 
 pub(super) fn join_write(goal: &GoalId, principal: &PublicKey, join: &JoinRecord) -> LocalWrite {
@@ -163,9 +184,17 @@ impl Local {
                 self.grants
                     .insert(PublicKey(subject()?), records::read(value)?);
             }
-            (WORKSPACE, Some(value)) => {
-                self.workspace
-                    .insert(PublicKey(subject()?), records::read(value)?);
+            (CHECKOUT, Some(value)) => {
+                let id = CheckoutId(records::part(key, REST + 32).ok_or_else(records::bad_key)?);
+                self.checkouts
+                    .insert((PublicKey(subject()?), id), records::read(value)?);
+            }
+            (WORKSPACE_OPERATION, Some(value)) => {
+                let id = WorkspaceOperationId(
+                    records::part(key, REST + 32).ok_or_else(records::bad_key)?,
+                );
+                self.workspace_operations
+                    .insert((PublicKey(subject()?), id), records::read(value)?);
             }
             (JOIN, Some(value)) => {
                 self.joins
@@ -193,7 +222,7 @@ impl Local {
                 self.part
                     .insert(PublicKey(subject()?), records::read(value)?);
             }
-            (REVISION | TITLE | GRANTS | WORKSPACE | PART, None) => {}
+            (REVISION | TITLE | GRANTS | PART, None) => {}
             _ => return Err(records::bad_key()),
         }
         Ok(())

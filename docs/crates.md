@@ -16,7 +16,7 @@ The Rust workspace has eight crates, listed in the root
 | [locust-net](../crates/locust-net/Cargo.toml) | Library | Peer transport over iroh: endpoints, authenticated connections and framed sync messages |
 | [locust-proto](../crates/locust-proto/Cargo.toml) | Library | The contract: identifiers, signed events, the local API, sync frames, limits and the storage interface |
 | [locust-store](../crates/locust-store/Cargo.toml) | Library | The SQLite implementation of the storage interface |
-| [locust-workspace](../crates/locust-workspace/Cargo.toml) | Library | Git snapshots, copies into new folders, and patches. Runs in the CLI, never in the daemon |
+| [locust-workspace](../crates/locust-workspace/Cargo.toml) | Library | Canonical trees, capture/composition, copies into new folders, recoverable local updates, and optional Git import. Runs in the CLI, never in the daemon |
 
 ## Dependency rule
 

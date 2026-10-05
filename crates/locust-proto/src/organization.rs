@@ -9,7 +9,7 @@ use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 
 /// The only organization definition format understood by this implementation.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// An agreement about work organization, independent of local execution.
 /// Membership and organization-rule administration belong to one separately
@@ -17,7 +17,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Formation {
-    #[schemars(range(min = 1, max = 1))]
+    #[schemars(range(min = 2, max = 2))]
     pub schema_version: u32,
     #[serde(default)]
     pub roles: BTreeMap<String, Role>,
@@ -27,6 +27,9 @@ pub struct Formation {
     pub work: WorkRules,
     #[serde(default)]
     pub decisions: DecisionRules,
+    /// Explicit policy for the goal's shared file tree. Absence disables writes.
+    #[serde(default)]
+    pub workspace: Option<WorkspacePolicy>,
     /// Explicitly delegated alternatives to the default task rules.
     #[serde(default)]
     pub task_types: BTreeMap<String, TaskType>,
@@ -43,6 +46,7 @@ impl Default for Formation {
             context: Context::default(),
             work: WorkRules::default(),
             decisions: DecisionRules::default(),
+            workspace: None,
             task_types: BTreeMap::new(),
             flow: BTreeMap::new(),
         }
@@ -113,6 +117,16 @@ pub enum Selector {
 pub enum Authority {
     Role { name: String },
     Participant { key: String },
+}
+
+/// One named integration authority and exact-candidate completion policy.
+/// Eligibility here does not grant the host permission to sign a decision.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WorkspacePolicy {
+    pub integrator: Authority,
+    #[serde(default)]
+    pub completion: CompletionRule,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

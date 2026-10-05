@@ -28,8 +28,6 @@ pub fn contribution() -> Body {
             round: locust_proto::id::EventId([1; 32]),
         },
         attempt: None,
-        base: None,
-        patch: None,
         sources: Vec::new(),
         artifacts: vec![],
     }

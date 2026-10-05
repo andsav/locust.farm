@@ -387,8 +387,6 @@ fn unadmitted_work_does_not_leak_through_public_change_counts_or_times() {
                 round: entry.state().current_rules.unwrap(),
             },
             attempt: None,
-            base: None,
-            patch: None,
             sources: vec![],
             artifacts: vec![],
         },
@@ -429,8 +427,6 @@ fn actual_parallel_flow_projects_approved_dag_and_revised_task_rounds() {
                 generation: None,
                 summary: "PRIVATE_STAGE_RESULT_CANARY".into(),
                 sources: vec![],
-                base: None,
-                patch: None,
                 artifacts: vec![],
             },
         );

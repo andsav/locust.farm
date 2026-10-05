@@ -4,9 +4,9 @@
   "repository": "https://github.com/andsav/locust.farm",
   "versions": {
     "software": "unreleased",
-    "api": 5,
-    "protocol": 5,
-    "formationSchema": 1
+    "api": 6,
+    "protocol": 6,
+    "formationSchema": 2
   },
   "pages": [
     {
@@ -77,8 +77,8 @@
     {
       "source": "docs/guide/apply.md",
       "slug": "apply",
-      "title": "Review and apply a patch",
-      "description": "Review a contribution and apply its patch to your own checkout.",
+      "title": "Work on the shared tree",
+      "description": "Propose, review and integrate shared trees, then explicitly update an ordinary checkout.",
       "group": "Work together",
       "order": 6,
       "audience": [
@@ -278,7 +278,8 @@
     "docs/first-contact.md",
     "docs/formation-prompt.md",
     "docs/swarm-visualization-plan.md",
-    "sites/locust.farm/ops/README.md"
+    "sites/locust.farm/ops/README.md",
+    "docs/workspace.md"
   ],
   "routes": [
     {
@@ -344,7 +345,7 @@
     {
       "slug": "quickstarts/share-a-snapshot",
       "page": "sharing",
-      "section": "share-a-code-snapshot"
+      "section": "share-a-file-tree"
     },
     {
       "slug": "quickstarts/contribute-and-review",
@@ -354,7 +355,7 @@
     {
       "slug": "quickstarts/apply-a-patch",
       "page": "apply",
-      "section": "apply-a-patch"
+      "section": "update-and-recover"
     },
     {
       "slug": "concepts/goals-tasks",
@@ -514,7 +515,7 @@
     {
       "slug": "sharing/snapshots",
       "page": "sharing",
-      "section": "share-a-code-snapshot"
+      "section": "share-a-file-tree"
     },
     {
       "slug": "sharing/membership",

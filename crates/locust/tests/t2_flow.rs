@@ -212,23 +212,12 @@ impl Drop for Mcp {
         }
     }
 }
-fn git(root: &Path, args: &[&str]) -> String {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(args)
-        .output()
-        .unwrap();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    String::from_utf8(out.stdout).unwrap().trim().to_owned()
+fn workspace_event(operation: &Value) -> &str {
+    operation["state"]["recorded"]["event"].as_str().unwrap()
 }
 
 #[test]
-fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_sealed_content() {
+fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
     let p = Participant::new();
     let enrolled = p.cli(
         &["--owner"],
@@ -250,32 +239,45 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
     let fields = json!({"title":"T2 real core", "formation_json":serde_json::to_string(&definition).unwrap(), "roles":{"judge":[agent]}, "inputs":{}}).to_string();
     let created = p.cli(&authority, &["call", "goal.create", &fields]);
     let goal = created["goal_created"]["goal"].as_str().unwrap();
+    let grants = json!({"goal":goal,"agent":agent,"grants":{"contribute":true,"execute":true,"review":false,"select":true,"flow":false,"administer":true,"takeover":false}}).to_string();
+    p.cli(&["--owner"], &["call", "goal.grant", &grants]);
     let root = tempfile::tempdir().unwrap();
-    git(root.path(), &["init", "-q"]);
-    git(root.path(), &["config", "user.name", "T2 fixture"]);
-    git(root.path(), &["config", "user.email", "t2@example.invalid"]);
     fs::write(root.path().join("code.txt"), "before\n").unwrap();
-    git(root.path(), &["add", "code.txt"]);
-    git(root.path(), &["commit", "-qm", "base"]);
-    let commit = git(root.path(), &["rev-parse", "HEAD"]);
-    fs::write(root.path().join("unrelated.txt"), "local work\n").unwrap();
-    let export = p.cli(
+    let seed = p.cli(
         &authority,
         &[
             "workspace",
-            "export",
+            "init",
             "--goal",
             goal,
             "--root",
             root.path().to_str().unwrap(),
-            "--commit",
-            &commit,
+            "--path",
+            "code.txt",
+            "--publish",
         ],
     );
-    let base = export["manifest"].as_str().unwrap();
+    assert!(!root.path().join(".git").exists());
+    let seed_proposal = workspace_event(&seed["operation"]);
+    let base = seed["candidate"]["result_manifest"].as_str().unwrap();
     let mut mcp = Mcp::new(&p, credential, session);
-    let grants = json!({"goal":goal,"agent":agent,"grants":{"contribute":true,"execute":true,"review":false,"select":true,"flow":false,"administer":false,"takeover":false}}).to_string();
-    p.cli(&["--owner"], &["call", "goal.grant", &grants]);
+    mcp.tool(
+        "locust_completion_declare",
+        json!({"goal":goal,"subject":seed_proposal}),
+    );
+    let seed_integration = p.cli(
+        &authority,
+        &[
+            "workspace",
+            "integrate",
+            "--goal",
+            goal,
+            "--proposal",
+            seed_proposal,
+            "--expected-empty",
+        ],
+    );
+    let seed_revision = workspace_event(&seed_integration["workspace_operation"]);
     let opened = mcp.tool(
         "locust_task_open",
         json!({"goal":goal,"text":"change code.txt","task_type":null,"inputs":{},"parent":null}),
@@ -288,44 +290,89 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
         json!({"goal":goal,"task":task,"offer":null}),
     );
     let attempt = claim["claimed"]["attempt"].as_str().unwrap();
-    let generation = claim["claimed"]["generation"].as_u64().unwrap().to_string();
+    let generation = claim["claimed"]["generation"].as_u64().unwrap();
     let destination = p.home.path().join("work");
     let destination = destination.to_str().unwrap();
+    let checkout = p.cli(
+        &authority,
+        &[
+            "workspace",
+            "checkout",
+            "--goal",
+            goal,
+            "--destination",
+            destination,
+            "--task",
+            &task,
+            "--attempt",
+            attempt,
+        ],
+    );
+    let checkout_id = checkout["checkout"]["id"].as_str().unwrap();
+    assert_eq!(checkout["checkout"]["base_revision"], seed_revision);
     p.cli(
         &authority,
         &[
             "workspace",
-            "materialize",
+            "bind",
             "--goal",
             goal,
-            "--manifest",
-            base,
-            "--destination",
-            destination,
+            "--checkout",
+            checkout_id,
         ],
     );
-    fs::write(Path::new(destination).join("code.txt"), "after\n").unwrap();
-    let patch = p.cli(
+    let accepted_directory = p.home.path().join("accepted");
+    let accepted_checkout = p.cli(
         &authority,
         &[
-            "patch",
-            "create",
+            "workspace",
+            "checkout",
             "--goal",
             goal,
-            "--root",
-            destination,
-            "--base",
-            base,
-            "--path",
-            "code.txt",
+            "--destination",
+            accepted_directory.to_str().unwrap(),
         ],
     );
-    let hash = patch["contribution_id"].as_str().unwrap();
-    let head = patch["contribution"]["head"].as_str().unwrap();
-    assert_ne!(head, base);
+    let accepted_checkout_id = accepted_checkout["checkout"]["id"].as_str().unwrap();
+    fs::write(Path::new(destination).join("code.txt"), "after\n").unwrap();
+    fs::write(Path::new(destination).join("private.txt"), "private work\n").unwrap();
+    fs::write(accepted_directory.join("unrelated.txt"), "local work\n").unwrap();
+    let captured = p.cli(
+        &authority,
+        &[
+            "workspace",
+            "propose",
+            "--goal",
+            goal,
+            "--checkout",
+            checkout_id,
+        ],
+    );
+    let manifest = captured["candidate"]["result_manifest"].as_str().unwrap();
+    assert_ne!(manifest, base);
+    assert_eq!(captured["candidate"]["captured_paths"], json!(["code.txt"]));
+    let published = p.cli(
+        &authority,
+        &[
+            "workspace",
+            "publish",
+            "--goal",
+            goal,
+            "--operation",
+            captured["operation"]["id"].as_str().unwrap(),
+        ],
+    );
+    let proposal = workspace_event(&published["workspace_operation"]);
     let reviewed = p.cli(
         &authority,
-        &["patch", "review", "--goal", goal, "--patch", hash],
+        &[
+            "workspace",
+            "review",
+            "--goal",
+            goal,
+            "--proposal",
+            proposal,
+        ],
     );
     assert!(
         reviewed["changes"][0]["unified_diff"]
@@ -333,69 +380,105 @@ fn mcp_attempt_and_cli_contribution_selection_apply_use_real_authority_and_seale
             .unwrap()
             .contains("+after")
     );
-    let submitted = p.cli(
-        &authority,
-        &[
-            "patch",
-            "submit",
-            "--goal",
-            goal,
-            "--patch",
-            hash,
-            "--attempt",
-            attempt,
-            "--generation",
-            &generation,
-            "verified change",
-        ],
+    let submitted = mcp.tool(
+        "locust_contribution_publish",
+        json!({
+            "goal":goal,"task":task,"attempt":attempt,"generation":generation,
+            "summary":"Verified code change; workspace candidate is separately published.",
+            "sources":[proposal],"artifacts":[manifest],
+        }),
     );
     let result = submitted["recorded"]["event"].as_str().unwrap();
     mcp.tool(
         "locust_completion_declare",
         json!({"goal":goal,"subject":result}),
     );
-    p.cli(
+    mcp.tool(
+        "locust_scope_select",
+        json!({"goal":goal,"subject":result,"expected":null}),
+    );
+    let contributions = mcp.tool("locust_contributions", json!({"goal":goal,"task":task}));
+    assert_eq!(contributions["contributions"][0]["contribution"], result);
+    assert_eq!(contributions["contributions"][0]["selected"], true);
+    let board = mcp.tool("locust_board", json!({"goal":goal}));
+    assert_eq!(board["board"][0]["completed"], true);
+    assert_eq!(board["board"][0]["selected"], result);
+    let head = mcp.tool("locust_workspace_head", json!({"goal":goal}));
+    assert_eq!(head["workspace"]["head"]["revision"], seed_revision);
+    assert_eq!(
+        fs::read_to_string(accepted_directory.join("code.txt")).unwrap(),
+        "before\n"
+    );
+    mcp.tool(
+        "locust_completion_declare",
+        json!({"goal":goal,"subject":proposal}),
+    );
+    let integration = p.cli(
         &authority,
-        &["patch", "select", "--goal", goal, "--subject", result],
+        &[
+            "workspace",
+            "integrate",
+            "--goal",
+            goal,
+            "--proposal",
+            proposal,
+            "--expected-head",
+            seed_revision,
+        ],
+    );
+    let revision = workspace_event(&integration["workspace_operation"]);
+    assert_ne!(revision, result);
+    let head = mcp.tool("locust_workspace_head", json!({"goal":goal}));
+    assert_eq!(head["workspace"]["head"]["revision"], revision);
+    assert_eq!(head["workspace"]["head"]["result_manifest"], manifest);
+    assert_eq!(
+        fs::read_to_string(accepted_directory.join("code.txt")).unwrap(),
+        "before\n"
+    );
+    let updated = p.cli(
+        &authority,
+        &[
+            "workspace",
+            "update",
+            "--goal",
+            goal,
+            "--checkout",
+            accepted_checkout_id,
+        ],
+    );
+    assert_eq!(updated["target_in_lineage_at_completion"], true);
+    assert_eq!(
+        fs::read_to_string(accepted_directory.join("code.txt")).unwrap(),
+        "after\n"
+    );
+    assert_eq!(
+        fs::read_to_string(accepted_directory.join("unrelated.txt")).unwrap(),
+        "local work\n"
+    );
+    assert_eq!(
+        fs::read_to_string(Path::new(destination).join("private.txt")).unwrap(),
+        "private work\n"
     );
     assert_eq!(
         fs::read_to_string(root.path().join("code.txt")).unwrap(),
         "before\n"
     );
-    let status = mcp.tool("locust_goal_status", json!({"goal":goal}));
-    assert!(status["goal_status"].get("head").is_none());
-    assert_eq!(status["goal_status"]["workspace"]["integrated"], base);
-    let contributions = mcp.tool("locust_contributions", json!({"goal":goal,"task":task}));
-    assert_eq!(contributions["contributions"][0]["contribution"], result);
-    assert_eq!(contributions["contributions"][0]["selected"], true);
-    p.cli(
+    assert!(!accepted_directory.join(".git").exists());
+    let status = p.cli(
         &authority,
         &[
-            "patch",
-            "apply",
-            "--subject",
-            result,
+            "workspace",
+            "status",
             "--goal",
             goal,
-            "--root",
-            root.path().to_str().unwrap(),
-            "--expected-git-head",
-            &commit,
+            "--checkout",
+            accepted_checkout_id,
         ],
     );
-    assert_eq!(
-        fs::read_to_string(root.path().join("code.txt")).unwrap(),
-        "after\n"
-    );
-    assert_eq!(
-        fs::read_to_string(root.path().join("unrelated.txt")).unwrap(),
-        "local work\n"
-    );
-    assert_eq!(git(root.path(), &["rev-parse", "HEAD"]), commit);
-    let status = mcp.tool("locust_goal_status", json!({"goal":goal}));
-    assert_eq!(status["goal_status"]["workspace"]["integrated"], head);
+    assert_eq!(status["checkout"]["base_revision"], revision);
+    assert_eq!(status["checkout"]["base_manifest"], manifest);
+    assert_eq!(status["untracked_paths"], json!(["unrelated.txt"]));
     let board = mcp.tool("locust_board", json!({"goal":goal}));
-    assert_eq!(board["board"][0]["completed"], true);
     assert_eq!(board["board"][0]["selected"], result);
 }
 
@@ -524,7 +607,7 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     );
     assert_eq!(own_permissions["permissions"]["grants"]["contribute"], true);
     assert_eq!(own_permissions["permissions"]["grants"]["review"], false);
-    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"task":null,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","base":null,"patch":null,"artifacts":[],"sources":[]}));
+    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"task":null,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","artifacts":[],"sources":[]}));
     let event = finding["recorded"]["event"].as_str().unwrap();
     let query = json!({"goal":goal,"view":"compact","task":null,"after":null,"limit":2,"preview_chars":null,"unread_only":true});
     let cli_page = participant.cli(

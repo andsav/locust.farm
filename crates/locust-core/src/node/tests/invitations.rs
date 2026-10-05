@@ -110,8 +110,9 @@ fn person_joins_with_existing_principal_without_granting_execution_or_management
     assert!(
         !daemon.node.goals[&goal]
             .local
-            .workspace
-            .contains_key(&member)
+            .checkouts
+            .keys()
+            .any(|(principal, _)| *principal == member)
     );
     daemon.restart();
     let owner = daemon.owner();

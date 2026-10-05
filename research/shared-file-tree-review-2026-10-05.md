@@ -14,7 +14,7 @@ checkpoint validation and epoch fencing still require modeling before implementa
 
 Drop `base_manifest` and the serialized `patch` from workspace proposals. The
 proposal's parent identifies its base, and its result manifest determines the
-diff. Today's [`changes` and `load`](../crates/locust-workspace/src/contribution.rs)
+diff. Today's [`changes` and `load`](https://github.com/andsav/locust.farm/blob/ae9d077/crates/locust-workspace/src/contribution.rs)
 already derive that diff and then compare it with the redundant stored delta.
 Workspace proposals retain their context, parent, result manifest and typed source
 proposal references. Review derives changes from those exact manifests.
@@ -75,7 +75,7 @@ Replace blanket dirty-checkout refusal with three-way path selection. For checko
 base B, local L and target T: write T when L equals B; keep L when L equals T or
 T equals B; otherwise report a conflict and mutate nothing. Compare bytes and
 executable mode, with absence representing deletion. This follows the useful
-before/after matching in [`apply_contribution`](../crates/locust-workspace/src/apply.rs)
+before/after matching in [`apply_contribution`](https://github.com/andsav/locust.farm/blob/ae9d077/crates/locust-workspace/src/apply.rs)
 without introducing a text merge engine.
 
 Preflight the complete transition, including file/directory prefix conflicts and

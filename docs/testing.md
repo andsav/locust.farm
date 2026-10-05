@@ -49,7 +49,7 @@ in `docs/guide/*.md` against the binary given with `--binary`.
   every `LOCUST_*` variable, then sets `LOCUST_BIN` (the binary) and
   `LOCUST_DOC_DIR` (the directory).
 - The recipes set `LOCUST_RELAY=none LOCUST_LOOKUP=none LOCUST_BIND=127.0.0.1:0`.
-  They need `python3`; the apply recipe also needs `git`.
+  They need `python3`; shared workspace recipes use ordinary directories without Git.
 - `--timeout` limits each recipe, in seconds. `--output FILE` writes a JSON
   record with hashes, exit codes and output. The run fails if the binary changes.
 
@@ -104,7 +104,7 @@ runs. locust.farm's setup never writes them into a profile.
 | [check_managed_clients.py](../scripts/check_managed_clients.py) | `locust client run`: readiness, interrupt, daemon restart, resume, cancellation | `--locust`, `--output`, `--timeout-ms` |
 | [check_managed_recovery.py](../scripts/check_managed_recovery.py) | Kills the launcher; recovery must report `Unknown` and refuse a second launch | Same as above |
 | [check_installed_clients.py](../scripts/check_installed_clients.py) | Installs a test-signed package, runs `up`, then a full task with Codex, Claude Code or pi | `--bootstrap`, `--bundle`, `--output`, `--timeout-ms` |
-| [check_collaboration_acceptance.py](../scripts/check_collaboration_acceptance.py) | Codex and Merak (a separate coding agent) with real models: permission stop, patch, revision, peer review, apply | `--merak`, `--codex`, `--model`, `--output` |
+| [check_collaboration_acceptance.py](../scripts/check_collaboration_acceptance.py) | Codex and Merak (a separate coding agent) with real models: permission stop, frozen workspace proposal, revision, peer review, integration and update | `--merak`, `--codex`, `--model`, `--output` |
 | [check_shared_context_models.py](../scripts/check_shared_context_models.py) | Codex and Merak with real models choosing their own locust.farm calls | `--merak`, `--model`, `--output` |
 
 Build the probes with `cargo build --locked -p locust-adapter --examples`. Runs
@@ -116,7 +116,7 @@ with real models cost money.
 | --- | --- | --- |
 | [check_installation.py](../scripts/check_installation.py) | Installs a test-signed package: repeat install, refused signatures and plans, launchd, uninstall | `--bootstrap`, `--bundle` |
 | [check_onboarding.py](../scripts/check_onboarding.py) | `up` and `agent add` from an installed package, without agent programs | `--bootstrap`, `--bundle`, `--output`, `--timeout-ms`, `--service` |
-| [check_operations.py](../scripts/check_operations.py) | Three daemons on one machine: interrupted transfers, apply guards, cancellation, leaving, offline removal | `--binary`, `--network` |
+| [check_operations.py](../scripts/check_operations.py) | Three daemons on one machine: interrupted transfers, shared workspace updates, cancellation, leaving, offline removal; `--workflow workspace` runs the focused two-daemon loop | `--binary`, `--network`, `--workflow` |
 | [check_t1.py](../scripts/check_t1.py) | Three daemons on one machine: join, task, review, offline administrator, restarts | `--binary`, `--network` |
 | [check_farm.py](../scripts/check_farm.py) | Two daemons and the farm service: consent, private text kept out, restart, revocation, deletion | `--binary`, `--service-binary`, `--output` |
 | [simulate_machines/run.py](../scripts/simulate_machines/run.py) | Daemons on one Mac as simulated machines; `--list` shows the scenarios | `--binary`, `--quick` |

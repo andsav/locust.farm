@@ -360,7 +360,7 @@ def droid_execute_probe(binary, args):
     if not binary or sys.platform != "darwin" or not Path("/usr/bin/sandbox-exec").is_file():
         raise ValueError("Droid Execute diagnostics need an installed Droid and macOS sandbox-exec")
     timeout = args.timeout_ms / 1000
-    report = {"schema": "locust-droid-execute-diagnostic", "schema_version": 1,
+    report = {"schema": "locust-droid-execute-diagnostic", "schema_version": 2,
               "created_at": datetime.now(timezone.utc).isoformat(),
               "binary_sha256": hashlib.sha256(Path(binary).read_bytes()).hexdigest(),
               "scope": "Native echo only; no Locust daemon, MCP, driver or workflow qualification",
@@ -435,7 +435,7 @@ def main(argv=None):
             parser.error("Build config_probe and stdio_probe with cargo build --locked -p locust-adapter --examples, or pass absolute paths")
     except ValueError as error:
         parser.error(str(error))
-    report = {"schema": "locust-client-qualification", "schema_version": 1,
+    report = {"schema": "locust-client-qualification", "schema_version": 2,
               "created_at": datetime.now(timezone.utc).isoformat(),
               "platform": {"os": platform.system(), "release": platform.release(), "architecture": platform.machine()},
               "timeout_ms": args.timeout_ms, "evidence_level": "actual-client/scripted-provider/local-fixture",

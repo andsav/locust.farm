@@ -2,12 +2,29 @@
 //! command, external diff driver or contributor-supplied review prose.
 
 use locust_proto::crypto::content_hash;
-use locust_proto::id::BlobHash;
-use locust_proto::manifest::Entry;
 use serde::Serialize;
 
-use crate::contribution::{file_bytes, load};
-use crate::{BlobSource, ContributionError};
+/// Review exact plaintext tree changes without loading a serialized patch.
+pub fn review_changes(changes: &[crate::TreeChange]) -> Vec<ChangeReview> {
+    let summary = |file: &crate::FileValue| FileSummary {
+        bytes: file.bytes.len() as u64,
+        executable: file.executable,
+        plaintext_hash: content_hash(&file.bytes).to_string(),
+    };
+    changes
+        .iter()
+        .map(|change| ChangeReview {
+            path: change.path.clone(),
+            before: change.before.as_ref().map(summary),
+            after: change.after.as_ref().map(summary),
+            unified_diff: text_diff(
+                &change.path,
+                change.before.as_ref().map(|file| file.bytes.as_slice()),
+                change.after.as_ref().map(|file| file.bytes.as_slice()),
+            ),
+        })
+        .collect()
+}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct FileSummary {
@@ -25,53 +42,6 @@ pub struct ChangeReview {
     /// UTF-8 text without NUL bytes is rendered as a unified diff; binary
     /// changes retain exact size, digest and executable-bit summaries.
     pub unified_diff: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct ContributionReview {
-    pub contribution_id: BlobHash,
-    pub base: BlobHash,
-    pub head: BlobHash,
-    pub changes: Vec<ChangeReview>,
-}
-
-pub fn review_contribution(
-    id: BlobHash,
-    source: &mut dyn BlobSource,
-) -> Result<ContributionReview, ContributionError> {
-    let (contribution, _, _) = load(id, source)?;
-    let mut changes = Vec::new();
-    for change in contribution.changes {
-        let before = read(source, change.before.as_ref())?;
-        let after = read(source, change.after.as_ref())?;
-        let unified_diff = text_diff(&change.path, before.as_deref(), after.as_deref());
-        changes.push(ChangeReview {
-            path: change.path,
-            before: summary(change.before.as_ref(), before.as_deref()),
-            after: summary(change.after.as_ref(), after.as_deref()),
-            unified_diff,
-        });
-    }
-    Ok(ContributionReview {
-        contribution_id: id,
-        base: contribution.base,
-        head: contribution.head,
-        changes,
-    })
-}
-
-fn read(
-    source: &mut dyn BlobSource,
-    entry: Option<&Entry>,
-) -> Result<Option<Vec<u8>>, ContributionError> {
-    entry.map(|entry| file_bytes(source, entry)).transpose()
-}
-fn summary(entry: Option<&Entry>, bytes: Option<&[u8]>) -> Option<FileSummary> {
-    entry.zip(bytes).map(|(entry, bytes)| FileSummary {
-        bytes: entry.size,
-        executable: entry.executable,
-        plaintext_hash: content_hash(bytes).to_string(),
-    })
 }
 
 fn text_diff(path: &str, before: Option<&[u8]>, after: Option<&[u8]>) -> Option<String> {

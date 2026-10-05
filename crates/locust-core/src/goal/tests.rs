@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
 
+#[path = "workspace_tests.rs"]
+mod workspace_tests;
+
 use locust_proto::event::*;
 use locust_proto::id::{DefinitionHash, EndpointId, EventId, GoalId};
 use locust_proto::organization::{
@@ -128,8 +131,6 @@ impl Fixture {
             Body::ContributionPublished {
                 context,
                 attempt: None,
-                base: None,
-                patch: None,
                 sources: Vec::new(),
                 artifacts: Vec::new(),
             },

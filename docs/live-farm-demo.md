@@ -11,6 +11,10 @@ reviewed, selected results; the goal is ended and its real history remains visib
 The separate synthetic examples are labeled as such. Public views contain approved labels and structured
 status; prompts, source text, messages, credentials and raw native logs stay local.
 
+The rehearsal used the earlier patch protocol. Its retained evidence does not
+qualify the replacement shared-tree protocol, and its phase commands require the
+matching historical binary. Do not start this retained state with a newer protocol.
+
 ## Persistent runtime
 
 The private state directory is `~/.locust-demos/team-chat-20261004`. Its daemon
@@ -20,21 +24,24 @@ at `/var/lib/locust-farm/farm.sqlite` on the website host. Refreshing a browser
 reads that saved state and subscribes to SSE updates. A server process restart
 closes active streams without marking the saved farm unavailable.
 
-The controller is [scripts/live_farm_demo.py](../scripts/live_farm_demo.py).
+The current controller is [scripts/live_farm_demo.py](../scripts/live_farm_demo.py).
+It requires fresh schema-2 state for the shared workspace protocol; the retained
+October 4 state is readable only with its matching historical controller/binary.
 It explicitly authorizes stage attempts and launches installed native clients.
-Clients publish their own patches and reviews. A successful process exit cannot
+Clients publish frozen workspace proposals, separate task reports and reviews.
+A successful process exit cannot
 substitute for an actual contribution. Peer approval and coordinator selection
-remain separate decisions. The controller selects approved candidates and
-materializes exact artifacts for subsequent stages.
+remain separate decisions. Explicit `review`, `integrate` and `update` commands
+advance reviewed workspace candidates and copied checkouts for subsequent stages.
 
 ```sh
 python3 scripts/live_farm_demo.py \
-  --state "$HOME/.locust-demos/team-chat-20261004" status
+  --state "$HOME/.locust-demos/team-chat-shared-workspace" status
 ```
 
 The command reports publication state and tasks. `start` restarts the owned local
 daemon if absent. `launch --role ROLE --phase UNIQUE_NAME --stage STAGE
---base MANIFEST --prompt-file FILE` runs a specific authorized phase. Omit
+--revision REVISION --prompt-file FILE` runs a specific authorized phase. Omit
 `--stage` for a review without an execution claim. An interrupted phase is retained
 for reconciliation, never silently retried. This script is an explicit phase
 runner, not an unattended end-to-end scheduler.

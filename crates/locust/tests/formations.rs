@@ -162,7 +162,7 @@ fn bundled_examples_round_trip_through_stdin_and_disk() {
 }
 #[test]
 fn invented_fields_are_rejected_with_structured_diagnostics() {
-    let source = json!({"schema_version":1,"invented":true}).to_string();
+    let source = json!({"schema_version":2,"invented":true}).to_string();
     let result = value(
         &output(&["--json", "formation", "validate", "-"], Some(&source)),
         6,
@@ -180,7 +180,7 @@ fn invented_fields_are_rejected_with_structured_diagnostics() {
 fn installed_contract_matches_cli_schema_examples_and_operations() {
     let result = value(&output(&["--json", "formation", "contract"], None), 0);
     let contract = &result["result"];
-    assert_eq!(contract["schema_version"], 1);
+    assert_eq!(contract["schema_version"], 2);
     assert_eq!(contract["scope"], "offline_authoring");
     assert_eq!(
         contract["schema"],
@@ -253,7 +253,7 @@ fn semantic_diff_uses_normalized_definitions_and_retains_invalid_side_diagnostic
     let directory = tempfile::tempdir().unwrap();
     let before = directory.path().join("before.json");
     let after = directory.path().join("after.json");
-    std::fs::write(&before, r#"{"schema_version":1}"#).unwrap();
+    std::fs::write(&before, r#"{"schema_version":2}"#).unwrap();
     let normalized = value(&output(&["formation", "example", "open"], None), 0);
     std::fs::write(&after, serde_json::to_string_pretty(&normalized).unwrap()).unwrap();
     let arguments = [
@@ -272,14 +272,14 @@ fn semantic_diff_uses_normalized_definitions_and_retains_invalid_side_diagnostic
     );
     std::fs::write(
         &after,
-        r#"{"schema_version":1,"context":{"guidance":"different"}}"#,
+        r#"{"schema_version":2,"context":{"guidance":"different"}}"#,
     )
     .unwrap();
     let changed = value(&output(&arguments, None), 0);
     assert_eq!(changed["result"]["equivalent"], false);
     assert_eq!(changed["result"]["changes"][0]["path"], "/context/guidance");
     assert_eq!(changed["result"]["changes"][0]["after"], "different");
-    std::fs::write(&after, r#"{"schema_version":2}"#).unwrap();
+    std::fs::write(&after, r#"{"schema_version":1}"#).unwrap();
     let unsupported = value(&output(&arguments, None), 10);
     assert_eq!(unsupported["ok"], false);
     assert_eq!(unsupported["result"]["equivalent"], Value::Null);

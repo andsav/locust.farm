@@ -1,5 +1,5 @@
 {
-  "api_version": 5,
+  "api_version": 6,
   "cli": {
     "arguments": [
       {
@@ -348,25 +348,25 @@
               },
               {
                 "action": "Set",
-                "help": "Absolute directory explicitly chosen for this operation",
+                "help": "Absolute capture input directory",
                 "long": "root",
                 "name": "root",
                 "positional": false,
-                "required": true,
+                "required": false,
                 "short": null
               },
               {
-                "action": "Set",
-                "help": "Full base snapshot manifest identifier",
-                "long": "base",
-                "name": "base",
+                "action": "SetTrue",
+                "help": "Explicitly seed an empty tree",
+                "long": "empty",
+                "name": "empty",
                 "positional": false,
-                "required": true,
+                "required": false,
                 "short": null
               },
               {
                 "action": "Set",
-                "help": "Committed tree to compare with the base",
+                "help": "Optional named Git commit import; excludes dirty and untracked files",
                 "long": "commit",
                 "name": "commit",
                 "positional": false,
@@ -374,18 +374,86 @@
                 "short": null
               },
               {
+                "action": "Set",
+                "help": "Explicit participant name/key; defaults to the goal creator",
+                "long": "integrator",
+                "name": "integrator",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact workspace CompletionRule JSON; defaults to an author declaration",
+                "long": "completion",
+                "name": "completion",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
                 "action": "Append",
-                "help": "Exact relative file to capture, or missing base file to delete; repeat for each path",
+                "help": "Exact root-relative regular file; repeat to select additions",
                 "long": "path",
                 "name": "path",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "UTF-8 file with one exact path per line, or - for stdin",
+                "long": "paths-from",
+                "name": "paths-from",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Publish this one frozen candidate after its complete preview is captured",
+                "long": "publish",
+                "name": "publish",
                 "positional": false,
                 "required": false,
                 "short": null
               }
             ],
             "commands": [],
-            "name": "create",
-            "summary": "Capture a committed tree or explicitly selected regular files against an exact base"
+            "name": "init",
+            "summary": "Freeze an explicit seed and prepare its workspace policy"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "head",
+            "summary": "Read accepted authority and independent content readiness"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "pending",
+            "summary": "Read exact proposals and their current blockers"
           },
           {
             "arguments": [
@@ -400,18 +468,355 @@
               },
               {
                 "action": "Set",
-                "help": "Contribution event identifier or unique prefix; derives its signed patch",
-                "long": "subject",
-                "name": "subject",
+                "help": "Exact revision or prefix; defaults to accepted head",
+                "long": "revision",
+                "name": "revision",
                 "positional": false,
                 "required": false,
                 "short": null
               },
               {
                 "action": "Set",
-                "help": "Full content identifier for an unpublished patch",
-                "long": "patch",
-                "name": "patch",
+                "help": "Exact file or directory prefix",
+                "long": "path",
+                "name": "path",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exclusive path pagination cursor",
+                "long": "after-path",
+                "name": "after-path",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Explicit maximum entries to return",
+                "long": "limit",
+                "name": "limit",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "tree",
+            "summary": "List an exact accepted tree"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact revision or prefix; defaults to accepted head",
+                "long": "revision",
+                "name": "revision",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact relative regular-file path",
+                "long": "path",
+                "name": "path",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Byte offset, defaults to zero",
+                "long": "offset",
+                "name": "offset",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Explicit maximum byte count",
+                "long": "length",
+                "name": "length",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "read",
+            "summary": "Read exact verified file bytes from an accepted revision"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact revision or prefix; defaults to accepted head",
+                "long": "revision",
+                "name": "revision",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Absolute fresh destination directory",
+                "long": "destination",
+                "name": "destination",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Caller-selected checkout identifier, otherwise generated",
+                "long": "checkout",
+                "name": "checkout",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Optional associated task identifier or title",
+                "long": "task",
+                "name": "task",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Optional associated attempt event identifier",
+                "long": "attempt",
+                "name": "attempt",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "checkout",
+            "summary": "Copy an accepted revision into a fresh ordinary directory"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact local checkout identifier",
+                "long": "checkout",
+                "name": "checkout",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "status",
+            "summary": "Observe local modifications, additions and recovery without capturing"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact local checkout identifier",
+                "long": "checkout",
+                "name": "checkout",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "bind",
+            "summary": "Bind this authenticated execution session explicitly to its checkout"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact bound checkout identifier",
+                "long": "checkout",
+                "name": "checkout",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Capture exactly the supplied path selection",
+                "long": "only",
+                "name": "only",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Capture a complete replacement without reading the parent tree",
+                "long": "replace",
+                "name": "replace",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact broken/current parent revision for a replacement",
+                "long": "parent",
+                "name": "parent",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Absolute replacement input directory",
+                "long": "root",
+                "name": "root",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Explicit empty replacement",
+                "long": "empty",
+                "name": "empty",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Append",
+                "help": "Exact root-relative regular file; repeat to select additions",
+                "long": "path",
+                "name": "path",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "UTF-8 file with one exact path per line, or - for stdin",
+                "long": "paths-from",
+                "name": "paths-from",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Publish this one frozen candidate after its complete preview is captured",
+                "long": "publish",
+                "name": "publish",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "propose",
+            "summary": "Freeze managed changes plus exact selected additions"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact durable capture operation identifier",
+                "long": "operation",
+                "name": "operation",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "publish",
+            "summary": "Publish the exact stored preview; never reread local files"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact workspace proposal event or prefix",
+                "long": "proposal",
+                "name": "proposal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Optional absolute fresh review directory; no checkout binding",
+                "long": "destination",
+                "name": "destination",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -419,7 +824,7 @@
             ],
             "commands": [],
             "name": "review",
-            "summary": "Read exact before/after content and show text diffs or binary summaries"
+            "summary": "Review one exact proposal; optionally materialize it for owner-authorized checks"
           },
           {
             "arguments": [
@@ -434,53 +839,35 @@
               },
               {
                 "action": "Set",
-                "help": "Full contribution content identifier",
-                "long": "patch",
-                "name": "patch",
+                "help": "Exact target accepted revision; defaults to accepted head",
+                "long": "head",
+                "name": "head",
                 "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Full attempt event identifier",
-                "long": "attempt",
-                "name": "attempt",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Current claim generation",
-                "long": "generation",
-                "name": "generation",
-                "positional": false,
-                "required": true,
+                "required": false,
                 "short": null
               },
               {
                 "action": "Append",
-                "help": "Full event identifier declared as a source; repeat for each source (not proof of model use)",
+                "help": "Exact source proposal, repeated in composition order",
                 "long": "source",
                 "name": "source",
                 "positional": false,
-                "required": false,
+                "required": true,
                 "short": null
               },
               {
-                "action": "Set",
-                "help": "Summary text, or - to read standard input",
-                "long": null,
-                "name": "summary",
-                "positional": true,
-                "required": true,
+                "action": "SetTrue",
+                "help": "Publish this one frozen candidate after its complete preview is captured",
+                "long": "publish",
+                "name": "publish",
+                "positional": false,
+                "required": false,
                 "short": null
               }
             ],
             "commands": [],
-            "name": "submit",
-            "summary": "Submit a validated contribution using the current claimed generation"
+            "name": "compose",
+            "summary": "Compose ordered exact source proposals onto an accepted revision"
           },
           {
             "arguments": [
@@ -495,82 +882,107 @@
               },
               {
                 "action": "Set",
-                "help": "Contribution event identifier or unique prefix",
-                "long": "subject",
-                "name": "subject",
+                "help": "Exact workspace proposal event or prefix",
+                "long": "proposal",
+                "name": "proposal",
                 "positional": false,
                 "required": true,
                 "short": null
               },
               {
                 "action": "Set",
-                "help": "Current scope selection decision identifier or unique prefix",
-                "long": "expected",
-                "name": "expected",
-                "positional": false,
-                "required": false,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "select",
-            "summary": "Select an exact reviewed contribution within its scope"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Goal title, full identifier or unique prefix",
-                "long": "goal",
-                "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Absolute directory explicitly chosen for this operation",
-                "long": "root",
-                "name": "root",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Selected contribution event identifier or unique prefix; derives its signed patch and base",
-                "long": "subject",
-                "name": "subject",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Full expected Git HEAD; required when applying to an exported Git root",
-                "long": "expected-git-head",
-                "name": "expected-git-head",
+                "help": "Pin the current accepted revision",
+                "long": "expected-head",
+                "name": "expected-head",
                 "positional": false,
                 "required": false,
                 "short": null
               },
               {
                 "action": "SetTrue",
-                "help": "Requires --owner and --as: owner chooses an effective contribution for local application without shared selection or approval",
-                "long": "local-choice",
-                "name": "local-choice",
+                "help": "Explicitly pin an unseeded boundary",
+                "long": "expected-empty",
+                "name": "expected-empty",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Pin the active workspace epoch",
+                "long": "expected-epoch",
+                "name": "expected-epoch",
                 "positional": false,
                 "required": false,
                 "short": null
               }
             ],
             "commands": [],
-            "name": "apply",
-            "summary": "Apply a selected contribution to a recorded root; preserve originals for recovery"
+            "name": "integrate",
+            "summary": "Integrate the exact reviewed proposal with a durable receipt"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact local checkout identifier",
+                "long": "checkout",
+                "name": "checkout",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact target revision; defaults to accepted head",
+                "long": "revision",
+                "name": "revision",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "update",
+            "summary": "Preserve compatible local work and recoverably update a bound checkout"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Goal title, full identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Exact durable operation identifier",
+                "long": "operation",
+                "name": "operation",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "recover",
+            "summary": "Resume an exact uncertain publication, integration or file update"
           }
         ],
-        "name": "patch",
-        "summary": "Create, review, publish, select and apply inert workspace contributions"
+        "name": "workspace",
+        "summary": "Versioned shared file trees and explicit local checkouts"
       },
       {
         "arguments": [],
@@ -2212,6 +2624,22 @@
           }
         ],
         "commands": [],
+        "name": "checkouts",
+        "summary": "Read your local checkout bindings and active operations"
+      },
+      {
+        "arguments": [
+          {
+            "action": "Set",
+            "help": "Value, or - for standard input on text fields",
+            "long": "goal",
+            "name": "goal",
+            "positional": false,
+            "required": true,
+            "short": null
+          }
+        ],
+        "commands": [],
         "name": "board",
         "summary": "board"
       },
@@ -2840,6 +3268,63 @@
             "arguments": [
               {
                 "action": "Set",
+                "help": "JSON value matching formation contract or the API schema",
+                "long": "checkout",
+                "name": "checkout",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "register",
+            "summary": "Register one explicit local checkout after materialization"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "checkout",
+                "name": "checkout",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "bind_session",
+            "summary": "Bind this session explicitly to the checkout it uses"
+          }
+        ],
+        "name": "checkout",
+        "summary": null
+      },
+      {
+        "arguments": [],
+        "commands": [
+          {
+            "arguments": [
+              {
+                "action": "Set",
                 "help": "Value, or - for standard input on text fields",
                 "long": "goal",
                 "name": "goal",
@@ -2992,15 +3477,6 @@
               },
               {
                 "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "base",
-                "name": "base",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
                 "help": "JSON value matching formation contract or the API schema",
                 "long": "generation",
                 "name": "generation",
@@ -3015,15 +3491,6 @@
                 "name": "goal",
                 "positional": false,
                 "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "patch",
-                "name": "patch",
-                "positional": false,
-                "required": false,
                 "short": null
               },
               {
@@ -4435,131 +4902,6 @@
         ],
         "name": "work",
         "summary": null
-      },
-      {
-        "arguments": [],
-        "commands": [
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Absolute directory explicitly chosen for this operation",
-                "long": "root",
-                "name": "root",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Exact committed tree to share; dirty and untracked files are excluded",
-                "long": "commit",
-                "name": "commit",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "preview",
-            "summary": "Review a committed export locally without sharing bytes"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Goal title, full identifier or unique prefix",
-                "long": "goal",
-                "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Absolute directory explicitly chosen for this operation",
-                "long": "root",
-                "name": "root",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Exact committed tree to share; dirty and untracked files are excluded",
-                "long": "commit",
-                "name": "commit",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "export",
-            "summary": "Store a committed snapshot in the selected goal and record its local binding"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Goal title, full identifier or unique prefix",
-                "long": "goal",
-                "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Full snapshot manifest identifier",
-                "long": "manifest",
-                "name": "manifest",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Absolute new destination directory",
-                "long": "destination",
-                "name": "destination",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "materialize",
-            "summary": "Write a received snapshot into a new directory"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
-                "long": "binding",
-                "name": "binding",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "goal",
-                "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "set",
-            "summary": "workspace set"
-          }
-        ],
-        "name": "workspace",
-        "summary": "Preview, export and materialize explicit workspace snapshots"
       }
     ],
     "name": "locust",
@@ -4719,7 +5061,7 @@
         "properties": {
           "round": {
             "$ref": "#/$defs/EventId",
-            "description": "RulesBound for goal/document scopes; TaskOpened/TaskRevised/effect for tasks."
+            "description": "RulesBound for goal/document scopes; TaskOpened/TaskRevised/effect for tasks;\nWorkspaceEpoch for the shared file tree."
           },
           "scope": {
             "$ref": "#/$defs/Scope"
@@ -5158,7 +5500,8 @@
         "oneOf": [
           {
             "enum": [
-              "goal"
+              "goal",
+              "workspace"
             ],
             "type": "string"
           },
@@ -5280,6 +5623,49 @@
             },
             "required": [
               "completion"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceCheckpoint": {
+        "oneOf": [
+          {
+            "enum": [
+              "unseeded"
+            ],
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "revision": {
+                "$ref": "#/$defs/EventId"
+              }
+            },
+            "required": [
+              "revision"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Explicitly restore the inherited boundary before one prior transition.",
+            "properties": {
+              "retain_before": {
+                "properties": {
+                  "epoch": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "epoch"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "retain_before"
             ],
             "type": "object"
           }
@@ -5409,6 +5795,81 @@
         },
         "required": [
           "rules_bound"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_epoch": {
+            "properties": {
+              "checkpoint": {
+                "$ref": "#/$defs/WorkspaceCheckpoint"
+              },
+              "expected_epoch": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rules": {
+                "$ref": "#/$defs/EventId"
+              }
+            },
+            "required": [
+              "rules",
+              "checkpoint"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace_epoch"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_proposed": {
+            "properties": {
+              "context": {
+                "$ref": "#/$defs/Context"
+              },
+              "parent": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result_manifest": {
+                "$ref": "#/$defs/BlobHash"
+              },
+              "sources": {
+                "items": {
+                  "$ref": "#/$defs/EventId"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "context",
+              "result_manifest",
+              "sources"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace_proposed"
         ],
         "type": "object"
       },
@@ -5634,28 +6095,8 @@
                   }
                 ]
               },
-              "base": {
-                "anyOf": [
-                  {
-                    "$ref": "#/$defs/BlobHash"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
               "context": {
                 "$ref": "#/$defs/Context"
-              },
-              "patch": {
-                "anyOf": [
-                  {
-                    "$ref": "#/$defs/BlobHash"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
               },
               "sources": {
                 "description": "Author-declared citations, not causal dependencies or proof of use.",
@@ -6341,7 +6782,7 @@
     "title": "FarmSnapshot",
     "type": "object"
   },
-  "formation_schema_version": 1,
+  "formation_schema_version": 2,
   "operations": [
     {
       "audience": "owner",
@@ -6538,10 +6979,138 @@
     {
       "audience": "agent",
       "goal_scoped": true,
-      "mcp_tool": "locust_workspace_set",
-      "name": "workspace.set",
+      "mcp_tool": null,
+      "name": "checkout.register",
       "read_only": false,
-      "summary": "workspace set"
+      "summary": "Register one explicit local checkout after materialization"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_checkout_bind_session",
+      "name": "checkout.bind_session",
+      "read_only": false,
+      "summary": "Bind this session explicitly to the checkout it uses"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_checkouts",
+      "name": "checkouts",
+      "read_only": true,
+      "summary": "Read your local checkout bindings and active operations"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "workspace.recovery.parent",
+      "read_only": true,
+      "summary": "Check a canonical recovery parent is outside every local managed tree before staging"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "workspace.operation.prepare",
+      "read_only": false,
+      "summary": "Durably register an exact captured candidate or prepared file transition"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_operation_show",
+      "name": "workspace.operation.show",
+      "read_only": true,
+      "summary": "Read an exact local workspace operation and its receipt"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_operations",
+      "name": "workspace.operations",
+      "read_only": true,
+      "summary": "Read your durable local workspace operations"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "workspace.operation.complete",
+      "read_only": false,
+      "summary": "Finalize a verified file transition and its checkout base atomically"
+    },
+    {
+      "audience": "administrator",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_epoch",
+      "name": "workspace.epoch",
+      "read_only": false,
+      "summary": "Fence workspace history and pin explicit policy plus an exact checkpoint or restoration"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_head",
+      "name": "workspace.head",
+      "read_only": true,
+      "summary": "Read accepted workspace authority and independent content availability"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_tree",
+      "name": "workspace.tree",
+      "read_only": true,
+      "summary": "List an exact retained workspace tree with validated content"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_read",
+      "name": "workspace.read",
+      "read_only": true,
+      "summary": "Read one inert file from an exact retained workspace revision"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_proposals",
+      "name": "workspace.proposals",
+      "read_only": true,
+      "summary": "Read exact workspace proposals and whether their parents are stale"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_proposal",
+      "name": "workspace.proposal",
+      "read_only": true,
+      "summary": "Read one exact candidate, provenance and review state"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_revision",
+      "name": "workspace.revision",
+      "read_only": true,
+      "summary": "Read an exact workspace selection and retained-lineage status"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_publish",
+      "name": "workspace.publish",
+      "read_only": false,
+      "summary": "Publish the exact frozen candidate named by your prepared operation"
+    },
+    {
+      "audience": "agent",
+      "goal_scoped": true,
+      "mcp_tool": "locust_workspace_integrate",
+      "name": "workspace.integrate",
+      "read_only": false,
+      "summary": "Integrate an exact reviewed candidate at the prepared expected epoch and head"
     },
     {
       "audience": "agent",
@@ -6992,7 +7561,7 @@
       "summary": "Show local participants and work needing permission, action or review across goals without acknowledging it"
     }
   ],
-  "protocol_version": 5,
+  "protocol_version": 6,
   "request_schema": {
     "$defs": {
       "AttemptStatus": {
@@ -7016,6 +7585,95 @@
           "uncertain"
         ],
         "type": "string"
+      },
+      "Checkout": {
+        "additionalProperties": false,
+        "properties": {
+          "active_operation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WorkspaceOperationId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "base_manifest": {
+            "$ref": "#/$defs/BlobHash"
+          },
+          "base_revision": {
+            "$ref": "#/$defs/EventId"
+          },
+          "id": {
+            "$ref": "#/$defs/CheckoutId"
+          },
+          "root": {
+            "type": "string"
+          },
+          "root_identity": {
+            "$ref": "#/$defs/DirectoryIdentity"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstanceId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicitly bound caller session; absence does not prove the files are idle."
+          },
+          "task": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "root",
+          "root_identity",
+          "base_revision",
+          "base_manifest"
+        ],
+        "type": "object"
+      },
+      "CheckoutId": {
+        "pattern": "^[0-9a-fA-F]{32}$",
+        "type": "string"
+      },
+      "Context": {
+        "properties": {
+          "round": {
+            "$ref": "#/$defs/EventId",
+            "description": "RulesBound for goal/document scopes; TaskOpened/TaskRevised/effect for tasks;\nWorkspaceEpoch for the shared file tree."
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          }
+        },
+        "required": [
+          "scope",
+          "round"
+        ],
+        "type": "object"
       },
       "ContextCursor": {
         "description": "A continuation for exactly one observed revision and query. If the goal\nchanges, restart the read; pages from different revisions are never joined.\nSession acknowledgments do not change this revision. The offset addresses\nrelevant events before unread filtering, so acknowledging each page is safe.",
@@ -7155,6 +7813,26 @@
         ],
         "type": "string"
       },
+      "DirectoryIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "device": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "inode": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "device",
+          "inode"
+        ],
+        "type": "object"
+      },
       "Doc": {
         "enum": [
           "plan",
@@ -7248,6 +7926,10 @@
         ],
         "type": "string"
       },
+      "IdempotencyKey": {
+        "pattern": "^[0-9a-fA-F]{32}$",
+        "type": "string"
+      },
       "InstanceId": {
         "pattern": "^[0-9a-fA-F]{32}$",
         "type": "string"
@@ -7339,7 +8021,8 @@
         "oneOf": [
           {
             "enum": [
-              "goal"
+              "goal",
+              "workspace"
             ],
             "type": "string"
           },
@@ -7500,54 +8183,306 @@
         "pattern": "^locust-invite-[0-9a-f]+$",
         "type": "string"
       },
-      "WorkspaceBinding": {
+      "WorkspaceCandidate": {
         "additionalProperties": false,
-        "description": "Where one local principal's files for a goal live and how far they have\ncome. Local and never replicated. The daemon stores the strings verbatim\nand never opens the paths; the workspace code in the CLI or adapter reads\nand writes them. Each string is at most [`MAX_LOCAL_TEXT_BYTES`].",
+        "description": "A frozen publication. Publication consumes these exact sealed object IDs.",
         "properties": {
-          "destination": {
-            "description": "The separate directory that received snapshots are materialized into.",
-            "type": [
-              "string",
-              "null"
-            ]
+          "captured_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
-          "export_root": {
-            "description": "The directory the participant chose to share from.",
-            "type": [
-              "string",
-              "null"
-            ]
+          "context": {
+            "$ref": "#/$defs/Context"
           },
-          "exported": {
+          "parent": {
             "anyOf": [
               {
-                "$ref": "#/$defs/BlobHash"
+                "$ref": "#/$defs/EventId"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Manifest of the last export."
-          },
-          "integrated": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/BlobHash"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Last artifact explicitly applied locally; no goal-wide selection implication."
-          },
-          "source_commit": {
-            "description": "The Git commit the last export was taken from. Provenance only: the\nexported manifest, not the commit, identifies what was shared.",
-            "type": [
-              "string",
-              "null"
             ]
+          },
+          "replacement": {
+            "type": "boolean"
+          },
+          "result_manifest": {
+            "$ref": "#/$defs/BlobHash"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/EventId"
+            },
+            "type": "array"
           }
         },
+        "required": [
+          "context",
+          "result_manifest",
+          "sources",
+          "captured_paths",
+          "replacement"
+        ],
+        "type": "object"
+      },
+      "WorkspaceCheckpoint": {
+        "oneOf": [
+          {
+            "enum": [
+              "unseeded"
+            ],
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "revision": {
+                "$ref": "#/$defs/EventId"
+              }
+            },
+            "required": [
+              "revision"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Explicitly restore the inherited boundary before one prior transition.",
+            "properties": {
+              "retain_before": {
+                "properties": {
+                  "epoch": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "epoch"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "retain_before"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceOperation": {
+        "additionalProperties": false,
+        "description": "Kept outside managed trees in the daemon's durable local store.",
+        "properties": {
+          "checkout": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CheckoutId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "$ref": "#/$defs/WorkspaceOperationId"
+          },
+          "idempotency_key": {
+            "$ref": "#/$defs/IdempotencyKey"
+          },
+          "kind": {
+            "$ref": "#/$defs/WorkspaceOperationKind"
+          },
+          "state": {
+            "$ref": "#/$defs/WorkspaceOperationState"
+          }
+        },
+        "required": [
+          "id",
+          "idempotency_key",
+          "kind",
+          "state"
+        ],
+        "type": "object"
+      },
+      "WorkspaceOperationId": {
+        "pattern": "^[0-9a-fA-F]{32}$",
+        "type": "string"
+      },
+      "WorkspaceOperationKind": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "capture": {
+                "additionalProperties": false,
+                "properties": {
+                  "candidate": {
+                    "$ref": "#/$defs/WorkspaceCandidate"
+                  }
+                },
+                "required": [
+                  "candidate"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "capture"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "integrate": {
+                "additionalProperties": false,
+                "properties": {
+                  "expected_epoch": {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  "expected_head": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/EventId"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "proposal": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "expected_epoch",
+                  "proposal"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "integrate"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "update": {
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  "recovery": {
+                    "$ref": "#/$defs/WorkspaceRecovery"
+                  },
+                  "target_manifest": {
+                    "$ref": "#/$defs/BlobHash"
+                  },
+                  "target_revision": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "target_revision",
+                  "target_manifest",
+                  "recovery"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "update"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceOperationState": {
+        "oneOf": [
+          {
+            "enum": [
+              "prepared"
+            ],
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "recorded": {
+                "additionalProperties": false,
+                "properties": {
+                  "event": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "event"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "recorded"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The files and binding completed; this records authority at that instant.",
+            "properties": {
+              "completed": {
+                "additionalProperties": false,
+                "properties": {
+                  "target_in_lineage_at_completion": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "target_in_lineage_at_completion"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "completed"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceRecovery": {
+        "additionalProperties": false,
+        "description": "Exact CLI recovery identity registered before any checkout mutation.",
+        "properties": {
+          "plan_digest": {
+            "$ref": "#/$defs/BlobHash"
+          },
+          "recovery_directory": {
+            "type": "string"
+          },
+          "recovery_identity": {
+            "$ref": "#/$defs/DirectoryIdentity"
+          },
+          "root": {
+            "type": "string"
+          },
+          "root_identity": {
+            "$ref": "#/$defs/DirectoryIdentity"
+          }
+        },
+        "required": [
+          "root",
+          "root_identity",
+          "recovery_directory",
+          "recovery_identity",
+          "plan_digest"
+        ],
         "type": "object"
       }
     },
@@ -8163,11 +9098,11 @@
       {
         "additionalProperties": false,
         "properties": {
-          "workspace.set": {
+          "checkout.register": {
             "additionalProperties": false,
             "properties": {
-              "binding": {
-                "$ref": "#/$defs/WorkspaceBinding"
+              "checkout": {
+                "$ref": "#/$defs/Checkout"
               },
               "goal": {
                 "$ref": "#/$defs/GoalId"
@@ -8175,13 +9110,427 @@
             },
             "required": [
               "goal",
-              "binding"
+              "checkout"
             ],
             "type": "object"
           }
         },
         "required": [
-          "workspace.set"
+          "checkout.register"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "checkout.bind_session": {
+            "additionalProperties": false,
+            "properties": {
+              "checkout": {
+                "$ref": "#/$defs/CheckoutId"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal",
+              "checkout"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "checkout.bind_session"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "checkouts": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "checkouts"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.recovery.parent": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "parent": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "goal",
+              "parent"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.recovery.parent"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.operation.prepare": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "operation": {
+                "$ref": "#/$defs/WorkspaceOperation"
+              }
+            },
+            "required": [
+              "goal",
+              "operation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.operation.prepare"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.operation.show": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "operation": {
+                "$ref": "#/$defs/WorkspaceOperationId"
+              }
+            },
+            "required": [
+              "goal",
+              "operation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.operation.show"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.operations": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.operations"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.operation.complete": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "operation": {
+                "$ref": "#/$defs/WorkspaceOperationId"
+              }
+            },
+            "required": [
+              "goal",
+              "operation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.operation.complete"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.epoch": {
+            "additionalProperties": false,
+            "properties": {
+              "checkpoint": {
+                "$ref": "#/$defs/WorkspaceCheckpoint"
+              },
+              "expected_epoch": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "rules": {
+                "$ref": "#/$defs/EventId"
+              }
+            },
+            "required": [
+              "goal",
+              "rules",
+              "checkpoint"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.epoch"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.head": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.head"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.tree": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "revision": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.tree"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.read": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "path": {
+                "type": "string"
+              },
+              "revision": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "goal",
+              "path"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.read"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.proposals": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.proposals"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.proposal": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "proposal": {
+                "$ref": "#/$defs/EventId"
+              }
+            },
+            "required": [
+              "goal",
+              "proposal"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.proposal"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.revision": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "revision": {
+                "$ref": "#/$defs/EventId"
+              }
+            },
+            "required": [
+              "goal",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.revision"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.publish": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "operation": {
+                "$ref": "#/$defs/WorkspaceOperationId"
+              }
+            },
+            "required": [
+              "goal",
+              "operation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.publish"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.integrate": {
+            "additionalProperties": false,
+            "properties": {
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              },
+              "operation": {
+                "$ref": "#/$defs/WorkspaceOperationId"
+              }
+            },
+            "required": [
+              "goal",
+              "operation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.integrate"
         ],
         "type": "object"
       },
@@ -8572,16 +9921,6 @@
                   }
                 ]
               },
-              "base": {
-                "anyOf": [
-                  {
-                    "$ref": "#/$defs/BlobHash"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
               "generation": {
                 "format": "uint32",
                 "minimum": 0,
@@ -8592,16 +9931,6 @@
               },
               "goal": {
                 "$ref": "#/$defs/GoalId"
-              },
-              "patch": {
-                "anyOf": [
-                  {
-                    "$ref": "#/$defs/BlobHash"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
               },
               "sources": {
                 "default": [],
@@ -10120,6 +11449,81 @@
           {
             "additionalProperties": false,
             "properties": {
+              "workspace_epoch": {
+                "properties": {
+                  "checkpoint": {
+                    "$ref": "#/$defs/WorkspaceCheckpoint"
+                  },
+                  "expected_epoch": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/EventId"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rules": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "rules",
+                  "checkpoint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "workspace_epoch"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "workspace_proposed": {
+                "properties": {
+                  "context": {
+                    "$ref": "#/$defs/Context"
+                  },
+                  "parent": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/EventId"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "result_manifest": {
+                    "$ref": "#/$defs/BlobHash"
+                  },
+                  "sources": {
+                    "items": {
+                      "$ref": "#/$defs/EventId"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "context",
+                  "result_manifest",
+                  "sources"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "workspace_proposed"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
               "task_revised": {
                 "properties": {
                   "binding": {
@@ -10339,28 +11743,8 @@
                       }
                     ]
                   },
-                  "base": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/$defs/BlobHash"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
                   "context": {
                     "$ref": "#/$defs/Context"
-                  },
-                  "patch": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/$defs/BlobHash"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
                   },
                   "sources": {
                     "description": "Author-declared citations, not causal dependencies or proof of use.",
@@ -10639,6 +12023,79 @@
         ],
         "type": "string"
       },
+      "Checkout": {
+        "additionalProperties": false,
+        "properties": {
+          "active_operation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WorkspaceOperationId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "base_manifest": {
+            "$ref": "#/$defs/BlobHash"
+          },
+          "base_revision": {
+            "$ref": "#/$defs/EventId"
+          },
+          "id": {
+            "$ref": "#/$defs/CheckoutId"
+          },
+          "root": {
+            "type": "string"
+          },
+          "root_identity": {
+            "$ref": "#/$defs/DirectoryIdentity"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstanceId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicitly bound caller session; absence does not prove the files are idle."
+          },
+          "task": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TaskId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "root",
+          "root_identity",
+          "base_revision",
+          "base_manifest"
+        ],
+        "type": "object"
+      },
+      "CheckoutId": {
+        "pattern": "^[0-9a-fA-F]{32}$",
+        "type": "string"
+      },
       "Claim": {
         "properties": {
           "attempt": {
@@ -10672,7 +12129,7 @@
         "properties": {
           "round": {
             "$ref": "#/$defs/EventId",
-            "description": "RulesBound for goal/document scopes; TaskOpened/TaskRevised/effect for tasks."
+            "description": "RulesBound for goal/document scopes; TaskOpened/TaskRevised/effect for tasks;\nWorkspaceEpoch for the shared file tree."
           },
           "scope": {
             "$ref": "#/$defs/Scope"
@@ -10716,6 +12173,16 @@
         "properties": {
           "administrator": {
             "$ref": "#/$defs/PublicKey"
+          },
+          "checkout": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Checkout"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "context": {
             "anyOf": [
@@ -10784,9 +12251,13 @@
               "string",
               "null"
             ]
+          },
+          "workspace": {
+            "$ref": "#/$defs/WorkspaceView"
           }
         },
         "required": [
+          "workspace",
           "goal",
           "administrator",
           "documents",
@@ -11022,6 +12493,16 @@
       "ContextSnapshot": {
         "description": "Complete scope metadata on an explicitly requested full first page.",
         "properties": {
+          "checkout": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Checkout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "documents": {
             "items": {
               "$ref": "#/$defs/ContextDocument"
@@ -11241,16 +12722,6 @@
           "author": {
             "$ref": "#/$defs/PublicKey"
           },
-          "base": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/BlobHash"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "context": {
             "$ref": "#/$defs/Context"
           },
@@ -11262,16 +12733,6 @@
               "$ref": "#/$defs/EventId"
             },
             "type": "array"
-          },
-          "patch": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/BlobHash"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "selected": {
             "type": "boolean"
@@ -11423,6 +12884,26 @@
           "received",
           "available",
           "action"
+        ],
+        "type": "object"
+      },
+      "DirectoryIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "device": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "inode": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "device",
+          "inode"
         ],
         "type": "object"
       },
@@ -11674,6 +13155,36 @@
         "pattern": "^[0-9a-fA-F]{64}$",
         "type": "string"
       },
+      "Entry": {
+        "description": "One regular file of a snapshot.",
+        "properties": {
+          "content": {
+            "$ref": "#/$defs/BlobHash",
+            "description": "Hash of the stored object holding the file: its sealed bytes."
+          },
+          "executable": {
+            "description": "The file is materialized with its executable bits set.",
+            "type": "boolean"
+          },
+          "path": {
+            "description": "Relative path with `/` separators; see [`is_safe_path`].",
+            "type": "string"
+          },
+          "size": {
+            "description": "Size of the file's plaintext, in bytes.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "executable",
+          "size",
+          "content"
+        ],
+        "type": "object"
+      },
       "EventDetail": {
         "description": "One event in full: everything a administrator needs to judge a submitted\nresult or a proposed revision before deciding on it.",
         "properties": {
@@ -11690,7 +13201,7 @@
           },
           "body": {
             "$ref": "#/$defs/Body",
-            "description": "The signed, typed content: for a result its attempt, base, patch\nand artifacts; for a revision its document and base."
+            "description": "The signed, typed content: for a result its attempt, sources\nand artifacts; for a revision its document and base."
           },
           "content": {
             "description": "Every content object the event names, in the order of\n[`Header::blobs`](crate::event::Header::blobs) (payload first), with\nwhether it is held.",
@@ -12541,7 +14052,7 @@
           "workspace": {
             "anyOf": [
               {
-                "$ref": "#/$defs/WorkspaceBinding"
+                "$ref": "#/$defs/WorkspaceView"
               },
               {
                 "type": "null"
@@ -12638,6 +14149,10 @@
           "unknown",
           "multiple"
         ],
+        "type": "string"
+      },
+      "IdempotencyKey": {
+        "pattern": "^[0-9a-fA-F]{32}$",
         "type": "string"
       },
       "InstanceId": {
@@ -12841,6 +14356,22 @@
           "administrator",
           "created_ms",
           "state"
+        ],
+        "type": "object"
+      },
+      "Manifest": {
+        "description": "A snapshot: the files it contains and nothing else.",
+        "properties": {
+          "entries": {
+            "description": "Entries in strictly ascending byte order of `path`.",
+            "items": {
+              "$ref": "#/$defs/Entry"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
         ],
         "type": "object"
       },
@@ -13260,6 +14791,16 @@
               "$ref": "#/$defs/WorkItem"
             },
             "type": "array"
+          },
+          "workspace": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WorkspaceStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -13483,7 +15024,8 @@
         "oneOf": [
           {
             "enum": [
-              "goal"
+              "goal",
+              "workspace"
             ],
             "type": "string"
           },
@@ -13998,60 +15540,900 @@
         ],
         "type": "object"
       },
-      "WorkspaceBinding": {
+      "WorkspaceAuthority": {
+        "enum": [
+          "uninitialized",
+          "pending",
+          "ready",
+          "disputed",
+          "invalid"
+        ],
+        "type": "string"
+      },
+      "WorkspaceCandidate": {
         "additionalProperties": false,
-        "description": "Where one local principal's files for a goal live and how far they have\ncome. Local and never replicated. The daemon stores the strings verbatim\nand never opens the paths; the workspace code in the CLI or adapter reads\nand writes them. Each string is at most [`MAX_LOCAL_TEXT_BYTES`].",
+        "description": "A frozen publication. Publication consumes these exact sealed object IDs.",
         "properties": {
-          "destination": {
-            "description": "The separate directory that received snapshots are materialized into.",
-            "type": [
-              "string",
-              "null"
-            ]
+          "captured_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
-          "export_root": {
-            "description": "The directory the participant chose to share from.",
-            "type": [
-              "string",
-              "null"
-            ]
+          "context": {
+            "$ref": "#/$defs/Context"
           },
-          "exported": {
+          "parent": {
             "anyOf": [
               {
-                "$ref": "#/$defs/BlobHash"
+                "$ref": "#/$defs/EventId"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Manifest of the last export."
+            ]
           },
-          "integrated": {
+          "replacement": {
+            "type": "boolean"
+          },
+          "result_manifest": {
+            "$ref": "#/$defs/BlobHash"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/EventId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "context",
+          "result_manifest",
+          "sources",
+          "captured_paths",
+          "replacement"
+        ],
+        "type": "object"
+      },
+      "WorkspaceCheckpoint": {
+        "oneOf": [
+          {
+            "enum": [
+              "unseeded"
+            ],
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "revision": {
+                "$ref": "#/$defs/EventId"
+              }
+            },
+            "required": [
+              "revision"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Explicitly restore the inherited boundary before one prior transition.",
+            "properties": {
+              "retain_before": {
+                "properties": {
+                  "epoch": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "epoch"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "retain_before"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceContent": {
+        "description": "Content usability is independent of signed acceptance.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "manifest_missing": {
+                "properties": {
+                  "manifest": {
+                    "$ref": "#/$defs/BlobHash"
+                  }
+                },
+                "required": [
+                  "manifest"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "manifest_missing"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "key_missing": {
+                "properties": {
+                  "hash": {
+                    "$ref": "#/$defs/BlobHash"
+                  },
+                  "key_epoch": {
+                    "format": "uint32",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "hash",
+                  "key_epoch"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "key_missing"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "invalid_manifest": {
+                "properties": {
+                  "manifest": {
+                    "$ref": "#/$defs/BlobHash"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "manifest",
+                  "reason"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "invalid_manifest"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "files_missing": {
+                "properties": {
+                  "manifest": {
+                    "$ref": "#/$defs/BlobHash"
+                  },
+                  "missing": {
+                    "items": {
+                      "$ref": "#/$defs/BlobHash"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "manifest",
+                  "missing"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "files_missing"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "invalid_file": {
+                "properties": {
+                  "hash": {
+                    "$ref": "#/$defs/BlobHash"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "hash",
+                  "reason"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "invalid_file"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "withdrawn": {
+                "properties": {
+                  "hash": {
+                    "$ref": "#/$defs/BlobHash"
+                  }
+                },
+                "required": [
+                  "hash"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "withdrawn"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "complete": {
+                "properties": {
+                  "bytes": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "files": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "files",
+                  "bytes"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "complete"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceFileView": {
+        "properties": {
+          "bytes": {
+            "items": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "executable": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "revision": {
+            "$ref": "#/$defs/EventId"
+          }
+        },
+        "required": [
+          "revision",
+          "path",
+          "executable",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "WorkspaceOperation": {
+        "additionalProperties": false,
+        "description": "Kept outside managed trees in the daemon's durable local store.",
+        "properties": {
+          "checkout": {
             "anyOf": [
               {
-                "$ref": "#/$defs/BlobHash"
+                "$ref": "#/$defs/CheckoutId"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Last artifact explicitly applied locally; no goal-wide selection implication."
+            ]
           },
-          "source_commit": {
-            "description": "The Git commit the last export was taken from. Provenance only: the\nexported manifest, not the commit, identifies what was shared.",
-            "type": [
-              "string",
-              "null"
+          "id": {
+            "$ref": "#/$defs/WorkspaceOperationId"
+          },
+          "idempotency_key": {
+            "$ref": "#/$defs/IdempotencyKey"
+          },
+          "kind": {
+            "$ref": "#/$defs/WorkspaceOperationKind"
+          },
+          "state": {
+            "$ref": "#/$defs/WorkspaceOperationState"
+          }
+        },
+        "required": [
+          "id",
+          "idempotency_key",
+          "kind",
+          "state"
+        ],
+        "type": "object"
+      },
+      "WorkspaceOperationId": {
+        "pattern": "^[0-9a-fA-F]{32}$",
+        "type": "string"
+      },
+      "WorkspaceOperationKind": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "capture": {
+                "additionalProperties": false,
+                "properties": {
+                  "candidate": {
+                    "$ref": "#/$defs/WorkspaceCandidate"
+                  }
+                },
+                "required": [
+                  "candidate"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "capture"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "integrate": {
+                "additionalProperties": false,
+                "properties": {
+                  "expected_epoch": {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  "expected_head": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/EventId"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "proposal": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "expected_epoch",
+                  "proposal"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "integrate"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "update": {
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  "recovery": {
+                    "$ref": "#/$defs/WorkspaceRecovery"
+                  },
+                  "target_manifest": {
+                    "$ref": "#/$defs/BlobHash"
+                  },
+                  "target_revision": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "target_revision",
+                  "target_manifest",
+                  "recovery"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "update"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceOperationState": {
+        "oneOf": [
+          {
+            "enum": [
+              "prepared"
+            ],
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "recorded": {
+                "additionalProperties": false,
+                "properties": {
+                  "event": {
+                    "$ref": "#/$defs/EventId"
+                  }
+                },
+                "required": [
+                  "event"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "recorded"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The files and binding completed; this records authority at that instant.",
+            "properties": {
+              "completed": {
+                "additionalProperties": false,
+                "properties": {
+                  "target_in_lineage_at_completion": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "target_in_lineage_at_completion"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "completed"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceProposalStatus": {
+        "enum": [
+          "pending_authority",
+          "disputed",
+          "content_unavailable",
+          "awaiting_evidence",
+          "stale",
+          "ready",
+          "integrated"
+        ],
+        "type": "string"
+      },
+      "WorkspaceProposalView": {
+        "properties": {
+          "approved": {
+            "type": "boolean"
+          },
+          "author": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "content": {
+            "$ref": "#/$defs/WorkspaceContent"
+          },
+          "context": {
+            "$ref": "#/$defs/Context"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/EventId"
+            },
+            "type": "array"
+          },
+          "integrated_as": {
+            "items": {
+              "$ref": "#/$defs/EventId"
+            },
+            "type": "array"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "proposal": {
+            "$ref": "#/$defs/EventId"
+          },
+          "result_manifest": {
+            "$ref": "#/$defs/BlobHash"
+          },
+          "source_authors": {
+            "items": {
+              "$ref": "#/$defs/PublicKey"
+            },
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/EventId"
+            },
+            "type": "array"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "standing": {
+            "$ref": "#/$defs/Standing"
+          },
+          "status": {
+            "$ref": "#/$defs/WorkspaceProposalStatus"
+          },
+          "usable_as_source": {
+            "description": "Eligible as a typed source under the current epoch checkpoint proof.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "proposal",
+          "context",
+          "author",
+          "result_manifest",
+          "sources",
+          "source_authors",
+          "standing",
+          "usable_as_source",
+          "integrated_as",
+          "status",
+          "approved",
+          "evidence",
+          "stale",
+          "content"
+        ],
+        "type": "object"
+      },
+      "WorkspaceRecovery": {
+        "additionalProperties": false,
+        "description": "Exact CLI recovery identity registered before any checkout mutation.",
+        "properties": {
+          "plan_digest": {
+            "$ref": "#/$defs/BlobHash"
+          },
+          "recovery_directory": {
+            "type": "string"
+          },
+          "recovery_identity": {
+            "$ref": "#/$defs/DirectoryIdentity"
+          },
+          "root": {
+            "type": "string"
+          },
+          "root_identity": {
+            "$ref": "#/$defs/DirectoryIdentity"
+          }
+        },
+        "required": [
+          "root",
+          "root_identity",
+          "recovery_directory",
+          "recovery_identity",
+          "plan_digest"
+        ],
+        "type": "object"
+      },
+      "WorkspaceRevisionView": {
+        "properties": {
+          "context": {
+            "$ref": "#/$defs/Context"
+          },
+          "in_lineage": {
+            "description": "True only for the currently retained accepted lineage, including checkpoints.",
+            "type": "boolean"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "proposal": {
+            "$ref": "#/$defs/EventId"
+          },
+          "result_manifest": {
+            "$ref": "#/$defs/BlobHash"
+          },
+          "revision": {
+            "$ref": "#/$defs/EventId"
+          }
+        },
+        "required": [
+          "revision",
+          "context",
+          "proposal",
+          "result_manifest",
+          "in_lineage"
+        ],
+        "type": "object"
+      },
+      "WorkspaceStatus": {
+        "description": "Small shared authority and local binding observation for pending/context reads.",
+        "properties": {
+          "checkout": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Checkout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "epoch": {
+            "$ref": "#/$defs/EventId"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ready": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "epoch",
+          "ready",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "WorkspaceTreeView": {
+        "properties": {
+          "manifest": {
+            "$ref": "#/$defs/Manifest"
+          },
+          "revision": {
+            "$ref": "#/$defs/WorkspaceRevisionView"
+          }
+        },
+        "required": [
+          "revision",
+          "manifest"
+        ],
+        "type": "object"
+      },
+      "WorkspaceView": {
+        "properties": {
+          "authority": {
+            "$ref": "#/$defs/WorkspaceAuthority"
+          },
+          "checkpoint": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WorkspaceContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "epoch": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "head": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WorkspaceRevisionView"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
+        "required": [
+          "enabled",
+          "authority"
+        ],
         "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "What a request answers with when it succeeds; which variant answers which\nrequest is [`Request::is_answered_by`]. No response ever carries a secret.",
     "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace": {
+            "$ref": "#/$defs/WorkspaceView"
+          }
+        },
+        "required": [
+          "workspace"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_tree": {
+            "$ref": "#/$defs/WorkspaceTreeView"
+          }
+        },
+        "required": [
+          "workspace_tree"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_file": {
+            "$ref": "#/$defs/WorkspaceFileView"
+          }
+        },
+        "required": [
+          "workspace_file"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_proposals": {
+            "items": {
+              "$ref": "#/$defs/WorkspaceProposalView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workspace_proposals"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_proposal": {
+            "$ref": "#/$defs/WorkspaceProposalView"
+          }
+        },
+        "required": [
+          "workspace_proposal"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_revision": {
+            "$ref": "#/$defs/WorkspaceRevisionView"
+          }
+        },
+        "required": [
+          "workspace_revision"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "checkout": {
+            "$ref": "#/$defs/Checkout"
+          }
+        },
+        "required": [
+          "checkout"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "checkouts": {
+            "items": {
+              "$ref": "#/$defs/Checkout"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "checkouts"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_operation": {
+            "$ref": "#/$defs/WorkspaceOperation"
+          }
+        },
+        "required": [
+          "workspace_operation"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_operations": {
+            "items": {
+              "$ref": "#/$defs/WorkspaceOperation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workspace_operations"
+        ],
+        "type": "object"
+      },
       {
         "additionalProperties": false,
         "properties": {

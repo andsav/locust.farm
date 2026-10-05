@@ -17,7 +17,7 @@ use locust_proto::id::BlobHash;
 use locust_proto::manifest::{Manifest, ManifestError};
 use rustix::fs::{self, AtFlags, Mode};
 
-use crate::{BlobSource, ContributionError, safe_fs};
+use crate::{BlobSource, WorkspaceError, safe_fs};
 
 #[derive(Debug)]
 pub enum MaterializeError {
@@ -209,9 +209,9 @@ fn ensure_absent(
         Err(error) => Err(io_error(destination, error.into())),
     }
 }
-fn filesystem_error(path: &Path, error: ContributionError) -> MaterializeError {
+fn filesystem_error(path: &Path, error: WorkspaceError) -> MaterializeError {
     match error {
-        ContributionError::Conflict { path, .. } | ContributionError::Unsupported { path, .. } => {
+        WorkspaceError::Conflict { path, .. } | WorkspaceError::Unsupported { path, .. } => {
             MaterializeError::Collision(path)
         }
         error => io_error(path, io::Error::other(error)),
@@ -241,7 +241,7 @@ fn write_files(
         let (parent, leaf) = safe_fs::parent(staging, &entry.path, true)
             .map_err(|error| filesystem_error(&label.join(&entry.path), error))?;
         safe_fs::write_new(&parent, &leaf, &bytes, entry.executable).map_err(|error| {
-            if matches!(&error, ContributionError::Io(error) if error.kind() == io::ErrorKind::AlreadyExists) { MaterializeError::Collision(entry.path.clone()) }
+            if matches!(&error, WorkspaceError::Io(error) if error.kind() == io::ErrorKind::AlreadyExists) { MaterializeError::Collision(entry.path.clone()) }
             else { filesystem_error(&label.join(&entry.path), error) }
         })?;
     }

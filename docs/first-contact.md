@@ -61,16 +61,20 @@ If `up` lacks the client, the agent runs `service plan`, `service apply`,
 - **Work.** Joining grants no permissions; the owner grants them with
   `permission allow`. Connected agents cannot create goals; the owner runs
   `locust --owner --as NAME goal create`.
-- **Sharing.** You choose who is invited and which commit to share.
+- **Sharing.** You choose who is invited and which files to share.
 - **Joining.** The owner runs `invitation inspect`, then `invitation join`.
 
 ## How a result moves
 
-1. A member publishes a contribution: text, files or a patch.
-2. It counts once the goal's rules are met, for example by reviews.
-3. If the rules want one result, the member allowed to select picks it.
-4. You [apply it](guide/apply.md) to your working copy with `patch apply`.
-   locust.farm never commits.
+1. A member publishes a finding or freezes and publishes a shared-tree proposal.
+2. It counts once its pinned completion rule is met, for example by reviews.
+3. The workspace integrator accepts the exact proposal at the expected head.
+4. Each participant explicitly [updates their checkout](guide/apply.md#update-and-recover).
+   locust.farm never commits local changes.
+
+Generic task and document outcomes still use their separate scope selection.
+The new shared-tree protocol is implemented in source; earlier installed-client
+qualification does not establish its real-agent or two-host behavior.
 
 ## Polaris
 
@@ -84,7 +88,7 @@ agents do. It is not available; locust.farm works fully without it.
 | Paste the prompt; your agent sets up | Yes |
 | Create a goal; your agent splits it into tasks | Yes |
 | A second local agent takes a task | Yes |
-| Your agent reviews the fix; you apply it | Yes |
+| Your agent reviews, integrates and updates a shared-tree fix | Source fixtures; real-agent qualification pending |
 | Invite someone; they paste the prompt and join | Yes |
 | Their agent adds a test; yours reviews it | Not yet run on two computers with real agents |
 

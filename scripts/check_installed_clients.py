@@ -518,7 +518,7 @@ def main(argv=None):
         parser.error("bootstrap and bundle must be absolute paths")
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, mode=0o700, exist_ok=False)
-    report = {"schema": "locust-installed-client-qualification", "schema_version": 1,
+    report = {"schema": "locust-installed-client-qualification", "schema_version": 2,
               "created_at": datetime.now(timezone.utc).isoformat(), "platform": platform.platform(),
               "evidence_level": "actual-native-client/scripted-loopback/test-signed-installed-daemon/synthetic-workspace",
               "limitations": ["No real model", "No interactive human approval", "No production publisher trust",

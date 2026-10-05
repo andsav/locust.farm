@@ -1,8 +1,6 @@
 //! Goals and membership: founding, status, grants and the workspace binding.
 
-use locust_proto::api::{
-    ApiError, ErrorCode, GoalGrants, GoalStatus, MemberView, Response, WorkspaceBinding,
-};
+use locust_proto::api::{ApiError, ErrorCode, GoalGrants, GoalStatus, MemberView, Response};
 use locust_proto::crypto::ContentKey;
 use locust_proto::engine::Entropy;
 use locust_proto::event::{Body, DefinitionRef, Genesis, RulesBinding};
@@ -43,7 +41,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let creator = self.manages_goals(actor)?;
         let endpoint = self.own_endpoint()?.endpoint;
         let signer = self.signer(&creator)?;
-        let source = formation_json.unwrap_or_else(|| "{\"schema_version\":1}".into());
+        let source = formation_json.unwrap_or_else(|| "{\"schema_version\":2}".into());
         let (definition, normalized) = checked_definition(&source)?;
         let genesis = Genesis {
             administrator: creator,
@@ -217,9 +215,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 })
                 .collect(),
             halted: entry.halted(),
-            workspace: actor
-                .principal
-                .and_then(|principal| entry.local.workspace.get(&principal).cloned()),
+            workspace: Some(self.workspace_view(entry, actor)?),
             grants: actor
                 .principal
                 .map(|principal| entry.local.grants(&principal))
@@ -252,25 +248,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         let mut tx = Tx::none();
         tx.local(local::grants_write(&goal, &agent, &grants))
-            .touch(goal);
-        Ok(Planned {
-            response: Response::Done,
-            tx,
-        })
-    }
-
-    /// `workspace.set`: where the calling principal's files for the goal
-    /// live. Local only.
-    pub(super) fn workspace_set(
-        &self,
-        actor: &Actor,
-        goal: GoalId,
-        binding: WorkspaceBinding,
-    ) -> Plan {
-        self.readable(actor, &goal)?;
-        let principal = actor.principal()?;
-        let mut tx = Tx::none();
-        tx.local(local::workspace_write(&goal, &principal, &binding))
             .touch(goal);
         Ok(Planned {
             response: Response::Done,

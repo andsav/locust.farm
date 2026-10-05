@@ -172,7 +172,7 @@ impl Cancellation {
 }
 
 enum ClientRequest {
-    Native(Request),
+    Native(Box<Request>),
     Acknowledge {
         goal: locust_proto::id::GoalId,
         reference: String,
@@ -249,7 +249,7 @@ async fn invoke(
             if cancellation.is_cancelled() { return Err(Failure::unavailable("MCP request was cancelled")); }
             let cache = crate::context_receipts::Cache::new(&auth.home, auth.credential, auth.session);
             let request = match call.request {
-                ClientRequest::Native(request) => request,
+                ClientRequest::Native(request) => *request,
                 ClientRequest::Acknowledge { goal, reference } => Request::ContextAcknowledge { goal, receipt: cache.load(&reference)? },
             };
             let response = client.call_with(request, call.idempotency, None)
@@ -360,7 +360,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                     enqueue(&mut outgoing, error(id, -32002, "Initialize and send notifications/initialized before using tools"), false); continue;
                 }
                 let (kind, call) = match method {
-                    "tools/list" if params.get("cursor").is_none() => (Kind::List, Call { request: ClientRequest::Native(Request::Status), idempotency: None }),
+                    "tools/list" if params.get("cursor").is_none() => (Kind::List, Call { request: ClientRequest::Native(Box::new(Request::Status)), idempotency: None }),
                     "tools/list" => { enqueue(&mut outgoing, error(id, -32602, "Tool list is not paginated; omit cursor"), false); continue; }
                     "tools/call" => match parse_call(&params) {
                         Ok(call) => (Kind::Tool, call),
@@ -537,7 +537,7 @@ fn parse_call(params: &Value) -> Result<Call, CallError> {
         .check()
         .map_err(|error| CallError::Arguments(error.into()))?;
     Ok(Call {
-        request: ClientRequest::Native(request),
+        request: ClientRequest::Native(Box::new(request)),
         idempotency,
     })
 }

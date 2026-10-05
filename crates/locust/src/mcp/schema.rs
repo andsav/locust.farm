@@ -27,6 +27,7 @@ fn tool(operation: &Operation) -> Value {
             | "task.open"
             | "work.offer"
             | "contribution.publish"
+            | "workspace.publish"
             | "completion.declare"
             | "review.record"
             | "check.attest"
@@ -37,7 +38,14 @@ fn tool(operation: &Operation) -> Value {
             | "formation.publish"
     );
     let destructive = !operation.read_only && !additive;
-    let idempotent = operation.read_only || operation.name == "context.acknowledge";
+    let idempotent = operation.read_only
+        || matches!(
+            operation.name,
+            "context.acknowledge"
+                | "workspace.publish"
+                | "workspace.integrate"
+                | "checkout.bind_session"
+        );
     json!({"name":operation.tool_name(),"description":operation.summary,"inputSchema":input,
         "annotations":{"readOnlyHint":operation.read_only,"destructiveHint":destructive,"idempotentHint":idempotent,"openWorldHint":true}})
 }
@@ -202,7 +210,7 @@ mod tests {
         for name in [
             "member.remove",
             "rules.bind",
-            "workspace.set",
+            "workspace.epoch",
             "task.revise",
             "attempt.takeover",
             "attempt.cancel",

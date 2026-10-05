@@ -40,6 +40,13 @@ pub(super) fn subject_context(entry: &Entry, subject: EventId) -> Result<Context
         .get(&subject)
         .map(|c| c.context)
         .or_else(|| entry.state().revisions.get(&subject).map(|r| r.context))
+        .or_else(|| {
+            entry
+                .state()
+                .workspace_proposals
+                .get(&subject)
+                .map(|p| p.context)
+        })
         .ok_or_else(|| not_found("no such contribution or document revision"))
 }
 
@@ -308,6 +315,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let entry = self.readable(actor, &goal)?;
         let context = subject_context(entry, subject)?;
         let mut evidence = vec![subject];
+        if context.scope == Scope::Workspace {
+            return Err(conflict(
+                "workspace integration requires its expected epoch/head and durable operation",
+            ));
+        }
         if let Some(contribution) = entry.state().contributions.get(&subject) {
             evidence.extend(contribution.evidence.iter().copied());
         }

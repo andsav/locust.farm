@@ -181,8 +181,6 @@ fn held_excluded_sources_remain_attributed_and_do_not_exclude_the_result() {
             },
             attempt: None,
             sources: vec![],
-            base: None,
-            patch: None,
             artifacts: vec![],
         },
     );
@@ -223,8 +221,6 @@ fn a_replica_missing_a_declared_source_can_approve_and_inspect_without_inventing
             },
             attempt: None,
             sources: vec![absent],
-            base: None,
-            patch: None,
             artifacts: vec![],
         },
     );

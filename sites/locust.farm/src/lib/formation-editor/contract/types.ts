@@ -54,6 +54,11 @@ export interface DecisionRules {
 	finish: Authority | null;
 }
 
+export interface WorkspacePolicy {
+	integrator: Authority;
+	completion: CompletionRule;
+}
+
 export interface TaskType {
 	work: WorkRules | null;
 	decisions: DecisionRules | null;
@@ -76,6 +81,7 @@ export interface Formation {
 	context: Context;
 	work: WorkRules;
 	decisions: DecisionRules;
+	workspace: WorkspacePolicy | null;
 	task_types: Record<string, TaskType>;
 	flow: Record<string, Stage>;
 }
@@ -106,7 +112,7 @@ export interface Inspection {
 	explanation: Explanation | null;
 }
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export function defaultWork(): WorkRules {
 	return {

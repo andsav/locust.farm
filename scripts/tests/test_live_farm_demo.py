@@ -168,10 +168,10 @@ class LiveDemoTests(unittest.TestCase):
             self.assertEqual(token.read_text(), "refreshed-profile-token")
             self.assertEqual(token.stat().st_mode & 0o777, 0o600)
 
-    def test_prepare_recovers_saved_exports_and_bound_workspaces_after_interruption(self):
+    def test_prepare_recovers_frozen_seed_and_registered_checkouts_after_interruption(self):
         clients = {role: "/fixture/" + role for role in runner.ROLES}
         principals = {role: "principal-" + role for role in runner.ROLES}
-        self.demo.data = {"schema": 1, "clients": clients, "service": "https://farm.example",
+        self.demo.data = {"schema": 2, "clients": clients, "service": "https://farm.example",
                           "agents": {}, "phases": {}}
         binary = self.root / "fixture-binary"
         binary.write_bytes(b"not an executable client")
@@ -181,6 +181,8 @@ class LiveDemoTests(unittest.TestCase):
 
         def call(args, role="coordinator", **_):
             args = list(map(str, args))
+            if args[:1] == ["--idempotency-key"]:
+                args = args[2:]
             calls.append(args[:2])
             operation = tuple(args[:2])
             if args[0] == "status":
@@ -192,17 +194,22 @@ class LiveDemoTests(unittest.TestCase):
                                          "current_rules": "rules", "workspace": bindings.get(role)}}
             if operation in (("farm", "on"), ("farm", "show")):
                 return {"farm_preview": {"status": {"farm_id": "farm"}}}
-            if operation == ("workspace", "export"):
-                bindings[role] = {"export_root": args[args.index("--root") + 1],
-                                  "source_commit": args[args.index("--commit") + 1], "exported": "manifest"}
-                return {"manifest": "manifest"}
-            if operation == ("workspace", "materialize"):
+            if operation == ("workspace", "init"):
+                return {"operation": {"id": "seed-operation"}}
+            if operation == ("workspace", "publish"):
+                return {"workspace_operation": {"state": {"recorded": {"event": "seed-proposal"}}}}
+            if operation == ("workspace", "integrate"):
+                return {"workspace_operation": {"state": {"recorded": {"event": "seed-revision"}}}}
+            if args[0] == "checkouts":
+                return {"checkouts": [bindings[role]] if role in bindings else []}
+            if operation == ("workspace", "checkout"):
                 destination = Path(args[args.index("--destination") + 1])
                 destination.mkdir(parents=True)
-                bindings.setdefault(role, {}).update(destination=str(destination), integrated="manifest")
+                bindings[role] = {"id": "checkout-" + role, "root": str(destination), "base_revision": "seed-revision"}
                 if role == "frontend" and interrupt[0]:
                     interrupt[0] = False
-                    raise RuntimeError("simulated lost materialization response")
+                    raise RuntimeError("simulated lost checkout registration response")
+                return {"checkout": bindings[role]}
             return {}
 
         with patch.object(runner.Demo, "start"), patch.object(runner.Demo, "prepare_profile"), \
@@ -211,19 +218,73 @@ class LiveDemoTests(unittest.TestCase):
                 self.demo.prepare(binary, clients, "https://farm.example")
             recovered = runner.Demo(self.demo.root)
             self.assertEqual(recovered.data["goal"], "existing-goal")
-            self.assertEqual(recovered.data["base"], "manifest")
-            # Also model a successful export whose manifest checkpoint was lost.
-            # Its daemon binding must recover the ID rather than exporting again.
-            recovered.data.pop("base")
-            recovered.save()
+            self.assertEqual(recovered.data["seed_operation"], "seed-operation")
+            self.assertEqual(recovered.data["seed_revision"], "seed-revision")
             self.assertEqual(recovered.prepare(binary, clients, "https://farm.example"), {"fixture": True})
             count = len(calls)
             recovered.prepare(binary, clients, "https://farm.example")
             self.assertEqual(len(calls), count)
-        self.assertEqual(calls.count(["workspace", "export"]), 1)
-        self.assertEqual(calls.count(["workspace", "materialize"]), 4)
+        self.assertEqual(calls.count(["workspace", "init"]), 1)
+        self.assertEqual(calls.count(["workspace", "checkout"]), 4)
         self.assertNotIn(["goal", "create"], calls)
         self.assertTrue(runner.Demo(self.demo.root).data["prepared"])
+
+    def test_review_integration_and_update_keep_exact_proposal_and_checkout_boundaries(self):
+        self.demo.data.update(checkouts={"backend": "backend-checkout"})
+        calls = []
+        def call(args, **kwargs):
+            calls.append((list(map(str,args)), kwargs))
+            if args[2:4] == ["workspace", "integrate"]:
+                return {"workspace_operation":{"state":{"recorded":{"event":"accepted-revision"}}}}
+            return {"fixture":True}
+        with patch.object(self.demo, "call", side_effect=call):
+            self.demo.proposal("proposal", "reviewer", self.root / "fresh-review")
+            self.demo.integrate("proposal")
+            self.demo.update("backend", "accepted-revision")
+        self.assertEqual(calls[0][0], ["workspace","review","--goal","goal","--proposal","proposal","--destination",str(self.root / "fresh-review")])
+        self.assertEqual(calls[0][1], {"role":"reviewer"})
+        self.assertEqual(calls[1][0][0], "--idempotency-key")
+        self.assertEqual(calls[1][0][2:], ["workspace","integrate","--goal","goal","--proposal","proposal"])
+        self.assertEqual(calls[2][0], ["workspace","update","--goal","goal","--checkout","backend-checkout","--revision","accepted-revision"])
+        self.assertEqual(calls[2][1], {"role":"backend"})
+        self.assertEqual(self.demo.data["head_revision"], "accepted-revision")
+
+    def test_native_stage_requires_task_report_with_exact_workspace_proposal(self):
+        for sources, successful in ((["proposal"], True), (["untyped-note"], False)):
+            with self.subTest(sources=sources):
+                demo = runner.Demo(self.root / ("valid" if successful else "invalid"))
+                demo.data = {"phases":{}, "goal":"goal", "url":"https://farm.example/farm/test",
+                             "clients":{"coordinator":"/fixture/codex"}, "agents":{"coordinator":"coordinator"},
+                             "checkouts":{"coordinator":"checkout"}, "seed_revision":"seed"}
+                demo.workspace("coordinator").mkdir(parents=True)
+                claim = {"task":"task", "attempt":"attempt", "generation":1}
+                report = {"contribution":"report", "attempt":"attempt", "sources":sources}
+                def popen(_, stdout, **__):
+                    stdout.write(json.dumps({"ok":True,"result":{"exit_code":0}}))
+                    stdout.flush()
+                    return Mock(pid=123, wait=Mock(return_value=0))
+                replies = [{}, {"claimed":claim}, {"workspace_proposals":[{"proposal":"proposal","result_manifest":"manifest"}]}]
+                with patch.object(demo,"start"), patch.object(demo,"task",return_value={"task":"task"}), \
+                        patch.object(demo,"call",side_effect=replies), patch.object(demo,"contributions",return_value=[report]), \
+                        patch.object(runner.subprocess,"check_output",return_value="fixture-version"), \
+                        patch.object(runner.subprocess,"Popen",side_effect=popen), patch("builtins.print"):
+                    if successful:
+                        row=demo.launch("coordinator","implementation","fixture prompt",stage="contract")
+                        self.assertTrue(row["finished"])
+                        self.assertEqual(row["proposal"],"proposal")
+                        self.assertEqual(row["result_manifest"],"manifest")
+                    else:
+                        with self.assertRaisesRegex(RuntimeError,"exact workspace proposal"):
+                            demo.launch("coordinator","implementation","fixture prompt",stage="contract")
+                        self.assertFalse(runner.Demo(demo.root).data["phases"]["implementation"]["finished"])
+                prompt=(demo.root / "prompts/implementation.txt").read_text()
+                self.assertIn("workspace propose",prompt)
+                self.assertIn("workspace publish",prompt)
+                self.assertIn("workspace review",prompt)
+                self.assertIn("workspace update",prompt)
+                self.assertIn("--sources",prompt)
+                self.assertNotIn("patch create",prompt)
+                self.assertNotIn("patch submit",prompt)
 
 
 if __name__ == "__main__":

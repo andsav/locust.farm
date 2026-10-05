@@ -76,7 +76,7 @@ test('unsafe schemes and outside-repository paths are refused', () => {
 test('inventory hashes exactly served Markdown and shares status and version context', () => {
 	const index = inventory();
 	assert.match(index.sourceCommit, /^[0-9a-f]{40}$/);
-	assert.equal(index.versions.formationSchema, 1);
+	assert.equal(index.versions.formationSchema, 2);
 	for (const page of index.pages)
 		assert.equal(
 			page.sha256,

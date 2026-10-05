@@ -23,6 +23,7 @@ pub(super) struct Tenure {
 pub(super) struct Snapshot {
     pub epoch: u32,
     pub rules: Option<EventId>,
+    pub workspace_epoch: Option<EventId>,
     pub members: BTreeMap<PublicKey, EventId>,
 }
 
@@ -189,6 +190,17 @@ impl Chain {
                     }
                     Body::TaskRevised { .. } => {
                         // Exact task/round authorization is checked by the shared work evaluator.
+                    }
+                    Body::WorkspaceEpoch { expected_epoch, .. } => {
+                        if *expected_epoch != snapshot.workspace_epoch {
+                            status = Standing::Excluded(Exclusion::Precondition(
+                                "workspace epoch compare-and-swap failed",
+                            ));
+                        } else {
+                            // Fence immediately. The work evaluator validates rules/checkpoint
+                            // readiness without blocking later governance or restoration.
+                            snapshot.workspace_epoch = Some(event.id());
+                        }
                     }
                     _ => unreachable!("governance classified exhaustively"),
                 }
@@ -481,6 +493,7 @@ fn validate_binding<D: DefinitionLookup + ?Sized>(
     );
     if decisions
         .flat_map(|rules| rules.selection.iter().chain(rules.finish.iter()))
+        .chain(definition.workspace.iter().map(|policy| &policy.integrator))
         .any(|authority| !authority_ok(authority))
     {
         return Standing::Excluded(Exclusion::Precondition(

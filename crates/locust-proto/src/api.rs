@@ -98,15 +98,19 @@ use crate::codec::{self, CodecError};
 use crate::crypto::{self, domain};
 use crate::event::{
     AttemptStatus, Body, CancelOutcome, Context, Doc, EventError, PayloadRef, ReviewVerdict, Scope,
-    TaskId,
+    TaskId, WorkspaceCheckpoint,
 };
 use crate::id::{
     BlobHash, EffectId, EndpointId, EventId, GoalId, IdempotencyKey, InstanceId, PublicKey,
+    WorkspaceOperationId,
 };
 use crate::invite::{InviteError, Ticket};
 use crate::limits::{MAX_ARTIFACTS, MAX_SESSION_DETAIL_BYTES};
 use crate::manifest::ManifestError;
 use crate::store::StoreError;
+
+mod workspace;
+pub use workspace::*;
 
 /// Longest name of an enrolled principal, in bytes.
 pub const MAX_AGENT_NAME_BYTES: usize = 32;
@@ -480,10 +484,69 @@ pub enum Request {
         roles: BTreeMap<String, Vec<PublicKey>>,
         inputs: BTreeMap<String, BlobHash>,
     },
-    #[serde(rename = "workspace.set")]
-    WorkspaceSet {
+    #[serde(rename = "checkout.register")]
+    CheckoutRegister { goal: GoalId, checkout: Checkout },
+    #[serde(rename = "checkout.bind_session")]
+    CheckoutBindSession {
         goal: GoalId,
-        binding: WorkspaceBinding,
+        checkout: crate::id::CheckoutId,
+    },
+    #[serde(rename = "checkouts")]
+    Checkouts { goal: GoalId },
+    #[serde(rename = "workspace.recovery.parent")]
+    WorkspaceRecoveryParentCheck { goal: GoalId, parent: String },
+    #[serde(rename = "workspace.operation.prepare")]
+    WorkspaceOperationPrepare {
+        goal: GoalId,
+        operation: WorkspaceOperation,
+    },
+    #[serde(rename = "workspace.operation.show")]
+    WorkspaceOperationShow {
+        goal: GoalId,
+        operation: WorkspaceOperationId,
+    },
+    #[serde(rename = "workspace.operations")]
+    WorkspaceOperations { goal: GoalId },
+    #[serde(rename = "workspace.operation.complete")]
+    WorkspaceOperationComplete {
+        goal: GoalId,
+        operation: WorkspaceOperationId,
+    },
+    #[serde(rename = "workspace.epoch")]
+    WorkspaceEpochSet {
+        goal: GoalId,
+        expected_epoch: Option<EventId>,
+        rules: EventId,
+        checkpoint: WorkspaceCheckpoint,
+    },
+    #[serde(rename = "workspace.head")]
+    WorkspaceHead { goal: GoalId },
+    #[serde(rename = "workspace.tree")]
+    WorkspaceTree {
+        goal: GoalId,
+        revision: Option<EventId>,
+    },
+    #[serde(rename = "workspace.read")]
+    WorkspaceRead {
+        goal: GoalId,
+        revision: Option<EventId>,
+        path: String,
+    },
+    #[serde(rename = "workspace.proposals")]
+    WorkspaceProposals { goal: GoalId },
+    #[serde(rename = "workspace.proposal")]
+    WorkspaceProposal { goal: GoalId, proposal: EventId },
+    #[serde(rename = "workspace.revision")]
+    WorkspaceRevision { goal: GoalId, revision: EventId },
+    #[serde(rename = "workspace.publish")]
+    WorkspacePublish {
+        goal: GoalId,
+        operation: WorkspaceOperationId,
+    },
+    #[serde(rename = "workspace.integrate")]
+    WorkspaceIntegrate {
+        goal: GoalId,
+        operation: WorkspaceOperationId,
     },
     #[serde(rename = "board")]
     Board { goal: GoalId },
@@ -550,8 +613,6 @@ pub enum Request {
         /// This does not attest that a model read, understood or used them.
         #[serde(default)]
         sources: Vec<EventId>,
-        base: Option<BlobHash>,
-        patch: Option<BlobHash>,
         artifacts: Vec<BlobHash>,
     },
     #[serde(rename = "contributions")]
@@ -851,7 +912,23 @@ operations! {
     GoalStatus { .. } => ("goal.status", true, true, Agent, true, "goal status"),
     MemberRemove { .. } => ("member.remove", false, true, Administrator, true, "member remove"),
     RulesBind { .. } => ("rules.bind", false, true, Administrator, true, "rules bind"),
-    WorkspaceSet { .. } => ("workspace.set", false, true, Agent, true, "workspace set"),
+    CheckoutRegister { .. } => ("checkout.register", false, true, Agent, false, "Register one explicit local checkout after materialization"),
+    CheckoutBindSession { .. } => ("checkout.bind_session", false, true, Agent, true, "Bind this session explicitly to the checkout it uses"),
+    Checkouts { .. } => ("checkouts", true, true, Agent, true, "Read your local checkout bindings and active operations"),
+    WorkspaceRecoveryParentCheck { .. } => ("workspace.recovery.parent", true, true, Agent, false, "Check a canonical recovery parent is outside every local managed tree before staging"),
+    WorkspaceOperationPrepare { .. } => ("workspace.operation.prepare", false, true, Agent, false, "Durably register an exact captured candidate or prepared file transition"),
+    WorkspaceOperationShow { .. } => ("workspace.operation.show", true, true, Agent, true, "Read an exact local workspace operation and its receipt"),
+    WorkspaceOperations { .. } => ("workspace.operations", true, true, Agent, true, "Read your durable local workspace operations"),
+    WorkspaceOperationComplete { .. } => ("workspace.operation.complete", false, true, Agent, false, "Finalize a verified file transition and its checkout base atomically"),
+    WorkspaceEpochSet { .. } => ("workspace.epoch", false, true, Administrator, true, "Fence workspace history and pin explicit policy plus an exact checkpoint or restoration"),
+    WorkspaceHead { .. } => ("workspace.head", true, true, Agent, true, "Read accepted workspace authority and independent content availability"),
+    WorkspaceTree { .. } => ("workspace.tree", true, true, Agent, true, "List an exact retained workspace tree with validated content"),
+    WorkspaceRead { .. } => ("workspace.read", true, true, Agent, true, "Read one inert file from an exact retained workspace revision"),
+    WorkspaceProposals { .. } => ("workspace.proposals", true, true, Agent, true, "Read exact workspace proposals and whether their parents are stale"),
+    WorkspaceProposal { .. } => ("workspace.proposal", true, true, Agent, true, "Read one exact candidate, provenance and review state"),
+    WorkspaceRevision { .. } => ("workspace.revision", true, true, Agent, true, "Read an exact workspace selection and retained-lineage status"),
+    WorkspacePublish { .. } => ("workspace.publish", false, true, Agent, true, "Publish the exact frozen candidate named by your prepared operation"),
+    WorkspaceIntegrate { .. } => ("workspace.integrate", false, true, Agent, true, "Integrate an exact reviewed candidate at the prepared expected epoch and head"),
     Board { .. } => ("board", true, true, Agent, true, "board"),
     Task { .. } => ("task.show", true, true, Agent, true, "task show"),
     Event { .. } => ("event.show", true, true, Agent, true, "event show"),
@@ -942,7 +1019,23 @@ impl Request {
             Self::GoalStatus { goal, .. } => Some(*goal),
             Self::MemberRemove { goal, .. } => Some(*goal),
             Self::RulesBind { goal, .. } => Some(*goal),
-            Self::WorkspaceSet { goal, .. } => Some(*goal),
+            Self::WorkspaceRecoveryParentCheck { goal, .. } => Some(*goal),
+            Self::WorkspaceEpochSet { goal, .. }
+            | Self::WorkspaceHead { goal }
+            | Self::WorkspaceTree { goal, .. }
+            | Self::WorkspaceRead { goal, .. }
+            | Self::WorkspaceProposals { goal }
+            | Self::WorkspaceProposal { goal, .. }
+            | Self::WorkspaceRevision { goal, .. }
+            | Self::WorkspacePublish { goal, .. }
+            | Self::WorkspaceIntegrate { goal, .. } => Some(*goal),
+            Self::CheckoutRegister { goal, .. }
+            | Self::CheckoutBindSession { goal, .. }
+            | Self::Checkouts { goal }
+            | Self::WorkspaceOperationPrepare { goal, .. }
+            | Self::WorkspaceOperationShow { goal, .. }
+            | Self::WorkspaceOperations { goal }
+            | Self::WorkspaceOperationComplete { goal, .. } => Some(*goal),
             Self::Board { goal, .. } => Some(*goal),
             Self::Task { goal, .. } => Some(*goal),
             Self::Event { goal, .. } => Some(*goal),
@@ -1025,7 +1118,6 @@ impl Request {
                 "too many content hashes",
             )),
             Self::SessionReport { record } => record.check(),
-            Self::WorkspaceSet { binding, .. } => binding.check(),
             _ => Ok(()),
         }
     }
@@ -1070,7 +1162,28 @@ impl Request {
             Self::GoalStatus { .. } => matches!(response, Response::GoalStatus(_)),
             Self::MemberRemove { .. } => matches!(response, Response::Recorded { .. }),
             Self::RulesBind { .. } => matches!(response, Response::Recorded { .. }),
-            Self::WorkspaceSet { .. } => matches!(response, Response::Done),
+            Self::WorkspaceRecoveryParentCheck { .. } => matches!(response, Response::Done),
+            Self::WorkspaceEpochSet { .. } => matches!(response, Response::Recorded { .. }),
+            Self::WorkspaceHead { .. } => matches!(response, Response::Workspace(_)),
+            Self::WorkspaceTree { .. } => matches!(response, Response::WorkspaceTree(_)),
+            Self::WorkspaceRead { .. } => matches!(response, Response::WorkspaceFile(_)),
+            Self::WorkspaceProposals { .. } => matches!(response, Response::WorkspaceProposals(_)),
+            Self::WorkspaceProposal { .. } => matches!(response, Response::WorkspaceProposal(_)),
+            Self::WorkspaceRevision { .. } => matches!(response, Response::WorkspaceRevision(_)),
+            Self::WorkspacePublish { .. } | Self::WorkspaceIntegrate { .. } => {
+                matches!(response, Response::WorkspaceOperation(_))
+            }
+            Self::CheckoutRegister { .. } => matches!(response, Response::Checkout(_)),
+            Self::CheckoutBindSession { .. } => matches!(response, Response::Checkout(_)),
+            Self::Checkouts { .. } => matches!(response, Response::Checkouts(_)),
+            Self::WorkspaceOperationPrepare { .. }
+            | Self::WorkspaceOperationShow { .. }
+            | Self::WorkspaceOperationComplete { .. } => {
+                matches!(response, Response::WorkspaceOperation(_))
+            }
+            Self::WorkspaceOperations { .. } => {
+                matches!(response, Response::WorkspaceOperations(_))
+            }
             Self::Board { .. } => matches!(response, Response::Board(_)),
             Self::Task { .. } => matches!(response, Response::Task(_)),
             Self::Event { .. } => matches!(response, Response::Event(_)),
@@ -1169,6 +1282,16 @@ pub fn contract() -> serde_json::Value {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Response {
+    Workspace(WorkspaceView),
+    WorkspaceTree(WorkspaceTreeView),
+    WorkspaceFile(WorkspaceFileView),
+    WorkspaceProposals(Vec<WorkspaceProposalView>),
+    WorkspaceProposal(WorkspaceProposalView),
+    WorkspaceRevision(WorkspaceRevisionView),
+    Checkout(Checkout),
+    Checkouts(Vec<Checkout>),
+    WorkspaceOperation(WorkspaceOperation),
+    WorkspaceOperations(Vec<WorkspaceOperation>),
     FarmPreview(crate::farm::FarmPreview),
     Farms(Vec<crate::farm::FarmStatus>),
     /// The request succeeded and has nothing to return.
@@ -1367,7 +1490,7 @@ pub struct GoalStatus {
     pub scope_halts: Vec<ScopeHalt>,
     pub members: Vec<MemberView>,
     pub halted: Option<Halt>,
-    pub workspace: Option<WorkspaceBinding>,
+    pub workspace: Option<WorkspaceView>,
     pub grants: GoalGrants,
     pub peers: Vec<PeerView>,
 }
@@ -1392,45 +1515,6 @@ pub struct PeerView {
     /// Last successful synchronization, Unix milliseconds by the local clock.
     /// State written by the peer after this is unknown here.
     pub last_sync_ms: Option<u64>,
-}
-
-/// Where one local principal's files for a goal live and how far they have
-/// come. Local and never replicated. The daemon stores the strings verbatim
-/// and never opens the paths; the workspace code in the CLI or adapter reads
-/// and writes them. Each string is at most [`MAX_LOCAL_TEXT_BYTES`].
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct WorkspaceBinding {
-    /// The directory the participant chose to share from.
-    pub export_root: Option<String>,
-    /// The Git commit the last export was taken from. Provenance only: the
-    /// exported manifest, not the commit, identifies what was shared.
-    pub source_commit: Option<String>,
-    /// Manifest of the last export.
-    pub exported: Option<BlobHash>,
-    /// The separate directory that received snapshots are materialized into.
-    pub destination: Option<String>,
-    /// Last artifact explicitly applied locally; no goal-wide selection implication.
-    pub integrated: Option<BlobHash>,
-}
-
-impl WorkspaceBinding {
-    /// Refuses a string longer than [`MAX_LOCAL_TEXT_BYTES`].
-    pub fn check(&self) -> Result<(), ApiError> {
-        let strings = [&self.export_root, &self.source_commit, &self.destination];
-        if strings
-            .into_iter()
-            .flatten()
-            .all(|text| text.len() <= MAX_LOCAL_TEXT_BYTES)
-        {
-            Ok(())
-        } else {
-            Err(ApiError::new(
-                ErrorCode::LimitExceeded,
-                "a workspace path or commit name is too long",
-            ))
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1492,6 +1576,7 @@ pub struct DeliveryItem {
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PendingWork {
+    pub workspace: Option<Box<WorkspaceStatus>>,
     pub revision: u64,
     /// Shared content not yet acknowledged by this execution session.
     pub context_news: Option<ContextNews>,
@@ -1514,8 +1599,6 @@ pub struct ContributionView {
     pub approved: bool,
     pub selected: bool,
     pub evidence: Vec<EventId>,
-    pub base: Option<BlobHash>,
-    pub patch: Option<BlobHash>,
     pub artifacts: Vec<BlobHash>,
     pub text: Option<String>,
 }
@@ -1609,7 +1692,7 @@ pub struct EventDetail {
     pub view: EventView,
     /// The decision the event anchors to; absent only on genesis.
     pub anchor: Option<EventId>,
-    /// The signed, typed content: for a result its attempt, base, patch
+    /// The signed, typed content: for a result its attempt, sources
     /// and artifacts; for a revision its document and base.
     pub body: Body,
     /// Names the event's text, if it has any.
@@ -1646,7 +1729,7 @@ pub enum WaitOutcome {
     /// The goal changed since the revision the caller had seen. The lists
     /// may be empty when the change needs nothing from the caller; the feed
     /// and the board show what happened.
-    Work(PendingWork),
+    Work(Box<PendingWork>),
     /// The timeout passed and nothing changed.
     NoEvent,
     /// The timeout passed, nothing changed, and no peer of this goal is
@@ -2019,8 +2102,6 @@ mod tests {
             attempt: Some(EventId([2; 32])),
             generation: None,
             summary: "finding".into(),
-            base: None,
-            patch: None,
             sources: Vec::new(),
             artifacts: vec![],
         };

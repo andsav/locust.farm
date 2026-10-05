@@ -354,7 +354,7 @@ def main(argv=None):
         parser.error("Locust binary is missing")
     args.output = args.output.resolve()
     args.output.mkdir(mode=0o700, parents=True, exist_ok=True)
-    report = {"schema": "locust-managed-client-qualification", "schema_version": 1,
+    report = {"schema": "locust-managed-client-qualification", "schema_version": 2,
               "created_at": datetime.now(timezone.utc).isoformat(), "timeout_ms": args.timeout_ms,
               "evidence_level": "actual-client/scripted-provider/managed-production-daemon",
               "scope": "One host and principal; explicit local permissive new/resume; no real provider, active hook, automatic wake or installed release",

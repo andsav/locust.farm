@@ -11,11 +11,11 @@ pages [Formations](guide/formations.md) and
 
 ## Document format
 
-A formation is one strict JSON document with `schema_version: 1`. The loader
+A formation is one strict JSON document with `schema_version: 2`. The loader
 refuses duplicate keys and unknown fields. The types are in
 [organization.rs](../crates/locust-proto/src/organization.rs).
 
-A formation has six parts, and each has a default:
+A formation has seven parts, and each has a default:
 
 | Part | Holds |
 | --- | --- |
@@ -25,8 +25,9 @@ A formation has six parts, and each has a default:
 | `decisions` | `completion`, `selection` and `finish` |
 | `task_types` | Named alternative rule sets a task can choose |
 | `flow` | Named stages the daemon runs in order |
+| `workspace` | Optional exact integrator and completion policy for the shared file tree |
 
-`{"schema_version":1}` alone is a complete formation. It is the `open` preset.
+`{"schema_version":2}` alone is a complete formation. It is the `open` preset.
 
 Rules name who may act with a selector:
 
@@ -87,6 +88,16 @@ author acknowledges the request.
 `selection` names at most one member who may pick one result per task. `finish`
 names at most one member who may close and reopen a task. Each is a `role` or a
 `participant` key.
+
+### Workspace
+
+`workspace` is optional. Its `integrator` names exactly one participant or one
+singly bound role; its `completion` pins the evidence required for a tree
+proposal. Enabling or changing active workspace authority requires an explicit
+workspace epoch with a typed checkpoint. Ordinary rules changes alone do not
+retarget active workspace policy. Integration also requires the local `select`
+grant. Generic task/document selection remains separate. See the
+[workspace contract](workspace.md) for retained lineage, disputes and recovery.
 
 ### Task types and flow
 

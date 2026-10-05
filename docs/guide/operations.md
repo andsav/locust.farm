@@ -71,7 +71,12 @@ same values.
 - Two conflicting decisions stop decisions for that task. Both records are kept;
   other work continues. The administrator can start a new round with
   `task revise`.
-- `patch apply` refuses a dirty checkout or a changed base.
+- `workspace integrate` pins the expected accepted head and workspace epoch.
+  Conflicting decisions dispute that workspace boundary; arrival order does not
+  choose a file tree.
+- `workspace update` preserves compatible local edits and refuses conflicts or
+  changed file identities. An interrupted update uses `workspace recover` with
+  the exact operation ID; unknown filesystem states require inspection.
 
 ## Cancelling work
 

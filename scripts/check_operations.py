@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Production-daemon operational workflows on three private same-host replicas.
+"""Production-daemon operational workflows on private same-host replicas.
+
+The default workflow uses three replicas, including interrupted large transfers.
+--workflow workspace runs two replicas through ordinary-directory workspace work,
+peer readback and both SQLite restarts; it does not qualify partial transfers.
 
 Uses only synthetic files, isolated homes and the explicitly identified binary.
 Partial-transfer interruption is observed from durable staging files before
@@ -14,6 +18,7 @@ import json
 import math
 import os
 import signal
+import shutil
 from pathlib import Path
 import subprocess
 import threading
@@ -27,10 +32,22 @@ def require(condition, message):
         raise CheckFailure(message)
 
 
-def require_unchanged_export_binding(before, after, base):
-    require(before.get("exported") == base and before.get("integrated") is None,
-            "export-only workspace binding did not identify the exported base without integration")
-    require(after == before, "conflicting apply changed workspace binding")
+def require_unchanged_checkout_binding(before, after, revision, manifest):
+    require(before.get("base_revision") == revision and before.get("base_manifest") == manifest
+            and before.get("active_operation") is None,
+            "checkout binding did not identify the unchanged accepted base")
+    require(after == before, "conflicting update changed checkout binding")
+
+
+def operation_event(operation):
+    receipt = variant(variant(operation, "state"), "recorded")
+    require(isinstance(receipt, dict), "workspace receipt was not a recorded event")
+    return identity(receipt.get("event"), "workspace receipt")
+
+
+def directory_files(root):
+    return {str(path.relative_to(root)): (path.read_bytes(), path.stat().st_mode & 0o777)
+            for path in root.rglob("*") if path.is_file()}
 
 
 class Operations(Qualification):
@@ -43,13 +60,8 @@ class Operations(Qualification):
             "network_bytes": "unmeasured", "cpu": "unmeasured"}
         self.summary["harness_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 
-    def environment(self, machine):
-        env = super().environment(machine)
-        env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL="/dev/null")
-        return env
-
-    def api(self, machine, operation, **fields):
-        return self.cli(machine, ["call", operation, json.dumps(fields)])
+    def api(self, machine, request_name, **fields):
+        return self.cli(machine, ["call", request_name, json.dumps(fields)])
 
     def expect_error(self, machine, args, code, **options):
         require(self.cli(machine, args, expected_errors=(code,), **options) is None,
@@ -64,11 +76,27 @@ class Operations(Qualification):
                           expected_errors=("not_found",))
         return variant(result, "event") if result else None
 
-    def materialize(self, machine, goal, manifest, destination):
-        result = self.cli(machine, ["workspace", "materialize", "--goal", goal,
-                                   "--manifest", manifest, "--destination", destination],
-                          expected_errors=("unavailable",))
-        return result
+    def workspace(self, machine, goal):
+        return self.cli(machine, ["workspace", "head", "--goal", goal])
+
+    def complete_workspace(self, machine, goal, revision):
+        workspace = self.workspace(machine, goal)
+        return workspace if (workspace.get("authority") == "ready"
+            and (workspace.get("head") or {}).get("revision") == revision
+            and isinstance(workspace.get("content"), dict)
+            and "complete" in workspace["content"]) else None
+
+    def checkout(self, machine, goal, revision, destination):
+        self.wait(f"M{machine.number} retains the complete accepted workspace",
+                  lambda: self.complete_workspace(machine, goal, revision))
+        return variant(self.cli(machine, ["workspace", "checkout", "--goal", goal,
+            "--revision", revision, "--destination", destination]), "checkout")
+
+    def checkout_binding(self, machine, goal, checkout):
+        bindings = variant(self.api(machine, "checkouts", goal=goal), "checkouts")
+        found = [binding for binding in bindings if binding["id"] == checkout]
+        require(len(found) == 1, "exact checkout binding was not retained")
+        return found[0]
 
     def start_unchecked(self, machine):
         machine.generation += 1
@@ -172,43 +200,50 @@ class Operations(Qualification):
         require(self.event(lead, goal, revisions[1])["text"] == "proposal 3", "stale revision evidence disappeared")
         self.passed("conflicting_documents", accepted=revisions[0], retained_stale=revisions[1])
 
-        self.phase = "snapshot"
-        source = root / "source"
+        self.phase = "workspace_seed"
+        source = root / "seed-input"
         source.mkdir()
         # One file is much larger than the production 1 MiB transfer chunk.
         content = bytes(range(256)) * (48 * 1024)
         (source / "large.bin").write_bytes(content)
         (source / "code.txt").write_text("base\n")
-        git_env = self.environment(lead)
-        git_env.update(GIT_AUTHOR_NAME="Synthetic operations", GIT_AUTHOR_EMAIL="operations@example.invalid",
-                       GIT_COMMITTER_NAME="Synthetic operations", GIT_COMMITTER_EMAIL="operations@example.invalid")
-        for args in (["init", "-q"], ["add", "large.bin", "code.txt"],
-                     ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgSign=false", "commit", "-qm", "synthetic base"]):
-            subprocess.run(["git", *args], cwd=source, env=git_env, check=True, capture_output=True)
-        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, env=git_env, text=True).strip()
+        (source / "notes.txt").write_text("base notes\n")
         self.stop(second)
-        base = self.cli(lead, ["workspace", "export", "--goal", goal, "--root", source, "--commit", commit])["manifest"]
-        task = "task:" + self.recorded(lead, ["task", "open", "--goal", goal, "--inputs", json.dumps({"snapshot": base}), "Competing worker patches"])
-        tasks = [task, task]
+        captured = self.cli(lead, ["workspace", "init", "--goal", goal, "--root", source,
+            "--path", "large.bin", "--path", "code.txt", "--path", "notes.txt", "--publish"])
+        seed_proposal = operation_event(captured["operation"])
+        base = captured["candidate"]["result_manifest"]
+        epoch = captured["candidate"]["context"]["round"]
+        require(not (source / ".git").exists(), "ordinary seed unexpectedly acquired Git metadata")
+        self.api(lead, "completion.declare", goal=goal, subject=seed_proposal)
+        seed_receipt = variant(self.cli(lead, ["workspace", "integrate", "--goal", goal,
+            "--proposal", seed_proposal, "--expected-empty", "--expected-epoch", epoch]), "workspace_operation")
+        seed_revision = operation_event(seed_receipt)
+        task = "task:" + self.recorded(lead, ["task", "open", "--goal", goal,
+            "--inputs", json.dumps({"snapshot": base}), "Competing workspace proposals"])
         destinations = [root / "worker2", root / "worker3"]
-        self.wait("first replica retains complete snapshot", lambda: self.materialize(first, goal, base, destinations[0]))
-        require((destinations[0] / "large.bin").read_bytes() == content, "first snapshot bytes differ")
+        checkouts = [self.checkout(first, goal, seed_revision, destinations[0])]
+        require((destinations[0] / "large.bin").read_bytes() == content, "first checkout bytes differ")
         self.restart(first)
         self.stop(lead)
         interrupted = self.interrupt_transfer(second, lambda: self.start_unchecked(second), len(content))
         self.start(second)
-        self.wait("third replica resumes snapshot with original source offline",
-                  lambda: self.materialize(second, goal, base, destinations[1]))
-        require((destinations[1] / "large.bin").read_bytes() == content, "resumed snapshot bytes differ")
+        checkouts.append(self.checkout(second, goal, seed_revision, destinations[1]))
+        require((destinations[1] / "large.bin").read_bytes() == content, "resumed checkout bytes differ")
         require(not (second.home / "blobs" / (interrupted["hash"] + ".staged")).exists(), "completed stage was not promoted")
+        require(all(not (destination / ".git").exists() for destination in destinations),
+                "ordinary checkout unexpectedly acquired Git metadata")
         self.passed("snapshot_resume_retained_replica", original_source_offline=True,
+                    revision=seed_revision, manifest=base, git_required=False,
                     bytes=len(content), sha256=hashlib.sha256(content).hexdigest(), interruption=interrupted,
                     resumed_rss=self.sample_rss(second, "snapshot_resume_complete"))
         self.start(lead)
+        accepted_directory = root / "integrator"
+        accepted_checkout = self.checkout(lead, goal, seed_revision, accepted_directory)
 
-        self.phase = "competing_patches"
-        patches, results, claims = [], [], []
-        for machine, task, destination in zip((first, second), tasks, destinations):
+        self.phase = "competing_workspace_proposals"
+        captures, results, claims = [], [], []
+        for machine, checkout, destination in zip((first, second), checkouts, destinations):
             offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--recipient", machine.agent])
             self.wait(f"worker {machine.number} receives assignment", lambda m=machine, a=offer: self.event(m, goal, a))
             self.cli(machine, ["task", "authorize", "--goal", goal, "--task", task, "--agent", machine.agent], owner=True)
@@ -218,44 +253,98 @@ class Operations(Qualification):
             claims.append((claim["attempt"], session, claim["generation"]))
             (destination / "code.txt").write_text(f"worker {machine.number}\n")
             (destination / "large.bin").write_bytes(content[:-1] + bytes([machine.number]))
-            patch = self.cli(machine, ["patch", "create", "--goal", goal, "--root", destination, "--base", base,
-                                       "--path", "code.txt", "--path", "large.bin"])
-            patches.append(patch)
-        for index, (machine, patch, claim) in enumerate(zip((first, second), patches, claims)):
-            attempt, session, generation = claim
-            def submit(m=machine, p=patch, a=attempt, s=session, g=generation):
-                results.append(self.recorded(m, ["patch", "submit", "--goal", goal,
-                    "--patch", p["contribution_id"], "--attempt", a, "--generation", g, "Synthetic patch"], session=s))
+            (destination / "private.txt").write_text("unselected private work\n")
+            captured = self.cli(machine, ["workspace", "propose", "--goal", goal,
+                "--checkout", checkout["id"]])
+            require(captured["candidate"]["parent"] == seed_revision, "candidate captured the wrong accepted base")
+            require("private.txt" not in captured["candidate"]["captured_paths"],
+                    "unselected private file entered the frozen candidate")
+            captures.append(captured)
+        for index, (machine, captured) in enumerate(zip((first, second), captures)):
+            def submit(m=machine, c=captured):
+                receipt = variant(self.cli(m, ["workspace", "publish", "--goal", goal,
+                    "--operation", c["operation"]["id"]]), "workspace_operation")
+                results.append(operation_event(receipt))
+                self.api(m, "completion.declare", goal=goal, subject=results[-1])
             if index == 0:
                 interruption = self.interrupt_transfer(lead, submit, len(content))
                 self.start(lead)
             else:
                 submit()
-        for patch in patches:
-            self.wait("complete patch review after peer transfer", lambda p=patch: self.cli(lead,
-                ["patch", "review", "--goal", goal, "--patch", p["contribution_id"]], expected_errors=("unavailable", "not_found")))
-        self.api(lead, "review.record", goal=goal, subject=results[0], verdict="approve", text="Reviewed first patch")
-        self.api(lead, "review.record", goal=goal, subject=results[1], verdict="approve", text="Reviewed second patch")
-        self.cli(lead, ["patch", "select", "--goal", goal, "--subject", results[0]])
-        self.expect_error(lead, ["patch", "select", "--goal", goal, "--subject", results[1]], "conflict")
-        apply = ["patch", "apply", "--goal", goal, "--subject", results[0], "--root", source,
-                 "--expected-git-head", commit]
-        (source / "code.txt").write_text("uncommitted conflict\n")
-        (source / "unrelated.txt").write_text("unrelated dirty work\n")
-        before = {p.name: p.read_bytes() for p in source.iterdir() if p.is_file()}
-        binding_before = self.goal_status(lead, goal)["workspace"]
-        self.expect_error(lead, apply, "conflict")
-        require(before == {p.name: p.read_bytes() for p in source.iterdir() if p.is_file()}, "conflicting apply changed files")
-        require_unchanged_export_binding(binding_before, self.goal_status(lead, goal)["workspace"], base)
-        (source / "code.txt").write_text("base\n")
-        self.cli(lead, apply)
-        require((source / "code.txt").read_text() == "worker 2\n", "wrong worker output integrated")
-        require((source / "unrelated.txt").read_text() == "unrelated dirty work\n", "unrelated work changed")
+        for proposal in results:
+            self.wait("complete workspace proposal review after peer transfer", lambda p=proposal: self.cli(lead,
+                ["workspace", "review", "--goal", goal, "--proposal", p], expected_errors=("unavailable", "not_found")))
+        self.wait("exact candidate declarations arrive", lambda: all(
+            variant(self.api(lead, "workspace.proposal", goal=goal, proposal=proposal), "workspace_proposal")["approved"]
+            for proposal in results))
+        stale_operation = {
+            "id": "22" * 16, "checkout": None, "idempotency_key": "22" * 16,
+            "kind": {"integrate": {"expected_epoch": epoch, "expected_head": seed_revision, "proposal": results[1]}},
+            "state": "prepared",
+        }
+        self.api(lead, "workspace.operation.prepare", goal=goal, operation=stale_operation)
+        acceptance = variant(self.cli(lead, ["--idempotency-key", "11" * 16, "workspace", "integrate",
+            "--goal", goal, "--proposal", results[0], "--expected-head", seed_revision,
+            "--expected-epoch", epoch]), "workspace_operation")
+        accepted_revision = operation_event(acceptance)
+        accepted_manifest = captures[0]["candidate"]["result_manifest"]
+        self.expect_error(lead, ["call", "workspace.integrate", json.dumps({"goal": goal,
+            "operation": stale_operation["id"]})], "conflict")
+        require(variant(self.api(lead, "workspace.operation.show", goal=goal,
+            operation=stale_operation["id"]), "workspace_operation") == stale_operation,
+            "stale integration changed its prepared operation or invented a receipt")
+        self.expect_error(lead, ["workspace", "integrate", "--goal", goal, "--proposal", results[1],
+            "--expected-head", seed_revision, "--expected-epoch", epoch], "conflict")
+        self.wait("accepted revision and file objects converge", lambda: all(
+            self.complete_workspace(machine, goal, accepted_revision) for machine in self.machines))
+
+        self.phase = "checkout_update"
+        (accepted_directory / "code.txt").write_text("uncommitted conflict\n")
+        (accepted_directory / "notes.txt").write_text("compatible local notes\n")
+        (accepted_directory / "unrelated.txt").write_text("unrelated dirty work\n")
+        before = directory_files(accepted_directory)
+        binding_before = self.checkout_binding(lead, goal, accepted_checkout["id"])
+        update = ["workspace", "update", "--goal", goal, "--checkout", accepted_checkout["id"],
+                  "--revision", accepted_revision]
+        self.expect_error(lead, update, "conflict")
+        require(before == directory_files(accepted_directory), "conflicting update changed file bytes or modes")
+        require_unchanged_checkout_binding(binding_before,
+            self.checkout_binding(lead, goal, accepted_checkout["id"]), seed_revision, base)
+        (accepted_directory / "code.txt").write_text("base\n")
+        completion = self.cli(lead, update)
+        require(completion["target_in_lineage_at_completion"] is True, "updated checkout target was not accepted")
+        require((accepted_directory / "code.txt").read_text() == "worker 2\n", "wrong worker output updated")
+        require((accepted_directory / "large.bin").read_bytes() == content[:-1] + bytes([first.number]),
+                "updated large file bytes differ")
+        require((accepted_directory / "notes.txt").read_text() == "compatible local notes\n", "compatible managed edit changed")
+        require((accepted_directory / "unrelated.txt").read_text() == "unrelated dirty work\n", "unrelated work changed")
         require((destinations[1] / "code.txt").read_text() == "worker 3\n", "losing worker output changed")
-        require(self.goal_status(lead, goal)["workspace"]["integrated"] == patches[0]["contribution"]["head"], "integration not recorded")
-        self.passed("competing_patches", base=base, patches=[p["contribution_id"] for p in patches],
-                    results=results, patch_interruption=interruption,
-                    resumed_rss=self.sample_rss(lead, "patches_resumed_and_integrated"), stale_selection="conflict", dirty_apply="conflict")
+        require((destinations[1] / "private.txt").read_text() == "unselected private work\n", "private worker file changed")
+        for machine in self.machines:
+            tree = self.cli(machine, ["workspace", "tree", "--goal", goal, "--revision", accepted_revision])
+            require(tree["revision"]["result_manifest"] == accepted_manifest, "peer tree names a different manifest")
+            require(self.cli(machine, ["workspace", "read", "--goal", goal, "--revision", accepted_revision,
+                "--path", "code.txt"])["text"] == "worker 2\n", "peer accepted bytes differ")
+            require(self.cli(machine, ["workspace", "read", "--goal", goal, "--revision", accepted_revision,
+                "--path", "notes.txt"])["text"] == "base notes\n", "local dirty edit became shared authority")
+        self.restart(lead)
+        require(self.complete_workspace(lead, goal, accepted_revision), "accepted workspace changed after restart")
+        require(variant(self.cli(lead, ["--idempotency-key", "11" * 16, "workspace", "integrate",
+            "--goal", goal, "--proposal", results[0], "--expected-head", seed_revision,
+            "--expected-epoch", epoch]), "workspace_operation") == acceptance,
+            "durable integration retry changed its exact receipt")
+        binding_after = self.checkout_binding(lead, goal, accepted_checkout["id"])
+        require(binding_after["base_revision"] == accepted_revision and binding_after["base_manifest"] == accepted_manifest
+            and binding_after["active_operation"] is None, "completed checkout base did not persist")
+        status = self.cli(lead, ["workspace", "status", "--goal", goal, "--checkout", accepted_checkout["id"]])
+        require("notes.txt" in status["dirty_paths"] and "unrelated.txt" in status["untracked_paths"],
+                "preserved local work disappeared from status after restart")
+        self.passed("competing_workspace_proposals", base_revision=seed_revision, base_manifest=base,
+                    proposals=results, accepted_revision=accepted_revision, accepted_manifest=accepted_manifest,
+                    publication_interruption=interruption,
+                    resumed_rss=self.sample_rss(lead, "workspace_resumed_and_updated"),
+                    stale_integration="conflict", dirty_update="conflict", compatible_dirty_edit="preserved",
+                    exact_integration_receipt_after_restart=True, peer_readback=True, git_required=False)
 
         self.phase = "offline_cancellation"
         task = "task:" + self.recorded(lead, ["task", "open", "--goal", goal, "Explicit cancellation acknowledgment"])
@@ -321,7 +410,7 @@ class Operations(Qualification):
                   self.contributions_contain(first, goal, {future: "new epoch only"}))
         route_start = len(self.routes)
         self.start(second)
-        # A transport path is not a successful authorized exchange. Protocol 2
+        # A transport path is not a successful authorized exchange. The protocol
         # refuses ordinary sync to a removed endpoint; it does not deliver a
         # revocation notification to update that endpoint's offline local view.
         self.wait("removed endpoint attempts a fresh transport path", lambda:
@@ -342,11 +431,95 @@ class Operations(Qualification):
         self.summary["status"] = "passed"
 
 
+class WorkspaceSmoke(Operations):
+    def environment(self, machine):
+        env = super().environment(machine)
+        unavailable_tools = machine.home / "unavailable-tools"
+        require(not unavailable_tools.exists(), "workspace smoke tool PATH unexpectedly exists")
+        env["PATH"] = str(unavailable_tools)
+        require(shutil.which("git", path=env["PATH"]) is None,
+                "Git remains available through the child command PATH")
+        return env
+
+    def flow(self):
+        self.machines = self.machines[:2]
+        lead, worker = self.machines
+        self.summary["qualification"] = "two production daemons on one host; ordinary-directory shared workspace; configured Iroh transport"
+        self.summary["resources"] = {"verdict": "unmeasured; no performance claim", "rss_scope": "unmeasured",
+                                     "network_bytes": "unmeasured", "cpu": "unmeasured"}
+        self.summary["git"] = {"path_lookup": "unavailable", "child_scope": ["daemon", "cli"],
+                               "configuration": "isolated nonexistent tool directory; outer harness PATH unchanged",
+                               "optional_commit_import": "not exercised"}
+        for machine in self.machines:
+            self.environment(machine)
+            self.record("git_path_unavailable", machine=machine.number, scope="daemon and CLI children")
+            self.start(machine)
+            machine.agent = identity(variant(self.cli(machine, ["agent", "enroll", f"m{machine.number}", "--manage-goals"], owner=True), "agent_enrolled")["agent"], "principal")
+        goal = self.create_goal(lead, "Native workspace smoke")
+        self.summary["goal"] = goal
+        ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
+        self.cli(worker, ["goal", "join", "--ticket", ticket])
+        del ticket
+        self.wait("both members converge", lambda: all((state := self.goal_status(machine, goal)) and len(state["members"]) == 2 for machine in self.machines))
+        self.grant_contributions(goal)
+        self.phase = "seed"
+        root = lead.home.parent
+        seed_input = root / "seed-input"
+        seed_input.mkdir()
+        (seed_input / "code.txt").write_text("base\n")
+        (seed_input / "notes.txt").write_text("base notes\n")
+        capture = self.cli(lead, ["workspace", "init", "--goal", goal, "--root", seed_input, "--path", "code.txt", "--path", "notes.txt", "--publish"])
+        seed_proposal = operation_event(capture["operation"])
+        self.api(lead, "completion.declare", goal=goal, subject=seed_proposal)
+        seed = operation_event(variant(self.cli(lead, ["workspace", "integrate", "--goal", goal, "--proposal", seed_proposal, "--expected-empty"]), "workspace_operation"))
+        accepted_directory = root / "accepted"
+        accepted_checkout = self.checkout(lead, goal, seed, accepted_directory)
+        worker_directory = root / "worker"
+        worker_checkout = self.checkout(worker, goal, seed, worker_directory)
+        self.passed("seed_replicated", revision=seed, files=2, git_required=False)
+        self.phase = "proposal"
+        (worker_directory / "code.txt").write_text("worker edit\n")
+        (worker_directory / "private.txt").write_text("worker private\n")
+        proposed = self.cli(worker, ["workspace", "propose", "--goal", goal, "--checkout", worker_checkout["id"], "--publish"])
+        proposal = operation_event(proposed["operation"])
+        self.api(worker, "completion.declare", goal=goal, subject=proposal)
+        self.wait("proposal complete at integrator", lambda: self.cli(lead, ["workspace", "review", "--goal", goal, "--proposal", proposal], expected_errors=("not_found", "unavailable")))
+        self.wait("exact declaration replicated", lambda: variant(self.api(lead, "workspace.proposal", goal=goal, proposal=proposal), "workspace_proposal")["approved"])
+        integration = variant(self.cli(lead, ["--idempotency-key", "11" * 16, "workspace", "integrate", "--goal", goal, "--proposal", proposal, "--expected-head", seed]), "workspace_operation")
+        head = operation_event(integration)
+        self.wait("accepted head replicated", lambda: all(self.complete_workspace(machine, goal, head) for machine in self.machines))
+        self.passed("proposal_declared_and_integrated", proposal=proposal, revision=head, result_manifest=proposed["candidate"]["result_manifest"])
+        self.phase = "update"
+        (accepted_directory / "notes.txt").write_text("compatible local notes\n")
+        (accepted_directory / "unrelated.txt").write_text("local private\n")
+        updated = self.cli(lead, ["workspace", "update", "--goal", goal, "--checkout", accepted_checkout["id"]])
+        require(updated["target_in_lineage_at_completion"], "updated revision was not accepted")
+        require((accepted_directory / "code.txt").read_text() == "worker edit\n", "accepted code did not update")
+        require((accepted_directory / "notes.txt").read_text() == "compatible local notes\n", "compatible local edit was lost")
+        require((accepted_directory / "unrelated.txt").read_text() == "local private\n", "untracked local file was lost")
+        require(all(not (directory / ".git").exists() for directory in (seed_input, accepted_directory, worker_directory)), "Git metadata appeared")
+        self.passed("ordinary_checkout_update", compatible_dirty_edit="preserved", untracked_file="preserved")
+        self.phase = "restart_and_readback"
+        for machine in self.machines:
+            self.restart(machine)
+        self.wait("both heads complete after restart", lambda: all(self.complete_workspace(machine, goal, head) for machine in self.machines))
+        for machine in self.machines:
+            require(self.cli(machine, ["workspace", "read", "--goal", goal, "--path", "code.txt"])["text"] == "worker edit\n", "accepted bytes differ after restart")
+            require(self.cli(machine, ["workspace", "read", "--goal", goal, "--path", "notes.txt"])["text"] == "base notes\n", "local edit became accepted content")
+        retried = variant(self.cli(lead, ["--idempotency-key", "11" * 16, "workspace", "integrate", "--goal", goal, "--proposal", proposal, "--expected-head", seed]), "workspace_operation")
+        require(retried == integration, "exact recorded receipt changed after restart")
+        require(self.checkout_binding(lead, goal, accepted_checkout["id"])["base_revision"] == head, "checkout base did not survive restart")
+        self.passed("both_restarts_and_peer_readback", exact_receipt_retained=True)
+        self.summary["status"] = "passed"
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--timeout-seconds", type=float, default=90)
     parser.add_argument("--network", choices=("local", "default"), default="default")
+    parser.add_argument("--workflow", choices=("operations", "workspace"), default="operations",
+                        help="full three-daemon operations, or two-daemon ordinary-directory workspace smoke")
     args = parser.parse_args(argv)
     if not args.binary.is_absolute() or not args.binary.is_file() or not os.access(args.binary, os.X_OK):
         parser.error("--binary must be an absolute executable path")
@@ -354,7 +527,9 @@ def main(argv=None):
         parser.error("--timeout-seconds must be finite and positive")
     name = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + os.urandom(4).hex()
     artifacts = Path(__file__).resolve().parents[1] / "output" / "operations" / name
-    check = Operations(args.binary.resolve(), args.timeout_seconds, artifacts, args.network)
+    workflow = WorkspaceSmoke if args.workflow == "workspace" else Operations
+    check = workflow(args.binary.resolve(), args.timeout_seconds, artifacts, args.network)
+    check.summary["workflow"] = args.workflow
     passed = check.run()
     print(json.dumps({"ok": passed, "summary": str(artifacts / "summary.json")}))
     return 0 if passed else 1

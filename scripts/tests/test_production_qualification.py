@@ -119,7 +119,7 @@ class ProductionTests(unittest.TestCase):
             self.assertTrue(all(item["exit_code"] == 0 and item["socket_removed"] and not item["forced_cleanup"] for item in exits))
 
     @unittest.skipUnless(platform.system() == "Darwin" and Path("/usr/bin/sandbox-exec").exists() and BINARY.is_file(), "compiled production binary and macOS guard required")
-    def test_actual_current_workspace_recipe_selects_then_applies(self):
+    def test_actual_workspace_recipe_accepts_then_updates(self):
         from check_t2_clients import prepare_work, workspace_driver
         import shlex
         with tempfile.TemporaryDirectory() as output:
@@ -132,51 +132,36 @@ class ProductionTests(unittest.TestCase):
                 result = subprocess.run(shlex.split(command), cwd=profile.workspace,
                     env=profile.environment(sys.executable), capture_output=True, text=True, timeout=30)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertTrue(json.loads(receipt.read_text())["selected_before_integrated"])
+                self.assertTrue(json.loads(receipt.read_text())["accepted_before_updated"])
                 self.assertEqual((Path(work["source"]) / "code.txt").read_text(), work["expected"])
 
     @unittest.skipUnless(platform.system() == "Darwin" and Path("/usr/bin/sandbox-exec").exists() and BINARY.is_file(), "compiled production binary and macOS guard required")
-    def test_owner_local_choice_applies_unselected_open_finding(self):
-        from check_t2_clients import git
+    def test_workspace_refuses_unreviewed_candidate_and_preserves_local_files(self):
+        from check_t2_clients import prepare_work
         with tempfile.TemporaryDirectory() as output:
-            profile = Profile(output, "owner-local-choice")
+            profile = Profile(output, "unreviewed-candidate")
             self.addCleanup(profile.close)
             with ProductionDaemon(profile, BINARY, 15) as daemon:
-                goal = daemon.call(["goal", "create", "--title", "Open local choice"])["goal_created"]["goal"]
-                grants = {"administer": True, "contribute": True, "execute": False, "review": False,
-                    "select": False, "flow": False, "takeover": False}
-                daemon.call(["goal", "grant", "--goal", goal, "--agent", daemon.principal, "--grants", json.dumps(grants)], owner=True)
-                source = profile.workspace / "source"
-                source.mkdir()
-                git(profile, source, ["init", "-q"])
-                git(profile, source, ["config", "user.name", "Locust fixture"])
-                git(profile, source, ["config", "user.email", "fixture@example.invalid"])
-                (source / "code.txt").write_text("before\n")
-                git(profile, source, ["add", "code.txt"])
-                git(profile, source, ["commit", "-qm", "fixture"])
-                commit = git(profile, source, ["rev-parse", "HEAD"])
-                base = daemon.call(["workspace", "export", "--goal", goal, "--root", source, "--commit", commit])["manifest"]
-                destination = profile.workspace / "worker"
-                daemon.call(["workspace", "materialize", "--goal", goal, "--manifest", base, "--destination", destination])
-                (destination / "code.txt").write_text("after\n")
-                patch = daemon.call(["patch", "create", "--goal", goal, "--base", base, "--root", destination, "--path", "code.txt"])
-                subject = daemon.call(["contribution", "publish", "--goal", goal, "--base", base,
-                    "--patch", patch["contribution_id"], "--artifacts", json.dumps([patch["contribution"]["head"]]), "Unselected finding"])["recorded"]["event"]
-                apply = ["patch", "apply", "--goal", goal, "--subject", subject,
-                    "--root", source, "--expected-git-head", commit]
+                work = prepare_work(profile, daemon, "test")
+                goal = daemon.goal
+                worker = daemon.call(["workspace", "checkout", "--goal", goal, "--destination", work["destination"]])["checkout"]
+                (Path(work["destination"]) / "code.txt").write_text("after\n")
+                capture = daemon.call(["workspace", "propose", "--goal", goal, "--checkout", worker["id"], "--publish"])
+                proposal = capture["operation"]["state"]["recorded"]["event"]
                 with self.assertRaises(ProductionError):
-                    daemon.call(apply)
-                with self.assertRaises(ProductionError):
-                    daemon.call(apply + ["--local-choice"])
-                self.assertEqual((source / "code.txt").read_text(), "before\n")
-                daemon.call(["--as", daemon.principal, *apply, "--local-choice"], owner=True)
-                self.assertEqual((source / "code.txt").read_text(), "after\n")
-                contributions = daemon.call(["contributions", "--goal", goal])["contributions"]
-                finding = next(item for item in contributions if item["contribution"] == subject)
-                self.assertFalse(finding["selected"])
-                self.assertFalse(finding["approved"])
-                state = daemon.call(["goal", "status", "--goal", goal])["goal_status"]
-                self.assertEqual(state["workspace"]["integrated"], patch["contribution"]["head"])
+                    daemon.call(["workspace", "integrate", "--goal", goal, "--proposal", proposal])
+                self.assertEqual((Path(work["source"]) / "code.txt").read_text(), "before\n")
+                self.assertEqual(daemon.call(["workspace", "head", "--goal", goal])["head"]["revision"],work["seed_revision"])
+                daemon.call(["review", "record", "--goal", goal, "--subject", proposal, "--verdict", "approve", "Reviewed exact candidate"])
+                receipt = daemon.call(["workspace", "integrate", "--goal", goal, "--proposal", proposal])
+                revision = receipt["workspace_operation"]["state"]["recorded"]["event"]
+                self.assertEqual((Path(work["source"]) / "code.txt").read_text(), "before\n")
+                daemon.call(["workspace", "update", "--goal", goal, "--checkout", work["source_checkout"]])
+                status = daemon.call(["workspace", "status", "--goal", goal, "--checkout", work["source_checkout"]])
+                self.assertEqual(status["checkout"]["base_revision"],revision)
+                self.assertEqual((Path(work["source"]) / "code.txt").read_text(), "after\n")
+                self.assertEqual((Path(work["source"]) / "unrelated.txt").read_text(), "local work\n")
+                self.assertFalse((Path(work["source"]) / ".git").exists())
 
 
 if __name__ == "__main__":

@@ -3,12 +3,14 @@
 //! Only typed event roots may decode containers. A manifest file entry is an
 //! opaque leaf even when its bytes happen to encode another manifest. Edges
 //! exist only after authenticating the containing object for this goal.
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::sync::Arc;
 
-use locust_proto::contribution::Contribution;
+use locust_proto::api::{ApiError, ErrorCode};
 use locust_proto::engine::Entropy;
 use locust_proto::event::Body;
-use locust_proto::id::{BlobHash, GoalId, PublicKey};
+use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::limits::MAX_BLOB_BYTES;
 use locust_proto::manifest::Manifest;
 use locust_proto::seal;
@@ -22,7 +24,6 @@ use super::{Node, entry, records};
 enum Kind {
     Opaque,
     Manifest,
-    Contribution,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -72,12 +73,57 @@ impl Reference {
     }
 }
 
+/// Content readiness remains separate from signed workspace authority.
+#[derive(Clone, Debug)]
+pub(in crate::node) enum ManifestState {
+    Missing,
+    Withdrawn,
+    KeyMissing { epoch: u32 },
+    Invalid { reason: String },
+    Ready { manifest: Arc<Manifest>, epoch: u32 },
+}
+#[derive(Clone)]
+struct CachedManifest {
+    epoch: u32,
+    len: u64,
+    key_fingerprint: [u8; 32],
+    decoded: Result<Arc<Manifest>, String>,
+}
+impl CachedManifest {
+    fn state(&self) -> ManifestState {
+        match &self.decoded {
+            Ok(manifest) => ManifestState::Ready {
+                manifest: manifest.clone(),
+                epoch: self.epoch,
+            },
+            Err(reason) => ManifestState::Invalid {
+                reason: reason.clone(),
+            },
+        }
+    }
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct IndexStats {
+    pub manifest_decodes: usize,
+    pub cache_hits: usize,
+    pub event_roots: usize,
+    pub history_rebuilds: usize,
+}
 #[derive(Default)]
 struct Graph {
     references: BTreeMap<BlobHash, BTreeSet<Reference>>,
     records: BTreeMap<BlobHash, BlobRecord>,
     expanded: BTreeSet<(BlobHash, Reference)>,
     wanted: BTreeSet<BlobHash>,
+    root_events: BTreeSet<EventId>,
+    governance_head: Option<EventId>,
+    content_epoch: u32,
+    // Decode facts are immutable content observations, never authority. On
+    // withdrawal/key/membership change the references are rebuilt independently.
+    manifests: RefCell<BTreeMap<BlobHash, CachedManifest>>,
+    #[cfg(test)]
+    stats: std::cell::Cell<IndexStats>,
 }
 
 /// Missing lookup is a range query. Blob arrival expands only that object's
@@ -85,6 +131,12 @@ struct Graph {
 #[derive(Default)]
 pub(super) struct BlobIndex(BTreeMap<GoalId, Graph>);
 impl BlobIndex {
+    #[cfg(test)]
+    pub fn stats(&self, goal: &GoalId) -> IndexStats {
+        self.0
+            .get(goal)
+            .map_or_else(IndexStats::default, |graph| graph.stats.get())
+    }
     pub fn wanted(&self, goal: &GoalId) -> Option<&BTreeSet<BlobHash>> {
         self.0.get(goal).map(|graph| &graph.wanted)
     }
@@ -181,8 +233,100 @@ impl Graph {
             self.add(hash, reference, queue);
         }
     }
-    fn roots<S: Store>(entry: &Entry, store: &S) -> Result<Self, StoreError> {
+    fn event_roots(
+        &mut self,
+        entry: &Entry,
+        event: &locust_proto::event::Event,
+        queue: &mut VecDeque<(BlobHash, Reference)>,
+    ) {
+        if !self.root_events.insert(event.id()) {
+            return;
+        }
+        #[cfg(test)]
+        self.stats.update(|mut stats| {
+            stats.event_roots += 1;
+            stats
+        });
+        let header = event.header();
+        let epoch = entry.goal.epoch_of(&event.id());
+        // Once signed metadata names a formerly local object, its broad local
+        // association may no longer weaken exact payload/epoch constraints.
+        for hash in header.blobs() {
+            if let Some(references) = self.references.get_mut(&hash) {
+                references.retain(|reference| !reference.local);
+            }
+        }
+        if let Some(payload) = header.payload {
+            let mut reference = Reference::root(
+                Kind::Opaque,
+                Some(payload.key_epoch),
+                Some(u64::from(payload.len)),
+            );
+            reference.exact_epoch = true;
+            self.add(payload.hash, reference, queue);
+        }
+        for hash in header
+            .blobs()
+            .into_iter()
+            .filter(|hash| header.payload.is_none_or(|payload| payload.hash != *hash))
+        {
+            if !matches!(&header.body, Body::RulesBound { binding, .. } if binding.definition.object.hash == hash)
+            {
+                self.add(hash, Reference::root(Kind::Opaque, epoch, None), queue);
+            }
+        }
+        match &header.body {
+            Body::RulesBound { binding, .. } => {
+                let payload = binding.definition.object;
+                let mut reference = Reference::root(
+                    Kind::Opaque,
+                    Some(payload.key_epoch),
+                    Some(u64::from(payload.len)),
+                );
+                reference.exact_epoch = true;
+                self.add(payload.hash, reference, queue);
+            }
+            Body::TaskOpened { binding } | Body::TaskRevised { binding, .. } => {
+                for hash in binding.inputs.values() {
+                    self.add(*hash, Reference::root(Kind::Manifest, epoch, None), queue);
+                }
+            }
+            Body::WorkspaceProposed {
+                result_manifest, ..
+            } => {
+                self.add(
+                    *result_manifest,
+                    Reference::root(Kind::Manifest, epoch, None),
+                    queue,
+                );
+            }
+            Body::EffectMaterialized { effect } => {
+                if let locust_proto::event::EffectAction::OpenTask { binding, .. } = &effect.action
+                {
+                    for hash in binding.inputs.values() {
+                        self.add(*hash, Reference::root(Kind::Manifest, epoch, None), queue);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    fn roots<S: Store>(entry: &Entry, store: &S, old: Option<Self>) -> Result<Self, StoreError> {
         let mut graph = Self::default();
+        if let Some(old) = old {
+            graph.manifests = old.manifests;
+            #[cfg(test)]
+            {
+                graph.stats = old.stats;
+            }
+        }
+        graph.governance_head = entry.state().head;
+        graph.content_epoch = entry.state().epoch;
+        #[cfg(test)]
+        graph.stats.update(|mut stats| {
+            stats.history_rebuilds += 1;
+            stats
+        });
         let mut queue = VecDeque::new();
         for (key, value) in store.scan(Space::Blob, &entry.id().0)? {
             let (goal, hash) = subject(&key)?;
@@ -192,82 +336,8 @@ impl Graph {
         }
         for author in entry.goal.authors() {
             for point in entry.goal.points(author) {
-                let Some(event) = entry.goal.event(&point.id) else {
-                    continue;
-                };
-                let header = event.header();
-                let epoch = entry.goal.epoch_of(&event.id());
-                if let Some(payload) = header.payload {
-                    let mut reference = Reference::root(
-                        Kind::Opaque,
-                        Some(payload.key_epoch),
-                        Some(u64::from(payload.len)),
-                    );
-                    reference.exact_epoch = true;
-                    graph.add(payload.hash, reference, &mut queue);
-                }
-                // Every body reference keeps its ordinary opaque association;
-                // typed roots additionally authorize parsing that exact type.
-                for hash in header
-                    .blobs()
-                    .into_iter()
-                    .filter(|hash| header.payload.is_none_or(|payload| payload.hash != *hash))
-                {
-                    if !matches!(&header.body, Body::RulesBound { binding, .. } if binding.definition.object.hash == hash)
-                    {
-                        graph.add(hash, Reference::root(Kind::Opaque, epoch, None), &mut queue);
-                    }
-                }
-                match &header.body {
-                    Body::RulesBound { binding, .. } => {
-                        let payload = binding.definition.object;
-                        let mut reference = Reference::root(
-                            Kind::Opaque,
-                            Some(payload.key_epoch),
-                            Some(u64::from(payload.len)),
-                        );
-                        reference.exact_epoch = true;
-                        graph.add(payload.hash, reference, &mut queue);
-                    }
-                    Body::TaskOpened { binding } | Body::TaskRevised { binding, .. } => {
-                        for hash in binding.inputs.values() {
-                            graph.add(
-                                *hash,
-                                Reference::root(Kind::Manifest, epoch, None),
-                                &mut queue,
-                            );
-                        }
-                    }
-                    Body::ContributionPublished { base, patch, .. } => {
-                        if let Some(hash) = base {
-                            graph.add(
-                                *hash,
-                                Reference::root(Kind::Manifest, epoch, None),
-                                &mut queue,
-                            );
-                        }
-                        if let Some(hash) = patch {
-                            graph.add(
-                                *hash,
-                                Reference::root(Kind::Contribution, epoch, None),
-                                &mut queue,
-                            );
-                        }
-                    }
-                    Body::EffectMaterialized { effect } => {
-                        if let locust_proto::event::EffectAction::OpenTask { binding, .. } =
-                            &effect.action
-                        {
-                            for hash in binding.inputs.values() {
-                                graph.add(
-                                    *hash,
-                                    Reference::root(Kind::Manifest, epoch, None),
-                                    &mut queue,
-                                );
-                            }
-                        }
-                    }
-                    _ => {}
+                if let Some(event) = entry.goal.event(&point.id) {
+                    graph.event_roots(entry, event, &mut queue);
                 }
             }
         }
@@ -276,6 +346,82 @@ impl Graph {
         }
         graph.expand(entry, store, queue)?;
         Ok(graph)
+    }
+    fn manifest<S: Store>(
+        &self,
+        entry: &Entry,
+        store: &S,
+        hash: BlobHash,
+    ) -> Result<ManifestState, StoreError> {
+        let Some(len) = store.blob_len(&hash)? else {
+            return Ok(ManifestState::Missing);
+        };
+        if len < seal::OVERHEAD_BYTES as u64 || len > MAX_BLOB_BYTES as u64 {
+            return Ok(ManifestState::Invalid {
+                reason: "manifest exceeds the content-object bounds".into(),
+            });
+        }
+        if let Some(cached) = self.manifests.borrow().get(&hash)
+            && cached.len == len
+            && entry.keys.get(&cached.epoch).is_some_and(|key| {
+                locust_proto::crypto::domain_hash("locust:manifest-cache:key:v1", &key.0)
+                    == cached.key_fingerprint
+            })
+        {
+            #[cfg(test)]
+            self.stats.update(|mut stats| {
+                stats.cache_hits += 1;
+                stats
+            });
+            return Ok(cached.state());
+        }
+        let Some(bytes) = store.blob(&hash)? else {
+            return Ok(ManifestState::Missing);
+        };
+        if locust_proto::crypto::content_hash(&bytes) != hash {
+            return Err(StoreError::Corrupted(
+                "a content graph object does not match its hash".into(),
+            ));
+        }
+        let epoch = match seal::epoch_of(&bytes) {
+            Ok(epoch) => epoch,
+            Err(error) => {
+                return Ok(ManifestState::Invalid {
+                    reason: error.to_string(),
+                });
+            }
+        };
+        let Some(key) = entry.keys.get(&epoch) else {
+            return Ok(ManifestState::KeyMissing { epoch });
+        };
+        let plain = match seal::open(&entry.id(), key, &bytes) {
+            Ok(plain) => plain,
+            Err(error) => {
+                return Ok(ManifestState::Invalid {
+                    reason: error.to_string(),
+                });
+            }
+        };
+        #[cfg(test)]
+        self.stats.update(|mut stats| {
+            stats.manifest_decodes += 1;
+            stats
+        });
+        let decoded = Manifest::decode(&plain)
+            .map(Arc::new)
+            .map_err(|error| error.to_string());
+        let cached = CachedManifest {
+            epoch,
+            len: bytes.len() as u64,
+            key_fingerprint: locust_proto::crypto::domain_hash(
+                "locust:manifest-cache:key:v1",
+                &key.0,
+            ),
+            decoded,
+        };
+        let state = cached.state();
+        self.manifests.borrow_mut().insert(hash, cached);
+        Ok(state)
     }
     fn refresh<S: Store>(&mut self, store: &S, hash: BlobHash) -> Result<bool, StoreError> {
         let missing = self
@@ -306,60 +452,30 @@ impl Graph {
             if reference.kind == Kind::Opaque || self.expanded.contains(&(hash, reference)) {
                 continue;
             }
-            let Some(bytes) = store.blob(&hash)? else {
+            let ManifestState::Ready { manifest, epoch } = self.manifest(entry, store, hash)?
+            else {
                 continue;
             };
-            if locust_proto::crypto::content_hash(&bytes) != hash {
-                return Err(StoreError::Corrupted(
-                    "a content graph object does not match its hash".into(),
-                ));
-            }
-            let Ok(epoch) = seal::epoch_of(&bytes) else {
+            let Some(len) = store.blob_len(&hash)? else {
                 continue;
             };
-            if !reference.admits(bytes.len() as u64, epoch) {
+            if !reference.admits(len, epoch) {
                 continue;
             }
-            let Some(key) = entry.keys.get(&epoch) else {
-                continue;
-            };
-            let Ok(plain) = seal::open(&entry.id(), key, &bytes) else {
-                continue;
-            };
             self.expanded.insert((hash, reference));
-            match reference.kind {
-                Kind::Manifest => {
-                    let Ok(manifest) = Manifest::decode(&plain) else {
-                        continue;
-                    };
-                    for file in manifest.entries {
-                        // A malformed size never creates an unbounded request;
-                        // another independently valid reference can still win.
-                        let Some(len) =
-                            seal::sealed_len(file.size).filter(|len| *len <= MAX_BLOB_BYTES as u64)
-                        else {
-                            continue;
-                        };
-                        self.add(
-                            file.content,
-                            reference.child(epoch, Kind::Opaque, Some(len)),
-                            &mut queue,
-                        );
-                    }
-                }
-                Kind::Contribution => {
-                    let Ok(contribution) = Contribution::decode(&plain) else {
-                        continue;
-                    };
-                    for manifest in [contribution.base, contribution.head] {
-                        self.add(
-                            manifest,
-                            reference.child(epoch, Kind::Manifest, None),
-                            &mut queue,
-                        );
-                    }
-                }
-                Kind::Opaque => {}
+            for file in &manifest.entries {
+                // Existing object limits apply; malformed lengths cannot
+                // authorize inflated requests or recursive manifest sniffing.
+                let Some(len) =
+                    seal::sealed_len(file.size).filter(|len| *len <= MAX_BLOB_BYTES as u64)
+                else {
+                    continue;
+                };
+                self.add(
+                    file.content,
+                    reference.child(epoch, Kind::Opaque, Some(len)),
+                    &mut queue,
+                );
             }
         }
         Ok(discovered)
@@ -379,26 +495,39 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let Some(entry) = self.goals.get(&goal) else {
             return Ok(());
         };
-        let graph = Graph::roots(entry, &self.store)?;
-        if graph.wanted.iter().any(|hash| {
-            self.blob_index
-                .wanted(&goal)
-                .is_none_or(|old| !old.contains(hash))
-        }) {
+        let old = self.blob_index.0.remove(&goal);
+        let old_wanted = old
+            .as_ref()
+            .map(|graph| graph.wanted.clone())
+            .unwrap_or_default();
+        let graph = Graph::roots(entry, &self.store, old)?;
+        if graph.wanted.iter().any(|hash| !old_wanted.contains(hash)) {
             self.outbound.insert(goal);
         }
         self.blob_index.0.insert(goal, graph);
         Ok(())
     }
     pub(super) fn update_blob_index(&mut self, commit: &Commit) -> Result<(), StoreError> {
-        // History or key changes can change existing root epochs. Withdrawal
-        // removes path authority, so recompute reachability rather than leave
-        // stale child references. Blob arrival takes the incremental path.
-        let mut rebuild: BTreeSet<_> = commit
+        // Ordinary work events append roots incrementally. Governance head or
+        // content-key changes can alter old anchors; withdrawal removes parent
+        // paths. Those invalidate authorization, retaining only decode facts.
+        let mut rebuild = BTreeSet::new();
+        let event_goals: BTreeSet<_> = commit
             .events
             .iter()
             .map(|event| event.header().goal)
             .collect();
+        for goal in &event_goals {
+            let Some(entry) = self.goals.get(goal) else {
+                continue;
+            };
+            if self.blob_index.0.get(goal).is_none_or(|graph| {
+                graph.governance_head != entry.state().head
+                    || graph.content_epoch != entry.state().epoch
+            }) {
+                rebuild.insert(*goal);
+            }
+        }
         let mut locals = Vec::new();
         for write in &commit.local {
             let (space, key, value) = match write {
@@ -438,6 +567,24 @@ impl<S: Store, E: Entropy> Node<S, E> {
         for goal in &rebuild {
             self.rebuild_content_goal(*goal)?;
         }
+        for event in &commit.events {
+            let goal = event.header().goal;
+            if rebuild.contains(&goal) {
+                continue;
+            }
+            let Some(entry) = self.goals.get(&goal) else {
+                continue;
+            };
+            let Some(held) = entry.goal.event(&event.id()) else {
+                continue;
+            };
+            let graph = self.blob_index.0.entry(goal).or_default();
+            let mut queue = VecDeque::new();
+            graph.event_roots(entry, held, &mut queue);
+            if graph.expand(entry, &self.store, queue)? {
+                self.outbound.insert(goal);
+            }
+        }
         for (goal, hash, record) in locals {
             if rebuild.contains(&goal) {
                 continue;
@@ -460,6 +607,24 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok(())
     }
     pub(super) fn content_arrived(&mut self, hash: BlobHash) -> Result<(), StoreError> {
+        // A definition blob can unblock governance without a new event.
+        let changed: Vec<_> = self
+            .blob_index
+            .0
+            .iter()
+            .filter_map(|(goal, graph)| {
+                self.goals
+                    .get(goal)
+                    .filter(|entry| {
+                        graph.governance_head != entry.state().head
+                            || graph.content_epoch != entry.state().epoch
+                    })
+                    .map(|_| *goal)
+            })
+            .collect();
+        for goal in changed {
+            self.rebuild_content_goal(goal)?;
+        }
         for (goal, graph) in &mut self.blob_index.0 {
             let Some(references) = graph.references.get(&hash) else {
                 continue;
@@ -473,6 +638,74 @@ impl<S: Store, E: Entropy> Node<S, E> {
             }
         }
         Ok(())
+    }
+    /// Reads a typed container through the current serving authorization, then
+    /// reuses only immutable authenticated decode facts. Cache existence never
+    /// grants goal association, membership, keys or withdrawal permission.
+    pub(in crate::node) fn workspace_manifest(
+        &self,
+        entry: &Entry,
+        hash: BlobHash,
+        reader: Option<&PublicKey>,
+    ) -> Result<ManifestState, ApiError> {
+        let record = blob_record(&self.store, &entry.id(), &hash)?;
+        if record.is_some_and(|record| record.withdrawn) {
+            return Ok(ManifestState::Withdrawn);
+        }
+        if !self.names_content(entry, &hash) && record.is_none() {
+            return Err(ApiError::new(
+                ErrorCode::NotFound,
+                "nothing in this goal names that manifest",
+            ));
+        }
+        if !self.content_path_readable(entry, &hash, reader, None) {
+            return Err(ApiError::new(
+                ErrorCode::Denied,
+                "the manifest path is outside this principal's membership",
+            ));
+        }
+        let Some(graph) = self.blob_index.0.get(&entry.id()) else {
+            return Ok(ManifestState::Missing);
+        };
+        let Some(len) = self.store.blob_len(&hash)? else {
+            return Ok(ManifestState::Missing);
+        };
+        let cached_epoch = graph
+            .manifests
+            .borrow()
+            .get(&hash)
+            .filter(|cached| cached.len == len)
+            .map(|cached| cached.epoch);
+        let epoch = if let Some(epoch) = cached_epoch {
+            epoch
+        } else {
+            let Some(bytes) = self.store.blob(&hash)? else {
+                return Ok(ManifestState::Missing);
+            };
+            match seal::epoch_of(&bytes) {
+                Ok(epoch) => epoch,
+                Err(error) => {
+                    return Ok(ManifestState::Invalid {
+                        reason: error.to_string(),
+                    });
+                }
+            }
+        };
+        if !self.blob_index.admits(&entry.id(), &hash, len, epoch)
+            && (self.names_content(entry, &hash) || epoch > entry.state().epoch || record.is_none())
+        {
+            return Ok(ManifestState::Invalid {
+                reason: "manifest does not match goal references".into(),
+            });
+        }
+        if !self.content_path_readable(entry, &hash, reader, Some((len, epoch))) {
+            return Err(ApiError::new(
+                ErrorCode::Denied,
+                "the manifest epoch is outside this principal's membership",
+            ));
+        }
+        let state = graph.manifest(entry, &self.store, hash)?;
+        Ok(state)
     }
     pub(in crate::node) fn names_content(&self, entry: &Entry, hash: &BlobHash) -> bool {
         entry.names(hash) || self.blob_index.names(&entry.id(), hash)

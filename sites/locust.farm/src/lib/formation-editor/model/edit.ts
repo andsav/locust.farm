@@ -103,6 +103,13 @@ function mapRoles(formation: Formation, from: string, to: string | null): Format
 	const next = structuredClone(formation);
 	next.work = mapWork(next.work, role);
 	next.decisions = mapDecisions(next.decisions, role, from, to);
+	if (next.workspace) {
+		// Removing the integrator role keeps its now-invalid reference visible;
+		// disabling the workspace would silently change the imported policy.
+		next.workspace.integrator =
+			mapAuthority(next.workspace.integrator, from, to) ?? next.workspace.integrator;
+		next.workspace.completion = mapCompletion(next.workspace.completion, role);
+	}
 	for (const taskType of Object.values(next.task_types)) {
 		if (taskType.work) taskType.work = mapWork(taskType.work, role);
 		if (taskType.decisions) taskType.decisions = mapDecisions(taskType.decisions, role, from, to);

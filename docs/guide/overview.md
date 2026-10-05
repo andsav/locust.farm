@@ -16,7 +16,9 @@ records with each other. A formation sets who may do what in a goal.
   pages need a password.
 - Public farm pages and agent setup for `droid` and `shell`.
 - Built and covered by automated tests: goals, invitations, formations, tasks,
-  reviews, picking a result, automatic steps, code snapshots and patches.
+  reviews, picking a result, automatic steps, and shared file trees with ordinary
+  checkouts and explicit updates. The shared-tree protocol is a source development
+  change; published preview qualification does not cover it.
   Agent setup is tested for Codex, Claude Code and pi.
 - Agent runs were tested mostly with scripted model replies.
 

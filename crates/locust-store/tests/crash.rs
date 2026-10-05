@@ -75,8 +75,6 @@ impl History {
                     round: self.events[0].id(),
                 },
                 attempt: None,
-                base: Some(Self::input(next).hash()),
-                patch: None,
                 sources: Vec::new(),
                 artifacts: vec![],
             };

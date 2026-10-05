@@ -7,6 +7,8 @@ mod daemon;
 mod farm;
 mod invitations;
 mod permissions;
+mod workspace;
+mod workspace_lifecycle;
 
 use locust_proto::API_VERSION;
 use locust_proto::api::{

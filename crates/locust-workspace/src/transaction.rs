@@ -1,0 +1,1461 @@
+//! Recoverable ordinary-directory updates. The caller persists the descriptor
+//! together with its expected daemon binding and target before `execute`, then
+//! commits the new binding and operation receipt before `mark_completed`.
+//! Filesystem changes are serialized and recoverable, never multi-file atomic.
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs::{File, Metadata};
+use std::io::{Read, Write};
+use std::os::unix::fs::MetadataExt;
+use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use locust_proto::crypto::content_hash;
+use locust_proto::id::BlobHash;
+use rustix::fs::{self, AtFlags, FlockOperation, Mode, OFlags};
+use serde::{Deserialize, Serialize};
+
+use crate::files::{check_path, invalid};
+use crate::{FileValue, UpdatePlan, WorkspaceError, safe_fs};
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DirectoryIdentity {
+    pub device: u64,
+    pub inode: u64,
+}
+impl DirectoryIdentity {
+    fn of(metadata: &Metadata) -> Self {
+        Self {
+            device: metadata.dev(),
+            inode: metadata.ino(),
+        }
+    }
+}
+
+/// Exact local recovery identity; persist this opaque descriptor in the daemon.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateDescriptor {
+    pub root: PathBuf,
+    pub root_identity: DirectoryIdentity,
+    pub recovery_directory: PathBuf,
+    pub recovery_identity: DirectoryIdentity,
+    pub plan_digest: BlobHash,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct UpdateReport {
+    pub descriptor: UpdateDescriptor,
+    pub applied_paths: Vec<String>,
+    pub adopted_paths: Vec<String>,
+    pub dirty_paths: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct FileIdentity {
+    directory: DirectoryIdentity,
+    size: u64,
+    modified: (i64, i64),
+    changed: (i64, i64),
+    mode: u32,
+}
+impl FileIdentity {
+    fn of(m: &Metadata) -> Self {
+        Self {
+            directory: DirectoryIdentity::of(m),
+            size: m.len(),
+            modified: (m.mtime(), m.mtime_nsec()),
+            changed: (m.ctime(), m.ctime_nsec()),
+            mode: m.mode(),
+        }
+    }
+}
+impl From<&safe_fs::Identity> for FileIdentity {
+    fn from(identity: &safe_fs::Identity) -> Self {
+        Self {
+            directory: DirectoryIdentity {
+                device: identity.dev,
+                inode: identity.ino,
+            },
+            size: identity.size,
+            modified: identity.modified,
+            changed: identity.changed,
+            mode: identity.mode,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+enum Observation {
+    File {
+        identity: FileIdentity,
+        digest: BlobHash,
+        executable: bool,
+    },
+    Directory {
+        identity: DirectoryIdentity,
+        opaque: bool,
+    },
+}
+impl Observation {
+    // Renames can change ctime. The stable inode, complete bytes and mode must
+    // still match, including mtime, size and every permission bit.
+    fn renamed_matches(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::File {
+                    identity: a,
+                    digest: ad,
+                    executable: ae,
+                },
+                Self::File {
+                    identity: b,
+                    digest: bd,
+                    executable: be,
+                },
+            ) => {
+                a.directory == b.directory
+                    && a.size == b.size
+                    && a.modified == b.modified
+                    && a.mode == b.mode
+                    && ad == bd
+                    && ae == be
+            }
+            (
+                Self::Directory {
+                    identity: a,
+                    opaque: ao,
+                },
+                Self::Directory {
+                    identity: b,
+                    opaque: bo,
+                },
+            ) => a == b && ao == bo,
+            _ => false,
+        }
+    }
+}
+type Inventory = BTreeMap<String, Observation>;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+enum Step {
+    RemoveFile {
+        path: String,
+        artifact: String,
+        expected: Observation,
+    },
+    RemoveDirectory {
+        path: String,
+        artifact: String,
+        expected: Observation,
+    },
+    Install {
+        path: String,
+        artifact: String,
+        expected: Observation,
+    },
+}
+impl Step {
+    fn path(&self) -> &str {
+        match self {
+            Self::RemoveFile { path, .. }
+            | Self::RemoveDirectory { path, .. }
+            | Self::Install { path, .. } => path,
+        }
+    }
+}
+#[derive(Serialize, Deserialize)]
+struct DurablePlan {
+    version: u32,
+    root: PathBuf,
+    root_identity: DirectoryIdentity,
+    update: UpdatePlan,
+    before: Inventory,
+    steps: Vec<Step>,
+}
+#[derive(Serialize, Deserialize)]
+enum Phase {
+    Intent {
+        step: usize,
+    },
+    Done {
+        step: usize,
+        observed: Option<Observation>,
+    },
+}
+
+/// Owns the cross-process lock for the checkout inode. Retain it while committing
+/// daemon metadata. Dropping it leaves all recovery artifacts intact.
+pub struct PreparedUpdate {
+    descriptor: UpdateDescriptor,
+    root: File,
+    recovery: File,
+    plan: DurablePlan,
+}
+
+fn conflict(path: &str, reason: &str) -> WorkspaceError {
+    WorkspaceError::Conflict {
+        path: path.into(),
+        reason: reason.into(),
+    }
+}
+fn json<T: Serialize>(value: &T) -> Result<Vec<u8>, WorkspaceError> {
+    serde_json::to_vec(value).map_err(|e| invalid(e.to_string()))
+}
+fn decode<T: for<'a> Deserialize<'a>>(bytes: &[u8]) -> Result<T, WorkspaceError> {
+    serde_json::from_slice(bytes).map_err(|e| invalid(e.to_string()))
+}
+
+// Open each absolute component without following links, including ancestors of
+// the caller-selected checkout or recovery root.
+fn absolute_directory(path: &Path) -> Result<File, WorkspaceError> {
+    if !path.is_absolute() {
+        return Err(invalid("checkout and recovery paths must be absolute"));
+    }
+    let mut directory = safe_fs::root(Path::new("/"))?;
+    for component in path.components() {
+        match component {
+            Component::RootDir => {}
+            Component::Normal(name) => {
+                let name = name
+                    .to_str()
+                    .ok_or_else(|| invalid("non-UTF-8 directory path"))?;
+                directory = safe_fs::dir_at(&directory, name)?;
+            }
+            _ => return Err(invalid("directory path is not canonical")),
+        }
+    }
+    Ok(directory)
+}
+fn canonical(path: &Path) -> Result<PathBuf, WorkspaceError> {
+    let canonical = std::fs::canonicalize(path)?;
+    if canonical != path {
+        return Err(invalid(
+            "directory path must be canonical and contain no symbolic links",
+        ));
+    }
+    let _directory = absolute_directory(path)?;
+    Ok(canonical)
+}
+fn lock(root: &File) -> Result<(), WorkspaceError> {
+    fs::flock(root, FlockOperation::NonBlockingLockExclusive).map_err(|e| {
+        if e == rustix::io::Errno::WOULDBLOCK {
+            conflict("checkout", "another process is updating this checkout")
+        } else {
+            e.into()
+        }
+    })
+}
+fn validate_placement(
+    descriptor: &UpdateDescriptor,
+    managed_roots: &[PathBuf],
+) -> Result<(), WorkspaceError> {
+    if descriptor.root.parent() != descriptor.recovery_directory.parent()
+        || descriptor.root == descriptor.recovery_directory
+    {
+        return Err(invalid(
+            "recovery must be a private sibling of the checkout",
+        ));
+    }
+    for managed in managed_roots
+        .iter()
+        .chain(std::iter::once(&descriptor.root))
+    {
+        let managed = canonical(managed)?;
+        if descriptor.recovery_directory.starts_with(&managed)
+            || managed.starts_with(&descriptor.recovery_directory)
+        {
+            return Err(invalid("recovery directory overlaps a managed checkout"));
+        }
+    }
+    let root = absolute_directory(&descriptor.root)?;
+    let recovery = absolute_directory(&descriptor.recovery_directory)?;
+    if DirectoryIdentity::of(&root.metadata()?) != descriptor.root_identity
+        || DirectoryIdentity::of(&recovery.metadata()?) != descriptor.recovery_identity
+        || descriptor.root_identity.device != descriptor.recovery_identity.device
+    {
+        return Err(invalid("checkout or recovery identity/device changed"));
+    }
+    let metadata = recovery.metadata()?;
+    if metadata.mode() & 0o777 != 0o700 || metadata.uid() != rustix::process::geteuid().as_raw() {
+        return Err(invalid(
+            "recovery directory is not private and owned by this principal",
+        ));
+    }
+    Ok(())
+}
+fn inventory(root: &File) -> Result<Inventory, WorkspaceError> {
+    fn walk(dir: &File, prefix: &str, result: &mut Inventory) -> Result<(), WorkspaceError> {
+        for name in safe_fs::names(dir)? {
+            let path = if prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{prefix}/{name}")
+            };
+            let stat = fs::statat(dir, &name, AtFlags::SYMLINK_NOFOLLOW)?;
+            if fs::FileType::from_raw_mode(stat.st_mode) == fs::FileType::Directory {
+                let child = safe_fs::dir_at(dir, &name)?;
+                let opaque = name == ".git";
+                result.insert(
+                    path.clone(),
+                    Observation::Directory {
+                        identity: DirectoryIdentity::of(&child.metadata()?),
+                        opaque,
+                    },
+                );
+                if !opaque {
+                    walk(&child, &path, result)?;
+                }
+            } else {
+                let file = safe_fs::read_at(dir, &name, &path)?
+                    .ok_or_else(|| conflict(&path, "file disappeared during inventory"))?;
+                result.insert(
+                    path,
+                    Observation::File {
+                        identity: FileIdentity {
+                            directory: DirectoryIdentity {
+                                device: file.identity.dev,
+                                inode: file.identity.ino,
+                            },
+                            size: file.identity.size,
+                            modified: file.identity.modified,
+                            changed: file.identity.changed,
+                            mode: file.identity.mode,
+                        },
+                        digest: content_hash(&file.bytes),
+                        executable: file.executable,
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+    let mut result = BTreeMap::new();
+    walk(root, "", &mut result)?;
+    Ok(result)
+}
+fn observe_at(dir: &File, name: &str) -> Result<Option<Observation>, WorkspaceError> {
+    let stat = match fs::statat(dir, name, AtFlags::SYMLINK_NOFOLLOW) {
+        Ok(s) => s,
+        Err(e) if e == rustix::io::Errno::NOENT => return Ok(None),
+        Err(e) => return Err(e.into()),
+    };
+    if fs::FileType::from_raw_mode(stat.st_mode) == fs::FileType::Directory {
+        let child = safe_fs::dir_at(dir, name)?;
+        if !safe_fs::names(&child)?.is_empty() {
+            return Err(conflict(name, "staged directory is not empty"));
+        }
+        Ok(Some(Observation::Directory {
+            identity: DirectoryIdentity::of(&child.metadata()?),
+            opaque: false,
+        }))
+    } else {
+        let file = safe_fs::read_at(dir, name, name)?
+            .ok_or_else(|| conflict(name, "artifact disappeared"))?;
+        Ok(Some(Observation::File {
+            identity: FileIdentity::from(&file.identity),
+            digest: content_hash(&file.bytes),
+            executable: file.executable,
+        }))
+    }
+}
+// macOS fsync alone can leave acknowledged bytes in a drive's volatile
+// cache. The existing rustix primitive requests its hardware flush barrier.
+fn durable_file_sync(file: &File) -> Result<(), WorkspaceError> {
+    file.sync_all()?;
+    #[cfg(target_vendor = "apple")]
+    fs::fcntl_fullfsync(file)?;
+    Ok(())
+}
+fn private_write(dir: &File, name: &str, bytes: &[u8]) -> Result<(), WorkspaceError> {
+    let mut file = File::from(fs::openat(
+        dir,
+        name,
+        OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+        Mode::from_raw_mode(0o600),
+    )?);
+    file.write_all(bytes)?;
+    durable_file_sync(&file)?;
+    dir.sync_all()?;
+    Ok(())
+}
+fn atomic_private_write(dir: &File, name: &str, bytes: &[u8]) -> Result<(), WorkspaceError> {
+    let temporary = format!("{name}.tmp");
+    match fs::unlinkat(dir, &temporary, AtFlags::empty()) {
+        Ok(()) => {}
+        Err(error) if error == rustix::io::Errno::NOENT => {}
+        Err(error) => return Err(error.into()),
+    }
+    private_write(dir, &temporary, bytes)?;
+    safe_fs::rename_new(dir, &temporary, dir, name)?;
+    let file = File::from(fs::openat(
+        dir,
+        name,
+        OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+        Mode::empty(),
+    )?);
+    durable_file_sync(&file)
+}
+fn read_private(dir: &File, name: &str) -> Result<Vec<u8>, WorkspaceError> {
+    let mut file = File::from(fs::openat(
+        dir,
+        name,
+        OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+        Mode::empty(),
+    )?);
+    let before = file.metadata()?;
+    if !before.is_file() || before.nlink() != 1 || before.mode() & 0o777 != 0o600 {
+        return Err(invalid("unsafe recovery metadata file"));
+    }
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)?;
+    if FileIdentity::of(&before) != FileIdentity::of(&file.metadata()?) {
+        return Err(invalid("recovery metadata changed while reading"));
+    }
+    Ok(bytes)
+}
+fn file_matches(observation: &Observation, value: &FileValue) -> bool {
+    matches!(observation,Observation::File{digest,executable,..} if *digest==content_hash(&value.bytes)&&*executable==value.executable)
+}
+fn validate_plan(plan: &UpdatePlan, before: &Inventory) -> Result<(), WorkspaceError> {
+    let mut resulting: BTreeMap<String, (BlobHash, bool)> = before
+        .iter()
+        .filter_map(|(path, observation)| match observation {
+            Observation::File {
+                digest, executable, ..
+            } => Some((path.clone(), (*digest, *executable))),
+            _ => None,
+        })
+        .collect();
+    let mut seen = BTreeSet::new();
+    for change in &plan.changes {
+        check_path(&change.path)?;
+        if change.path.split('/').any(|component| {
+            let lower = component.to_ascii_lowercase();
+            lower == ".locust"
+                || lower.starts_with(".locust-workspace-")
+                || lower.starts_with(".locust-recovery-")
+        }) {
+            return Err(invalid("transition names private workspace metadata"));
+        }
+        if !seen.insert(&change.path) {
+            return Err(invalid("duplicate transition path"));
+        }
+        match (&change.before, before.get(&change.path)) {
+            (Some(value), Some(observation)) if file_matches(observation, value) => {}
+            (None, None) | (None, Some(Observation::Directory { opaque: false, .. })) => {}
+            _ => {
+                return Err(conflict(
+                    &change.path,
+                    "planned preimage does not match the actual local file",
+                ));
+            }
+        }
+        if let Some(after) = &change.after {
+            resulting.insert(
+                change.path.clone(),
+                (content_hash(&after.bytes), after.executable),
+            );
+        } else {
+            resulting.remove(&change.path);
+        }
+    }
+    let final_files: BTreeMap<_, _> = plan
+        .final_files
+        .iter()
+        .map(|(path, value)| (path.clone(), (content_hash(&value.bytes), value.executable)))
+        .collect();
+    if resulting != final_files {
+        return Err(invalid(
+            "update plan omits or changes preserved local files",
+        ));
+    }
+    for path in final_files.keys() {
+        if !locust_proto::manifest::is_safe_path(path) {
+            return Err(invalid("unsafe final layout path"));
+        }
+        for (other, observation) in before {
+            if matches!(observation, Observation::Directory { opaque: true, .. })
+                && (path == other || path.starts_with(&format!("{other}/")))
+            {
+                return Err(conflict(path, "protected directory collision"));
+            }
+        }
+        for parent in ancestors(path) {
+            if final_files.contains_key(&parent) {
+                return Err(conflict(path, "file/directory prefix collision"));
+            }
+        }
+    }
+    Ok(())
+}
+fn ancestors(path: &str) -> Vec<String> {
+    path.match_indices('/')
+        .map(|(index, _)| path[..index].to_owned())
+        .collect()
+}
+
+/// Freeze and durably stage an already-composed transition without changing any
+/// checkout file. `managed_roots` must include every locally bound checkout.
+pub fn prepare_update(
+    root: &Path,
+    managed_roots: &[PathBuf],
+    update: &UpdatePlan,
+) -> Result<PreparedUpdate, WorkspaceError> {
+    let root_path = canonical(root)?;
+    let root = safe_fs::root(&root_path)?;
+    lock(&root)?;
+    let before = inventory(&root)?;
+    validate_plan(update, &before)?;
+    let parent_path = root_path
+        .parent()
+        .ok_or_else(|| invalid("filesystem root has no recovery sibling"))?;
+    let parent = absolute_directory(parent_path)?;
+    if parent.metadata()?.dev() != root.metadata()?.dev() {
+        return Err(invalid(
+            "checkout mount root has no sibling on its filesystem",
+        ));
+    }
+    // Detect ancestor bindings before even creating a private directory.
+    for managed in managed_roots {
+        let managed = canonical(managed)?;
+        if parent_path.starts_with(&managed) {
+            return Err(invalid(
+                "checkout's sibling recovery area lies inside a managed root",
+            ));
+        }
+    }
+    let root_identity = DirectoryIdentity::of(&root.metadata()?);
+    let prefix = format!(
+        ".locust-recovery-{}-{}-",
+        root_identity.device, root_identity.inode
+    );
+    for name in safe_fs::names(&parent)? {
+        if !name.starts_with(&prefix) {
+            continue;
+        }
+        let prior = safe_fs::dir_at(&parent, &name)?;
+        let completion = read_private(&prior, "completed.json")
+            .and_then(|bytes| decode::<UpdateDescriptor>(&bytes));
+        match completion {
+            Ok(done)
+                if done.root_identity == root_identity
+                    && done.root == root_path
+                    && done.recovery_directory == parent_path.join(&name)
+                    && done.recovery_identity == DirectoryIdentity::of(&prior.metadata()?) => {}
+            _ => {
+                return Err(WorkspaceError::RecoveryRequired {
+                    path: parent_path.join(name),
+                    reason: "an earlier same-root operation is incomplete or unknown".into(),
+                });
+            }
+        }
+    }
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let name = loop {
+        let name = format!(
+            "{prefix}{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        );
+        match fs::mkdirat(&parent, &name, Mode::from_raw_mode(0o700)) {
+            Ok(()) => break name,
+            Err(e) if e == rustix::io::Errno::EXIST => continue,
+            Err(e) => return Err(e.into()),
+        }
+    };
+    parent.sync_all()?;
+    let recovery = safe_fs::dir_at(&parent, &name)?;
+    let mut descriptor = UpdateDescriptor {
+        root: root_path.clone(),
+        root_identity: DirectoryIdentity::of(&root.metadata()?),
+        recovery_directory: parent_path.join(&name),
+        recovery_identity: DirectoryIdentity::of(&recovery.metadata()?),
+        plan_digest: BlobHash([0; 32]),
+    };
+    validate_placement(&descriptor, managed_roots)?;
+    let result = (|| {
+        let mut steps = Vec::new();
+        for (index, change) in update.changes.iter().enumerate() {
+            if let Some(original) = &change.before {
+                private_write(&recovery, &format!("original-{index}"), &original.bytes)?;
+                steps.push(Step::RemoveFile {
+                    path: change.path.clone(),
+                    artifact: format!("moved-{index}"),
+                    expected: before[&change.path].clone(),
+                });
+            }
+            if let Some(after) = &change.after {
+                private_write(&recovery, &format!("replacement-{index}"), &after.bytes)?;
+                safe_fs::write_new(
+                    &recovery,
+                    &format!("new-{index}"),
+                    &after.bytes,
+                    after.executable,
+                )?;
+            }
+        }
+        let mut removed_dirs: Vec<_> = before
+            .iter()
+            .filter_map(|(path, observation)| {
+                matches!(observation, Observation::Directory { opaque: false, .. }).then_some(path)
+            })
+            .filter(|path| {
+                update
+                    .final_files
+                    .keys()
+                    .any(|file| *path == file || path.starts_with(&format!("{file}/")))
+            })
+            .cloned()
+            .collect();
+        removed_dirs.sort_by_key(|path| std::cmp::Reverse(path.len()));
+        for (index, path) in removed_dirs.into_iter().enumerate() {
+            steps.push(Step::RemoveDirectory {
+                expected: before[&path].clone(),
+                path,
+                artifact: format!("removed-directory-{index}"),
+            });
+        }
+        let final_dirs: BTreeSet<_> = update
+            .final_files
+            .keys()
+            .flat_map(|path| ancestors(path))
+            .collect();
+        for (index, path) in final_dirs.into_iter().enumerate() {
+            if matches!(before.get(&path), Some(Observation::Directory { .. })) {
+                continue;
+            }
+            let artifact = format!("directory-{index}");
+            fs::mkdirat(&recovery, &artifact, Mode::from_raw_mode(0o755))?;
+            recovery.sync_all()?;
+            let expected = observe_at(&recovery, &artifact)?.unwrap();
+            steps.push(Step::Install {
+                path,
+                artifact,
+                expected,
+            });
+        }
+        for (index, change) in update.changes.iter().enumerate() {
+            if change.after.is_some() {
+                let artifact = format!("new-{index}");
+                let expected = observe_at(&recovery, &artifact)?.unwrap();
+                steps.push(Step::Install {
+                    path: change.path.clone(),
+                    artifact,
+                    expected,
+                });
+            }
+        }
+        // Probe the whole resulting layout, including preserved untracked files,
+        // using this filesystem's case/Unicode comparison rules.
+        fs::mkdirat(&recovery, "layout", Mode::from_raw_mode(0o700))?;
+        let layout = safe_fs::dir_at(&recovery, "layout")?;
+        for path in update.final_files.keys() {
+            let (parent, leaf) = layout_parent(&layout, path, true)?;
+            safe_fs::write_new(&parent, &leaf, &[], false)?;
+        }
+        for path in &update.final_directories {
+            if update.final_files.contains_key(path) {
+                return Err(conflict(path, "preserved directory collides with a file"));
+            }
+            let _directory = layout_directory(&layout, path)?;
+        }
+        let plan = DurablePlan {
+            version: 1,
+            root: root_path,
+            root_identity: descriptor.root_identity.clone(),
+            update: update.clone(),
+            before,
+            steps,
+        };
+        let bytes = json(&plan)?;
+        descriptor.plan_digest = content_hash(&bytes);
+        private_write(&recovery, "plan.json", &bytes)?;
+        if inventory(&root)? != plan.before {
+            return Err(conflict(
+                "checkout",
+                "local layout or files changed during preparation",
+            ));
+        }
+        Ok(PreparedUpdate {
+            descriptor: descriptor.clone(),
+            root,
+            recovery,
+            plan,
+        })
+    })();
+    result.map_err(|error: WorkspaceError| WorkspaceError::RecoveryRequired {
+        path: descriptor.recovery_directory,
+        reason: error.to_string(),
+    })
+}
+// Inventory and probe code may inspect preserved private paths, but mutations
+// themselves always use checked TreeChange paths and safe_fs::parent.
+fn layout_parent(root: &File, path: &str, create: bool) -> Result<(File, String), WorkspaceError> {
+    let mut directory = root.try_clone()?;
+    let mut parts = path.split('/').peekable();
+    while let Some(part) = parts.next() {
+        if parts.peek().is_none() {
+            return Ok((directory, part.into()));
+        }
+        if create {
+            match fs::mkdirat(&directory, part, Mode::from_raw_mode(0o755)) {
+                Ok(()) => directory.sync_all()?,
+                Err(e) if e == rustix::io::Errno::EXIST => {}
+                Err(e) => return Err(e.into()),
+            }
+        }
+        directory = safe_fs::dir_at(&directory, part)?;
+    }
+    Err(invalid("empty layout path"))
+}
+fn layout_directory(root: &File, path: &str) -> Result<File, WorkspaceError> {
+    if !locust_proto::manifest::is_safe_path(path) {
+        return Err(invalid("unsafe layout directory"));
+    }
+    let (parent, leaf) = layout_parent(root, path, true)?;
+    match fs::mkdirat(&parent, &leaf, Mode::from_raw_mode(0o755)) {
+        Ok(()) => parent.sync_all()?,
+        Err(e) if e == rustix::io::Errno::EXIST => {}
+        Err(e) => return Err(e.into()),
+    };
+    safe_fs::dir_at(&parent, &leaf)
+}
+
+pub fn reopen_update(
+    descriptor: &UpdateDescriptor,
+    managed_roots: &[PathBuf],
+) -> Result<PreparedUpdate, WorkspaceError> {
+    validate_placement(descriptor, managed_roots)?;
+    let root = absolute_directory(&descriptor.root)?;
+    lock(&root)?;
+    let recovery = absolute_directory(&descriptor.recovery_directory)?;
+    let bytes = read_private(&recovery, "plan.json")?;
+    if content_hash(&bytes) != descriptor.plan_digest {
+        return Err(invalid(
+            "recovery plan digest differs from the registered operation",
+        ));
+    }
+    let plan: DurablePlan = decode(&bytes)?;
+    if plan.version != 1
+        || plan.root != descriptor.root
+        || plan.root_identity != descriptor.root_identity
+    {
+        return Err(invalid("recovery plan does not match checkout identity"));
+    }
+    validate_plan(&plan.update, &plan.before)?;
+    Ok(PreparedUpdate {
+        descriptor: descriptor.clone(),
+        root,
+        recovery,
+        plan,
+    })
+}
+
+/// Reconcile a filesystem completion marker after the caller has read an exact
+/// durable Completed receipt from the daemon. No checkout content is scanned:
+/// subsequent user edits belong to the new base and cannot revoke that receipt.
+/// Failure to mark is optional bookkeeping, never failure of the durable receipt.
+pub fn mark_update_completed(descriptor: &UpdateDescriptor) -> Result<(), WorkspaceError> {
+    let prepared = reopen_update(descriptor, &[])?;
+    if decode::<UpdateDescriptor>(&read_private(&prepared.recovery, "authorized.json")?)?
+        != *descriptor
+    {
+        return Err(invalid("operation authorization identity changed"));
+    }
+    let phases = prepared.phases()?;
+    if phases.len() != prepared.plan.steps.len() * 2 {
+        return Err(invalid(
+            "completion receipt names an unfinished filesystem journal",
+        ));
+    }
+    for (step, pair) in phases.chunks_exact(2).enumerate() {
+        match (&pair[0], &pair[1]) {
+            (
+                Phase::Intent { step: intended },
+                Phase::Done {
+                    step: done,
+                    observed,
+                },
+            ) if *intended == step && *done == step => {
+                if !prepared.step_result(&prepared.plan.steps[step], observed.as_ref())? {
+                    return Err(invalid("completed recovery artifact identity changed"));
+                }
+            }
+            _ => return Err(invalid("invalid completed journal transition")),
+        }
+    }
+    prepared.write_completed_marker(descriptor)
+}
+
+impl PreparedUpdate {
+    pub fn descriptor(&self) -> &UpdateDescriptor {
+        &self.descriptor
+    }
+    fn validate_identity(&self) -> Result<(), WorkspaceError> {
+        validate_placement(&self.descriptor, &[])
+    }
+    fn phases(&self) -> Result<Vec<Phase>, WorkspaceError> {
+        let names = safe_fs::names(&self.recovery)?;
+        let mut numbered: Vec<_> = names
+            .iter()
+            .filter_map(|name| {
+                if name
+                    .strip_prefix("phase-")
+                    .and_then(|suffix| suffix.strip_suffix(".tmp"))
+                    .is_some_and(|suffix| suffix.parse::<usize>().is_ok())
+                {
+                    return None;
+                }
+                name.strip_prefix("phase-")
+                    .map(|suffix| (name, suffix.parse::<usize>()))
+            })
+            .collect();
+        numbered.sort_by_key(|(_, index)| index.as_ref().copied().unwrap_or(usize::MAX));
+        let mut result = Vec::new();
+        for (expected, (name, index)) in numbered.into_iter().enumerate() {
+            if index != Ok(expected) {
+                return Err(invalid("non-contiguous or malformed recovery journal"));
+            }
+            result.push(decode(&read_private(&self.recovery, name)?)?);
+        }
+        Ok(result)
+    }
+    fn phase(&self, number: usize, phase: &Phase) -> Result<(), WorkspaceError> {
+        atomic_private_write(&self.recovery, &format!("phase-{number}"), &json(phase)?)
+    }
+    fn authorization(&self, registered: &UpdateDescriptor) -> Result<(), WorkspaceError> {
+        if registered != &self.descriptor {
+            return Err(invalid(
+                "registered operation descriptor differs from the prepared update",
+            ));
+        }
+        self.validate_identity()?;
+        match read_private(&self.recovery, "authorized.json") {
+            Ok(bytes) => {
+                if decode::<UpdateDescriptor>(&bytes)? != self.descriptor {
+                    return Err(invalid("operation authorization identity changed"));
+                }
+                Ok(())
+            }
+            Err(WorkspaceError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+                atomic_private_write(&self.recovery, "authorized.json", &json(registered)?)
+            }
+            Err(error) => Err(error),
+        }
+    }
+    /// Caller assertion: `registered` was durably persisted together with the
+    /// expected binding and target before this method. Files never execute.
+    pub fn execute(
+        &mut self,
+        registered: &UpdateDescriptor,
+    ) -> Result<UpdateReport, WorkspaceError> {
+        self.execute_inner(registered)
+            .map_err(|error| WorkspaceError::RecoveryRequired {
+                path: self.descriptor.recovery_directory.clone(),
+                reason: error.to_string(),
+            })
+    }
+    fn execute_inner(
+        &mut self,
+        registered: &UpdateDescriptor,
+    ) -> Result<UpdateReport, WorkspaceError> {
+        self.authorization(registered)?;
+        if content_hash(&read_private(&self.recovery, "plan.json")?) != self.descriptor.plan_digest
+        {
+            return Err(invalid("durable plan identity changed"));
+        }
+        for (index, change) in self.plan.update.changes.iter().enumerate() {
+            for (prefix, value) in [("original", &change.before), ("replacement", &change.after)] {
+                if let Some(value) = value
+                    && read_private(&self.recovery, &format!("{prefix}-{index}"))? != value.bytes
+                {
+                    return Err(conflict(&change.path, "durable recovery copy changed"));
+                }
+            }
+        }
+        let phases = self.phases()?;
+        let mut expected = self.plan.before.clone();
+        let mut completed = 0;
+        let mut intended = false;
+        for phase in &phases {
+            match phase {
+                Phase::Intent { step }
+                    if *step == completed && !intended && *step < self.plan.steps.len() =>
+                {
+                    intended = true
+                }
+                Phase::Done { step, observed } if *step == completed && intended => {
+                    let planned_step = self
+                        .plan
+                        .steps
+                        .get(*step)
+                        .ok_or_else(|| invalid("journal step outside plan"))?;
+                    if !self.step_result(planned_step, observed.as_ref())? {
+                        return Err(invalid(
+                            "completed journal step or its recovery artifact changed",
+                        ));
+                    }
+                    let path = planned_step.path();
+                    if let Some(observation) = observed {
+                        expected.insert(path.into(), observation.clone());
+                    } else {
+                        expected.remove(path);
+                    }
+                    completed += 1;
+                    intended = false;
+                }
+                _ => return Err(invalid("invalid write-ahead journal transition")),
+            }
+        }
+        let mut next_phase = phases.len();
+        for index in completed..self.plan.steps.len() {
+            self.validate_identity()?;
+            let step = &self.plan.steps[index];
+            let current = inventory(&self.root)?;
+            let mut after = current.clone();
+            let path = step.path();
+            let recovered = if intended {
+                self.reconcile_step(step, &expected, &current)?
+            } else {
+                false
+            };
+            if !recovered {
+                if current != expected {
+                    return Err(conflict(
+                        path,
+                        "layout or preimage changed outside this operation",
+                    ));
+                }
+                if !intended {
+                    self.phase(next_phase, &Phase::Intent { step: index })?;
+                    next_phase += 1;
+                }
+                // Validate immediately before destructive filesystem operations.
+                if inventory(&self.root)? != expected {
+                    return Err(conflict(path, "checkout changed after write-ahead intent"));
+                }
+                self.perform(step, &expected)?;
+                after = inventory(&self.root)?;
+            }
+            let observed = after.get(path).cloned();
+            let mut wanted = expected.clone();
+            if let Some(value) = &observed {
+                wanted.insert(path.into(), value.clone());
+            } else {
+                wanted.remove(path);
+            }
+            if after != wanted || !self.step_result(step, observed.as_ref())? {
+                return Err(conflict(
+                    path,
+                    "external interference during mutation; moved originals retained",
+                ));
+            }
+            self.phase(
+                next_phase,
+                &Phase::Done {
+                    step: index,
+                    observed,
+                },
+            )?;
+            next_phase += 1;
+            expected = after;
+            intended = false;
+        }
+        if inventory(&self.root)? != expected {
+            return Err(conflict("checkout", "files changed after application"));
+        }
+        let final_files: BTreeMap<_, _> = expected
+            .iter()
+            .filter_map(|(path, observation)| match observation {
+                Observation::File {
+                    digest, executable, ..
+                } => Some((path.clone(), (*digest, *executable))),
+                _ => None,
+            })
+            .collect();
+        let wanted: BTreeMap<_, _> = self
+            .plan
+            .update
+            .final_files
+            .iter()
+            .map(|(path, value)| (path.clone(), (content_hash(&value.bytes), value.executable)))
+            .collect();
+        if final_files != wanted {
+            return Err(conflict(
+                "checkout",
+                "mixed final result differs from prepared plan",
+            ));
+        }
+        Ok(UpdateReport {
+            descriptor: self.descriptor.clone(),
+            applied_paths: self
+                .plan
+                .update
+                .changes
+                .iter()
+                .map(|change| change.path.clone())
+                .collect(),
+            adopted_paths: self.plan.update.adopted_paths.clone(),
+            dirty_paths: self.plan.update.dirty_paths.clone(),
+        })
+    }
+    fn reconcile_step(
+        &self,
+        step: &Step,
+        expected: &Inventory,
+        current: &Inventory,
+    ) -> Result<bool, WorkspaceError> {
+        if current == expected {
+            match step {
+                Step::RemoveFile { artifact, .. } | Step::RemoveDirectory { artifact, .. }
+                    if observe_at(&self.recovery, artifact)?.is_some() =>
+                {
+                    return Err(conflict(
+                        step.path(),
+                        "original and recovery positions are ambiguous",
+                    ));
+                }
+                Step::Install {
+                    artifact, expected, ..
+                } if !observe_at(&self.recovery, artifact)?
+                    .is_some_and(|actual| actual == *expected) =>
+                {
+                    return Err(conflict(step.path(), "staged replacement identity changed"));
+                }
+                _ => {}
+            }
+            return Ok(false);
+        }
+        let observed = current.get(step.path());
+        let mut wanted = expected.clone();
+        if let Some(value) = observed {
+            wanted.insert(step.path().into(), value.clone());
+        } else {
+            wanted.remove(step.path());
+        }
+        if *current != wanted || !self.step_result(step, observed)? {
+            return Err(conflict(
+                step.path(),
+                "interrupted operation has unknown or externally changed state",
+            ));
+        }
+        Ok(true)
+    }
+    fn step_result(
+        &self,
+        step: &Step,
+        observed: Option<&Observation>,
+    ) -> Result<bool, WorkspaceError> {
+        Ok(match step {
+            Step::RemoveFile {
+                artifact, expected, ..
+            } => {
+                observed.is_none()
+                    && observe_at(&self.recovery, artifact)?
+                        .is_some_and(|actual| expected.renamed_matches(&actual))
+            }
+            Step::RemoveDirectory {
+                artifact, expected, ..
+            } => {
+                observed.is_none()
+                    && observe_at(&self.recovery, artifact)?
+                        .is_some_and(|actual| expected.renamed_matches(&actual))
+            }
+            Step::Install {
+                artifact, expected, ..
+            } => {
+                observe_at(&self.recovery, artifact)?.is_none()
+                    && observed.is_some_and(|actual| expected.renamed_matches(actual))
+            }
+        })
+    }
+    fn perform(&self, step: &Step, inventory: &Inventory) -> Result<(), WorkspaceError> {
+        let mut parent = self.root.try_clone()?;
+        for path in ancestors(step.path()) {
+            let name = path.rsplit('/').next().unwrap();
+            parent = safe_fs::dir_at(&parent, name)?;
+            if !matches!(inventory.get(&path), Some(Observation::Directory {identity, opaque:false})
+                if *identity == DirectoryIdentity::of(&parent.metadata()?))
+            {
+                return Err(conflict(&path, "ancestor identity changed before mutation"));
+            }
+        }
+        let leaf = step.path().rsplit('/').next().unwrap().to_owned();
+        match step {
+            Step::RemoveFile {
+                artifact, expected, ..
+            } => {
+                if !observe_at(&parent, &leaf)?.is_some_and(|current| current == *expected) {
+                    return Err(conflict(
+                        step.path(),
+                        "file identity changed before removal",
+                    ));
+                }
+                safe_fs::rename_new(&parent, &leaf, &self.recovery, artifact)
+            }
+            Step::RemoveDirectory {
+                artifact, expected, ..
+            } => {
+                if !observe_at(&parent, &leaf)?.is_some_and(|current| current == *expected) {
+                    return Err(conflict(
+                        step.path(),
+                        "directory identity changed before removal",
+                    ));
+                }
+                // Moving preserves the removed inode for post-syscall identity
+                // validation and restart; external replacement is never erased.
+                safe_fs::rename_new(&parent, &leaf, &self.recovery, artifact)
+            }
+            Step::Install {
+                artifact, expected, ..
+            } => {
+                if !observe_at(&self.recovery, artifact)?
+                    .is_some_and(|current| current == *expected)
+                {
+                    return Err(conflict(
+                        step.path(),
+                        "staged identity changed before installation",
+                    ));
+                }
+                safe_fs::rename_new(&self.recovery, artifact, &parent, &leaf)
+            }
+        }
+    }
+    /// Call only after the daemon atomically committed the updated binding and
+    /// completed operation with this exact descriptor; artifacts stay retained.
+    pub fn mark_completed(&mut self, registered: &UpdateDescriptor) -> Result<(), WorkspaceError> {
+        self.execute(registered)?;
+        self.write_completed_marker(registered)
+    }
+    fn write_completed_marker(&self, registered: &UpdateDescriptor) -> Result<(), WorkspaceError> {
+        match read_private(&self.recovery, "completed.json") {
+            Ok(bytes) if decode::<UpdateDescriptor>(&bytes)? == self.descriptor => Ok(()),
+            Ok(_) => Err(invalid("completion identity changed")),
+            Err(WorkspaceError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+                atomic_private_write(&self.recovery, "completed.json", &json(registered)?)
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::TreeChange;
+    use std::os::unix::fs::{PermissionsExt, symlink};
+
+    fn value(text: &str) -> FileValue {
+        FileValue {
+            bytes: text.as_bytes().to_vec(),
+            executable: false,
+        }
+    }
+    fn fixture() -> (tempfile::TempDir, PathBuf, UpdatePlan) {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("checkout");
+        std::fs::create_dir(&root).unwrap();
+        let root = std::fs::canonicalize(root).unwrap();
+        std::fs::create_dir(root.join("folder")).unwrap();
+        std::fs::create_dir(root.join("empty")).unwrap();
+        let originals: BTreeMap<_, _> = [
+            ("plain", "old"),
+            ("gone", "delete"),
+            ("parent", "file"),
+            ("folder/a", "descendant"),
+            ("keep", "dirty"),
+            ("untracked", "local"),
+        ]
+        .into_iter()
+        .map(|(path, text)| (path.to_owned(), value(text)))
+        .collect();
+        for (path, file) in &originals {
+            std::fs::write(root.join(path), &file.bytes).unwrap();
+        }
+        let finals: BTreeMap<_, _> = [
+            ("plain", "new"),
+            ("parent/child", "child"),
+            ("folder", "replacement"),
+            ("keep", "dirty"),
+            ("untracked", "local"),
+        ]
+        .into_iter()
+        .map(|(path, text)| (path.to_owned(), value(text)))
+        .collect();
+        let changes: BTreeSet<_> = originals.keys().chain(finals.keys()).cloned().collect();
+        let changes = changes
+            .into_iter()
+            .filter(|path| originals.get(path) != finals.get(path))
+            .map(|path| TreeChange {
+                before: originals.get(&path).cloned(),
+                after: finals.get(&path).cloned(),
+                path,
+            })
+            .collect();
+        let plan = UpdatePlan {
+            changes,
+            adopted_paths: vec!["untracked".into()],
+            dirty_paths: vec!["keep".into()],
+            untracked_paths: vec!["untracked".into()],
+            final_files: finals,
+            final_directories: vec!["empty".into()],
+        };
+        (temporary, root, plan)
+    }
+    fn assert_final(root: &Path, plan: &UpdatePlan) {
+        for (path, value) in &plan.final_files {
+            assert_eq!(std::fs::read(root.join(path)).unwrap(), value.bytes);
+        }
+        assert!(!root.join("gone").exists());
+        assert!(!root.join("folder/a").exists());
+        assert!(root.join("empty").is_dir());
+    }
+    #[test]
+    fn stages_outside_checkout_and_verifies_mixed_result_before_completion() {
+        let (_temp, root, plan) = fixture();
+        let mut prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let descriptor = prepared.descriptor().clone();
+        assert_eq!(std::fs::read(root.join("plain")).unwrap(), b"old");
+        assert_eq!(
+            descriptor.root.parent(),
+            descriptor.recovery_directory.parent()
+        );
+        assert!(!descriptor.recovery_directory.starts_with(&root));
+        assert_eq!(
+            std::fs::metadata(&descriptor.recovery_directory)
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
+        assert_eq!(
+            std::fs::metadata(descriptor.recovery_directory.join("plan.json"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600
+        );
+        let report = prepared.execute(&descriptor).unwrap();
+        assert_eq!(report.dirty_paths, vec!["keep"]);
+        assert_eq!(report.adopted_paths, vec!["untracked"]);
+        assert_final(&root, &plan);
+        assert!(
+            !descriptor
+                .recovery_directory
+                .join("completed.json")
+                .exists()
+        );
+        drop(prepared);
+        let mut reopened = reopen_update(&descriptor, std::slice::from_ref(&root)).unwrap();
+        reopened.execute(&descriptor).unwrap();
+        reopened.mark_completed(&descriptor).unwrap();
+        reopened.mark_completed(&descriptor).unwrap();
+        assert!(
+            descriptor
+                .recovery_directory
+                .join("completed.json")
+                .exists()
+        );
+        assert_eq!(
+            std::fs::read(descriptor.recovery_directory.join("original-1")).unwrap(),
+            b"descendant"
+        );
+        drop(reopened);
+        let same = UpdatePlan {
+            changes: vec![],
+            adopted_paths: vec![],
+            dirty_paths: vec!["keep".into()],
+            untracked_paths: vec![],
+            final_files: plan.final_files.clone(),
+            final_directories: vec!["empty".into(), "parent".into()],
+        };
+        prepare_update(&root, std::slice::from_ref(&root), &same).unwrap();
+    }
+    #[test]
+    fn committed_receipt_marker_does_not_revalidate_subsequent_user_edits() {
+        let (_temp, root, plan) = fixture();
+        let mut prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let descriptor = prepared.descriptor().clone();
+        assert!(mark_update_completed(&descriptor).is_err());
+        prepared.execute(&descriptor).unwrap();
+        drop(prepared);
+        std::fs::write(root.join("plain"), b"user edits after daemon completion").unwrap();
+        symlink("plain", root.join("user-symlink")).unwrap();
+        mark_update_completed(&descriptor).unwrap();
+        mark_update_completed(&descriptor).unwrap();
+        assert_eq!(
+            std::fs::read(root.join("plain")).unwrap(),
+            b"user edits after daemon completion"
+        );
+        assert!(root.join("user-symlink").is_symlink());
+        let mut mismatched = descriptor.clone();
+        mismatched.plan_digest = BlobHash([0; 32]);
+        assert!(mark_update_completed(&mismatched).is_err());
+    }
+    #[test]
+    fn resumes_every_write_ahead_boundary_including_directory_transitions() {
+        for mutate in [false, true] {
+            let step_count = {
+                let (_temp, root, plan) = fixture();
+                prepare_update(&root, std::slice::from_ref(&root), &plan)
+                    .unwrap()
+                    .plan
+                    .steps
+                    .len()
+            };
+            for stop in 0..step_count {
+                let (_temp, root, plan) = fixture();
+                let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+                let descriptor = prepared.descriptor().clone();
+                prepared.authorization(&descriptor).unwrap();
+                let mut expected = prepared.plan.before.clone();
+                for index in 0..=stop {
+                    prepared
+                        .phase(index * 2, &Phase::Intent { step: index })
+                        .unwrap();
+                    if index < stop || mutate {
+                        prepared
+                            .perform(&prepared.plan.steps[index], &expected)
+                            .unwrap();
+                        let current = inventory(&prepared.root).unwrap();
+                        if index < stop {
+                            prepared
+                                .phase(
+                                    index * 2 + 1,
+                                    &Phase::Done {
+                                        step: index,
+                                        observed: current
+                                            .get(prepared.plan.steps[index].path())
+                                            .cloned(),
+                                    },
+                                )
+                                .unwrap();
+                        }
+                        expected = current;
+                    }
+                }
+                drop(prepared);
+                let mut reopened = reopen_update(&descriptor, std::slice::from_ref(&root)).unwrap();
+                reopened
+                    .execute(&descriptor)
+                    .unwrap_or_else(|error| panic!("boundary {stop}, mutated {mutate}: {error}"));
+                assert_final(&root, &plan);
+            }
+        }
+    }
+    #[test]
+    fn interrupted_journal_temp_is_not_a_committed_phase() {
+        let (_temp, root, plan) = fixture();
+        let mut prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        private_write(&prepared.recovery, "phase-0.tmp", b"partial").unwrap();
+        let descriptor = prepared.descriptor().clone();
+        prepared.execute(&descriptor).unwrap();
+        assert_final(&root, &plan);
+    }
+    #[test]
+    fn external_change_or_unknown_journal_never_authorizes_mutation() {
+        for corrupt_journal in [false, true] {
+            let (_temp, root, plan) = fixture();
+            let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+            let descriptor = prepared.descriptor().clone();
+            if corrupt_journal {
+                private_write(&prepared.recovery, "phase-0", b"partial").unwrap();
+            } else {
+                std::fs::write(root.join("untracked"), b"external").unwrap();
+            }
+            drop(prepared);
+            let mut reopened = reopen_update(&descriptor, std::slice::from_ref(&root)).unwrap();
+            assert!(reopened.execute(&descriptor).is_err());
+            assert_eq!(std::fs::read(root.join("plain")).unwrap(), b"old");
+            assert_eq!(std::fs::read(root.join("folder/a")).unwrap(), b"descendant");
+        }
+    }
+    #[test]
+    fn external_writer_after_removal_preserves_both_writer_and_original() {
+        let (_temp, root, plan) = fixture();
+        let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let descriptor = prepared.descriptor().clone();
+        prepared.authorization(&descriptor).unwrap();
+        prepared.phase(0, &Phase::Intent { step: 0 }).unwrap();
+        prepared
+            .perform(&prepared.plan.steps[0], &prepared.plan.before)
+            .unwrap();
+        let path = prepared.plan.steps[0].path();
+        std::fs::write(root.join(path), b"external replacement").unwrap();
+        let path = path.to_owned();
+        drop(prepared);
+        let mut reopened = reopen_update(&descriptor, std::slice::from_ref(&root)).unwrap();
+        assert!(reopened.execute(&descriptor).is_err());
+        assert_eq!(
+            std::fs::read(root.join(path)).unwrap(),
+            b"external replacement"
+        );
+        assert_eq!(
+            std::fs::read(descriptor.recovery_directory.join("moved-1")).unwrap(),
+            b"descendant"
+        );
+    }
+    #[test]
+    fn rejects_overlapping_managed_roots_tampering_and_same_root_abandoned_update() {
+        let (_temp, root, plan) = fixture();
+        let parent = root.parent().unwrap().to_owned();
+        assert!(prepare_update(&root, &[parent], &plan).is_err());
+        let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let descriptor = prepared.descriptor().clone();
+        drop(prepared);
+        assert!(matches!(
+            prepare_update(&root, std::slice::from_ref(&root), &plan),
+            Err(WorkspaceError::RecoveryRequired { .. })
+        ));
+        let mut wrong = descriptor.clone();
+        wrong.plan_digest = BlobHash([7; 32]);
+        assert!(reopen_update(&wrong, std::slice::from_ref(&root)).is_err());
+        wrong = descriptor.clone();
+        wrong.root_identity.inode += 1;
+        assert!(reopen_update(&wrong, std::slice::from_ref(&root)).is_err());
+        std::fs::write(
+            descriptor.recovery_directory.join("original-1"),
+            b"changed backup",
+        )
+        .unwrap();
+        let mut reopened = reopen_update(&descriptor, std::slice::from_ref(&root)).unwrap();
+        assert!(reopened.execute(&descriptor).is_err());
+        assert_eq!(std::fs::read(root.join("plain")).unwrap(), b"old");
+    }
+    #[test]
+    fn refuses_links_and_complete_layout_file_directory_collision() {
+        let (_temp, root, mut plan) = fixture();
+        symlink("plain", root.join("link")).unwrap();
+        assert!(prepare_update(&root, std::slice::from_ref(&root), &plan).is_err());
+        std::fs::remove_file(root.join("link")).unwrap();
+        std::fs::hard_link(root.join("plain"), root.join("linked")).unwrap();
+        assert!(prepare_update(&root, std::slice::from_ref(&root), &plan).is_err());
+        std::fs::remove_file(root.join("linked")).unwrap();
+        plan.final_directories.push("folder".into());
+        assert!(prepare_update(&root, std::slice::from_ref(&root), &plan).is_err());
+        assert!(root.join("folder/a").is_file());
+    }
+    #[test]
+    fn lock_child() {
+        if let Some(root) = std::env::var_os("LOCUST_TEST_LOCK_ROOT") {
+            let root = absolute_directory(Path::new(&root)).unwrap();
+            assert!(lock(&root).is_err());
+        }
+    }
+    #[test]
+    fn checkout_inode_lock_serializes_independent_processes() {
+        let (_temp, root, plan) = fixture();
+        let _prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["transaction::tests::lock_child", "--exact", "--nocapture"])
+            .env("LOCUST_TEST_LOCK_ROOT", &root)
+            .output()
+            .unwrap();
+        assert!(
+            child.status.success(),
+            "{}",
+            String::from_utf8_lossy(&child.stderr)
+        );
+        assert!(prepare_update(&root, std::slice::from_ref(&root), &plan).is_err());
+    }
+}

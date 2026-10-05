@@ -470,3 +470,72 @@ test('a reopened way of working is still that way of working', async () => {
 		if (opened.ok) assert.equal(matchingWay(opened.document.formation), way.id, way.id);
 	}
 });
+
+test('workspace policy round-trips and role edits preserve its exact authorities', () => {
+	let document = addRole(newDocument(), 'integrator');
+	document = addRole(document, 'reviewer');
+	document.formation.workspace = {
+		integrator: { kind: 'role', name: 'integrator' },
+		completion: {
+			kind: 'reviews',
+			by: { kind: 'role', name: 'reviewer' },
+			count: 1,
+			exclude_author: true
+		}
+	};
+	const original = structuredClone(document);
+	const loaded = inspect(formationText(document.formation));
+	assert.ok(loaded.valid);
+	assert.deepEqual(loaded.normalized?.workspace, document.formation.workspace);
+	assert.deepEqual(loaded.explanation?.authority_roles, ['integrator']);
+	assert.deepEqual(loaded.explanation?.required_roles, ['integrator', 'reviewer']);
+	const renamed = renameRole(renameRole(document, 'integrator', 'merge'), 'reviewer', 'check');
+	assert.deepEqual(renamed.formation.workspace, {
+		integrator: { kind: 'role', name: 'merge' },
+		completion: {
+			kind: 'reviews',
+			by: { kind: 'role', name: 'check' },
+			count: 1,
+			exclude_author: true
+		}
+	});
+	assert.ok(valid(renamed));
+	assert.deepEqual(document, original);
+	const removed = removeRole(renamed, 'merge');
+	assert.equal(valid(removed), false);
+	assert.deepEqual(removed.formation.workspace?.integrator, { kind: 'role', name: 'merge' });
+	assert.equal(
+		inspectFormation(removed.formation).diagnostics[0].path,
+		'/workspace/integrator/name'
+	);
+	const missingReviewer = removeRole(renamed, 'check');
+	assert.equal(valid(missingReviewer), false);
+	assert.deepEqual(missingReviewer.formation.workspace?.completion, {
+		kind: 'reviews',
+		by: { kind: 'nobody' },
+		count: 1,
+		exclude_author: true
+	});
+});
+
+test('workspace selectors normalize without admitting task-relative authority', () => {
+	const document = newDocument();
+	document.formation.workspace = {
+		integrator: { kind: 'participant', key: 'AB'.repeat(32) },
+		completion: {
+			kind: 'any',
+			rules: [
+				{ kind: 'declaration', by: { kind: 'contribution_author' } },
+				{ kind: 'declaration', by: { kind: 'contribution_author' } }
+			]
+		}
+	};
+	const normalized = inspect(formationText(document.formation));
+	assert.ok(normalized.valid);
+	assert.deepEqual(normalized.normalized?.workspace, {
+		integrator: { kind: 'participant', key: 'ab'.repeat(32) },
+		completion: { kind: 'declaration', by: { kind: 'contribution_author' } }
+	});
+	document.formation.workspace.completion = { kind: 'declaration', by: { kind: 'task_creator' } };
+	assert.equal(inspectFormation(document.formation).diagnostics[0].code, 'selector_scope');
+});

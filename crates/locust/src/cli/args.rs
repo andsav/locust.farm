@@ -236,6 +236,7 @@ pub(super) fn command() -> Command {
         if api.name.starts_with("invitation.")
             || api.name.starts_with("permission.")
             || api.name.starts_with("farm.")
+            || api.name.starts_with("workspace.")
             || api.name == "inbox"
             || matches!(
                 api.name,

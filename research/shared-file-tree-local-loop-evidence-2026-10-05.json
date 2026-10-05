@@ -1,0 +1,1883 @@
+{
+  "failure_resolution": {
+    "three_daemon_fixed_harness_failure": "Observed interrupted seed resume passed. A Python request helper parameter named operation collided with the exact JSON operation field. Renamed request_name and added a regression assertion before the successful full run.",
+    "three_daemon_local_peer_link_failure": "Three memberships converged, but the preexisting independent worker-to-worker link gate timed out before workspace scenarios. The later relay-free two-daemon supported run passed its narrower scenario."
+  },
+  "harness_deadlines": "90 seconds per test wait or child command, inherited harness behavior; not daemon policy or an agent execution limit.",
+  "qualification_scope": "Private production daemon processes, SQLite stores and ordinary directories on one macOS host. Not WAN, two-host, model-driven-agent or cross-platform qualification.",
+  "reproducibility_note": "The supported two-daemon workflow is tracked in scripts/check_operations.py. The full three-daemon successful run used the same operations body before the additive workspace workflow option was added; the recorded harness fingerprints therefore differ. The final additive workspace workflow resource label was clarified to say unmeasured and its qualification label follows configured transport; successful behavior is unchanged. The final supported two-daemon campaign additionally removes Git from daemon and CLI child PATH and verifies its unavailability; earlier campaign outcomes and fingerprints remain separate.",
+  "resource_scope": "Measured RSS samples only, not peak memory, CPU or network byte qualification; no performance thresholds.",
+  "runs": [
+    {
+      "artifact_directory": "output/operations/20261005T091805Z-b2f89cb7",
+      "invocation": [
+        "python3",
+        "scripts/check_operations.py",
+        "--binary",
+        "<redacted-local-path>",
+        "--network",
+        "local",
+        "--timeout-seconds",
+        "90"
+      ],
+      "name": "three_daemon_local_peer_link_failure",
+      "redacted_fields": [
+        "summary.binary.execution_copy_path",
+        "summary.binary.path",
+        "invocation[3]"
+      ],
+      "redaction_note": "Absolute machine-local paths removed from retained copies. summary_sha256 identifies the original already-secret-redacted source summary before path redaction; outcomes, public identifiers and build fingerprints are unchanged.",
+      "summary": {
+        "architecture": "arm64",
+        "binary": {
+          "api_version": 6,
+          "embedded_commit": "98d03af6ce6a-dirty",
+          "execution_copy_path": "<redacted-local-path>",
+          "path": "<redacted-local-path>",
+          "protocol_version": 6,
+          "sha256": "386af6dc1042e93bd95dce44c860e6a437762ba4b1d28eef93e73004d340699c",
+          "version": "0.1.0",
+          "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 6 protocol 6"
+        },
+        "cases": {},
+        "checks": [
+          "M1 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "M3 daemon endpoint ready",
+          "three members converge"
+        ],
+        "events": {},
+        "failures": [
+          "workers establish their independent peer link: M2 CLI command timed out"
+        ],
+        "finished_at": "2026-10-05T09:19:38.933164+00:00",
+        "goal": "1b7d8d726091be85c1f85698acdf819b007b66f7f6dddccae6555f95275ca453",
+        "harness_sha256": "7fdc1ecb0b0f4be1d2fdda814faa4031c7988020677caa7be7caa4a7fd6aac5b",
+        "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+        "port_changes": "permitted; socket addresses are not exposed by status/route snapshots",
+        "qualification": "three production daemons on one host; synthetic operational workflows",
+        "resources": {
+          "cpu": "unmeasured",
+          "network_bytes": "unmeasured",
+          "rss_scope": "receiver paused at observed partial transfer and after completed resume; sampled, not maximum",
+          "verdict": "measurements only; no performance thresholds"
+        },
+        "route_facts": [
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.938ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "5e455f1d0b3c005843c4218902a8dca269f25ce38584c7748456c36900cd6016",
+            "phase": "startup",
+            "time": "2026-10-05T09:18:08.458147+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "941.179\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "1d48505562da1cc417cf4dda0e41a1a0a5495a5543b69c65654f9ab70cdcf12c",
+            "phase": "startup",
+            "time": "2026-10-05T09:18:08.459073+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.239375ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "5e455f1d0b3c005843c4218902a8dca269f25ce38584c7748456c36900cd6016",
+            "phase": "startup",
+            "time": "2026-10-05T09:18:08.491973+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "675.266\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "25c5bf9f6491d6de73aa90059f7118319ccb0dc30dbd98b0806a7c73d33d6d32",
+            "phase": "startup",
+            "time": "2026-10-05T09:18:08.492802+00:00"
+          }
+        ],
+        "sleep_wake": "not exercised",
+        "started_at": "2026-10-05T09:18:05.784144+00:00",
+        "status": "failed",
+        "timeout_seconds": 90.0,
+        "transport": {
+          "LOCUST_LOOKUP": "local",
+          "LOCUST_RELAY": "none",
+          "configuration": "explicit local reproduction",
+          "mode": "local"
+        }
+      },
+      "summary_sha256": "66b9da96013818cc2d89eda53ab72a3eecf19e2856d69b8ef9d4718bb81da603"
+    },
+    {
+      "artifact_directory": "output/operations/20261005T092154Z-21d47125",
+      "invocation": [
+        "python3",
+        "scripts/check_operations.py",
+        "--binary",
+        "<redacted-local-path>",
+        "--network",
+        "default",
+        "--timeout-seconds",
+        "90"
+      ],
+      "name": "three_daemon_fixed_harness_failure",
+      "redacted_fields": [
+        "summary.binary.execution_copy_path",
+        "summary.binary.path",
+        "invocation[3]"
+      ],
+      "redaction_note": "Absolute machine-local paths removed from retained copies. summary_sha256 identifies the original already-secret-redacted source summary before path redaction; outcomes, public identifiers and build fingerprints are unchanged.",
+      "summary": {
+        "architecture": "arm64",
+        "binary": {
+          "api_version": 6,
+          "embedded_commit": "98d03af6ce6a-dirty",
+          "execution_copy_path": "<redacted-local-path>",
+          "path": "<redacted-local-path>",
+          "protocol_version": 6,
+          "sha256": "0109a68d9a50df07731f09cd34caceeae5de4d105d1969819ea04174aa4ba94a",
+          "version": "0.1.0",
+          "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 6 protocol 6"
+        },
+        "cases": {
+          "conflicting_documents": {
+            "accepted": "d11edfecf9d2b065917067c393d281906f7908b92c2e6ec9530e51aa9debc2dc",
+            "retained_stale": "0e6dd4eaea292e5e72b3bc4369ebf3f0b2c8177bbfab0e928a2e6a69cb508ee5",
+            "status": "passed"
+          },
+          "snapshot_resume_retained_replica": {
+            "bytes": 12582912,
+            "git_required": false,
+            "interruption": {
+              "durable_prefix_bytes": 1048576,
+              "hash": "e7259c7e74a986d6509a5f97b3091c95b2e6071d328fe70efdb27a844752d3c8",
+              "prefix_bytes": 1048576,
+              "prefix_sha256": "5e84f2b8a426580dd1fe725c6868bd155bbf04fafdd7e005bc555305eccad5b7",
+              "rss": {
+                "checkpoint": "paused_at_partial_transfer",
+                "resident_bytes": 53624832,
+                "sampled_not_maximum": true
+              }
+            },
+            "manifest": "ddeb43b16d48a30e1bef4f39454ab924b9d4b3cde4762b817a35a317ec521c5d",
+            "original_source_offline": true,
+            "resumed_rss": {
+              "checkpoint": "snapshot_resume_complete",
+              "resident_bytes": 81051648,
+              "sampled_not_maximum": true
+            },
+            "revision": "ff42df58341030e078fa9809bc059a67151fe5b8ff51f5296135879e5b88c371",
+            "sha256": "8b54debaa89f78212f6afb00c7ebb2780f3604c4caa8c97c395576a50d5d6a6a",
+            "status": "passed"
+          }
+        },
+        "checks": [
+          "M1 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "M3 daemon endpoint ready",
+          "three members converge",
+          "workers establish their independent peer link",
+          "both document proposals arrive",
+          "M2 retains the complete accepted workspace",
+          "M2 daemon endpoint ready",
+          "M3 daemon endpoint ready",
+          "M3 retains the complete accepted workspace",
+          "M1 daemon endpoint ready",
+          "M1 retains the complete accepted workspace",
+          "worker 2 receives assignment",
+          "worker 3 receives assignment",
+          "M1 daemon endpoint ready",
+          "complete workspace proposal review after peer transfer",
+          "complete workspace proposal review after peer transfer",
+          "exact candidate declarations arrive"
+        ],
+        "events": {},
+        "failures": [
+          "Operations.api() got multiple values for argument 'operation'"
+        ],
+        "finished_at": "2026-10-05T09:23:18.848936+00:00",
+        "goal": "dd316bd8e2e1305afc1bcb3bf7fdbfb5812e040f36aa8068229a5bdeb7f18f3c",
+        "harness_sha256": "7fdc1ecb0b0f4be1d2fdda814faa4031c7988020677caa7be7caa4a7fd6aac5b",
+        "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+        "port_changes": "permitted; socket addresses are not exposed by status/route snapshots",
+        "qualification": "three production daemons on one host; synthetic operational workflows",
+        "resources": {
+          "cpu": "unmeasured",
+          "network_bytes": "unmeasured",
+          "rss_scope": "receiver paused at observed partial transfer and after completed resume; sampled, not maximum",
+          "verdict": "measurements only; no performance thresholds"
+        },
+        "route_facts": [
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.258709ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "e485056216c35c7d8301bdcb6a418a6e1f39cf13c365296eabea8ffc20de28c7",
+            "phase": "startup",
+            "time": "2026-10-05T09:21:58.941288+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "953.172\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "startup",
+            "time": "2026-10-05T09:21:58.943253+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.276041ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "e485056216c35c7d8301bdcb6a418a6e1f39cf13c365296eabea8ffc20de28c7",
+            "phase": "startup",
+            "time": "2026-10-05T09:21:59.122366+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "773.578\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "startup",
+            "time": "2026-10-05T09:21:59.123095+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "69.259083ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "startup",
+            "time": "2026-10-05T09:22:12.599600+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "63.364625ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "startup",
+            "time": "2026-10-05T09:22:12.632166+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "73.521ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "documents",
+            "time": "2026-10-05T09:22:12.706656+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "70.670875ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "documents",
+            "time": "2026-10-05T09:22:12.747330+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.459833ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "e485056216c35c7d8301bdcb6a418a6e1f39cf13c365296eabea8ffc20de28c7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:30.439045+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "921.583\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:30.439311+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "55.319917ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:33.485685+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "56.972292ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:33.513726+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "56.618584ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:33.571421+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "59.12875ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:33.603898+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "67.274292ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:36.962961+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "68.437542ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:37.006373+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "57.458166ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "e485056216c35c7d8301bdcb6a418a6e1f39cf13c365296eabea8ffc20de28c7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:44.045071+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "55.081666ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:44.074160+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "65.819834ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:44.140821+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "59.981333ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "e485056216c35c7d8301bdcb6a418a6e1f39cf13c365296eabea8ffc20de28c7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:44.167145+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "66.353458ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:45.838776+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "62.026375ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "e485056216c35c7d8301bdcb6a418a6e1f39cf13c365296eabea8ffc20de28c7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:22:45.868662+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "60.47075ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "07128697fb5ef04900a0191f3ddd43dd8f42a6866ac43563e4e7fdbf3725e91c",
+            "phase": "competing_workspace_proposals",
+            "time": "2026-10-05T09:23:01.215808+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "62.491833ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "fa039c38c123fa14f34a4a9946949410c210f8f6a98679dd1056aea084b9579c",
+            "phase": "competing_workspace_proposals",
+            "time": "2026-10-05T09:23:01.218692+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "55.563333ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "e485056216c35c7d8301bdcb6a418a6e1f39cf13c365296eabea8ffc20de28c7",
+            "phase": "competing_workspace_proposals",
+            "time": "2026-10-05T09:23:01.242212+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "60.416625ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "e485056216c35c7d8301bdcb6a418a6e1f39cf13c365296eabea8ffc20de28c7",
+            "phase": "competing_workspace_proposals",
+            "time": "2026-10-05T09:23:01.248708+00:00"
+          }
+        ],
+        "sleep_wake": "not exercised",
+        "started_at": "2026-10-05T09:21:54.988305+00:00",
+        "status": "failed",
+        "timeout_seconds": 90.0,
+        "transport": {
+          "LOCUST_LOOKUP": "all",
+          "LOCUST_RELAY": "n0",
+          "configuration": "daemon defaults; inherited overrides removed",
+          "mode": "default"
+        }
+      },
+      "summary_sha256": "ba9d2dd771f23a2b8628f631784289649d4005249bcbd44d4caa328d6a888fe0"
+    },
+    {
+      "artifact_directory": "output/operations/20261005T092455Z-60a2d2d2",
+      "invocation": [
+        "python3",
+        "scripts/check_operations.py",
+        "--binary",
+        "<redacted-local-path>",
+        "--network",
+        "default",
+        "--timeout-seconds",
+        "90"
+      ],
+      "name": "three_daemon_default_operations_pass",
+      "redacted_fields": [
+        "summary.binary.execution_copy_path",
+        "summary.binary.path",
+        "invocation[3]"
+      ],
+      "redaction_note": "Absolute machine-local paths removed from retained copies. summary_sha256 identifies the original already-secret-redacted source summary before path redaction; outcomes, public identifiers and build fingerprints are unchanged.",
+      "summary": {
+        "architecture": "arm64",
+        "binary": {
+          "api_version": 6,
+          "embedded_commit": "98d03af6ce6a-dirty",
+          "execution_copy_path": "<redacted-local-path>",
+          "path": "<redacted-local-path>",
+          "protocol_version": 6,
+          "sha256": "ebf748b8fe15424ef03082701fd0a12479d59c41885aa82266ca5382eb3c634b",
+          "version": "0.1.0",
+          "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 6 protocol 6"
+        },
+        "cases": {
+          "competing_workspace_proposals": {
+            "accepted_manifest": "d93e3036b5d7f2e9f1d6da6bd7d90b72b8e3fa207f9da29a3062c76de98d054c",
+            "accepted_revision": "0e5e720c93e841e1bac89e9763b0ade3d2d9b3d98ec09492d660686d84592a8b",
+            "base_manifest": "7bb93179fb0329c0af58b941912330c8fb4d34bdc68c420d54f591af5a9fb1a9",
+            "base_revision": "1e6773478afd04b37322e0649c317c51bdf3d00792e829d738a3119850e450b0",
+            "compatible_dirty_edit": "preserved",
+            "dirty_update": "conflict",
+            "exact_integration_receipt_after_restart": true,
+            "git_required": false,
+            "peer_readback": true,
+            "proposals": [
+              "ff1ecec80e226eebc0cbe23812dd788dffb74e8925b1a8b709737f3fa607546b",
+              "2451735c2f85f0042b8ca6df6f655d2563d58eca1e9822c7b4c6bbed2a9162ae"
+            ],
+            "publication_interruption": {
+              "durable_prefix_bytes": 1048576,
+              "hash": "126023c16bc704d3e445701d483874608438c92ebe9ae79dfe2539fe945564c4",
+              "prefix_bytes": 1048576,
+              "prefix_sha256": "98f715bf59609c559a1491d992dc87466a3569d618ce45cc36fa7d917ec31a29",
+              "rss": {
+                "checkpoint": "paused_at_partial_transfer",
+                "resident_bytes": 78757888,
+                "sampled_not_maximum": true
+              }
+            },
+            "resumed_rss": {
+              "checkpoint": "workspace_resumed_and_updated",
+              "resident_bytes": 76873728,
+              "sampled_not_maximum": true
+            },
+            "stale_integration": "conflict",
+            "status": "passed"
+          },
+          "conflicting_documents": {
+            "accepted": "527a0d0fb9f051df8138147f677ff983c895af8515fbb1339b80745db1cab081",
+            "retained_stale": "e48b736feaf5a6815a5f074211966ee900d1d3509042d67e0f1edfe415526553",
+            "status": "passed"
+          },
+          "offline_cancellation": {
+            "acknowledgment": "f889f9f2efacba9c7030c202a11be7316df37f7056403d9f9d298933fb8db445",
+            "attempt": "07c538f5a88df83b600e16a73e47cebec012832a877644d46e5ca9a896c62aa5",
+            "cancellation": "b242a6a29ad0045c0b87281351110ff765982a900790dce8a01011f72aa69314",
+            "status": "passed"
+          },
+          "offline_member_rotation": {
+            "current_member_recovered_key": true,
+            "future": "81ea0c781df9386645ce6255cd92086dd20a31388e91edc06a1f66d22eb9b73d",
+            "goal": "285d128d6e5f4bacfb9adf8b912fa64ef215e2b7ae3fcbad9770b15c61c92403",
+            "removal": "715e63b80a90ae81fd402517a038fbc10b31834600644dfac4421ab4616ecff1",
+            "removal_body": {
+              "member_removed": {
+                "admission": "9a8a313bcc4620d4335dfbeace780548057da14d4d8e5c38c8a3a569c1e4342e",
+                "last_accepted": null,
+                "member": "199cadf45ac919d4a17e6e896f687251c9837f1f49c2171f465675e8eb5a2908"
+              }
+            },
+            "removed_local_view": "may remain stale; protocol refuses ordinary sync before notification",
+            "status": "passed",
+            "unreplicated_offline_event": "423f40968962738fde246ca01659592ae72885adb0e727c4c8b874dc0bd36976"
+          },
+          "snapshot_resume_retained_replica": {
+            "bytes": 12582912,
+            "git_required": false,
+            "interruption": {
+              "durable_prefix_bytes": 1048576,
+              "hash": "f264ffae2cb3cc2d941044a2b7e081b9442038cebc5b4e4363283a51951a1288",
+              "prefix_bytes": 1048576,
+              "prefix_sha256": "136e4f61ae837dd9e629eda261bb6621c865cc0a5e8646faedef583b25204f19",
+              "rss": {
+                "checkpoint": "paused_at_partial_transfer",
+                "resident_bytes": 52592640,
+                "sampled_not_maximum": true
+              }
+            },
+            "manifest": "7bb93179fb0329c0af58b941912330c8fb4d34bdc68c420d54f591af5a9fb1a9",
+            "original_source_offline": true,
+            "resumed_rss": {
+              "checkpoint": "snapshot_resume_complete",
+              "resident_bytes": 79921152,
+              "sampled_not_maximum": true
+            },
+            "revision": "1e6773478afd04b37322e0649c317c51bdf3d00792e829d738a3119850e450b0",
+            "sha256": "8b54debaa89f78212f6afb00c7ebb2780f3604c4caa8c97c395576a50d5d6a6a",
+            "status": "passed"
+          },
+          "withdrawal_leave": {
+            "metadata_event": "9991dd08de5e989a03b85092cc4a97a6ea311b30e40abe65744cdf234fc0dc72",
+            "payload": "c2790ddeecdb45f2bf3db68f185812f6888b6cbb0a1ff79415fef15e02f68d24",
+            "retained_other_replica": true,
+            "status": "passed"
+          }
+        },
+        "checks": [
+          "M1 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "M3 daemon endpoint ready",
+          "three members converge",
+          "workers establish their independent peer link",
+          "both document proposals arrive",
+          "M2 retains the complete accepted workspace",
+          "M2 daemon endpoint ready",
+          "M3 daemon endpoint ready",
+          "M3 retains the complete accepted workspace",
+          "M1 daemon endpoint ready",
+          "M1 retains the complete accepted workspace",
+          "worker 2 receives assignment",
+          "worker 3 receives assignment",
+          "M1 daemon endpoint ready",
+          "complete workspace proposal review after peer transfer",
+          "complete workspace proposal review after peer transfer",
+          "exact candidate declarations arrive",
+          "accepted revision and file objects converge",
+          "M1 daemon endpoint ready",
+          "cancellation assignment arrives",
+          "M3 daemon endpoint ready",
+          "offline worker receives durable cancellation",
+          "coordinator receives explicit cancellation acknowledgment",
+          "M3 daemon endpoint ready",
+          "note retained on coordinator",
+          "M2 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "rotation goal admitted",
+          "M1 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "offline current member recovers rotated epoch",
+          "M3 daemon endpoint ready",
+          "removed endpoint attempts a fresh transport path",
+          "current replicas agree on removal"
+        ],
+        "events": {},
+        "failures": [],
+        "finished_at": "2026-10-05T09:27:22.325826+00:00",
+        "goal": "b029d25fcba7fe1e007ec294ced90b2a40fc6edbe1a8ad4e814dd9bc5f5b57a2",
+        "harness_sha256": "5b73a95792733fe33a5d557e5acb963b4bce5bf3f17ebd62209f0723ca6f2523",
+        "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+        "port_changes": "permitted; socket addresses are not exposed by status/route snapshots",
+        "qualification": "three production daemons on one host; synthetic operational workflows",
+        "resources": {
+          "cpu": "unmeasured",
+          "network_bytes": "unmeasured",
+          "rss_scope": "receiver paused at observed partial transfer and after completed resume; sampled, not maximum",
+          "verdict": "measurements only; no performance thresholds"
+        },
+        "route_facts": [
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.382875ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "startup",
+            "time": "2026-10-05T09:24:57.267223+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "872.029\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "startup",
+            "time": "2026-10-05T09:24:57.268186+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "887.25\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "startup",
+            "time": "2026-10-05T09:24:57.304734+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.283334ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "startup",
+            "time": "2026-10-05T09:24:57.304512+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "70.933458ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "startup",
+            "time": "2026-10-05T09:25:10.057099+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "67.075291ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "startup",
+            "time": "2026-10-05T09:25:10.090787+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "72.784417ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "documents",
+            "time": "2026-10-05T09:25:10.164876+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "70.056084ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "documents",
+            "time": "2026-10-05T09:25:10.200499+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.674208ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:25.945558+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.155459ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:25.945918+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "61.828833ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:29.985366+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "60.500208ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:30.000634+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "63.780959ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:30.017672+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "63.879875ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:30.035975+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "129.909709ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:33.407420+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "131.493875ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:33.439328+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "61.573167ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:40.429163+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "60.5075ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:40.459658+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "59.795417ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:40.520342+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "59.673667ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:40.550266+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "64.043959ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:42.138716+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "67.829834ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:42.175646+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.541167ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:43.021320+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "836.002\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "workspace_seed",
+            "time": "2026-10-05T09:25:43.022192+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "58.206791ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "competing_workspace_proposals",
+            "time": "2026-10-05T09:25:56.013296+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "59.650583ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "competing_workspace_proposals",
+            "time": "2026-10-05T09:25:56.015317+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "60.624375ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "competing_workspace_proposals",
+            "time": "2026-10-05T09:25:56.044837+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "61.493709ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "competing_workspace_proposals",
+            "time": "2026-10-05T09:25:56.047305+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "62.299209ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "checkout_update",
+            "time": "2026-10-05T09:27:04.875625+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "66.126125ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "checkout_update",
+            "time": "2026-10-05T09:27:04.910033+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "64.414833ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "checkout_update",
+            "time": "2026-10-05T09:27:08.192848+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "58.840792ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "checkout_update",
+            "time": "2026-10-05T09:27:08.222547+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "175.821208ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "offline_cancellation",
+            "time": "2026-10-05T09:27:11.379475+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "127.03675ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "offline_cancellation",
+            "time": "2026-10-05T09:27:11.475360+00:00"
+          },
+          {
+            "generation": 2,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "191.137583ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "offline_cancellation",
+            "time": "2026-10-05T09:27:12.722692+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "70.866541ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "withdrawal_leave",
+            "time": "2026-10-05T09:27:12.752888+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "72.600583ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "withdrawal_leave",
+            "time": "2026-10-05T09:27:12.841989+00:00"
+          },
+          {
+            "generation": 2,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "85.861083ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "withdrawal_leave",
+            "time": "2026-10-05T09:27:12.896764+00:00"
+          },
+          {
+            "generation": 2,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "126.669792ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "withdrawal_leave",
+            "time": "2026-10-05T09:27:13.024876+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "111.943417ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "withdrawal_leave",
+            "time": "2026-10-05T09:27:13.054048+00:00"
+          },
+          {
+            "generation": 2,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "190.529667ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "withdrawal_leave",
+            "time": "2026-10-05T09:27:13.447925+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "126.399417ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "withdrawal_leave",
+            "time": "2026-10-05T09:27:13.549954+00:00"
+          },
+          {
+            "generation": 3,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "188.546417ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "withdrawal_leave",
+            "time": "2026-10-05T09:27:15.293073+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "60.700334ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:15.323878+00:00"
+          },
+          {
+            "generation": 3,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "194.032709ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:20.558556+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "63.91075ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:20.590373+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "65.093833ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "969f6e1db6e06055be81426f80f67eeb66ebbac253cb0dcbc16476917e9a04e7",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:20.656979+00:00"
+          },
+          {
+            "generation": 3,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "69.352583ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:20.692398+00:00"
+          },
+          {
+            "generation": 2,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "233.156542ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:21.073288+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "66.360959ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:21.106368+00:00"
+          },
+          {
+            "generation": 1,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "67.622417ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "4793c3ac2c39641a1b5e8bdc9cc6a8ef07197f15727ea813f0673fb955078d3a",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:21.175161+00:00"
+          },
+          {
+            "generation": 2,
+            "kind": "route_snapshot",
+            "machine": 3,
+            "paths": [
+              {
+                "kind": "relay",
+                "rtt": "68.179625ms",
+                "selected": false
+              }
+            ],
+            "peer_endpoint": "76ddc7f77c96adb3abde90b25bb863b292c4c14151429c4f7a191a283348fe4e",
+            "phase": "offline_rotation",
+            "time": "2026-10-05T09:27:21.207141+00:00"
+          }
+        ],
+        "sleep_wake": "not exercised",
+        "started_at": "2026-10-05T09:24:55.532902+00:00",
+        "status": "passed",
+        "timeout_seconds": 90.0,
+        "transport": {
+          "LOCUST_LOOKUP": "all",
+          "LOCUST_RELAY": "n0",
+          "configuration": "daemon defaults; inherited overrides removed",
+          "mode": "default"
+        }
+      },
+      "summary_sha256": "b51e63ddcdbe1a617af2cddd1106e57713a2f638bc19d8dbfed3070615714f10"
+    },
+    {
+      "artifact_directory": "output/operations/20261005T092652Z-8bd2fb56",
+      "invocation": [
+        "python3",
+        "scripts/check_operations.py",
+        "--binary",
+        "<redacted-local-path>",
+        "--network",
+        "local",
+        "--workflow",
+        "workspace",
+        "--timeout-seconds",
+        "90"
+      ],
+      "name": "two_daemon_supported_local_workspace_pass",
+      "redacted_fields": [
+        "summary.binary.execution_copy_path",
+        "summary.binary.path",
+        "invocation[3]"
+      ],
+      "redaction_note": "Absolute machine-local paths removed from retained copies. summary_sha256 identifies the original already-secret-redacted source summary before path redaction; outcomes, public identifiers and build fingerprints are unchanged.",
+      "summary": {
+        "architecture": "arm64",
+        "binary": {
+          "api_version": 6,
+          "embedded_commit": "98d03af6ce6a-dirty",
+          "execution_copy_path": "<redacted-local-path>",
+          "path": "<redacted-local-path>",
+          "protocol_version": 6,
+          "sha256": "eb0ec8f8ea9725fb7bcb9ec9e97ce89dc87ee90bd49ef065767331bca5481454",
+          "version": "0.1.0",
+          "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 6 protocol 6"
+        },
+        "cases": {
+          "both_restarts_and_peer_readback": {
+            "exact_receipt_retained": true,
+            "status": "passed"
+          },
+          "ordinary_checkout_update": {
+            "compatible_dirty_edit": "preserved",
+            "status": "passed",
+            "untracked_file": "preserved"
+          },
+          "proposal_declared_and_integrated": {
+            "proposal": "68b8c225912f1bbc0f24958ef00a49527e863f8b160ac54a5071b2aa41838ddf",
+            "result_manifest": "67449e495046793d08935f37642bba361d9fb36014524c25f11ec2287f461c5b",
+            "revision": "9b4f42f1f9f86c3d55d71a07e8aba0c0181d513428683748f794c66f50fb3419",
+            "status": "passed"
+          },
+          "seed_replicated": {
+            "files": 2,
+            "git_required": false,
+            "revision": "a31e9cb963b6299aff391583e69c29a7048adc2a5f6df5472ceb765e1565713a",
+            "status": "passed"
+          }
+        },
+        "checks": [
+          "M1 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "both members converge",
+          "M1 retains the complete accepted workspace",
+          "M2 retains the complete accepted workspace",
+          "proposal complete at integrator",
+          "exact declaration replicated",
+          "accepted head replicated",
+          "M1 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "both heads complete after restart"
+        ],
+        "events": {},
+        "failures": [],
+        "finished_at": "2026-10-05T09:26:59.175040+00:00",
+        "goal": "151506681dbded9adf237f120dc85eea8c9543131541599143e87872a83414b2",
+        "harness_sha256": "948ca9c3acd6e5b43d97750ea964d62389df88ade52befc556075776c9cdc1df",
+        "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+        "port_changes": "permitted; socket addresses are not exposed by status/route snapshots",
+        "qualification": "two production daemons on one host; ordinary-directory shared workspace; local relay-free Iroh",
+        "resources": {
+          "cpu": "unmeasured",
+          "network_bytes": "unmeasured",
+          "rss_scope": "receiver paused at observed partial transfer and after completed resume; sampled, not maximum",
+          "verdict": "measurements only; no performance thresholds"
+        },
+        "route_facts": [
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.938875ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "0dbea80d899ad4c5f53ce20e88711e03072c7b9fbdf57a3f51b793db417bf000",
+            "phase": "startup",
+            "time": "2026-10-05T09:26:54.555941+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "919.695\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "9058ec782b1a6dcc78c6a8b36bff1db9946ca3de3e899524547468fa0f8efb1e",
+            "phase": "startup",
+            "time": "2026-10-05T09:26:54.558472+00:00"
+          }
+        ],
+        "sleep_wake": "not exercised",
+        "started_at": "2026-10-05T09:26:52.190984+00:00",
+        "status": "passed",
+        "timeout_seconds": 90.0,
+        "transport": {
+          "LOCUST_LOOKUP": "local",
+          "LOCUST_RELAY": "none",
+          "configuration": "explicit local reproduction",
+          "mode": "local"
+        },
+        "workflow": "workspace"
+      },
+      "summary_sha256": "1a1bc0ae1d4dd70a06410dfb68ac895250aae8cfa96cb4908cd0910f8c2bf3bc"
+    },
+    {
+      "artifact_directory": "output/operations/20261005T093615Z-14f726f7",
+      "invocation": [
+        "python3",
+        "scripts/check_operations.py",
+        "--binary",
+        "<redacted-local-path>",
+        "--network",
+        "local",
+        "--workflow",
+        "workspace",
+        "--timeout-seconds",
+        "90"
+      ],
+      "name": "two_daemon_supported_local_workspace_no_git_path_pass",
+      "redacted_fields": [
+        "summary.binary.execution_copy_path",
+        "summary.binary.path",
+        "invocation[3]"
+      ],
+      "redaction_note": "Absolute machine-local paths removed from retained copies. summary_sha256 identifies the original already-secret-redacted source summary before path redaction; outcomes, public identifiers and build fingerprints are unchanged.",
+      "summary": {
+        "architecture": "arm64",
+        "binary": {
+          "api_version": 6,
+          "embedded_commit": "98d03af6ce6a-dirty",
+          "execution_copy_path": "<redacted-local-path>",
+          "path": "<redacted-local-path>",
+          "protocol_version": 6,
+          "sha256": "502976754cdb8b7c5a0092cd86c75dc33d458d509edbef1444ad77442c2717e9",
+          "version": "0.1.0",
+          "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 6 protocol 6"
+        },
+        "cases": {
+          "both_restarts_and_peer_readback": {
+            "exact_receipt_retained": true,
+            "status": "passed"
+          },
+          "ordinary_checkout_update": {
+            "compatible_dirty_edit": "preserved",
+            "status": "passed",
+            "untracked_file": "preserved"
+          },
+          "proposal_declared_and_integrated": {
+            "proposal": "fe76ec7fcae550b38e542d8751478a2287451b471fdc89dfe1511d00ccb3b89a",
+            "result_manifest": "8a645608d266e74357222fdee40c7c4ce72e72625d599633697790509e4e19bf",
+            "revision": "e9064ad607530c76cc37a702f9c3b6c2ffb524f9ec2ba452d21b078dcac816c1",
+            "status": "passed"
+          },
+          "seed_replicated": {
+            "files": 2,
+            "git_required": false,
+            "revision": "b628f3c71542eca96f53a5800bd444659b033d824ed80c44c8025902e35739ce",
+            "status": "passed"
+          }
+        },
+        "checks": [
+          "M1 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "both members converge",
+          "M1 retains the complete accepted workspace",
+          "M2 retains the complete accepted workspace",
+          "proposal complete at integrator",
+          "exact declaration replicated",
+          "accepted head replicated",
+          "M1 daemon endpoint ready",
+          "M2 daemon endpoint ready",
+          "both heads complete after restart"
+        ],
+        "events": {},
+        "failures": [],
+        "finished_at": "2026-10-05T09:36:21.735061+00:00",
+        "git": {
+          "child_scope": [
+            "daemon",
+            "cli"
+          ],
+          "configuration": "isolated nonexistent tool directory; outer harness PATH unchanged",
+          "optional_commit_import": "not exercised",
+          "path_lookup": "unavailable"
+        },
+        "goal": "cb6e0998e0ce0e66db4e128e2c29c93f612fb7ad7aa57ee40614bca16bcf4712",
+        "harness_sha256": "a2b294e6bf58bf9faf34825a892ecb52a9742ae8eec339cc0cc73aa180be2f0e",
+        "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+        "port_changes": "permitted; socket addresses are not exposed by status/route snapshots",
+        "qualification": "two production daemons on one host; ordinary-directory shared workspace; configured Iroh transport",
+        "resources": {
+          "cpu": "unmeasured",
+          "network_bytes": "unmeasured",
+          "rss_scope": "unmeasured",
+          "verdict": "unmeasured; no performance claim"
+        },
+        "route_facts": [
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 2,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "1.8315ms",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "83d797e07eedbb8587abf3a3b225f4730aaf9b65d603bd8e45414984b28fb7b0",
+            "phase": "startup",
+            "time": "2026-10-05T09:36:17.094435+00:00"
+          },
+          {
+            "generation": 0,
+            "kind": "route_snapshot",
+            "machine": 1,
+            "paths": [
+              {
+                "kind": "direct",
+                "rtt": "889.459\u00b5s",
+                "selected": true
+              }
+            ],
+            "peer_endpoint": "efc3230f1ccf45d76ae67b089c91bb7e73bfdcfccecbe40aa7bbe62a55ca74a2",
+            "phase": "startup",
+            "time": "2026-10-05T09:36:17.097391+00:00"
+          }
+        ],
+        "sleep_wake": "not exercised",
+        "started_at": "2026-10-05T09:36:15.676708+00:00",
+        "status": "passed",
+        "timeout_seconds": 90.0,
+        "transport": {
+          "LOCUST_LOOKUP": "local",
+          "LOCUST_RELAY": "none",
+          "configuration": "explicit local reproduction",
+          "mode": "local"
+        },
+        "workflow": "workspace"
+      },
+      "summary_sha256": "03b254aba10308b92dd8ed1a17ff1dd9aabc99fb0569f119418fdb24bb0ea374"
+    }
+  ],
+  "source_state": "Uncommitted implementation qualification. Each run pinned and hashed a private binary execution copy. Distinct binary hashes identify distinct builds; no claim of one identical binary across runs."
+}

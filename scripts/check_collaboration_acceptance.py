@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 from check_shared_context_models import (ROOT, codex_run, common, enroll, entries,
-                                        git, merak_run, raw_call, save, sha)
+                                        checkout_role, seed_workspace, review_tree, merak_run, raw_call, save, sha)
 from client_qualification import acceptance_case as case
 from client_qualification.acceptance_evidence import (denial, evaluate, hash_evidence, permission_block,
                                                      thread_id, usage)
@@ -22,9 +22,9 @@ from client_qualification.real_models import install_locust_skill, provider_mode
 from client_qualification.runtime import Profile, private_write
 
 
-INITIAL_OBJECTIVE = """Implement the archive member path helper from the public project brief. Inspect the current project, decide the smallest useful implementation supported by the requirements you have, and publish your result as a Locust patch contribution. A collaborator is separately investigating deployment behavior; their findings are not yet available. Report any missing local permission to the person and stop the turn so they can resolve it. Preserve Git HEAD and unrelated work. Do not broaden your own permissions."""
+INITIAL_OBJECTIVE = """Implement the archive member path helper from the public project brief. Inspect the current project, decide the smallest useful implementation supported by the requirements you have, and freeze and publish your result as an exact workspace proposal, then publish a task contribution citing its event ID. A collaborator is separately investigating deployment behavior; their findings are not yet available. Report any missing local permission to the person and stop the turn so they can resolve it. Preserve unrelated work. Do not broaden your own permissions."""
 
-REVISION_OBJECTIVE = """Your collaborator has now published their deployment investigation in the shared Locust goal. Assess the new evidence against your current implementation and revise the implementation when warranted. Publish the final patch contribution with explicit structured source references to the findings you used, so another participant can inspect its provenance. Preserve Git HEAD and unrelated work; capture only safe_member.py. Report what changed and why."""
+REVISION_OBJECTIVE = """Your collaborator has now published their deployment investigation in the shared Locust goal. Assess the new evidence against your current implementation and revise the implementation when warranted. Publish a new exact workspace proposal, then a task contribution with advisory source references to that proposal and the findings you used, so another participant can inspect its provenance. Workspace proposal sources may contain only workspace proposals. Preserve unrelated work; capture only safe_member.py. Report what changed and why."""
 
 
 def snapshot(output, label, workspace):
@@ -33,15 +33,6 @@ def snapshot(output, label, workspace):
     for name in ('README.md', 'safe_member.py'):
         private_write(destination / name, (workspace / name).read_bytes())
     return str(destination / 'safe_member.py')
-
-
-def prepare_git(profile, files):
-    git(profile, 'init', '-q')
-    git(profile, 'config', 'user.name', 'Locust synthetic collaboration')
-    git(profile, 'config', 'user.email', 'qualification@example.invalid')
-    git(profile, 'add', *files)
-    git(profile, 'commit', '-qm', 'synthetic archive baseline')
-    return git(profile, 'rev-parse', 'HEAD')
 
 
 def run_phase(report, output, role, daemon, args, phase, objective, runner, resume=None, base=None):
@@ -119,8 +110,8 @@ def main():
                                      for name in ('merak', 'codex', 'locust')}
         contract = json.loads(subprocess.check_output([args.locust, '--json', 'contract'], text=True))['result']
         report['api_version'], report['protocol_version'] = contract['api_version'], contract['protocol_version']
-        if (report['api_version'], report['protocol_version']) != (4, 4):
-            raise RuntimeError('Acceptance workflow requires API 4 / protocol 4')
+        if (report['api_version'], report['protocol_version']) != (6, 6):
+            raise RuntimeError('Acceptance workflow requires API 6 / protocol 6')
         report['model_available'] = args.model in provider_model_ids('openai', args.rpc_timeout)
         if not report['model_available']:
             raise RuntimeError('Selected model is absent from provider metadata')
@@ -132,19 +123,6 @@ def main():
         private_fixture = Path(fixture['researcher_only']['private_fixture'])
         report['input_sha256']['private_operational_note'] = sha(private_fixture)
         private_write(output / 'harness-only-input' / 'archive-operations.md', private_fixture.read_bytes())
-        for name in fixture['builder_files']:
-            private_write(ip.workspace / name, (bp.workspace / name).read_bytes())
-        head = prepare_git(bp, fixture['builder_files'])
-        integration_head = prepare_git(ip, fixture['builder_files'])
-        private_write(bp.workspace / 'unrelated.txt', 'builder local work\n')
-        private_write(ip.workspace / 'README.md', (ip.workspace / 'README.md').read_text()
-                      + '\nLocal integration notes in progress.\n')
-        private_write(ip.workspace / 'unrelated.txt', 'integration local work\n')
-        integration_dirty = {name: (ip.workspace / name).read_bytes() for name in ('README.md', 'unrelated.txt')}
-        report['baseline'] = case.verify(bp.workspace)
-        if report['baseline']['passed']:
-            raise RuntimeError('Starter unexpectedly passes private oracle')
-        report['original_head'] = head
         with ProductionDaemon(setup, args.locust, args.rpc_timeout) as daemon:
             formation = raw_call(daemon, ['formation', 'example', 'peer-review'])
             report['review_policy'] = formation['decisions']['completion']
@@ -152,7 +130,7 @@ def main():
                 '--formation-json', json.dumps(formation)])['goal_created']['goal']
             researcher = enroll(daemon, rp, 'researcher')
             builder = enroll(daemon, bp, 'builder', permissions=('contribute', 'review'))
-            integrator = enroll(daemon, ip, 'integrator', permissions=())
+            integrator = enroll(daemon, ip, 'integrator', permissions=('contribute',))
             for role in (researcher, builder):
                 role['python_executable'] = str(Path(sys.executable).resolve())
             report['goal'] = daemon.goal
@@ -165,9 +143,23 @@ def main():
             bskill = install_locust_skill('codex', bp, ROOT / 'skills/locust/SKILL.md')['path']
             report['skill_paths'] = {'researcher': str(rskill), 'builder': bskill}
             report['skill_sha256'] = sha(rskill)
-            base = raw_call(daemon, ['workspace', 'export', '--goal', daemon.goal, '--root', str(bp.workspace),
-                                    '--commit', head], role=builder)['manifest']
+            seed = seed_workspace(daemon, bp.workspace, fixture['builder_files'],
+                                  completion=report['review_policy'], reviewer=researcher)
+            bound = checkout_role(builder, daemon, seed['revision'])
+            integration_bound = checkout_role(integrator, daemon, seed['revision'])
+            base = seed['result_manifest']
             report['base'] = base
+            report['base_revision'] = seed['revision']
+            report['checkout'] = bound
+            report['integration_checkout'] = integration_bound
+            private_write(bp.workspace / 'unrelated.txt', 'builder local work\n')
+            private_write(ip.workspace / 'README.md', (ip.workspace / 'README.md').read_text()
+                          + '\nLocal integration notes in progress.\n')
+            private_write(ip.workspace / 'unrelated.txt', 'integration local work\n')
+            integration_dirty = {name: (ip.workspace / name).read_bytes() for name in ('README.md', 'unrelated.txt')}
+            report['baseline'] = case.verify(bp.workspace)
+            if report['baseline']['passed']:
+                raise RuntimeError('Starter unexpectedly passes private oracle')
             private = fixture['researcher_only']['rule_summary']
             public = INITIAL_OBJECTIVE + common(builder, daemon, bskill, base) + ''.join(
                 (bp.workspace / name).read_text() for name in fixture['builder_files'])
@@ -193,13 +185,19 @@ def main():
             before = entries(builder, daemon)
             save(output / 'context-before-research.json', before)
             initial_submissions = [item for item in before if item['event']['view']['author'] == builder['principal']
-                and item['event']['view']['kind'] == 'contribution_published'
-                and item['event']['body']['contribution_published'].get('patch')]
+                and item['event']['view']['kind'] == 'workspace_proposed']
             if not initial_submissions:
-                raise RuntimeError('Builder did not publish its initial implementation patch')
-            report['initial_contribution'] = initial_submissions[-1]
-            report['initial_patch_review'] = raw_call(daemon, ['patch', 'review', '--goal', daemon.goal,
-                '--patch', initial_submissions[-1]['event']['body']['contribution_published']['patch']], role=builder)
+                raise RuntimeError('Builder did not publish its initial exact workspace proposal')
+            report['initial_proposal'] = initial_submissions[-1]
+            initial_id = initial_submissions[-1]['event']['view']['event']
+            report['initial_tree_review'], report['initial_reviewed_artifact'] = review_tree(
+                daemon, initial_id, builder, output, 'initial-review')
+            initial_reports = [item for item in before if item['event']['view']['author'] == builder['principal']
+                and item['event']['view']['kind'] == 'contribution_published'
+                and initial_id in item['event']['body']['contribution_published'].get('sources', [])]
+            if not initial_reports:
+                raise RuntimeError('Builder task report did not cite its exact initial workspace proposal')
+            report['initial_contribution'] = initial_reports[-1]
             report['initial_context_has_research_finding'] = any(
                 item['event']['view']['author'] == researcher['principal']
                 and item['event']['view']['kind'] == 'contribution_published' for item in before)
@@ -214,54 +212,57 @@ def main():
                       codex_run, resume=thread, base=base)
             report['revised_artifact'] = snapshot(output, 'revised-artifact', bp.workspace)
             after = entries(builder, daemon)
+            proposals = [item for item in after if item['event']['view']['author'] == builder['principal']
+                and item['event']['view']['kind'] == 'workspace_proposed'
+                and item['event']['view']['event'] not in previous]
+            if not proposals:
+                raise RuntimeError('Builder did not publish a new final workspace proposal')
+            report['final_proposal'] = proposals[-1]
+            proposal = proposals[-1]['event']['view']['event']
             submissions = [item for item in after if item['event']['view']['author'] == builder['principal']
                 and item['event']['view']['kind'] == 'contribution_published'
                 and item['event']['view']['event'] not in previous
-                and item['event']['body']['contribution_published'].get('patch')]
+                and proposal in item['event']['body']['contribution_published'].get('sources', [])]
             if not submissions:
-                raise RuntimeError('Builder did not publish a new final patch contribution')
+                raise RuntimeError('Builder task report did not cite its exact final workspace proposal')
             report['final_contribution'] = submissions[-1]
-            event = submissions[-1]['event']
-            subject, body = event['view']['event'], event['body']['contribution_published']
-            patch = body['patch']
-            report['independent_patch_review'] = raw_call(daemon, ['patch', 'review', '--goal', daemon.goal,
-                                                                 '--patch', patch], role=researcher)
+            subject = submissions[-1]['event']['view']['event']
+            report['independent_tree_review'], report['reviewed_artifact'] = review_tree(
+                daemon, proposal, researcher, output, 'final-review')
             report['source_inspection'] = raw_call(daemon, ['contribution', 'inspect', '--goal', daemon.goal,
                                                           '--contribution', subject], role=researcher)
-            review_objective = f'''Review contribution {subject} and its exact patch {patch} through Locust. Inspect the actual before/after diff and declared sources against the deployment requirement you investigated. Record a signed Locust review of this exact contribution with your justified approve or reject verdict. Do not modify collaborator workspaces or apply the contribution. A local person will decide application after your review.'''
+            review_objective = f'''Review workspace proposal {proposal} and its task report {subject} through Locust. Run workspace review --goal {daemon.goal} --proposal {proposal} and inspect the actual before/after diff and the report's declared sources against the deployment requirement you investigated. Record a signed Locust review of this exact workspace proposal with your justified approve or reject verdict. Do not modify collaborator workspaces, integrate or update. A local person will decide integration after your review.'''
             run_phase(report, output, researcher, daemon, args, 'review', review_objective, merak_run)
             report['final_context'] = entries(builder, daemon)
             approvals = [item for item in report['final_context'] if
                 item['event']['view']['author'] == researcher['principal']
                 and item['event']['view']['kind'] == 'review_recorded'
                 and item['event']['view']['standing'] == 'effective'
-                and item['event']['body']['review_recorded'].get('subject') == subject
+                and item['event']['body']['review_recorded'].get('subject') == proposal
                 and item['event']['body']['review_recorded'].get('verdict') == 'approve']
             if not approvals:
                 raise RuntimeError('Real peer did not approve the exact final submission; local application withheld')
-            exported = raw_call(daemon, ['--as', integrator['principal'], 'workspace', 'export', '--goal', daemon.goal,
-                                        '--root', str(ip.workspace), '--commit', integration_head], owner=True)
-            if exported['manifest'] != base:
-                raise RuntimeError('Independent application workspace does not match patch base')
-            dirty_status = git(ip, 'status', '--porcelain', '--', 'README.md', 'unrelated.txt')
-            applied = raw_call(daemon, ['--as', integrator['principal'], 'patch', 'apply', '--goal', daemon.goal,
-                '--subject', subject, '--root', str(ip.workspace),
-                '--expected-git-head', integration_head, '--local-choice'], owner=True)
+            integrated = raw_call(daemon, ['workspace', 'integrate', '--goal', daemon.goal,
+                '--proposal', proposal, '--expected-head', seed['revision']])
+            accepted = raw_call(daemon, ['workspace', 'head', '--goal', daemon.goal])['head']
+            if accepted['proposal'] != proposal:
+                raise RuntimeError('Integration did not retain the exact reviewed proposal')
+            applied = raw_call(daemon, ['workspace', 'update', '--goal', daemon.goal,
+                '--checkout', integration_bound['id'], '--revision', accepted['revision']], role=integrator)
             report['applied_artifact'] = snapshot(output, 'applied-artifact', ip.workspace)
-            report['application'] = {'actor': 'person-harness', 'subject': subject, 'patch': patch,
-                'result': applied, 'distinct_workspace': ip.workspace != bp.workspace,
-                'git_head_preserved': git(ip, 'rev-parse', 'HEAD') == integration_head,
-                'dirty_status_before': dirty_status,
-                'dirty_status_after': git(ip, 'status', '--porcelain', '--', 'README.md', 'unrelated.txt'),
+            report['application'] = {'actor': 'person-harness', 'subject': proposal,
+                'result_manifest': accepted['result_manifest'], 'integration': integrated,
+                'revision': accepted['revision'], 'result': applied,
+                'distinct_workspace': ip.workspace != bp.workspace,
+                'ordinary_directory': not (ip.workspace / '.git').exists(),
                 'dirty_work_preserved': all((ip.workspace / name).read_bytes() == content
-                    for name, content in integration_dirty.items())
-                    and dirty_status == git(ip, 'status', '--porcelain', '--', 'README.md', 'unrelated.txt')}
+                    for name, content in integration_dirty.items())}
             for name, content in integration_dirty.items():
                 private_write(output / 'application-dirty-work' / name, content)
-            report['builder_git_head_preserved'] = git(bp, 'rev-parse', 'HEAD') == head
+            report['builder_ordinary_directory'] = not (bp.workspace / '.git').exists()
             report['builder_unrelated_preserved'] = (bp.workspace / 'unrelated.txt').read_text() == 'builder local work\n'
             report['assertions'] = evaluate(report)
-            report['assertions']['builder_existing_work_preserved'] = report['builder_git_head_preserved'] and report['builder_unrelated_preserved']
+            report['assertions']['builder_existing_work_preserved'] = report['builder_ordinary_directory'] and report['builder_unrelated_preserved']
             report['passed'] = all(report['assertions'].values())
     except BaseException as error:
         report['error'] = type(error).__name__ + ': ' + str(error)

@@ -22,10 +22,10 @@
 //! Only regular files and the executable bit are carried; a symlink, a
 //! submodule or any other entry is an explicit error.
 //!
-//! [`create_committed`] and [`create_selected`] store inert, versioned
-//! contributions bound to exact base and head manifests. [`review_contribution`]
-//! reads the same blobs for review; [`apply_contribution`] applies only the
-//! reviewed changes, with expected-base checks and recoverable original files.
+//! [`capture_seed`] and [`capture_tree`] freeze ordinary directory snapshots.
+//! [`compose_trees`] combines exact manifest trees; [`plan_update`] preserves
+//! compatible local edits. [`prepare_update`] and [`reopen_update`] use durable
+//! journals outside the managed root for interrupted file transitions.
 //!
 //! Unix only (macOS and Linux): materialization sets modes through
 //! `std::os::unix`; contribution mutations use descriptor-relative `rustix`
@@ -35,26 +35,37 @@
 
 #![forbid(unsafe_code)]
 
-mod apply;
-mod capture;
-mod contribution;
+mod disposition;
 mod export;
+mod files;
 mod git;
 mod materialize;
 mod review;
 mod safe_fs;
 mod select;
+mod transaction;
+mod tree;
 
 use std::io;
 
 use locust_proto::id::BlobHash;
 
-pub use apply::{ApplyReport, apply_contribution};
-pub use capture::{create_committed, create_selected};
-pub use contribution::{BlobStore, Change, Contribution, ContributionError, ContributionReport};
+pub use disposition::{
+    CheckoutDisposition, CheckoutFacts, SessionOwnership, UpdateBlocker, checkout_disposition,
+};
 pub use export::{ExportError, ExportReport, export};
+pub use files::{BlobStore, WorkspaceError};
 pub use materialize::{MaterializeError, materialize};
-pub use review::{ChangeReview, ContributionReview, FileSummary, review_contribution};
+pub use review::{ChangeReview, FileSummary, review_changes};
+pub use transaction::{
+    DirectoryIdentity, PreparedUpdate, UpdateDescriptor, UpdateReport, mark_update_completed,
+    prepare_update, reopen_update,
+};
+pub use tree::{
+    CaptureMode, FileValue, FrozenTree, LocalTree, TreeChange, UpdatePlan, capture_seed,
+    capture_tree, compose_trees, diff_trees, inspect_local_tree, inspect_tree, parse_paths,
+    plan_update, three_way_tree,
+};
 
 /// Stores content objects for an export.
 pub trait BlobSink {

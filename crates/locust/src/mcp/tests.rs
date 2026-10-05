@@ -139,7 +139,7 @@ async fn owner_credentials_never_dispatch_a_model_operation() {
     let result = invoke(
         auth(socket),
         Call {
-            request: ClientRequest::Native(Request::Status),
+            request: ClientRequest::Native(Box::new(Request::Status)),
             idempotency: None,
         },
         Arc::new(Cancellation::new()),
@@ -263,7 +263,7 @@ fn pre_cancelled_worker_and_nested_unknown_arguments_are_rejected() {
     assert!(cancellation.install(&stream).is_err());
     assert!(matches!(
         parse_call(
-            &json!({"name":"locust_workspace_set","arguments":{"goal":"01".repeat(32),"binding":{"shell":"rm"}}})
+            &json!({"name":"locust_workspace_epoch","arguments":{"goal":"01".repeat(32),"expected_epoch":null,"rules":"02".repeat(32),"checkpoint":{"shell":"rm"}}})
         ),
         Err(CallError::Arguments(_))
     ));
@@ -435,7 +435,7 @@ fn a_cancelled_queued_blocking_worker_never_starts_a_handshake() {
         let call = tokio::spawn(invoke(
             auth(socket),
             Call {
-                request: ClientRequest::Native(Request::Status),
+                request: ClientRequest::Native(Box::new(Request::Status)),
                 idempotency: None,
             },
             cancellation.clone(),

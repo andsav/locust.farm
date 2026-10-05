@@ -1,6 +1,6 @@
 {
   "format": "locust-availability-v1",
-  "reviewed": "2026-10-04",
+  "reviewed": "2026-10-05",
   "publication": {
     "software": "published-developer-preview",
     "installerUrl": null,
@@ -27,7 +27,8 @@
     "independent-attempts",
     "scoped-completion-and-selection",
     "durable-logical-flow",
-    "explicit-local-patch-choice",
+    "signed-shared-workspace-revisions",
+    "ordinary-directory-checkouts-and-journaled-updates",
     "durable-flow-inboxes-and-receipts",
     "packaged-offline-manual",
     "readable-status-and-permission-controls",
@@ -39,7 +40,7 @@
     "own-permission-inspection",
     "consented-public-farm-projection"
   ],
-  "organizationRuntime": "implemented-development-api-5-protocol-5",
+  "organizationRuntime": "implemented-development-api-6-protocol-6-formation-schema-2; fresh-state-required",
   "qualification": [
     {
       "platform": "macOS arm64",
@@ -108,5 +109,5 @@
       "publicRoute": false
     }
   },
-  "runtimeQualification": "api-4-development-with-local-cli-mcp-and-invitation-regressions; earlier-native-candidates-remain-historical; live-client-results-recorded-separately"
+  "runtimeQualification": "api-6-shared-workspace-source-and-local-tests; prior-api-4-and-api-5-native-model-and-published-candidates-remain-historical; shared-workspace-live-agent-and-two-host-qualification-open"
 }

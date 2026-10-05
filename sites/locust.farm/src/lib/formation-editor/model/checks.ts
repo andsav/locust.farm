@@ -126,6 +126,10 @@ export function pageChecks(formation: Formation): PageCheck[] {
 		}
 	};
 	visit(formation.work, formation.decisions, '');
+	if (formation.workspace) {
+		if (formation.workspace.integrator.kind === 'participant') person('/workspace/integrator');
+		completion(formation.workspace.completion, '/workspace/completion');
+	}
 	for (const [name, taskType] of Object.entries(formation.task_types)) {
 		visit(taskType.work, taskType.decisions, `/task_types/${escapePointer(name)}`);
 	}

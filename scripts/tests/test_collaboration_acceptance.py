@@ -2,6 +2,8 @@
 import copy
 import difflib
 import json
+import platform
+import shutil
 from pathlib import Path
 import sys
 import tempfile
@@ -92,6 +94,77 @@ class NativeEvidenceTests(unittest.TestCase):
             self.assertNotEqual(result['native_sessions'][0]['path'], second['native_sessions'][0]['path'])
 
 
+class WorkspaceHarnessTests(unittest.TestCase):
+    @unittest.skipUnless(platform.system() == 'Darwin' and Path('/usr/bin/sandbox-exec').is_file()
+        and (Path(__file__).resolve().parents[2] / 'target/debug/locust').is_file(),
+        'compiled production binary and macOS guard required')
+    def test_actual_seed_review_integration_update_preserves_dirty_ordinary_checkout(self):
+        from check_shared_context_models import (checkout_role, enroll, raw_call,
+                                                review_tree, seed_workspace)
+        from client_qualification.production import ProductionDaemon
+        binary = Path(__file__).resolve().parents[2] / 'target/debug/locust'
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            # Pin exact executable bytes: concurrent workspace builds must not
+            # change the candidate between start and restart qualification.
+            pinned = output / 'locust'
+            shutil.copy2(binary, pinned)
+            binary = pinned
+            profiles = [Profile(output, name) for name in ('setup', 'researcher', 'builder', 'integrator')]
+            for profile in profiles:
+                self.addCleanup(profile.close)
+            setup, researcher_profile, builder_profile, integration_profile = profiles
+            fixture = case.seed(researcher_profile.workspace, builder_profile.workspace)
+            with ProductionDaemon(setup, binary, 20) as daemon:
+                formation = raw_call(daemon, ['formation', 'example', 'peer-review'])
+                daemon.goal = raw_call(daemon, ['goal', 'create', '--title', 'Current workspace harness test',
+                    '--formation-json', json.dumps(formation)])['goal_created']['goal']
+                researcher = enroll(daemon, researcher_profile, 'researcher')
+                builder = enroll(daemon, builder_profile, 'builder')
+                integrator = enroll(daemon, integration_profile, 'integrator', permissions=('contribute',))
+                seed = seed_workspace(daemon, builder_profile.workspace, fixture['builder_files'],
+                    completion=formation['decisions']['completion'], reviewer=researcher)
+                worker = checkout_role(builder, daemon, seed['revision'])
+                destination = checkout_role(integrator, daemon, seed['revision'])
+                dirty_readme = (integration_profile.workspace / 'README.md').read_text() + '\nLocal notes.\n'
+                (integration_profile.workspace / 'README.md').write_text(dirty_readme)
+                (integration_profile.workspace / 'unrelated.txt').write_text('preserve outside work\n')
+                (builder_profile.workspace / 'safe_member.py').write_text(REVISED)
+                captured = raw_call(daemon, ['workspace', 'propose', '--goal', daemon.goal,
+                    '--checkout', worker['id'], '--only', '--path', 'safe_member.py', '--publish'], role=builder)
+                proposal = captured['operation']['state']['recorded']['event']
+                finding = raw_call(daemon, ['contribution', 'publish', '--goal', daemon.goal,
+                    'Harness finding'], role=researcher)['recorded']['event']
+                task_report = raw_call(daemon, ['contribution', 'publish', '--goal', daemon.goal,
+                    '--sources', json.dumps([finding, proposal]), 'Task report cites exact candidate'], role=builder)
+                inspected = raw_call(daemon, ['contribution', 'inspect', '--goal', daemon.goal,
+                    '--contribution', task_report['recorded']['event']], role=researcher)['contribution_inspected']
+                sources = inspected['contribution']['body']['contribution_published']['sources']
+                self.assertEqual(set(sources), {finding, proposal})
+                reviewed, review_artifact = review_tree(daemon, proposal, researcher, output, 'verified-review')
+                self.assertEqual(reviewed['proposal']['parent'], seed['revision'])
+                self.assertEqual(Path(review_artifact).read_text(), REVISED)
+                with self.assertRaises(RuntimeError):
+                    raw_call(daemon, ['workspace', 'integrate', '--goal', daemon.goal,
+                        '--proposal', proposal, '--expected-head', seed['revision']])
+                raw_call(daemon, ['review', 'record', '--goal', daemon.goal, '--subject', proposal,
+                    '--verdict', 'approve', 'Checked exact candidate bytes'], role=researcher)
+                raw_call(daemon, ['workspace', 'integrate', '--goal', daemon.goal,
+                    '--proposal', proposal, '--expected-head', seed['revision']])
+                accepted = raw_call(daemon, ['workspace', 'head', '--goal', daemon.goal])['head']
+                raw_call(daemon, ['workspace', 'update', '--goal', daemon.goal,
+                    '--checkout', destination['id'], '--revision', accepted['revision']], role=integrator)
+                self.assertEqual((integration_profile.workspace / 'safe_member.py').read_text(), REVISED)
+                self.assertEqual((integration_profile.workspace / 'README.md').read_text(), dirty_readme)
+                self.assertEqual((integration_profile.workspace / 'unrelated.txt').read_text(), 'preserve outside work\n')
+                self.assertFalse((integration_profile.workspace / '.git').exists())
+                daemon.restart()
+                observed = raw_call(daemon, ['workspace', 'status', '--goal', daemon.goal,
+                    '--checkout', destination['id']], role=integrator)
+                self.assertEqual(observed['checkout']['base_revision'], accepted['revision'])
+                self.assertIn('README.md', observed['dirty_paths'])
+
+
 class AcceptanceEvidenceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -108,8 +181,8 @@ class AcceptanceEvidenceTests(unittest.TestCase):
             'text_complete': True}
         self.final = {'view': {'event': 'final', 'author': 'builder', 'kind': 'contribution_published',
                               'standing': 'effective'}, 'task': 'task:task-id', 'text': 'Final helper',
-                      'body': {'contribution_published': {'sources': ['finding'], 'attempt': 'attempt',
-                               'base': 'base', 'patch': 'patch', 'artifacts': ['head']}}}
+                      'body': {'contribution_published': {'sources': ['finding', 'final-proposal'], 'attempt': 'attempt',
+                               'artifacts': []}}}
         self.events = {}
         self.runs = []
         for index, phase in enumerate(('permission', 'initial', 'research', 'revision', 'review')):
@@ -137,11 +210,11 @@ class AcceptanceEvidenceTests(unittest.TestCase):
         transcript = self.root / 'review.transcript.json'
         transcript.write_text(json.dumps({'truncated': False, 'turns': [{'effects': [{'tool': 'exec.run',
             'status': 'completed', 'tool_truncated': False,
-            'outcome': 'cmd: ./locust-scoped patch review --patch patch, exit_code: 0, success: true, stdout_truncated: false, unified_diff: safe_member.py'}]}]}))
+            'outcome': 'cmd: ./locust-scoped workspace review --proposal final-proposal, exit_code: 0, success: true, stdout_truncated: false, unified_diff: safe_member.py'}]}]}))
         self.runs[-1]['transcript'] = str(transcript)
         diff = ''.join(difflib.unified_diff(pilot.STARTER.splitlines(True), REVISED.splitlines(True),
                                           fromfile='a/safe_member.py', tofile='b/safe_member.py'))
-        self.report = {'runs': self.runs, 'goal': 'goal', 'base': 'base',
+        self.report = {'runs': self.runs, 'goal': 'goal', 'base': 'base', 'base_revision': 'base-revision',
             'principals': {'builder': {'principal': 'builder', 'instance': 'instance-b'},
                            'researcher': {'principal': 'researcher', 'instance': 'instance-r'}},
             'permission_grant': {'actor': 'person-harness', 'principal': 'builder', 'instance': 'instance-b',
@@ -152,28 +225,44 @@ class AcceptanceEvidenceTests(unittest.TestCase):
             'source_inspection': {'contribution_inspected': {'contribution': copy.deepcopy(self.final),
                 'declared_sources': [{'event': 'finding', 'detail': copy.deepcopy(self.finding['event'])}],
                 'attempt': {'event': 'attempt'}}},
-            'independent_patch_review': {'contribution_id': 'patch', 'base': 'base', 'head': 'head',
-                'changes': [{'path': 'safe_member.py', 'unified_diff': diff, 'after': {'bytes': len(REVISED.encode())}}]},
+            'independent_tree_review': {'proposal': {'proposal': 'final-proposal', 'parent': 'base-revision', 'result_manifest': 'head'}, 'review_mode': 'base_diff',
+                'changes': [{'path': 'safe_member.py', 'unified_diff': diff, 'after': {'bytes': len(REVISED.encode()), 'executable': False}}]},
             'initial_artifact': str(self.root / 'initial/safe_member.py'),
             'revised_artifact': str(self.root / 'revised/safe_member.py'),
             'applied_artifact': str(self.root / 'applied/safe_member.py'),
-            'application': {'actor': 'person-harness', 'subject': 'final', 'patch': 'patch', 'result': {'applied': True},
-                'distinct_workspace': True, 'dirty_work_preserved': True, 'git_head_preserved': True},
+            'application': {'actor': 'person-harness', 'subject': 'final-proposal', 'result_manifest': 'head', 'integration': {'recorded': {'event': 'selection'}}, 'revision': 'selection', 'result': {'applied': True},
+                'distinct_workspace': True, 'dirty_work_preserved': True, 'ordinary_directory': True},
             'final_context': [{'event': {'view': {'kind': 'review_recorded', 'author': 'researcher', 'standing': 'effective'},
-                'body': {'review_recorded': {'subject': 'final', 'verdict': 'approve'}}}}]}
-        review_outcome = {'ok': True, 'result': self.report['independent_patch_review']}
+                'body': {'review_recorded': {'subject': 'final-proposal', 'verdict': 'approve'}}}}]}
+        review_outcome = {'ok': True, 'result': self.report['independent_tree_review']}
         transcript.write_text(json.dumps({'turns': [{'effects': [{'tool': 'exec.run', 'status': 'completed',
-            'outcome': 'cmd: ./locust-scoped patch review --patch patch, exit_code: 0, stdout: ' +
+            'outcome': 'cmd: ./locust-scoped workspace review --proposal final-proposal, exit_code: 0, stdout: ' +
                 json.dumps(review_outcome) + ', stdout_truncated: false, success: true'}]}]}))
         initial_diff = ''.join(difflib.unified_diff(pilot.STARTER.splitlines(True), PORTABLE.splitlines(True),
                                                    fromfile='a/safe_member.py', tofile='b/safe_member.py'))
         self.report['initial_contribution'] = {'event': {'view': {'event': 'initial-contribution',
             'author': 'builder', 'kind': 'contribution_published', 'standing': 'effective'},
             'task': 'task:task-id', 'body': {'contribution_published': {'attempt': 'initial-attempt',
-                'base': 'base', 'patch': 'initial-patch', 'artifacts': ['initial-head']}}}}
-        self.report['initial_patch_review'] = {'base': 'base', 'contribution_id': 'initial-patch',
-            'head': 'initial-head', 'changes': [{'path': 'safe_member.py', 'unified_diff': initial_diff,
-                                              'after': {'bytes': len(PORTABLE.encode())}}]}
+                'sources': ['initial-proposal'], 'artifacts': []}}}}
+        self.report['initial_tree_review'] = {'proposal': {'proposal': 'initial-proposal',
+            'parent': 'base-revision', 'result_manifest': 'initial-head'}, 'review_mode': 'base_diff',
+            'changes': [{'path': 'safe_member.py', 'unified_diff': initial_diff,
+                        'after': {'bytes': len(PORTABLE.encode()), 'executable': False}}]}
+        for phase, proposal, manifest, code in (
+            ('initial', 'initial-proposal', 'initial-head', PORTABLE),
+            ('revision', 'final-proposal', 'head', REVISED)):
+            field = 'initial_proposal' if phase == 'initial' else 'final_proposal'
+            self.report[field] = {'event': {'view': {'event': proposal, 'author': 'builder',
+                'kind': 'workspace_proposed', 'standing': 'effective'},
+                'body': {'workspace_proposed': {'context': {'scope': 'workspace'},
+                    'parent': 'base-revision', 'result_manifest': manifest, 'sources': []}}}}
+            copy_path = self.root / (phase + '-review') / 'safe_member.py'
+            copy_path.parent.mkdir()
+            copy_path.write_text(code)
+            self.report['initial_reviewed_artifact' if phase == 'initial' else 'reviewed_artifact'] = str(copy_path)
+            next(run for run in self.runs if run['phase'] == phase)['native_calls'] = [
+                {'success': True, 'arguments': {'command': './locust-scoped workspace publish --operation op'},
+                 'output': json.dumps({'ok': True, 'result': {'recorded': {'event': proposal}}})}]
 
     def call(self, phase, tool, args, envelope, error=False):
         ident = len(self.events[phase]) + 1
@@ -254,12 +343,12 @@ class AcceptanceEvidenceTests(unittest.TestCase):
         path.write_text(json.dumps(value))
         self.assertFalse(self.evaluate()['real_peer_reviewed_and_approved_exact_submission'])
 
-    def test_echoed_target_with_another_patch_review_does_not_qualify(self):
+    def test_echoed_target_with_another_tree_review_does_not_qualify(self):
         path = Path(self.runs[-1]['transcript'])
         value = json.loads(path.read_text())
         effect = value['turns'][0]['effects'][0]
-        effect['outcome'] = effect['outcome'].replace('cmd: ./locust-scoped', 'cmd: echo patch; ./locust-scoped').replace(
-            '"contribution_id": "patch"', '"contribution_id": "different"')
+        effect['outcome'] = effect['outcome'].replace('cmd: ./locust-scoped', 'cmd: echo final-proposal; ./locust-scoped').replace(
+            '"proposal": "final-proposal"', '"proposal": "different"')
         path.write_text(json.dumps(value))
         self.assertFalse(self.evaluate()['real_peer_reviewed_and_approved_exact_submission'])
 
@@ -283,6 +372,42 @@ class AcceptanceEvidenceTests(unittest.TestCase):
     def test_dirty_work_loss_fails_application(self):
         self.report['application']['dirty_work_preserved'] = False
         self.assertFalse(self.evaluate()['explicit_application_independently_verified'])
+
+    def test_review_destination_does_not_change_exact_candidate_identity(self):
+        path = Path(self.runs[-1]['transcript'])
+        value = json.loads(path.read_text())
+        review = copy.deepcopy(self.report['independent_tree_review'])
+        review['destination'] = '/another/explicit/review-copy'
+        review['proposal']['approved'] = True
+        review['proposal']['evidence'] = ['peer-approval']
+        value['turns'][0]['effects'][0]['outcome'] = (
+            'cmd: ./locust-scoped workspace review --proposal final-proposal, exit_code: 0, stdout: ' +
+            json.dumps({'ok': True, 'result': review}) + ', stdout_truncated: false, success: true')
+        path.write_text(json.dumps(value))
+        self.assertTrue(self.evaluate()['real_peer_reviewed_and_approved_exact_submission'])
+        review['changes'][0]['after']['bytes'] += 1
+        value['turns'][0]['effects'][0]['outcome'] = (
+            'cmd: ./locust-scoped workspace review --proposal final-proposal, exit_code: 0, stdout: ' +
+            json.dumps({'ok': True, 'result': review}) + ', stdout_truncated: false, success: true')
+        path.write_text(json.dumps(value))
+        self.assertFalse(self.evaluate()['real_peer_reviewed_and_approved_exact_submission'])
+
+    def test_task_report_review_does_not_approve_workspace_proposal(self):
+        self.report['final_context'][0]['event']['body']['review_recorded']['subject'] = 'final'
+        self.assertFalse(self.evaluate()['real_peer_reviewed_and_approved_exact_submission'])
+
+    def test_replaced_review_copy_and_wrong_manifest_fail(self):
+        Path(self.report['reviewed_artifact']).write_text(PORTABLE)
+        self.assertFalse(self.evaluate()['submitted_tree_matches_revised_artifact'])
+        Path(self.report['reviewed_artifact']).write_text(REVISED)
+        self.report['final_proposal']['event']['body']['workspace_proposed']['result_manifest'] = 'another-tree'
+        self.assertFalse(self.evaluate()['submitted_tree_matches_revised_artifact'])
+
+    def test_task_report_must_cite_exact_proposal_and_native_receipt(self):
+        self.final['body']['contribution_published']['sources'] = ['finding']
+        self.assertFalse(self.evaluate()['direct_source_provenance_declared'])
+        self.runs[3]['native_calls'][0]['output'] = 'final-proposal'
+        self.assertFalse(self.evaluate()['submitted_tree_matches_revised_artifact'])
 
     def test_usage_keeps_cached_uncached_and_billing_separate(self):
         result = usage(self.runs[0], 'gpt-6-luna')

@@ -8,8 +8,8 @@ use locust_proto::sync::SyncMessage;
 use std::collections::{BTreeMap, VecDeque};
 
 type Side = (usize, ExchangeId);
-struct Network {
-    nodes: Vec<Daemon>,
+pub(super) struct Network {
+    pub(super) nodes: Vec<Daemon>,
     routes: BTreeMap<Side, Side>,
     queue: VecDeque<(usize, PeerInput)>,
     now: u64,
@@ -19,7 +19,7 @@ struct Network {
     sent: Vec<(usize, EffectId, PublicKey)>,
 }
 impl Network {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let mut net = Self {
             nodes: vec![Daemon::new(71), Daemon::new(72)],
             routes: BTreeMap::new(),
@@ -41,7 +41,7 @@ impl Network {
         }
         net
     }
-    fn endpoint(i: usize) -> EndpointId {
+    pub(super) fn endpoint(i: usize) -> EndpointId {
         EndpointId([71 + i as u8; 32])
     }
     fn input(&mut self, i: usize, input: PeerInput) {
@@ -108,7 +108,7 @@ impl Network {
             }
         }
     }
-    fn poll(&mut self, elapsed: u64) {
+    pub(super) fn poll(&mut self, elapsed: u64) {
         self.now += elapsed;
         for i in 0..2 {
             self.input(i, PeerInput::Poll);
@@ -129,7 +129,7 @@ impl Network {
             self.input(i, input);
         }
     }
-    fn restart(&mut self) {
+    pub(super) fn restart(&mut self) {
         self.routes.clear();
         self.queue.clear();
         for node in &mut self.nodes {

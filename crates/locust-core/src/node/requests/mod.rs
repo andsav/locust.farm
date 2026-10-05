@@ -12,6 +12,7 @@ mod permissions;
 mod reading;
 mod sessions;
 mod tasks;
+mod workspace;
 
 use locust_proto::api::{ApiError, ErrorCode, Request, RequestFrame, Response, ResponseFrame};
 use locust_proto::engine::{ConnId, Entropy, Step};
@@ -236,7 +237,52 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 roles,
                 inputs,
             } => self.rules_bind(actor, goal, expected, formation_json, roles, inputs, now),
-            Request::WorkspaceSet { goal, binding } => self.workspace_set(actor, goal, binding),
+            Request::WorkspaceEpochSet {
+                goal,
+                expected_epoch,
+                rules,
+                checkpoint,
+            } => self.workspace_epoch_set(actor, goal, expected_epoch, rules, checkpoint, now),
+            Request::WorkspaceTree { goal, revision } => self.workspace_tree(actor, goal, revision),
+            Request::WorkspaceRead {
+                goal,
+                revision,
+                path,
+            } => self.workspace_read(actor, goal, revision, path),
+            Request::WorkspaceHead { goal } => self.workspace_head(actor, goal),
+            Request::WorkspaceProposal { goal, proposal } => {
+                self.workspace_proposal(actor, goal, proposal)
+            }
+            Request::WorkspaceProposals { goal } => self.workspace_proposals(actor, goal),
+            Request::WorkspaceRevision { goal, revision } => {
+                self.workspace_revision(actor, goal, revision)
+            }
+            Request::WorkspacePublish { goal, operation } => {
+                self.workspace_submit(actor, goal, operation, false, now)
+            }
+            Request::WorkspaceIntegrate { goal, operation } => {
+                self.workspace_submit(actor, goal, operation, true, now)
+            }
+            Request::WorkspaceRecoveryParentCheck { goal, parent } => {
+                self.workspace_recovery_parent(actor, goal, parent)
+            }
+            Request::CheckoutRegister { goal, checkout } => {
+                self.checkout_register(actor, goal, checkout)
+            }
+            Request::CheckoutBindSession { goal, checkout } => {
+                self.checkout_bind_session(actor, goal, checkout)
+            }
+            Request::Checkouts { goal } => self.checkouts(actor, goal),
+            Request::WorkspaceOperationPrepare { goal, operation } => {
+                self.workspace_operation_prepare(actor, goal, operation)
+            }
+            Request::WorkspaceOperationShow { goal, operation } => {
+                self.workspace_operation_show(actor, goal, operation)
+            }
+            Request::WorkspaceOperations { goal } => self.workspace_operations(actor, goal),
+            Request::WorkspaceOperationComplete { goal, operation } => {
+                self.workspace_operation_complete(actor, goal, operation)
+            }
             Request::Board { goal } => self.board(actor, goal),
             Request::Task { goal, task } => self.task_show(actor, goal, task),
             Request::Event { goal, event } => self.event_show(actor, goal, event),
@@ -288,12 +334,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 generation,
                 summary,
                 sources,
-                base,
-                patch,
                 artifacts,
             } => self.contribution_publish(
-                actor, goal, task, attempt, generation, summary, sources, base, patch, artifacts,
-                now,
+                actor, goal, task, attempt, generation, summary, sources, artifacts, now,
             ),
             Request::Contributions { goal, task } => self.contributions(actor, goal, task),
             Request::ContributionInspect { goal, contribution } => {

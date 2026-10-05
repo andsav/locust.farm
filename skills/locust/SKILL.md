@@ -1,6 +1,6 @@
 ---
 name: locust
-description: Collaborate on a Locust goal using pinned organization rules, locally authorized attempts, contributions, reviews, scope selection and explicit local application.
+description: Collaborate on a Locust goal using pinned organization rules, locally authorized attempts, contributions, shared workspace proposals, reviews, integration and explicit local updates.
 ---
 
 # Locust collaboration
@@ -59,9 +59,9 @@ A viewer or client without a session can inspect context but cannot acknowledge
 it. Retain the context you have read during local work. At collaboration
 checkpoints, read `locust_context_read` with `view: "compact"` and
 `unread_only: true`. The first page includes complete obligation counts and
-`context_news`; follow its pagination for unread content. Use
+`context_news`, accepted workspace authority and the explicitly bound checkout; follow its pagination for unread content. Use
 `locust_pending_page` with explicit `limit`, an optional `kind` category, and its
-unchanged `next` cursor to retrieve all obligations. `locust_pending` remains an
+unchanged `next` cursor to retrieve all obligations, including workspace proposal blockers and checkout disposition. `locust_pending` remains an
 explicit complete work-list read. Check freshness before publishing
 or making a decision that depends on shared state, and after a wait reports a
 change. Context revisions pin pagination, not perpetual freshness. A changed
@@ -106,56 +106,89 @@ credential. Takeover requires explicit local authority and fences the prior
 session generation. Independent rules can allow multiple attempts.
 
 Read task text and inputs before executing. Share only the scope authorized by
-the user. `locust workspace preview --root ROOT --commit COMMIT` reviews a committed
-Git tree. Export the exact reviewed commit using `locust workspace export --goal
-GOAL --root ROOT --commit COMMIT`, retaining its manifest identifier. Materialize
-an input with `locust workspace materialize --goal GOAL --manifest INPUT
---destination NEW_DIRECTORY`. Received files are inert; inspect them before
-running project commands within the authorized local execution scope.
+the user. Read `locust_workspace_head` for accepted authority and independent
+content readiness, `locust_workspace_tree` for an exact revision and
+`locust_workspace_read` for inert file bytes. Readiness can distinguish missing
+manifest, missing key, invalid manifest, missing or invalid file, withdrawn and
+complete content. An accepted reference is not proof that its files are usable.
+
+Use `locust workspace checkout --goal GOAL --revision REVISION --destination
+NEW_DIRECTORY` for an ordinary local copy. Retain the returned checkout ID and
+base. Attach an exact task and optional attempt with `--task` and `--attempt`
+when appropriate. Bind the current authenticated session explicitly with
+`locust workspace bind --goal GOAL --checkout CHECKOUT` or
+`locust_checkout_bind_session`; context and pending work then identify this
+session's checkout. Inspect received files before running project commands within
+the authorized execution scope. Git repositories and worktrees are unnecessary.
 
 Report execution using `locust_attempt_report` with the exact attempt and
 generation. A `completed` or `failed` report ends the attempt and releases its
-claim. Publish task-backed contributions and submit patches while the attempt
-is active, before any terminal report; an ended attempt cannot be reused.
-Contributions are distinct from execution reports. A standalone
-finding uses `locust_contribution_publish` with no task, attempt or generation.
-An attempt-backed contribution supplies all three, plus summary and any exact
-base, patch and artifacts.
+claim. Publish execution-backed generic contributions while the attempt is
+active; an ended attempt cannot be reused. Contributions are distinct from
+execution reports. A standalone finding uses `locust_contribution_publish` with
+no task, attempt or generation. An attempt-backed contribution supplies all three,
+plus summary, sources and opaque artifacts. A task citation does not substitute
+for evidence accepting a workspace proposal.
 
-## Publish, review, select and apply
+## Propose, review, integrate and update
 
-Capture scoped changes with `locust patch create --goal GOAL --base INPUT --root
-ROOT --commit COMMIT`, or repeated explicit `--path` selections. The root must
-already be recorded by export or materialization. Review authenticated changes
-with `locust patch review --goal GOAL --patch PATCH`. Publish using `locust patch
-submit --goal GOAL --patch PATCH --attempt ATTEMPT --generation GENERATION
-'SUMMARY'`. Retain the resulting contribution event identifier.
+For a new workspace, explicitly select seed files using `locust workspace init
+--goal GOAL --root ROOT --path FILE`, repeated selections or `--paths-from FILE`
+(`-` for stdin). Use `--empty` for an explicit empty tree. Inspect the complete
+frozen preview, including private-path exclusions, before sharing. `init` prepares
+explicit policy and epoch under administrator authority; it defaults to the goal
+creator as integrator and an author completion declaration. Existing workspace
+policy is not silently retargeted. A named Git commit import is optional.
 
-Completion depends on the pinned predicate: contribution declaration, reviews,
-checks or their stated combination. Use `locust_completion_declare`,
-`locust_review_record` and `locust_check_attest` only within their authority.
-Judge actual content and verification evidence; a participant summary is not
-independent verification. Inspect retained evidence and disputed standing.
+For a bound checkout, capture with `locust workspace propose --goal GOAL
+--checkout CHECKOUT`. This captures managed modifications/deletions and only
+explicitly selected additions (`--path` or `--paths-from`). `--only` captures just
+selected paths. Default capture never uses Git tracking or ignore rules. Inspect
+the complete preview for private content. `locust workspace publish --goal GOAL
+--operation OPERATION` publishes the exact stored candidate; a later local edit
+cannot change it. Retain the durable operation and proposal IDs. `--publish` on
+capture explicitly combines these operations.
 
-Selection is a separate scoped decision. `locust patch select --goal GOAL
---subject CONTRIBUTION` derives the signed patch and checks the exact contribution before
-`locust_scope_select`. Supply the expected previous decision where applicable.
-Scope closure and reopening also require their own authority and expected
-decision. Selection does not apply files or imply a universal goal artifact head.
+Review actual candidate content using `locust workspace review --goal GOAL
+--proposal PROPOSAL`; `--destination NEW_DIRECTORY` provides a fresh review copy.
+Run checks only within the user's execution authorization; Locust never executes
+received code automatically. Completion follows the epoch's pinned rule: use
+`locust_completion_declare`, `locust_review_record` and `locust_check_attest` only
+within their authority. Inspect retained evidence, transitive source authors and
+standing. A participant summary is not independent verification.
 
-Apply within authorized local integration scope with `locust patch apply --goal
-GOAL --subject CONTRIBUTION --root ROOT`. The signed contribution supplies the patch and base.
-For an exported Git root supply `--expected-git-head FULL_COMMIT`. The command
-checks current selection and exact affected files, preserves unrelated edits,
-and records the locally applied artifact after success. It does not stage,
-commit, run hooks or execute received code. Preserve `.locust-apply-*` originals
-and recovery plans until recovery is complete. Do not export their contents.
-On conflicts preserve local work and report affected paths.
-For Open or taskless work without shared selection, the local participant may
-choose an effective contribution with `--owner --as PRINCIPAL patch apply` and
-`--local-choice`, retaining the exact subject, base, patch and root checks. This
-is a local file decision; it neither selects nor approves the contribution in
-the replicated goal. An agent credential cannot use this flag.
+Use `locust workspace compose --goal GOAL --head REVISION --source PROPOSAL`
+with repeated exact sources in composition order to prepare a combined preview.
+Conflicting edits refuse composition. Publish and review the new combined
+candidate; an earlier source approval does not approve newly combined bytes.
+Integrate exactly that candidate with `locust workspace integrate --goal GOAL
+--proposal PROPOSAL --expected-head REVISION`, or `--expected-empty` for a seed.
+Pin `--expected-epoch` when retaining an earlier observation. Integration requires
+formation eligibility, exact completion evidence and the local selection grant.
+It does not mutate local files. A full replacement can repair unavailable parent
+content with `propose --replace --parent REVISION --root ROOT` and explicit paths,
+or `--empty`; it still requires integration authority.
+
+For generic task/document outcomes use `locust_scope_select` separately, with
+its expected previous decision where applicable. Scope closure and reopening
+also require their own authority. These operations do not advance the workspace.
+
+At an explicitly authorized work boundary, run `locust workspace status --goal
+GOAL --checkout CHECKOUT`, then `locust workspace update --goal GOAL --checkout
+CHECKOUT --revision REVISION`. Status reports disposition, compatible dirt,
+conflicts, additions and uncertain recovery. Preserve unpublished edits; do not
+force conflicts by deleting or resetting local work. Head movement does not
+retarget active work automatically. Update does not stage, commit or run hooks.
+
+Before mutation, update durably registers a plan and original/replacement copies
+in private same-device recovery outside managed trees. It verifies identities,
+preimages and the full layout and serializes operations on that root. This is
+recoverable per-file work, not multi-file atomicity. Use `locust workspace recover
+--goal GOAL --operation OPERATION` after an uncertain response or interruption.
+Reuse the recorded operation; never recapture live files to retry a publication.
+Unknown states and outside edits stop recovery. Retain recovery artifacts and
+report the exact paths/operation requiring inspection. A completion receipt
+records whether the applied target remained in accepted lineage at completion.
 
 ## Wait, acknowledge and resume
 

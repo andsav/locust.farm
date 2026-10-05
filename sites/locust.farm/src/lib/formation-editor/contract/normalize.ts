@@ -178,6 +178,10 @@ export function normalize(value: Formation): Formation {
 		context: value.context,
 		work: goalWork,
 		decisions: goalDecisions,
+		workspace: value.workspace && {
+			integrator: authority(value.workspace.integrator),
+			completion: completion(value.workspace.completion)
+		},
 		task_types: taskTypes,
 		flow
 	};

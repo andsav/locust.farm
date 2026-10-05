@@ -6,6 +6,7 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
@@ -41,18 +42,78 @@ class OperationsTests(unittest.TestCase):
                                         reader=types.SimpleNamespace(join=lambda timeout: None))
         return check, machine, process
 
-    def test_conflicting_apply_preserves_entire_export_only_binding(self):
-        before = {"exported": "base", "integrated": None, "export_root": "/source",
-                  "source_commit": "commit", "destination": None}
-        operations.require_unchanged_export_binding(before, dict(before), "base")
+    def test_workspace_smoke_removes_git_from_children_without_changing_harness_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tools = root / "tools"
+            tools.mkdir()
+            git = tools / "git"
+            git.write_text("#!/bin/sh\nexit 0\n")
+            git.chmod(0o700)
+            check = operations.WorkspaceSmoke(Path("/unused"), 1, root / "artifacts", network="local")
+            self.addCleanup(check.transcript.close)
+            machine = types.SimpleNamespace(home=root / "home")
+            with mock.patch.dict(operations.os.environ, {"PATH": str(tools)}):
+                self.assertEqual(operations.shutil.which("git"), str(git))
+                child = check.environment(machine)
+                self.assertIsNone(operations.shutil.which("git", path=child["PATH"]))
+                self.assertEqual(child["LOCUST_LOOKUP"], "local")
+                self.assertEqual(child["LOCUST_RELAY"], "none")
+                self.assertEqual(operations.os.environ["PATH"], str(tools))
+                with self.assertRaises(FileNotFoundError):
+                    operations.subprocess.run(["git", "--version"], env=child, check=True,
+                                              capture_output=True, timeout=1)
+
+    def test_conflicting_update_preserves_entire_checkout_binding(self):
+        before = {"id": "checkout", "base_revision": "revision", "base_manifest": "manifest",
+                  "root": "/source", "root_identity": {"device": 1, "inode": 2},
+                  "session": None, "task": None, "attempt": None, "active_operation": None}
+        operations.require_unchanged_checkout_binding(before, dict(before), "revision", "manifest")
         for field in before:
             with self.subTest(field=field):
                 after = {**before, field: "changed"}
-                with self.assertRaisesRegex(operations.CheckFailure, "changed workspace binding"):
-                    operations.require_unchanged_export_binding(before, after, "base")
-        for invalid in ({**before, "integrated": "base"}, {**before, "exported": "other"}):
-            with self.assertRaisesRegex(operations.CheckFailure, "export-only workspace binding"):
-                operations.require_unchanged_export_binding(invalid, dict(invalid), "base")
+                with self.assertRaisesRegex(operations.CheckFailure, "changed checkout binding"):
+                    operations.require_unchanged_checkout_binding(before, after, "revision", "manifest")
+        for invalid in ({**before, "active_operation": "pending"}, {**before, "base_revision": "other"},
+                        {**before, "base_manifest": "other"}):
+            with self.assertRaisesRegex(operations.CheckFailure, "unchanged accepted base"):
+                operations.require_unchanged_checkout_binding(invalid, dict(invalid), "revision", "manifest")
+
+    def test_only_exact_recorded_workspace_event_counts_as_receipt(self):
+        event = "ab" * 32
+        self.assertEqual(operations.operation_event({"state": {"recorded": {"event": event}}}), event)
+        for state in ("prepared", {"completed": {"target_in_lineage_at_completion": True}},
+                      {"recorded": {}}, {"recorded": {"event": "prefix"}}):
+            with self.subTest(state=state), self.assertRaises(operations.CheckFailure):
+                operations.operation_event({"state": state})
+
+    def test_authority_without_complete_content_cannot_qualify_peer_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            check, machine, _ = self.fixture(Path(directory))
+            accepted = {"authority": "ready", "head": {"revision": "exact"},
+                        "content": {"complete": {"files": 1, "bytes": 10}}}
+            check.workspace = lambda *args: accepted
+            self.assertEqual(check.complete_workspace(machine, "goal", "exact"), accepted)
+            for changed in ({**accepted, "authority": "pending"},
+                            {**accepted, "head": {"revision": "other"}},
+                            {**accepted, "content": {"files_missing": {"missing": ["hash"]}}},
+                            {**accepted, "content": None}):
+                check.workspace = lambda *args, value=changed: value
+                self.assertIsNone(check.complete_workspace(machine, "goal", "exact"))
+
+    def test_file_preservation_observes_nested_content_and_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "nested").mkdir()
+            file = root / "nested" / "file.txt"
+            file.write_bytes(b"before")
+            file.chmod(0o600)
+            original = operations.directory_files(root)
+            file.chmod(0o700)
+            self.assertNotEqual(operations.directory_files(root), original)
+            file.chmod(0o600)
+            file.write_bytes(b"after")
+            self.assertNotEqual(operations.directory_files(root), original)
 
     def test_success_is_not_an_expected_error(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -60,6 +121,15 @@ class OperationsTests(unittest.TestCase):
             check.cli = lambda *args, **kwargs: {"recorded": {"event": "unexpected"}}
             with self.assertRaisesRegex(operations.CheckFailure, "unexpectedly succeeded"):
                 check.expect_error(machine, ["doc", "accept"], "conflict")
+
+    def test_api_preserves_exact_workspace_operation_field(self):
+        with tempfile.TemporaryDirectory() as directory:
+            check, machine, _ = self.fixture(Path(directory))
+            calls = []
+            check.cli = lambda caller, args: calls.append((caller, args))
+            check.api(machine, "workspace.operation.prepare", goal="goal", operation={"id": "exact"})
+            self.assertEqual(calls[0][1][:2], ["call", "workspace.operation.prepare"])
+            self.assertEqual(operations.json.loads(calls[0][1][2]), {"goal": "goal", "operation": {"id": "exact"}})
 
     def test_small_metadata_transfer_cannot_qualify_multichunk_interruption(self):
         with tempfile.TemporaryDirectory() as directory:

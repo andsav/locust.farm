@@ -75,7 +75,7 @@ test('the byte count and SHA-256 describe the block exactly', async () => {
 	const hash = createHash('sha256').update(body).digest('hex');
 	assert.equal(
 		lines[begin],
-		`${FORMATION_BEGIN} schema_version=1 bytes=${Buffer.byteLength(body)} sha256=${hash}`
+		`${FORMATION_BEGIN} schema_version=2 bytes=${Buffer.byteLength(body)} sha256=${hash}`
 	);
 	assert.equal(lines[end], `${FORMATION_END} sha256=${hash}`);
 	assert.match(
@@ -135,11 +135,11 @@ test('a copied prompt opens again in the editor, even after a terminal re-indent
 });
 
 test('raw JSON opens; other formats and broken text are refused with a reason', () => {
-	assert.ok(openText('{"schema_version": 1}').ok);
-	const other = openText('{"schema_version": 2}');
+	assert.ok(openText('{"schema_version": 2}').ok);
+	const other = openText('{"schema_version": 1}');
 	assert.equal(other.ok, false);
 	if (!other.ok) assert.match(other.message, /different formation format/);
-	const broken = openText('BEGIN LOCUST FORMATION\n{"schema_version": 1,\n');
+	const broken = openText('BEGIN LOCUST FORMATION\n{"schema_version": 2,\n');
 	assert.equal(broken.ok, false);
 	assert.equal(openText('hello').ok, false);
 });

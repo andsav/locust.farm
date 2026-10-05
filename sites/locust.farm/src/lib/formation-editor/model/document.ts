@@ -160,6 +160,10 @@ export function formationData(value: Formation): Record<string, unknown> {
 		},
 		work: work(value.work),
 		decisions: decisions(value.decisions),
+		workspace: value.workspace && {
+			integrator: authority(value.workspace.integrator),
+			completion: completion(value.workspace.completion)
+		},
 		task_types: sortedRecord(value.task_types, (taskType) => ({
 			work: taskType.work && work(taskType.work),
 			decisions: taskType.decisions && decisions(taskType.decisions)

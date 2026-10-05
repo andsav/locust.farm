@@ -203,7 +203,7 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     if operation.starts_with("package.") {
         return package::run(&operation, selected);
     }
-    if operation.starts_with("workspace.") || operation.starts_with("patch.") {
+    if operation.starts_with("workspace.") {
         return workspace::run(matches, &operation, selected);
     }
     if operation.starts_with("client.") {

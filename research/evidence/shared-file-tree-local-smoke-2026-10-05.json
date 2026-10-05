@@ -1,0 +1,113 @@
+{
+  "architecture": "arm64",
+  "binary": {
+    "api_version": 6,
+    "embedded_commit": "98d03af6ce6a-dirty",
+    "execution_copy_path": "<owned-temporary-directory>/locust",
+    "path": "target/debug/locust",
+    "protocol_version": 6,
+    "sha256": "021d547409435e43966a5d5bb6e6de1ee31623e9972e557d0c49ea70aab998f0",
+    "version": "0.1.0",
+    "version_line": "locust 0.1.0 (98d03af6ce6a-dirty) api 6 protocol 6"
+  },
+  "cases": {
+    "both_restarts_and_peer_readback": {
+      "exact_receipt_retained": true,
+      "status": "passed"
+    },
+    "ordinary_checkout_update": {
+      "compatible_dirty_edit": "preserved",
+      "status": "passed",
+      "untracked_file": "preserved"
+    },
+    "proposal_declared_and_integrated": {
+      "proposal": "8ea1f770a05db5465bcc25a0b5a20ff496d462ddf6bdab0b5ab8a27600e1e553",
+      "result_manifest": "c8b3fc52a20ea0b4f2f5a78edcd193d8d5e0214b6f75cda19d21106d60427909",
+      "revision": "85e273ac105af9a805698ce2d536b7883e4a486bae5a08b127ceaad710b02bbd",
+      "status": "passed"
+    },
+    "seed_replicated": {
+      "files": 2,
+      "git_required": false,
+      "revision": "70b25f7ff53eae8845875b55e5e7524e42a69feaf90082bc332f1c444ad3ca7b",
+      "status": "passed"
+    }
+  },
+  "checks": [
+    "M1 daemon endpoint ready",
+    "M2 daemon endpoint ready",
+    "both members converge",
+    "M1 retains the complete accepted workspace",
+    "M2 retains the complete accepted workspace",
+    "proposal complete at integrator",
+    "exact declaration replicated",
+    "accepted head replicated",
+    "M1 daemon endpoint ready",
+    "M2 daemon endpoint ready",
+    "both heads complete after restart"
+  ],
+  "events": {},
+  "failures": [],
+  "finished_at": "2026-10-05T09:24:06.724551+00:00",
+  "goal": "bfdef081b1c1f1b861ed2c902418dcd8408dd10097b1bf8a9b13f5e3774b1b1b",
+  "harness_sha256": "7fdc1ecb0b0f4be1d2fdda814faa4031c7988020677caa7be7caa4a7fd6aac5b",
+  "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+  "port_changes": "permitted; socket addresses are not exposed by status/route snapshots",
+  "publication_redaction": {
+    "changed_fields": [
+      "binary.path",
+      "binary.execution_copy_path"
+    ],
+    "original_summary_sha256": "78482f759037901f108db9e8c87bf8a6535e877b52e820933403e8a4d9d11cdc",
+    "scope": "Machine-specific absolute paths replaced; measured binary/harness hashes and outcomes unchanged"
+  },
+  "qualification": "two production daemons on one host; ordinary-directory shared workspace; local relay-free Iroh",
+  "resources": {
+    "cpu": "unmeasured",
+    "network_bytes": "unmeasured",
+    "rss_scope": "receiver paused at observed partial transfer and after completed resume; sampled, not maximum",
+    "verdict": "measurements only; no performance thresholds"
+  },
+  "route_facts": [
+    {
+      "generation": 0,
+      "kind": "route_snapshot",
+      "machine": 2,
+      "paths": [
+        {
+          "kind": "direct",
+          "rtt": "2.8405ms",
+          "selected": true
+        }
+      ],
+      "peer_endpoint": "462ad6b73c95dd033952ba50245e175b627e3232bb3f2bbc670616d10063945c",
+      "phase": "startup",
+      "time": "2026-10-05T09:24:01.027375+00:00"
+    },
+    {
+      "generation": 0,
+      "kind": "route_snapshot",
+      "machine": 1,
+      "paths": [
+        {
+          "kind": "direct",
+          "rtt": "1.453065ms",
+          "selected": true
+        }
+      ],
+      "peer_endpoint": "844dd97b874b03467bf7facb01856828946ea01cb8902bf7521df212bf29c4d8",
+      "phase": "startup",
+      "time": "2026-10-05T09:24:01.029851+00:00"
+    }
+  ],
+  "sleep_wake": "not exercised",
+  "started_at": "2026-10-05T09:23:59.056300+00:00",
+  "status": "passed",
+  "timeout_seconds": 90,
+  "transport": {
+    "LOCUST_LOOKUP": "local",
+    "LOCUST_RELAY": "none",
+    "configuration": "explicit local reproduction",
+    "mode": "local"
+  }
+}

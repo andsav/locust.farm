@@ -70,7 +70,7 @@ def operation(args):
     names = list(map(str, args))
     if not names:
         return "missing"
-    if names[0] in {"call", "agent", "goal", "task", "session", "workspace", "patch", "contribution", "attempt", "review", "scope", "work", "formation", "daemon"}:
+    if names[0] in {"call", "agent", "goal", "task", "session", "workspace", "contribution", "attempt", "review", "scope", "work", "formation", "daemon"}:
         names = names[:2]
     else:
         names = names[:1]

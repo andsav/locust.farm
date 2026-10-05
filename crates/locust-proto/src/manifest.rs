@@ -29,7 +29,7 @@ use crate::id::BlobHash;
 use crate::limits::{MAX_MANIFEST_ENTRIES, MAX_PATH_BYTES};
 
 /// One regular file of a snapshot.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Entry {
     /// Relative path with `/` separators; see [`is_safe_path`].
     pub path: String,
@@ -42,7 +42,7 @@ pub struct Entry {
 }
 
 /// A snapshot: the files it contains and nothing else.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Manifest {
     /// Entries in strictly ascending byte order of `path`.
     pub entries: Vec<Entry>,

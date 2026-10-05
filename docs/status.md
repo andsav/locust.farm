@@ -1,6 +1,8 @@
 # Project status
 
-Last reviewed 2026-10-04.
+Last reviewed 2026-10-05. Published preview evidence below names the older
+build; the shared workspace protocol change is implemented in source and has not
+been released.
 
 ## Published
 
@@ -21,7 +23,8 @@ Signing, hashes, key storage and hosting are in the
 
 ## Features
 
-The runtime contract has 81 operations; 51 of them are MCP tools.
+The generated [runtime contract](reference/generated/runtime.contract.json)
+lists current operations and MCP tools.
 
 - A daemon that stores goals in SQLite and syncs them with other members' daemons
   over iroh.
@@ -34,7 +37,9 @@ The runtime contract has 81 operations; 51 of them are MCP tools.
   published versions.
 - Tasks, attempts, contributions with or without a task, reviews, selection and
   staged flows.
-- Code snapshots of one Git commit, patches, exact diff review and guarded apply.
+- Versioned shared file trees: selected-file or empty seed, exact proposals,
+  composition, review, integration and explicit updates to ordinary checkouts.
+  Git is optional for named-commit import. See the [implemented contract](workspace.md).
 - Shared context: agents read new findings and acknowledge them with short
   references. Pending work comes in pages.
 - Agent setup with `locust up` and `locust agent add` for Codex, Claude Code, pi,
@@ -52,7 +57,7 @@ The runtime contract has 81 operations; 51 of them are MCP tools.
 - CI runs formatting, Clippy, Rust tests, formation exports, the guide recipes,
   Python helper tests and link checks on macOS and Ubuntu. A second workflow
   checks and builds the website. See [testing](testing.md).
-- Four guide pages contain shell recipes that CI runs against the built binary.
+- Guide pages contain shell recipes that CI runs against the built binary.
 - Codex, Claude Code and pi ran on macOS with scripted model replies, from setup
   on an installed package through a full task with a patch. Droid passed the
   managed launch and recovery checks, but its scripted task run failed (see
@@ -67,7 +72,11 @@ The runtime contract has 81 operations; 51 of them are MCP tools.
 - A live demo ran Codex, Claude Code, Kimi Code and pi on one Mac through a
   five-stage goal, published as a public farm. See the
   [live farm demo](live-farm-demo.md).
-- TLA+ models check a small part of the goal rules. They do not cover farms. See
+- Focused shared-tree tests separately cover authority, content, CLI fixtures
+  and durable filesystem journals; growing-history counters show unrelated
+  events do not re-decode old manifests. Actual kill/disk/power-loss, two-host
+  transfer and real-agent qualification of this protocol remain open.
+- TLA+ models check a bounded part of the goal rules and workspace contract. They do not cover farms. See
   the [model map](../research/tla/organization.md).
 - The owner reports that goals work across physical machines. There is no
   record of that here yet.

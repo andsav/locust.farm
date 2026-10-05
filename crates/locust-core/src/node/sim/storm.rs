@@ -59,8 +59,6 @@ pub fn storm(r: &mut Run) -> Result<(), Fail> {
                 attempt: None,
                 generation: None,
                 summary: text.clone(),
-                base: None,
-                patch: None,
                 sources: Vec::new(),
                 artifacts: Vec::new(),
             };

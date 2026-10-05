@@ -19,7 +19,7 @@
         },
         "flow": {},
         "roles": {},
-        "schema_version": 1,
+        "schema_version": 2,
         "task_types": {},
         "work": {
           "propose": {
@@ -36,7 +36,8 @@
               "kind": "independent"
             }
           ]
-        }
+        },
+        "workspace": null
       },
       "name": "open"
     },
@@ -72,7 +73,7 @@
             "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
           }
         },
-        "schema_version": 1,
+        "schema_version": 2,
         "task_types": {},
         "work": {
           "propose": {
@@ -93,7 +94,8 @@
               }
             }
           ]
-        }
+        },
+        "workspace": null
       },
       "name": "coordinator"
     },
@@ -118,7 +120,7 @@
         },
         "flow": {},
         "roles": {},
-        "schema_version": 1,
+        "schema_version": 2,
         "task_types": {},
         "work": {
           "propose": {
@@ -135,7 +137,8 @@
               "kind": "independent"
             }
           ]
-        }
+        },
+        "workspace": null
       },
       "name": "peer-review"
     },
@@ -165,7 +168,7 @@
             "description": "Picks which result to use. One member."
           }
         },
-        "schema_version": 1,
+        "schema_version": 2,
         "task_types": {},
         "work": {
           "propose": {
@@ -182,7 +185,8 @@
               "kind": "independent"
             }
           ]
-        }
+        },
+        "workspace": null
       },
       "name": "independent-attempts"
     },
@@ -212,7 +216,7 @@
             "description": "Approves results from other members."
           }
         },
-        "schema_version": 1,
+        "schema_version": 2,
         "task_types": {},
         "work": {
           "propose": {
@@ -229,7 +233,8 @@
               "kind": "independent"
             }
           ]
-        }
+        },
+        "workspace": null
       },
       "name": "review-panel"
     },
@@ -272,7 +277,7 @@
           }
         },
         "roles": {},
-        "schema_version": 1,
+        "schema_version": 2,
         "task_types": {
           "draft": {
             "decisions": {
@@ -305,7 +310,8 @@
               "kind": "independent"
             }
           ]
-        }
+        },
+        "workspace": null
       },
       "name": "pipeline"
     }
@@ -887,6 +893,28 @@
           }
         },
         "type": "object"
+      },
+      "WorkspacePolicy": {
+        "additionalProperties": false,
+        "description": "One named integration authority and exact-candidate completion policy.\nEligibility here does not grant the host permission to sign a decision.",
+        "properties": {
+          "completion": {
+            "$ref": "#/$defs/CompletionRule",
+            "default": {
+              "by": {
+                "kind": "contribution_author"
+              },
+              "kind": "declaration"
+            }
+          },
+          "integrator": {
+            "$ref": "#/$defs/Authority"
+          }
+        },
+        "required": [
+          "integrator"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -930,8 +958,8 @@
       },
       "schema_version": {
         "format": "uint32",
-        "maximum": 1,
-        "minimum": 1,
+        "maximum": 2,
+        "minimum": 2,
         "type": "integer"
       },
       "task_types": {
@@ -960,6 +988,18 @@
             }
           ]
         }
+      },
+      "workspace": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/WorkspacePolicy"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Explicit policy for the goal's shared file tree. Absence disables writes."
       }
     },
     "required": [
@@ -968,7 +1008,7 @@
     "title": "Formation",
     "type": "object"
   },
-  "schema_version": 1,
+  "schema_version": 2,
   "scope": "offline_authoring",
   "source": "bundled_current_contract",
   "verification": {

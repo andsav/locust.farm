@@ -1107,8 +1107,6 @@ mod tests {
                 task: None,
                 attempt: None,
                 generation: None,
-                base: None,
-                patch: None,
                 sources: Vec::new(),
                 artifacts: vec![],
                 summary: "while the member is away".into(),

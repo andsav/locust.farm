@@ -302,6 +302,12 @@ export function summarize(formation: Formation): SummaryLine[] {
 			}`
 		});
 	}
+	if (formation.workspace) {
+		lines.push({
+			area: 'kept',
+			text: 'Shared tree policy, kept as it is. Integration requires its exact proposal evidence; see Locust’s explanation for the integrator and completion rule.'
+		});
+	}
 	const inputs = Object.entries(formation.context.inputs);
 	if (inputs.length > 0) {
 		const parts = inputs.map(

@@ -118,6 +118,8 @@ pub enum ContextSummary {
 /// status and obligations remain available through explicit full/detail reads.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ContextBrief {
+    pub workspace: super::WorkspaceView,
+    pub checkout: Option<super::Checkout>,
     pub goal: GoalId,
     pub title: Option<String>,
     pub administrator: PublicKey,
@@ -140,6 +142,7 @@ pub struct ContextDocumentSelection {
 /// Complete scope metadata on an explicitly requested full first page.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ContextSnapshot {
+    pub checkout: Option<super::Checkout>,
     pub status: GoalStatus,
     pub task: Option<TaskDetail>,
     /// The requested scope's pinned rules, including a task's type.

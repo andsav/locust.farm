@@ -230,6 +230,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
         context_news: Option<ContextNews>,
     ) -> PendingWork {
         let mut work = PendingWork {
+            workspace: entry.state().workspace.as_ref().map(|workspace| {
+                Box::new(locust_proto::api::WorkspaceStatus {
+                    epoch: workspace.epoch,
+                    head: workspace.head,
+                    ready: workspace.ready,
+                    enabled: workspace.enabled,
+                    checkout: self.bound_checkout(entry, actor),
+                })
+            }),
             revision: entry.revision(),
             context_news,
             ..PendingWork::default()
@@ -357,6 +366,20 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         .values()
                         .map(|r| (r.id, r.context, r.approved)),
                 );
+            let reviewable = reviewable.chain(
+                entry
+                    .state()
+                    .workspace_proposals
+                    .values()
+                    .filter(|proposal| {
+                        entry.state().workspace.as_ref().is_some_and(|workspace| {
+                            workspace.ready
+                                && workspace.epoch == proposal.context.round
+                                && workspace.head == proposal.parent
+                        })
+                    })
+                    .map(|proposal| (proposal.id, proposal.context, proposal.approved)),
+            );
             for (subject, context, approved) in reviewable {
                 if !approved
                     && !reviewed.contains(&subject)

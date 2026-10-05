@@ -185,10 +185,10 @@ impl Engine for Scripted {
             self.unconcerned -= 1;
             return Step::Park(*parked);
         } else {
-            WaitOutcome::Work(PendingWork {
+            WaitOutcome::Work(Box::new(PendingWork {
                 revision: 2,
                 ..PendingWork::default()
-            })
+            }))
         };
         Step::Reply(ResponseFrame {
             id: parked.request_id,
@@ -380,8 +380,6 @@ fn note(goal: GoalId, text: &str) -> Request {
         task: None,
         attempt: None,
         generation: None,
-        base: None,
-        patch: None,
         sources: Vec::new(),
         artifacts: vec![],
         summary: text.to_string(),

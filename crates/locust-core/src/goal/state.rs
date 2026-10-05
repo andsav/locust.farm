@@ -88,8 +88,6 @@ pub struct Contribution {
     pub author: PublicKey,
     pub context: Context,
     pub attempt: Option<EventId>,
-    pub base: Option<BlobHash>,
-    pub patch: Option<BlobHash>,
     pub artifacts: Vec<BlobHash>,
     pub approved: bool,
     /// Exact positive evidence sufficient under the pinned completion rule.
@@ -137,6 +135,7 @@ pub struct ScopedSelection {
 pub enum SelectedSubject {
     Contribution(Contribution),
     Revision(Revision),
+    Workspace(WorkspaceProposal),
 }
 
 impl SelectedSubject {
@@ -144,8 +143,41 @@ impl SelectedSubject {
         match self {
             Self::Contribution(subject) => subject.id,
             Self::Revision(subject) => subject.id,
+            Self::Workspace(subject) => subject.id,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkspaceProposal {
+    pub id: EventId,
+    pub author: PublicKey,
+    pub context: Context,
+    pub parent: Option<EventId>,
+    pub result_manifest: BlobHash,
+    pub sources: Vec<EventId>,
+    pub source_authors: BTreeSet<PublicKey>,
+    pub approved: bool,
+    pub evidence: BTreeSet<EventId>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkspaceRevision {
+    pub id: EventId,
+    pub context: Context,
+    pub proposal: EventId,
+    pub parent: Option<EventId>,
+    pub result_manifest: BlobHash,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Workspace {
+    /// Structural fencing survives unavailable or invalid checkpoint evidence.
+    pub epoch: EventId,
+    pub checkpoint: Option<EventId>,
+    pub head: Option<EventId>,
+    pub ready: bool,
+    pub enabled: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -170,6 +202,11 @@ pub struct State {
     pub epoch: u32,
     pub members: BTreeMap<PublicKey, Member>,
     pub current_rules: Option<EventId>,
+    pub workspace: Option<Workspace>,
+    pub workspace_proposals: BTreeMap<EventId, WorkspaceProposal>,
+    pub workspace_revisions: BTreeMap<EventId, WorkspaceRevision>,
+    pub workspace_sources: BTreeSet<EventId>,
+    pub workspace_lineage: BTreeSet<EventId>,
     pub rules: BTreeMap<EventId, BoundRules>,
     pub tasks: BTreeMap<TaskId, Task>,
     pub offers: BTreeMap<EventId, Offer>,
