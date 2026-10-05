@@ -9,7 +9,7 @@
 //!
 //! Reserved workspace metadata (`.locust`, `.locust-apply-*`,
 //! `.locust-workspace-*`, `.locust-recovery-*`) is denied wherever it appears,
-//! matching the reserved-path policy enforced by `tree::tree_path`. The
+//! through the shared path check in `files::check_path`. The
 //! same policy is applied to repository ancestors before paths are rebased
 //! to the export root, and to each export path before its bytes reach the
 //! blob sink.

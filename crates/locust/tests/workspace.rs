@@ -629,6 +629,73 @@ fn no_git_two_checkout_capture_composition_integration_and_dirty_update_loop() {
 }
 
 #[test]
+fn checkout_preflight_validates_task_and_attempt_before_materializing() {
+    let fixture = Fixture::new();
+    let files = tempfile::tempdir().unwrap();
+    let seed = files.path().join("seed");
+    fs::create_dir(&seed).unwrap();
+    fs::write(seed.join("a"), b"base\n").unwrap();
+    fs::write(seed.join("b"), b"base\n").unwrap();
+    let (_, revision) = fixture.seed(&seed);
+    let valid_task = "task:1111111111111111111111111111111111111111111111111111111111111111";
+    // An invalid task selector fails before filesystem publication, leaving no
+    // unregistered directory behind.
+    let bad_task = files.path().join("bad-task");
+    let mut command = fixture.cli();
+    command
+        .args([
+            "workspace",
+            "checkout",
+            "--goal",
+            &GOAL.to_string(),
+            "--revision",
+            &revision,
+            "--destination",
+        ])
+        .arg(&bad_task)
+        .args(["--task", "task:xyz"]);
+    assert_eq!(output(command, 2)["error"]["code"], "invalid");
+    assert!(!bad_task.exists());
+    // An invalid attempt selector fails before publication even with a valid
+    // task identifier that parses without a board round trip.
+    let bad_attempt = files.path().join("bad-attempt");
+    let mut command = fixture.cli();
+    command
+        .args([
+            "workspace",
+            "checkout",
+            "--goal",
+            &GOAL.to_string(),
+            "--revision",
+            &revision,
+            "--destination",
+        ])
+        .arg(&bad_attempt)
+        .args(["--task", valid_task, "--attempt", "xyz"]);
+    assert_eq!(output(command, 2)["error"]["code"], "invalid");
+    assert!(!bad_attempt.exists());
+    // A corrected retry with a valid task materializes and registers.
+    let good = files.path().join("good");
+    let mut command = fixture.cli();
+    command
+        .args([
+            "workspace",
+            "checkout",
+            "--goal",
+            &GOAL.to_string(),
+            "--revision",
+            &revision,
+            "--destination",
+        ])
+        .arg(&good)
+        .args(["--task", valid_task]);
+    let registered = output(command, 0);
+    assert_eq!(registered["result"]["checkout"]["task"], valid_task);
+    assert!(good.exists());
+    assert_eq!(fs::read(good.join("a")).unwrap(), b"base\n");
+}
+
+#[test]
 fn lost_publish_reply_reuses_same_candidate_after_live_files_change() {
     let fixture = Fixture::new();
     let files = tempfile::tempdir().unwrap();

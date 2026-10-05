@@ -1051,13 +1051,7 @@ fn incompatible_event_protocol_refuses_open_before_collecting_or_rewriting_state
 }
 
 #[test]
-fn opening_does_not_scan_the_event_log_a_third_time() {
-    // `connection::preflight` reads the protocol version with a read-only
-    // connection; `connection::open` re-checks it under the exclusive lock.
-    // `SqliteStore::open` must not scan the events table a third time before
-    // initialization or garbage collection. An incompatible version stored
-    // after a compatible open is still refused on the next open by the
-    // locked check alone.
+fn locked_connection_rechecks_event_protocol_after_preflight() {
     let (dir, mut store) = scratch();
     let mut author = locust_proto::testkit::Author::new(91);
     let genesis = author.genesis();
@@ -1070,16 +1064,16 @@ fn opening_does_not_scan_the_event_log_a_third_time() {
         })
         .unwrap();
     drop(store);
-
-    // Damage the first event's protocol version byte. The locked check inside
-    // `connection::open` must catch this; no third scan is needed in `open`.
+    let database = locust_proto::local::database_path(dir.path());
+    crate::connection::preflight(&database, dir.path()).unwrap();
+    // A change after the read-only preflight is caught by the locked check.
     let mut old_header = genesis.header_bytes().to_vec();
     old_header[0] = locust_proto::PROTOCOL_VERSION.wrapping_sub(1);
     raw(&dir)
         .execute("UPDATE events SET header = ?1", [&old_header])
         .unwrap();
     assert!(
-        matches!(SqliteStore::open(dir.path()), Err(OpenError::UnsupportedProtocolVersion { found, known })
+        matches!(crate::connection::open(&database, dir.path()), Err(OpenError::UnsupportedProtocolVersion { found, known })
         if found == old_header[0] && known == locust_proto::PROTOCOL_VERSION)
     );
 }

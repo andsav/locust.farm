@@ -58,8 +58,8 @@ pub use files::{BlobStore, WorkspaceError};
 pub use materialize::{MaterializeError, materialize};
 pub use review::{ChangeReview, FileSummary, review_changes};
 pub use transaction::{
-    DirectoryIdentity, PreparedUpdate, UpdateDescriptor, UpdateReport, abandon_update,
-    mark_update_completed, prepare_update, reopen_update,
+    DirectoryIdentity, PreparedUpdate, UpdateDescriptor, UpdateReport, mark_update_completed,
+    prepare_update, reopen_update,
 };
 pub use tree::{
     CaptureMode, FileDigest, FileValue, FrozenTree, LocalTree, TreeChange, TreeFile, UpdatePlan,

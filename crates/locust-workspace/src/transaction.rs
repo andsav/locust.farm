@@ -518,18 +518,6 @@ fn file_matches(observation: &Observation, value: &FileValue) -> bool {
 fn file_digest_matches(observation: &Observation, digest: &crate::FileDigest) -> bool {
     matches!(observation,Observation::File{digest:d,executable,..} if *d==digest.digest&&*executable==digest.executable)
 }
-fn check_transition_path(path: &str) -> Result<(), WorkspaceError> {
-    check_path(path)?;
-    if path.split('/').any(|component| {
-        let lower = component.to_ascii_lowercase();
-        lower == ".locust"
-            || lower.starts_with(".locust-workspace-")
-            || lower.starts_with(".locust-recovery-")
-    }) {
-        return Err(invalid("transition names private workspace metadata"));
-    }
-    Ok(())
-}
 fn validate_final_layout(
     final_files: &BTreeMap<String, (BlobHash, bool)>,
     before: &Inventory,
@@ -565,7 +553,7 @@ fn validate_plan(plan: &UpdatePlan, before: &Inventory) -> Result<(), WorkspaceE
         .collect();
     let mut seen = BTreeSet::new();
     for change in &plan.changes {
-        check_transition_path(&change.path)?;
+        check_path(&change.path)?;
         if !seen.insert(&change.path) {
             return Err(invalid("duplicate transition path"));
         }
@@ -615,7 +603,7 @@ fn validate_durable_plan(
         .collect();
     let mut seen = BTreeSet::new();
     for change in &plan.changes {
-        check_transition_path(&change.path)?;
+        check_path(&change.path)?;
         if !seen.insert(&change.path) {
             return Err(invalid("duplicate transition path"));
         }
@@ -695,30 +683,21 @@ fn remove_recovery_dir(parent: &File, name: &str) -> Result<(), WorkspaceError> 
     Ok(())
 }
 
-/// Returns true if a recovery directory belongs to a registered or started
-/// operation (has `authorized.json` or any committed `phase-N` file), and so
-/// must not be cleaned up automatically.
-fn is_registered_operation(dir: &File) -> Result<bool, WorkspaceError> {
-    for name in safe_fs::names(dir)? {
-        if name == "authorized.json" || name == "completed.json" {
-            return Ok(true);
-        }
-        if name
-            .strip_prefix("phase-")
-            .is_some_and(|s| !s.ends_with(".tmp"))
-        {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
 /// Freeze and durably stage an already-composed transition without changing any
 /// checkout file. `managed_roots` must include every locally bound checkout.
 pub fn prepare_update(
     root: &Path,
     managed_roots: &[PathBuf],
     update: &UpdatePlan,
+) -> Result<PreparedUpdate, WorkspaceError> {
+    prepare_update_checked(root, managed_roots, update, || Ok(()))
+}
+
+fn prepare_update_checked(
+    root: &Path,
+    managed_roots: &[PathBuf],
+    update: &UpdatePlan,
+    staged: impl FnOnce() -> Result<(), WorkspaceError>,
 ) -> Result<PreparedUpdate, WorkspaceError> {
     let root_path = canonical(root)?;
     let root = safe_fs::root(&root_path)?;
@@ -762,13 +741,8 @@ pub fn prepare_update(
                     && done.recovery_directory == parent_path.join(&name)
                     && done.recovery_identity == DirectoryIdentity::of(&prior.metadata()?) => {}
             _ => {
-                if !is_registered_operation(&prior)? {
-                    // A failed pre-registration preparation: no operation was
-                    // registered and no mutation was authorized. Safe to remove
-                    // our own staging artifacts so a corrected prepare can proceed.
-                    remove_recovery_dir(&parent, &name)?;
-                    continue;
-                }
+                // Registration can commit before authorized.json is written.
+                // An absent marker never proves an older journal is disposable.
                 return Err(WorkspaceError::RecoveryRequired {
                     path: parent_path.join(name),
                     reason: "an earlier same-root operation is incomplete or unknown".into(),
@@ -896,6 +870,7 @@ pub fn prepare_update(
         let bytes = json(&plan)?;
         descriptor.plan_digest = content_hash(&bytes);
         private_write(&recovery, "plan.json", &bytes)?;
+        staged()?;
         if inventory(&root)? != plan.before {
             return Err(conflict(
                 "checkout",
@@ -909,16 +884,16 @@ pub fn prepare_update(
             plan,
         })
     })();
-    if result.is_err() {
-        // A failed pre-registration preparation: no operation was registered
-        // and no mutation was authorized. Remove our own staging artifacts so
-        // a corrected prepare can proceed, while still reporting the error.
-        let _ = remove_recovery_dir(&parent, &name);
+    match result {
+        Ok(prepared) => Ok(prepared),
+        Err(error) => match remove_recovery_dir(&parent, &name) {
+            Ok(()) => Err(error),
+            Err(cleanup) => Err(WorkspaceError::RecoveryRequired {
+                path: descriptor.recovery_directory,
+                reason: format!("{error}; staging cleanup failed: {cleanup}"),
+            }),
+        },
     }
-    result.map_err(|error: WorkspaceError| WorkspaceError::RecoveryRequired {
-        path: descriptor.recovery_directory,
-        reason: error.to_string(),
-    })
 }
 // Inventory and probe code may inspect preserved private paths, but mutations
 // themselves always use checked TreeChange paths and safe_fs::parent.
@@ -981,35 +956,6 @@ pub fn reopen_update(
         recovery,
         plan,
     })
-}
-
-/// Explicitly abandon a failed pre-registration preparation. If the recovery
-/// directory belongs to an operation that was registered or started (has
-/// `authorized.json` or committed phase files), it must be recovered instead;
-/// this returns an error naming the directory. Otherwise the recovery
-/// directory and its staging artifacts are removed so a corrected prepare
-/// can proceed.
-pub fn abandon_update(descriptor: &UpdateDescriptor) -> Result<(), WorkspaceError> {
-    let parent = absolute_directory(
-        descriptor
-            .recovery_directory
-            .parent()
-            .ok_or_else(|| invalid("recovery directory has no parent"))?,
-    )?;
-    let name = descriptor
-        .recovery_directory
-        .file_name()
-        .ok_or_else(|| invalid("recovery directory has no name"))?
-        .to_str()
-        .ok_or_else(|| invalid("non-UTF-8 recovery directory name"))?;
-    let prior = safe_fs::dir_at(&parent, name)?;
-    if is_registered_operation(&prior)? {
-        return Err(WorkspaceError::RecoveryRequired {
-            path: descriptor.recovery_directory.clone(),
-            reason: "operation was registered or started; recover it instead".into(),
-        });
-    }
-    remove_recovery_dir(&parent, name)
 }
 
 /// Reconcile a filesystem completion marker after the caller has read an exact
@@ -1690,23 +1636,26 @@ mod tests {
         let parent = root.parent().unwrap().to_owned();
         assert!(prepare_update(&root, &[parent], &plan).is_err());
         let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
-        let _descriptor = prepared.descriptor().clone();
-        drop(prepared);
-        // A dropped pre-registration preparation (no authorized.json) is cleaned
-        // up by the next prepare, which then succeeds.
-        let reprepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
-        drop(reprepared);
-        // An authorized (registered) operation still requires recovery.
-        let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
         let descriptor = prepared.descriptor().clone();
+        drop(prepared);
+        // Registration may have committed before the local authorization marker.
+        assert!(
+            !descriptor
+                .recovery_directory
+                .join("authorized.json")
+                .exists()
+        );
+        assert!(matches!(
+            prepare_update(&root, std::slice::from_ref(&root), &plan),
+            Err(WorkspaceError::RecoveryRequired { .. })
+        ));
+        let prepared = reopen_update(&descriptor, std::slice::from_ref(&root)).unwrap();
         prepared.authorization(&descriptor).unwrap();
         drop(prepared);
         assert!(matches!(
             prepare_update(&root, std::slice::from_ref(&root), &plan),
             Err(WorkspaceError::RecoveryRequired { .. })
         ));
-        // Abandoning a registered operation is refused; it must be recovered.
-        assert!(abandon_update(&descriptor).is_err());
         let mut wrong = descriptor.clone();
         wrong.plan_digest = BlobHash([7; 32]);
         assert!(reopen_update(&wrong, std::slice::from_ref(&root)).is_err());
@@ -1825,20 +1774,19 @@ mod tests {
     #[test]
     fn failed_pre_registration_preparation_is_cleaned_up_for_safe_retry() {
         let (_temp, root, plan) = fixture();
-        // Simulate a failed pre-registration preparation: create a recovery
-        // directory with plan.json but no authorized.json, then edit the
-        // checkout so the interference check would fail.
-        let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
-        let descriptor = prepared.descriptor().clone();
-        let recovery_dir = descriptor.recovery_directory.clone();
-        drop(prepared);
-        // The recovery directory exists with plan.json but no authorized.json.
-        assert!(recovery_dir.join("plan.json").exists());
-        assert!(!recovery_dir.join("authorized.json").exists());
-        // A concurrent local edit after the original backup.
-        std::fs::write(root.join("untracked"), b"external edit").unwrap();
-        // The next prepare cleans up the stale recovery directory and succeeds
-        // with the corrected checkout state.
+        let mut recovery_dir = None;
+        let failed = prepare_update_checked(&root, std::slice::from_ref(&root), &plan, || {
+            let staged = std::fs::read_dir(root.parent().unwrap())?
+                .map(|entry| entry.unwrap().path())
+                .find(|path| path.join("plan.json").is_file())
+                .expect("the immutable plan was written before interference");
+            recovery_dir = Some(staged);
+            std::fs::write(root.join("untracked"), b"external edit")?;
+            Ok(())
+        });
+        assert!(matches!(failed, Err(WorkspaceError::Conflict { .. })));
+        assert!(!recovery_dir.unwrap().exists());
+        // A corrected plan preserves the edit and can immediately retry.
         let mut updated = plan.clone();
         updated.final_files.insert(
             "untracked".into(),
@@ -1849,8 +1797,6 @@ mod tests {
             },
         );
         let prepared = prepare_update(&root, std::slice::from_ref(&root), &updated).unwrap();
-        // The old recovery directory was removed.
-        assert!(!recovery_dir.exists());
         // The new preparation succeeds and applies correctly.
         let descriptor = prepared.descriptor().clone();
         drop(prepared);
@@ -1863,17 +1809,22 @@ mod tests {
     }
 
     #[test]
-    fn abandon_update_removes_pre_registration_recovery_dir() {
+    fn unknown_recovery_directory_is_never_deleted_automatically() {
         let (_temp, root, plan) = fixture();
-        let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
-        let descriptor = prepared.descriptor().clone();
-        let recovery_dir = descriptor.recovery_directory.clone();
-        drop(prepared);
-        assert!(recovery_dir.exists());
-        // Abandoning a pre-registration preparation removes it.
-        abandon_update(&descriptor).unwrap();
-        assert!(!recovery_dir.exists());
-        // A subsequent prepare succeeds.
-        prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let identity = DirectoryIdentity::of(&std::fs::metadata(&root).unwrap());
+        let recovery_dir = root.parent().unwrap().join(format!(
+            ".locust-recovery-{}-{}-unknown",
+            identity.device, identity.inode
+        ));
+        std::fs::create_dir(&recovery_dir).unwrap();
+        std::fs::write(recovery_dir.join("outside-edit"), b"preserve").unwrap();
+        assert!(matches!(
+            prepare_update(&root, std::slice::from_ref(&root), &plan),
+            Err(WorkspaceError::RecoveryRequired { .. })
+        ));
+        assert_eq!(
+            std::fs::read(recovery_dir.join("outside-edit")).unwrap(),
+            b"preserve"
+        );
     }
 }

@@ -137,27 +137,11 @@ pub fn parse_paths(bytes: &[u8]) -> Result<Vec<String>, WorkspaceError> {
     selected_paths(&paths)
 }
 
-fn tree_path(path: &str) -> Result<(), WorkspaceError> {
-    check_path(path)?;
-    if path.split('/').any(|component| {
-        let name = component.to_ascii_lowercase();
-        name == ".locust"
-            || name.starts_with(".locust-workspace-")
-            || name.starts_with(".locust-recovery-")
-    }) {
-        return Err(safe_fs::unsupported(
-            path,
-            "reserved local workspace metadata",
-        ));
-    }
-    Ok(())
-}
-
 fn selected_paths(paths: &[String]) -> Result<Vec<String>, WorkspaceError> {
     let mut paths = paths.to_vec();
     paths.sort();
     for path in &paths {
-        tree_path(path)?;
+        check_path(path)?;
     }
     if paths.windows(2).any(|pair| pair[0] == pair[1]) {
         return Err(invalid("selected paths must be unique"));
@@ -168,7 +152,7 @@ fn selected_paths(paths: &[String]) -> Result<Vec<String>, WorkspaceError> {
 fn checked_manifest(source: &mut dyn BlobSource, id: BlobHash) -> Result<Manifest, WorkspaceError> {
     let tree = manifest(source, id)?;
     for entry in &tree.entries {
-        tree_path(&entry.path)?;
+        check_path(&entry.path)?;
     }
     Ok(tree)
 }
@@ -253,7 +237,7 @@ fn seal_tree(
     check_layout(files)?;
     let mut entries = Vec::with_capacity(files.len());
     for (path, file) in files {
-        tree_path(path)?;
+        check_path(path)?;
         let old = reuse.iter().find_map(|(tree, values)| {
             (values.get(path).is_some_and(|old| old.bytes == file.bytes))
                 .then(|| {

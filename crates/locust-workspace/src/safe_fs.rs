@@ -37,13 +37,15 @@ impl From<&Metadata> for Identity {
     }
 }
 impl From<&rustix::fs::Stat> for Identity {
+    // Stat field widths and signedness differ between macOS and Linux.
+    #[allow(clippy::unnecessary_cast)]
     fn from(stat: &rustix::fs::Stat) -> Self {
         Self {
             dev: stat.st_dev as u64,
             ino: stat.st_ino,
             size: stat.st_size as u64,
-            modified: (stat.st_mtime, stat.st_mtime_nsec),
-            changed: (stat.st_ctime, stat.st_ctime_nsec),
+            modified: (stat.st_mtime as i64, stat.st_mtime_nsec as i64),
+            changed: (stat.st_ctime as i64, stat.st_ctime_nsec as i64),
             mode: stat.st_mode as u32,
         }
     }
@@ -103,11 +105,15 @@ pub(crate) fn names(dir: &File) -> Result<Vec<String>, WorkspaceError> {
                 .to_owned(),
         );
     }
+    result.sort_unstable();
     Ok(result)
 }
 
 fn check_listed(listed: &[String], name: &str) -> Result<(), WorkspaceError> {
-    if !listed.iter().any(|entry| entry == name) {
+    if listed
+        .binary_search_by(|entry| entry.as_str().cmp(name))
+        .is_err()
+    {
         return Err(WorkspaceError::Conflict {
             path: name.into(),
             reason: "filesystem case or normalization alias".into(),
@@ -277,16 +283,7 @@ pub(crate) fn read_at_listed(
 /// Reads a file's identity and content digest without loading its full bytes,
 /// streaming through a fixed buffer. No content-object limit is imposed: this
 /// is a local observation of a preserved file, not a publishable object.
-#[allow(dead_code)]
-pub(crate) fn read_at_digest(
-    parent: &File,
-    name: &str,
-    label: &str,
-) -> Result<Option<ObservedFile>, WorkspaceError> {
-    read_at_digest_listed(parent, name, label, &names(parent)?)
-}
-
-/// Streaming variant of `read_at_digest` that reuses a directory listing.
+/// Reuses a sorted directory listing obtained with `names`.
 pub(crate) fn read_at_digest_listed(
     parent: &File,
     name: &str,

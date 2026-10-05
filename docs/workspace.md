@@ -54,6 +54,9 @@ paths; a subset proposal leaves omitted changes local. Manifest entries include
 file bytes and executable bits. Rename is delete plus add. Composition does not
 perform text merging or choose a winner for conflicting contents. The accepted
 mixed update preserves compatible local edits and unrelated ordinary files.
+Local inventories stream file hashes, so a preserved untracked file need not fit
+the publication object limit. Durable plans keep digests, not copies of preserved
+file contents; changed files still have exact recovery copies.
 
 The [CLI](../crates/locust/src/cli/workspace.rs) owns filesystem reads and writes.
 The daemon stores inert root paths, root identities, base revision/manifest pairs,
@@ -83,6 +86,9 @@ lives in a private same-device sibling directory outside every managed root. A
 mount whose parent cannot host same-device recovery is refused before mutation.
 Prepared descriptors bind exact root/recovery paths, device/inode identities and
 the plan digest. An incomplete older operation blocks fresh preparation.
+An in-process preparation failure cleans only the staging directory it just
+created. Missing authorization markers do not prove an older journal is
+unregistered, so unknown or interrupted journals remain intact for recovery.
 
 The CLI persists that descriptor with the expected checkout base and target in the
 daemon before executing. Each destructive filesystem step has a durable intent
@@ -91,6 +97,9 @@ replacement installation uses no-replace renames. Files, records and directories
 are synchronized, including macOS full-file synchronization. The entire preimage
 and layout are checked repeatedly. Reopening verifies the descriptor, immutable
 plan, backup bytes, phase records and known artifact identities.
+Each inventory lists a directory once and uses sorted name lookups. Revalidation
+reuses a file's digest only while its device, inode, size, mode, modification time
+and change time match; changes force a fresh read before mutation.
 
 After verifying the mixed result, the CLI requests one atomic daemon commit that
 updates the binding and operation receipt together, then marks the filesystem
@@ -108,12 +117,14 @@ The library relies on its caller to persist daemon authorization before `execute
 
 ## Verification boundaries
 
-The integrated source checks passed on macOS: formatting, strict workspace
-Clippy, 814 Rust tests (14 explicitly ignored), a locked binary build, formation
+The 2026-10-05 integrated source checks passed on macOS: formatting, strict workspace
+Clippy, 884 Rust tests (14 explicitly ignored), a locked binary build, formation
 exports/conformance, four executable guide recipes, Python helper tests, and
-documentation links. The site's lint, type check, 195 tests and build passed;
-the build verified 88 routes, 14 raw articles and 10 exact assets. The 54 bounded
-workspace model outcomes matched their expectations. These are source checks,
+documentation links. The site's lint, type check, 208 tests, 24 browser tests and
+build passed; the build verified 88 routes, 14 raw articles and 10 exact assets.
+The workspace crate also passed Linux-target compilation and Clippy, not Linux
+runtime qualification. The previously checked 54 bounded workspace model outcomes
+matched their expectations. These are source checks,
 not a signature or deployment qualification for a packaged release.
 
 - [Tree tests](../crates/locust-workspace/tests/tree.rs) exercise canonical capture,
@@ -122,7 +133,9 @@ not a signature or deployment qualification for a packaged release.
   exercise deterministic interruption points before/after write-ahead phases,
   file/directory transitions, descriptor and backup tampering, incomplete journals,
   cross-process locks, outside edits, and receipt-based marker repair after new
-  user edits. They do not simulate an actual power loss.
+  user edits. They also check failed-preparation retry, preservation of unknown
+  journals, digest-only plans and bounded directory listings. They do not simulate
+  an actual power loss.
 - [Content tests](../crates/locust-core/src/node/content_graph_tests.rs) exercise
   typed roots, opaque leaves, missing/invalid/withdrawn content, key and reader
   authorization, restart, unchanged-file reuse, file-validation caching and
