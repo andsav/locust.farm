@@ -12,18 +12,43 @@ use serde_json::{Value, json};
 
 use crate::failure::Failure;
 
+/// Which client is speaking, so its messages name the context read the way
+/// its caller runs it. The API's operation name, `context.read`, is neither a
+/// command nor a tool.
+#[derive(Clone, Copy)]
+pub(crate) enum Surface {
+    Cli,
+    Mcp,
+}
+
+impl Surface {
+    fn context_read(self) -> &'static str {
+        match self {
+            Self::Cli => "locust context read",
+            Self::Mcp => "locust_context_read",
+        }
+    }
+}
+
 pub(crate) struct Cache {
     home: PathBuf,
     credential: Credential,
     session: Option<SessionSecret>,
+    surface: Surface,
 }
 
 impl Cache {
-    pub(crate) fn new(home: &Path, credential: Credential, session: Option<SessionSecret>) -> Self {
+    pub(crate) fn new(
+        home: &Path,
+        credential: Credential,
+        session: Option<SessionSecret>,
+        surface: Surface,
+    ) -> Self {
         Self {
             home: home.to_owned(),
             credential,
             session,
+            surface,
         }
     }
 
@@ -107,7 +132,7 @@ impl Cache {
     }
 
     pub(crate) fn load(&self, reference: &str) -> Result<ContextReceipt, Failure> {
-        let hash = reference.strip_prefix("ctx:").filter(|hash| hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))).ok_or_else(|| Failure::invalid("receipt must be the ctx: reference returned by context.read in this credential and session"))?;
+        let hash = reference.strip_prefix("ctx:").filter(|hash| hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))).ok_or_else(|| Failure::invalid(format!("receipt must be the ctx: reference returned by {} in this credential and session", self.surface.context_read())))?;
         let directory = self.directory(false)?;
         let mut file = File::from(
             rustix::fs::openat(
@@ -174,10 +199,10 @@ fn storage(error: impl std::fmt::Display) -> Failure {
 }
 
 /// Agent-facing schemas use a local reference. The native API remains typed.
-pub(crate) fn operation_schema(name: &str) -> Option<Value> {
+pub(crate) fn operation_schema(name: &str, surface: Surface) -> Option<Value> {
     let mut schema = locust_proto::api::operation_schema(name)?;
     if name == "context.acknowledge" {
-        schema["properties"]["receipt"] = json!({"type":"string","pattern":"^ctx:[0-9a-f]{64}$","description":"The exact receipt reference returned by context.read using this credential and session. Acknowledges only the complete content in that page."});
+        schema["properties"]["receipt"] = json!({"type":"string","pattern":"^ctx:[0-9a-f]{64}$","description":format!("The exact receipt reference returned by {} using this credential and session. Acknowledges only the complete content in that page.", surface.context_read())});
         if let Some(definitions) = schema.get_mut("$defs").and_then(Value::as_object_mut) {
             for name in [
                 "ContextReceipt",
@@ -204,7 +229,12 @@ mod tests {
         let home = tempfile::tempdir().unwrap();
         std::fs::set_permissions(home.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
         let session = SessionSecret([2; 32]);
-        let cache = Cache::new(home.path(), Credential([1; 32]), Some(session));
+        let cache = Cache::new(
+            home.path(),
+            Credential([1; 32]),
+            Some(session),
+            Surface::Cli,
+        );
         let receipt = ContextReceipt {
             goal: GoalId([3; 32]),
             principal: PublicKey([4; 32]),
@@ -224,6 +254,7 @@ mod tests {
             home.path(),
             Credential([1; 32]),
             Some(SessionSecret([2; 32])),
+            Surface::Cli,
         );
         assert_eq!(reopened.load(&reference).unwrap(), receipt);
         assert_eq!(cache.store(&receipt).unwrap(), reference);
@@ -231,7 +262,8 @@ mod tests {
             Cache::new(
                 home.path(),
                 Credential([9; 32]),
-                Some(SessionSecret([2; 32]))
+                Some(SessionSecret([2; 32])),
+                Surface::Cli,
             )
             .load(&reference)
             .is_err()
@@ -240,12 +272,35 @@ mod tests {
             Cache::new(
                 home.path(),
                 Credential([1; 32]),
-                Some(SessionSecret([9; 32]))
+                Some(SessionSecret([9; 32])),
+                Surface::Cli,
             )
             .load(&reference)
             .is_err()
         );
         assert!(reopened.load("ctx:../../outside").is_err());
+    }
+    #[test]
+    fn each_surface_names_the_context_read_its_caller_can_run() {
+        let (home, _, _) = fixture();
+        for (surface, name) in [
+            (Surface::Cli, "locust context read"),
+            (Surface::Mcp, "locust_context_read"),
+        ] {
+            let session = Some(SessionSecret([2; 32]));
+            let cache = Cache::new(home.path(), Credential([1; 32]), session, surface);
+            let schema = operation_schema("context.acknowledge", surface).unwrap();
+            for text in [
+                cache.load("ctx:typo").unwrap_err().message,
+                schema["properties"]["receipt"]["description"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned(),
+            ] {
+                assert!(text.contains(name), "{text}");
+                assert!(!text.contains("context.read"), "{text}");
+            }
+        }
     }
     #[test]
     fn rejects_replaced_directory_and_corrupted_or_linked_receipt() {

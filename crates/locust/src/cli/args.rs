@@ -1,5 +1,5 @@
 //! Named commands and fields generated from the authoritative request schema.
-use crate::context_receipts::operation_schema;
+use crate::context_receipts::{Surface, operation_schema};
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use locust_proto::api::OPERATIONS;
@@ -18,8 +18,8 @@ fn fields(operation: &str) -> &'static [Field] {
             OPERATIONS
                 .iter()
                 .map(|operation| {
-                    let schema =
-                        operation_schema(operation.name).expect("registry has typed schema");
+                    let schema = operation_schema(operation.name, Surface::Cli)
+                        .expect("registry has typed schema");
                     let required = schema["required"].as_array();
                     let fields = schema["properties"]
                         .as_object()

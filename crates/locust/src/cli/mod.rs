@@ -296,7 +296,10 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
                 .transpose()?
                 .map(locust_proto::api::SessionSecret);
             Some(crate::context_receipts::Cache::new(
-                &home, credential, session,
+                &home,
+                credential,
+                session,
+                crate::context_receipts::Surface::Cli,
             ))
         } else {
             None

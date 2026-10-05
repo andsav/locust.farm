@@ -229,6 +229,77 @@ fn malformed_or_forbidden_tool_calls_are_protocol_errors() {
     ));
 }
 
+/// The `locust_` names in `text`: what a model would try to call.
+fn tool_names(text: &str) -> Vec<&str> {
+    text.match_indices("locust_")
+        .map(|(start, _)| {
+            let name = &text[start..];
+            let end = name
+                .find(|c: char| !(c.is_ascii_lowercase() || c == '_'))
+                .unwrap_or(name.len());
+            &name[..end]
+        })
+        .collect()
+}
+fn strings(value: &Value, found: &mut Vec<String>) {
+    match value {
+        Value::String(text) => found.push(text.clone()),
+        Value::Array(values) => values.iter().for_each(|value| strings(value, found)),
+        Value::Object(fields) => fields.values().for_each(|value| strings(value, found)),
+        _ => {}
+    }
+}
+#[test]
+fn strings_written_for_a_model_name_listed_tools_and_no_operation() {
+    let tools = schema::tools(Caller::Agent(locust_proto::id::PublicKey([3; 32])));
+    let listed: Vec<&str> = tools
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect();
+    for name in [
+        "locust_context_read",
+        "locust_pending_page",
+        "locust_contribution_publish",
+    ] {
+        assert!(tool_names(INSTRUCTIONS).contains(&name), "{name}");
+    }
+
+    // Everything the bridge itself writes: the instructions, the listing,
+    // and its own argument and receipt-reference errors. Daemon answers are
+    // not written here.
+    let mut written = vec![INSTRUCTIONS.to_owned()];
+    for tool in &tools {
+        strings(tool, &mut written);
+    }
+    for name in &listed {
+        match parse_call(&json!({"name": name, "arguments": {"no_such_argument": 1}})) {
+            Err(CallError::Arguments(failure)) => written.push(failure.message),
+            _ => panic!("{name} accepted an unknown argument"),
+        }
+    }
+    let home = tempfile::tempdir().unwrap();
+    fs::set_permissions(home.path(), fs::Permissions::from_mode(0o700)).unwrap();
+    for session in [None, Some(SessionSecret([2; 32]))] {
+        let cache = Cache::new(home.path(), Credential([1; 32]), session, Surface::Mcp);
+        for reference in ["ctx:typo".to_owned(), format!("ctx:{}", "0".repeat(64))] {
+            written.push(cache.load(&reference).unwrap_err().message);
+        }
+    }
+
+    for text in &written {
+        for name in tool_names(text) {
+            assert!(listed.contains(&name), "{name} is not a tool: {text}");
+        }
+        for operation in OPERATIONS.iter().filter(|op| op.name.contains('.')) {
+            assert!(
+                !text.contains(operation.name),
+                "operation name {} in: {text}",
+                operation.name
+            );
+        }
+    }
+}
+
 #[tokio::test]
 async fn broken_output_cancels_and_joins_an_outstanding_call() {
     let dir = tempfile::tempdir().unwrap();

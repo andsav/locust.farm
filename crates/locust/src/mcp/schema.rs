@@ -1,5 +1,5 @@
 //! MCP schemas are extracted from the typed request contract.
-use crate::context_receipts::operation_schema;
+use crate::context_receipts::{Surface, operation_schema};
 use locust_proto::api::{Audience, Caller, OPERATIONS, Operation};
 use serde_json::{Value, json};
 use std::sync::OnceLock;
@@ -37,8 +37,8 @@ fn admits(caller: Caller, operation: &Operation) -> bool {
     }
 }
 fn tool(operation: &Operation) -> Value {
-    let mut input =
-        operation_schema(operation.name).expect("every registry operation has a request schema");
+    let mut input = operation_schema(operation.name, Surface::Mcp)
+        .expect("every registry operation has a request schema");
     if !operation.read_only {
         input["properties"]["idempotency_key"] = json!({"type":["string","null"],"pattern":"^[0-9a-fA-F]{32}$","description":"Optional caller-owned retry key; reuse only for identical requests."});
     }
@@ -178,7 +178,10 @@ mod tests {
                 .as_object_mut()
                 .unwrap()
                 .remove("idempotency_key");
-            assert_eq!(input, operation_schema(operation.name).unwrap());
+            assert_eq!(
+                input,
+                operation_schema(operation.name, Surface::Mcp).unwrap()
+            );
         }
     }
 

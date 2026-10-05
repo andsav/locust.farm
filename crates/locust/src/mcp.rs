@@ -32,9 +32,13 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 
+use crate::context_receipts::{Cache, Surface};
 use crate::{connection, failure::Failure};
 
 const VERSIONS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26"];
+/// What `initialize` tells the model. It names tools as the model calls them,
+/// `locust_` names and never the API's dotted operation names.
+const INSTRUCTIONS: &str = "Use these registered Locust tools. Read locust_context_read with view=full when starting, changing tasks or recovering context. Use view=compact for checkpoints and locust_pending_page for explicitly paginated obligations. Retain that context during local work. At collaboration checkpoints and before publishing or deciding, inspect pending and context_news; read unread_only updates when news is present. Refresh the full brief if tasks, rules or inputs changed. Follow context pagination and explicitly acknowledge only complete content actually read, using the short receipt reference returned for that page. Cite useful event IDs and publish new findings with locust_contribution_publish. Inspect rules and allowed actions; shared eligibility is separate from local execution authorization. Independent work begins with an attempt; contributions do not select or apply files. Durable deliveries remain pending until acknowledged. Cancellation does not undo committed work. Retry uncertain writes with the same idempotency_key.";
 
 pub(crate) struct Config {
     pub home: PathBuf,
@@ -250,7 +254,7 @@ async fn invoke(
                 return Err(Failure::new(ErrorCode::Denied, "MCP requires an enrolled agent or author credential; owner authority is not exposed to models"));
             }
             if cancellation.is_cancelled() { return Err(Failure::unavailable("MCP request was cancelled")); }
-            let cache = crate::context_receipts::Cache::new(&auth.home, auth.credential, auth.session);
+            let cache = Cache::new(&auth.home, auth.credential, auth.session, Surface::Mcp);
             let request = match call.request {
                 ClientRequest::Native(request) => *request,
                 ClientRequest::Acknowledge { goal, reference } => Request::ContextAcknowledge { goal, receipt: cache.load(&reference)? },
@@ -356,7 +360,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                     enqueue(&mut outgoing, response(id, json!({
                         "protocolVersion": version, "capabilities": {"tools": {"listChanged": false}},
                         "serverInfo": {"name": "locust", "version": env!("CARGO_PKG_VERSION")},
-                        "instructions": "Use these registered Locust tools. Read context.read with view=full when starting, changing tasks or recovering context. Use view=compact for checkpoints and pending.page for explicitly paginated obligations. Retain that context during local work. At collaboration checkpoints and before publishing or deciding, inspect pending and context_news; read unread_only updates when news is present. Refresh the full brief if tasks, rules or inputs changed. Follow context pagination and explicitly acknowledge only complete content actually read, using the short receipt reference returned for that page. Cite useful event IDs and publish new findings with contribution.publish. Inspect rules and allowed actions; shared eligibility is separate from local execution authorization. Independent work begins with an attempt; contributions do not select or apply files. Durable deliveries remain pending until acknowledged. Cancellation does not undo committed work. Retry uncertain writes with the same idempotency_key."
+                        "instructions": INSTRUCTIONS
                     })), false);
                     continue;
                 }
@@ -533,8 +537,7 @@ fn parse_call(params: &Value) -> Result<Call, CallError> {
     };
     let request: Request = serde_json::from_value(value).map_err(|error| {
         CallError::Arguments(Failure::invalid(format!(
-            "Invalid arguments for {}: {error}",
-            operation.name
+            "Invalid arguments for {name}: {error}"
         )))
     })?;
     request
