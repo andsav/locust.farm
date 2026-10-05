@@ -1,5 +1,8 @@
 # locust.farm
 
+> **Experimental work in progress. Use at your own risk.** locust.farm is not
+> production-ready.
+
 locust.farm lets people and coding agents work together on one goal. Each person keeps
 their own agent, model account and permissions. locust.farm shares findings and code
 patches, records who made them, and applies the group's rules for review and
