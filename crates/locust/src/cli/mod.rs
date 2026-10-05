@@ -1,4 +1,6 @@
 //! Command-line client: explicit authority, one JSON envelope, typed API.
+// A print macro panics when its reader has gone away; write through `print`.
+#![deny(clippy::print_stdout, clippy::print_stderr)]
 mod args;
 mod client;
 mod connection;
@@ -12,6 +14,7 @@ mod onboarding;
 mod package;
 mod permissions;
 mod presentation;
+mod print;
 mod selectors;
 mod service;
 mod setup;
@@ -60,22 +63,22 @@ pub(super) fn run() -> u8 {
                 ErrorKind::DisplayHelp | ErrorKind::DisplayVersion
             ) =>
         {
-            if mcp_mode {
-                eprint!("{error}");
+            let written = if mcp_mode {
+                print::stderr(&error)
             } else if json_mode {
                 let key = if error.kind() == ErrorKind::DisplayVersion {
                     "version"
                 } else {
                     "help"
                 };
-                println!(
-                    "{}",
+                print::stdout(format_args!(
+                    "{}\n",
                     json!({"ok": true, "result": {key: error.to_string().trim_end()}})
-                );
+                ))
             } else {
-                print!("{error}");
-            }
-            return 0;
+                print::stdout(&error)
+            };
+            return print::status(written, 0);
         }
         Err(error) => return print_failure(Failure::usage(error.to_string()), json_mode),
     };
@@ -87,12 +90,17 @@ pub(super) fn run() -> u8 {
     }
     match execute(&matches) {
         Ok(output) => {
-            if matches.get_flag("json") {
-                println!("{}", json!({"ok": output.ok, "result": output.result}));
+            let written = if matches.get_flag("json") {
+                print::stdout(format_args!(
+                    "{}\n",
+                    json!({"ok": output.ok, "result": output.result})
+                ))
             } else if !output.human.is_empty() {
-                println!("{}", output.human);
-            }
-            output.status
+                print::stdout(format_args!("{}\n", output.human))
+            } else {
+                Ok(())
+            };
+            print::status(written, output.status)
         }
         Err(error) => print_failure(error, matches.get_flag("json")),
     }
@@ -142,15 +150,15 @@ fn run_mcp(matches: &ArgMatches, selected: &ArgMatches) -> Result<(), Failure> {
     })
 }
 fn print_failure(error: Failure, json_mode: bool) -> u8 {
-    if json_mode {
-        println!(
-            "{}",
+    let written = if json_mode {
+        print::stdout(format_args!(
+            "{}\n",
             json!({"ok": false, "error": {"code": error.code.as_str(), "message": error.message, "details": error.details_json.as_deref().and_then(|text| serde_json::from_str::<Value>(text).ok())}})
-        );
+        ))
     } else {
-        eprintln!("locust: {error}");
-    }
-    error.exit_status()
+        print::stderr(format_args!("locust: {error}\n"))
+    };
+    print::status(written, error.exit_status())
 }
 fn stdin_text() -> Result<String, Failure> {
     let mut text = String::new();

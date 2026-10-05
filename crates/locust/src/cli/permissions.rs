@@ -6,7 +6,7 @@ use locust_proto::id::IdempotencyKey;
 use locust_proto::local;
 use serde_json::json;
 
-use super::{Output, connection, presentation, resolve_goal, resolve_principal, status};
+use super::{Output, connection, presentation, print, resolve_goal, resolve_principal, status};
 use crate::failure::Failure;
 
 fn goal() -> Arg {
@@ -118,9 +118,9 @@ pub(super) fn run(
         let timeout_ms = *selected
             .get_one::<u32>("timeout-ms")
             .expect("default timeout");
-        if !matches.get_flag("json") {
-            println!(
-                "{}",
+        if !matches.get_flag("json")
+            && let Err(error) = print::stdout(format_args!(
+                "{}\nObserving for up to {timeout_ms} ms without acknowledgment…\n",
                 presentation::render(
                     &Response::Pending(initial.clone()),
                     &known.agents,
@@ -128,8 +128,13 @@ pub(super) fn run(
                     display_principal
                 )
                 .expect("pending renderer")
-            );
-            println!("Observing for up to {timeout_ms} ms without acknowledgment…");
+            ))
+        {
+            // Nobody can read the observation, so there is nothing to wait for.
+            return Ok(Output {
+                status: print::status(Err(error), 0),
+                ..Output::success(json!(null), String::new())
+            });
         }
         let response = client
             .call_with(

@@ -2,7 +2,7 @@
 mod discovery;
 mod service;
 
-use super::{Output, connection};
+use super::{Output, connection, print};
 use crate::failure::Failure;
 use crate::installation::{
     self, onboarding,
@@ -13,7 +13,7 @@ use crate::installation::{
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use locust_proto::api::ErrorCode;
 use serde_json::{Value, json};
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -150,11 +150,13 @@ fn validate_profile_environment(
     }
     Ok(())
 }
+/// Narrate a reviewed change on standard error. A person follows the change
+/// there, so the command stops when it cannot be written.
+fn say(text: impl std::fmt::Display) -> Result<(), Failure> {
+    print::stderr(text).map_err(|error| Failure::invalid(error.to_string()))
+}
 fn read_line(prompt: &str) -> Result<String, Failure> {
-    eprint!("{prompt}");
-    io::stderr()
-        .flush()
-        .map_err(|error| Failure::invalid(error.to_string()))?;
+    say(prompt)?;
     let mut line = String::new();
     io::stdin()
         .read_line(&mut line)
@@ -243,7 +245,7 @@ struct Reviewer {
 }
 impl Reviewer {
     fn confirm(&mut self, value: &Value) -> Result<bool, Failure> {
-        eprintln!("{}", plan_text(value));
+        say(format_args!("{}\n", plan_text(value)))?;
         if self.yes {
             return Ok(true);
         }
@@ -336,7 +338,7 @@ pub(super) fn run(
     });
     if selected.is_empty() {
         if interactive && !args.get_flag("plan") && !args.get_flag("yes") {
-            eprintln!("{}", candidates_text(&candidates));
+            say(format_args!("{}\n", candidates_text(&candidates)))?;
             selected = parse_selection(&read_line(
                 "Clients to configure (names separated by spaces; empty cancels): ",
             )?)?;
@@ -439,7 +441,7 @@ pub(super) fn run(
     if args.get_flag("plan") || (!args.get_flag("yes") && !interactive) {
         return Ok(Output::success(review_output, human));
     }
-    eprintln!("{human}");
+    say(format_args!("{human}\n"))?;
     let mut reviewer = Reviewer {
         yes: args.get_flag("yes"),
         interactive,
@@ -471,9 +473,9 @@ pub(super) fn run(
         .as_ref()
         .is_some_and(|spec| spec.kind() != ServiceKind::None);
     if managed && service_state != ServiceState::Running {
-        eprintln!(
-            "Waiting for daemon readiness. Interrupting is safe; repeat the same command to resume."
-        );
+        say(
+            "Waiting for daemon readiness. Interrupting is safe; repeat the same command to resume.\n",
+        )?;
     }
     let daemon = wait_ready(
         &daemon_home,

@@ -28,14 +28,37 @@ fn write_secret(path: &std::path::Path, bytes: &[u8; 32]) {
     fs::write(path, bytes).unwrap();
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).unwrap();
 }
-fn cli(home: &std::path::Path) -> Command {
+fn plain() -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_locust"));
     command
         .env_remove("LOCUST_HOME")
         .env_remove("LOCUST_CREDENTIAL")
         .env_remove("LOCUST_SESSION");
+    command
+}
+fn cli(home: &std::path::Path) -> Command {
+    let mut command = plain();
     command.arg("--home").arg(home).arg("--json");
     command
+}
+/// Run `command` after the reader of its standard output, or of its standard
+/// error, has gone, so its first write there meets a broken pipe. Returns the
+/// exit status and everything the other stream received.
+fn closed_reader(command: &mut Command, error_stream: bool) -> (Option<i32>, String) {
+    let (reader, writer) = std::io::pipe().unwrap();
+    drop(reader);
+    if error_stream {
+        command.stdout(Stdio::piped()).stderr(writer);
+    } else {
+        command.stdout(writer).stderr(Stdio::piped());
+    }
+    let output = command.stdin(Stdio::null()).output().unwrap();
+    let other = if error_stream {
+        output.stdout
+    } else {
+        output.stderr
+    };
+    (output.status.code(), String::from_utf8(other).unwrap())
 }
 fn envelope(output: &Output, status: i32) -> Value {
     assert_eq!(
@@ -856,6 +879,100 @@ fn closed_stderr_does_not_abort_daemon_startup_or_shutdown() {
     let output = child.wait_with_output().unwrap();
     envelope(&output, 0);
     assert!(!home.path().join("daemon.sock").exists());
+}
+
+#[test]
+fn a_closed_reader_ends_the_command_quietly_with_its_own_status() {
+    let home = scratch();
+    let home = home.path().to_str().unwrap();
+    // Help, the human rendering, the JSON envelope and a failure's envelope.
+    for (args, own) in [
+        (&["--help"][..], 0),
+        (&["--version"], 0),
+        (&["--json", "--help"], 0),
+        (&["contract"], 0),
+        (&["--json", "contract"], 0),
+        (&["--json", "--home", home, "status"], 2),
+    ] {
+        let (status, stderr) = closed_reader(plain().args(args), false);
+        assert_eq!((status, stderr.as_str()), (Some(own), ""), "{args:?}");
+    }
+    // A failure in text and the help of `mcp` are written to standard error.
+    for (args, own) in [
+        (&["--home", home, "status"][..], 2),
+        (&["mcp", "--help"], 0),
+    ] {
+        let (status, stdout) = closed_reader(plain().args(args), true);
+        assert_eq!((status, stdout.as_str()), (Some(own), ""), "{args:?}");
+    }
+}
+#[test]
+fn a_committed_write_and_a_quiet_wait_keep_their_status_without_a_reader() {
+    let goal = GoalId([3; 32]);
+    let publish = [
+        "contribution",
+        "publish",
+        "--goal",
+        &goal.to_string(),
+        "A finding",
+    ]
+    .map(str::to_owned);
+    let wait = [
+        "call".to_owned(),
+        "wait".to_owned(),
+        json!({"goal": goal, "seen": 1, "timeout_ms": 0}).to_string(),
+    ];
+    for (args, answer, own) in [
+        (
+            &publish[..],
+            Response::Recorded {
+                event: locust_proto::id::EventId([6; 32]),
+            },
+            0,
+        ),
+        (&wait[..], Response::Waited(WaitOutcome::NoEvent), 20),
+    ] {
+        let home = scratch();
+        write_secret(&home.path().join("owner.credential"), &[1; 32]);
+        let handle = server(home.path(), 1, move |frame| {
+            assert!(matches!(
+                frame.request,
+                Request::ContributionPublish { .. } | Request::Wait { .. }
+            ));
+            Ok(answer.clone())
+        });
+        let principal = PublicKey([5; 32]).to_string();
+        let (status, stderr) = closed_reader(
+            cli(home.path())
+                .args(["--owner", "--as", &principal])
+                .args(args),
+            false,
+        );
+        assert_eq!((status, stderr.as_str()), (Some(own), ""), "{args:?}");
+        // The daemon received and answered the request all the same.
+        assert_eq!(handle.join().unwrap().len(), 1);
+    }
+}
+#[test]
+fn watch_stops_observing_when_nobody_can_read_it() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let handle = server(home.path(), 1, |frame| match frame.request {
+        Request::Status => Ok(status(vec![])),
+        Request::Pending { .. } => Ok(Response::Pending(Default::default())),
+        other => panic!("watch sent {other:?} with nobody reading"),
+    });
+    let (status, stderr) = closed_reader(
+        plain().arg("--home").arg(home.path()).args([
+            "--owner",
+            "watch",
+            "--goal",
+            &GoalId([3; 32]).to_string(),
+        ]),
+        false,
+    );
+    assert_eq!((status, stderr.as_str()), (Some(0), ""));
+    handle.join().unwrap();
 }
 
 #[test]

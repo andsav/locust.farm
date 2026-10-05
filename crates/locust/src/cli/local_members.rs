@@ -1,6 +1,6 @@
 //! Reviewed owner handoff to an already enrolled participant on this daemon.
 use super::{
-    LocalClient, Output, connection, presentation, resolve_goal, resolve_principal, status,
+    LocalClient, Output, connection, presentation, print, resolve_goal, resolve_principal, status,
 };
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
@@ -8,7 +8,7 @@ use locust_proto::api::{Caller, ErrorCode, GoalStatus, Membership, Request, Resp
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
 use locust_proto::local;
 use serde_json::json;
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, IsTerminal};
 use std::path::Path;
 
 pub(super) fn command() -> Command {
@@ -158,10 +158,7 @@ pub(super) fn run(matches: &ArgMatches, args: &ArgMatches) -> Result<Output, Fai
         ));
     }
     if !joined && !args.get_flag("yes") {
-        eprintln!("{human}");
-        eprint!("Add this participant? [y/N] ");
-        io::stderr()
-            .flush()
+        print::stderr(format_args!("{human}\nAdd this participant? [y/N] "))
             .map_err(|error| Failure::invalid(error.to_string()))?;
         let mut answer = String::new();
         io::stdin()

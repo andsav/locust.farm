@@ -45,6 +45,11 @@ With `--json`, the output is `{"ok":true,"result":...}` or
 - 11: `corrupted`
 - 12: `limit_exceeded`
 
+A reader that closes the output early, as in `locust contract | head`, does not
+change the exit code: the command ends quietly with the code it earned. If the
+output cannot be written for another reason, such as a full disk, standard
+error says so and a command that succeeded exits with 1.
+
 ## Local API
 
 The CLI and the MCP server reach the daemon through a Unix socket at
