@@ -8,6 +8,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 ## Investigations and experiments
 
 - [A2A and Locust](a2a-assessment.md)
+- [Agent ergonomics audit and proposals](agent-ergonomics-2026-10-05.md)
 - [Agent integration and local execution boundaries](agent-agnostic-integration.md)
 - [Collaboration follow-ups and simulation findings](collaboration-followups.md)
 - [ecdsa.fail: benchmark, rules and state of the field](ecdsa-fail-benchmark.md)
