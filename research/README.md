@@ -13,6 +13,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [ecdsa.fail: benchmark, rules and state of the field](ecdsa-fail-benchmark.md)
 - [Public prior art for agent research on ecdsa.fail](ecdsa-fail-swarm-prior-art.md)
 - [Exclusive claim on a task: proposal](exclusive-task-claim.md)
+- [Farm publication usability audit](farm-publication-ux.md)
 - [Farm development qualification](farm-qualification.md)
 - [Organization design research](formations.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
