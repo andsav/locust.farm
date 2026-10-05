@@ -336,3 +336,63 @@ fn roots_outside_a_work_tree_and_unknown_commits_are_refused() {
     assert!(!repo.path().join("written-by-git").exists());
     assert!(store.objects.is_empty());
 }
+
+#[test]
+fn reserved_workspace_metadata_never_reaches_the_sink_including_ancestors() {
+    let repo = TestRepo::new();
+    repo.write("src/main.rs", b"fn main() {}\n");
+    for path in [
+        ".locust/plan.json",
+        ".locust-apply-123/original-0",
+        ".locust-workspace-456/manifest.json",
+        ".locust-recovery-789/completed.json",
+        "sub/.locust-apply-111/replacement-0",
+        "sub/.locust-recovery-222/phase-0",
+    ] {
+        repo.write(path, b"RESERVED METADATA CONTENT\n");
+    }
+    repo.commit_all();
+
+    let mut store = MemBlobs::default();
+    let report = export(repo.path(), "HEAD", &mut store).unwrap();
+    assert_eq!(
+        report
+            .manifest
+            .entries
+            .iter()
+            .map(|entry| entry.path.as_str())
+            .collect::<Vec<_>>(),
+        ["src/main.rs"]
+    );
+    let mut left_out = report.left_out.clone();
+    left_out.sort();
+    assert_eq!(
+        left_out,
+        [
+            ".locust-apply-123/original-0",
+            ".locust-recovery-789/completed.json",
+            ".locust-workspace-456/manifest.json",
+            ".locust/plan.json",
+            "sub/.locust-apply-111/replacement-0",
+            "sub/.locust-recovery-222/phase-0",
+        ]
+    );
+    assert!(
+        store
+            .objects
+            .values()
+            .all(|bytes| { !bytes.windows(8).any(|window| window == b"RESERVED") }),
+        "reserved metadata bytes reached the sink"
+    );
+
+    let mut store = MemBlobs::default();
+    let report = export(
+        &repo.path().join("sub").join(".locust-apply-111"),
+        "HEAD",
+        &mut store,
+    )
+    .unwrap();
+    assert!(report.manifest.entries.is_empty());
+    assert_eq!(report.left_out, ["replacement-0"]);
+    assert_eq!(store.objects.len(), 1, "only the empty manifest stored");
+}

@@ -43,10 +43,12 @@ impl SqliteStore {
     /// collection. Unsupported formats are checked before configuring WAL or collecting files.
     pub fn open(dir: impl AsRef<Path>) -> Result<Self, OpenError> {
         let dir = dir.as_ref();
+        // `connection::preflight` reads the format and protocol version with a
+        // read-only connection before any directory is created; `connection::open`
+        // re-checks both under the exclusive lock. No third scan is needed here.
         connection::preflight(&conventions::database_path(dir), dir)?;
         let files = Files::create(conventions::blobs_dir(dir))?;
         let mut conn = connection::open(&conventions::database_path(dir), dir)?;
-        connection::check_protocol(&conn)?;
         schema::initialize(&mut conn)?;
         files.recover_staging()?;
         objects::collect_garbage(&conn, &files)?;

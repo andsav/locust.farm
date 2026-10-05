@@ -161,12 +161,29 @@ impl Step {
         }
     }
 }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct DurableChange {
+    path: String,
+    before: Option<crate::FileDigest>,
+    after: Option<crate::FileDigest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct DurableUpdatePlan {
+    changes: Vec<DurableChange>,
+    adopted_paths: Vec<String>,
+    dirty_paths: Vec<String>,
+    untracked_paths: Vec<String>,
+    final_files: BTreeMap<String, crate::FileDigest>,
+    final_directories: Vec<String>,
+}
+
 #[derive(Serialize, Deserialize)]
 struct DurablePlan {
     version: u32,
     root: PathBuf,
     root_identity: DirectoryIdentity,
-    update: UpdatePlan,
+    update: DurableUpdatePlan,
     before: Inventory,
     steps: Vec<Step>,
 }
@@ -283,15 +300,16 @@ fn validate_placement(
 }
 fn inventory(root: &File) -> Result<Inventory, WorkspaceError> {
     fn walk(dir: &File, prefix: &str, result: &mut Inventory) -> Result<(), WorkspaceError> {
-        for name in safe_fs::names(dir)? {
+        let listed = safe_fs::names(dir)?;
+        for name in &listed {
             let path = if prefix.is_empty() {
                 name.clone()
             } else {
                 format!("{prefix}/{name}")
             };
-            let stat = fs::statat(dir, &name, AtFlags::SYMLINK_NOFOLLOW)?;
+            let stat = fs::statat(dir, name, AtFlags::SYMLINK_NOFOLLOW)?;
             if fs::FileType::from_raw_mode(stat.st_mode) == fs::FileType::Directory {
-                let child = safe_fs::dir_at(dir, &name)?;
+                let child = safe_fs::dir_at_listed(dir, name, &listed)?;
                 let opaque = name == ".git";
                 result.insert(
                     path.clone(),
@@ -304,7 +322,7 @@ fn inventory(root: &File) -> Result<Inventory, WorkspaceError> {
                     walk(&child, &path, result)?;
                 }
             } else {
-                let file = safe_fs::read_at(dir, &name, &path)?
+                let file = safe_fs::read_at_digest_listed(dir, name, &path, &listed)?
                     .ok_or_else(|| conflict(&path, "file disappeared during inventory"))?;
                 result.insert(
                     path,
@@ -319,7 +337,7 @@ fn inventory(root: &File) -> Result<Inventory, WorkspaceError> {
                             changed: file.identity.changed,
                             mode: file.identity.mode,
                         },
-                        digest: content_hash(&file.bytes),
+                        digest: file.digest,
                         executable: file.executable,
                     },
                 );
@@ -329,6 +347,89 @@ fn inventory(root: &File) -> Result<Inventory, WorkspaceError> {
     }
     let mut result = BTreeMap::new();
     walk(root, "", &mut result)?;
+    Ok(result)
+}
+/// Reuse verified content digests from `expected` when a file's identity
+/// (inode, size, mtime, ctime, mode) is unchanged, re-reading only files
+/// whose identity differs. This avoids hashing the entire checkout on every
+/// step while preserving interference detection: any content or metadata
+/// change alters ctime, forcing a re-read.
+fn revalidate_inventory(root: &File, expected: &Inventory) -> Result<Inventory, WorkspaceError> {
+    fn walk(
+        dir: &File,
+        prefix: &str,
+        expected: &Inventory,
+        result: &mut Inventory,
+    ) -> Result<(), WorkspaceError> {
+        let listed = safe_fs::names(dir)?;
+        for name in &listed {
+            let path = if prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{prefix}/{name}")
+            };
+            let stat = fs::statat(dir, name, AtFlags::SYMLINK_NOFOLLOW)?;
+            if fs::FileType::from_raw_mode(stat.st_mode) == fs::FileType::Directory {
+                let child = safe_fs::dir_at_listed(dir, name, &listed)?;
+                let opaque = name == ".git";
+                result.insert(
+                    path.clone(),
+                    Observation::Directory {
+                        identity: DirectoryIdentity::of(&child.metadata()?),
+                        opaque,
+                    },
+                );
+                if !opaque {
+                    walk(&child, &path, expected, result)?;
+                }
+            } else {
+                let stat_identity = FileIdentity::from(&safe_fs::Identity::from(&stat));
+                match expected.get(&path) {
+                    Some(Observation::File {
+                        identity: exp,
+                        digest,
+                        executable,
+                        ..
+                    }) if stat_identity == *exp => {
+                        result.insert(
+                            path,
+                            Observation::File {
+                                identity: stat_identity,
+                                digest: *digest,
+                                executable: *executable,
+                            },
+                        );
+                    }
+                    _ => {
+                        let file = safe_fs::read_at_digest_listed(dir, name, &path, &listed)?
+                            .ok_or_else(|| {
+                                conflict(&path, "file disappeared during revalidation")
+                            })?;
+                        result.insert(
+                            path,
+                            Observation::File {
+                                identity: FileIdentity {
+                                    directory: DirectoryIdentity {
+                                        device: file.identity.dev,
+                                        inode: file.identity.ino,
+                                    },
+                                    size: file.identity.size,
+                                    modified: file.identity.modified,
+                                    changed: file.identity.changed,
+                                    mode: file.identity.mode,
+                                },
+                                digest: file.digest,
+                                executable: file.executable,
+                            },
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    let mut result = BTreeMap::new();
+    walk(root, "", expected, &mut result)?;
     Ok(result)
 }
 fn observe_at(dir: &File, name: &str) -> Result<Option<Observation>, WorkspaceError> {
@@ -414,6 +515,44 @@ fn read_private(dir: &File, name: &str) -> Result<Vec<u8>, WorkspaceError> {
 fn file_matches(observation: &Observation, value: &FileValue) -> bool {
     matches!(observation,Observation::File{digest,executable,..} if *digest==content_hash(&value.bytes)&&*executable==value.executable)
 }
+fn file_digest_matches(observation: &Observation, digest: &crate::FileDigest) -> bool {
+    matches!(observation,Observation::File{digest:d,executable,..} if *d==digest.digest&&*executable==digest.executable)
+}
+fn check_transition_path(path: &str) -> Result<(), WorkspaceError> {
+    check_path(path)?;
+    if path.split('/').any(|component| {
+        let lower = component.to_ascii_lowercase();
+        lower == ".locust"
+            || lower.starts_with(".locust-workspace-")
+            || lower.starts_with(".locust-recovery-")
+    }) {
+        return Err(invalid("transition names private workspace metadata"));
+    }
+    Ok(())
+}
+fn validate_final_layout(
+    final_files: &BTreeMap<String, (BlobHash, bool)>,
+    before: &Inventory,
+) -> Result<(), WorkspaceError> {
+    for path in final_files.keys() {
+        if !locust_proto::manifest::is_safe_path(path) {
+            return Err(invalid("unsafe final layout path"));
+        }
+        for (other, observation) in before {
+            if matches!(observation, Observation::Directory { opaque: true, .. })
+                && (path == other || path.starts_with(&format!("{other}/")))
+            {
+                return Err(conflict(path, "protected directory collision"));
+            }
+        }
+        for parent in ancestors(path) {
+            if final_files.contains_key(&parent) {
+                return Err(conflict(path, "file/directory prefix collision"));
+            }
+        }
+    }
+    Ok(())
+}
 fn validate_plan(plan: &UpdatePlan, before: &Inventory) -> Result<(), WorkspaceError> {
     let mut resulting: BTreeMap<String, (BlobHash, bool)> = before
         .iter()
@@ -426,15 +565,7 @@ fn validate_plan(plan: &UpdatePlan, before: &Inventory) -> Result<(), WorkspaceE
         .collect();
     let mut seen = BTreeSet::new();
     for change in &plan.changes {
-        check_path(&change.path)?;
-        if change.path.split('/').any(|component| {
-            let lower = component.to_ascii_lowercase();
-            lower == ".locust"
-                || lower.starts_with(".locust-workspace-")
-                || lower.starts_with(".locust-recovery-")
-        }) {
-            return Err(invalid("transition names private workspace metadata"));
-        }
+        check_transition_path(&change.path)?;
         if !seen.insert(&change.path) {
             return Err(invalid("duplicate transition path"));
         }
@@ -460,36 +591,126 @@ fn validate_plan(plan: &UpdatePlan, before: &Inventory) -> Result<(), WorkspaceE
     let final_files: BTreeMap<_, _> = plan
         .final_files
         .iter()
-        .map(|(path, value)| (path.clone(), (content_hash(&value.bytes), value.executable)))
+        .map(|(path, digest)| (path.clone(), (digest.digest, digest.executable)))
         .collect();
     if resulting != final_files {
         return Err(invalid(
             "update plan omits or changes preserved local files",
         ));
     }
-    for path in final_files.keys() {
-        if !locust_proto::manifest::is_safe_path(path) {
-            return Err(invalid("unsafe final layout path"));
+    validate_final_layout(&final_files, before)
+}
+fn validate_durable_plan(
+    plan: &DurableUpdatePlan,
+    before: &Inventory,
+) -> Result<(), WorkspaceError> {
+    let mut resulting: BTreeMap<String, (BlobHash, bool)> = before
+        .iter()
+        .filter_map(|(path, observation)| match observation {
+            Observation::File {
+                digest, executable, ..
+            } => Some((path.clone(), (*digest, *executable))),
+            _ => None,
+        })
+        .collect();
+    let mut seen = BTreeSet::new();
+    for change in &plan.changes {
+        check_transition_path(&change.path)?;
+        if !seen.insert(&change.path) {
+            return Err(invalid("duplicate transition path"));
         }
-        for (other, observation) in before {
-            if matches!(observation, Observation::Directory { opaque: true, .. })
-                && (path == other || path.starts_with(&format!("{other}/")))
-            {
-                return Err(conflict(path, "protected directory collision"));
+        match (&change.before, before.get(&change.path)) {
+            (Some(digest), Some(observation)) if file_digest_matches(observation, digest) => {}
+            (None, None) | (None, Some(Observation::Directory { opaque: false, .. })) => {}
+            _ => {
+                return Err(conflict(
+                    &change.path,
+                    "planned preimage does not match the actual local file",
+                ));
             }
         }
-        for parent in ancestors(path) {
-            if final_files.contains_key(&parent) {
-                return Err(conflict(path, "file/directory prefix collision"));
-            }
+        if let Some(after) = &change.after {
+            resulting.insert(change.path.clone(), (after.digest, after.executable));
+        } else {
+            resulting.remove(&change.path);
         }
     }
-    Ok(())
+    let final_files: BTreeMap<_, _> = plan
+        .final_files
+        .iter()
+        .map(|(path, digest)| (path.clone(), (digest.digest, digest.executable)))
+        .collect();
+    if resulting != final_files {
+        return Err(invalid(
+            "update plan omits or changes preserved local files",
+        ));
+    }
+    validate_final_layout(&final_files, before)
 }
 fn ancestors(path: &str) -> Vec<String> {
     path.match_indices('/')
         .map(|(index, _)| path[..index].to_owned())
         .collect()
+}
+
+fn durable_update_plan(update: &UpdatePlan) -> DurableUpdatePlan {
+    DurableUpdatePlan {
+        changes: update
+            .changes
+            .iter()
+            .map(|change| DurableChange {
+                path: change.path.clone(),
+                before: change.before.as_ref().map(|value| crate::FileDigest {
+                    digest: content_hash(&value.bytes),
+                    executable: value.executable,
+                    size: value.bytes.len() as u64,
+                }),
+                after: change.after.as_ref().map(|value| crate::FileDigest {
+                    digest: content_hash(&value.bytes),
+                    executable: value.executable,
+                    size: value.bytes.len() as u64,
+                }),
+            })
+            .collect(),
+        adopted_paths: update.adopted_paths.clone(),
+        dirty_paths: update.dirty_paths.clone(),
+        untracked_paths: update.untracked_paths.clone(),
+        final_files: update.final_files.clone(),
+        final_directories: update.final_directories.clone(),
+    }
+}
+
+fn remove_recovery_dir(parent: &File, name: &str) -> Result<(), WorkspaceError> {
+    let dir = safe_fs::dir_at(parent, name)?;
+    for child in safe_fs::names(&dir)? {
+        let stat = fs::statat(&dir, &child, AtFlags::SYMLINK_NOFOLLOW)?;
+        if fs::FileType::from_raw_mode(stat.st_mode) == fs::FileType::Directory {
+            remove_recovery_dir(&dir, &child)?;
+        } else {
+            fs::unlinkat(&dir, &child, AtFlags::empty())?;
+        }
+    }
+    fs::unlinkat(parent, name, AtFlags::REMOVEDIR)?;
+    parent.sync_all()?;
+    Ok(())
+}
+
+/// Returns true if a recovery directory belongs to a registered or started
+/// operation (has `authorized.json` or any committed `phase-N` file), and so
+/// must not be cleaned up automatically.
+fn is_registered_operation(dir: &File) -> Result<bool, WorkspaceError> {
+    for name in safe_fs::names(dir)? {
+        if name == "authorized.json" || name == "completed.json" {
+            return Ok(true);
+        }
+        if name
+            .strip_prefix("phase-")
+            .is_some_and(|s| !s.ends_with(".tmp"))
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Freeze and durably stage an already-composed transition without changing any
@@ -541,6 +762,13 @@ pub fn prepare_update(
                     && done.recovery_directory == parent_path.join(&name)
                     && done.recovery_identity == DirectoryIdentity::of(&prior.metadata()?) => {}
             _ => {
+                if !is_registered_operation(&prior)? {
+                    // A failed pre-registration preparation: no operation was
+                    // registered and no mutation was authorized. Safe to remove
+                    // our own staging artifacts so a corrected prepare can proceed.
+                    remove_recovery_dir(&parent, &name)?;
+                    continue;
+                }
                 return Err(WorkspaceError::RecoveryRequired {
                     path: parent_path.join(name),
                     reason: "an earlier same-root operation is incomplete or unknown".into(),
@@ -661,7 +889,7 @@ pub fn prepare_update(
             version: 1,
             root: root_path,
             root_identity: descriptor.root_identity.clone(),
-            update: update.clone(),
+            update: durable_update_plan(update),
             before,
             steps,
         };
@@ -681,6 +909,12 @@ pub fn prepare_update(
             plan,
         })
     })();
+    if result.is_err() {
+        // A failed pre-registration preparation: no operation was registered
+        // and no mutation was authorized. Remove our own staging artifacts so
+        // a corrected prepare can proceed, while still reporting the error.
+        let _ = remove_recovery_dir(&parent, &name);
+    }
     result.map_err(|error: WorkspaceError| WorkspaceError::RecoveryRequired {
         path: descriptor.recovery_directory,
         reason: error.to_string(),
@@ -740,13 +974,42 @@ pub fn reopen_update(
     {
         return Err(invalid("recovery plan does not match checkout identity"));
     }
-    validate_plan(&plan.update, &plan.before)?;
+    validate_durable_plan(&plan.update, &plan.before)?;
     Ok(PreparedUpdate {
         descriptor: descriptor.clone(),
         root,
         recovery,
         plan,
     })
+}
+
+/// Explicitly abandon a failed pre-registration preparation. If the recovery
+/// directory belongs to an operation that was registered or started (has
+/// `authorized.json` or committed phase files), it must be recovered instead;
+/// this returns an error naming the directory. Otherwise the recovery
+/// directory and its staging artifacts are removed so a corrected prepare
+/// can proceed.
+pub fn abandon_update(descriptor: &UpdateDescriptor) -> Result<(), WorkspaceError> {
+    let parent = absolute_directory(
+        descriptor
+            .recovery_directory
+            .parent()
+            .ok_or_else(|| invalid("recovery directory has no parent"))?,
+    )?;
+    let name = descriptor
+        .recovery_directory
+        .file_name()
+        .ok_or_else(|| invalid("recovery directory has no name"))?
+        .to_str()
+        .ok_or_else(|| invalid("non-UTF-8 recovery directory name"))?;
+    let prior = safe_fs::dir_at(&parent, name)?;
+    if is_registered_operation(&prior)? {
+        return Err(WorkspaceError::RecoveryRequired {
+            path: descriptor.recovery_directory.clone(),
+            reason: "operation was registered or started; recover it instead".into(),
+        });
+    }
+    remove_recovery_dir(&parent, name)
 }
 
 /// Reconcile a filesystem completion marker after the caller has read an exact
@@ -863,9 +1126,10 @@ impl PreparedUpdate {
             return Err(invalid("durable plan identity changed"));
         }
         for (index, change) in self.plan.update.changes.iter().enumerate() {
-            for (prefix, value) in [("original", &change.before), ("replacement", &change.after)] {
-                if let Some(value) = value
-                    && read_private(&self.recovery, &format!("{prefix}-{index}"))? != value.bytes
+            for (prefix, digest) in [("original", &change.before), ("replacement", &change.after)] {
+                if let Some(digest) = digest
+                    && content_hash(&read_private(&self.recovery, &format!("{prefix}-{index}"))?)
+                        != digest.digest
                 {
                     return Err(conflict(&change.path, "durable recovery copy changed"));
                 }
@@ -909,7 +1173,7 @@ impl PreparedUpdate {
         for index in completed..self.plan.steps.len() {
             self.validate_identity()?;
             let step = &self.plan.steps[index];
-            let current = inventory(&self.root)?;
+            let current = revalidate_inventory(&self.root, &expected)?;
             let mut after = current.clone();
             let path = step.path();
             let recovered = if intended {
@@ -929,11 +1193,11 @@ impl PreparedUpdate {
                     next_phase += 1;
                 }
                 // Validate immediately before destructive filesystem operations.
-                if inventory(&self.root)? != expected {
+                if revalidate_inventory(&self.root, &expected)? != expected {
                     return Err(conflict(path, "checkout changed after write-ahead intent"));
                 }
                 self.perform(step, &expected)?;
-                after = inventory(&self.root)?;
+                after = revalidate_inventory(&self.root, &expected)?;
             }
             let observed = after.get(path).cloned();
             let mut wanted = expected.clone();
@@ -959,7 +1223,7 @@ impl PreparedUpdate {
             expected = after;
             intended = false;
         }
-        if inventory(&self.root)? != expected {
+        if revalidate_inventory(&self.root, &expected)? != expected {
             return Err(conflict("checkout", "files changed after application"));
         }
         let final_files: BTreeMap<_, _> = expected
@@ -976,7 +1240,7 @@ impl PreparedUpdate {
             .update
             .final_files
             .iter()
-            .map(|(path, value)| (path.clone(), (content_hash(&value.bytes), value.executable)))
+            .map(|(path, digest)| (path.clone(), (digest.digest, digest.executable)))
             .collect();
         if final_files != wanted {
             return Err(conflict(
@@ -1170,7 +1434,7 @@ mod tests {
         for (path, file) in &originals {
             std::fs::write(root.join(path), &file.bytes).unwrap();
         }
-        let finals: BTreeMap<_, _> = [
+        let final_values: BTreeMap<_, _> = [
             ("plain", "new"),
             ("parent/child", "child"),
             ("folder", "replacement"),
@@ -1180,13 +1444,30 @@ mod tests {
         .into_iter()
         .map(|(path, text)| (path.to_owned(), value(text)))
         .collect();
+        let finals: BTreeMap<_, _> = final_values
+            .iter()
+            .map(|(path, v)| {
+                (
+                    path.clone(),
+                    crate::FileDigest {
+                        digest: content_hash(&v.bytes),
+                        executable: v.executable,
+                        size: v.bytes.len() as u64,
+                    },
+                )
+            })
+            .collect();
         let changes: BTreeSet<_> = originals.keys().chain(finals.keys()).cloned().collect();
         let changes = changes
             .into_iter()
-            .filter(|path| originals.get(path) != finals.get(path))
+            .filter(|path| {
+                let orig = originals.get(path);
+                let fin = finals.get(path).map(|d| (d.digest, d.executable));
+                orig.map(|v| (content_hash(&v.bytes), v.executable)) != fin
+            })
             .map(|path| TreeChange {
                 before: originals.get(&path).cloned(),
-                after: finals.get(&path).cloned(),
+                after: final_values.get(&path).cloned(),
                 path,
             })
             .collect();
@@ -1201,8 +1482,16 @@ mod tests {
         (temporary, root, plan)
     }
     fn assert_final(root: &Path, plan: &UpdatePlan) {
-        for (path, value) in &plan.final_files {
-            assert_eq!(std::fs::read(root.join(path)).unwrap(), value.bytes);
+        for path in plan.final_files.keys() {
+            let text = match path.as_str() {
+                "plain" => "new",
+                "parent/child" => "child",
+                "folder" => "replacement",
+                "keep" => "dirty",
+                "untracked" => "local",
+                _ => unreachable!("fixture final path {path}"),
+            };
+            assert_eq!(std::fs::read(root.join(path)).unwrap(), text.as_bytes());
         }
         assert!(!root.join("gone").exists());
         assert!(!root.join("folder/a").exists());
@@ -1401,12 +1690,23 @@ mod tests {
         let parent = root.parent().unwrap().to_owned();
         assert!(prepare_update(&root, &[parent], &plan).is_err());
         let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let _descriptor = prepared.descriptor().clone();
+        drop(prepared);
+        // A dropped pre-registration preparation (no authorized.json) is cleaned
+        // up by the next prepare, which then succeeds.
+        let reprepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        drop(reprepared);
+        // An authorized (registered) operation still requires recovery.
+        let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
         let descriptor = prepared.descriptor().clone();
+        prepared.authorization(&descriptor).unwrap();
         drop(prepared);
         assert!(matches!(
             prepare_update(&root, std::slice::from_ref(&root), &plan),
             Err(WorkspaceError::RecoveryRequired { .. })
         ));
+        // Abandoning a registered operation is refused; it must be recovered.
+        assert!(abandon_update(&descriptor).is_err());
         let mut wrong = descriptor.clone();
         wrong.plan_digest = BlobHash([7; 32]);
         assert!(reopen_update(&wrong, std::slice::from_ref(&root)).is_err());
@@ -1457,5 +1757,123 @@ mod tests {
             String::from_utf8_lossy(&child.stderr)
         );
         assert!(prepare_update(&root, std::slice::from_ref(&root), &plan).is_err());
+    }
+
+    #[test]
+    fn inventory_lists_each_directory_once_not_once_per_child() {
+        let (_temp, root, _plan) = fixture();
+        let dir = root.join("many");
+        std::fs::create_dir(&dir).unwrap();
+        for n in 0..200u32 {
+            std::fs::write(dir.join(n.to_string()), n.to_string().as_bytes()).unwrap();
+        }
+        let checkout = safe_fs::root(&root).unwrap();
+        safe_fs::NAMES_CALLS.with(|c| c.set(0));
+        let observed = inventory(&checkout).unwrap();
+        let calls = safe_fs::NAMES_CALLS.with(|c| c.get());
+        assert_eq!(
+            observed.len(),
+            200 + 9,
+            "all files and directories observed"
+        );
+        assert!(
+            calls <= 5,
+            "names called {calls} times for 4 directories + root; expected linear"
+        );
+    }
+
+    #[test]
+    fn durable_plan_stores_digests_not_preserved_file_bytes() {
+        let (_temp, root, plan) = fixture();
+        let preserved = vec![0x42u8; 2 * 1024 * 1024];
+        std::fs::write(root.join("untracked"), &preserved).unwrap();
+        let mut updated = plan.clone();
+        updated.final_files.insert(
+            "untracked".into(),
+            crate::FileDigest {
+                digest: content_hash(&preserved),
+                executable: false,
+                size: preserved.len() as u64,
+            },
+        );
+        let mut prepared = prepare_update(&root, std::slice::from_ref(&root), &updated).unwrap();
+        let plan_bytes = read_private(&prepared.recovery, "plan.json").unwrap();
+        assert!(
+            !plan_bytes
+                .windows(64)
+                .any(|window| window == &preserved[..window.len()]),
+            "preserved file bytes serialized into the durable plan"
+        );
+        let decoded: DurablePlan = decode(&plan_bytes).unwrap();
+        assert_eq!(decoded.update.final_files.len(), updated.final_files.len());
+        let digest = content_hash(&preserved);
+        assert_eq!(
+            decoded.update.final_files["untracked"],
+            crate::FileDigest {
+                digest,
+                executable: false,
+                size: preserved.len() as u64,
+            }
+        );
+        let descriptor = prepared.descriptor().clone();
+        prepared.execute(&descriptor).unwrap();
+        // The preserved large file is unchanged; the changed files match the fixture.
+        assert_eq!(std::fs::read(root.join("untracked")).unwrap(), preserved);
+        assert_eq!(std::fs::read(root.join("plain")).unwrap(), b"new");
+    }
+
+    #[test]
+    fn failed_pre_registration_preparation_is_cleaned_up_for_safe_retry() {
+        let (_temp, root, plan) = fixture();
+        // Simulate a failed pre-registration preparation: create a recovery
+        // directory with plan.json but no authorized.json, then edit the
+        // checkout so the interference check would fail.
+        let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let descriptor = prepared.descriptor().clone();
+        let recovery_dir = descriptor.recovery_directory.clone();
+        drop(prepared);
+        // The recovery directory exists with plan.json but no authorized.json.
+        assert!(recovery_dir.join("plan.json").exists());
+        assert!(!recovery_dir.join("authorized.json").exists());
+        // A concurrent local edit after the original backup.
+        std::fs::write(root.join("untracked"), b"external edit").unwrap();
+        // The next prepare cleans up the stale recovery directory and succeeds
+        // with the corrected checkout state.
+        let mut updated = plan.clone();
+        updated.final_files.insert(
+            "untracked".into(),
+            crate::FileDigest {
+                digest: content_hash(b"external edit"),
+                executable: false,
+                size: 13,
+            },
+        );
+        let prepared = prepare_update(&root, std::slice::from_ref(&root), &updated).unwrap();
+        // The old recovery directory was removed.
+        assert!(!recovery_dir.exists());
+        // The new preparation succeeds and applies correctly.
+        let descriptor = prepared.descriptor().clone();
+        drop(prepared);
+        let mut reopened = reopen_update(&descriptor, std::slice::from_ref(&root)).unwrap();
+        reopened.execute(&descriptor).unwrap();
+        assert_eq!(
+            std::fs::read(root.join("untracked")).unwrap(),
+            b"external edit"
+        );
+    }
+
+    #[test]
+    fn abandon_update_removes_pre_registration_recovery_dir() {
+        let (_temp, root, plan) = fixture();
+        let prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let descriptor = prepared.descriptor().clone();
+        let recovery_dir = descriptor.recovery_directory.clone();
+        drop(prepared);
+        assert!(recovery_dir.exists());
+        // Abandoning a pre-registration preparation removes it.
+        abandon_update(&descriptor).unwrap();
+        assert!(!recovery_dir.exists());
+        // A subsequent prepare succeeds.
+        prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
     }
 }

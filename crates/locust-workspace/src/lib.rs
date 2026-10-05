@@ -58,13 +58,13 @@ pub use files::{BlobStore, WorkspaceError};
 pub use materialize::{MaterializeError, materialize};
 pub use review::{ChangeReview, FileSummary, review_changes};
 pub use transaction::{
-    DirectoryIdentity, PreparedUpdate, UpdateDescriptor, UpdateReport, mark_update_completed,
-    prepare_update, reopen_update,
+    DirectoryIdentity, PreparedUpdate, UpdateDescriptor, UpdateReport, abandon_update,
+    mark_update_completed, prepare_update, reopen_update,
 };
 pub use tree::{
-    CaptureMode, FileValue, FrozenTree, LocalTree, TreeChange, UpdatePlan, capture_seed,
-    capture_tree, compose_trees, diff_trees, inspect_local_tree, inspect_tree, parse_paths,
-    plan_update, three_way_tree,
+    CaptureMode, FileDigest, FileValue, FrozenTree, LocalTree, TreeChange, TreeFile, UpdatePlan,
+    capture_seed, capture_tree, compose_trees, diff_trees, file_digests, inspect_local_tree,
+    inspect_tree, parse_paths, plan_update, three_way_tree,
 };
 
 /// Stores content objects for an export.

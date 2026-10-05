@@ -9,6 +9,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use locust_proto::crypto::content_hash;
 use locust_proto::id::BlobHash;
 use locust_proto::manifest::{Entry, Manifest};
 use locust_proto::seal::MAX_PLAINTEXT_BYTES;
@@ -31,6 +32,60 @@ pub struct TreeChange {
     pub path: String,
     pub before: Option<FileValue>,
     pub after: Option<FileValue>,
+}
+
+/// A file's content digest and executable bit, without the plaintext bytes.
+/// Used for preserved local files that are observed but never published as a
+/// whole content object, so their size is not bounded by the object limit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FileDigest {
+    pub digest: BlobHash,
+    pub executable: bool,
+    pub size: u64,
+}
+
+/// Layout and equality surface shared by [`FileValue`] and [`FileDigest`].
+pub trait TreeFile: PartialEq + Clone {
+    fn executable(&self) -> bool;
+    fn size(&self) -> u64;
+}
+
+impl TreeFile for FileValue {
+    fn executable(&self) -> bool {
+        self.executable
+    }
+    fn size(&self) -> u64 {
+        self.bytes.len() as u64
+    }
+}
+
+impl TreeFile for FileDigest {
+    fn executable(&self) -> bool {
+        self.executable
+    }
+    fn size(&self) -> u64 {
+        self.size
+    }
+}
+
+impl From<&FileValue> for FileDigest {
+    fn from(value: &FileValue) -> Self {
+        Self {
+            digest: content_hash(&value.bytes),
+            executable: value.executable,
+            size: value.bytes.len() as u64,
+        }
+    }
+}
+
+/// Convert a full-value file map into a digest-only file map, so callers
+/// that only need equality (such as [`three_way_tree`] against a local
+/// observation) can avoid holding plaintext bytes for every file.
+pub fn file_digests(files: &BTreeMap<String, FileValue>) -> BTreeMap<String, FileDigest> {
+    files
+        .iter()
+        .map(|(path, value)| (path.clone(), FileDigest::from(value)))
+        .collect()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,14 +116,14 @@ pub struct UpdatePlan {
     pub adopted_paths: Vec<String>,
     pub dirty_paths: Vec<String>,
     pub untracked_paths: Vec<String>,
-    pub final_files: BTreeMap<String, FileValue>,
+    pub final_files: BTreeMap<String, FileDigest>,
     /// Preserved directories, including empty and opaque Git directories.
     pub final_directories: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalTree {
-    pub files: BTreeMap<String, FileValue>,
+    pub files: BTreeMap<String, FileDigest>,
     /// Includes preserved empty directories and opaque Git metadata directories.
     pub directories: Vec<String>,
 }
@@ -211,7 +266,15 @@ fn seal_tree(
         });
         let content = match old {
             Some(content) => content,
-            None => store.store(&file.bytes)?,
+            None => {
+                if file.bytes.len() > MAX_PLAINTEXT_BYTES {
+                    return Err(WorkspaceError::Unsupported {
+                        path: path.clone(),
+                        reason: "file exceeds the content-object limit".into(),
+                    });
+                }
+                store.store(&file.bytes)?
+            }
         };
         entries.push(Entry {
             path: path.clone(),
@@ -420,11 +483,11 @@ fn replaced_ancestor<'a>(
 
 /// Deterministic per-path three-way composition. Absence is a value. No text
 /// merge or conflict markers are generated; any conflict returns no tree.
-pub fn three_way_tree(
-    base: &BTreeMap<String, FileValue>,
-    proposed: &BTreeMap<String, FileValue>,
-    current: &BTreeMap<String, FileValue>,
-) -> Result<BTreeMap<String, FileValue>, WorkspaceError> {
+pub fn three_way_tree<V: TreeFile>(
+    base: &BTreeMap<String, V>,
+    proposed: &BTreeMap<String, V>,
+    current: &BTreeMap<String, V>,
+) -> Result<BTreeMap<String, V>, WorkspaceError> {
     let paths: BTreeSet<_> = base
         .keys()
         .chain(proposed.keys())
@@ -453,14 +516,14 @@ pub fn three_way_tree(
     Ok(result)
 }
 
-fn check_layout(files: &BTreeMap<String, FileValue>) -> Result<(), WorkspaceError> {
+fn check_layout<V: TreeFile>(files: &BTreeMap<String, V>) -> Result<(), WorkspaceError> {
     Manifest {
         entries: files
             .iter()
             .map(|(path, file)| Entry {
                 path: path.clone(),
-                executable: file.executable,
-                size: file.bytes.len() as u64,
+                executable: file.executable(),
+                size: file.size(),
                 content: BlobHash([0; 32]),
             })
             .collect(),
@@ -507,37 +570,43 @@ pub fn compose_trees(
 
 #[derive(Default, PartialEq, Eq)]
 struct Inventory {
-    files: BTreeMap<String, FileValue>,
+    files: BTreeMap<String, FileDigest>,
     identities: BTreeMap<String, safe_fs::Identity>,
     directories: BTreeMap<String, safe_fs::Identity>,
 }
 
 fn inventory(root: &File) -> Result<Inventory, WorkspaceError> {
     fn walk(dir: &File, prefix: &str, result: &mut Inventory) -> Result<(), WorkspaceError> {
-        for name in safe_fs::names(dir)? {
+        let listed = safe_fs::names(dir)?;
+        for name in &listed {
             let path = if prefix.is_empty() {
                 name.clone()
             } else {
                 format!("{prefix}/{name}")
             };
-            let stat = fs::statat(dir, &name, AtFlags::SYMLINK_NOFOLLOW)?;
+            let stat = fs::statat(dir, name, AtFlags::SYMLINK_NOFOLLOW)?;
             if fs::FileType::from_raw_mode(stat.st_mode) == fs::FileType::Directory {
-                let next = safe_fs::dir_at(dir, &name)?;
+                let next = safe_fs::dir_at_listed(dir, name, &listed)?;
                 result
                     .directories
                     .insert(path.clone(), safe_fs::Identity::from(&next.metadata()?));
-                // Git metadata is preserved as an opaque directory, never an
-                // input for capture or shared-tree planning.
                 if !name.eq_ignore_ascii_case(".git") {
                     walk(&next, &path, result)?;
                 }
             } else {
-                let file = safe_fs::read_at(dir, &name, &path)?
+                let file = safe_fs::read_at_digest_listed(dir, name, &path, &listed)?
                     .ok_or_else(|| invalid("local file vanished during inspection"))?;
                 result
                     .identities
                     .insert(path.clone(), file.identity.clone());
-                result.files.insert(path, local_value(file));
+                result.files.insert(
+                    path,
+                    FileDigest {
+                        digest: file.digest,
+                        executable: file.executable,
+                        size: file.size,
+                    },
+                );
             }
         }
         Ok(())
@@ -581,9 +650,33 @@ pub fn plan_update(
     let c = values(&target, source, &mut cache)?;
     let root_dir = safe_fs::root(root)?;
     let local = inventory(&root_dir)?;
-    // Prefix validation for preserved private files uses exact path semantics;
-    // Git's opaque reserved directory is checked separately below.
-    let final_files = three_way_tree(&b, &local.files, &c)?;
+    let b_digests: BTreeMap<_, _> = b
+        .iter()
+        .map(|(path, value)| {
+            (
+                path.clone(),
+                FileDigest {
+                    digest: content_hash(&value.bytes),
+                    executable: value.executable,
+                    size: value.bytes.len() as u64,
+                },
+            )
+        })
+        .collect();
+    let c_digests: BTreeMap<_, _> = c
+        .iter()
+        .map(|(path, value)| {
+            (
+                path.clone(),
+                FileDigest {
+                    digest: content_hash(&value.bytes),
+                    executable: value.executable,
+                    size: value.bytes.len() as u64,
+                },
+            )
+        })
+        .collect();
+    let final_files = three_way_tree(&b_digests, &local.files, &c_digests)?;
     let mut final_directories = Vec::new();
     for path in local.directories.keys() {
         let replaced = final_files
@@ -607,26 +700,29 @@ pub fn plan_update(
             reason: "local layout changed during update preflight".into(),
         });
     }
-    let adopted_paths = c
+    let adopted_paths = c_digests
         .iter()
-        .filter(|(path, value)| !b.contains_key(*path) && local.files.get(*path) == Some(*value))
+        .filter(|(path, value)| {
+            !b_digests.contains_key(*path) && local.files.get(*path) == Some(value)
+        })
         .map(|(path, _)| path.clone())
         .collect();
-    let dirty_paths = b
+    let dirty_paths = b_digests
         .keys()
-        .chain(c.keys())
+        .chain(c_digests.keys())
         .collect::<BTreeSet<_>>()
         .into_iter()
-        .filter(|path| final_files.get(*path) != c.get(*path))
+        .filter(|path| final_files.get(*path) != c_digests.get(*path))
         .cloned()
         .collect();
     let untracked_paths = final_files
         .keys()
-        .filter(|path| !b.contains_key(*path) && !c.contains_key(*path))
+        .filter(|path| !b_digests.contains_key(*path) && !c_digests.contains_key(*path))
         .cloned()
         .collect();
+    let changes = plan_changes(&root_dir, &local.files, &final_files, &c)?;
     Ok(UpdatePlan {
-        changes: delta(&local.files, &final_files),
+        changes,
         adopted_paths,
         dirty_paths,
         untracked_paths,
@@ -635,13 +731,61 @@ pub fn plan_update(
     })
 }
 
+fn plan_changes(
+    root: &File,
+    local: &BTreeMap<String, FileDigest>,
+    final_files: &BTreeMap<String, FileDigest>,
+    target: &BTreeMap<String, FileValue>,
+) -> Result<Vec<TreeChange>, WorkspaceError> {
+    let paths: BTreeSet<_> = local.keys().chain(final_files.keys()).collect();
+    let mut changes = Vec::new();
+    for path in paths {
+        let before_digest = local.get(path);
+        let after_digest = final_files.get(path);
+        if before_digest == after_digest {
+            continue;
+        }
+        let before = match before_digest {
+            Some(_) => {
+                let file = safe_fs::read(root, path)?.ok_or_else(|| WorkspaceError::Conflict {
+                    path: path.clone(),
+                    reason: "local file vanished during planning".into(),
+                })?;
+                Some(FileValue {
+                    bytes: file.bytes,
+                    executable: file.executable,
+                })
+            }
+            None => None,
+        };
+        let after = match after_digest {
+            Some(_) => Some(
+                target
+                    .get(path)
+                    .ok_or_else(|| WorkspaceError::Conflict {
+                        path: path.clone(),
+                        reason: "target manifest lacks a planned file".into(),
+                    })?
+                    .clone(),
+            ),
+            None => None,
+        };
+        changes.push(TreeChange {
+            path: path.clone(),
+            before,
+            after,
+        });
+    }
+    Ok(changes)
+}
+
 /// Check actual case/Unicode name semantics using a disposable private sibling
 /// skeleton. Every file is create-new; no writable source or object hardlinks
 /// exist. The sibling must be on the same device as the checkout.
 fn probe_layout(
     root_path: &Path,
     root: &File,
-    files: &BTreeMap<String, FileValue>,
+    files: &BTreeMap<String, FileDigest>,
     directories: &[String],
 ) -> Result<(), WorkspaceError> {
     let canonical = std::fs::canonicalize(root_path)?;
@@ -679,11 +823,12 @@ fn probe_layout(
             let _ = safe_fs::dir_at(&dir, &leaf)?;
         }
         for path in files.keys() {
+            let path = path.as_str();
             let (dir, leaf) = probe_parent(&probe, path)?;
             safe_fs::write_new(&dir, &leaf, &[], false).map_err(|error| match error {
                 WorkspaceError::Io(ref io) if io.kind() == io::ErrorKind::AlreadyExists => {
                     WorkspaceError::Conflict {
-                        path: path.clone(),
+                        path: path.to_owned(),
                         reason: "filesystem case, normalization or directory alias".into(),
                     }
                 }

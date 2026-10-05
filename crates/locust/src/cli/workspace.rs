@@ -826,11 +826,10 @@ fn checkout_files(
         return output(json!({"checkout":saved,"resumed_registered_checkout":true}));
     }
     let revision = selected_revision(api, args, "revision")?;
-    let (manifest, _) =
-        locust_workspace::inspect_tree(revision.result_manifest, api).map_err(workspace_error)?;
-    locust_workspace::materialize(&manifest, api, &destination).map_err(workspace_error)?;
-    let root = destination.canonicalize().map_err(io_failure)?;
-    let identity = directory_identity(&root)?;
+    // Preflight selectors and bindings before filesystem publication so an
+    // invalid task/attempt (or a disputed revision) does not leave an
+    // unregistered directory behind. This cannot be atomic against concurrent
+    // server changes; the in-lineage guard after publication still retries.
     let task = args
         .get_one::<String>("task")
         .map(|text| {
@@ -841,6 +840,11 @@ fn checkout_files(
         .get_one::<String>("attempt")
         .map(|text| api.event_id(text))
         .transpose()?;
+    let (manifest, _) =
+        locust_workspace::inspect_tree(revision.result_manifest, api).map_err(workspace_error)?;
+    locust_workspace::materialize(&manifest, api, &destination).map_err(workspace_error)?;
+    let root = destination.canonicalize().map_err(io_failure)?;
+    let identity = directory_identity(&root)?;
     let checkout = Checkout {
         id,
         root: root.to_string_lossy().into_owned(),
@@ -891,7 +895,8 @@ fn status(api: &mut Objects<'_>, args: &ArgMatches) -> Result<Output, Failure> {
         .or_else(|| base.as_ref().err())
         .map(|error| error.message.clone());
     if let (Ok(observed), Ok((_, base))) = (&observations, &base) {
-        dirty = base
+        let base_digests = locust_workspace::file_digests(base);
+        dirty = base_digests
             .iter()
             .filter(|(path, before)| observed.files.get(*path) != Some(*before))
             .map(|(path, _)| path.clone())
@@ -899,15 +904,18 @@ fn status(api: &mut Objects<'_>, args: &ArgMatches) -> Result<Output, Failure> {
         untracked = observed
             .files
             .keys()
-            .filter(|path| !base.contains_key(*path))
+            .filter(|path| !base_digests.contains_key(*path))
             .cloned()
             .collect();
         if let Some(target) = &head.head {
             match locust_workspace::inspect_tree(target.result_manifest, api) {
                 Ok((_, target)) => {
-                    if let Err(error) =
-                        locust_workspace::three_way_tree(base, &observed.files, &target)
-                    {
+                    let target_digests = locust_workspace::file_digests(&target);
+                    if let Err(error) = locust_workspace::three_way_tree(
+                        &base_digests,
+                        &observed.files,
+                        &target_digests,
+                    ) {
                         conflicts.push(error.to_string());
                     }
                 }

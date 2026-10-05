@@ -540,7 +540,7 @@ fn update_receives_other_paths_preserves_compatible_dirty_work_and_adopts_equal_
     );
     let original = read_tree(&root);
     let observed = inspect_local_tree(&root).unwrap();
-    assert_eq!(observed.files[".env"].bytes, b"private");
+    assert_eq!(observed.files[".env"].digest, content_hash(b"private"));
     assert_eq!(observed.directories, ["empty-untracked"]);
     let plan = plan_update(&root, base_id, target_id, &mut store).unwrap();
     assert_eq!(plan.changes.len(), 1);
@@ -548,8 +548,11 @@ fn update_receives_other_paths_preserves_compatible_dirty_work_and_adopts_equal_
     assert_eq!(plan.adopted_paths, ["added"]);
     assert_eq!(plan.dirty_paths, ["local"]);
     assert_eq!(plan.untracked_paths, [".env"]);
-    assert_eq!(plan.final_files["local"].bytes, b"unpublished");
-    assert_eq!(plan.final_files[".env"].bytes, b"private");
+    assert_eq!(
+        plan.final_files["local"].digest,
+        content_hash(b"unpublished")
+    );
+    assert_eq!(plan.final_files[".env"].digest, content_hash(b"private"));
     assert_eq!(plan.final_directories, ["empty-untracked"]);
     assert_eq!(read_tree(&root), original);
     assert_eq!(
@@ -635,4 +638,39 @@ fn update_checks_complete_target_case_and_unicode_layout_on_actual_filesystem() 
         assert_eq!(result.is_err(), aliased, "{first:?} / {alias:?}");
         assert!(fs::read_dir(&root).unwrap().next().is_none());
     }
+}
+
+#[test]
+fn large_untracked_file_is_preserved_and_capture_limit_is_enforced() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("checkout");
+    let mut store = MemBlobs::default();
+    let (base_id, base) = stored(&mut store, &[("managed", b"base", false)]);
+    materialize(&base, &mut store, &root).unwrap();
+    // A large sparse untracked file (over the 64 MiB object limit).
+    let large_size = locust_proto::seal::MAX_PLAINTEXT_BYTES + 1024;
+    let large = root.join("large.bin");
+    let file = std::fs::File::create(&large).unwrap();
+    file.set_len(large_size as u64).unwrap();
+    drop(file);
+    // inspect_local_tree and plan_update work despite the large file.
+    let observed = inspect_local_tree(&root).unwrap();
+    assert!(observed.files.contains_key("large.bin"));
+    assert_eq!(observed.files["large.bin"].size, large_size as u64);
+    let (target_id, _) = stored(&mut store, &[("managed", b"changed", false)]);
+    let plan = plan_update(&root, base_id, target_id, &mut store).unwrap();
+    assert_eq!(plan.changes.len(), 1);
+    assert_eq!(plan.changes[0].path, "managed");
+    assert!(plan.final_files.contains_key("large.bin"));
+    // The large file's bytes are not in the plan's final_files (only digests).
+    assert_eq!(plan.final_files["large.bin"].size, large_size as u64);
+    // Capturing the large file for publication fails: it exceeds the object limit.
+    let result = capture_tree(
+        &root,
+        base_id,
+        &["large.bin".into()],
+        CaptureMode::Only,
+        &mut store,
+    );
+    assert!(result.is_err(), "capture should refuse the large file");
 }
