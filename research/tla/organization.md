@@ -59,6 +59,7 @@ two attempts under two sessions of the same principal.
 | Principal/session binding | `ClaimHolderBound`, `NoCrossPrincipalEvents`; a session bound to another principal cannot start. | [Sessions](../../crates/locust-core/src/node/sessions.rs), [claim requests](../../crates/locust-core/src/node/requests/claims.rs); `sessions_survive_restart_drop_requires_finished_claim_and_binding_is_permanent` in [lifecycle tests](../../crates/locust-core/src/node/tests/lifecycle.rs). |
 | Generation fencing survives A–B–A takeover | `GenerationsNeverDecrease`, `StaleWritesCannotAuthor`; delayed A1 cannot write through A3. Disabling the generation check must produce a stale signed event. | `takeover_a_b_a_fences_old_generation_even_when_secret_returns` in [lifecycle tests](../../crates/locust-core/src/node/tests/lifecycle.rs); [formal trace regression](../../crates/locust-core/src/node/tests/formal.rs). |
 | Permission and current attempt gate authoring | `OnlyAuthorizedWrites`; permission/shared-eligibility witness checks both refusals; cancellation fences a queued report. | [Attempt authoring](../../crates/locust-core/src/node/requests/claims.rs), `cancellation_requires_holder_generation_and_is_not_completion_evidence`; [independent attempts API regression](../../crates/locust-core/tests/organizations.rs). |
+| Stopped cancellation ends the local attempt durably | `AcknowledgeStopped` abstracts the atomic terminal transition; the cancellation witness rejects a queued report, acknowledges stopped, then reopens with the attempt ended. | `stopped_cancellation_commits_a_terminal_report_and_retries_without_new_events` in [lifecycle tests](../../crates/locust-core/src/node/tests/lifecycle.rs) checks both signed records and reverse replay; `cancellation_acknowledgment_and_terminal_report_commit_together` in [failure tests](../../crates/locust-core/src/node/tests/failure.rs) checks failure-before and failure-after recovery. |
 | Keyed retry cannot sign twice | `IdempotentRequestsAuthorOnce`, `IdempotencyMatchesEvent`; request digest varies by attempt and generation, excludes connection/session; stored replay precedes current-claim checks. | [Commit/idempotency](../../crates/locust-core/src/node/commit.rs); [formal trace regression](../../crates/locust-core/src/node/tests/formal.rs). |
 | Unknown commit outcome fences later signing | `UncertainCommitFencesSigning`, `HealthyMemoryMatchesStore`; failure-before retries once after reopen, failure-after replays once. | [Node commit](../../crates/locust-core/src/node/commit.rs); `failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outcome` in [failure tests](../../crates/locust-core/src/node/tests/failure.rs). |
 
@@ -73,8 +74,18 @@ One principal is shared-eligible. Start/takeover permission is aggregated into
 one Boolean; all separate grants/selectors are not enumerated. Membership,
 current-round, end and cancellation transitions are supplied as validated external
 facts. The model does not re-prove organization authority or model transport,
-managed adapters, all attempt statuses, cancellation outcome variants or physical
+managed adapters, all attempt statuses, completed/uncertain cancellation outcomes or physical
 process exclusivity. Local claim generations are not distributed leases.
+
+The 2026-10-05 cancellation extension models stopped acknowledgment as one atomic
+state transition. Its two signed records, result guard and pending views are Rust
+test obligations, not modeled guarantees. Earlier retained model results predate
+this extension; new checks must identify the amended source hashes.
+The [2026-10-05 session checks](../evidence/agent-lifecycle-2026-10-05.json)
+matched all 11 expected outcomes: two completed safety cases, eight reachability
+witnesses and one deliberate generation-check mutation. The stopped witness
+reached an ended attempt after reopening; its initial comment-parse failure was
+corrected before these checks.
 
 ## Daemon effects and delivery
 

@@ -2914,7 +2914,7 @@
             ],
             "commands": [],
             "name": "start",
-            "summary": "attempt start"
+            "summary": "Start eligible unfinished work or recover this session's active claim for the same task and offer"
           },
           {
             "arguments": [
@@ -3016,7 +3016,7 @@
             ],
             "commands": [],
             "name": "report",
-            "summary": "attempt report"
+            "summary": "Report progress or end an attempt; completed requires a published contribution naming the attempt, not review or workspace integration"
           }
         ],
         "name": "attempt",
@@ -3196,7 +3196,7 @@
             ],
             "commands": [],
             "name": "acknowledge",
-            "summary": "cancel acknowledge"
+            "summary": "Acknowledge cancellation after checking local execution: stopped ends the attempt, completed requires its published result, uncertain keeps work fenced but permits ending"
           }
         ],
         "name": "cancel",
@@ -7174,7 +7174,7 @@
       "mcp_tool": "locust_attempt_start",
       "name": "attempt.start",
       "read_only": false,
-      "summary": "attempt start"
+      "summary": "Start eligible unfinished work or recover this session's active claim for the same task and offer"
     },
     {
       "audience": "agent",
@@ -7206,7 +7206,7 @@
       "mcp_tool": "locust_attempt_report",
       "name": "attempt.report",
       "read_only": false,
-      "summary": "attempt report"
+      "summary": "Report progress or end an attempt; completed requires a published contribution naming the attempt, not review or workspace integration"
     },
     {
       "audience": "agent",
@@ -7294,7 +7294,7 @@
       "mcp_tool": "locust_cancel_acknowledge",
       "name": "cancel.acknowledge",
       "read_only": false,
-      "summary": "cancel acknowledge"
+      "summary": "Acknowledge cancellation after checking local execution: stopped ends the attempt, completed requires its published result, uncertain keeps work fenced but permits ending"
     },
     {
       "audience": "agent",

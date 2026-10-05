@@ -349,6 +349,11 @@ fn cancellation_requires_holder_generation_and_is_not_completion_evidence() {
         },
     );
     assert!(pending(&mut d, a, goal).to_acknowledge.is_empty());
+    assert!(pending(&mut d, a, goal).claimed.is_empty());
+    assert_eq!(
+        d.node.goals[&goal].state().attempts[&claim.attempt].status,
+        Some(AttemptStatus::Completed)
+    );
     assert_eq!(
         code(d.call(
             a,
@@ -703,4 +708,277 @@ fn declining_one_offer_does_not_impose_an_attempt_budget() {
         ),
         Response::Claimed(_)
     ));
+}
+
+#[test]
+fn completion_requires_an_attempt_result_but_not_review_or_integration() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    let complete = Request::AttemptReport {
+        goal,
+        attempt: claim.attempt,
+        generation: 1,
+        status: AttemptStatus::Completed,
+        text: "done".into(),
+    };
+    let count = d.store.log(&goal, 0, 1000).unwrap().len();
+    assert_eq!(code(d.call(a, complete.clone())), ErrorCode::Conflict);
+    assert_eq!(d.store.log(&goal, 0, 1000).unwrap().len(), count);
+    // A task-level note is not a result associated with this attempt.
+    let mut note = publish(goal, task, claim.attempt, 1);
+    if let Request::ContributionPublish {
+        attempt,
+        generation,
+        ..
+    } = &mut note
+    {
+        *attempt = None;
+        *generation = None;
+    }
+    d.ok(a, note);
+    assert_eq!(code(d.call(a, complete.clone())), ErrorCode::Conflict);
+    let result = event(d.ok(a, publish(goal, task, claim.attempt, 1)));
+    d.ok(a, complete);
+    assert!(pending(&mut d, a, goal).claimed.is_empty());
+    let Response::Task(detail) = d.ok(a, Request::Task { goal, task }) else {
+        panic!()
+    };
+    assert!(!detail.view.completed);
+    assert_eq!(detail.view.selected, None);
+    assert!(
+        pending(&mut d, a, goal)
+            .to_review
+            .iter()
+            .any(|item| item.subject == result)
+    );
+}
+
+#[test]
+fn stopped_cancellation_commits_a_terminal_report_and_retries_without_new_events() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    let cancel = event(d.ok(
+        a,
+        Request::AttemptCancel {
+            goal,
+            attempt: claim.attempt,
+        },
+    ));
+    let ack = Request::CancelAcknowledge {
+        goal,
+        cancel,
+        generation: Some(1),
+        outcome: CancelOutcome::Stopped,
+    };
+    let before = d.store.log(&goal, 0, 1000).unwrap().len();
+    let answer = d.ok(a, ack.clone());
+    let events = d.store.log(&goal, 0, 1000).unwrap();
+    assert_eq!(events.len(), before + 2);
+    assert_eq!(
+        events[before + 1].1.header().prev,
+        Some(events[before].1.id())
+    );
+    assert!(pending(&mut d, a, goal).claimed.is_empty());
+    assert!(pending(&mut d, a, goal).to_acknowledge.is_empty());
+    assert_eq!(d.ok(a, ack.clone()), answer);
+    assert_eq!(d.store.log(&goal, 0, 1000).unwrap().len(), before + 2);
+    // Reconstruct a replica in reverse delivery order from the signed records.
+    let mut replica = crate::goal::Goal::new(goal);
+    for (_, event) in events.iter().rev() {
+        replica.apply(
+            std::slice::from_ref(event),
+            &d.node.goals[&goal].definitions,
+        );
+    }
+    assert_eq!(
+        replica.state().attempts[&claim.attempt].status,
+        Some(AttemptStatus::Abandoned)
+    );
+    d.restart();
+    let a = d.connect(credential(1), Some(session(1)));
+    assert_eq!(d.ok(a, ack), answer);
+    assert!(pending(&mut d, a, goal).claimed.is_empty());
+    assert_eq!(
+        code(d.call(a, progress(goal, claim.attempt, 1))),
+        ErrorCode::Conflict
+    );
+    d.ok(
+        a,
+        Request::SessionDrop {
+            instance: session(1).instance(),
+        },
+    );
+}
+
+#[test]
+fn uncertain_cancellation_fences_work_but_allows_ending_and_completed_needs_result() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    let cancel = event(d.ok(
+        a,
+        Request::AttemptCancel {
+            goal,
+            attempt: claim.attempt,
+        },
+    ));
+    let completed = Request::CancelAcknowledge {
+        goal,
+        cancel,
+        generation: Some(1),
+        outcome: CancelOutcome::Completed,
+    };
+    assert_eq!(code(d.call(a, completed)), ErrorCode::Conflict);
+    let end = Request::AttemptReport {
+        goal,
+        attempt: claim.attempt,
+        generation: 1,
+        status: AttemptStatus::Abandoned,
+        text: "stopped locally".into(),
+    };
+    assert_eq!(code(d.call(a, end.clone())), ErrorCode::Conflict);
+    d.ok(
+        a,
+        Request::CancelAcknowledge {
+            goal,
+            cancel,
+            generation: Some(1),
+            outcome: CancelOutcome::Uncertain,
+        },
+    );
+    assert_eq!(pending(&mut d, a, goal).claimed, vec![claim]);
+    assert_eq!(
+        code(d.call(a, progress(goal, claim.attempt, 1))),
+        ErrorCode::Conflict
+    );
+    assert_eq!(
+        code(d.call(a, publish(goal, task, claim.attempt, 1))),
+        ErrorCode::Conflict
+    );
+    d.ok(a, end);
+    assert!(pending(&mut d, a, goal).claimed.is_empty());
+}
+
+#[test]
+fn completed_round_is_not_startable_and_revision_restores_eligibility() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, _) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let mut result = publish(goal, task, EventId([0; 32]), 1);
+    if let Request::ContributionPublish {
+        attempt,
+        generation,
+        ..
+    } = &mut result
+    {
+        *attempt = None;
+        *generation = None;
+    }
+    let result = event(d.ok(a, result));
+    d.ok(
+        a,
+        Request::ReviewRecord {
+            goal,
+            subject: result,
+            verdict: ReviewVerdict::Approve,
+            text: "checked".into(),
+        },
+    );
+    let offer = event(d.ok(
+        a,
+        Request::WorkOffer {
+            goal,
+            task,
+            recipient: p,
+        },
+    ));
+    assert!(
+        !pending(&mut d, a, goal)
+            .to_start
+            .iter()
+            .any(|item| item.task == task)
+    );
+    assert!(
+        !pending(&mut d, owner, goal)
+            .to_authorize
+            .iter()
+            .any(|item| item.task == task)
+    );
+    assert_eq!(
+        code(d.call(
+            a,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: Some(offer)
+            }
+        )),
+        ErrorCode::Denied
+    );
+    // Revising the task creates a fresh round with separate authorization.
+    let round = d.node.goals[&goal].state().tasks[&task].current_round;
+    d.ok(
+        a,
+        Request::TaskRevise {
+            goal,
+            task,
+            expected_round: round,
+            task_type: None,
+        },
+    );
+    let offer = event(d.ok(
+        a,
+        Request::WorkOffer {
+            goal,
+            task,
+            recipient: p,
+        },
+    ));
+    authorize(&mut d, owner, goal, task, p);
+    assert!(
+        pending(&mut d, a, goal)
+            .to_start
+            .iter()
+            .any(|item| item.task == task && item.offer == Some(offer))
+    );
+    d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    );
 }

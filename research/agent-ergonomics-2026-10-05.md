@@ -19,6 +19,27 @@ Agent-facing `workspace.tree` and `workspace.read` are registered in
 historical evidence. Verify equivalent invariants on the replacement without
 restoring superseded APIs.
 
+Implementation update, 2026-10-05: the first lifecycle pass adds local guards for
+completion and start eligibility, session-specific pending starts, and atomic
+terminal reports for stopped/completed cancellation acknowledgments. See the
+[implemented behavior and regression links](../docs/guide/collaboration.md).
+Completion currently requires an effective contribution naming the attempt;
+contribution kinds remain proposed. Ending without a result uses the existing
+`failed` or `abandoned` statuses rather than a bypass that reports `completed`.
+Acknowledgment with `uncertain` retains the work fence but permits ending after
+all cancellations are acknowledged. These changes use existing signed records;
+they do not impose new remote-event validity rules or require workspace integration.
+The remaining proposals and historical measurements below are not implemented or
+requalified by this pass.
+
+Verification of this pass: formatting and strict workspace Clippy passed;
+`cargo test --locked --workspace` passed 819 tests with 14 ignored. The refreshed
+runtime contract passed formation export/conformance checks. All 11 bounded
+session-model cases matched their expected outcomes; the
+[retained evidence](evidence/agent-lifecycle-2026-10-05.json) separates completed
+safety checks from witness and mutation counterexamples. No real-agent campaign,
+two-host run or packaged release was performed for this pass.
+
 The question was what would make locust.farm easy for coding agents to use while
 they work together on one goal. Here the agent is the user: a model that pays
 tokens for every tool description, argument and result, forgets across
@@ -266,13 +287,15 @@ Ship accurate descriptions with each behavioral change. Track 5 supplies the
 remaining documentation and checks, rather than delaying essential instructions.
 The verifier's change is stated where it reversed the first design.
 
-The first implementation pass remains lifecycle remediation. Source inspection
+The first implementation pass addresses lifecycle remediation. At `aca601a`, inspection
 of [claims.rs](../crates/locust-core/src/node/requests/claims.rs) found that
-cancellation acknowledgment emits no terminal report, claim validation rejects
-any cancellation history, and completion reporting has no result guard. Reproduce
-these against the landed baseline, and test pending/start consistency in
-[views.rs](../crates/locust-core/src/node/views.rs). Keep independent attempts
-permitted where the formation allows them.
+cancellation acknowledgment emitted no terminal report, claim validation rejected
+any cancellation history, and completion reporting had no result guard. The
+implementation update above addresses these local defects and pending/start
+consistency in [views.rs](../crates/locust-core/src/node/views.rs), while keeping
+independent attempts permitted where the formation allows them. The
+[session-model evidence](evidence/agent-lifecycle-2026-10-05.json) identifies the
+amended model and its checked bounds.
 
 ### 1. Guards, defects and free bytes
 
@@ -281,7 +304,9 @@ semantics per fix; an explicit escape argument or changed cancellation behavior
 cannot be assumed to require no contract change.
 
 - Refuse `completed` in `attempt report` when no effective result names the
-  attempt, with an explicit escape. Name the task-bound publish in the refusal.
+  attempt. Implemented in this pass using the existing `failed` and `abandoned`
+  statuses to end without a result; no completion-bypass argument was added.
+  The refusal explains that a contribution must name this attempt.
   Define result evidence separately from workspace integration: a worker may
   report a published result referencing its proposal while review or integration
   remains pending with another participant. Do not require accepted workspace
@@ -315,8 +340,10 @@ cannot be assumed to require no contract change.
   current checkout registration, session binding and CLI capture paths. Document
   or remove exit codes 20 and 21.
 
-Exit: no attempt ends completed without a result; an acknowledged cancellation
-leaves the attempt terminal on every replica; an author lists its tools; MCP
+Exit: local completion authoring requires an effective attempt result;
+stopped/completed acknowledgment makes an active attempt terminal on every
+replica, while uncertain acknowledgment keeps work fenced but permits ending;
+an author lists its tools; MCP
 result representations work on supported hosts, with measured wire and model
 context sizes reported separately.
 

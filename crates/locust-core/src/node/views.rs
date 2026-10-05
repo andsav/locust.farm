@@ -255,43 +255,50 @@ impl<S: Store, E: Entropy> Node<S, E> {
             }
             for task in entry.state().tasks.values() {
                 let round = &task.rounds[&task.current_round];
-                let already_running = round.attempts.iter().any(|id| {
-                    entry.state().attempts.get(id).is_some_and(|attempt| {
-                        attempt.author == principal
-                            && matches!(attempt.status, None | Some(AttemptStatus::Progress))
-                    })
-                });
-                if !already_running {
-                    let offers = std::iter::once(None).chain(
-                        entry
-                            .state()
-                            .offers
-                            .values()
-                            .filter(|offer| {
-                                offer.context == round.context && offer.recipient == principal
-                            })
-                            .map(|offer| Some(offer.id)),
-                    );
-                    for offer in offers {
-                        if !entry.goal.can_start(
-                            round.context,
-                            principal,
-                            offer,
-                            &entry.definitions,
-                        ) {
-                            continue;
+                let offers = std::iter::once(None).chain(
+                    entry
+                        .state()
+                        .offers
+                        .values()
+                        .filter(|offer| {
+                            offer.context == round.context && offer.recipient == principal
+                        })
+                        .map(|offer| Some(offer.id)),
+                );
+                for offer in offers {
+                    // A start recovers this session's existing claim for this
+                    // offer. Other sessions may still make independent attempts.
+                    let already_running = round.attempts.iter().any(|id| {
+                        entry.state().attempts.get(id).is_some_and(|attempt| {
+                            attempt.author == principal
+                                && attempt.offer == offer
+                                && matches!(attempt.status, None | Some(AttemptStatus::Progress))
+                                && entry
+                                    .claims
+                                    .get(id)
+                                    .is_some_and(|claim| Some(claim.instance) == actor.session)
+                        })
+                    });
+                    if already_running {
+                        continue;
+                    }
+
+                    if !entry
+                        .goal
+                        .can_start(round.context, principal, offer, &entry.definitions)
+                    {
+                        continue;
+                    }
+                    let item = WorkItem {
+                        task: task.id,
+                        offer,
+                    };
+                    if entry.may_start(&principal, round.context) {
+                        if actor.principal.is_some() {
+                            work.to_start.push(item);
                         }
-                        let item = WorkItem {
-                            task: task.id,
-                            offer,
-                        };
-                        if entry.may_start(&principal, round.context) {
-                            if actor.principal.is_some() {
-                                work.to_start.push(item);
-                            }
-                        } else {
-                            work.to_authorize.push(item);
-                        }
+                    } else {
+                        work.to_authorize.push(item);
                     }
                 }
             }

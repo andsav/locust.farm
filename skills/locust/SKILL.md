@@ -212,4 +212,10 @@ and contributions, and reconcile committed work before repeating it. A new
 session requires an appropriate start or authorized takeover. Acknowledge an
 attempt cancellation with `locust_cancel_acknowledge` only after checking actual
 local execution; use `uncertain` when stopping or completion cannot be established.
+`stopped` ends an active attempt as abandoned. `completed` requires a published
+contribution naming that attempt, and ends it without implying review or workspace
+integration. An `uncertain` acknowledgment keeps further work fenced; after all
+cancellations are acknowledged you may end the attempt with a terminal report.
+Publish the attempt's contribution before an ordinary `completed` report too;
+use `failed` or `abandoned` when ending without a result.
 The skill does not promise automatic execution by a closed client.

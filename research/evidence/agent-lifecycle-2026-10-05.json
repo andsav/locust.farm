@@ -1,0 +1,318 @@
+{
+  "cancellation_final_database_tla": "[ bindings |-> (SessionA :> WorkerIdentity @@ SessionB :> NoValue),\n  attempts |->\n      ( AttemptOne :>\n            [ started |-> TRUE,\n              holder |-> SessionA,\n              generation |-> 1,\n              cancelled |-> TRUE,\n              ended |-> TRUE ] @@\n        AttemptTwo :>\n            [ started |-> FALSE,\n              holder |-> NoValue,\n              generation |-> 0,\n              cancelled |-> FALSE,\n              ended |-> FALSE ] ),\n  events |->\n      << [ holder |-> NoValue,\n           attempt |-> AttemptOne,\n           gen |-> 1,\n           principal |-> WorkerIdentity,\n           session |-> SessionA,\n           key |-> NoValue,\n           kind |-> \"start\",\n           claimGen |-> 0,\n           bound |-> TRUE,\n           permitted |-> TRUE ] >>,\n  idem |->\n      ( WorkerIdentity :>\n            [ k1 |-> [attempt |-> NoValue, gen |-> 0, event |-> 0],\n              k2 |-> [attempt |-> NoValue, gen |-> 0, event |-> 0] ] @@\n        OtherIdentity :>\n            [ k1 |-> [attempt |-> NoValue, gen |-> 0, event |-> 0],\n              k2 |-> [attempt |-> NoValue, gen |-> 0, event |-> 0] ] ),\n  member |-> TRUE,\n  departed |-> FALSE,\n  currentRound |-> TRUE,\n  localAllowed |-> TRUE,\n  sharedAllowed |-> TRUE,\n  active |-> {WorkerIdentity, OtherIdentity} ]",
+  "cancellation_milestones": [
+    {
+      "lastOutcome": "\"Initial\"",
+      "phase": "0",
+      "reopened": "FALSE",
+      "witnessReached": "FALSE"
+    },
+    {
+      "lastOutcome": "\"PermissionChanged\"",
+      "phase": "1",
+      "reopened": "FALSE",
+      "witnessReached": "FALSE"
+    },
+    {
+      "lastOutcome": "\"Started\"",
+      "phase": "2",
+      "reopened": "FALSE",
+      "witnessReached": "FALSE"
+    },
+    {
+      "lastOutcome": "\"Queued\"",
+      "phase": "3",
+      "reopened": "FALSE",
+      "witnessReached": "FALSE"
+    },
+    {
+      "lastOutcome": "\"Cancelled\"",
+      "phase": "4",
+      "reopened": "FALSE",
+      "witnessReached": "FALSE"
+    },
+    {
+      "lastOutcome": "\"Conflict\"",
+      "phase": "5",
+      "reopened": "FALSE",
+      "witnessReached": "FALSE"
+    },
+    {
+      "lastOutcome": "\"Stopped\"",
+      "phase": "6",
+      "reopened": "FALSE",
+      "witnessReached": "FALSE"
+    },
+    {
+      "lastOutcome": "\"Reopened\"",
+      "phase": "7",
+      "reopened": "TRUE",
+      "witnessReached": "TRUE"
+    }
+  ],
+  "cases_manifest_sha256": "34166923988c173d17ea4f22997f8997fa78a4e39f1d4b31a67ee2808f9a2537",
+  "command": "/opt/homebrew/bin/python3.12 scripts/check_tla.py --suite sessions",
+  "corrected_run": "An initial cancellation-only run failed to parse a new comment. After correcting it, the cancellation witness and all 11 session cases matched expectations.",
+  "date": "2026-10-05",
+  "java_archive_sha256": "59422c2292ae4e76b87e00d8808dbe49cffa39af731e08bb0292ddb0af4e0261",
+  "model_sha256": "5f2c22a78544d879fbb7f0a722492d228375c85e6e720910879ecf7ee62b0e5f",
+  "platform": "Darwin-arm64",
+  "raw_results_sha256": "cf43168fd5c16f52dbdeffc05017b35dc1aca8a61c8310f0152c60dbb94cfbfd",
+  "raw_run_id": "20261005T101056Z-9276fe9d",
+  "results": [
+    {
+      "config_sha256": "90946d169bea49970ae94a63a471aefac520d6e30296b502a13f69dad67f693d",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"aba\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n  NeverWitness\n",
+      "counts": {
+        "distinct": 7,
+        "generated": 7,
+        "queue": 0
+      },
+      "elapsed_seconds": 1.194,
+      "fingerprint": 0,
+      "id": "attempt-aba-witness",
+      "kind": "reachability-witness",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "NeverWitness",
+      "workers": 1
+    },
+    {
+      "config_sha256": "9c4208e6869ea8e727c5e1e320e0e58ca0384e727e51dde2c8ba658a67aa9863",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"replay\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n  NeverWitness\n",
+      "counts": {
+        "distinct": 10,
+        "generated": 10,
+        "queue": 0
+      },
+      "elapsed_seconds": 1.563,
+      "fingerprint": 0,
+      "id": "attempt-replay-witness",
+      "kind": "reachability-witness",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "NeverWitness",
+      "workers": 1
+    },
+    {
+      "config_sha256": "146d2c0aafc27774cacbf7685b529b975ceebe92d2d44306f8bc30e9f66539b3",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"failure-before\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n  NeverWitness\n",
+      "counts": {
+        "distinct": 10,
+        "generated": 11,
+        "queue": 0
+      },
+      "elapsed_seconds": 1.539,
+      "fingerprint": 0,
+      "id": "attempt-failure-before-witness",
+      "kind": "reachability-witness",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "NeverWitness",
+      "workers": 1
+    },
+    {
+      "config_sha256": "455323d4e3f8ffa23ecc1ad3dae2a9f67bfde47f5726f6c8258f25b0f4d8053b",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"failure-after\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n  NeverWitness\n",
+      "counts": {
+        "distinct": 10,
+        "generated": 11,
+        "queue": 0
+      },
+      "elapsed_seconds": 2.039,
+      "fingerprint": 0,
+      "id": "attempt-failure-after-witness",
+      "kind": "reachability-witness",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "NeverWitness",
+      "workers": 1
+    },
+    {
+      "config_sha256": "9c2246facd1f233a3e4048a3ae9643bcbf60c7255b91df5de58bac784fae1dc6",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"cancel\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n  NeverWitness\n",
+      "counts": {
+        "distinct": 8,
+        "generated": 8,
+        "queue": 0
+      },
+      "elapsed_seconds": 1.661,
+      "fingerprint": 0,
+      "id": "attempt-cancel-witness",
+      "kind": "reachability-witness",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "NeverWitness",
+      "workers": 1
+    },
+    {
+      "config_sha256": "a5589e7ea2e3e14ae20b5dd98b1acc991ab334c5837452c92a0113b5dbb1a1e0",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"principal\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n  NeverWitness\n",
+      "counts": {
+        "distinct": 4,
+        "generated": 4,
+        "queue": 0
+      },
+      "elapsed_seconds": 1.754,
+      "fingerprint": 0,
+      "id": "attempt-principal-witness",
+      "kind": "reachability-witness",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "NeverWitness",
+      "workers": 1
+    },
+    {
+      "config_sha256": "a1a9c0ef6826a841c9e1820333605f5edce6d34f360a8cb6ebcb6f1ffaa31957",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"independent\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n  NeverWitness\n",
+      "counts": {
+        "distinct": 4,
+        "generated": 4,
+        "queue": 0
+      },
+      "elapsed_seconds": 1.602,
+      "fingerprint": 0,
+      "id": "attempt-independent-witness",
+      "kind": "reachability-witness",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "NeverWitness",
+      "workers": 1
+    },
+    {
+      "config_sha256": "e0740d0efa5540cff19e69583ef64ae6dd2510408d9e3e4cac9fe70d73aa778f",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"permissions\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n  NeverWitness\n",
+      "counts": {
+        "distinct": 5,
+        "generated": 5,
+        "queue": 0
+      },
+      "elapsed_seconds": 1.727,
+      "fingerprint": 0,
+      "id": "attempt-permissions-witness",
+      "kind": "reachability-witness",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "NeverWitness",
+      "workers": 1
+    },
+    {
+      "config_sha256": "baa0c21c5e7a0bd1e37a1734e32a84f9443bb732f1a608afb78bf95c5538d0a7",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"aba\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 3\n  CheckGeneration = FALSE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  StaleWritesCannotAuthor\n",
+      "counts": {
+        "distinct": 7,
+        "generated": 7,
+        "queue": 0
+      },
+      "elapsed_seconds": 1.917,
+      "fingerprint": 0,
+      "id": "attempt-generation-mutation",
+      "kind": "deliberate-mutation",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "counterexample",
+      "timeout_seconds": null,
+      "violation": "StaleWritesCannotAuthor",
+      "workers": 1
+    },
+    {
+      "config_sha256": "bc9f54f771ebcbccdef2ea9c30b6e41a3cae618189809fc65303a457b8e43e03",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"safety\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 3\n  MaxEvents = 2\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n",
+      "counts": {
+        "distinct": 149201,
+        "generated": 1568280,
+        "queue": 0
+      },
+      "elapsed_seconds": 31.704,
+      "fingerprint": 0,
+      "id": "attempt-single-safety",
+      "kind": "current-safety",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "complete",
+      "timeout_seconds": null,
+      "violation": null,
+      "workers": 1
+    },
+    {
+      "config_sha256": "cb3808231263505863d4e8b8293f5b8ed77c7192d2c9c7914842f4eee797aba2",
+      "configuration_tla": "SPECIFICATION Spec\nCONSTANTS\n  Scenario = \"safety\"\n  Principals = {WorkerIdentity,OtherIdentity}\n  Sessions = {SessionA,SessionB}\n  Attempts = {AttemptOne,AttemptTwo}\n  Keys = {\"k1\",\"k2\"}\n  Worker = WorkerIdentity\n  Other = OtherIdentity\n  A = SessionA\n  B = SessionB\n  One = AttemptOne\n  Two = AttemptTwo\n  MaxGeneration = 1\n  MaxEvents = 2\n  CheckGeneration = TRUE\n  None = NoValue\nINVARIANTS\n  TypeOK\n  ClaimHolderBound\n  GenerationsNeverDecrease\n  NoCrossPrincipalEvents\n  StaleWritesCannotAuthor\n  OnlyAuthorizedWrites\n  IdempotentRequestsAuthorOnce\n  IdempotencyMatchesEvent\n  UncertainCommitFencesSigning\n  HealthyMemoryMatchesStore\n",
+      "counts": {
+        "distinct": 174761,
+        "generated": 1936484,
+        "queue": 0
+      },
+      "elapsed_seconds": 32.794,
+      "fingerprint": 0,
+      "id": "attempt-independent-safety",
+      "kind": "current-safety",
+      "matched_expectation": true,
+      "memory_mb": 4096,
+      "mode": "exhaustive-breadth-first",
+      "seed": 1,
+      "status": "complete",
+      "timeout_seconds": null,
+      "violation": null,
+      "workers": 1
+    }
+  ],
+  "retention": "Compact case outcomes and cancellation trace milestones. Full raw output is disposable; its digest is recorded. Expected witness/mutation counterexamples are not safety proofs.",
+  "runner_sha256": "0f7330950bba44f8f2707c66d158ce550bb43ce1b521861613c955ff3a865129",
+  "schema": 1,
+  "scope": "Bounded AttemptSessions checks after adding stopped acknowledgment; no real-model, two-host or release qualification.",
+  "source_changed_during_run": false,
+  "source_commit": "4cca9d0b8637b289a8dc328db08cd1732a843bae",
+  "source_hashes": {
+    "crates/locust-core/src/goal/mod.rs": "7e921583642c99379c62d7e6706c581f75f426d4aaa8a2b66e3ba60f919b178b",
+    "crates/locust-core/src/node/requests/claims.rs": "d66d34873bc8ee5c95ea0ae57d16124809e3f110313348bebe0fa2e22a3e9d61",
+    "crates/locust-core/src/node/tests/failure.rs": "6b5879457df7b77165dd77b7efe51c5f9e5815a23aa634d9871fe77a9d735065",
+    "crates/locust-core/src/node/tests/lifecycle.rs": "69662c3d54114251ebd1ec761dd22675ab92b23436e7a5ac72f1c1925bc1d8a8",
+    "crates/locust-core/src/node/views.rs": "faba7482ba7be781878aea616247841902527611512ad2b3901df48a0ed329d9",
+    "crates/locust-core/tests/organizations.rs": "d5fe087096ca1d458fe80a140748970127b20038f52c620381ae233e972cdc8a",
+    "crates/locust-proto/src/api.rs": "e5e21de45a28cfb01c444ac260dec1d2c7b29d035d3b828898637e10593f95f8"
+  },
+  "tlc": {
+    "release": "v1.7.4",
+    "sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+    "url": "https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar",
+    "version": "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+  },
+  "toolchain_manifest_sha256": "c305b44e876cff8cb3701d9ecad857adee49a3e383c590cffa97c6d1218aa801",
+  "working_tree": "Lifecycle remediation changes on the named commit; hashes identify tested files."
+}

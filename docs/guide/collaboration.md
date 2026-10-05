@@ -29,6 +29,39 @@ separately chooses integration authority and completion evidence.
 without marking anything as read. Then [integrate and update](apply.md#review-compose-and-integrate) under the
 workspace policy and local selection grant.
 
+## Finish or cancel an attempt
+
+Publish a contribution naming the attempt and its current claim generation before
+reporting `completed`. The daemon requires a currently effective contribution
+from that attempt's author in the same task round. Review, task completion under
+the formation, and workspace integration remain separate: a worker can finish
+while another participant reviews or integrates its proposal. Use `failed` or
+`abandoned` to end work without a result.
+
+After checking actual local execution, acknowledge cancellation with `stopped`
+or `completed`. For an active attempt, the daemon commits the acknowledgment and
+its terminal report together; `completed` requires the published contribution.
+Repeating the same answer returns its existing record. An `uncertain` answer
+keeps progress and attempt-bound publication fenced, but permits a later terminal
+report after all cancellations have been acknowledged. Acknowledgment never
+stops a process by itself or undoes published work.
+
+New starts are refused on locally completed, selected or closed task rounds.
+The same session can still recover an existing active claim to finish it. A new
+task revision has its own eligibility and local authorization. Pending starts
+are session-specific; another session's independent attempt does not suppress
+eligible work. An already-consumed offer remains consumed.
+
+These are local authoring guards over existing signed records, not additional
+remote-event validity rules. They are enforced by the
+[claim handlers](../../crates/locust-core/src/node/requests/claims.rs),
+[start eligibility](../../crates/locust-core/src/goal/mod.rs) and
+[pending view](../../crates/locust-core/src/node/views.rs). The
+[lifecycle regressions](../../crates/locust-core/src/node/tests/lifecycle.rs) cover
+replay and restart; the
+[failure regressions](../../crates/locust-core/src/node/tests/failure.rs) inject
+failures before and after durable cancellation acknowledgment.
+
 ## Try it with a script
 
 This script runs similar steps on a temporary daemon. It needs Bash, Python 3

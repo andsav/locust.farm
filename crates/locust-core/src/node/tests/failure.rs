@@ -528,3 +528,85 @@ fn sender_receipt_commit_failure_keeps_memory_pending_and_reopen_resolves_durabi
         assert_eq!(fixture.sender.scan(Space::Pending, &[]).unwrap().len(), 2);
     }
 }
+
+#[test]
+fn cancellation_acknowledgment_and_terminal_report_commit_together() {
+    use super::lifecycle::{authorize, event, offered, setup};
+    use locust_proto::event::{AttemptStatus, CancelOutcome};
+
+    for after in [false, true] {
+        let (mut d, principal, owner, agent, goal) = setup();
+        let (task, offer) = offered(&mut d, agent, goal, principal);
+        authorize(&mut d, owner, goal, task, principal);
+        let Response::Claimed(claim) = d.ok(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: Some(offer),
+            },
+        ) else {
+            panic!()
+        };
+        let cancel = event(d.ok(
+            agent,
+            Request::AttemptCancel {
+                goal,
+                attempt: claim.attempt,
+            },
+        ));
+        let before = d.store.log(&goal, 0, 1000).unwrap().len();
+        let fail = Rc::new(Cell::new(None));
+        let open = || {
+            Node::open(
+                Failing {
+                    inner: d.store.reopen(),
+                    fail: fail.clone(),
+                    effect_only: false,
+                },
+                Counting::new(91),
+                OWNER.digest(),
+                "test".into(),
+                0,
+            )
+            .unwrap()
+        };
+        let hello = ClientHello {
+            api_version: API_VERSION,
+            credential: credential(1),
+            session: Some(session(1)),
+        };
+        let mut node = open();
+        node.connect(ConnId(1), &hello, 0);
+        let request = Request::CancelAcknowledge {
+            goal,
+            cancel,
+            generation: Some(1),
+            outcome: CancelOutcome::Stopped,
+        };
+        let key = Some(IdempotencyKey([71; 16]));
+        fail.set(Some(after));
+        assert!(call(&mut node, ConnId(1), None, request.clone(), key).is_err());
+        assert_eq!(
+            d.store.log(&goal, 0, 1000).unwrap().len(),
+            before + if after { 2 } else { 0 }
+        );
+        assert_eq!(
+            code(call(&mut node, ConnId(1), None, request.clone(), key)),
+            ErrorCode::Internal
+        );
+        let mut node = open();
+        node.connect(ConnId(1), &hello, 0);
+        let response = call(&mut node, ConnId(1), None, request.clone(), key).unwrap();
+        assert_eq!(d.store.log(&goal, 0, 1000).unwrap().len(), before + 2);
+        assert_eq!(
+            node.goals[&goal].state().attempts[&claim.attempt].status,
+            Some(AttemptStatus::Abandoned)
+        );
+        assert_eq!(
+            call(&mut node, ConnId(1), None, request, key).unwrap(),
+            response
+        );
+        assert_eq!(d.store.log(&goal, 0, 1000).unwrap().len(), before + 2);
+    }
+}

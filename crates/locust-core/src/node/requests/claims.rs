@@ -3,6 +3,7 @@ use super::tasks::{recorded, task_context};
 use super::{Plan, Planned, answer};
 use crate::node::Node;
 use crate::node::access::{authorization_required, conflict, denied, not_found};
+use crate::node::authoring::{Place, sign_at};
 use crate::node::callers::Actor;
 use crate::node::commit::Tx;
 use crate::node::entry::Entry;
@@ -17,6 +18,43 @@ use locust_proto::store::Store;
 
 fn superseded(message: &'static str) -> ApiError {
     ApiError::new(ErrorCode::Superseded, message)
+}
+
+fn require_result(entry: &Entry, attempt: EventId) -> Result<(), ApiError> {
+    if entry.state().contributions.values().any(|result| {
+        result.attempt == Some(attempt)
+            && entry
+                .state()
+                .attempts
+                .get(&attempt)
+                .is_some_and(|work| result.author == work.author && result.context == work.context)
+    }) {
+        Ok(())
+    } else {
+        Err(conflict(
+            "publish a contribution naming this attempt before reporting completed; use failed or abandoned when there is no result",
+        ))
+    }
+}
+
+fn check_cancellation(entry: &Entry, attempt: EventId, ending: bool) -> Result<(), ApiError> {
+    if entry.state().attempts[&attempt]
+        .cancellations
+        .iter()
+        .any(|id| {
+            !ending
+                || entry
+                    .state()
+                    .cancellations
+                    .get(id)
+                    .is_none_or(|cancel| cancel.acknowledgments.is_empty())
+        })
+    {
+        return Err(conflict(
+            "answer the cancellation before ending the attempt; cancelled work cannot continue",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn active_attempt(
@@ -69,16 +107,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 return answer(Response::Claimed(claim.view(goal, *attempt)));
             }
         }
-        if !actor.owner_act && !entry.may_start(&principal, context) {
-            return Err(authorization_required(
-                "the owner must authorize local execution",
-            ));
-        }
         if !entry
             .goal
             .can_start(context, principal, offer, &entry.definitions)
         {
             return Err(denied("the pinned rules do not permit this attempt"));
+        }
+        if !actor.owner_act && !entry.may_start(&principal, context) {
+            return Err(authorization_required(
+                "the owner must authorize local execution",
+            ));
         }
         let mut tx = Tx::none();
         tx.commit
@@ -163,7 +201,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         attempt: EventId,
         generation: u32,
     ) -> Result<(), ApiError> {
-        let found = active_attempt(entry, principal, attempt)?;
+        active_attempt(entry, principal, attempt)?;
         if !entry.claims.get(&attempt).is_some_and(|claim| {
             Some(claim.instance) == actor.session
                 && claim.principal == principal
@@ -171,11 +209,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }) {
             return Err(superseded(
                 "the session does not hold this claim generation",
-            ));
-        }
-        if !found.cancellations.is_empty() {
-            return Err(conflict(
-                "answer the cancellation before reporting more work",
             ));
         }
         Ok(())
@@ -193,6 +226,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         self.check_claim(entry, actor, principal, attempt, generation)?;
+        check_cancellation(entry, attempt, status != AttemptStatus::Progress)?;
+        if status == AttemptStatus::Completed {
+            require_result(entry, attempt)?;
+        }
         let mut tx = Tx::none();
         let event = self.author(
             entry,
@@ -230,6 +267,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         match (attempt, generation) {
             (Some(attempt), Some(generation)) => {
                 self.check_claim(entry, actor, principal, attempt, generation)?;
+                check_cancellation(entry, attempt, false)?;
                 if entry.state().attempts[&attempt].context != context {
                     return Err(conflict("the attempt concerns a different task round"));
                 }
@@ -301,6 +339,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "only the current claim holder can answer this cancellation",
             ));
         }
+        if let Some((event, _)) = found
+            .acknowledgments
+            .iter()
+            .find(|(_, old)| **old == outcome)
+        {
+            return answer(Response::Recorded { event: *event });
+        }
+        if !found.acknowledgments.is_empty()
+            && !matches!(attempt.status, None | Some(AttemptStatus::Progress))
+        {
+            return Err(conflict("the cancellation already has a terminal answer"));
+        }
+        if outcome == CancelOutcome::Completed {
+            require_result(entry, found.attempt)?;
+        }
         let mut tx = Tx::none();
         let event = self.author(
             entry,
@@ -310,6 +363,37 @@ impl<S: Store, E: Entropy> Node<S, E> {
             now,
             &mut tx,
         )?;
+        let status = match outcome {
+            CancelOutcome::Stopped => Some(AttemptStatus::Abandoned),
+            CancelOutcome::Completed => Some(AttemptStatus::Completed),
+            CancelOutcome::Uncertain => None,
+        };
+        if let Some(status) = status
+            && matches!(attempt.status, None | Some(AttemptStatus::Progress))
+        {
+            let place = self.next_place(entry, &principal)?;
+            // Both records commit together. The report extends the acknowledgment,
+            // rather than signing a second successor of the old author head.
+            sign_at(
+                goal,
+                self.signer(&principal)?,
+                Place {
+                    seq: place
+                        .seq
+                        .checked_add(1)
+                        .ok_or_else(|| conflict("author sequence exhausted"))?,
+                    prev: Some(event),
+                    ..place
+                },
+                Body::AttemptReported {
+                    attempt: found.attempt,
+                    status,
+                },
+                None,
+                now,
+                &mut tx,
+            )?;
+        }
         recorded(event, tx)
     }
 }

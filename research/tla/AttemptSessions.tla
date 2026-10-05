@@ -137,6 +137,13 @@ Handle(mode) == /\ pending # None /\ mode \in Modes
 Cancel(a) == /\ ~failed /\ mem.attempts[a].started /\ ~mem.attempts[a].cancelled
  /\ Commit([mem EXCEPT !.attempts[a].cancelled = TRUE],"success",FALSE)
  /\ UnchangedClient /\ Advance /\ lastOutcome' = Observe("Cancelled")
+(* Abstract the atomic stopped acknowledgment plus terminal report. The two
+    signed records and their replication are checked by the Rust tests. *)
+AcknowledgeStopped(p,s,a,g) ==
+ /\ ~failed /\ Current(mem,p,a) /\ mem.attempts[a].cancelled
+ /\ mem.attempts[a].holder = s /\ mem.attempts[a].generation = g
+ /\ Commit([mem EXCEPT !.attempts[a].ended = TRUE],"success",FALSE)
+ /\ UnchangedClient /\ Advance /\ lastOutcome' = Observe("Stopped")
 End(a) == /\ ~failed /\ mem.attempts[a].started /\ ~mem.attempts[a].ended
  /\ Commit([mem EXCEPT !.attempts[a].ended = TRUE],"success",FALSE)
  /\ UnchangedClient /\ Advance /\ lastOutcome' = Observe("Ended")
@@ -159,6 +166,7 @@ SafetyNext ==
  \/ \E p \in Principals,s \in Sessions,a \in Attempts,g \in 1..MaxGeneration,k \in Keys : Queue(p,s,a,g,k)
  \/ \E m \in Modes : Handle(m)
  \/ \E a \in Attempts : Cancel(a) \/ End(a)
+ \/ \E s \in Sessions,a \in Attempts,g \in 1..MaxGeneration : AcknowledgeStopped(Worker,s,a,g)
  \/ \E kind \in {"remove","leave","revise"} : Fence(kind)
  \/ Reopen \/ Quiesce
 ABANext ==
@@ -197,7 +205,9 @@ CancelNext ==
  \/ /\ phase = 2 /\ Queue(Worker,A,One,1,K1)
  \/ /\ phase = 3 /\ Cancel(One)
  \/ /\ phase = 4 /\ Handle("success")
- \/ /\ phase = 5 /\ Quiesce
+ \/ /\ phase = 5 /\ lastOutcome = "Conflict" /\ AcknowledgeStopped(Worker,A,One,1)
+ \/ /\ phase = 6 /\ Reopen
+ \/ /\ phase = 7 /\ Quiesce
 PrincipalNext ==
  \/ /\ phase = 0 /\ Bind(Other,A)
  \/ /\ phase = 1 /\ Permission(TRUE)
@@ -224,7 +234,7 @@ Witness == CASE Scenario = "aba" -> phase = 6 /\ lastOutcome = "Superseded" /\ L
  [] Scenario = "replay" -> phase = 9 /\ reopened /\ lastOutcome = "Replayed" /\ Len(db.events) = 2
  [] Scenario = "failure-before" -> phase = 9 /\ reopened /\ lastOutcome = "Recorded" /\ Len(db.events) = 2
  [] Scenario = "failure-after" -> phase = 9 /\ reopened /\ lastOutcome = "Replayed" /\ Len(db.events) = 2
- [] Scenario = "cancel" -> phase = 5 /\ lastOutcome = "Conflict" /\ Len(db.events) = 1
+ [] Scenario = "cancel" -> phase = 7 /\ reopened /\ db.attempts[One].ended /\ Len(db.events) = 1
  [] Scenario = "principal" -> phase = 3 /\ lastOutcome = "Denied" /\ Len(db.events) = 0
  [] Scenario = "independent" -> phase = 3 /\ Len(db.events) = 2 /\
        db.attempts[One].holder = A /\ db.attempts[Two].holder = B

@@ -271,6 +271,14 @@ fn independent_attempts_and_local_aba_takeover_remain_distinct() {
         panic!()
     };
     let b_conn = h.connect(2, Some(4));
+    let Response::Pending(work) = h.ok(b_conn, Request::Pending { goal }) else {
+        panic!()
+    };
+    assert!(work.to_start.iter().any(|item| item.task == task));
+    let Response::Pending(work) = h.ok(h.agent, Request::Pending { goal }) else {
+        panic!()
+    };
+    assert!(!work.to_start.iter().any(|item| item.task == task));
     let Response::Claimed(b) = h.ok(
         b_conn,
         Request::AttemptStart {
@@ -318,6 +326,18 @@ fn independent_attempts_and_local_aba_takeover_remain_distinct() {
         ErrorCode::Superseded
     );
     h.restart();
+    h.ok(
+        h.agent,
+        Request::ContributionPublish {
+            goal,
+            task: Some(task),
+            attempt: Some(a.attempt),
+            generation: Some(3),
+            summary: "Finished independent work; awaiting declaration".into(),
+            sources: vec![],
+            artifacts: vec![],
+        },
+    );
     h.ok(
         h.agent,
         Request::AttemptReport {

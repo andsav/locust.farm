@@ -349,7 +349,7 @@ impl Goal {
             || self
                 .state()
                 .task_round(context)
-                .is_none_or(|round| round.closed)
+                .is_none_or(|round| round.closed || round.completed || round.selected.is_some())
         {
             return false;
         }
