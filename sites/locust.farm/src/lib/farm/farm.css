@@ -16,8 +16,7 @@
 }
 
 /* Notes, captions and other secondary text. */
-.farm-site
-	:where(.rule, .note, .caption, .deps, .sub, .key, .count-note, .copy-result) {
+.farm-site :where(.rule, .note, .caption, .deps, .sub, .key, .count-note, .copy-result) {
 	color: var(--color-text-subtle);
 	font: var(--text-ui-small);
 }
