@@ -111,7 +111,7 @@ printf 'Local state and observations: %s\n' "$demo"
 ```
 
 `python3 scripts/check_documentation.py --binary target/debug/locust --timeout 60`
-runs all guide scripts in a source checkout.
+runs all guide scripts in a local checkout.
 
 ## Invite a person
 
@@ -151,5 +151,4 @@ locust --owner invitation join --principal NAME --ticket-file ticket.txt --revie
 also join with `goal join --ticket -`, which has no review step.
 
 Inspecting also shows the goal's [farm page](farm-publication.md) policy;
-joining does not consent to it. Current source only; the published preview does
-not include this.
+joining does not consent to it.

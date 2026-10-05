@@ -26,13 +26,11 @@ then connect agents with `locust up`, as the
 | Field | Published value |
 | --- | --- |
 | Release | `0.1.0-cd65921d8a0f`, developer preview |
-| Binary source | `cd65921d8a0f9c7de3a64a2c63b28a38d557e496` |
 | Target | `aarch64-apple-darwin`, macOS Apple Silicon |
 | API / protocol | `4` / `4` |
 | Signed binary SHA-256 | `e9729960ddd3d3944b8b8b82ecd6bcaf3e86653479ce1a07fdcc6b0389680884` |
 | Signed manifest SHA-256 | `f8306c552c362c8d47918159370eeb11ec31c451e5281536d2daef1baf09d0cc` |
 | Public key SHA-256 | `ce02bb70439f130406ea1d7febc6ced4c273427fde0a1bbbfe6126abb1b45cd3` |
-| Installer source | `6f5b7d47effd8adfcab78ae2dea814d38dcccc26` |
 | Installer SHA-256 | `29cf0b0e2cb7612df477d2e89053fc3f0f6346ce07615a2511a43c4a89a38117` |
 | Apple publisher | Andrei Savin, team `P2Q3P9R6AT` |
 | Notarization | `Accepted`, submission `daf3cbe5-5f98-4db4-9411-99a7e962c083`; DMG ticket stapled and validated |
@@ -43,10 +41,6 @@ its URL, size and hash. The
 [signed archive](https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.tar.gz)
 are public. An optional notarized DMG holds the same CLI and files; it is not an
 app.
-
-The binary's source commit is not in this repository's history. The installer's
-source commit is. The manual inside the package was built before publishing, so
-its availability data still calls the software unpublished.
 
 ## Verification
 

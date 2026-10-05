@@ -159,7 +159,7 @@ export function resolveLink(href: string, source: string): string {
 	if (artifact) return artifact.url;
 	// Evidence/source links require explicit publication review.
 	if (!manifest.sourceLinks.includes(target)) throw new Error(`Unapproved source link: ${href}`);
-	return `${manifest.repository}/blob/${sourceCommit}/${target}${anchor ? `#${anchor}` : ''}`;
+	return `${manifest.repository}/blob/main/${target}${anchor ? `#${anchor}` : ''}`;
 }
 export function parseArticle(markdown: string, source: string) {
 	const parser = new MarkdownIt({ html: false, linkify: false });
@@ -376,7 +376,6 @@ export function articleFor(slug: string) {
 		url: pageUrl(page.slug),
 		rawUrl: rawUrl(page.slug),
 		section: subject?.section ?? null,
-		sourceUrl: `${manifest.repository}/blob/${sourceCommit}/${page.source}`,
 		hash: createHash('sha256').update(markdown).digest('hex')
 	};
 }
@@ -403,7 +402,6 @@ export function inventory() {
 				...page,
 				url: article.url,
 				rawUrl: article.rawUrl,
-				sourceUrl: article.sourceUrl,
 				sha256: createHash('sha256').update(article.raw).digest('hex'),
 				headings: article.headings,
 				text: article.text

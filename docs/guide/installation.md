@@ -45,8 +45,7 @@ To add another agent while the daemon runs:
 locust agent add claude --workspace "$PWD"
 ```
 
-The preview accepts `codex`, `claude` (Claude Code) and `pi`. Current source
-also accepts `droid` and `shell`; the published preview does not include them.
+Setup accepts `codex`, `claude` (Claude Code), `pi`, `droid` and `shell`.
 
 Use the same `--home` (the data directory) in every command.
 
@@ -82,19 +81,18 @@ the publisher's public key; get it from a source you trust, not from the same
 download. The withdrawal list, signed with that key, names packages that must
 not be installed. Its signature goes beside it as `withdrawals.json.sig`.
 
-## Build from source
+## Build locally
 
 ```sh
 cargo build --locked -p locust
 ```
 
 A development build runs the daemon, the CLI and this manual's scripts. `up`
-and `agent add` refuse to run from it; they need an installed package. A source
-build refuses the preview's data, so give it a new directory with `--home`.
+and `agent add` need an installed package.
 
 ## Linux
 
-No Linux package is published. The source builds on Linux x86_64. Its systemd
+No Linux package is published. You can build locally on Linux x86_64. Its systemd
 user-service code has not been tested on Linux.
 
 ## Remove locust.farm

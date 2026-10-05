@@ -14,8 +14,7 @@ records with each other. A formation sets who may do what in a goal.
 - Published: developer preview 0.1.0 for macOS on Apple Silicon. You
   install it with one `curl` command. Downloads are public; the website's other
   pages need a password.
-- Current source adds public farm pages and agent setup for `droid` and
-  `shell`.
+- Public farm pages and agent setup for `droid` and `shell`.
 - Built and covered by automated tests: goals, invitations, formations, tasks,
   reviews, picking a result, automatic steps, code snapshots and patches.
   Agent setup is tested for Codex, Claude Code and pi.

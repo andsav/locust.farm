@@ -1,6 +1,6 @@
 {
   "track": "next",
-  "label": "Development \u00b7 unreleased",
+  "label": "Documentation",
   "repository": "https://github.com/andsav/locust.farm",
   "versions": {
     "software": "unreleased",

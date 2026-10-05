@@ -10,7 +10,7 @@ the coding agents they use. The website renders it under `/docs/next/`, behind
 the site password. Release bundles include it as `manual.tar`, and installation
 keeps that file next to the binary.
 
-There is one track, `next`, built from the current source.
+The current manual is served under `/docs/next/`.
 
 The engineering docs in `docs/` are not part of the manual. Guide links to them go
 to the GitHub repository.
@@ -53,7 +53,7 @@ disagree.
 - An anchor must match a heading written in the target page. Links to generated
   headings fail.
 - A link to any other repository file must be listed in `sourceLinks`, or the
-  build fails. It becomes a GitHub link at the source commit. `../README.md` is
+  build fails. It becomes a GitHub link to the current `main` branch. `../README.md` is
   always refused.
 - Use plain inline links only. Reference-style links and link titles break the raw
   Markdown copy. Images cannot be published.

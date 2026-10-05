@@ -38,11 +38,17 @@ test('every header link leads to a local route that exists', () => {
 	}
 });
 
-test('the docs route provides development documentation', () => {
+test('the docs route provides the current user manual', () => {
 	assert.equal(DOCS_PATH, '/docs');
 	assert.ok(docsSource.includes('<title>Docs — locust.farm</title>'));
 	assert.ok(docsSource.includes('<h1>Documentation.</h1>'));
-	assert.match(docsSource, /Public\s+installation\s+is\s+unavailable/);
+	assert.ok(docsSource.includes('Learn how to install locust.farm'));
+	assert.doesNotMatch(
+		docsSource,
+		/sourceCommit|sourceDirty|source capabilities|installation\s+is\s+unavailable/
+	);
+	const article = readFileSync(new URL('docs/next/[...slug]/+page.svelte', routes), 'utf8');
+	assert.doesNotMatch(article, /sourceCommit|sourceDirty|sourceUrl/);
 	assert.ok(docsSource.includes('Machine-readable inventory'));
 });
 

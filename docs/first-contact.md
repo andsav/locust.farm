@@ -43,9 +43,8 @@ If the client's policy refuses a step, the agent asks you.
 | Droid | `--client droid` | MCP reloads live; a new skill may need a new chat |
 | Any other harness | `--client shell` | Writes only under `.local/share/locust-agent/` |
 
-Each route installs an MCP entry, the skill and the `locust-cli` script. `droid`
-and `shell` are current source only; the published preview does not include
-them. If `up` lacks the client, the agent runs `service plan`, `service apply`,
+Each route installs an MCP entry, the skill and the `locust-cli` script.
+If `up` lacks the client, the agent runs `service plan`, `service apply`,
 `service start`, `agent enroll NAME` and `session create`, then uses the CLI.
 
 ## Readiness

@@ -159,13 +159,13 @@ locust --json setup plan --prefix /PATH/TO/PREFIX --client codex --profile-home 
 `setup apply --expect-plan PLAN_SHA256`, `status`, `remove-plan` and `remove`
 take the same flags. Paths are relative to the profile home:
 
-| Agent | `--client` | MCP entry | Skill folder | Available in |
-| --- | --- | --- | --- | --- |
-| Codex | `codex` | `.codex/config.toml` | `.agents/skills/locust/` | preview, source |
-| Claude Code | `claude` | `.claude.json` | `.claude/skills/locust/` | preview, source |
-| pi | `pi` | `.pi/agent/mcp.json` | `.pi/agent/skills/locust/` | preview, source |
-| Droid | `droid` | `.factory/mcp.json` | `.factory/skills/locust/` | source |
-| Any shell agent | `shell` | `.local/share/locust-agent/mcp.json` | `.local/share/locust-agent/skills/locust/` | source |
+| Agent | `--client` | MCP entry | Skill folder |
+| --- | --- | --- | --- |
+| Codex | `codex` | `.codex/config.toml` | `.agents/skills/locust/` |
+| Claude Code | `claude` | `.claude.json` | `.claude/skills/locust/` |
+| pi | `pi` | `.pi/agent/mcp.json` | `.pi/agent/skills/locust/` |
+| Droid | `droid` | `.factory/mcp.json` | `.factory/skills/locust/` |
+| Any shell agent | `shell` | `.local/share/locust-agent/mcp.json` | `.local/share/locust-agent/skills/locust/` |
 
 Setup writes:
 

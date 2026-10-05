@@ -15,13 +15,11 @@ Last reviewed 2026-10-04.
 
 - The installer puts the software in `~/.local/share/locust` and links
   `~/.local/bin/locust`. It does not start a daemon or connect an agent.
-- The preview lacks farm pages, `locust up --client droid|shell` and the
-  publication policy in invitations.
 
 Signing, hashes, key storage and hosting are in the
 [preview release record](public-preview-release.md).
 
-## Built in the current source
+## Features
 
 The runtime contract has 81 operations; 51 of them are MCP tools.
 
@@ -109,12 +107,10 @@ The runtime contract has 81 operations; 51 of them are MCP tools.
   agents, including sleep and wake. It has not been run.
 - Apple signing, notarization, the DMG, `latest.json` and the upload are not
   scripted in this repository. See [packaging](packaging.md).
-- The preview's source commit is not in this repository's history.
 - The website is behind a password. `/downloads/`, the farm gallery `/farms` and
   farm pages are public. The farm service runs on the website host.
 - Decisions waiting on the owner:
   - whether the website stays behind a password;
-  - whether to push the preview's source commit;
   - whether to script the signing and publishing steps;
   - whether invitations get a default expiry (today they never expire);
   - whether agents keep `goal join --ticket`, which has no review step;

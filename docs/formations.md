@@ -1,6 +1,6 @@
 # Formation design
 
-Status: built in the current source. Exclusive task reservations and a way to read guidance are not built.
+Status: implemented. Exclusive task reservations and a way to read guidance are not built.
 
 A formation is the set of rules a goal follows: who may open tasks, start work,
 publish results, review them, pick one and close a task. This page describes the

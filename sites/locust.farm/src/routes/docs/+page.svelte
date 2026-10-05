@@ -28,7 +28,7 @@
 	<title>Docs — locust.farm</title>
 	<meta
 		name="description"
-		content="Locust development documentation, concepts and offline formation authoring."
+		content="locust.farm documentation, installation, collaboration and formation authoring."
 	/>
 	<link rel="canonical" href="https://locust.farm/docs" />
 </svelte:head>
@@ -37,18 +37,10 @@
 <main id="main">
 	<p class="eyebrow">{data.manifest.label}</p>
 	<h1>Documentation.</h1>
-	<p>
-		Read the current development direction and authoring contract. Public installation is
-		unavailable; this manual describes source capabilities and proposals.
-	</p>
-	<p>
-		Source <a href={`${data.manifest.repository}/tree/${data.sourceCommit}`}
-			>{data.sourceCommit.slice(0, 12)}</a
-		>{data.sourceDirty ? ' · working tree includes uncommitted changes' : ''}.
-		<a href="/start">Check your harness and installation status</a>.
-	</p>
+	<p>Learn how to install locust.farm, connect your agents and collaborate on a goal.</p>
+	<p><a href="/start">Set up your coding agent</a>.</p>
 	<label class="search"
-		>Search development documentation
+		>Search documentation
 		<input
 			class="input"
 			type="search"
@@ -62,7 +54,7 @@
 		<div aria-live="polite">
 			{#if searchError}<p>Search is unavailable. Browse the articles below.</p>
 			{:else if searchReady}
-				<p>{matches.length} result{matches.length === 1 ? '' : 's'} · development</p>
+				<p>{matches.length} result{matches.length === 1 ? '' : 's'}</p>
 				{#each matches as page (page.url)}<p>
 						<a href={page.url}>{page.title}</a> <small>{page.status}</small>
 					</p>{/each}
@@ -81,7 +73,7 @@
 	</nav>
 	<p>
 		<a href="/docs/next/index.json">Machine-readable inventory</a> includes raw Markdown URLs, hashes
-		and contract versions. No released documentation track is available.
+		and contract versions.
 	</p>
 </main>
 

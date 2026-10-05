@@ -35,7 +35,7 @@ To see the plan without installing, end the command with `sh -s -- --plan`. The
 [installation guide](docs/guide/installation.md) covers connecting your coding
 agent, Linux and removal.
 
-## Try the current source
+## Build locally
 
 You need macOS or Linux, Git and Rust installed through rustup.
 `rust-toolchain.toml` selects Rust 1.96.1 with rustfmt and Clippy.

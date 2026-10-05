@@ -1,2 +1,2 @@
-import { manifest, sourceCommit, sourceDirty } from '#lib/docs/content.ts';
-export const load = () => ({ manifest, sourceCommit, sourceDirty });
+import { manifest } from '#lib/docs/content.ts';
+export const load = () => ({ manifest });

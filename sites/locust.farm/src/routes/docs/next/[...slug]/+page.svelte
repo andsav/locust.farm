@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.article.title} — Locust docs</title>
+	<title>{data.article.title} — locust.farm docs</title>
 	<meta name="description" content={data.article.description} />
 	<link rel="canonical" href={`https://locust.farm${data.article.url}`} />
 </svelte:head>
@@ -31,20 +31,13 @@
 		</nav>
 	</aside>
 	<main id="article">
-		<nav aria-label="Breadcrumb"><a href="/docs">Docs</a> / Development / {data.article.title}</nav>
+		<nav aria-label="Breadcrumb"><a href="/docs">Docs</a> / {data.article.title}</nav>
 		{#if data.article.section}<p>
 				This subject is covered in <a href={`#${data.article.section}`}
 					>{data.article.headings.find((heading) => heading.id === data.article.section)?.title}</a
 				>.
 			</p>{/if}
 		<p class="status eyebrow">{data.manifest.label} · {data.article.status}</p>
-		<p class="identity">
-			Source <a href={data.article.sourceUrl}>{data.sourceCommit.slice(0, 12)}</a>{data.sourceDirty
-				? ' · uncommitted working tree'
-				: ''}<br />
-			Software: {data.manifest.versions.software} · API: {data.manifest.versions.api} · Protocol: {data
-				.manifest.versions.protocol} · Formation schema: {data.manifest.versions.formationSchema}
-		</p>
 		<nav class="toc" aria-label="On this page">
 			<strong>On this page</strong
 			>{#each data.article.headings.filter((heading) => heading.level === 2) as heading (heading.id)}<a
@@ -56,7 +49,7 @@
 		<div class="prose" use:codeCopy={data.article.html}>{@html data.article.html}</div>
 		<footer>
 			<a href={data.article.rawUrl}>Raw Markdown</a> ·
-			<a href="/docs/next/index.json">Version inventory</a>
+			<a href="/docs/next/index.json">Documentation inventory</a>
 			<div class="adjacent">
 				{#if previous}<a href={`/docs/next/${previous.slug}`}>← {previous.title}</a
 					>{/if}{#if next}<a href={`/docs/next/${next.slug}`}>{next.title} →</a>{/if}
@@ -105,11 +98,6 @@
 	.status {
 		margin: 1.5rem 0 0.75rem;
 		color: var(--color-accent);
-	}
-	.identity {
-		color: var(--color-text-subtle);
-		font: var(--text-ui-small);
-		overflow-wrap: anywhere;
 	}
 	.toc {
 		margin: 1.5rem 0;

@@ -51,6 +51,10 @@ test('parser escapes HTML and code, renders tables and assigns unique anchors', 
 	assert.ok(!parsed.html.includes('<script>'));
 });
 test('public link rewriting agrees across raw and HTML and rejects missing targets', () => {
+	assert.equal(
+		resolveLink('../first-contact.md', 'docs/guide/overview.md'),
+		`${manifest.repository}/blob/main/docs/first-contact.md`
+	);
 	const parsed = parseArticle('[Concepts](concepts.md#goals)', 'docs/guide/overview.md');
 	assert.equal(parsed.raw, '[Concepts](/docs/next/concepts#goals)');
 	assert.ok(parsed.html.includes('href="/docs/next/concepts#goals"'));

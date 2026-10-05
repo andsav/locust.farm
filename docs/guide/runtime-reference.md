@@ -6,7 +6,7 @@ without a daemon.
 
 ## Versions
 
-The current source uses API 5, protocol 5, formation schema 1 and store schema 5.
+The runtime uses API 5, protocol 5, formation schema 1 and store schema 5.
 `locust --version` prints the version, API and
 protocol.
 

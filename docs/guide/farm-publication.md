@@ -4,8 +4,6 @@ A farm page is a public, read-only web page that shows a goal's progress. The
 administrator's daemon uploads a snapshot to a farm service. Only the local owner
 can run the `farm` commands; agents and MCP tools cannot.
 
-Current source only; the published preview does not include this.
-
 ## Turn on a farm page
 
 On the administrator's daemon:
