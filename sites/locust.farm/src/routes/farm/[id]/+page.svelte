@@ -98,7 +98,7 @@
 				</h1>
 				<p>
 					{view
-						? 'It may have been unpublished, or the link may be wrong.'
+						? 'This farm is offline.'
 						: connection === 'disconnected'
 							? 'Connection lost. Reconnecting…'
 							: 'Waiting for the first update.'}
@@ -109,7 +109,7 @@
 			<div class="head">
 				<div class="intro">
 					<p class="eyebrow">Farm · goal {snapshot.goal_state}</p>
-					<h1 class="title">{snapshot.title ?? 'Title not shared'}</h1>
+					<h1 class="title">{snapshot.title ?? 'Untitled farm'}</h1>
 					<p class="meta">
 						<span class="line">{snapshot.formation} · {snapshot.stages.length} stages</span><span
 							class="line"
@@ -126,15 +126,13 @@
 								? 'Goal state unavailable'
 								: modeName(mode)}
 					</p>
+					{#if mode !== 'ended'}
+						<p class="status-text">
+							Last check-in <b>{age(view?.received_at_ms, serviceNow(view, now))}</b>
+						</p>
+					{/if}
 					<p class="status-text">
-						{#if mode === 'ended'}The goal was closed.{:else}Last check-in
-							<b>{age(view?.received_at_ms, serviceNow(view, now))}</b>.{/if}
-					</p>
-					<p class="status-text">
-						Snapshot from <b>{age(snapshot.observed_at_ms, serviceNow(view, now))}</b>.
-					</p>
-					<p class="latest-line">
-						Server time {clockTime(view?.service_time_ms)}.
+						Updated <b>{age(snapshot.observed_at_ms, serviceNow(view, now))}</b>
 					</p>
 					<div class="actions">
 						<button onclick={togglePause}>{paused ? 'Resume updates' : 'Pause updates'}</button
@@ -145,9 +143,7 @@
 				</section>
 			</div>
 			{#if connection !== 'connected' || paused}<p class="connection-note" role="status">
-					{paused
-						? 'Updates paused. Unpublishing still takes effect.'
-						: 'Connection interrupted. Showing the last snapshot.'}
+					{paused ? 'Updates paused.' : 'Connection interrupted. Reconnecting…'}
 				</p>{/if}
 			<div class="counts" aria-label="Task summary">
 				{#each [['Open', counts!.open], ['Attempted', counts!.reported], ['Awaiting evidence', counts!.waiting]] as [label, count] (label)}<div
@@ -181,10 +177,7 @@
 						>◇ disputed</span
 					><span>◌ unavailable</span>
 				</div>
-				<p class="rule">
-					An attempt means an agent reported work on a task, not that it is running now. Select a
-					task to find it in the table below.
-				</p>
+				<p class="rule">Select a task to see its details below.</p>
 			</section>
 			<div class="lower">
 				<section>
@@ -192,7 +185,7 @@
 						<h2>Tasks</h2>
 						<p>
 							{snapshot.tasks.length}
-							{snapshot.tasks.length === 1 ? 'task' : 'tasks'} · text not published
+							{snapshot.tasks.length === 1 ? 'task' : 'tasks'}
 						</p>
 					</div>
 					<table class="work-table stack">
@@ -308,7 +301,7 @@
 					<table class="stack agents-table">
 						<thead><tr><th>Group</th><th>Agents</th><th>Last sync</th></tr></thead><tbody
 							>{#each snapshot.groups as group (group.id)}<tr
-									><td class="strong">{group.id} · {group.label ?? 'Label not shared'}</td><td
+									><td class="strong">{group.id} · {group.label ?? 'Unnamed group'}</td><td
 										data-label="Agents:"
 										>{snapshot.agents.filter((agent) => agent.group === group.id).length}</td
 									><td data-label="Last sync:"
@@ -317,39 +310,6 @@
 								>{/each}</tbody
 						>
 					</table>
-					<p class="note">
-						A group is one Locust daemon. It may not match one machine or one person.
-					</p>
-				</section>
-			</div>
-			<div class="about">
-				<section>
-					<h2>This page</h2>
-					<p>
-						Stages, tasks, attempts and evidence counts, as published by the farm’s creator.
-						Completing, closing and selecting a result are tracked separately.
-					</p>
-				</section>
-				<section>
-					<h2>Consent</h2>
-					<p>
-						Every member and work author covered here agreed to publish it. If that consent lapses,
-						the page goes offline.
-					</p>
-				</section>
-				<section>
-					<h2>Freshness</h2>
-					<p>
-						Check-in is when the publisher last reached this server. Snapshot is when the publisher
-						last recorded the goal. Other members may be ahead of this view.
-					</p>
-				</section>
-				<section>
-					<h2>Visibility</h2>
-					<p>
-						Anyone with the link can see this page. Task text, results, code, prompts, tool activity
-						and addresses are never published. Copies already made can’t be recalled.
-					</p>
 				</section>
 			</div>
 		{/if}
