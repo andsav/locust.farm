@@ -134,7 +134,7 @@ needed for Locust's first canonical tree.
 Locust currently has publication, review, completion and selection prerequisites
 in [EvidenceKind](../crates/locust-proto/src/organization.rs), resolved by
 [flow evaluation](../crates/locust-core/src/goal/flow.rs). None explicitly means
-that a contribution was incorporated into a workspace revision.
+that a workspace proposal was integrated into a workspace revision.
 
 **Follow-up, deferred from the first version:** add an explicit integration
 prerequisite for file-dependent stages and pin their input revision to its durable
@@ -144,9 +144,10 @@ moving head. Record the chosen revision with the task/attempt context. Existing
 research-only completion semantics remain useful and should not be changed into
 a requirement for code integration.
 
-For atomic multi-task changes, compose several source contributions into one
-reviewed proposal and integrate once. Initially this uses the existing one-tree
-design; named integration branches can wait for a concrete requirement.
+For atomic multi-task changes, compose several source workspace proposals into one
+reviewed proposal and integrate once. Task contributions can link to those proposals
+without carrying a second tree-change format. Initially this uses the existing
+one-tree design; named integration branches can wait for a concrete requirement.
 
 ## Boundaries to retain
 
