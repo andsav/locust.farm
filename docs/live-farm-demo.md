@@ -1,13 +1,14 @@
 # Live four-client farm demo
 
-Status: live rehearsal on October 4, 2026. This uses actual Codex, Claude Code,
-Kimi Code and Pi processes on one Mac, four distinct Locust principals, and one
+Status: completed live rehearsal on October 4, 2026. This uses actual Codex,
+Claude Code, Kimi Code and Pi processes on one Mac, four distinct Locust principals, and one
 local daemon. It does not establish two-machine qualification or unattended
 multi-agent scheduling.
 
 The public [farm](https://locust.farm/farm/939ab4cdb67d868475d97e598ba2ef7f)
-is listed in the [gallery](https://locust.farm/farms). The separate synthetic
-examples are labeled as such. Public views contain approved labels and structured
+is listed in the [gallery](https://locust.farm/farms). All five stages have
+reviewed, selected results; the goal is ended and its real history remains visible.
+The separate synthetic examples are labeled as such. Public views contain approved labels and structured
 status; prompts, source text, messages, credentials and raw native logs stay local.
 
 ## Persistent runtime
@@ -44,6 +45,22 @@ approved farm IDs; preparing another local goal does not enroll it remotely.
 Keep the private state directory out of Git. Isolated demo profiles do not change
 normal user profiles. Codex uses the ambient `OPENAI_API_KEY`; no API key is written
 into its generated profile.
+
+## Completed app
+
+The final app is running at [localhost:8787](http://127.0.0.1:8787/). Its five
+source files are retained in `~/.locust-demos/team-chat-20261004/app`; no build
+step or package installation is needed. The reusable test suite passes under
+Python 3.12 and the native clients' Python environment. To check it:
+
+```sh
+cd "$HOME/.locust-demos/team-chat-20261004/app"
+python3 -m unittest -v test_app
+```
+
+If the local app process has stopped, run `python3 server.py --port 8787
+--database ../preview-chat.sqlite` from that directory to reuse the retained
+demo history. The app process is separate from the Locust daemon.
 
 ## Work and evidence
 
