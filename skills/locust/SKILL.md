@@ -86,7 +86,7 @@ prefix; other identifiers use the full representation returned by the API.
 
 ## Author a reusable definition
 
-Use `locust_formation_draft_create`, `draft_update`, `draft`, and `drafts` for
+Use `locust_formation_draft_create`, `draft_update`, `draft_show`, and `drafts` for
 owner-scoped source. Invalid drafts may be saved. Updates require the expected
 source revision. Publication requires that revision and the exact source hash;
 a published definition is immutable. Preserve local edits on conflicts and
