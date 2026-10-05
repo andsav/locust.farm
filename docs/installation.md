@@ -1,13 +1,11 @@
 # Local verified installation
 
-Status: signed package verification and software activation implemented; the
-[identified macOS candidate](packaging.md) passed ten local native installation,
-upgrade and launchd cases. Client and other-platform evidence is recorded
-separately. Publication, production
-signing custody, distribution origin and license remain owner decisions. This
-procedure starts with an independently trusted Locust executable and an extracted
-candidate made by the [native builder](packaging.md). A verifier downloaded with
-an untrusted candidate does not establish its authenticity.
+Signed package verification and software activation are implemented. This guide
+starts with an independently trusted Locust executable and an explicitly selected
+candidate from the [native builder](packaging.md). A verifier downloaded with an
+untrusted candidate does not establish authenticity. The separate
+[published macOS preview](public-preview-release.md) has a public installation route.
+Client and platform qualification remain scoped to identified artifacts.
 
 The [local installation prompt](install-prompt.md) composes these commands for
 an explicitly selected candidate, service and dedicated client profile.

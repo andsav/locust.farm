@@ -74,7 +74,7 @@ The controller selected the approved verification contribution and closed the
 goal. Public version 102 reports ended, five completed tasks, four real harnesses
 and one participant group. The final artifact is
 `cb2901fd27198377352c48e342f708c8c7c7964f30679e7918d4f1f9c02e1ed2`.
-The local app remains available at [localhost:8787](http://127.0.0.1:8787/).
+The rehearsal app ran locally on port 8787.
 Its five files were copied byte-for-byte from the reviewed artifact into the
 persistent demo app directory; the last restart preserved General history.
 

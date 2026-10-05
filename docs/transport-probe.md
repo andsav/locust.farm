@@ -7,15 +7,15 @@ The [source and infrastructure findings](../research/iroh-transport-probe.md) di
 ## Build and local checks
 
 ```sh
-CARGO_TARGET_DIR=target/lane-b-probe cargo build --locked -p locust-net --example transport_probe
-target/lane-b-probe/debug/examples/transport_probe --help
-python3 scripts/check_transport_probe.py --binary "$PWD/target/lane-b-probe/debug/examples/transport_probe" --timeout-ms 10000
+CARGO_TARGET_DIR=target/transport-probe cargo build --locked -p locust-net --example transport_probe
+target/transport-probe/debug/examples/transport_probe --help
+python3 scripts/check_transport_probe.py --binary "$PWD/target/transport-probe/debug/examples/transport_probe" --timeout-ms 10000
 ```
 
 The harness uses two local processes with direct loopback transports. It checks the exchange and authenticated peer IDs, unexpected-peer rejection, an idle listener's timeout, interruption, and timeout with a full, undrained stdout pipe. The last check uses a separate 100 ms regression-fixture deadline. It starts no public relay or discovery client. The example also has Rust tests:
 
 ```sh
-CARGO_TARGET_DIR=target/lane-b-probe cargo test --locked -p locust-net --features testkit --example transport_probe
+CARGO_TARGET_DIR=target/transport-probe cargo test --locked -p locust-net --features testkit --example transport_probe
 ```
 
 ## Modes and evidence
@@ -41,7 +41,7 @@ Build the same commit with the pinned toolchain on both machines. Record the com
 On machine A, start a listener:
 
 ```sh
-target/lane-b-probe/debug/examples/transport_probe listen --mode direct --timeout-ms 300000
+target/transport-probe/debug/examples/transport_probe listen --mode direct --timeout-ms 300000
 ```
 
 Copy A's endpoint ID and a reachable `direct_addr`. A private or loopback address is not reachable from an unrelated network. Direct-only mode does not supply a relay-assisted rendezvous, router mapping or universal NAT traversal. If neither side has a directly reachable route, retain that failed result and continue with the relay run; do not relabel a LAN test as a successful WAN test.
@@ -49,7 +49,7 @@ Copy A's endpoint ID and a reachable `direct_addr`. A private or loopback addres
 On machine B, substitute A's actual values:
 
 ```sh
-target/lane-b-probe/debug/examples/transport_probe connect --mode direct --timeout-ms 60000 --peer A_ENDPOINT_ID --peer-addr A_REACHABLE_IP:PORT
+target/transport-probe/debug/examples/transport_probe connect --mode direct --timeout-ms 60000 --peer A_ENDPOINT_ID --peer-addr A_REACHABLE_IP:PORT
 ```
 
 Both processes must exit successfully and report the other endpoint's ID. Compare IDs through the same trusted channel used for the contact hints. The connector authenticates the supplied `--peer` identity. A listener can additionally require `--expect-peer B_ENDPOINT_ID` when the connecting identity is known before it starts; otherwise it reports, but does not pre-authorize, the first authenticated endpoint. This probe does not grant that endpoint any Locust membership.
@@ -59,13 +59,13 @@ Both processes must exit successfully and report the other endpoint's ID. Compar
 On A:
 
 ```sh
-target/lane-b-probe/debug/examples/transport_probe listen --mode relay --n0-relays --timeout-ms 300000
+target/transport-probe/debug/examples/transport_probe listen --mode relay --n0-relays --timeout-ms 300000
 ```
 
 On B, supply A's emitted ID and relay URL:
 
 ```sh
-target/lane-b-probe/debug/examples/transport_probe connect --mode relay --n0-relays --timeout-ms 60000 --peer A_ENDPOINT_ID --peer-relay A_RELAY_URL
+target/transport-probe/debug/examples/transport_probe connect --mode relay --n0-relays --timeout-ms 60000 --peer A_ENDPOINT_ID --peer-relay A_RELAY_URL
 ```
 
 Both sides must report selected relay paths and successful completion. For an alternate relay, run fresh processes on both machines with `--relay-url https://YOUR_RELAY_HOST/` in place of `--n0-relays`, and use A's new contact records. Only that configured relay set is eligible; default relays are not silently added. Record the relay operator and URL, server version when known, and both results. An alternate region run operated by n0 does not establish independence from n0.

@@ -1,6 +1,9 @@
-# Client qualification harness
+# Client qualification harnesses
 
-Date: 2026-10-03. **Status: separate fixture, production-daemon, real-model and managed-session harnesses are implemented. Each establishes only its recorded scope; none closes release support.** The [evidence ledger](release-evidence.md) tracks the separate requirements; the original [fixture findings](../research/client-qualification.md), [production findings](../research/t2-production-qualification.md), and [real-model findings](../research/t2-real-model-qualification.md) retain measured behavior.
+The fixture, production-daemon, real-model and managed-session harnesses exercise
+separate client capabilities. Use identified binaries and record exact outcomes;
+a passing fixture does not establish complete client support.
+[Release evidence](release-evidence.md) explains these boundaries.
 
 ## What it does
 
@@ -15,13 +18,13 @@ The harness uses a private temporary HOME, configuration, workspace and runtime 
 From the repository root, build the test executables with the pinned compiler:
 
 ```sh
-CARGO_TARGET_DIR=target/lane-b-fixture cargo build --locked -p locust-adapter --examples
+CARGO_TARGET_DIR=target/client-fixture cargo build --locked -p locust-adapter --examples
 python3 -m unittest discover -s scripts/tests
 python3 scripts/check_clients.py \
   --timeout-ms 30000 \
   --output output/client-qualification \
-  --config-probe "$PWD/target/lane-b-fixture/debug/examples/config_probe" \
-  --stdio-probe "$PWD/target/lane-b-fixture/debug/examples/stdio_probe" \
+  --config-probe "$PWD/target/client-fixture/debug/examples/config_probe" \
+  --stdio-probe "$PWD/target/client-fixture/debug/examples/stdio_probe" \
   --codex /ABSOLUTE/PATH/TO/codex \
   --claude-code /ABSOLUTE/PATH/TO/claude \
   --factory-droid /ABSOLUTE/PATH/TO/droid \
@@ -42,12 +45,6 @@ Each run writes a private JSON report and protocol logs under the output directo
 - **Resume:** the same client-native session must perform a fresh successful read through a new bridge process. This is client continuation and bridge restart, not durable daemon recovery or protection against duplicate task execution.
 
 Actual daemon authentication/task flow, interactive approval, own-account sign-in, real models, active-session delivery and packaged installation remain separate `not_run` assertions. Automatic wake is restricted to Merak and is outside this harness.
-
-## Remediation of evidence checks
-
-Follow-up to the [candidate assessment](../research/t1-candidate-review-response.md) corrected the earlier interruption predicate: group-wide SIGINT and a later forced child cleanup could previously still produce a passing interruption row. Historical client records retain their exact observations; the [corrected rerun](../research/evidence/client-qualification-remediation-2026-10-03.json) supersedes their interruption-success claim. All four clients pass the scoped interruption/resume/restart checks without forced cleanup. Pi took 30.391 seconds, consistent with the fixture I/O timeout, so immediate bridge cancellation remains unverified. Default Claude read/write and Droid write denials remain explicit not-run results. The correction has subprocess regressions for a leaking child, a child that changes process group, natural cleanup and protection against signaling an unrelated session.
-
-Every scripted backend path, including rejected HTTP verbs/routes, now produces a redacted receipt. Accepted model paths are canonical route names; arbitrary path prefixes, request text and authorization headers are not retained. These receipts remain separate from model request numbering and session-fallback assertions. This change improves test evidence; it does not add production client lifecycle behavior.
 
 ## Production and managed qualification
 

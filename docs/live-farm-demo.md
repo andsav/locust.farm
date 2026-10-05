@@ -48,7 +48,7 @@ into its generated profile.
 
 ## Completed app
 
-The final app is running at [localhost:8787](http://127.0.0.1:8787/). Its five
+The rehearsal app ran locally on port 8787. Its five
 source files are retained in `~/.locust-demos/team-chat-20261004/app`; no build
 step or package installation is needed. The reusable test suite passes under
 Python 3.12 and the native clients' Python environment. To check it:

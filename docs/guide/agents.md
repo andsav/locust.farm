@@ -1,23 +1,27 @@
 # Harnesses and managed sessions
 
-**Status: source integration with capability-specific qualification.** Bring the
-agent you already use. Public setup remains unavailable. First report transport,
-instruction refresh and approval capabilities; do not install an adapter or
-weaken policy to force a route.
+Bring the agent you already use. Source integration provides reviewed local
+profile setup and explicit managed sessions. The published terminal preview
+installs CLI software; model-visible discovery and complete client journeys
+require their own qualification. Respect the selected client's native policy.
 
 ## Choose the supported local profile path
 
-The current setup implementation owns explicit user-profile entries for Codex,
-Claude Code and Pi. Codex uses `.codex/config.toml` with a skill under
+The current development source supports `up --client codex`, `claude`, `pi`,
+`droid` and `shell`. Codex uses `.codex/config.toml` with a skill under
 `.agents/skills/locust`; Claude uses `.claude.json` and `.claude/skills/locust`;
-Pi uses `.pi/agent/mcp.json` and `.pi/agent/skills/locust`. Custom config overrides
-can make these layouts unsuitable. Review the [onboarding source](../onboarding.md)
-for refusal and explicit profile-selection rules before applying a plan.
+Pi uses `.pi/agent/mcp.json` and `.pi/agent/skills/locust`; Droid uses
+`.factory/mcp.json` and `.factory/skills/locust`. The `shell` route creates a
+portable bound CLI connection without editing an app-specific profile.
 
-Droid has a managed foreground configuration path; do not describe it as the same
-installed `up` route. An unlisted harness needs a demonstrated local transport,
-instruction-loading mechanism and approval path. No generic support claim follows
-from it being able to run a shell.
+Custom config overrides can make these layouts unsuitable. Review
+[onboarding](../onboarding.md) for explicit profile selection and refusal rules.
+Inspect the installed `up --help`: the published API-4 preview and current API-5
+source have different capabilities. A configured route does not establish
+native model discovery or a successful full workflow.
+
+An unlisted harness needs a demonstrated local transport, instruction-loading
+mechanism and approval path. Shell access alone does not qualify integration.
 
 ## Refresh and prove discovery
 
@@ -59,20 +63,17 @@ assert every descendant stopped. Existing harness tool access is not a Locust
 sandbox. See [managed-client evidence](../managed-clients.md) and
 [recovery](recovery.md) for the current launcher limits.
 
-## Current native qualification
+## Qualification boundaries
 
-The exact macOS arm64 candidate `0a295cd` passed supported installed setup,
-skill/MCP discovery and exercised workspace flows in Codex, Claude Code and Pi.
-All four baseline clients passed ordinary managed lifecycle and recovery checks
-against its production daemon. These runs used real native executables and
-scripted loopback providers; default-policy denials and untested interactive
-approval remain explicit. No real model or independent provider account was
-qualified by them.
+[Client harnesses](../client-qualification.md) distinguish scripted-provider,
+real-provider, managed-session and installation experiments. The
+[live collaboration records](../../research/collaboration-followups.md) retain
+Codex/Merak and Pi/Claude observations against identified API-4 development
+binaries, including failures and permissive synthetic workspace policies.
+Those records do not qualify all API-5 changes or default interactive approvals.
 
-Droid's separate full workflow reached authenticated tools, claims, progress,
-wait and resume, but its native Execute child received SIGKILL before producing
-the workspace receipt. The same authored driver passed directly under the same
-network guard. Its full workspace route remains unqualified on this host; no
-client security setting was changed to make it pass. See the
-[exact native evidence](../../research/organization-native-qualification.md) for
-versions, artifact hashes, failures and cleanup scope.
+Droid has a source setup route; full native workspace behavior remains
+unqualified. Linux client execution, independent accounts, physical networking
+and worker confinement require separate evidence. Use
+[availability](status.md) and the exact candidate's matching manual before making
+a support claim.

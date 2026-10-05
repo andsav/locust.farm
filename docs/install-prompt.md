@@ -27,7 +27,7 @@ separately and does not prohibit installing published software.
 For a fresh selected profile, the implemented [onboarding route](onboarding.md)
 creates and preserves the enrolled credential and fixed session. It begins only
 after verified software activation; no existing credential/session input is
-needed. The installed route passed [macOS launchd and existing-daemon checks](../research/onboarding-qualification.md); native client/model discovery remains separate.
+needed. The installed route passed [macOS launchd and existing-daemon checks](onboarding.md); native client/model discovery remains separate.
 
 ```text
 Install this local Locust candidate, then onboard only my selected client:

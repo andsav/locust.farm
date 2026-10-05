@@ -2,46 +2,6 @@
 
 Date: 2026-10-04. Status: the native builder emits the current strict release-v2 package with a matching manual snapshot. The [macOS terminal developer preview](public-preview-release.md) is signed and published with a verified curl installer. Broader platform, client and production qualification remain separate gates in the [release evidence ledger](release-evidence.md).
 
-## Historical protocol-1 local macOS candidate
-
-The [retained identity record](../research/evidence/local-candidate-5bb254d-2026-10-03.json)
-identifies the earlier protocol-1 candidate used by the
-[installation campaign](../research/installation-qualification.md). It includes
-T2 and the installed service/profile commands. This is a local candidate, not a
-published release or a completed release gate.
-
-| Field | Observed value |
-|---|---|
-| Source | `5bb254d97504209c1ee4277e74c1365c2d8620e0` |
-| Target | `aarch64-apple-darwin` |
-| Version | `locust 0.1.0 (5bb254d97504) api 1 protocol 1` |
-| Executable size | 13,678,896 bytes |
-| Executable SHA-256 | `abe1c0271de5c8fdbd8145d35b6b0932233d02eee7b5957fc99fc3211eac8580` |
-| Manifest SHA-256 | `3793145c1aa0aa7aae24e8572d4b60683ff8d5205d1ce26202d4d01843c4d8c7` |
-| Unsigned archive SHA-256 | `5f9a51ec62cc4d34cfe8dfdda0cffc945c10caf946d267a19bc3146fb9e413af` |
-| Archive filename | `locust-aarch64-apple-darwin-5bb254d97504-unsigned.tar.gz` |
-
-The archive and checksum are retained under local `output/final-native/`, with
-the fixed-file extraction under `output/final-bundle/`. Independent checks
-confirmed all three archive members, file modes, payload hashes, Mach-O arm64
-format and exact embedded version. `codesign` reports a linker-generated ad hoc
-signature and no TeamIdentifier; Developer ID signing and notarization were not
-performed. Qualification made private copies and used disposable Ed25519 keys;
-the archive itself remains unsigned by a publisher. The separately selected
-trust key and registry required by the [installer](installation.md) cannot be
-inferred from a checksum sidecar.
-
-## Local Linux cross-build
-
-The owner selected build-only Linux scope on 2026-10-04. A native ARM-host
-`cargo zigbuild` release build for `x86_64-unknown-linux-gnu.2.28` completed in
-92.032 seconds from source `95d986045f4f711527d335012d94f1776f2b4498`.
-The [build record](../research/linux-installation-qualification.md) retains
-compiler versions, ELF checks, binary/archive hashes and the exact command.
-The archive contains the binary, Apache-2.0 license, skill and build metadata;
-it is separate from the current native builder's four-entry installer archive below.
-No Linux execution, runtime or installation qualification was performed.
-
 ## Build and source identity
 
 Run [`python3 scripts/build_release.py`](../scripts/build_release.py) on macOS arm64 or Linux x86_64. It uses the exact Rust version in `rust-toolchain.toml` and builds only the native target (`aarch64-apple-darwin` or `x86_64-unknown-linux-gnu`) with `cargo build --locked --release`. The helper builds a verified archive of the captured Git `HEAD`, reusing the committed-blob check in [`build_t1.py`](../scripts/build_t1.py), and refuses dirty Rust/build and packaging inputs. Unrelated checkout changes are excluded from the archive. It checks the resulting Mach-O or ELF architecture, executable bit, exact `locust --version` output, embedded source commit, and source protocol/API constants. The archived operating skill and matching manual are included. Selected manual inputs and the repository license must also be committed. The helper uses isolated home, Cargo home and target directories, a pinned absolute compiler, and two build jobs. It does not claim an independently reproducible binary: host SDK, native libraries, build scripts, and dependency resolution remain relevant.

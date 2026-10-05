@@ -349,12 +349,8 @@
     "docs/formations.md",
     "docs/formations-implementation-plan.md",
     "docs/formations-semantics.md",
-    "research/onboarding-qualification.md",
     "docs/formations-status.md",
     "docs/packaging.md",
-    "research/organization-native-qualification.md",
-    "research/linux-installation-qualification.md",
-    "research/organization-local-discovery.md",
     "docs/public-preview-release.md",
     "research/evidence/public-preview-release-2026-10-04.json",
     "docs/swarm-visualization-plan.md",
@@ -362,7 +358,12 @@
     "sites/locust.farm/ops/README.md",
     "scripts/check_farm.py",
     "examples/demos/team-chat.json",
-    "research/farm-qualification.md"
+    "research/farm-qualification.md",
+    "scripts/check_documentation.py",
+    "research/tla/README.md",
+    "research/collaboration-followups.md",
+    "research/live-farm-demo.md",
+    "docs/client-qualification.md"
   ],
   "routes": [
     {
@@ -528,12 +529,12 @@
     {
       "slug": "polaris/visual-authoring",
       "page": "polaris",
-      "section": "use-one-shared-executable-definition"
+      "section": "use-the-locust-contract"
     },
     {
       "slug": "polaris/round-trip",
       "page": "polaris",
-      "section": "round-trip-and-unsupported-input"
+      "section": "handle-stale-and-uncertain-state"
     },
     {
       "slug": "polaris/observe-work",

@@ -191,9 +191,9 @@
       "ftp.nonProxyHosts": "local|*.local|169.254/16|*.169.254/16",
       "http.nonProxyHosts": "local|*.local|169.254/16|*.169.254/16",
       "java.class.version": "65.0",
-      "java.home": "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home",
+      "java.home": "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home",
       "java.io.tmpdir": "/var/folders/22/61v9z9kd34x959r1k7tbdw480000gn/T/",
-      "java.library.path": "/Users/andrei/Library/Java/Extensions",
+      "java.library.path": "/PRIVATE/home/Library/Java/Extensions",
       "java.runtime.name": "OpenJDK Runtime Environment",
       "java.runtime.version": "21.0.8+9-LTS",
       "java.specification.name": "Java Platform API Specification",
@@ -224,15 +224,15 @@
       "stderr.encoding": "UTF-8",
       "stdout.encoding": "UTF-8",
       "sun.arch.data.model": "64",
-      "sun.boot.library.path": "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/lib",
+      "sun.boot.library.path": "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/lib",
       "sun.cpu.endian": "little",
       "sun.io.unicode.encoding": "UnicodeBig",
       "sun.java.launcher": "SUN_STANDARD",
       "sun.jnu.encoding": "UTF-8",
       "sun.management.compiler": "HotSpot 64-Bit Tiered Compilers",
       "user.country": "CA",
-      "user.dir": "/Users/andrei/Projects26/locust",
-      "user.home": "/Users/andrei",
+      "user.dir": "/PRIVATE/home/Projects26/locust",
+      "user.home": "/PRIVATE/home",
       "user.language": "en",
       "user.name": "andrei"
     }
@@ -270,11 +270,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -283,10 +283,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/fixture-pass/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/fixture-pass/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/fixtures/pass.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/fixtures/RunnerFixture.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/fixtures/pass.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/fixtures/RunnerFixture.tla"
       ],
       "elapsed_seconds": 0.705,
       "returncode": 0,
@@ -359,11 +359,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -372,10 +372,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/fixture-violation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/fixture-violation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/fixtures/violation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/fixtures/RunnerFixture.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/fixtures/violation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/fixtures/RunnerFixture.tla"
       ],
       "elapsed_seconds": 0.68,
       "returncode": 12,
@@ -430,11 +430,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -443,10 +443,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-base/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-base/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-base.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-base.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.722,
       "returncode": 0,
@@ -501,11 +501,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -514,10 +514,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-taskless/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-taskless/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-taskless.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-taskless.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 0.738,
       "returncode": 0,
@@ -572,11 +572,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -585,10 +585,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-fork/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-fork/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-fork.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-fork.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 2.781,
       "returncode": 0,
@@ -643,11 +643,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -656,10 +656,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-review-fork/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-review-fork/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-review-fork.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-review-fork.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 3.117,
       "returncode": 0,
@@ -714,11 +714,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -727,10 +727,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-scope-conflict/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-scope-conflict/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-scope-conflict.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-scope-conflict.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 3.44,
       "returncode": 0,
@@ -785,11 +785,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -798,10 +798,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-authority-fork/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-authority-fork/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-authority-fork.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-authority-fork.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 3.05,
       "returncode": 0,
@@ -856,11 +856,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -869,10 +869,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-duplicate-review/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-duplicate-review/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-duplicate-review.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-duplicate-review.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.177,
       "returncode": 0,
@@ -927,11 +927,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -940,10 +940,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-rule-change/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-rule-change/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-rule-change.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-rule-change.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.194,
       "returncode": 0,
@@ -998,11 +998,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1011,10 +1011,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-cutoff/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-cutoff/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-cutoff.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-cutoff.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 17.051,
       "returncode": 0,
@@ -1069,11 +1069,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1082,10 +1082,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-remove-empty/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-remove-empty/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-remove-empty.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-remove-empty.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 6.252,
       "returncode": 0,
@@ -1140,11 +1140,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1153,10 +1153,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-governance-fork/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-governance-fork/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-governance-fork.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-governance-fork.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.834,
       "returncode": 0,
@@ -1211,11 +1211,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1224,10 +1224,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-forged-selection/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-forged-selection/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-forged-selection.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-forged-selection.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.046,
       "returncode": 0,
@@ -1282,11 +1282,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1295,10 +1295,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-wrong-scope/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-wrong-scope/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-wrong-scope.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-wrong-scope.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.48,
       "returncode": 0,
@@ -1353,11 +1353,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1366,10 +1366,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-two-scopes/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-two-scopes/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-two-scopes.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-two-scopes.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 28.485,
       "returncode": 0,
@@ -1424,11 +1424,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1437,10 +1437,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-incompatible/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-incompatible/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-incompatible.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-incompatible.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 64.454,
       "returncode": 0,
@@ -1495,11 +1495,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1508,10 +1508,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-missing-definition/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-missing-definition/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-missing-definition.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-missing-definition.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 2.329,
       "returncode": 0,
@@ -1606,11 +1606,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1619,10 +1619,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-taskless-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-taskless-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-taskless-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-taskless-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 0.742,
       "returncode": 12,
@@ -1761,11 +1761,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1774,10 +1774,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-fork-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-fork-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-fork-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-fork-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 2.183,
       "returncode": 12,
@@ -1916,11 +1916,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -1929,10 +1929,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-review-fork-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-review-fork-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-review-fork-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-review-fork-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 2.327,
       "returncode": 12,
@@ -2027,11 +2027,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -2040,10 +2040,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-scope-conflict-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-scope-conflict-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-scope-conflict-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-scope-conflict-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 0.863,
       "returncode": 12,
@@ -2226,11 +2226,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -2239,10 +2239,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-two-scopes-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-two-scopes-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-two-scopes-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-two-scopes-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 27.827,
       "returncode": 12,
@@ -2436,11 +2436,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -2449,10 +2449,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-incompatible-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-incompatible-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-incompatible-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-incompatible-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 64.521,
       "returncode": 12,
@@ -2591,11 +2591,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -2604,10 +2604,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-missing-definition-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-missing-definition-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-missing-definition-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-missing-definition-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.885,
       "returncode": 12,
@@ -2768,11 +2768,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -2781,10 +2781,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-cutoff-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-cutoff-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-cutoff-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-cutoff-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 15.335,
       "returncode": 12,
@@ -2890,11 +2890,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -2903,10 +2903,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-remove-empty-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-remove-empty-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-remove-empty-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-remove-empty-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.241,
       "returncode": 12,
@@ -3035,11 +3035,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -3048,10 +3048,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-pin-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-pin-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-pin-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-pin-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.862,
       "returncode": 12,
@@ -3180,11 +3180,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -3193,10 +3193,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-isolation-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-isolation-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-isolation-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-isolation-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 8.589,
       "returncode": 12,
@@ -3325,11 +3325,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -3338,10 +3338,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-cutoff-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-cutoff-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-cutoff-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-cutoff-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 2.478,
       "returncode": 12,
@@ -3459,11 +3459,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -3472,10 +3472,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-distinct-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-distinct-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-distinct-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-distinct-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.04,
       "returncode": 12,
@@ -3604,11 +3604,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -3617,10 +3617,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-scope-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-scope-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-scope-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-scope-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.364,
       "returncode": 12,
@@ -3738,11 +3738,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -3751,10 +3751,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-authority-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-authority-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-authority-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-authority-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.077,
       "returncode": 12,
@@ -3872,11 +3872,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -3885,10 +3885,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-rules-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-rules-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-rules-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-rules-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 1.015,
       "returncode": 12,
@@ -3962,11 +3962,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -3975,10 +3975,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-definition-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/organization-definition-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-definition-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/organization-definition-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/Organization.tla"
       ],
       "elapsed_seconds": 0.739,
       "returncode": 12,
@@ -4165,11 +4165,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -4178,10 +4178,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-aba-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-aba-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-aba-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-aba-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.726,
       "returncode": 12,
@@ -4422,11 +4422,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -4435,10 +4435,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-replay-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-replay-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-replay-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-replay-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.718,
       "returncode": 12,
@@ -4679,11 +4679,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -4692,10 +4692,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-failure-before-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-failure-before-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-failure-before-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-failure-before-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.722,
       "returncode": 12,
@@ -4936,11 +4936,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -4949,10 +4949,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-failure-after-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-failure-after-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-failure-after-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-failure-after-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.719,
       "returncode": 12,
@@ -5121,11 +5121,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -5134,10 +5134,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-cancel-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-cancel-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-cancel-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-cancel-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.722,
       "returncode": 12,
@@ -5270,11 +5270,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -5283,10 +5283,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-principal-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-principal-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-principal-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-principal-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.714,
       "returncode": 12,
@@ -5419,11 +5419,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -5432,10 +5432,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-independent-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-independent-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-independent-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-independent-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.71,
       "returncode": 12,
@@ -5586,11 +5586,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -5599,10 +5599,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-permissions-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-permissions-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-permissions-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-permissions-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.717,
       "returncode": 12,
@@ -5781,11 +5781,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -5794,10 +5794,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-generation-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/attempt-generation-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-generation-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/attempt-generation-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 0.728,
       "returncode": 12,
@@ -5926,11 +5926,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -5939,10 +5939,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-ack-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-ack-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-ack-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-ack-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
       ],
       "elapsed_seconds": 0.693,
       "returncode": 12,
@@ -6085,11 +6085,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -6098,10 +6098,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-duplicate-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-duplicate-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-duplicate-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-duplicate-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
       ],
       "elapsed_seconds": 0.698,
       "returncode": 12,
@@ -6230,11 +6230,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -6243,10 +6243,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-failure-before-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-failure-before-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-failure-before-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-failure-before-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
       ],
       "elapsed_seconds": 0.723,
       "returncode": 12,
@@ -6375,11 +6375,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -6388,10 +6388,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-failure-after-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-failure-after-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-failure-after-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-failure-after-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
       ],
       "elapsed_seconds": 0.705,
       "returncode": 12,
@@ -6520,11 +6520,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -6533,10 +6533,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-retraction-witness/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-retraction-witness/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-retraction-witness.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-retraction-witness.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
       ],
       "elapsed_seconds": 0.708,
       "returncode": 12,
@@ -6644,11 +6644,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -6657,10 +6657,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-duplicate-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-duplicate-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-duplicate-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-duplicate-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
       ],
       "elapsed_seconds": 0.702,
       "returncode": 12,
@@ -6782,11 +6782,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -6795,10 +6795,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-ack-mutation/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/effects-ack-mutation/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-ack-mutation.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/configs/effects-ack-mutation.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123537Z-292a207c/inputs/FlowEffects.tla"
       ],
       "elapsed_seconds": 0.669,
       "returncode": 12,
@@ -6815,5 +6815,9 @@
       "coverage_output": null
     }
   ],
-  "source_changed_during_run": false
+  "source_changed_during_run": false,
+  "publication_redactions": {
+    "personal_home_paths": "Personal /Users account prefixes replaced with /PRIVATE/home; descendant paths preserved.",
+    "digest_scope": "Existing transcript and output digests describe the original captured files, not these redacted publication bytes."
+  }
 }

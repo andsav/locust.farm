@@ -1,5 +1,6 @@
-// Phosphor icons (regular weight, 256×256 view box), the set Polaris uses.
+// Phosphor icons (regular weight, 256×256 view box).
 // Copied from @phosphor-icons/core 2.1.1, MIT licence, Copyright (c) 2023 Phosphor Icons.
+// Full permission notice: /THIRD_PARTY_NOTICES.md in the repository root.
 // Only the icons the editor shows are kept.
 
 export const ICONS = {

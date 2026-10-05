@@ -128,9 +128,9 @@
     "dmg_stapler_staple": "passed",
     "dmg_stapler_validate": "passed",
     "publisher_private_key_custody": {
-      "directory": "~/.config/locust-release",
+      "directory": "/PRIVATE/publisher-key-store",
       "directory_mode": "0700",
-      "key_file": "signing.key",
+      "key_file": "REDACTED",
       "key_mode": "0600",
       "private_key_distributed": false
     },
@@ -857,10 +857,14 @@
     "raw_articles": 18,
     "exact_assets": 10,
     "shared_checkout": {
-      "lint": "failed in concurrent Farm dashboard files, after owned formatting was fixed",
-      "type_check": "27 errors in 3 concurrent Farm dashboard files",
+      "lint": "failed in the initial shared-checkout verification",
+      "type_check": "27 errors in 3 files in the initial shared-checkout verification",
       "other_work_included": false
     },
     "later_changes": "Documentation-only clarification and this verification record; tested site code and availability facts unchanged."
+  },
+  "publication_redactions": {
+    "scope": "Private signing-key storage location and unrelated checkout-work descriptions",
+    "original_hashes": "Recorded source, artifact and output digests identify the original captures, not this sanitized report."
   }
 }

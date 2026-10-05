@@ -1,15 +1,12 @@
 # Resumable client onboarding
 
-Status: implemented and component-tested. The installed `up` route passed
-[macOS launchd and existing-daemon qualification](../research/onboarding-qualification.md)
-with disposable Codex and Claude profiles. This page describes the
-[CLI](../crates/locust/src/cli/onboarding.rs),
-[enrollment journal](../crates/locust/src/installation/onboarding.rs) and its
+The owner-driven `up` and `agent add` commands are implemented in the
+[CLI](../crates/locust/src/cli/onboarding.rs) and
+[enrollment journal](../crates/locust/src/installation/onboarding.rs), with
 [recovery tests](../crates/locust/src/installation/onboarding/tests.rs).
-Configuration, authenticated daemon readiness and native model discovery are
-separate observations. The [combined demo qualification](../research/demo-qualification.md)
-now covers fresh native Codex/Claude execution through `up`, selected-profile
-diagnostics and retries on API 4, using scripted loopback providers.
+Configuration, authenticated daemon readiness and model-visible tools remain
+separate observations. The [local demo](demo.md) and
+[client harnesses](client-qualification.md) exercise the chosen profile explicitly.
 
 ## Start with verified software
 

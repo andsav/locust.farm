@@ -5,7 +5,7 @@
   "started_at": "2026-10-04T22:58:54.191064+00:00",
   "finished_at": "2026-10-04T22:59:42.085466+00:00",
   "binary": {
-    "path": "/Users/andrei/Projects26/locust/output/farm-qualified-bin/locust",
+    "path": "/PRIVATE/home/Projects26/locust/output/farm-qualified-bin/locust",
     "sha256": "aa3dbf1018c453803067349220056790035210d248b28102576b623bbc1cd3ee",
     "version": "0.1.0",
     "embedded_commit": "98d03af6ce6a-dirty",
@@ -515,5 +515,9 @@
     ],
     "omitted_changes": 0
   },
-  "peer_recovery_seconds": 27.674
+  "peer_recovery_seconds": 27.674,
+  "publication_redactions": {
+    "personal_home_paths": "Personal /Users account prefixes replaced with /PRIVATE/home; descendant paths preserved.",
+    "digest_scope": "Existing transcript and output digests describe the original captured files, not these redacted publication bytes."
+  }
 }

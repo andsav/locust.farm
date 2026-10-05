@@ -110,13 +110,12 @@ entry prompt, routing questions and harness routes live in
 [`guide.ts`](src/lib/onboarding/guide.ts); change them together with the contract.
 A test checks that the prompt matches the contract word for word.
 
-- The prompt only points the agent at `https://locust.farm/start`. It carries no
-  command, download, invitation or secret. The address is the canonical one; the
-  preview is hosted at that address behind Basic Auth.
-- `SETUP_ARTIFACT` is unset because no setup is published. The guide then tells
-  agents to report their harness and capabilities and stop. Set it to lane B's
-  canonical setup location once that exists, and update each route's status from
-  lane B's qualification records only.
+- The prompt points directly to the public terminal installation instructions
+  and verified installer. It authorizes local software and agent setup, while
+  goals, work permissions and file sharing remain separate choices.
+- `docs/reference/availability.json` records the published preview and each
+  route's evidence. The agent checks the installed binary's commands before
+  choosing a route; development capabilities may be ahead of the public release.
 - The copy button reports success only when the clipboard write succeeds. On
   failure it says so in a live status and selects the prompt for manual copying.
   Without JavaScript the button is not rendered and the prompt stays selectable.
@@ -143,8 +142,8 @@ Unknown slugs return 404 and never resolve arbitrary files. Generated schema/con
 manifest; reference tables derive from those exports, with parity tests. The shared
 `docs/reference/availability.json` supplies public-install facts to `/start`,
 `llms.txt` and the manual. Code-copy controls reuse the truthful clipboard helper
-and select the code for manual copying on failure. No released track or
-public installation availability is claimed.
+and select the code for manual copying on failure. The manual describes development
+source; the availability record separately identifies the published terminal preview.
 
 Use Node 22.18 or newer (Node 24.14.1 is pinned by .node-version and CI). CI should run `npm ci`,
 `npm run lint`, `npm run check`, `npm test` and `npm run build` in this directory.
@@ -152,7 +151,9 @@ Prose changes require no Rust build; contract export/parity checks belong to Rus
 
 ## Deployment
 
-The preview runs on the shared 3cf.ai Nginx host, `root@96.126.103.38`.
+The deployment requires a provisioned Linux host running Nginx and an SSH account
+with access to the website release directory. Keep the SSH destination in local
+configuration and supply it through `LOCUST_DEPLOY_SERVER`.
 [`adapter-static`](https://svelte.dev/docs/kit/adapter-static) emits the complete site
 under `build/`; the postbuild check validates the published pages, links, client
 assets and documentation hashes. No Node process is required on the server.
@@ -160,7 +161,7 @@ assets and documentation hashes. No Node process is required on the server.
 Use the Node version in `.node-version` and run:
 
 ```sh
-bash scripts/deploy-production.sh
+LOCUST_DEPLOY_SERVER=deploy@your-host bash scripts/deploy-production.sh
 ```
 
 The script builds committed `HEAD` in a temporary clean checkout, runs all four
@@ -201,7 +202,7 @@ hook to reload Nginx. Keep the existing server renewal scheduler enabled.
 The password file is `/etc/nginx/locust.farm.htpasswd`, owned by `root:www-data`
 with mode `0640`. Provision it using `htpasswd -cB` with an interactive password
 prompt or stdin; keep credentials and password hashes off Git. DNS needs an apex
-A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
+A record for the deployment host's address and a `www` CNAME to `locust.farm`.
 
 ## Live farms
 
@@ -244,10 +245,8 @@ prompt's fixed text in [`docs/formation-prompt.md`](../../docs/formation-prompt.
   `storage/` keeps formations in the browser and makes share links.
 - `ui/` draws the page: the six cards, the line of four points with a picture
   at each (`diagrams.ts`), the box of choices under a point, the rows for steps
-  and other kinds of task, and one side panel. The side panel is adapted from
-  Polaris's settings panel (dreamcolor10 at `01d8aa3c4`,
-  `crates/polaris/frontend/src/lib/components/blueprint/InspectorPanel.svelte`)
-  and restyled with this site's tokens. `ui/icons.ts` holds the Phosphor icons
+  and other kinds of task, and one side panel using the site's design tokens.
+  `ui/icons.ts` holds the Phosphor icons
   the page shows, from `@phosphor-icons/core` 2.1.1. There is no canvas.
 - `e2e/formations.spec.ts` drives the built page in Chromium: the first visit,
   the four points and their pictures, the card that matches the rules, roles made

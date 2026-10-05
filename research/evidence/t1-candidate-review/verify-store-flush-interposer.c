@@ -1,5 +1,5 @@
-// macOS helper for verify-store.patch. Unlike the original reviewer's LRC_*
-// helper, this accepts the verifier's PROBE_* variables and arm files.
+// macOS fault helper for crates/locust-store/tests/recovery_flush.rs.
+// PROBE_* variables and arm files restrict injection to owned test children.
 // PROBE_TRACE=1 traces flush/rename/unlink calls.
 // PROBE_{FAIL,KILL}_SUB selects a path substring; a leading $ selects a suffix.
 // PROBE_{FAIL,KILL}_ARM names the file whose existence arms that fault.

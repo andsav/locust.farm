@@ -1,6 +1,6 @@
 # ecdsa.fail: benchmark, rules and state of the field
 
-Research date: 2026-10-03. **Status: research note. Source review and data analysis only. No challenge code was built or run, nothing was submitted and no account was used. Revised the same day after an adversarial review.** It supports the [swarm demonstration proposal](../docs/ecdsa-fail-swarm-proposal.md). The companion note covers [prior art for agent swarms on this benchmark](ecdsa-fail-swarm-prior-art.md). The [leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md) holds a reduced capture and the script behind every number marked *recomputed*.
+Research date: 2026-10-03. **Status: research note. Source review and data analysis only. No challenge code was built or run, nothing was submitted and no account was used. Revised the same day after an adversarial review.** The companion note covers [prior art for agent swarms on this benchmark](ecdsa-fail-swarm-prior-art.md). The [leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md) holds a reduced capture and the script behind every number marked *recomputed*.
 
 ## Question
 
@@ -11,7 +11,7 @@ What exactly does [ecdsa.fail](https://ecdsa.fail/) ask for, how is a result jud
 - The site and its two unauthenticated JSON endpoints, fetched 2026-10-03 at 23:43 UTC: 1,355 submissions to benchmark `1ffb695a-309b-46b6-a728-2f97d8c7be74`, the newest created at 20:34 UTC.
 - The site's Terms (effective 2026-09-01), privacy page, installer script and CLI bundle, fetched as text and read. None was executed.
 - The source repository [Layr-Labs/ecdsafail-challenge](https://github.com/Layr-Labs/ecdsafail-challenge) at `main` = `3161bd20`, through read-only GitHub API calls: tree, selected files, commit list, workflow runs and one job log, issues, pull-request bodies. Nothing was cloned.
-- A local checkout of the same repository from July (`422f21d`), read for the harness source. The three scoring files `src/sim.rs`, `src/circuit.rs` and `src/bin/eval_circuit.rs` are byte-identical at `main`. Three other harness files changed: `src/bin/build_circuit.rs`, `src/lib.rs` and `benchmark.sh`. At `main`, contestant code is compiled only into `build_circuit` and is no longer linked into the evaluator. Any evaluator a swarm trusts must be built from `main`'s harness, not from the July checkout.
+- Harness source comparison with public revision `422f21d`. The three scoring files `src/sim.rs`, `src/circuit.rs` and `src/bin/eval_circuit.rs` are byte-identical at `main`. Three other harness files changed: `src/bin/build_circuit.rs`, `src/lib.rs` and `benchmark.sh`. At `main`, contestant code is compiled only into `build_circuit` and is no longer linked into the evaluator. Any evaluator a swarm trusts must be built from the identified current harness.
 - The challenge paper, written by participants and organisers ([arXiv 2609.09582](https://arxiv.org/abs/2609.09582)), other papers and public write-ups, linked where cited.
 
 Labels: **recomputed** means produced by the appendix script from the reduced capture. **Read** means seen in harness source, the Terms, the job log or the repository. **Reported** means stated in a solver's public note, pull request or issue and not reproduced here; such claims carry the first eight characters of a submission id or an issue number. **Inferred** means our own reasoning. Notes are written by anonymous third parties, often by their agents. They are leads, not facts.
@@ -80,12 +80,9 @@ Two consequences. Every candidate, even an exact rewrite, has to win the lottery
 | Where | Compile | Build circuit | Evaluate | Source |
 |---|---|---|---|---|
 | Official runner (32 vCPU), record circuit | 26.6 s | 20.9 s | 12.6 s | Job log of workflow run 37152039816, **read** |
-| The owner's Apple Silicon laptop, July circuit | about 16 s | under 39 s | about 11 s | **Inferred** from file times of a run on 2026-07-09 |
 | Solver machines, August circuits | n/a | 1.4–2 s | 13–38 s | **Reported** |
 
 Both binaries are single-threaded. A candidate costs about a minute of one core including the recompile, and each further evaluation of the same build about 13 seconds. Evaluation memory is 56 bytes per operation, about 550 MB for the record's 9.8 million operations (**inferred**). Concurrent runs need one checkout and build directory each: the harness writes fixed output paths, and the current circuit reads data files from paths fixed at compile time.
-
-The July run matters for another reason. The owner reproduced the then-record score natively on Apple Silicon (`results.tsv` in the July checkout: 1,320,762.912 × 1,152, equal to the official score for that commit). So the harness builds on that machine, and an arm64 build matched the official x86_64 runner.
 
 Official turnaround from submission to verdict, **recomputed** over the 569 accepted rows: median 2.2 minutes, 90th percentile 2.8. Submissions with at least 10⁸ Toffolis take a median of 19 minutes and a 90th percentile of 39; the workflow's own timeout is 45.
 
@@ -151,7 +148,7 @@ The 1,175–1,248 band is empty of recent work: all 23 rows date from 10 to 13 J
 **Read** through the GitHub API at `3161bd20` and in the record's official job log.
 
 - `src/point_add` holds 44 Rust files in one flat directory, about 876 KB, plus three data directories with about 614 KB of tables. `pingpong.rs` is 219 KB and `heo_carry.rs` 171 KB. That is more than a 200,000-token context holds (**inferred** from byte counts).
-- The July tree was replaced wholesale. The local checkout is 175 commits behind, 167 of them accepted submissions, and describes a different circuit.
+- The current tree replaces the earlier circuit family wholesale. Earlier revisions describe a different circuit.
 - `build()` clears the process environment and installs a recipe of about 130 named settings. A second table of about 105 defaults sits behind it, partly overridden by the recipe. Most are switches or mode names, about 25 recipe settings are integers, and several are per-round profiles hundreds of entries long (counts from one reviewing agent's read of `mod.rs`).
 - **Exact rewrite rows are keyed by position.** The record applies 11 rewrite rows from `skywalk_data/q1173_exact_rows.txt`, each addressed by an absolute operation index. The previous head's file, `sky20_rewrite.txt`, holds 61 and is unused at `main`. Any change that shifts the stream before a row's index invalidates the row. The loader checks that each indexed operation is the expected gate and stops the build otherwise; a change that keeps the gate but alters the condition the row was proved under is not detected. The leading solver's notes describe re-keying and re-proving rows after every change, with a SAT solver.
 - **The build prints its own ledger.** `build_circuit` reports Toffolis and peak qubits for each of 19 sub-phases. The log shows the 1,173-qubit peak first reached at operation 22,216 of 9.8 million, at the start of the forward walk, and the cap is itself a pinned setting.
@@ -224,7 +221,7 @@ Sources contained instructions aimed at whichever agent reads them. None was fol
 
 ## Open questions
 
-- Local evaluation time and memory for the current circuit on the demonstration machines. Only the July circuit has a local run.
+- Local evaluation time and memory for the current circuit on the demonstration machines.
 - The numeric submission rate limits. The fastest observed solver made 15 submissions in an hour.
 - Whether the organisers will change scoring, add a minimum step, or turn on owner review before the close. Any of these would change the value of nonce search.
 - Whether the Terms' prohibition on circumventing validity gates will be applied to nonce search.

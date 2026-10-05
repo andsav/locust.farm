@@ -56,9 +56,7 @@ publisher key, exact signed manifest and payload bytes, current signed withdrawa
 registry, source identity and version. Activation rechecks the exact plan digest.
 Existing foreign CLI links/files and symlinked bin directories are refused.
 
-The dedicated publisher key is retained in the owner's private
-`~/.config/locust-release/signing.key` under a mode-0700 directory; the key is
-mode 0600. Only its public key and signatures are distributed. The signed registry
+Only the publisher public key and signatures are distributed. The signed registry
 starts at sequence 1. Keep its continuity and the [installer's policy
 watermark](installation.md) when publishing later releases. The current registry
 is served separately from immutable archives so the bootstrap can observe later
@@ -80,10 +78,7 @@ explicit disposable prefix: read-only planning, installation, CLI link/hash/vers
 and repeat installation. The [retained evidence](../research/evidence/public-preview-release-2026-10-04.json)
 records these boundaries and identities. Five bootstrap preflight tests protect
 path selection and existing files; the Python suite at the installer commit passes
-243 tests. The release status/site changes pass lint, type checks, 178 tests with
-one explicit skip, and the static build in an isolated staged copy. Concurrent
-Farm dashboard work in the shared checkout failed formatting/type checks and was
-excluded from this publication and commit. Documentation links pass.
+243 tests.
 
 Apple accepted the signed disk image and its stapled ticket validates. On the
 qualification host, legacy `spctl` assessments of both the DMG and standalone
@@ -105,6 +100,5 @@ The existing host serves public `/downloads/` files from
 `current` symlink. Release staging remains outside that public directory. Remote
 SHA-256 and exact inventory checks precede an immutable directory promotion;
 `latest.json` is promoted last under a publication lock. Website deploys and
-rollback preserve binary releases. The owner-authorized public scope is the
-download path; the private GitHub repository and website authentication are
-unchanged.
+rollback preserve binary releases. The terminal download path and authenticated website preview have separate
+publication boundaries.

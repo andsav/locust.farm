@@ -1,10 +1,11 @@
 # Local Codex and Claude demo
 
-Status: implemented and [qualified locally](../research/demo-qualification.md)
-with fresh native Codex/Claude clients and scripted loopback providers. This guide
-starts after reviewed [installation](installation.md). It does not publish software or change an
-existing goal's organization. Use fresh current-format state and a disposable
-Git repository for the demo.
+Status: development walkthrough for API 5 / protocol 5. Start with a reviewed
+current-format [local installation](installation.md) and a disposable Git
+repository. Native client behavior depends on the selected profiles, tools and
+approval policies; see the [client qualification harnesses](client-qualification.md).
+The [published API-4 preview](public-preview-release.md) ships its own matching
+manual and has separate qualification.
 
 ## Prepare the two clients
 
@@ -35,13 +36,13 @@ it is not a third participant.
 
 ## Create the goal and authorize deliberately
 
-Choose a blueprint explicitly. This demo uses peer review: another participant
+Choose a formation explicitly. This demo uses peer review: another participant
 must review a contribution before it qualifies. Creating a goal records its
 administrator and gives that principal the existing goal-administration grant;
 it does not give either agent daemon-wide goal-management authority.
 
 ```sh
-locust --owner --as demo-codex goal create --title 'Demo change' --blueprint peer-review
+locust --owner --as demo-codex goal create --title 'Demo change' --formation peer-review
 locust --owner goal add-local --goal 'Demo change' --agent demo-claude --plan
 locust --owner goal add-local --goal 'Demo change' --agent demo-claude --yes
 locust --owner permission allow --goal 'Demo change' --agent demo-codex contribute
@@ -73,7 +74,7 @@ and ask it to inspect current shared context before implementing. The demo shoul
 show the finding being read and acknowledged, its influence on the patch, and its
 signed source attribution. Do not relay the finding manually into Codex's chat.
 
-Use explicit [snapshot and materialization](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/t2-workflow.md) operations so the
+Use explicit [snapshot and materialization](guide/collaboration.md#share-a-code-snapshot) operations so the
 worker changes its own workspace and the original checkout retains unrelated
 work. Ask Codex to publish the task-backed patch before reporting its attempt
 completed. Ask Claude to inspect that exact contribution's diff and independently
@@ -132,12 +133,14 @@ application recovery is incomplete.
 
 ## Evidence boundary
 
-The CLI/core tests exercise the named local handoff, no-write review, repeated
-membership, unchanged grants, ambiguous-name refusal and signed patch application
-with unrelated work preserved. The installed-client campaign now starts from
-`up`, checks selected-profile doctor, and exercises native discovery and workspace
-commands through the generated launcher. Its scripted-provider execution is
-separate from natural-language real-model selection and interactive human approval.
-The combined route passed on candidate `527ada5`; see the
-[exact results and limitations](../research/demo-qualification.md). Earlier results
-retain their own candidate identity in the [release evidence](release-evidence.md).
+The CLI/core regression tests cover the named local handoff, no-write review,
+repeated membership, unchanged grants, ambiguous-name refusal and signed patch
+application with unrelated work preserved. The executable
+[manual recipes](../scripts/check_documentation.py) check local CLI/daemon
+behavior without launching native agents or contacting model providers.
+
+Run the [client qualification harnesses](client-qualification.md) against the
+exact installed candidate to assess native discovery, workspace operations and
+recovery. Scripted providers, real models and interactive human approvals establish
+different observations. The [published preview's evidence](public-preview-release.md)
+applies to its identified API-4 binary and does not qualify this API-5 walkthrough.

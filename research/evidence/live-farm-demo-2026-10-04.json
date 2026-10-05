@@ -280,7 +280,7 @@
       "locked": true
     },
     "deployment": {
-      "host": "96.126.103.38",
+      "host": "deployment-host",
       "native_platform": "Linux x86_64, Debian glibc 2.31",
       "release_directory": "/opt/locust-farm/releases/9f093642f924fbf1a3ee7c41a1e46db42d1a9e7b",
       "current_symlink_verified": true,
@@ -832,7 +832,7 @@
     "accepted_app": {
       "url": "http://127.0.0.1:8787/",
       "accepted_artifact": "cb2901fd27198377352c48e342f708c8c7c7964f30679e7918d4f1f9c02e1ed2",
-      "source_directory": "/Users/andrei/.locust-demos/team-chat-20261004/app",
+      "source_directory": "/PRIVATE/home/.locust-demos/team-chat-20261004/app",
       "artifact_provenance": "controller-supplied accepted artifact; browser verifies live reload and independently hashes running source files",
       "server_sha256": "50a41018b24a1bcea5b1c6640724bfc63d0adb8d33dcfe390af740f36a5e3463",
       "frontend_sha256": "a5497c0c0fc46c89ac088748562483d985c94daa06975b9eb930ccc691ddf06b",
@@ -851,5 +851,10 @@
   "runtime_remaining_processes": [
     "owned loopback Locust daemon",
     "owned local chat HTTP server"
-  ]
+  ],
+  "publication_redactions": {
+    "personal_home_paths": "Personal /Users account prefixes replaced with /PRIVATE/home; descendant paths preserved.",
+    "deployment_host": "Production host address replaced with deployment-host.",
+    "digest_scope": "Existing transcript and output digests describe the original captured files, not these redacted publication bytes."
+  }
 }

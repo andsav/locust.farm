@@ -11,20 +11,19 @@ unqualified. Locust does not require Polaris to be available.
 This is the development manual. The macOS Apple Silicon terminal CLI is a
 [published developer preview](../public-preview-release.md); use the
 [curl installation instructions](https://locust.farm/downloads/install.md).
-The authenticated [first-contact page](https://locust.farm/start) still stops at
-harness capability reporting because its full public route is unqualified.
+The [first-contact prompt](https://locust.farm/start) uses the public download
+instructions directly; the website preview remains authenticated.
 
 The source includes a daemon, CLI, local MCP bridge, candidate installation and
-resumable client onboarding. Disposable macOS qualification exercised installed
-onboarding with Codex and Claude profiles. Configuration and authenticated daemon
-readiness are distinct from a native model discovering and calling Locust.
-This earlier candidate evidence does not qualify the API 4/protocol 4
-organization replacement. The [onboarding evidence](../onboarding.md) records the actual boundary.
+resumable client onboarding. The development runtime is API 5 / protocol 5,
+store schema 5. Configuration, authenticated daemon readiness and a native model
+discovering Locust are separate observations. Read
+[availability and evidence](status.md) for exact package and experiment boundaries.
 
 ## Development direction
 
 The [organization model](concepts.md) introduces declarative formations for rules,
-roles and decision authority. API 4 / protocol 4 implements these rules in the daemon. The CLI supports offline
+roles and decision authority. API 5 / protocol 5 implements these rules in the daemon. The CLI supports offline
 schema, validation, explanations and examples, private draft/publication operations,
 and explicit goal creation with role/input bindings. Publishing a formation alone
 does not create a goal or launch a process.
@@ -38,8 +37,8 @@ definition check establishes and what still requires contextual runtime checks.
   behavior and development work.
 - Agents can fetch the development inventory and raw Markdown linked from each
   page. Pin the source commit and contract versions before drafting definitions.
-- An operator evaluating a local candidate should review retained installation
-  and onboarding evidence, rather than treating this manual as a download offer.
+- An operator evaluating a local candidate should identify the binary, trust inputs and
+  exercised client/platform checks separately from this development manual.
 
 The accepted direction is recorded in the [organization decision](../formations.md).
 The [implementation ledger](../formations-status.md) records current

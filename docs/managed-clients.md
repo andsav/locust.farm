@@ -1,9 +1,8 @@
 # Explicit managed client sessions
 
 Status: implemented local foreground launcher for Codex, Claude Code, Factory
-Droid and Pi. The current binding uses task/attempt identities. Historical qualification
-results are recorded separately in the
-[production qualification findings](../research/t2-production-qualification.md).
+Droid and Pi. The current binding uses task/attempt identities. The [client harnesses](client-qualification.md) provide reproducible lifecycle
+and recovery checks.
 This is not unattended activation, a worker sandbox, or release installation.
 
 ## Run a selected client

@@ -320,7 +320,7 @@ recipients. This replaces the per-stage runner of the first design, which was
 an explicitly bound role of each stage. The owner decided on 2026-10-04 that
 the goal's creator, administrator and runner are the same principal, because a
 separate runner role confused formation authors
-([review](../research/formation-editor-review.md)). The rule is enforced in
+([review](formation-authoring-plan.md)). The rule is enforced in
 [flow evaluation](../crates/locust-core/src/goal/flow.rs). The administrator's
 daemon must hold the signing key and the local `flow` grant. Other replicas
 derive the same desired effect and can show that the administrator is
@@ -459,13 +459,6 @@ identities. Generalize exact dependency traversal into scope-local proof context
 do not retain `Commitments` as a second coordinator path. Add effect/inbox/outbox
 records through current store namespaces/layout and remove superseded layouts.
 
-Suggested file ownership after contract agreement: protocol lane owns event
-structs/test vectors plus goal history/governance/proof/fold; integration lane
-owns node authoring/requests/commit/recovery and local records; agent lane owns
-API mappings/CLI/MCP/workspace callers; site lane owns released-contract docs.
-Agree `Evaluation`, `Context`, `ScopeKey`, `EffectId` and current event variants
-before editing consumers. No lane needs an old decoder or fallback runtime.
-
 ## Source-based replacement inventory
 
 The runtime cutover at `c88e3bc` replaced the pre-authoring implementation. The
@@ -490,14 +483,7 @@ from successful decoding of old state, which is not supported.
 | O8 | Removed setup-v1 ownership and pending-journal readers; package one current strict three-payload format | [Setup parser](../crates/locust/src/installation/setup.rs), [non-mutation refusal tests](../crates/locust/src/installation/setup/tests.rs), [package contract](packaging.md) |
 | O9/O11 | Rewrote active guides, examples, formal models and qualification fixtures; removed unused proposal limit | [Current manual manifest](site.json), [models](../research/tla/organization.md), [client workflows](../scripts/client_qualification/production.py), [current limits](../crates/locust-proto/src/limits.rs) |
 
-The audit checked current source names and callers, Rust module declarations,
-CLI/MCP/generated schemas, dependency manifests and active guide claims.
-Refusal tests deliberately contain unsupported markers; historical research and
-[protocol-1 documentation](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v1.md) retain their historical names. Neither
-is an executable compatibility path. The final combined cleanup checks passed
-formatting, strict workspace Clippy, 624 Rust tests (12 explicit ignores), 195
-Python tests and documentation checks. Native campaigns exposed and removed two
-stale Python expectations: canceled task state and integration after export.
-The corrected four-client lifecycle and six operational cases pass against the
-unchanged candidate. This inventory closes V21's source-removal
-boundary; it does not qualify physical networking, providers or public releases.
+The inventory describes current sources and unsupported-format refusal checks.
+It does not retain an executable compatibility path. Each new qualification run
+must identify its own source/artifact and tested boundary; the
+[release evidence](release-evidence.md) separates those claims.

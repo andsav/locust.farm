@@ -1,96 +1,67 @@
 # Availability and evidence
 
-This is the development manual. The macOS Apple Silicon CLI is a
-[published developer preview](../public-preview-release.md), installed through
-the [public curl bootstrap](https://locust.farm/downloads/install.md). Its exact
-source manual is included in the package. Website preview pages remain
-authenticated, and the public first-contact journey and full production gates
-remain open. The [availability record](../reference/availability.json) is the
-reviewed machine-readable source for these facts.
+This is the development manual for API 5 / protocol 5, store schema 5.
+The macOS Apple Silicon CLI is available as a
+[published developer preview](../public-preview-release.md). That package is
+API 4 / protocol 4 and includes its matching source manual. Its qualification
+does not cover newer development formats.
+
+The [availability record](../reference/availability.json) is the machine-readable
+source for release addresses and scoped evidence. Website preview pages remain
+authenticated; public farm views and terminal downloads have separate availability.
 
 ## What the source contains
 
-The existing source includes a local daemon, CLI, stdio MCP bridge, signed
-candidate installation, user-session service support and resumable onboarding.
-API 5 / protocol 5 adds [consented public farm views](farm-publication.md), signed invitation disclosure and typed harness bindings. The development store schema is 5. The published terminal preview remains the separately qualified API-4 artifact.
+Locust includes a local daemon, CLI, stdio MCP bridge, signed candidate
+installation, user-session services and resumable onboarding. The organization
+runtime supports offline authoring, private revisioned drafts, immutable
+publication, taskless contributions, independent attempts, exact completion and
+review, scoped decisions and durable flow. Current context and invitation
+operations preserve explicit local permissions and signed evidence.
 
-API 4 / protocol 4 contains organization rules, offline authoring and semantic diff,
-private revisioned drafts and immutable publication, taskless contributions,
-independent attempts, exact completion/review, scoped decisions and durable flow.
-The current [implementation ledger](../formations-status.md)
-links the code, tests and qualification boundaries. Publishing a definition does
-not instantiate a goal or authorize local execution.
+The source also provides consented public farm views, signed invitation disclosure
+and typed harness bindings. Unsupported state and peers are refused without migration.
+Publishing a definition does not create a goal or authorize local execution.
+The [implementation map](../formations-status.md) links source and runnable checks.
 
-The current format also adds readable status and permission controls, session-bound
-shared-context acknowledgments, and signed invitation inspection, joining and
-revocation. API 4 adds compact context and paginated pending work, short client
-receipt references, and signed contribution source declarations. It initializes store schema 4 directly; older homes and peers are
-refused without migration.
+## What retained evidence establishes
 
-## What local qualification establishes
+The published API-4 preview passed exact package trust and download/install
+checks, launchd onboarding, four manual tutorials and native Codex/Claude
+workflows with scripted providers. Real models and interactive approvals were
+not requalified on those bytes. Read
+[the preview record](../public-preview-release.md) for exact identities and limits.
 
-The published API-4 binary passed exact package verification, installation,
-launchd onboarding, four manual tutorials and native Codex/Claude workflows with
-scripted providers. Fresh public HTTPS fetches and curl installation/reinstallation
-were verified. Real models and interactive approvals were not requalified on these
-bytes; the [preview record](../public-preview-release.md) retains these limits.
+Current CLI/daemon tests cover persistent identity, taskless findings,
+independent attempts, reviewed selection and patch application, private-catalog
+conflicts and restart. Four
+[executable manual recipes](../../scripts/check_documentation.py) exercise actual
+CLI/daemon/file assertions without models. The
+[formal models](../../research/tla/README.md) check a bounded subset; they are not
+a Rust refinement proof.
 
-The current runtime passes workspace formatting, clippy and tests. Real CLI/daemon
-fixtures exercise persistent identity, taskless findings, two participants,
-independent attempts, exact reviewed selection/application, owner choice of an
-unselected patch, catalog conflicts and restart. Four Markdown tutorials execute
-against the local binary through `scripts/check_documentation.py`; they do not
-launch models or contact external providers.
+[Live collaboration experiments](../../research/collaboration-followups.md)
+record identified native clients and real-provider behavior, including failures.
+[The public farm rehearsal](../../research/live-farm-demo.md) used four clients
+and one local daemon. Neither result establishes physical-network recovery,
+unattended scheduling or general model reliability. Linux execution/installation,
+interactive approvals and worker confinement require separate qualification.
 
-The earlier API 2 / protocol 2 `0a295cd` macOS arm64 candidate passed ten installation cases, three
-supported installed client setups, four-client managed lifecycle and recovery,
-and all four installed tutorial recipes. Those results do not qualify the API 4 / protocol 4 changes. They used actual native executables,
-private profiles and scripted providers. The [native record](../../research/organization-native-qualification.md)
-keeps policy denials and unrun real-model/human-approval cases separate. Droid's
-full contribution workflow failed when its native Execute child received
-SIGKILL; the same driver passed directly under the same network guard, so the
-cause remains unresolved.
-
-The [Polaris native package](polaris.md) passed editing, publication, goal
-creation, restart and revocation against those exact Locust bytes. It used an
-isolated QA identity; canonical installed-release and public-fetch claims remain
-open, as do broader Merak gates. The [current Linux cross-build](../../research/linux-installation-qualification.md)
-passed release compilation only. Linux execution, installation and systemd were
-not exercised.
-
-Key-only multicast peer discovery failed independently of the goal engine on the
-qualification host. A separate three-daemon run with normal lookup/relay defaults
-passed, including worker-to-worker relay exchange while the administrator was
-offline and convergence after restart. These are different transport paths;
-neither is two-physical-machine or sleep/wake evidence. The
-[discovery record](../../research/organization-local-discovery.md) preserves the
-local-only failure.
-
-Earlier pre-organization-cutover records remain historical evidence. They do not
-qualify the replacement runtime. Current-source checks, native client behavior,
-real-model behavior, physical networking and publication require their own
-identified evidence.
-
-## Four independent claims
+## Read support claims precisely
 
 - **Implemented:** an identified source contains the behavior.
-- **Verified:** a named check exercised an identified artifact in a stated
-  platform, profile, model and environment.
-- **Published:** the identified artifact is actually retrievable at its advertised
-  public address.
-- **Proposed:** the accepted target behavior is still unsuitable as present-tense
-  operating instructions.
+- **Verified:** a named check exercised an identified artifact in a stated environment.
+- **Published:** the identified artifact was retrieved from its advertised public address.
+- **Proposed:** the behavior is a design target, not current operating instructions.
 
-Each article has a status badge, source identity and separate software, API,
-protocol and formation-schema identifiers. A dirty local build is explicitly
-marked because the displayed HEAD does not identify its uncommitted bytes.
+A dirty build's HEAD does not identify its uncommitted bytes. Test results name
+an artifact or source snapshot; they do not automatically carry over to later
+formats, clients or releases.
 
-## Choose the available entry
+## Choose an entry
 
-For terminal software, use the [preview installation instructions](https://locust.farm/downloads/install.md).
-The authenticated [first-contact guide](https://locust.farm/start) still reports
-capabilities and stops while its full harness route is unqualified. For a reviewed local
-candidate, read [installation and onboarding](installation.md) with the exact
-candidate and independently selected trust inputs. For definition development,
-read [offline authoring](formation-authoring.md). None of these paths silently
-turns a proposal into a released product.
+Use the [terminal preview instructions](https://locust.farm/downloads/install.md)
+for published software, [reviewed local installation](installation.md) for a
+selected candidate, or [offline authoring](formation-authoring.md) for definitions.
+The [first-contact guide](https://locust.farm/start) still reports the full harness
+route separately from terminal installation.

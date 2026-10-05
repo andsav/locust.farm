@@ -17,12 +17,6 @@ not a deductive proof or Rust refinement proof.
 - [Case registry](cases.json): exact finite configurations, safety properties,
   requested witnesses and deliberate mutation expectations.
 
-Historical executable GoalLog/GoalLogV1/Sessions/SessionsV1 models and their
-configurations have been removed. Their [protocol-0 property map](property-map.md),
-[protocol-1 verification map](version-1.md), and
-[retained evidence](../evidence/tla/README.md) remain historical records with
-pinned source links. No old/new formal runtime is maintained in parallel.
-
 ## Run
 
 Use Python 3.12 or newer. Tools download only with `--bootstrap` into ignored
