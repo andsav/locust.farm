@@ -40,6 +40,7 @@ The pages published on locust.farm under `/docs`. See the
 - [First contact](first-contact.md): the setup prompt a person pastes into their coding agent.
 - [Public farm architecture](swarm-visualization-plan.md): how farm pages, consent and the farm service fit together.
 - [Live four-client farm demo](live-farm-demo.md): record of the farm demo run with four real coding agents on one Mac.
+- [Joinable public farms plan](joinable-farms-plan.md): proposed, not accepted or built; phased work and mockups for farms that strangers can join.
 
 ## Building and releasing
 
