@@ -33,7 +33,11 @@ not carry serialized workspace patches.
 The [content graph](../crates/locust-core/src/node/content_graph.rs) treats workspace
 proposal manifests as typed roots and their file contents as opaque leaves.
 Canonical decoded manifests are cached by goal, sealed object hash, epoch and
-content-key fingerprint. The cache never substitutes for missing stored bytes or
+content-key fingerprint. Authenticated file sizes use the same immutable-fact
+boundary, so repeated readiness checks do not reload, hash and decrypt all file
+bytes. Each manifest still checks its own declared sizes, and each request
+rechecks object existence, withdrawal and current reader/key authorization.
+The cache never substitutes for missing stored bytes or
 current read authorization. Key changes, withdrawal, membership and governance
 changes invalidate the relevant reference state. New ordinary events add their
 own roots without decoding or scanning all older trees. Restart reconstructs
@@ -121,7 +125,8 @@ not a signature or deployment qualification for a packaged release.
   user edits. They do not simulate an actual power loss.
 - [Content tests](../crates/locust-core/src/node/content_graph_tests.rs) exercise
   typed roots, opaque leaves, missing/invalid/withdrawn content, key and reader
-  authorization, restart, unchanged-file reuse and growing-history counters.
+  authorization, restart, unchanged-file reuse, file-validation caching and
+  growing-history/refold counters.
   [Measurements](../research/shared-file-tree-content-index-2026-10-05.md) describe
   the fixture and limits.
 - [Authority tests](../crates/locust-core/src/goal/workspace_tests.rs),

@@ -82,6 +82,20 @@ pub(in crate::node) enum ManifestState {
     Invalid { reason: String },
     Ready { manifest: Arc<Manifest>, epoch: u32 },
 }
+pub(in crate::node) enum FileState {
+    Missing,
+    Withdrawn,
+    KeyMissing { epoch: u32 },
+    Invalid { reason: String },
+    Ready { size: u64 },
+}
+#[derive(Clone)]
+struct CachedFile {
+    epoch: u32,
+    len: u64,
+    size: u64,
+    key_fingerprint: [u8; 32],
+}
 #[derive(Clone)]
 struct CachedManifest {
     epoch: u32,
@@ -109,6 +123,7 @@ pub(super) struct IndexStats {
     pub cache_hits: usize,
     pub event_roots: usize,
     pub history_rebuilds: usize,
+    pub file_validations: usize,
 }
 #[derive(Default)]
 struct Graph {
@@ -122,6 +137,7 @@ struct Graph {
     // Decode facts are immutable content observations, never authority. On
     // withdrawal/key/membership change the references are rebuilt independently.
     manifests: RefCell<BTreeMap<BlobHash, CachedManifest>>,
+    files: RefCell<BTreeMap<BlobHash, CachedFile>>,
     #[cfg(test)]
     stats: std::cell::Cell<IndexStats>,
 }
@@ -315,6 +331,7 @@ impl Graph {
         let mut graph = Self::default();
         if let Some(old) = old {
             graph.manifests = old.manifests;
+            graph.files = old.files;
             #[cfg(test)]
             {
                 graph.stats = old.stats;
@@ -706,6 +723,99 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         let state = graph.manifest(entry, &self.store, hash)?;
         Ok(state)
+    }
+    /// Cache only authenticated immutable file facts. Existence, withdrawal,
+    /// current membership paths and the exact content key are checked each time.
+    pub(in crate::node) fn workspace_file(
+        &self,
+        entry: &Entry,
+        hash: BlobHash,
+        reader: Option<&PublicKey>,
+    ) -> Result<FileState, ApiError> {
+        if blob_record(&self.store, &entry.id(), &hash)?.is_some_and(|record| record.withdrawn) {
+            return Ok(FileState::Withdrawn);
+        }
+        let Some(len) = self.store.blob_len(&hash)? else {
+            return Ok(FileState::Missing);
+        };
+        let graph = self.blob_index.0.get(&entry.id());
+        let cached = graph.and_then(|graph| {
+            graph
+                .files
+                .borrow()
+                .get(&hash)
+                .filter(|cached| cached.len == len)
+                .cloned()
+        });
+        let authorize = |epoch| {
+            if self.content_path_readable(entry, &hash, reader, Some((len, epoch))) {
+                Ok(())
+            } else {
+                Err(super::access::denied(
+                    "workspace file is outside this principal's membership",
+                ))
+            }
+        };
+        let fingerprint = |key: &locust_proto::crypto::ContentKey| {
+            locust_proto::crypto::domain_hash("locust:file-cache:key:v1", &key.0)
+        };
+        if let Some(cached) = cached {
+            authorize(cached.epoch)?;
+            let Some(key) = entry.keys.get(&cached.epoch) else {
+                return Ok(FileState::KeyMissing {
+                    epoch: cached.epoch,
+                });
+            };
+            if fingerprint(key) == cached.key_fingerprint {
+                return Ok(FileState::Ready { size: cached.size });
+            }
+        }
+        let Some(bytes) = self.store.blob(&hash)? else {
+            return Ok(FileState::Missing);
+        };
+        if locust_proto::crypto::content_hash(&bytes) != hash {
+            return Ok(FileState::Invalid {
+                reason: "sealed file hash does not match manifest".into(),
+            });
+        }
+        let epoch = match seal::epoch_of(&bytes) {
+            Ok(epoch) => epoch,
+            Err(error) => {
+                return Ok(FileState::Invalid {
+                    reason: error.to_string(),
+                });
+            }
+        };
+        authorize(epoch)?;
+        let Some(key) = entry.keys.get(&epoch) else {
+            return Ok(FileState::KeyMissing { epoch });
+        };
+        let plain = match seal::open(&entry.id(), key, &bytes) {
+            Ok(plain) => plain,
+            Err(error) => {
+                return Ok(FileState::Invalid {
+                    reason: error.to_string(),
+                });
+            }
+        };
+        let size = plain.len() as u64;
+        if let Some(graph) = graph {
+            #[cfg(test)]
+            graph.stats.update(|mut stats| {
+                stats.file_validations += 1;
+                stats
+            });
+            graph.files.borrow_mut().insert(
+                hash,
+                CachedFile {
+                    epoch,
+                    len,
+                    size,
+                    key_fingerprint: fingerprint(key),
+                },
+            );
+        }
+        Ok(FileState::Ready { size })
     }
     pub(in crate::node) fn names_content(&self, entry: &Entry, hash: &BlobHash) -> bool {
         entry.names(hash) || self.blob_index.names(&entry.id(), hash)

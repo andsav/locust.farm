@@ -402,6 +402,7 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
                 // A received descendant is authorized by its path, never by
                 // a new independent local publication record.
                 let mut tx = Tx::none();
+                tx.arrived.push(*hash);
                 tx.touch(self.replica_id());
                 if self.land(tx).is_err() {
                     return Staged::Rejected;

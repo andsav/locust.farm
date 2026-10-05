@@ -56,6 +56,8 @@ pub struct Goal {
     chain: chain::Chain,
     evaluation: Evaluation,
     closure_index: commitments::Index,
+    #[cfg(test)]
+    refolds: usize,
 }
 
 impl Goal {
@@ -66,6 +68,8 @@ impl Goal {
             chain: chain::Chain::default(),
             evaluation: Evaluation::default(),
             closure_index: commitments::Index::default(),
+            #[cfg(test)]
+            refolds: 0,
         }
     }
     pub fn load<S: Store, D: DefinitionLookup + ?Sized>(
@@ -104,6 +108,10 @@ impl Goal {
         changes
     }
     pub fn refresh<D: DefinitionLookup + ?Sized>(&mut self, definitions: &D) -> Changes {
+        #[cfg(test)]
+        {
+            self.refolds += 1;
+        }
         let chain = chain::Chain::build(&self.history, definitions);
         let closure_index = if chain.order == self.chain.order {
             std::mem::take(&mut self.closure_index)
@@ -130,6 +138,10 @@ impl Goal {
     }
     pub fn id(&self) -> GoalId {
         self.id
+    }
+    #[cfg(test)]
+    pub(crate) fn refold_count(&self) -> usize {
+        self.refolds
     }
     pub fn len(&self) -> usize {
         self.history.events.len()

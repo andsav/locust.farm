@@ -175,6 +175,21 @@ See [fold.rs](../crates/locust-core/src/goal/fold.rs),
 [closure.rs](../crates/locust-core/src/goal/closure.rs) and
 [commitments.rs](../crates/locust-core/src/goal/commitments.rs).
 
+Proof event sets use persistent radix trees of bitmap words. Cached ancestor
+closures share unchanged branches; they do not allocate one full-history bitmap
+per ancestor. The tests in
+[commitments.rs](../crates/locust-core/src/goal/commitments.rs) check exact sparse
+unions, history growth and bounded node growth for interleaved author prefixes.
+
+The [commit path](../crates/locust-core/src/node/commit.rs) advances signed
+projections only for new event transactions or changed definition evidence.
+Local revisions, delivery/join reconciliation and flow grants still take effect
+without refolding history. The
+[definition index](../crates/locust-core/src/node/definitions.rs) retains signed
+rule references and refreshes their interpretation when referenced objects or
+keys change, including streamed arrivals. [Content regression tests](../crates/locust-core/src/node/content_graph_tests.rs)
+check that ordinary uploads, downloads and local touches do not refold the goal.
+
 ## Automatic steps and delivery
 
 The daemon computes three kinds of automatic step from the goal's records, in

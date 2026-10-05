@@ -733,3 +733,181 @@ fn cache_does_not_authorize_dropped_manifest_or_replaced_key() {
         before.manifest_decodes
     );
 }
+
+#[test]
+fn ordinary_content_and_local_updates_do_not_refold_signed_history() {
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    let before = peers[0].node.goals[&goal].goal.refold_count();
+    let mut files = Vec::new();
+    for index in 0..32 {
+        let bytes = format!("file {index}");
+        let hash = put(&mut peers[0], goal, bytes.as_bytes());
+        files.push(file(&format!("{index:02}"), hash, bytes.len()));
+        let mut tx = crate::node::commit::Tx::none();
+        tx.touch(goal);
+        peers[0].node.land(tx).unwrap();
+    }
+    let snapshot = manifest(&mut peers[0], goal, files);
+    assert_eq!(peers[0].node.goals[&goal].goal.refold_count(), before);
+    publish(&mut peers, goal, workspace_root(snapshot));
+    let before = peers[1].node.goals[&goal].goal.refold_count();
+    let sealed = Blob::new(peers[0].store.blob(&snapshot).unwrap().unwrap());
+    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    let ManifestState::Ready { manifest, .. } = manifest_state(&peers[1], goal, snapshot).unwrap()
+    else {
+        panic!("manifest ready");
+    };
+    for file in &manifest.entries {
+        let sealed = Blob::new(peers[0].store.blob(&file.content).unwrap().unwrap());
+        assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    }
+    assert_eq!(peers[1].node.goals[&goal].goal.refold_count(), before);
+    assert_eq!(
+        get(&mut peers[1], goal, manifest.entries[0].content).unwrap(),
+        b"file 0"
+    );
+}
+
+#[test]
+fn referenced_definition_loss_and_streamed_rearrival_refold_the_goal() {
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    let rules = peers[1].node.goals[&goal].state().current_rules.unwrap();
+    let Body::RulesBound { binding, .. } = &peers[1].node.goals[&goal]
+        .goal
+        .event(&rules)
+        .unwrap()
+        .header()
+        .body
+    else {
+        panic!("rules binding");
+    };
+    let hash = binding.definition.object.hash;
+    let sealed = Blob::new(peers[0].store.blob(&hash).unwrap().unwrap());
+    let before = peers[1].node.goals[&goal].goal.refold_count();
+    let mut tx = crate::node::commit::Tx::none();
+    tx.commit.drop_blobs.push(hash);
+    tx.touch(goal);
+    peers[1].node.land(tx).unwrap();
+    assert!(matches!(
+        peers[1].node.goals[&goal].goal.standing(&rules),
+        Some(crate::goal::Standing::Pending(_))
+    ));
+    assert_eq!(peers[1].node.goals[&goal].goal.refold_count(), before + 1);
+    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    assert_eq!(
+        peers[1].node.goals[&goal].goal.standing(&rules),
+        Some(crate::goal::Standing::Effective)
+    );
+    assert_eq!(peers[1].node.goals[&goal].goal.refold_count(), before + 2);
+}
+
+fn workspace_content(
+    peer: &Peer,
+    goal: GoalId,
+    hash: BlobHash,
+) -> locust_proto::api::WorkspaceContent {
+    peer.node
+        .workspace_content(&peer.node.goals[&goal], hash, Some(&peer.principal))
+        .unwrap()
+}
+
+#[test]
+fn workspace_file_readiness_caches_content_not_manifest_sizes_or_withdrawal() {
+    use locust_proto::api::WorkspaceContent;
+
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    let mut files = Vec::new();
+    for index in 0..32 {
+        let bytes = format!("file {index:02}");
+        let hash = put(&mut peers[0], goal, bytes.as_bytes());
+        files.push(file(&format!("{index:02}"), hash, bytes.len()));
+    }
+    let first = files[0].content;
+    let snapshot = manifest(&mut peers[0], goal, files);
+    publish(&mut peers, goal, workspace_root(snapshot));
+    rounds(&mut peers);
+    let before = peers[1].node.blob_index.stats(&goal);
+    for _ in 0..8 {
+        assert!(matches!(
+            workspace_content(&peers[1], goal, snapshot),
+            WorkspaceContent::Complete {
+                files: 32,
+                bytes: 224
+            }
+        ));
+    }
+    assert_eq!(
+        peers[1].node.blob_index.stats(&goal).file_validations - before.file_validations,
+        32
+    );
+
+    let bad_size = manifest(&mut peers[0], goal, vec![file("bad-size", first, 6)]);
+    publish(&mut peers, goal, workspace_root(bad_size));
+    rounds(&mut peers);
+    assert!(matches!(
+        workspace_content(&peers[1], goal, bad_size),
+        WorkspaceContent::InvalidFile { hash, .. } if hash == first
+    ));
+    assert_eq!(
+        peers[1].node.blob_index.stats(&goal).file_validations - before.file_validations,
+        32
+    );
+    peers[1].call(Request::BlobWithdraw { goal, hash: first });
+    assert!(matches!(
+        workspace_content(&peers[1], goal, snapshot),
+        WorkspaceContent::Withdrawn { hash } if hash == first
+    ));
+}
+
+#[test]
+fn workspace_file_cache_rechecks_keys_and_object_existence() {
+    use crate::node::content_graph::FileState;
+
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let goal = found(&mut peers);
+    let hash = put(&mut peers[0], goal, b"cached");
+    let snapshot = manifest(&mut peers[0], goal, vec![file("a", hash, 6)]);
+    publish(&mut peers, goal, workspace_root(snapshot));
+    rounds(&mut peers);
+    let file_state = |peer: &Peer| {
+        peer.node
+            .workspace_file(&peer.node.goals[&goal], hash, None)
+            .unwrap()
+    };
+    assert!(matches!(
+        file_state(&peers[1]),
+        FileState::Ready { size: 6 }
+    ));
+    let key = peers[1].node.goals[&goal].keys[&0];
+    let mut tx = crate::node::commit::Tx::none();
+    tx.local(crate::node::entry::key_write(
+        &goal,
+        0,
+        &locust_proto::crypto::ContentKey([98; 32]),
+    ))
+    .touch(goal);
+    peers[1].node.land(tx).unwrap();
+    assert!(matches!(file_state(&peers[1]), FileState::Invalid { .. }));
+    let mut tx = crate::node::commit::Tx::none();
+    tx.local(crate::node::entry::key_write(&goal, 0, &key))
+        .touch(goal);
+    peers[1].node.land(tx).unwrap();
+    assert!(matches!(
+        file_state(&peers[1]),
+        FileState::Ready { size: 6 }
+    ));
+    let mut tx = crate::node::commit::Tx::none();
+    tx.commit.drop_blobs.push(hash);
+    tx.touch(goal);
+    peers[1].node.land(tx).unwrap();
+    assert!(matches!(file_state(&peers[1]), FileState::Missing));
+    let sealed = Blob::new(peers[0].store.blob(&hash).unwrap().unwrap());
+    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    assert!(matches!(
+        file_state(&peers[1]),
+        FileState::Ready { size: 6 }
+    ));
+}

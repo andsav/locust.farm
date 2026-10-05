@@ -10,7 +10,7 @@ use locust_proto::api::{ApiError, Caller, ErrorCode, Response};
 use locust_proto::codec;
 use locust_proto::crypto::content_hash;
 use locust_proto::engine::Entropy;
-use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
+use locust_proto::id::{BlobHash, GoalId, IdempotencyKey, PublicKey};
 use locust_proto::store::{Commit, LocalWrite, Space, Store};
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +25,8 @@ pub(super) struct Tx {
     /// Goals whose revision rises with this commit: their events change, or
     /// a local record that feeds pending work does.
     pub touched: Vec<GoalId>,
+    /// Objects finished through the store's streaming interface before landing.
+    pub arrived: Vec<BlobHash>,
     /// True when the events were signed here for a request, so each must
     /// take effect or the request fails.
     pub authored: bool,
@@ -174,8 +176,26 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     })
             })
             .collect::<Result<_, _>>()?;
-        let backups: Vec<_> = goals
-            .iter()
+        let mut projections = std::collections::BTreeMap::new();
+        for goal in &goals {
+            let definitions_changed = self
+                .goals
+                .get(goal)
+                .map(|entry| entry.definitions.changed_by(*goal, &tx.commit, &tx.arrived))
+                .transpose()?
+                .unwrap_or(true);
+            if definitions_changed
+                || tx
+                    .commit
+                    .events
+                    .iter()
+                    .any(|event| event.header().goal == *goal)
+            {
+                projections.insert(*goal, definitions_changed);
+            }
+        }
+        let backups: Vec<_> = projections
+            .keys()
             .map(|id| {
                 (
                     *id,
@@ -185,13 +205,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 )
             })
             .collect();
-        for goal in &goals {
-            if let Err(error) = self.advance(*goal, &mut tx) {
+        for (goal, definitions_changed) in projections {
+            if let Err(error) = self.advance(goal, definitions_changed, &mut tx) {
                 self.rollback(backups);
                 return Err(error);
             }
         }
         for goal in &goals {
+            self.finish_joins(*goal, &mut tx);
             self.project_deliveries(*goal, &mut tx);
         }
         tx.commit.local.extend(revisions);
@@ -250,19 +271,25 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// Applies the events of `tx` to their goal and adds what follows from
-    /// that to the same commit: a feed entry for every event judged, and the
-    /// end of a join whose admission arrived.
-    fn advance(&mut self, goal: GoalId, tx: &mut Tx) -> Result<(), ApiError> {
+    /// that to the same commit: a feed entry for every event judged.
+    fn advance(
+        &mut self,
+        goal: GoalId,
+        definitions_changed: bool,
+        tx: &mut Tx,
+    ) -> Result<(), ApiError> {
         let authored = tx.authored;
-        let keys = self
-            .goals
-            .get(&goal)
-            .map(|entry| entry.keys.clone())
-            .unwrap_or_default();
-        let definitions =
-            super::definitions::Definitions::load(&self.store, goal, &keys, &tx.commit)?;
+        if definitions_changed {
+            let entry = self.goals.get(&goal);
+            let definitions = entry
+                .map(|entry| &entry.definitions)
+                .cloned()
+                .unwrap_or_default();
+            let keys = entry.map(|entry| entry.keys.clone()).unwrap_or_default();
+            let updated = definitions.updated(&self.store, goal, &keys, &tx.commit)?;
+            self.entry_mut(goal).definitions = updated;
+        }
         let entry = self.entry_mut(goal);
-        entry.definitions = definitions;
         let changes = entry.goal.apply(&tx.commit.events, &entry.definitions);
         if authored
             && let Some(excluded) = tx
@@ -292,6 +319,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .local
                 .push(Feed::entry_write(&goal, position, event));
         }
+        tx.touch(goal);
+        Ok(())
+    }
+
+    fn finish_joins(&self, goal: GoalId, tx: &mut Tx) {
+        let Some(entry) = self.goals.get(&goal) else {
+            return;
+        };
         for (principal, join) in &entry.local.joins {
             if entry.is_member(principal)
                 && super::requests::invitations::publication_matches(
@@ -305,7 +340,5 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     .push(local::part_write(&goal, principal, false));
             }
         }
-        tx.touch(goal);
-        Ok(())
     }
 }

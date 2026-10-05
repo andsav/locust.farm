@@ -20,7 +20,7 @@ use crate::node::Node;
 use crate::node::access::{conflict, not_found};
 use crate::node::callers::Actor;
 use crate::node::commit::Tx;
-use crate::node::content_graph::ManifestState;
+use crate::node::content_graph::{FileState, ManifestState};
 use crate::node::entry::Entry;
 use crate::node::local;
 
@@ -172,56 +172,29 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let mut missing = std::collections::BTreeSet::new();
         let mut total = 0u64;
         for file in &tree.entries {
-            if super::content::blob_record(&self.store, &entry.id(), &file.content)?
-                .is_some_and(|record| record.withdrawn)
-            {
-                return Ok(WorkspaceContent::Withdrawn { hash: file.content });
-            }
-            let Some(bytes) = self.store.blob(&file.content)? else {
-                missing.insert(file.content);
-                continue;
-            };
-            if locust_proto::crypto::content_hash(&bytes) != file.content {
-                return Ok(WorkspaceContent::InvalidFile {
-                    hash: file.content,
-                    reason: "sealed file hash does not match manifest".into(),
-                });
-            }
-            let epoch = match locust_proto::seal::epoch_of(&bytes) {
-                Ok(epoch) => epoch,
-                Err(error) => {
-                    return Ok(WorkspaceContent::InvalidFile {
+            let size = match self.workspace_file(entry, file.content, reader)? {
+                FileState::Missing => {
+                    missing.insert(file.content);
+                    continue;
+                }
+                FileState::Withdrawn => {
+                    return Ok(WorkspaceContent::Withdrawn { hash: file.content });
+                }
+                FileState::KeyMissing { epoch } => {
+                    return Ok(WorkspaceContent::KeyMissing {
                         hash: file.content,
-                        reason: error.to_string(),
+                        key_epoch: epoch,
                     });
                 }
-            };
-            if !self.content_path_readable(
-                entry,
-                &file.content,
-                reader,
-                Some((bytes.len() as u64, epoch)),
-            ) {
-                return Err(crate::node::access::denied(
-                    "workspace file is outside this principal's membership",
-                ));
-            }
-            let Some(key) = entry.keys.get(&epoch) else {
-                return Ok(WorkspaceContent::KeyMissing {
-                    hash: file.content,
-                    key_epoch: epoch,
-                });
-            };
-            let plain = match locust_proto::seal::open(&entry.id(), key, &bytes) {
-                Ok(plain) => plain,
-                Err(error) => {
+                FileState::Invalid { reason } => {
                     return Ok(WorkspaceContent::InvalidFile {
                         hash: file.content,
-                        reason: error.to_string(),
+                        reason,
                     });
                 }
+                FileState::Ready { size } => size,
             };
-            if plain.len() as u64 != file.size {
+            if size != file.size {
                 return Ok(WorkspaceContent::InvalidFile {
                     hash: file.content,
                     reason: "file size does not match manifest".into(),
@@ -249,6 +222,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
         entry: &Entry,
         actor: &Actor,
     ) -> Result<WorkspaceView, ApiError> {
+        let mut view = Self::workspace_authority(entry)?;
+        view.content = view
+            .head
+            .as_ref()
+            .map(|head| {
+                self.workspace_content(entry, head.result_manifest, actor.principal.as_ref())
+            })
+            .transpose()?;
+        Ok(view)
+    }
+
+    fn workspace_authority(entry: &Entry) -> Result<WorkspaceView, ApiError> {
         let Some(workspace) = &entry.state().workspace else {
             return Ok(WorkspaceView {
                 epoch: None,
@@ -280,19 +265,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .head
             .map(|head| revision_view(entry, head))
             .transpose()?;
-        let content = head
-            .as_ref()
-            .map(|head| {
-                self.workspace_content(entry, head.result_manifest, actor.principal.as_ref())
-            })
-            .transpose()?;
         Ok(WorkspaceView {
             epoch: Some(workspace.epoch),
             checkpoint: workspace.checkpoint,
             head,
             enabled: workspace.enabled,
             authority,
-            content,
+            content: None,
         })
     }
 
@@ -308,7 +287,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         requested: Option<EventId>,
     ) -> Result<WorkspaceTreeView, ApiError> {
         let entry = self.readable(actor, &goal)?;
-        let workspace = self.workspace_view(entry, actor)?;
+        let workspace = Self::workspace_authority(entry)?;
         if workspace.authority != WorkspaceAuthority::Ready {
             return Err(conflict("workspace authority is not ready"));
         }
