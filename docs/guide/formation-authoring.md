@@ -19,7 +19,7 @@ locust formation diff open.json peer-review.json
 ## Read the problems locust.farm reports
 
 Each problem has a `code`, `phase`, JSON Pointer `path`, `message` and suggested
-`correction`. locust.farm refuses other schema versions.
+`correction`.
 
 ## Build your own from a preset
 

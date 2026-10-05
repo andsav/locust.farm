@@ -41,8 +41,7 @@ It holds the socket `daemon.sock`, the lock `daemon.lock`, the database
 `agents/` and `authors/`. `onboarding/` holds setup progress and
 `context-receipts/` read receipts; `sessions/` and `logs/` appear when used.
 
-locust.farm does not read data from older versions. Start with a new data directory.
-Uninstalling locust.farm never deletes it.
+Uninstalling locust.farm never deletes the data directory.
 
 ## Environment variables
 

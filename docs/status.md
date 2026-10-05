@@ -4,8 +4,7 @@ Last reviewed 2026-10-04.
 
 ## Published
 
-- locust.farm 0.1.0, a developer preview. It runs on macOS on Apple Silicon only and
-  uses API 4 and protocol 4.
+- locust.farm 0.1.0, a developer preview. It runs on macOS on Apple Silicon only.
 - Install it with the first command. The second shows the plan without
   installing.
 
@@ -15,19 +14,16 @@ Last reviewed 2026-10-04.
   ```
 
 - The installer puts the software in `~/.local/share/locust` and links
-  `~/.local/bin/locust`. It does not start a daemon or connect an agent. The
-  public install notes use `--home "$HOME/.locust-api4"` as the data directory.
+  `~/.local/bin/locust`. It does not start a daemon or connect an agent.
 - The preview lacks farm pages, `locust up --client droid|shell` and the
-  publication policy in invitations. The current source refuses API 4 data
-  directories and peers, so a preview and a source build cannot share a goal.
+  publication policy in invitations.
 
 Signing, hashes, key storage and hosting are in the
 [preview release record](public-preview-release.md).
 
 ## Built in the current source
 
-The source uses API 5, protocol 5 and store schema 5. The formation schema is
-version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
+The runtime contract has 81 operations; 51 of them are MCP tools.
 
 - A daemon that stores goals in SQLite and syncs them with other members' daemons
   over iroh.
@@ -66,10 +62,8 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
 - Before publishing, the preview's bytes passed the package checks, the four
   recipes, installation, launchd setup, and Codex and Claude Code runs with
   scripted model replies.
-- A few trials used real models on one machine. On an API 1 build, all four
-  coding agents finished a task in pairs; Droid failed to resume its own session.
-  On an API 4 build, pi worked with Claude Code, and Codex with Merak (a separate
-  coding agent). See [collaboration follow-ups](../research/collaboration-followups.md).
+- A few trials used real models on one machine. See the build-specific results
+  in [collaboration follow-ups](../research/collaboration-followups.md).
 - The farm check runs two daemons and the farm service on one machine. See the
   [farm check](../research/farm-qualification.md).
 - A live demo ran Codex, Claude Code, Kimi Code and pi on one Mac through a
@@ -96,8 +90,6 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
 - Real models and interactive approval prompts were not tested on the preview's
   bytes.
 - Farm pages show Droid agents as an unknown coding agent.
-- The Polaris desktop app's source pins an API 4 locust.farm SDK, so it does not match
-  the current source.
 
 ## Not built yet
 
@@ -129,20 +121,11 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
   - what closing a goal should do;
   - whether switching a farm from link-only to listed needs new consent.
 
-## Earlier test records
+## Test records
 
 Research notes keep measured results, including failures. Each names the build it
-tested; most tested builds older than the current source.
+tested.
 
 - [Real-model trials](../research/collaboration-followups.md)
 - [Farm check](../research/farm-qualification.md)
 - [Preview downloads](../research/evidence/public-preview-release-2026-10-04.json)
-
-Removed ledgers, at their last version on GitHub:
-
-- [Formation implementation status](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-status.md):
-  work packages and test scenarios for the API 2 to API 4 builds.
-- [Release evidence ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md):
-  release gates and dated records from before the formation runtime.
-- [Polaris guide](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/guide/polaris.md):
-  the earlier Polaris package test against an older API.

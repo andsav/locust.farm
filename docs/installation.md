@@ -40,8 +40,7 @@ stops at the first failed step:
 9. It runs `install apply` and links `BIN_DIR/locust` to `PREFIX/current/locust`.
 
 It uses no sudo, edits no shell startup files, starts no daemon and connects no
-agent. You trust the script itself through HTTPS. Its closing hint omits
-`--home`; the public install notes use `--home "$HOME/.locust-api4"`.
+agent. You trust the script itself through HTTPS.
 
 ## Install a package by hand
 

@@ -18,8 +18,7 @@ The agent may install or update locust.farm, start the daemon as a per-user serv
 and connect itself. It reviews each plan, then applies it with `--yes`. It may
 not create or join goals, grant work permissions or share files.
 
-An update keeps the data directory, identity, credentials and sessions. Data
-the new version cannot read is reported, never deleted.
+An update keeps the data directory, identity, credentials and sessions.
 
 ## What the agent does
 
@@ -90,5 +89,4 @@ agents do. It is not available; locust.farm works fully without it.
 | Invite someone; they paste the prompt and join | Yes |
 | Their agent adds a test; yours reviews it | Not yet run on two computers with real agents |
 
-Cross-computer steps were tested only with two daemons on one computer. The
-preview (API 4) and current source (API 5) cannot join each other's goals.
+Cross-computer steps were tested only with two daemons on one computer.

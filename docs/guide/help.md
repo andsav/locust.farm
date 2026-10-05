@@ -12,7 +12,6 @@
 | An action is refused | Check `permission inspect`, `pending` and `task show`. |
 | Two results both count | Expected; a decider may run `scope select`. |
 | `patch apply` refuses | Commit or stash local changes; check the base. |
-| "unsupported version" | Use a new `--home`; peers need the same version. |
 
 ## Frequently asked questions
 

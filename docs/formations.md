@@ -9,19 +9,10 @@ pages [Formations](guide/formations.md) and
 [Write a formation](guide/formation-authoring.md). The web editor is described in
 [Formation editor](formation-editor.md).
 
-## Name
-
-Formations were called blueprints before. locust.farm renamed them because Merak uses
-"blueprint" for its execution graphs, and Polaris, a separate desktop app, keeps
-that word for its own graphs. The rename covered the CLI, API operations, MCP
-tools, hash domains, examples and docs. It has no aliases, so a locust.farm build from
-before the rename does not match today's API.
-
 ## Document format
 
-A formation is one strict JSON document with `schema_version: 1`. There is no
-other format. The loader refuses duplicate keys, unknown fields and other schema
-versions; it does not convert them. The types are in
+A formation is one strict JSON document with `schema_version: 1`. The loader
+refuses duplicate keys and unknown fields. The types are in
 [organization.rs](../crates/locust-proto/src/organization.rs).
 
 A formation has six parts, and each has a default:
@@ -226,8 +217,6 @@ in [organization/catalog.rs](../crates/locust-core/src/organization/catalog.rs).
 
 ## Design rules that still apply
 
-- One current format, with no migration or compatibility code
-  ([AGENTS.md](../AGENTS.md)). Other schema versions are refused, not converted.
 - Formation rules never grant local permissions. The owner grants those per goal.
 - Agents and the web editor use the same contract. The editor's checks are a port
   held to the CLI's results.

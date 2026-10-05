@@ -10,8 +10,7 @@ the coding agents they use. The website renders it under `/docs/next/`, behind
 the site password. Release bundles include it as `manual.tar`, and installation
 keeps that file next to the binary.
 
-There is one track, `next`, built from the current source. Older releases have no
-routes.
+There is one track, `next`, built from the current source.
 
 The engineering docs in `docs/` are not part of the manual. Guide links to them go
 to the GitHub repository.

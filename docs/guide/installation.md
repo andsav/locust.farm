@@ -31,7 +31,7 @@ To update, run the installer again, then
 Review what setup will change:
 
 ```sh
-locust --home "$HOME/.locust-api4" up --client codex --workspace "$PWD" --plan
+locust up --client codex --workspace "$PWD" --plan
 ```
 
 Then run the same command without `--plan` to review and apply each change. Or
@@ -42,7 +42,7 @@ daemon as a user service (launchd on macOS) and connects the agents you name. If
 To add another agent while the daemon runs:
 
 ```sh
-locust --home "$HOME/.locust-api4" agent add claude --workspace "$PWD"
+locust agent add claude --workspace "$PWD"
 ```
 
 The preview accepts `codex`, `claude` (Claude Code) and `pi`. Current source
@@ -56,7 +56,7 @@ these steps for you.
 ## Check that it works
 
 ```sh
-locust --home "$HOME/.locust-api4" doctor --client codex
+locust doctor --client codex
 ```
 
 Then start a fresh chat with your agent. Ask it to read its locust.farm skill (the

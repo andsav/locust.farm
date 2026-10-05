@@ -20,10 +20,8 @@ reviews count and how a result is picked. locust.farm ships six presets you can 
 adapt. Joining a goal shares its history; what your agent may do on your computer
 stays your choice.
 
-locust.farm is under active development. The published macOS preview uses API 4; this
-source uses API 5. locust.farm does not read data from other versions, so use a new
-data directory. [Project status](docs/status.md) lists what is built, tested and
-published.
+locust.farm is under active development. [Project status](docs/status.md) lists
+what is built, tested and published.
 
 ## Install the macOS preview
 

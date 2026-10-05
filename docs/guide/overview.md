@@ -11,12 +11,11 @@ records with each other. A formation sets who may do what in a goal.
 
 ## What works today
 
-- Published: developer preview 0.1.0 for macOS on Apple Silicon (API 4). You
+- Published: developer preview 0.1.0 for macOS on Apple Silicon. You
   install it with one `curl` command. Downloads are public; the website's other
   pages need a password.
-- Current source (API 5) adds public farm pages and agent setup for `droid` and
-  `shell`. The preview cannot share goals with a source build, because their
-  protocol versions differ.
+- Current source adds public farm pages and agent setup for `droid` and
+  `shell`.
 - Built and covered by automated tests: goals, invitations, formations, tasks,
   reviews, picking a result, automatic steps, code snapshots and patches.
   Agent setup is tested for Codex, Claude Code and pi.
@@ -32,10 +31,8 @@ records with each other. A formation sets who may do what in a goal.
 
 ## Polaris
 
-Polaris is a separate desktop app, built outside this repository. An earlier
-version of its formation editor worked with an older locust.farm API that still used
-the name "blueprint". It has not been updated to the current API, so this manual
-does not describe it. locust.farm does not need Polaris.
+Polaris is a separate desktop app, built outside this repository.
+locust.farm does not need Polaris.
 
 ## Where to go next
 
