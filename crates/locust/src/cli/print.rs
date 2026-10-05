@@ -3,7 +3,7 @@
 //! `println!` and `eprintln!` panic when their stream cannot be written, so
 //! `locust contract | head` ended with exit status 101. Commands write through
 //! here instead, and [`status`] decides what an unwritten result does to the
-//! exit status. The print macros are denied for the whole client in
+//! exit status. The print macros are denied throughout the `cli` module in
 //! [`super`].
 
 use crate::failure;
