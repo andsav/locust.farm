@@ -1,6 +1,6 @@
 # Published evidence on groups of agents versus one
 
-Research date: 2026-10-04. **Status: research note. Source review of published studies; nothing was run.** It sits beside the [prior art for an agent swarm on ecdsa.fail](ecdsa-fail-swarm-prior-art.md), which covers that benchmark, Merak's July run and the design rules drawn from them; this note does not repeat them.
+Research date: 2026-10-04. **Status: research note. Source review of published studies; nothing was run.** It sits beside the [prior art for an agent swarm on ecdsa.fail](ecdsa-fail-swarm-prior-art.md), which covers public solver methods and comparative design rules; this note does not repeat them.
 
 ## Question
 

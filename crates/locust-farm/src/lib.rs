@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, watch};
 
 /// Operator policy, independent of any uploader-controlled fields.
 #[derive(Clone, Debug)]
@@ -47,6 +47,7 @@ struct Store {
 pub struct Service {
     config: Config,
     store: Arc<Mutex<Store>>,
+    shutdown: watch::Sender<bool>,
 }
 
 impl Service {
@@ -83,6 +84,7 @@ impl Service {
             PRAGMA user_version=1;",
         )?;
         Ok(Self {
+            shutdown: watch::channel(false).0,
             config,
             store: Arc::new(Mutex::new(Store {
                 db,
@@ -231,6 +233,11 @@ fn publish(store: &mut Store, id: &str, time: u64) -> Result<(), ServiceError> {
     Ok(())
 }
 impl Service {
+    /// Close stream responses during process shutdown. Public state remains
+    /// available in SQLite for reconnection to the next service process.
+    pub fn shutdown(&self) {
+        self.shutdown.send_replace(true);
+    }
     pub fn router(&self) -> Router {
         Router::new()
             .route("/health", get(health))
@@ -354,6 +361,7 @@ async fn events(
     _headers: HeaderMap,
 ) -> Result<Response, ServiceError> {
     service.expire()?;
+    let mut shutdown = service.shutdown.subscribe();
     let (initial, mut receiver, guard) = {
         let mut store = service.store.lock().expect("farm store poisoned");
         if store.streams >= service.config.max_streams {
@@ -382,11 +390,14 @@ async fn events(
     let stream = async_stream::stream! {
         let _guard=guard;
         let mut state=initial;
+        if *shutdown.borrow() {return;}
         loop {
             yield Ok::<Event,Infallible>(Event::default().event("state").id(state.stream_version.to_string()).data(serde_json::to_string(&state).expect("state JSON")));
             if state.status==FarmAvailability::Unavailable {break;}
             loop {
             let update=tokio::select! {
+                biased;
+                _=shutdown.changed()=>return,
                 result=receiver.recv()=>match result {
                     Ok(json)=>serde_json::from_str(&json).ok(),
                     Err(broadcast::error::RecvError::Lagged(_))=>service.read(&id).ok(),
@@ -1468,5 +1479,81 @@ mod tombstone_ack_tests {
             .query_row("SELECT count(*) FROM farms", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+}
+
+#[cfg(test)]
+mod shutdown_tests {
+    use super::*;
+    use axum::{body::Body, http::Request};
+    use http_body_util::BodyExt;
+    use locust_proto::{crypto::Keypair, farm::FarmSnapshot};
+    use tower::ServiceExt;
+    #[tokio::test]
+    async fn shutdown_closes_active_stream_without_invalidating_snapshot() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let key = Keypair::from_seed([17; 32]);
+        let id = FarmId::from_key(key.public());
+        let snapshot = FarmSnapshot {
+            version: 1,
+            farm_id: id.clone(),
+            title: None,
+            formation: "Shutdown".into(),
+            goal_state: FarmGoalState::Open,
+            observed_at_ms: None,
+            agents: vec![],
+            groups: vec![],
+            stages: vec![],
+            tasks: vec![],
+            attempts: vec![],
+            candidates: vec![],
+            changes: vec![],
+            omitted_changes: 0,
+        };
+        let request = SignedFarmRequest::sign(
+            &key,
+            FarmOperation::Upload,
+            1,
+            serde_json::to_string(&FarmUploadBody {
+                visibility: FarmVisibility::Listed,
+                snapshot,
+            })
+            .unwrap(),
+        );
+        service.mutate(&id.0, request.operation, &request).unwrap();
+        let response = service
+            .router()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/farms/{id}/events"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let mut body = response.into_body();
+        let first = body.frame().await.unwrap().unwrap().into_data().unwrap();
+        assert!(std::str::from_utf8(&first).unwrap().contains("available"));
+        service.shutdown();
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(100), body.frame())
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            service.read(&id.0).unwrap().status,
+            FarmAvailability::Available
+        );
+        let store = service.store.lock().unwrap();
+        assert_eq!(store.streams, 0);
+        assert_eq!(store.channels.len(), 0);
     }
 }

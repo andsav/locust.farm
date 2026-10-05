@@ -10,7 +10,7 @@
         "codex": "/opt/homebrew/Caskroom/codex/0.153.4/bin/codex",
         "config_probe": "output/collaboration-followups/runtime/config_probe",
         "locust": "output/collaboration-followups/runtime/locust",
-        "merak": "/Users/andrei/Projects26/merak10/target/debug/merak"
+        "merak": "/PRIVATE/agent-source/target/debug/merak"
       },
       "binary_sha256": {
         "codex": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
@@ -175,7 +175,7 @@
         "codex": "/opt/homebrew/Caskroom/codex/0.153.4/bin/codex",
         "config_probe": "output/collaboration-followups/runtime02/config_probe",
         "locust": "output/collaboration-followups/runtime02/locust",
-        "merak": "/Users/andrei/Projects26/merak10/target/debug/merak"
+        "merak": "/PRIVATE/agent-source/target/debug/merak"
       },
       "binary_sha256": {
         "codex": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
@@ -796,7 +796,7 @@
         "codex": "/opt/homebrew/Caskroom/codex/0.153.4/bin/codex",
         "config_probe": "output/collaboration-followups/runtime02/config_probe",
         "locust": "output/collaboration-followups/runtime02/locust",
-        "merak": "/Users/andrei/Projects26/merak10/target/debug/merak"
+        "merak": "/PRIVATE/agent-source/target/debug/merak"
       },
       "binary_sha256": {
         "codex": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
@@ -1392,7 +1392,7 @@
         "codex": "/opt/homebrew/Caskroom/codex/0.153.4/bin/codex",
         "config_probe": "output/collaboration-followups/runtime02/config_probe",
         "locust": "output/collaboration-followups/runtime02/locust",
-        "merak": "/Users/andrei/Projects26/merak10/target/debug/merak"
+        "merak": "/PRIVATE/agent-source/target/debug/merak"
       },
       "binary_sha256": {
         "codex": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
@@ -2005,5 +2005,9 @@
   },
   "requested_model": "gpt-6-luna",
   "schema": 1,
-  "scope": "One host, real Codex and Merak clients, private profiles, production SQLite daemon, independent fixture oracle and workspace application. No distributed physical-host claim."
+  "scope": "One host, real Codex and Merak clients, private profiles, production SQLite daemon, independent fixture oracle and workspace application. No distributed physical-host claim.",
+  "publication_redactions": {
+    "personal_home_paths": "Personal /Users account prefixes replaced with /PRIVATE/home; descendant paths preserved.",
+    "digest_scope": "Existing transcript and output digests describe the original captured files, not these redacted publication bytes."
+  }
 }

@@ -36,7 +36,8 @@ The pages published on locust.farm under `/docs`. See the
 - [Formation editor](formation-editor.md): the `/formations` editor on locust.farm and the rules it follows.
 - [Formation prompt contract](formation-prompt.md): the exact prompt the formation editor copies for an agent.
 - [First contact](first-contact.md): the setup prompt a person pastes into their coding agent.
-- [Farm pages: design and demo plan](swarm-visualization-plan.md): public farm pages, consent, and the planned two-machine demo.
+- [Public farm architecture](swarm-visualization-plan.md): how farm pages, consent and the farm service fit together.
+- [Live four-client farm demo](live-farm-demo.md): record of the farm demo run with four real coding agents on one Mac.
 
 ## Building and releasing
 

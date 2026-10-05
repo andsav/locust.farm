@@ -15,7 +15,7 @@ in parentheses. Setup writes the files shown:
 
 Any other agent that can run a shell uses `shell`. `droid` and `shell` are in
 the current source only; the published preview does not include them.
-`client run` spells the names `codex`, `claude-code`, `factory-droid` and `pi`.
+`client run` spells the names `codex`, `claude-code`, `factory-droid`, `kimi-code` and `pi`.
 
 ## What setup writes
 

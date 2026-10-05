@@ -75,9 +75,8 @@ on its own Apple signature check and the package signature instead.
 
 ## Keys
 
-The Ed25519 publisher key is `~/.config/locust-release/signing.key` on the
-owner's computer. Its folder has mode 0700 and the key has mode 0600. Only the
-public key and signatures are published.
+The Ed25519 publisher key stays on the owner's computer. Only the public key
+and signatures are published.
 
 The withdrawal list starts at sequence 1 and withdraws nothing. The server keeps
 the current list at `/downloads/withdrawals.json`, apart from the release folders,
@@ -90,8 +89,7 @@ installer script itself through HTTPS.
 The server serves `/downloads/` from `/var/www/locust.farm/downloads/`, apart
 from the password-protected website. Releases are staged outside that folder,
 checked by SHA-256 and file list, then moved in. `latest.json` is replaced last,
-under a lock. Website deploys and rollbacks keep the downloads. The GitHub
-repository stays private.
+under a lock. Website deploys and rollbacks keep the downloads.
 
 ## Limits
 

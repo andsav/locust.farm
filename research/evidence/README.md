@@ -1,39 +1,40 @@
-# Research evidence appendices
+# Research evidence and reproducible helpers
 
-These files preserve local characterization probes and captured results from 2026-10-03. Each names its target revision and distinguishes upstream research from Locust implementation evidence.
+Retained reports describe identified experiments and public source assessments.
+The displayed publication copies redact machine-specific absolute paths and
+private deployment addresses. Source, artifact and original-output hashes retain
+the original measurement identity; they do not hash sanitized displayed
+transcripts. Redaction metadata identifies changes where the report format allows
+it. Sanitization does not imply rerunning a check or qualifying a newer artifact.
 
-- [Published terminal preview](public-preview-release-2026-10-04.json): exact API-4 binary and installer identities, publisher signatures, Apple notarization, native/scripted qualification limits, public HTTPS hashes and curl planning/install/reinstall; interpreted in the [release record](../../docs/public-preview-release.md).
-- [Local demo qualification](demo-qualification-2026-10-04.json): candidate and harness identities, native-client assertions, named administration, earlier failures and cleanup; interpreted in the [demo findings](../demo-qualification.md).
-- [Performance and cost measurements](performance-cost-2026-10-04.json): paired API-3 release binaries, schema bytes, CLI/MCP timings, context response hashes and full engine evaluation fingerprints; interpreted in the [performance report](../performance-cost-pass.md).
-- [Real-model shared-context pilot](shared-context-models-2026-10-04.json): separate Merak and Codex principals using GPT Luna on API 3; exact finding/read/acknowledgment and patch evidence, independent oracle, missing citation and recovered receipt error; interpreted in the [pilot findings](../shared-context-real-model-pilot.md).
-- [Installed onboarding qualification](onboarding-qualification-2026-10-04.json): exact committed macOS candidate, launchd and existing-daemon observations, protected identity fingerprints, operation receipts and cleanup; interpreted in the [onboarding findings](../onboarding-qualification.md).
-- [Last-mile experience measurements](last-mile-experience-2026-10-04.json): the per-tool tally of 132 real-model MCP calls across 31 logs, `tools/list` size figures and descriptions at `6757d75`, response sizes for a catch-up and a one-task worker sequence, and the error text for common agent mistakes; measured once on scratch daemons since deleted; interpreted in the [last-mile findings](../last-mile-experience.md).
-- [Real-model production T2 qualification](t2-real-model-qualification-2026-10-03.json): four mixed-client pairs, exact local artifact/client identities, completed workspace operations, failed Droid continuation, explicit fresh-session application, cleanup and disclosure metadata; interpreted in the [real-model findings](../t2-real-model-qualification.md).
-- [Scripted production T2 qualification](t2-production-clients-2026-10-03.json): four actual clients against the production daemon/MCP, default denial and permissive lifecycle modes, exact tool/claim/result identities and independently checked workspace state; Droid's externally guarded native command remains failed.
-- [Managed-client qualification](managed-client-qualification-2026-10-03.json): exact artifacts, four-client lifecycle/cancellation campaigns, explicit fault cleanup, conservative unknown recovery, duplicate-launch refusal and earlier corrected failures; interpreted in the [production findings](../t2-production-qualification.md).
-- [Protocol-1 remediation verification](t1-remediation-verification-2026-10-03.json), [local workflow](t1-remediation-local-2026-10-03.json) and [redacted transcript](t1-remediation-local-2026-10-03.jsonl): build from `d253a07`, independent artifact checks, all 21 workflow checks, 439 Rust tests and 76 Python tests; physical and production-client qualification remain separate.
-- [TLA+ Stages 0 and 1](tla/README.md): pinned tool/runner checks, bounded goal/session results, expected findings, witnesses, deliberate mutations and matching Rust fixtures. Development failures and unverified Linux CI are recorded separately.
-- [T1 default-network local run](t1-local-2026-10-03-default-network.json) and [initial multicast-only failure](t1-local-2026-10-03-failed-discovery.json): exact frozen debug identities, routes, task/offline/restart outcomes and redaction checks; interpreted in the [integration findings](../t1-integration-2026-10-03.md).
-- [T1 release-candidate local run](t1-release-local-2026-10-03.json) and [redacted command transcript](t1-release-local-2026-10-03.jsonl): all 21 workflow checks against the exact Apple Silicon release artifact from `3422c7b`, including coordinator-offline exchange and restart; public download, three Macs and sleep/wake remain unqualified.
-- [T1 M2 mixed-build preparation and join](t1-m2-smoke-2026-10-03.json): build comparison, private worker readiness, two-member decrypted goal and selected relay route observed on M2; interpreted in the [worker findings](../t1-m2-smoke-2026-10-03.md). Invitation and credential bytes are excluded; task and recovery checks remain pending.
-- [T1 M2 shared note and task readiness](t1-m2-task-2026-10-03.json): M1 note received and decrypted, assignment confirmed, local authorization and protected session created, with final pending/board/status/doctor observations; claim and submission were not attempted. Interpreted in the [worker findings](../t1-m2-smoke-2026-10-03.md).
-- [Two-Mac T1 in progress](two-mac-t1-2026-10-03.json): M1-observed membership, relay connection and task assignment after the owner reported M2 joined, captured before M2's build report; interpreted alongside the [worker findings](../t1-m2-smoke-2026-10-03.md). Result acceptance and recovery checks remain pending.
-- [Corrected four-client remediation run](client-qualification-remediation-2026-10-03.json): leader-only interruption, natural observed cleanup, native-session resume and bridge restart for installed Codex, Claude Code, Droid and Pi; scripted fixture, dirty source/probe identity and Pi timeout limitation are explicit.
-- [Repaired independent store verifier](t1-candidate-review/verify-store.patch) and its matching [PROBE-variable flush interposer](t1-candidate-review/verify-store-flush-interposer.c): fault-trigger assertions and syscall evidence; the original LRC-variable helper remains separately preserved. Interpreted in the [remediation record](../t1-remediation.md).
-- Multi-machine simulation prototypes, in `multi-machine-simulation/`: the in-process simulator as a patch for the current source (`simulator-head.patch`) and for the candidate (`simulator-candidate-3422c7b.patch`), the script that checks the simulator can fail (`simulator-mutation-check.py`), the multi-process scenario runner (`runner/`), and the prepared fixes (`fixes.patch`, with `simulator-on-fixes.patch` to add the simulator on top of them). Interpreted in the [simulation note](../multi-machine-simulation.md).
-- Independent candidate review probes, in `t1-candidate-review/`: one patch per reviewer and per verifier (goal, node, sync, store, secrets, daemon), each applying to `3422c7b`, plus the flush interposer used by the store probes (`store-flush-interposer.c`). Several probes fail by design; the failing assertion is the finding. Interpreted in the [independent review](../t1-candidate-independent-review.md).
-- [Lane A review probes](lane-a-review-probes.md): workspace export and unfinished authority/sync reproductions; [capture hashes](lane-a-review-snapshot.json) identify the reviewed working source. See the [review](../lane-a-review-2026-10-03.md) for findings and takeover assessment.
+## Experiment records
 
-- [Task lifecycle probes](task-probes.md): five store/RPC observations.
-- [Raft restart probe](raft-restart-probe.md): duplicate application after an unsnapshotted component restart.
-- [hcom validation](hcom-validation.md): isolated suites, scripted-provider native-client results and failure evidence, plus a storage-error characterization.
-- [Transport probe measurements](transport-probe-2026-10-03.json): redacted Locust same-host public-relay, custom-relay and direct-path observations; interpreted in the [transport findings](../iroh-transport-probe.md).
-- [ecdsa.fail leaderboard analysis](ecdsa-fail-leaderboard-analysis.md): output and reading notes for the [script](ecdsa_fail_leaderboard_analysis.py) over a [reduced capture](ecdsa-fail-submissions-2026-10-03.tsv) of the public submissions data; interpreted in the [benchmark note](../ecdsa-fail-benchmark.md).
+- [Published terminal preview](public-preview-release-2026-10-04.json): exact API-4 package/download identity; [release record](../../docs/public-preview-release.md).
+- [Paired performance](performance-cost-2026-10-04.json): workload, candidate and response/evaluation fingerprints; [method](../performance-cost-pass.md).
+- [Shared-context model pilot](shared-context-models-2026-10-04.json): exact native findings and independent patch oracle; [method](../shared-context-real-model-pilot.md).
+- [Collaboration runtime](collaboration-runtime-2026-10-04.json), [Codex/Merak experiment](collaboration-live-codex-merak-2026-10-04.json) and [Pi/Claude experiment](collaboration-live-pi-claude-2026-10-04.json): retained failures and exact client/candidate limits; [methods](../collaboration-followups.md).
+- [Public farm rehearsal](live-farm-demo-2026-10-04.json): four actual native clients, persisted projection and public streaming; [method](../live-farm-demo.md).
+- [Farm pipeline](farm/local-pipeline.json), [discovery failures](farm/ephemeral-discovery-failures.json) and [Nginx routes](farm/nginx-routes.json): separate local transport and public UI boundaries; [method](../farm-qualification.md).
+- [Transport measurements](transport-probe-2026-10-03.json) and [follow-up measurements](transport-review-2026-10-03.json): identified direct/relay probe observations; [method](../iroh-transport-probe.md).
+- [Formal model evidence](tla/README.md): executable current models, finite bounds, witnesses and deliberate mutations.
 
-Read the [MoltMesh validation report](../moltmesh-validation.md) or [hcom dissection](../hcom-dissection.md) for interpretation and test limits, and the [research index](../README.md) for findings.
+## Public prior art
 
-- [Collaboration runtime follow-ups](collaboration-runtime-2026-10-04.json): source fingerprints and checks, interpreted in [simulation findings](../collaboration-followups.md).
-- [Live Pi and Claude collaboration](collaboration-live-pi-claude-2026-10-04.json): reciprocal native workflows, the retained premature-terminal failure, skill-guided retry, context observations and per-client accounting scopes; interpreted in [simulation findings](../collaboration-followups.md).
-- [Live Codex and Merak collaboration](collaboration-live-codex-merak-2026-10-04.json): four retained attempts through permission recovery, a late private finding, artifact revision, peer review and separate-workspace application; corrected cumulative token accounting and all material failures, interpreted in [simulation findings](../collaboration-followups.md).
+- [ecdsa.fail leaderboard analysis](ecdsa-fail-leaderboard-analysis.md)
+- [hcom validation evidence](hcom-validation.md)
+- [Unsnapshotted Raft restart characterization probe](raft-restart-probe.md)
+- [Task lifecycle characterization probes](task-probes.md)
 
-- [Farm development qualification](../farm-qualification.md) records local farm checks; [passing pipeline results](farm/local-pipeline.json) and [ephemeral discovery failures](farm/ephemeral-discovery-failures.json) preserve the separate post-restart transport limitation.
+## macOS recovery fault helper
+
+[The flush interposer](t1-candidate-review/verify-store-flush-interposer.c) is used
+by the current [SQLite recovery regression](../../crates/locust-store/tests/recovery_flush.rs).
+It restricts faults to armed owned test children. Compile and run on macOS:
+
+```sh
+mkdir -p output/recovery
+cc -dynamiclib research/evidence/t1-candidate-review/verify-store-flush-interposer.c -o output/recovery/flush-interposer.dylib
+LOCUST_STORE_TEST_INTERPOSER="$PWD/output/recovery/flush-interposer.dylib" cargo test --locked -p locust-store --test recovery_flush recovery_flushes -- --ignored
+```
+
+This tests syscall ordering and failed barriers, not physical power-loss safety.

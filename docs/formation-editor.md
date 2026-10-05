@@ -77,7 +77,7 @@ source.
 
 ## Open issues
 
-From the [editor review](../research/formation-editor-review.md):
+From an earlier review of the editor:
 
 - Reviews so far used a model playing a first-time reader, not real people.
 - What still confuses readers is what Locust does: no lock on a task, a check

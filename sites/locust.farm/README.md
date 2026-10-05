@@ -110,16 +110,17 @@ Codex, pi, Droid and other agents, and a portable CLI setup.
 - There is one development track, under `/docs/next/`. It describes the current source; the public
   macOS preview at `/downloads/` can be older.
 - Links to repository files outside `docs/guide/` become GitHub links at the source commit. The
-  repository is private, so only collaborators can open them.
+  links work once the repository is public.
 
 ## Deployment
 
-The preview runs on the shared 3cf.ai Nginx host, `root@96.126.103.38`.
+The site needs a Linux host running Nginx and an SSH account that can write the release folder.
+Keep the SSH destination in local configuration and pass it in `LOCUST_DEPLOY_SERVER`.
 [`adapter-static`](https://svelte.dev/docs/kit/adapter-static) writes the whole site to `build/`.
 No Node process runs on the server. Deploy with the Node version in `.node-version`:
 
 ```sh
-bash scripts/deploy-production.sh
+LOCUST_DEPLOY_SERVER=deploy@your-host bash scripts/deploy-production.sh
 ```
 
 The script builds committed `HEAD` in a clean temporary checkout and runs lint, check, test and
@@ -149,7 +150,7 @@ First-time setup:
    `sites-enabled`, run `nginx -t` and reload.
 4. Create `/etc/nginx/locust.farm.htpasswd` with `htpasswd -cB` (owner `root:www-data`, mode
    `0640`). Keep passwords and hashes out of Git.
-5. DNS: an apex A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
+5. DNS: an apex A record for the host's address and a `www` CNAME to `locust.farm`.
 
 ## Live farms
 

@@ -128,6 +128,7 @@ fn client_name(client: Client) -> &'static str {
         Client::Codex => "codex",
         Client::ClaudeCode => "claude-code",
         Client::FactoryDroid => "factory-droid",
+        Client::KimiCode => "kimi-code",
         Client::Pi => "pi",
     }
 }
@@ -180,6 +181,7 @@ pub fn prepare(
                 || arg.starts_with("--continue=")
                 || arg == "--fork-session"
                 || arg == "--fork"
+                || (spec.client == Client::KimiCode && (arg.starts_with("-S") || arg == "-c"))
                 || (matches!(spec.client, Client::ClaudeCode | Client::Pi)
                     && (arg == "-c" || arg == "-r"))
         })
@@ -207,7 +209,7 @@ pub fn prepare(
             config::mcp_arguments(spec.client, config::SERVER_NAME, &spec.bridge, occupied)
                 .map_err(|e| Error(e.to_string()))?,
         ),
-        Client::FactoryDroid | Client::Pi => {
+        Client::FactoryDroid | Client::KimiCode | Client::Pi => {
             configuration = Some(
                 config::mcp_file_overlay(
                     spec.client,
@@ -260,6 +262,14 @@ pub fn prepare(
                 argv.extend(["--session-id".into(), id.into()]);
             }
         }
+        Client::KimiCode => {
+            argv.extend(["--output-format".into(), "stream-json".into()]);
+            argv.extend(spec.arguments.clone());
+            if let Some(id) = resume {
+                argv.extend(["--session".into(), id.into()]);
+            }
+            argv.extend(["--prompt".into(), spec.prompt.clone().into()]);
+        }
         Client::Pi => {
             let path = spec
                 .pi_session
@@ -279,7 +289,9 @@ pub fn prepare(
             argv.extend(spec.arguments.clone());
         }
     }
-    argv.extend(["--".into(), spec.prompt.clone().into()]);
+    if spec.client != Client::KimiCode {
+        argv.extend(["--".into(), spec.prompt.clone().into()]);
+    }
     Ok(LaunchPlan {
         spec,
         arguments: argv,
@@ -422,6 +434,14 @@ impl OwnedLaunch {
             {
                 event.get("session_id")
             }
+            // Kimi 0.42 emits persisted identity in completion metadata.
+            // Startup text and assistant-generated lookalikes are not identity.
+            Client::KimiCode
+                if event.get("role").and_then(Value::as_str) == Some("meta")
+                    && event.get("type").and_then(Value::as_str) == Some("session.resume_hint") =>
+            {
+                event.get("session_id")
+            }
             Client::Pi if event.get("type").and_then(Value::as_str) == Some("session") => {
                 event.get("id")
             }
@@ -559,6 +579,7 @@ where
             Client::Codex => locust_proto::farm::Harness::Codex,
             Client::ClaudeCode => locust_proto::farm::Harness::ClaudeCode,
             Client::FactoryDroid => locust_proto::farm::Harness::FactoryDroid,
+            Client::KimiCode => locust_proto::farm::Harness::KimiCode,
             Client::Pi => locust_proto::farm::Harness::Pi,
         },
         client: format!("{} {}", client_name(spec.client), spec.version),

@@ -191,9 +191,9 @@
       "ftp.nonProxyHosts": "local|*.local|169.254/16|*.169.254/16",
       "http.nonProxyHosts": "local|*.local|169.254/16|*.169.254/16",
       "java.class.version": "65.0",
-      "java.home": "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home",
+      "java.home": "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home",
       "java.io.tmpdir": "/var/folders/22/61v9z9kd34x959r1k7tbdw480000gn/T/",
-      "java.library.path": "/Users/andrei/Library/Java/Extensions",
+      "java.library.path": "/PRIVATE/home/Library/Java/Extensions",
       "java.runtime.name": "OpenJDK Runtime Environment",
       "java.runtime.version": "21.0.8+9-LTS",
       "java.specification.name": "Java Platform API Specification",
@@ -224,15 +224,15 @@
       "stderr.encoding": "UTF-8",
       "stdout.encoding": "UTF-8",
       "sun.arch.data.model": "64",
-      "sun.boot.library.path": "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/lib",
+      "sun.boot.library.path": "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/lib",
       "sun.cpu.endian": "little",
       "sun.io.unicode.encoding": "UnicodeBig",
       "sun.java.launcher": "SUN_STANDARD",
       "sun.jnu.encoding": "UTF-8",
       "sun.management.compiler": "HotSpot 64-Bit Tiered Compilers",
       "user.country": "CA",
-      "user.dir": "/Users/andrei/Projects26/locust",
-      "user.home": "/Users/andrei",
+      "user.dir": "/PRIVATE/home/Projects26/locust",
+      "user.home": "/PRIVATE/home",
       "user.language": "en",
       "user.name": "andrei"
     }
@@ -278,11 +278,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -291,10 +291,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/attempt-single-safety/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/attempt-single-safety/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/configs/attempt-single-safety.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/configs/attempt-single-safety.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 11.209,
       "returncode": 0,
@@ -348,11 +348,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -361,10 +361,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/attempt-independent-safety/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/attempt-independent-safety/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/configs/attempt-independent-safety.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/AttemptSessions.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/configs/attempt-independent-safety.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/AttemptSessions.tla"
       ],
       "elapsed_seconds": 13.903,
       "returncode": 0,
@@ -415,11 +415,11 @@
         ]
       },
       "command": [
-        "/Users/andrei/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/jdk-21.0.8+9/Contents/Home/bin/java",
         "-Xmx4096m",
         "-XX:+UseParallelGC",
         "-cp",
-        "/Users/andrei/Projects26/locust/output/tla/tools/tla2tools.jar",
+        "/PRIVATE/home/Projects26/locust/output/tla/tools/tla2tools.jar",
         "tlc2.TLC",
         "-workers",
         "1",
@@ -428,10 +428,10 @@
         "-seed",
         "1",
         "-metadir",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/effects-safety/states",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/effects-safety/states",
         "-config",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/configs/effects-safety.cfg",
-        "/Users/andrei/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/FlowEffects.tla"
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/configs/effects-safety.cfg",
+        "/PRIVATE/home/Projects26/locust/output/tla/runs/20261004T123546Z-8c97a4c5/inputs/FlowEffects.tla"
       ],
       "elapsed_seconds": 0.823,
       "returncode": 0,
@@ -448,5 +448,9 @@
       "coverage_output": null
     }
   ],
-  "source_changed_during_run": false
+  "source_changed_during_run": false,
+  "publication_redactions": {
+    "personal_home_paths": "Personal /Users account prefixes replaced with /PRIVATE/home; descendant paths preserved.",
+    "digest_scope": "Existing transcript and output digests describe the original captured files, not these redacted publication bytes."
+  }
 }

@@ -13,7 +13,7 @@ The owner said on 2026-10-04 that an exclusive claim "could be a good
 addition": one member takes a task, and other members cannot work on it until
 it is released or replaced. It is decision 13 in the
 [formation editor plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formation-authoring-plan.md) and "wanted, not
-built" in the [editor review](formation-editor-review.md). The accepted
+built" in the [editor review](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formation-authoring-plan.md). The accepted
 documents defer it as package O13.
 
 What do the accepted documents already require of it, and what is the smallest

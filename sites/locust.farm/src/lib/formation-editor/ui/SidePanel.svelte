@@ -1,7 +1,6 @@
 <!--
-	The settings panel that slides in over the right of the map. Adapted from
-	Polaris's settings panel (crates/polaris/frontend/src/lib/components/blueprint/InspectorPanel.svelte
-	at dreamcolor10 01d8aa3c4): a header with the accent disc and title, one
+	The settings panel slides in over the right of the map: a header with the
+	accent disc and title, one
 	scrolling body, and a footer band with the destructive action leading.
 -->
 <script lang="ts">

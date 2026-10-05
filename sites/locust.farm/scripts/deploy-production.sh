@@ -3,7 +3,8 @@
 set -euo pipefail
 ROOT="$(git -C "$(dirname "$0")/../../.." rev-parse --show-toplevel)"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
-SERVER=root@96.126.103.38
+: "${LOCUST_DEPLOY_SERVER:?Set LOCUST_DEPLOY_SERVER to the deployment SSH destination}"
+SERVER="$LOCUST_DEPLOY_SERVER"
 REMOTE=/var/www/locust.farm
 SSH_ARGS=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ForwardAgent=no)
 SCRATCH="$(mktemp -d)"

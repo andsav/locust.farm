@@ -50,6 +50,7 @@ fn proposal(args: impl IntoIterator<Item = OsString>) -> Result<Value, Box<dyn E
                     "codex" => Client::Codex,
                     "claude-code" => Client::ClaudeCode,
                     "factory-droid" => Client::FactoryDroid,
+                    "kimi-code" => Client::KimiCode,
                     "pi" => Client::Pi,
                     _ => return Err("unknown client".into()),
                 });
@@ -85,7 +86,7 @@ fn proposal(args: impl IntoIterator<Item = OsString>) -> Result<Value, Box<dyn E
                 Vec::new(),
             )
         }
-        Client::FactoryDroid | Client::Pi => {
+        Client::FactoryDroid | Client::KimiCode | Client::Pi => {
             let overlay = mcp_file_overlay(client, SERVER_NAME, &server, &occupied, &json!({}))?;
             (
                 Vec::new(),
@@ -206,20 +207,20 @@ mod tests {
 
     #[test]
     fn each_client_produces_its_real_configuration_interface() {
-        for client in ["codex", "claude-code", "factory-droid", "pi"] {
+        for client in ["codex", "claude-code", "factory-droid", "kimi-code", "pi"] {
             let proposal = proposal(args(client)).unwrap();
             assert_eq!(proposal["environment"], json!({}));
             assert_eq!(proposal["server_name"], SERVER_NAME);
             assert_eq!(proposal["transport"], "stdio");
-            if matches!(client, "factory-droid" | "pi") {
+            if matches!(client, "factory-droid" | "kimi-code" | "pi") {
                 assert_eq!(proposal["arguments"], json!([]));
                 assert_eq!(proposal["files"].as_array().unwrap().len(), 1);
                 assert_eq!(
                     proposal["files"][0]["relative_path"],
-                    if client == "pi" {
-                        ".pi/agent/mcp.json"
-                    } else {
-                        ".factory/mcp.json"
+                    match client {
+                        "pi" => ".pi/agent/mcp.json",
+                        "kimi-code" => ".kimi-code/mcp.json",
+                        _ => ".factory/mcp.json",
                     }
                 );
                 let config: Value =

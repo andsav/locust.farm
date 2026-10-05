@@ -7,12 +7,6 @@ actual source hashes, model/configuration hashes, tool identity and each outcome
 **These are bounded safety and reachability checks of an explicit subset, not a
 proof that Rust implements the model or that arbitrary organizations are safe.**
 
-The executable protocol-0/1 models and configurations were removed. Their
-[historical property map](property-map.md), [protocol-1 map](version-1.md) and
-[upstream impact record](upstream-impact-2026-10-04.md) now pin superseded model
-and code links to pre-cutover source `28a34f0368818e373edfdcdaf9454b5f403ceb90`.
-Historical results are retained; they are not reinterpreted as protocol-2 results.
-
 ## Organization authority and completion
 
 [Organization.tla](Organization.tla) fixes a small authenticated transcript per

@@ -93,27 +93,28 @@
 					{view
 						? 'Farm unavailable'
 						: connection === 'disconnected'
-							? 'Unable to reach this farm'
+							? 'Can’t reach this farm'
 							: 'Loading farm'}
 				</h1>
 				<p>
 					{view
-						? 'This farm is not available to view.'
+						? 'It may have been unpublished, or the link may be wrong.'
 						: connection === 'disconnected'
-							? 'The connection is interrupted. This page will reconnect automatically.'
-							: 'Waiting for the creator’s published view.'}
+							? 'Connection lost. Reconnecting…'
+							: 'Waiting for the first update.'}
 				</p>
 				<a class="button" href="/farms">Browse farms</a>
 			</section>
 		{:else}
 			<div class="head">
 				<div class="intro">
-					<p class="eyebrow">Farm · public view · goal {snapshot.goal_state}</p>
+					<p class="eyebrow">Farm · goal {snapshot.goal_state}</p>
 					<h1 class="title">{snapshot.title ?? 'Title not shared'}</h1>
 					<p class="meta">
 						<span class="line">{snapshot.formation} · {snapshot.stages.length} stages</span><span
 							class="line"
-							>{snapshot.agents.length} agents · {snapshot.groups.length} Locust groups</span
+							>{snapshot.agents.length} agents · {snapshot.groups.length}
+							{snapshot.groups.length === 1 ? 'group' : 'groups'}</span
 						>
 					</p>
 				</div>
@@ -126,14 +127,14 @@
 								: modeName(mode)}
 					</p>
 					<p class="status-text">
-						{#if mode === 'ended'}The current goal scope is explicitly closed.{:else}Service last
-							received a check-in <b>{age(view?.received_at_ms, serviceNow(view, now))}</b>.{/if}
+						{#if mode === 'ended'}The goal was closed.{:else}Last check-in
+							<b>{age(view?.received_at_ms, serviceNow(view, now))}</b>.{/if}
 					</p>
 					<p class="status-text">
-						Creator observation: <b>{age(snapshot.observed_at_ms, serviceNow(view, now))}</b>.
+						Snapshot from <b>{age(snapshot.observed_at_ms, serviceNow(view, now))}</b>.
 					</p>
 					<p class="latest-line">
-						Service time: {clockTime(view?.service_time_ms)}. Peer sync is shown separately below.
+						Server time {clockTime(view?.service_time_ms)}.
 					</p>
 					<div class="actions">
 						<button onclick={togglePause}>{paused ? 'Resume updates' : 'Pause updates'}</button
@@ -145,11 +146,11 @@
 			</div>
 			{#if connection !== 'connected' || paused}<p class="connection-note" role="status">
 					{paused
-						? 'Visual updates paused. Publication availability is still checked.'
-						: 'Connection interrupted. Showing the last received snapshot while reconnecting.'}
+						? 'Updates paused. Unpublishing still takes effect.'
+						: 'Connection interrupted. Showing the last snapshot.'}
 				</p>{/if}
 			<div class="counts" aria-label="Task summary">
-				{#each [['Open', counts!.open], ['Reported attempts', counts!.reported], ['Awaiting evidence', counts!.waiting]] as [label, count] (label)}<div
+				{#each [['Open', counts!.open], ['Attempted', counts!.reported], ['Awaiting evidence', counts!.waiting]] as [label, count] (label)}<div
 						class="count"
 					>
 						<span class="label">{label}</span><span class="n">{count}</span>
@@ -174,30 +175,30 @@
 					}}
 				/>
 				<div class="key">
-					<span><i class="dot"></i> open</span><span
-						><i class="dot taken"></i> attempts reported</span
-					><span><i class="dot waiting"></i> awaiting evidence</span><span
-						><i class="dot done"></i> completed</span
-					><span>□ closed</span><span>◇ disputed</span><span>◌ unavailable</span>
+					<span><i class="dot"></i> open</span><span><i class="dot taken"></i> attempted</span><span
+						><i class="dot waiting"></i> awaiting evidence</span
+					><span><i class="dot done"></i> completed</span><span>□ closed</span><span
+						>◇ disputed</span
+					><span>◌ unavailable</span>
 				</div>
 				<p class="rule">
-					Marks change when the creator reports a change. An agent can have several attempts in
-					several stages. Reported attempts describe work history; they do not establish that a
-					process is running. Select a task mark to highlight its row.
+					An attempt means an agent reported work on a task, not that it is running now. Select a
+					task to find it in the table below.
 				</p>
 			</section>
 			<div class="lower">
 				<section>
 					<div class="section-head">
 						<h2>Tasks</h2>
-						<p>{snapshot.tasks.length} current rounds · task text is private</p>
+						<p>
+							{snapshot.tasks.length}
+							{snapshot.tasks.length === 1 ? 'task' : 'tasks'} · text not published
+						</p>
 					</div>
 					<table class="work-table stack">
 						<thead
 							><tr
-								><th aria-label="State mark"></th><th>Task</th><th>Completion and selection</th><th
-									>Reported attempts</th
-								></tr
+								><th aria-label="State mark"></th><th>Task</th><th>Status</th><th>Attempts</th></tr
 							></thead
 						><tbody>
 							{#each [...snapshot.stages, { id: 0, label: 'Unstaged work', prerequisites: [] }] as stage (stage.id)}
@@ -226,8 +227,12 @@
 												{#each taskFacts(task) as fact (fact)}<span>{fact}</span
 													>{/each}{#each snapshot.candidates.filter((candidate) => candidate.task === task.id && candidate.round === task.round) as candidate (candidate.id)}<small
 														>Candidate {candidate.id}: {candidate.completed
-															? 'completion established'
-															: 'awaiting completion'} · {candidate.evidence_count} evidence records ·
+															? 'complete'
+															: 'not complete'} ·
+														{candidate.evidence_count}
+														{candidate.evidence_count === 1
+															? 'evidence record'
+															: 'evidence records'} ·
 														{candidate.requirement}</small
 													>{/each}
 											</div></td
@@ -237,7 +242,7 @@
 												{#each attempts as attempt (attempt.id)}{@const agent =
 														snapshot.agents.find((agent) => agent.id === attempt.agent)}<span
 														>{agent?.name ?? `Agent ${attempt.agent}`} · {attempt.state}</span
-													>{:else}<span>None reported</span>{/each}
+													>{:else}<span>None</span>{/each}
 											</div></td
 										>
 									</tr>
@@ -245,21 +250,18 @@
 							{/each}
 						</tbody>
 					</table>
-					{#if !snapshot.tasks.length}<p class="note">
-							No tasks have been reported. This does not mean the goal has ended.
-						</p>{/if}
+					{#if !snapshot.tasks.length}<p class="note">No tasks yet.</p>{/if}
 				</section>
 				<section class="heard">
 					<div class="section-head">
-						<h2>Changes heard</h2>
-						<p>newest first · creator observation</p>
+						<h2>Recent changes</h2>
 					</div>
 					<ol>
 						{#each [...snapshot.changes]
 							.sort((a, b) => b.id - a.id)
 							.slice(0, allChanges ? undefined : 8) as change (change.id)}<li>
 								<time>{clockTime(change.observed_at_ms)}</time><span>{changeText(change)}</span>
-							</li>{:else}<li>No changes reported.</li>{/each}
+							</li>{:else}<li>No changes yet.</li>{/each}
 					</ol>
 					{#if snapshot.changes.length > 8}<button
 							class="button quiet"
@@ -270,25 +272,22 @@
 								? 'Show fewer changes'
 								: `Show all ${snapshot.changes.length} changes`}</button
 						>{/if}
-					<p class="note">
-						{snapshot.omitted_changes
-							? `${snapshot.omitted_changes} older changes omitted from the published window.`
-							: 'All changes in the published window are available.'} Unknown observation times stay unknown.
-					</p>
+					{#if snapshot.omitted_changes}<p class="note">
+							{snapshot.omitted_changes} older changes are not shown.
+						</p>{/if}
 				</section>
 				<section>
 					<div class="section-head">
 						<h2>Agents</h2>
-						<p>approved public profiles</p>
 					</div>
 					<table class="agents-table stack">
-						<thead><tr><th>Agent</th><th>Roles</th><th>Attempt associations</th></tr></thead><tbody
+						<thead><tr><th>Agent</th><th>Roles</th><th>Attempts</th></tr></thead><tbody
 							>{#each snapshot.agents as agent (agent.id)}<tr
 									><td class="strong"
 										>{agent.id} · {agent.name} · {harnessName(agent.harness)}<span class="sub"
-											>Locust group {agent.group}</span
+											>Group {agent.group}</span
 										></td
-									><td data-label="Roles:">{agent.roles.join(', ') || 'None shared'}</td><td
+									><td data-label="Roles:">{agent.roles.join(', ') || 'None'}</td><td
 										data-label="Attempts:"
 										>{snapshot.attempts
 											.filter((attempt) => attempt.agent === agent.id)
@@ -296,7 +295,7 @@
 												(attempt) =>
 													`${snapshot.tasks.find((task) => task.id === attempt.task)?.reference ?? '?'} r${attempt.round} · ${attempt.state}`
 											)
-											.join('; ') || 'None reported'}</td
+											.join('; ') || 'None'}</td
 									></tr
 								>{/each}</tbody
 						>
@@ -304,55 +303,52 @@
 				</section>
 				<section>
 					<div class="section-head">
-						<h2>Locust groups</h2>
-						<p>daemon grouping · owner-reported labels</p>
+						<h2>Groups</h2>
 					</div>
 					<table class="stack agents-table">
-						<thead><tr><th>Group</th><th>Agents</th><th>Goal peer sync</th></tr></thead><tbody
+						<thead><tr><th>Group</th><th>Agents</th><th>Last sync</th></tr></thead><tbody
 							>{#each snapshot.groups as group (group.id)}<tr
 									><td class="strong">{group.id} · {group.label ?? 'Label not shared'}</td><td
 										data-label="Agents:"
 										>{snapshot.agents.filter((agent) => agent.group === group.id).length}</td
-									><td data-label="Goal peer sync:"
+									><td data-label="Last sync:"
 										>{age(group.last_sync_at_ms, serviceNow(view, now))}</td
 									></tr
 								>{/each}</tbody
 						>
 					</table>
 					<p class="note">
-						A Locust group identifies a daemon, not proof of a machine or a person. Unknown sync age
-						is not evidence of freshness.
+						A group is one Locust daemon. It may not match one machine or one person.
 					</p>
 				</section>
 			</div>
 			<div class="about">
 				<section>
-					<h2>What this page shows</h2>
+					<h2>This page</h2>
 					<p>
-						The creator’s published view of stages, task rounds, attempts and candidate evidence.
-						Completion, closure and selection are separate facts.
+						Stages, tasks, attempts and evidence counts, as published by the farm’s creator.
+						Completing, closing and selecting a result are tracked separately.
 					</p>
 				</section>
 				<section>
-					<h2>Who agreed</h2>
+					<h2>Consent</h2>
 					<p>
-						Publication requires matching consent from every covered member and retained work
-						author. If eligibility is lost, publication becomes unavailable when the service
-						receives suspension.
+						Every member and work author covered here agreed to publish it. If that consent lapses,
+						the page goes offline.
 					</p>
 				</section>
 				<section>
-					<h2>How fresh it is</h2>
+					<h2>Freshness</h2>
 					<p>
-						The service receipt describes the publisher connection. Creator observation and goal
-						peer sync describe separate boundaries. Other daemons may be ahead of this view.
+						Check-in is when the publisher last reached this server. Snapshot is when the publisher
+						last recorded the goal. Other members may be ahead of this view.
 					</p>
 				</section>
 				<section>
-					<h2>Who can see it</h2>
+					<h2>Visibility</h2>
 					<p>
-						Anyone with the link. Private task text, results, code, prompts, tool activity and
-						addresses are not published. Copies already made cannot be recalled.
+						Anyone with the link can see this page. Task text, results, code, prompts, tool activity
+						and addresses are never published. Copies already made can’t be recalled.
 					</p>
 				</section>
 			</div>

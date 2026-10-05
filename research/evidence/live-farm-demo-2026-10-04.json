@@ -1,0 +1,860 @@
+{
+  "schema": 1,
+  "status": "completed and publicly verified",
+  "date": "2026-10-04",
+  "farm_url": "https://locust.farm/farm/939ab4cdb67d868475d97e598ba2ef7f",
+  "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+  "topology": "four principals on one local daemon",
+  "daemon_binary_sha256": "d5363a8ad31afed6c53996d8738f674a10baecaf5be3dd791e900b50716c1883",
+  "source_commits": {
+    "kimi_adapter": "6b0cedf99923c301553c2d456b0e4aaba3fb1890",
+    "stream_shutdown_fix": "9f09364",
+    "website_copy": "f6d83c435c7d95cbf7a32be5076f8b5a244e8a8a"
+  },
+  "clients": {
+    "codex": {
+      "version": "0.153.4",
+      "model": "gpt-6.1-sol",
+      "provider": "OpenAI API"
+    },
+    "claude_code": {
+      "version": "2.1.280",
+      "observed_model": "claude-opus-5-5"
+    },
+    "kimi_code": {
+      "version": "0.42.0",
+      "configured_model": "kimi-code/k3",
+      "auth": "isolated copied OAuth profile"
+    },
+    "pi": {
+      "version": "1.0.1",
+      "model": "gpt-6-luna",
+      "provider": "OpenAI API"
+    }
+  },
+  "persistence": {
+    "local": "daemon SQLite and content-addressed artifact files outside Git",
+    "public": "service SQLite at /var/lib/locust-farm/farm.sqlite",
+    "restart_before_fix": "snapshot and stream_version survived forced service termination after grace timeout"
+  },
+  "contract": {
+    "contribution": "b1c429f08bc43b5971a13c76b50987a74a72eb74ac4742e5f1b8197722ea43f5",
+    "artifact": "7c0a7efc437df8536ce7dad108a95ee88ba07ba5726a1a452ffc3732d77df187",
+    "claim": {
+      "attempt": "80c6f327f67bf97037684e173b9712ba36f76c89160849d938d7de6720f511dc",
+      "generation": 1,
+      "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+      "instance": "13ca4ba6ea4bf13ec2049071693a76af",
+      "task": "effect:7b0816b1a6ccafbac42abcaa0bce614907157a78469a86059cfe4441a9763b74"
+    }
+  },
+  "browser": {
+    "real_sse_versions": [
+      5,
+      6,
+      7,
+      8
+    ],
+    "desktop_width": 1440,
+    "mobile_width": 390,
+    "horizontal_overflow": false,
+    "page_errors": [],
+    "refresh_after_restart": "available version 8",
+    "graceful_restart": {
+      "events": [
+        {
+          "event": "open",
+          "at": "2026-10-04T23:35:57.767Z"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:35:57.769Z",
+          "version": 20,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:36:24.147Z",
+          "version": 21,
+          "status": "available"
+        },
+        {
+          "event": "error",
+          "at": "2026-10-04T23:36:29.388Z",
+          "readyState": 0
+        },
+        {
+          "event": "open",
+          "at": "2026-10-04T23:36:32.538Z"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:36:32.540Z",
+          "version": 21,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:36:55.172Z",
+          "version": 22,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:37:20.144Z",
+          "version": 23,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:37:31.140Z",
+          "version": 24,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:37:47.141Z",
+          "version": 25,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:38:18.145Z",
+          "version": 26,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:38:49.147Z",
+          "version": 27,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:39:20.141Z",
+          "version": 28,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:39:34.158Z",
+          "version": 29,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:39:52.147Z",
+          "version": 30,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:39:58.148Z",
+          "version": 31,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:40:29.158Z",
+          "version": 32,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:41:00.153Z",
+          "version": 33,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:41:26.216Z",
+          "version": 34,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:41:57.146Z",
+          "version": 35,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:42:10.179Z",
+          "version": 36,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:42:41.194Z",
+          "version": 37,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:43:06.159Z",
+          "version": 38,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:43:37.214Z",
+          "version": 39,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:43:48.151Z",
+          "version": 40,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:44:19.159Z",
+          "version": 41,
+          "status": "available"
+        },
+        {
+          "event": "state",
+          "at": "2026-10-04T23:44:50.170Z",
+          "version": 42,
+          "status": "available"
+        }
+      ],
+      "errors": []
+    }
+  },
+  "gates": {
+    "shutdown_fix": [
+      {
+        "name": "fmt",
+        "exit_code": 0,
+        "seconds": 0.57
+      },
+      {
+        "name": "clippy",
+        "exit_code": 0,
+        "seconds": 1.87
+      },
+      {
+        "name": "test",
+        "exit_code": 0,
+        "seconds": 54.86
+      }
+    ],
+    "website": [
+      "lint passed",
+      "check passed",
+      "187 node tests passed",
+      "build passed",
+      "6 farm browser tests passed"
+    ],
+    "python": {
+      "tests": 253,
+      "skipped": 3,
+      "result": "passed"
+    }
+  },
+  "failures": [
+    "Codex initial ChatGPT model mismatch; failed attempt retained, separate API-backed attempt completed",
+    "Kimi --prompt with --yolo rejected before model; corrected launch removed --yolo",
+    "Open SSE prevented initial graceful service shutdown; fixed with shutdown watch",
+    "Controller phase-save race; signed Locust events and native logs retained",
+    "Pi rejected first frontend contribution for stale POST completion effects after channel switch; Claude correction launched"
+  ],
+  "not_verified": [
+    "two physical participant machines",
+    "unattended scheduling",
+    "remote worker sandbox enforcement",
+    "production suitability of the local unauthenticated chat prototype"
+  ],
+  "deployment": {
+    "status": "deployed and independently verified",
+    "verified_at_utc": "2026-10-04T23:37:30.288997+00:00",
+    "source_commit": "9f093642f924fbf1a3ee7c41a1e46db42d1a9e7b",
+    "binary_sha256": "9baa5cfbf756b425bbd5d00995b1c6bee4efc50435dfffd959acde9c36c28fd1",
+    "build": {
+      "toolchain": "Rust 1.96.1",
+      "cargo_zigbuild": "0.23.0",
+      "zig": "0.16.0",
+      "target": "x86_64-unknown-linux-gnu.2.28",
+      "locked": true
+    },
+    "deployment": {
+      "host": "deployment-host",
+      "native_platform": "Linux x86_64, Debian glibc 2.31",
+      "release_directory": "/opt/locust-farm/releases/9f093642f924fbf1a3ee7c41a1e46db42d1a9e7b",
+      "current_symlink_verified": true,
+      "native_help_succeeded": true,
+      "remote_sha256_verified": true,
+      "systemd_active": true,
+      "systemd_enabled": true,
+      "bind": "127.0.0.1:4319",
+      "database": "/var/lib/locust-farm/farm.sqlite",
+      "database_mode": "0600",
+      "database_schema_version": 1,
+      "public_enrollment": false,
+      "allowlist_count": 3,
+      "allowlist_other_entries_preserved": true,
+      "retention_days": 30,
+      "abuse_contact": "https://github.com/andsav/locust.farm/issues"
+    },
+    "farm": {
+      "farm_id": "939ab4cdb67d868475d97e598ba2ef7f",
+      "url": "https://locust.farm/farm/939ab4cdb67d868475d97e598ba2ef7f",
+      "scope": "Actual demo on one physical Mac with four agent principals; backend on Linux server",
+      "public_snapshot": {
+        "stream_version": 21,
+        "received_at_ms": 1791156984138,
+        "agent_count": 4,
+        "group_count": 1,
+        "visibility": "listed",
+        "goal_state": "open",
+        "harnesses": [
+          "claude_code",
+          "codex",
+          "kimi_code",
+          "pi"
+        ]
+      }
+    },
+    "native_active_sse_graceful_restart": {
+      "verified_at_utc": "2026-10-04T23:36:29.542712+00:00",
+      "held_sse_during_stop": true,
+      "stop_elapsed_seconds": 0.04,
+      "systemd_result": [
+        "Result=success",
+        "ExecMainCode=1",
+        "ExecMainStatus=0"
+      ],
+      "before_stream_version": 21,
+      "after_stream_version": 21,
+      "durable_snapshot_available": true,
+      "agent_count": 4
+    },
+    "public_checks": {
+      "/": {
+        "status": 401,
+        "cache_control": "private, no-store",
+        "referrer_policy": null,
+        "csp": null
+      },
+      "/start": {
+        "status": 401,
+        "cache_control": "private, no-store",
+        "referrer_policy": null,
+        "csp": null
+      },
+      "/docs": {
+        "status": 401,
+        "cache_control": "private, no-store",
+        "referrer_policy": null,
+        "csp": null
+      },
+      "/downloads/latest.json": {
+        "status": 200,
+        "cache_control": "public, max-age=300",
+        "referrer_policy": null,
+        "csp": null
+      },
+      "/farms": {
+        "status": 200,
+        "cache_control": "private, no-store",
+        "referrer_policy": "no-referrer",
+        "csp": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+      },
+      "/farm/939ab4cdb67d868475d97e598ba2ef7f": {
+        "status": 200,
+        "cache_control": "private, no-store",
+        "referrer_policy": "no-referrer",
+        "csp": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+      },
+      "unknown_farm": {
+        "status": 404,
+        "cleared": true
+      },
+      "actual_snapshot": {
+        "stream_version": 21,
+        "received_at_ms": 1791156984138,
+        "agent_count": 4,
+        "group_count": 1,
+        "visibility": "listed",
+        "goal_state": "open",
+        "harnesses": [
+          "claude_code",
+          "codex",
+          "kimi_code",
+          "pi"
+        ]
+      },
+      "gallery": {
+        "status": 200,
+        "contains_actual_farm": true
+      },
+      "sse": {
+        "event": "state",
+        "id": "21",
+        "stream_version": 21,
+        "full_snapshot": true
+      }
+    },
+    "nginx": {
+      "syntax_test_passed": true,
+      "original_backup": "/var/backups/locust-farm/20261005-initial/nginx-locust.farm",
+      "original_sha256": "5fadb8e11e3a417bac5bcb1444bb2e9aa3721f84b008d724ca725528d3dc5844",
+      "deployed_sha256": "de85cd7daea621674a888b0add108edaeca8ed113fe63e815a12cb2ff0faadee",
+      "unchanged_other_configs": 18,
+      "preexisting_duplicate_3cf_warnings_preserved": true,
+      "scope": "Farm, gallery, required shared assets and API proxy only; existing TLS, preview auth, ACME and downloads preserved"
+    },
+    "rollback_document": "output/farm-deploy/rollback.md",
+    "proof_boundaries": [
+      "Native backend startup, graceful restart, durable public state and HTTPS API/SSE verified",
+      "Provider work execution and visual browser fidelity are separately verified by the root and UI agents"
+    ]
+  },
+  "phases": {
+    "contract": {
+      "role": "coordinator",
+      "stage": "contract",
+      "claim": {
+        "attempt": "137b7c7c8aea60d0e7063e99981f9aab92bbf147ead7e056e9174a60cda3e9bd",
+        "generation": 1,
+        "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+        "instance": "13ca4ba6ea4bf13ec2049071693a76af",
+        "task": "effect:7b0816b1a6ccafbac42abcaa0bce614907157a78469a86059cfe4441a9763b74"
+      },
+      "started_at": 1791156345.23193,
+      "finished": false,
+      "exit_code": 0,
+      "finished_at": 1791156349.63228,
+      "native_exit_code": 1
+    },
+    "contract-api": {
+      "role": "coordinator",
+      "stage": "contract",
+      "claim": {
+        "attempt": "80c6f327f67bf97037684e173b9712ba36f76c89160849d938d7de6720f511dc",
+        "generation": 1,
+        "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+        "instance": "13ca4ba6ea4bf13ec2049071693a76af",
+        "task": "effect:7b0816b1a6ccafbac42abcaa0bce614907157a78469a86059cfe4441a9763b74"
+      },
+      "started_at": 1791156395.0553339,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791156589.402334,
+      "contribution": "b1c429f08bc43b5971a13c76b50987a74a72eb74ac4742e5f1b8197722ea43f5",
+      "artifact": "7c0a7efc437df8536ce7dad108a95ee88ba07ba5726a1a452ffc3732d77df187",
+      "native_exit_code": 0
+    },
+    "contract-review": {
+      "role": "reviewer",
+      "stage": null,
+      "claim": null,
+      "started_at": 1791156721.254708,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791156766.4284701,
+      "native_exit_code": 0
+    },
+    "frontend-build": {
+      "role": "frontend",
+      "stage": "frontend",
+      "claim": {
+        "attempt": "64c447181d0386d1d8583c746d5058439d7649cc72b6d168605cbf6b1c715cf1",
+        "generation": 1,
+        "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+        "instance": "09436149da3e75232abd96d9eff362b8",
+        "task": "effect:508b5e21fcd08d32c035a0a86829e04c40e0eaf0b3a48b0fa1c9fca3e4550f4e"
+      },
+      "started_at": 1791156800.1620321,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791156971.138002,
+      "contribution": "d7f8993a48434e72b9afd5e88313356cfbe312b23816b31a1c57a78d33ed3aad",
+      "artifact": "12b52dfc69564c6085f723ee9ce471bf31f6f82648ce6cf232f135cb9d563ac2",
+      "native_exit_code": 0
+    },
+    "backend-build": {
+      "role": "backend",
+      "stage": "backend",
+      "claim": {
+        "attempt": "946b9f6604810d226a4ca21f17b217c57058613c607068511cc360ddd1b02ec6",
+        "generation": 1,
+        "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+        "instance": "8820b67b9c8b9df30fcfddaae74ccec0",
+        "task": "effect:429add7d83b2a1478d6a527f5ea0504e96a140056db05e90a15f0c83fa5875d8"
+      },
+      "started_at": 1791156800.628649,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791157447.3631518,
+      "contribution": "31593b0a561d74885f091edf0daa8b396f7a7e42190f7441263b23007fb3136a",
+      "artifact": "56117d22f83188cb1b5fa32b68a1848f5d8ba50e1d8cf6650e60e2c8e4a0d31e",
+      "native_exit_code": 0
+    },
+    "frontend-ready": {
+      "role": "frontend",
+      "stage": null,
+      "claim": null,
+      "finished": true,
+      "native_exit_code": 0,
+      "reconciled_from_native_log": true
+    },
+    "backend-ready": {
+      "role": "backend",
+      "stage": null,
+      "claim": null,
+      "finished": false,
+      "native_exit_code": 1,
+      "reconciled_from_native_log": true
+    },
+    "backend-mcp": {
+      "role": "backend",
+      "stage": null,
+      "claim": null,
+      "finished": true,
+      "native_exit_code": 0,
+      "reconciled_from_native_log": true
+    },
+    "reviewer-ready": {
+      "role": "reviewer",
+      "stage": null,
+      "claim": null,
+      "finished": true,
+      "native_exit_code": 0,
+      "reconciled_from_native_log": true
+    },
+    "frontend-review": {
+      "role": "reviewer",
+      "stage": null,
+      "claim": null,
+      "started_at": 1791156984.680588,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791157049.23646,
+      "native_exit_code": 0
+    },
+    "frontend-fix": {
+      "role": "frontend",
+      "stage": "frontend",
+      "claim": {
+        "attempt": "9695987d23794f29cb1d2ceae3cd532dd21bb7250391fc6ac9a27f1e48f55e88",
+        "generation": 1,
+        "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+        "instance": "09436149da3e75232abd96d9eff362b8",
+        "task": "effect:508b5e21fcd08d32c035a0a86829e04c40e0eaf0b3a48b0fa1c9fca3e4550f4e"
+      },
+      "started_at": 1791157050.516799,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791157211.623805,
+      "contribution": "4946fce66015a5d975ab31a3f943b9f28988ffac16e51c6e1bcd67a57d4aea25",
+      "artifact": "0944ba762535d5a4e5c1201f71476da1e5e03cc47efe8aa22f206aca68311a50",
+      "native_exit_code": 0
+    },
+    "frontend-fix-review": {
+      "role": "reviewer",
+      "stage": null,
+      "claim": null,
+      "started_at": 1791157220.3185751,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791157291.818012,
+      "native_exit_code": 0
+    },
+    "backend-review": {
+      "role": "reviewer",
+      "stage": null,
+      "claim": null,
+      "started_at": 1791157469.9913511,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791157581.8414211,
+      "native_exit_code": 0
+    },
+    "backend-fix": {
+      "role": "backend",
+      "stage": "backend",
+      "claim": {
+        "attempt": "a160b1ffe84c3ebc5745764af7490fc3180b54e18a9c346fc5b23222175ebdd0",
+        "generation": 1,
+        "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+        "instance": "8820b67b9c8b9df30fcfddaae74ccec0",
+        "task": "effect:429add7d83b2a1478d6a527f5ea0504e96a140056db05e90a15f0c83fa5875d8"
+      },
+      "started_at": 1791157593.1444569,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791157869.70035,
+      "contribution": "f4d9e1a7d926f6290ae6fbf79ff84ae7c1308f7671ecbaafcd7c2d38be547a87",
+      "artifact": "c4915f303d8d5f3e68be677882d0547c24755e1878045a4ca41fd8f015fb080d",
+      "native_exit_code": 0
+    },
+    "backend-fix-review": {
+      "role": "reviewer",
+      "stage": null,
+      "claim": null,
+      "started_at": 1791157876.704344,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791158035.098887,
+      "native_exit_code": 0
+    },
+    "integration": {
+      "role": "coordinator",
+      "stage": "integration",
+      "claim": {
+        "attempt": "4a5c611aae53d645cbaf1c7ab7184bd7854baff5f60a350f9f311bde1ea9e795",
+        "generation": 1,
+        "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+        "instance": "13ca4ba6ea4bf13ec2049071693a76af",
+        "task": "effect:180f484b4bd70b85d4049d548461354c1c6d9e9a7886458551dab8ab6e0ba08d"
+      },
+      "started_at": 1791158055.388893,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791158332.4104462,
+      "contribution": "f08d141b6f8f04481915cfc7dd37a92f918514be5f047d5be5db6866d0eb7ad8",
+      "artifact": "b5b557ae2c9ce154ccd5181c73130d884d797a1bee20d87a2f16b6219c5e68f2",
+      "native_exit_code": 0
+    },
+    "integration-review": {
+      "role": "reviewer",
+      "stage": null,
+      "claim": null,
+      "started_at": 1791158322.107172,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791158446.729145,
+      "native_exit_code": 0
+    },
+    "integration-stage-review": {
+      "role": "reviewer",
+      "stage": null,
+      "claim": null,
+      "started_at": 1791158497.7254121,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791158583.647506,
+      "native_exit_code": 0
+    },
+    "verification": {
+      "role": "reviewer",
+      "stage": "verification",
+      "claim": {
+        "attempt": "74794f324b596e1d38250786d35a9001b7dcbf8d28f024e1fc9d5f75425d9dd5",
+        "generation": 1,
+        "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+        "instance": "2c6d7c4ca7e7dd930b873ff7b6dad44f",
+        "task": "effect:c33a497f74aacddd67329e7bd5d7c2e58790926f3180d1ea530873c56aad6f6c"
+      },
+      "started_at": 1791158619.614759,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791158778.858884,
+      "contribution": "8469ffe3de2dabec227ecec1f15f13326b2a716744a090257ab34ebd34623223",
+      "artifact": "cb2901fd27198377352c48e342f708c8c7c7964f30679e7918d4f1f9c02e1ed2",
+      "native_exit_code": 0
+    },
+    "final-review": {
+      "role": "coordinator",
+      "stage": null,
+      "claim": null,
+      "started_at": 1791158802.316252,
+      "finished": true,
+      "exit_code": 0,
+      "finished_at": 1791159046.477983,
+      "native_exit_code": 0
+    }
+  },
+  "backend_author_checks": {
+    "claimed_passed": 62,
+    "independent_review": "corrected backend approved after independent targeted regression"
+  },
+  "daemon_reported_version": "0.1.0 (98d03af6ce6a-dirty)",
+  "daemon_build_boundary": "Frozen local debug artifact built while Kimi adapter work was uncommitted; binary hash identifies runtime. Backend deployment is separately exact committed9f09364.",
+  "backend_independent_review": {
+    "verdict": "reject",
+    "passed": [
+      "POST/history round trip",
+      "channel-separated history and SSE",
+      "live SSE delivery",
+      "Last-Event-ID replay",
+      "restart persistence and increasing IDs"
+    ],
+    "blocking_defect": "5000-digit Last-Event-ID and Content-Length convert with int and return500 instead of contract error statuses",
+    "review_event": "b69f5412bcb1b7f1562092ecc7dce57a36b2ebacecf56e776310aca39569c12a"
+  },
+  "candidate_browser": {
+    "classification": "candidate preview, not accepted final artifact",
+    "url": "http://127.0.0.1:8787/",
+    "checked_at_utc": "2026-10-04T23:50:00Z",
+    "browser_sessions": [
+      "chat-a / Browser Alice",
+      "chat-b / Browser Bob"
+    ],
+    "checks": {
+      "independent_session_names": "pass",
+      "alice_to_bob_live_without_reload": "pass: qa-general-a-2347",
+      "bob_to_alice_live_without_reload": "pass: qa-general-b-2347",
+      "general_random_isolation": "pass: qa-random-only-2347 absent from General, visible after Random switch",
+      "literal_html": "pass: image + script payload rendered as text, execution sentinel unset, no main img/script nodes",
+      "history_response_delayed_1400ms_after_switch": "pass: Random remained current; zero General messages leaked",
+      "post_response_delayed_1400ms_after_switch": "pass: Random remained current; zero General messages leaked",
+      "rapid_channel_switches": "pass: 12 switches, correct General history, each marker exactly once, Live status",
+      "desktop_1440_horizontal_overflow": false,
+      "mobile_390_horizontal_overflow": false,
+      "console_errors_both_sessions": 0,
+      "console_warnings_both_sessions": 0
+    },
+    "screenshots": [
+      "candidate-desktop.png",
+      "candidate-mobile.png"
+    ],
+    "source_changes": "none",
+    "limitations": [
+      "Backend numeric-header correction still under independent review",
+      "No restart-persistence claim from this browser pass",
+      "Delayed response tests forward actual backend responses; only delivery timing is modified"
+    ]
+  },
+  "selected_browser": {
+    "classification": "approved and selected frontend/backend branches; final integration hash comparison pending",
+    "url": "http://127.0.0.1:8787/",
+    "checked_at_utc": "2026-10-04T23:55:30Z",
+    "server_sha256": "50a41018b24a1bcea5b1c6640724bfc63d0adb8d33dcfe390af740f36a5e3463",
+    "frontend_sha256_expected": "a5497c0c0fc46c89ac088748562483d985c94daa06975b9eb930ccc691ddf06b",
+    "checks": {
+      "general_history_fetched_after_restart": "pass: three prior unique markers remain after browser reload",
+      "random_history_fetched_after_restart": "pass: random marker and literal HTML remain after channel switch",
+      "native_sse_reconnect": "pass: chat-b held open on Random across backend restart, no reload or navigation, returned Live and received new message",
+      "new_cross_session_message": "pass: qa-after-corrected-restart-2355 appeared once in both sender and receiver",
+      "desktop_1440_horizontal_overflow": false,
+      "mobile_390_horizontal_overflow": false,
+      "console_errors_both_sessions": 0,
+      "console_warnings_both_sessions": 0,
+      "huge_numeric_last_event_id": "pass: 5000 digits produces structured HTTP400 invalid_request; service remains healthy"
+    },
+    "screenshots": [
+      "selected-desktop.png",
+      "selected-mobile.png"
+    ],
+    "source_changes": "none",
+    "limitations": [
+      "No timestamped disconnect/reopen instrumentation for chat; reconnection proven by live receipt on browser held open across restart",
+      "Huge Content-Length POST probe not performed in this read-only HTTP pass",
+      "Root must compare final integration hashes before final artifact attribution"
+    ]
+  },
+  "integration": {
+    "contribution": "f08d141b6f8f04481915cfc7dd37a92f918514be5f047d5be5db6866d0eb7ad8",
+    "artifact": "b5b557ae2c9ce154ccd5181c73130d884d797a1bee20d87a2f16b6219c5e68f2",
+    "claim": {
+      "attempt": "4a5c611aae53d645cbaf1c7ab7184bd7854baff5f60a350f9f311bde1ea9e795",
+      "generation": 1,
+      "goal": "ba26270cde35c42c36cb00006bb40b90fe59cb13199ee297f581610efb8b3188",
+      "instance": "13ca4ba6ea4bf13ec2049071693a76af",
+      "task": "effect:180f484b4bd70b85d4049d548461354c1c6d9e9a7886458551dab8ab6e0ba08d"
+    }
+  },
+  "integration_browser_hash_match": {
+    "server.py": "50a41018b24a1bcea5b1c6640724bfc63d0adb8d33dcfe390af740f36a5e3463",
+    "web/index.html": "a5497c0c0fc46c89ac088748562483d985c94daa06975b9eb930ccc691ddf06b"
+  },
+  "integration_stage_review": {
+    "initial_rejection": "Reviewer required next-stage test_app.py before integration selection despite explicit formation ordering",
+    "resolution": "Reconsidered with clarified stage scope, checked combined app and approved same exact artifact; final acceptance remains gated by verification suite"
+  },
+  "final_artifact_checks": {
+    "root_python_version": "3.12",
+    "unittest_count": 6,
+    "result": "passed",
+    "seconds": 0.957,
+    "files_sha256": {
+      "CONTRACT.md": "9f1bceae893756836b363918fd0f3182cd5756aacc731931b6785a2d5c599f99",
+      "README.md": "7f1e50180313969f930f1ec7c20a5a4a1a4b9fd367350bb35a4bdc91be7705e9",
+      "server.py": "50a41018b24a1bcea5b1c6640724bfc63d0adb8d33dcfe390af740f36a5e3463",
+      "web/index.html": "a5497c0c0fc46c89ac088748562483d985c94daa06975b9eb930ccc691ddf06b",
+      "test_app.py": "802f3d9488454cbb6bdb6b0bd959725a4e480adc63961828cedb5ea04f7d464f"
+    },
+    "browser_tested_code_matches": true,
+    "coordinator_review": "approved after all6 tests passed and cleanup audit confirmed7 child servers reaped and6 temporary directories removed",
+    "running_app": "http://127.0.0.1:8787/",
+    "final_source_directory": "~/.locust-demos/team-chat-20261004/app",
+    "final_source_copy": "all5 manifest files copied byte-exact from reviewed final artifact",
+    "last_restart": "root HTTP200 and byte-equal General history after restart from final app directory"
+  },
+  "completed_at_utc": "2026-10-05T00:11:50.958064+00:00",
+  "final_contribution": "8469ffe3de2dabec227ecec1f15f13326b2a716744a090257ab34ebd34623223",
+  "final_artifact": "cb2901fd27198377352c48e342f708c8c7c7964f30679e7918d4f1f9c02e1ed2",
+  "final_approval": "1b62d37baf455a080a7d44d9ef348c466fb989263bf06353082607d8b386cfb7",
+  "final_selection": "d731aef9a88a0039b0c1d959aecf320af9b25321b6c2339de8d629552083aa16",
+  "goal_closure": "66abf21a24e34b50129227314e959cd53e30d0f5d34bc3cf5d68705f1c8587ea",
+  "final_public_state": {
+    "stream_version": 102,
+    "goal_state": "ended",
+    "task_count": 5,
+    "completed_tasks": 5,
+    "agent_count": 4,
+    "harnesses": [
+      "claude_code",
+      "codex",
+      "kimi_code",
+      "pi"
+    ],
+    "group_count": 1
+  },
+  "final_browser": {
+    "verified_at_utc": "2026-10-05T00:12:13.799596+00:00",
+    "public_farm": {
+      "url": "https://locust.farm/farm/939ab4cdb67d868475d97e598ba2ef7f",
+      "stream_version": 102,
+      "status": "available",
+      "goal_state": "ended",
+      "task_count": 5,
+      "completed": 5,
+      "all_selected": true,
+      "fresh_browser_hydrated": true,
+      "publisher_label": "Ended",
+      "task_summary": "Completed 5 of 5",
+      "horizontal_overflow": {
+        "1440": false,
+        "390": false
+      },
+      "console_errors": 0,
+      "console_warnings": "font preload warnings only",
+      "screenshots": [
+        "farm-final-1440.png",
+        "farm-final-390.png"
+      ]
+    },
+    "accepted_app": {
+      "url": "http://127.0.0.1:8787/",
+      "accepted_artifact": "cb2901fd27198377352c48e342f708c8c7c7964f30679e7918d4f1f9c02e1ed2",
+      "source_directory": "/PRIVATE/home/.locust-demos/team-chat-20261004/app",
+      "artifact_provenance": "controller-supplied accepted artifact; browser verifies live reload and independently hashes running source files",
+      "server_sha256": "50a41018b24a1bcea5b1c6640724bfc63d0adb8d33dcfe390af740f36a5e3463",
+      "frontend_sha256": "a5497c0c0fc46c89ac088748562483d985c94daa06975b9eb930ccc691ddf06b",
+      "fresh_reload": "pass",
+      "status": "Live",
+      "retained_general_markers": [
+        "qa-general-a-2347",
+        "qa-general-b-2347",
+        "qa-delayed-post-general-2349"
+      ],
+      "horizontal_overflow": false
+    },
+    "source_edits": "none",
+    "suite_scope": "fresh final-state reload and attribution only; prior selected-branch browser suite retained separately"
+  },
+  "runtime_remaining_processes": [
+    "owned loopback Locust daemon",
+    "owned local chat HTTP server"
+  ],
+  "publication_redactions": {
+    "personal_home_paths": "Personal /Users account prefixes replaced with /PRIVATE/home; descendant paths preserved.",
+    "deployment_host": "Production host address replaced with deployment-host.",
+    "digest_scope": "Existing transcript and output digests describe the original captured files, not these redacted publication bytes."
+  }
+}

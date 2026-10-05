@@ -74,4 +74,5 @@ export type FarmTask = {
 };
 export type FarmTaskState =
 	'open' | 'reported' | 'awaiting_evidence' | 'completed' | 'closed' | 'unavailable' | 'disputed';
-export type Harness = 'codex' | 'claude_code' | 'factory_droid' | 'pi' | 'unknown' | 'multiple';
+export type Harness =
+	'codex' | 'claude_code' | 'factory_droid' | 'kimi_code' | 'pi' | 'unknown' | 'multiple';

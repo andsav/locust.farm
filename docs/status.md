@@ -62,24 +62,23 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
 - Codex, Claude Code and pi ran on macOS with scripted model replies, from setup
   on an installed package through a full task with a patch. Droid passed the
   managed launch and recovery checks, but its scripted task run failed (see
-  below). Setup for `droid` and `shell` has unit tests only. See
-  [native package tests](../research/organization-native-qualification.md) and
-  [installed clients](../research/installed-client-qualification.md).
+  below). Setup for `droid` and `shell` has unit tests only.
 - Before publishing, the preview's bytes passed the package checks, the four
   recipes, installation, launchd setup, and Codex and Claude Code runs with
   scripted model replies.
 - A few trials used real models on one machine. On an API 1 build, all four
   coding agents finished a task in pairs; Droid failed to resume its own session.
   On an API 4 build, pi worked with Claude Code, and Codex with Merak (a separate
-  coding agent). See [real-model pairs](../research/t2-real-model-qualification.md)
-  and [collaboration follow-ups](../research/collaboration-followups.md).
+  coding agent). See [collaboration follow-ups](../research/collaboration-followups.md).
 - The farm check runs two daemons and the farm service on one machine. See the
   [farm check](../research/farm-qualification.md).
+- A live demo ran Codex, Claude Code, Kimi Code and pi on one Mac through a
+  five-stage goal, published as a public farm. See the
+  [live farm demo](live-farm-demo.md).
 - TLA+ models check a small part of the goal rules. They do not cover farms. See
   the [model map](../research/tla/organization.md).
-- The owner reports that goals work across physical machines. The only record
-  here is an early, partial [two-Mac test](../research/t1-m2-smoke-2026-10-03.md)
-  on an older protocol.
+- The owner reports that goals work across physical machines. There is no
+  record of that here yet.
 
 ## Known problems
 
@@ -91,8 +90,7 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
   ports.
 - Discovery limited to the local network (`LOCUST_LOOKUP=local`, relays off)
   failed in earlier runs on the test machine and passed in a later one. The cause
-  is not known. With default network settings the same tests passed. See
-  [network results](../research/organization-local-discovery.md).
+  is not known. With default network settings the same tests passed.
 - Nothing has run on Linux except the CI checks on Ubuntu. Linux binaries were
   cross-compiled on a Mac and never run. No install or systemd service was tried.
 - Real models and interactive approval prompts were not tested on the preview's
@@ -120,9 +118,8 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
 - Apple signing, notarization, the DMG, `latest.json` and the upload are not
   scripted in this repository. See [packaging](packaging.md).
 - The preview's source commit is not in this repository's history.
-- The website is behind a password. Only `/downloads/` is public. The farm service
-  and its public pages are not deployed, so `locust farm on` cannot upload to
-  `https://locust.farm` yet.
+- The website is behind a password. `/downloads/`, the farm gallery `/farms` and
+  farm pages are public. The farm service runs on the website host.
 - Decisions waiting on the owner:
   - whether the website stays behind a password;
   - whether to push the preview's source commit;
@@ -137,20 +134,11 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
 Research notes keep measured results, including failures. Each names the build it
 tested; most tested builds older than the current source.
 
-- [Native package tests](../research/organization-native-qualification.md)
-- [Installed clients](../research/installed-client-qualification.md)
-- [Onboarding](../research/onboarding-qualification.md)
-- [Demo run](../research/demo-qualification.md)
-- [Guide recipes](../research/documentation-qualification.md)
-- [Network results](../research/organization-local-discovery.md)
-- [Operations](../research/operational-qualification.md)
-- [Linux build](../research/linux-installation-qualification.md)
-- [Real-model pairs](../research/t2-real-model-qualification.md)
 - [Real-model trials](../research/collaboration-followups.md)
 - [Farm check](../research/farm-qualification.md)
 - [Preview downloads](../research/evidence/public-preview-release-2026-10-04.json)
 
-Removed ledgers, at their last version on GitHub (a private repository):
+Removed ledgers, at their last version on GitHub:
 
 - [Formation implementation status](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-status.md):
   work packages and test scenarios for the API 2 to API 4 builds.

@@ -22,7 +22,7 @@ fn prepare(client: Client, server: &StdioServer) -> Result<(), ConfigError> {
         Client::Codex | Client::ClaudeCode => {
             mcp_arguments(client, SERVER_NAME, server, &[]).map(|_| ())
         }
-        Client::FactoryDroid | Client::Pi => {
+        Client::FactoryDroid | Client::KimiCode | Client::Pi => {
             mcp_file_overlay(client, SERVER_NAME, server, &[], &json!({})).map(|_| ())
         }
     }
@@ -112,7 +112,7 @@ fn occupied_names_include_external_config_and_pi_normalized_names() {
             Err(ConfigError::ServerNameOccupied)
         );
     }
-    for client in [Client::FactoryDroid, Client::Pi] {
+    for client in [Client::FactoryDroid, Client::KimiCode, Client::Pi] {
         assert_eq!(
             mcp_file_overlay(
                 client,
@@ -172,7 +172,7 @@ fn unsafe_client_expansion_is_rejected_in_exactly_affected_fields() {
             Err(ConfigError::ClientExpansion)
         );
         assert_eq!(prepare(Client::Codex, &srv), Ok(()));
-        for client in [Client::FactoryDroid, Client::Pi] {
+        for client in [Client::FactoryDroid, Client::KimiCode, Client::Pi] {
             assert_eq!(
                 prepare(client, &srv),
                 if field >= 2 {
@@ -195,6 +195,7 @@ fn invalid_fields_reject_before_output_and_debug_redacts_paths() {
         Client::Codex,
         Client::ClaudeCode,
         Client::FactoryDroid,
+        Client::KimiCode,
         Client::Pi,
     ] {
         for field in 0..4 {

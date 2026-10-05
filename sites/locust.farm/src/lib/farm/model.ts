@@ -5,6 +5,7 @@ export const harnessName = (harness: string) =>
 	({
 		codex: 'Codex',
 		claude_code: 'Claude Code',
+		kimi_code: 'Kimi Code',
 		pi: 'Pi',
 		unknown: 'Harness unknown',
 		multiple: 'Multiple harnesses'
@@ -12,7 +13,7 @@ export const harnessName = (harness: string) =>
 export const statusName = (status: string) =>
 	({
 		open: 'Open',
-		reported: 'Attempts reported',
+		reported: 'Attempted',
 		awaiting_evidence: 'Awaiting evidence',
 		completed: 'Completed',
 		closed: 'Closed',
@@ -81,6 +82,6 @@ export function changeText(change: FarmChange): string {
 export function taskFacts(task: FarmTask): string[] {
 	return [
 		`${statusName(task.state)} · round ${task.round}`,
-		`${task.completed ? 'Completion established' : 'Unfinished'} · ${task.closed ? 'task closed' : 'task open'} · ${task.selected_candidate == null ? 'none selected' : `candidate ${task.selected_candidate} selected`}`
+		`${task.completed ? 'Complete' : 'Not complete'} · ${task.closed ? 'closed' : 'open'} · ${task.selected_candidate == null ? 'no result selected' : `candidate ${task.selected_candidate} selected`}`
 	];
 }

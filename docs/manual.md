@@ -14,7 +14,7 @@ There is one track, `next`, built from the current source. Older releases have n
 routes.
 
 The engineering docs in `docs/` are not part of the manual. Guide links to them go
-to the private GitHub repository.
+to the GitHub repository.
 
 ## 2. Where pages come from
 

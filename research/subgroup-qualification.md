@@ -35,6 +35,6 @@ the implementation commit, separately from this focused observation.
 The [accepted implementation plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-implementation-plan.md)
 tracks the O6.6 separate-goal subgroup boundary. PeerEngine transfer and physical
 machine discovery need separate evidence. The
-[local discovery qualification](organization-local-discovery.md) records why the
+[local discovery qualification](iroh-transport-probe.md) records why the
 key-only worker mesh was unavailable on this host; this credential acceptance
 does not supersede that finding.

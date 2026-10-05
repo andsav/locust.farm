@@ -6,7 +6,7 @@
     "started_at": "2026-10-04T22:50:49.275734+00:00",
     "finished_at": "2026-10-04T22:51:54.898006+00:00",
     "binary": {
-      "path": "/Users/andrei/Projects26/locust/target/debug/locust",
+      "path": "/PRIVATE/home/Projects26/locust/target/debug/locust",
       "sha256": "866ea5d850af49f64638f9ff732bfc7d0f8e4de1bf0054542a4017ac3c8042db",
       "version": "0.1.0",
       "embedded_commit": "98d03af6ce6a-dirty",
@@ -53,7 +53,7 @@
     "started_at": "2026-10-04T22:52:13.920388+00:00",
     "finished_at": "2026-10-04T22:53:11.288394+00:00",
     "binary": {
-      "path": "/Users/andrei/Projects26/locust/target/debug/locust",
+      "path": "/PRIVATE/home/Projects26/locust/target/debug/locust",
       "sha256": "866ea5d850af49f64638f9ff732bfc7d0f8e4de1bf0054542a4017ac3c8042db",
       "version": "0.1.0",
       "embedded_commit": "98d03af6ce6a-dirty",

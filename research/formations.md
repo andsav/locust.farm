@@ -1,17 +1,11 @@
-# Formations for Locust
+# Organization design research
 
-Date: 2026-10-04. **Status: research supporting the
-[accepted product direction and authoring requirements](../docs/formations.md).
-Detailed protocol mechanisms remain proposals; nothing here is implemented.**
-The owner wants agents to be able to organize
-in different ways, with the arrangement selected when creating a goal or task.
-The mandatory coordinator in protocol 1 does not satisfy that intent.
-
-Method: current Locust and Merak source inspection, primary-source research,
-and independent reviews of the Merak analogy, external patterns, and Locust
-protocol constraints. Locust source baseline: `99dba20ac18e6782a80a45924b5d304be3dd4d0c`;
-Merak baseline: `4704c2a2cb5c92592e1d6661404d367094e09b70`. Concurrent onboarding
-work was outside this review. No proposed runtime was built or benchmarked.
+This source-backed design research informed the
+[accepted organization direction](../docs/formations.md) and
+[signed semantics](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-semantics.md). The discussion below records
+collaboration patterns and tradeoffs. It is not a runtime reference; the
+[current manual](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/guide/organization.md) describes implemented fields and
+behavior. Public primary sources retain their cited research dates.
 
 ## Recommendation
 
@@ -61,51 +55,9 @@ model below is our synthesis; the sources do not establish its correctness.
 | [Coordination Avoidance in Database Systems](https://amplab.cs.berkeley.edu/publication/coordination-avoidance-in-database-systems/) | Whether concurrent operations need coordination depends on the invariant being preserved. | Treat append-only findings differently from exclusive ownership or choosing exactly one authoritative outcome. |
 | [Keyhive research notebook](https://www.inkandswitch.com/keyhive/notebook/) | Local-first authorization must account for causal history, concurrent membership changes, and encryption; access cannot rely solely on a server hiding data. | Changing work organization does not eliminate membership/key management. A topic filter is not confidentiality. This is research precedent, not a recommendation to replace Locust crypto. |
 
-The existing [A2A assessment](a2a-assessment.md) and
-[agent integration research](agent-agnostic-integration.md) remain useful for
-transport and execution boundaries. Their coordinator assumptions are historical
-context, not a reason to preserve that work policy universally. The
-[last-mile review](last-mile-experience.md) also shows why agents need readable
-state and actionable next steps, not a large configuration language at entry.
-
-## What to borrow from Merak Blueprint
-
-The useful analogy is **author, validate, version, instantiate, inspect**.
-An editable definition is separate from a pinned running instance. Actual
-participants and inputs are bound at creation. Presentation is separate from
-enforced behavior, and reusable components can be composed.
-
-Verified Merak source references, relative to its separate repository:
-
-| Source at the inspected Merak commit | What was checked |
-| --- | --- |
-| `crates/merak-domain/src/blueprint.rs`, `BlueprintVersion`, around line 739 | Typed inputs/outputs, nodes, edges, and execution policy |
-| Same file, around lines 827 and 920 | Execution authority is host-compiled; arbitrary authored policy is not accepted |
-| Same file, around lines 1166 and 1439 | Canonical executable identity and execution-edge semantics |
-| `src-tauri/src/handlers.rs`, around line 3244 | Exact executable pinning before enqueueing |
-| `docs/LOCUST_POLARIS_PRODUCT_PLAN_2026-10-03.md`, around lines 72 and 96 | Remote participants are not fabricated Merak runs; participant/task relationships are not Blueprint execution edges |
-| `docs/AGENT_SWARMS_IMPLEMENTATION_PLAN_2026-10-03.md`, around lines 3 and 193 | Board-pool scheduling is a proposal; work items and messages are distinct from execution edges |
-
-Do not transplant Merak's node vocabulary. An Agent, Map, Spawn, or Return node
-in Merak has local execution semantics. A Locust participant is independently
-controlled and may be offline. A flow rule can make work available or request
-review; it cannot promise that a remote harness wakes, runs, or finishes.
-
-The proposed relationship is:
-
-```mermaid
-flowchart LR
-    B[Reusable formation] -->|pin version and bind participants| G[Goal]
-    G -->|inherit defaults| T[Task]
-    G -->|allow scoped variation| S[Task with another arrangement]
-    T --> O[Offer work to a participant]
-    O --> L[Participant's local authorization and agent]
-    L --> C[Published contribution]
-    C --> G
-```
-
-The arrows in this explanatory diagram indicate relationships and information
-flow. They are not proposed executable Merak edges.
+The [A2A assessment](a2a-assessment.md) and
+[agent integration research](agent-agnostic-integration.md) discuss transport and
+local execution boundaries independently of organization rules.
 
 ## Five composable primitives
 
@@ -335,97 +287,3 @@ Cancellation keeps the current requested/acknowledged distinction. Revoking
 permission to finalize a result does not prove a remote process stopped.
 Submission, approval, selection, and application to a local checkout remain
 separate facts under every formation.
-
-## Current Locust constraints and implementation map
-
-These are inspected source facts, not new test results.
-
-| Current enforced assumption | Enforcing source | Required change |
-| --- | --- | --- |
-| Goal creator is the coordinator and owner | [Goal creation](../crates/locust-core/src/node/requests/goals.rs), [Genesis and header validation](../crates/locust-proto/src/event.rs) | New genesis pins organization definition and administration authority separately |
-| All decisions belong to one coordinator chain | [Decision chain](../crates/locust-core/src/goal/chain.rs), [event classification](../crates/locust-proto/src/event.rs), [fold](../crates/locust-core/src/goal/fold.rs) | Separate membership/key control from work and outcome authority |
-| Only coordinator assigns, cancels, accepts/rejects | [Task requests](../crates/locust-core/src/node/requests/tasks.rs), [access checks](../crates/locust-core/src/node/access.rs) | Validate typed actions against scope and pinned rules at authoring and replay |
-| One current assignment and result per task | [State](../crates/locust-core/src/goal/state.rs), [transitions](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/goal/transition.rs) | Multiple attempts/contributions; optional approved set and selected output |
-| Claim fences sessions on one daemon | [Claim handling](../crates/locust-core/src/node/requests/claims.rs), [sessions](../crates/locust-core/src/node/sessions.rs) | Preserve local fencing; add distinct distributed reservation semantics when requested |
-| Review work goes to coordinator | [Pending views](../crates/locust-core/src/node/views.rs) | Compute pending actions for eligible roles and rule conditions |
-| Dependencies are retained but not checked by task state | [Task fields](../crates/locust-core/src/goal/state.rs) | Implement readiness before claiming a Pipeline preset works |
-| Canonical coordinator decisions pin contribution ancestry through member forks | [Commitments](../crates/locust-core/src/goal/commitments.rs), [screening](../crates/locust-core/src/goal/screen.rs) | Valid authority/decision certificates must preserve exact evidence and fork semantics |
-
-Notes and proposed document revisions already allow member authorship:
-[notes requests](https://github.com/andsav/locust.farm/blob/b758b12/crates/locust-core/src/node/requests/notes.rs). Existing tests
-include peer note exchange with the coordinator offline:
-[replica tests](../crates/locust-core/src/node/replica_tests.rs). That supports reuse
-of transport; it does not prove the proposed organization modes.
-
-Signatures, per-author histories, retained objects, local permissions, transport,
-and much of storage remain useful. They still need compatibility review when
-admission references and state projection change. Changing only
-`self.coordinator(...)` checks would leave the existing fold, ancestry, and
-single-assignment assumptions in place.
-
-## Proposed implementation sequence and acceptance examples
-
-1. **Agree on semantics and fixtures.** Write example transcripts for Open
-   collaboration, Coordinator, shared pool with review, and independent attempts.
-   Specify which facts can merge and which require exclusive finality.
-2. **Introduce a versioned contract.** Pin the organization and explicit
-   administration in new goal genesis. Define typed operations and a small
-   deterministic evaluator, not a general workflow language or plugin runtime.
-3. **Separate histories and model attempts.** Membership/key changes retain
-   explicit authority; work events use scoped permissions. Contributions exist
-   with or without tasks. Preserve evidence availability and fork classification.
-4. **Deliver Open collaboration and Coordinator.** Prove both from the same
-   primitives, including simultaneous independent attempts. Retain local grants,
-   session fencing, cancellation semantics, and separate local application.
-5. **Add reservations, reviews, and flow where qualified.** Exclusive pooling,
-   review thresholds, unique selection, and dependency readiness each need their
-   own tested semantics. Expose unsupported combinations clearly.
-6. **Update the operating skill and user/agent views.** Creation summaries,
-   effective rules, opportunities, and reasons should reflect the chosen model.
-   No preset promises automatic wake or local execution.
-
-Required protocol tests include arrival-order permutations; partitioned claims;
-two alternatives both passing review; reviewer removal during a round; unknown
-rule versions; edits during active work; duplicate reactive effects; unauthorized
-task overrides; child-to-parent authority escalation; missing evidence; author
-forks; delayed cancellation; and restart with a fenced old session.
-
-Two high-value product acceptance examples:
-
-- **No coordinator test:** two members publish findings and independent results
-  while the membership administrator is offline. After reconnection, neither
-  contribution needs that administrator's approval to be valid.
-- **Composition test:** one goal contains open investigation, a reserved coding
-  task with peer review, and several benchmark attempts. Its agent can explain
-  the different allowed actions without changing identity or permission scope.
-
-This is a protocol/API version change. Protocol 1 uses positional event encoding,
-signed authority semantics, and dependent author histories; an old reader cannot
-safely ignore unknown events or reinterpret them. Preserve existing goals with a
-deliberate legacy runtime/reader path, or explicitly export selected artifacts to
-fresh goals. Choose that compatibility strategy before implementation. See the
-[current version contract](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v1.md).
-
-## Decisions still needed
-
-The product direction and easy agent authoring plus Polaris visual authoring
-are now [accepted requirements](../docs/formations.md). This remains
-short of an implementation-ready protocol specification. The remaining
-consequential choices are:
-
-- Is Open collaboration the default for new goals? Recommendation: yes; retain
-  Coordinator as an explicit template for people who want it.
-- Is one membership administrator acceptable initially? Recommendation: yes,
-  with the dependency stated and separated from per-work authority.
-- Does the first shared pool require confirmed exclusive reservation, or allow
-  duplicate attempts offline? Recommendation: expose the distinction; implement
-  independent attempts first and confirmed reservations as a separate capability.
-- What proof finalizes unique decisions and pins forked evidence? This requires
-  a concrete certificate/conflict protocol before implementation, especially
-  for thresholds and changing electorates.
-- Must existing protocol-1 goals remain writable in the new binary? That decides
-  whether to maintain two runtimes or require an explicit fresh-goal transition.
-
-No new dependency, runtime behavior, or public compatibility claim is introduced
-by this research document. Its linked decision records the accepted direction
-separately from these tentative mechanisms.
