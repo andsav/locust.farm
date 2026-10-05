@@ -1,13 +1,15 @@
-# Versioned shared file tree implementation plan
+# Git-independent shared file tree implementation plan
 
 Status: proposed implementation, 2026-10-04. The user has accepted the product
-direction: a versioned shared tree, with changes visible after publication and
-integration. The protocol and API design below are recommendations, not implemented
-behavior. [Research and source mapping](../research/shared-file-tree-2026-10-04.md)
-support this plan.
+direction: Locust owns a versioned shared tree; agents work in ordinary directories
+and publish selected changes. Git is optional at import/export boundaries. The
+protocol and API design below are recommendations, not implemented behavior.
+[Research and source mapping](../research/shared-file-tree-2026-10-04.md) support
+this plan.
 
 The [Gas Town source assessment](../research/gastown-shared-workspace-assessment.md)
-adds concrete integration-worklist, handoff and checkout-recovery requirements.
+informs durable proposal, receipt and checkout recovery. Its supervisor hierarchy,
+branch management and dependent-task automation are not first-version requirements.
 
 ## Intended behavior
 
@@ -17,10 +19,17 @@ an exact reviewed result. All participants with the same verified history derive
 the same head or the same explicit dispute. A disconnected participant can have
 an older view; there is no claim of instantaneous global agreement.
 
-The shared tree is the common project state. Each agent still uses local files
-for its tools, pinned to an identifiable shared revision. Publication shares a
-proposal; integration advances the canonical tree; local checkout update makes
-that tree available to a running agent. These are separate observable operations.
+The shared tree is the common project state: a Locust manifest maps paths to
+immutable file contents. Each concurrent worker gets an ordinary local directory,
+pinned to an identifiable shared revision. A checkout requires no Git repository,
+branch, index or worktree. Publication shares a proposal; integration advances the
+canonical tree; local checkout update makes that tree available to a running agent.
+These are separate observable operations.
+
+The first implementation completes one loop: **shared head → checkout → propose
+→ integrate → update**. Seed creation starts the loop; tree reads, status, proposal
+listing and composition support it. None requires another queue service or an
+agent supervisor. Updates occur explicitly at work boundaries.
 
 For example: Alice and Bob start at H0. Alice changes `src/parser.rs`; Bob changes
 `docs/usage.md`. Alice's reviewed proposal becomes H1. Bob's proposal can be
@@ -47,13 +56,16 @@ flowchart LR
 | Question | Recommendation |
 | --- | --- |
 | Scope | One canonical tree per workspace-enabled goal. Goals without files can omit it; ordinary findings and task outputs remain first-class contributions. |
+| Local working model | One ordinary directory per concurrent worker, with an explicit checkout ID and base revision. Git-independent seed, checkout, capture and update. |
 | File model | Reuse the existing flat manifest: regular files, relative paths, bytes and executable bit. Empty directories, symlinks and submodules remain unsupported. |
+| Copies | Plain file copies for the first version. Reuse immutable file objects across revisions; never share writable hardlinks between workers or with the object store. |
 | Integration ordering | One explicit formation-bound integration authority per workspace epoch, using Locust's existing single-participant `Authority` model. This is not a new limit on swarm size or parallel work. |
 | Reviews | Reuse completion-rule vocabulary for exact workspace candidates. Contribution approval and task selection do not automatically advance the tree. |
 | Concurrent changes | Deterministic three-way path composition; concurrent incompatible changes to a file require resolution. No automatic text merge in the first version. |
 | Local updates | Explicit checkout/update operations. Automatically fetch shared objects and announce newer revisions, but do not rewrite an active checkout on event arrival. |
 | Agent integration | Agent-agnostic CLI and MCP reads/proposals; native file tools operate in explicitly bound local checkouts. |
 | Storage and transport | Reuse signed history, sealed blobs, typed content traversal, SQLite and Iroh. No new crate or dependency is initially justified. |
+| Git boundary | Optional snapshot import or export of accepted files. No branch management, worktree creation or Git subprocess in the shared-tree loop. |
 
 An integration authority can be a person or an agent. Its host must authorize
 signing integration decisions separately from its eligibility in the formation.
@@ -78,11 +90,43 @@ Replace the single per-principal `WorkspaceBinding` record with records keyed by
 goal, principal and checkout ID. This supports multiple tasks and sessions for
 one identity without overwriting its workspace metadata. Bind a session explicitly
 to a checkout rather than guessing from the agent identity. Keep machine paths,
-Git provenance, update journals and session bindings local.
+optional Git provenance, update journals and session bindings local. Store checkout
+records and operation journals outside the managed file tree so publication and
+updates cannot replace their own coordination state.
+
+## Git-independent starting point
+
+The existing [workspace library](../crates/locust-workspace/src/lib.rs) already
+materializes manifests into ordinary directories. Its
+[selected-path capture](../crates/locust-workspace/src/capture.rs) reads explicit
+files against a base manifest without Git. The current
+[snapshot export](../crates/locust-workspace/src/export.rs) still starts from a
+named Git commit; a Git-free seed is new work, not an existing command.
+
+Add seed capture from an ordinary owner-selected directory and explicit relative
+file paths, reusing the same safe file reads, exclusions and canonical manifest
+construction. Preview the selected paths before publication. Also support an
+explicit empty seed without manufacturing a patch or requiring a commit. A
+directory argument is not permission to recursively publish every file beneath it.
+Exclude Git metadata and Locust's local records/journals as well as existing
+credential exclusions. Generated files are shared only when deliberately selected.
+The seed's input directory is capture input, not implicitly a managed checkout.
+After integration, workers check out the accepted seed into fresh directories.
+
+A revision stores a complete manifest but can retain unchanged file-object
+references. Each local checkout initially writes independent regular files; this
+costs local disk space and copy time proportional to the materialized tree. Do not
+introduce a mount, watcher, sparse checkout, reflink backend or writable hardlinks
+to make the first version work. Copy optimizations can follow measured need.
+
+Keep named-commit import as an optional existing boundary. Exporting an accepted
+revision means writing its files to an owner-selected destination; any Git commit
+or push is a separate explicitly authorized operation. The source commit is
+optional provenance, never the shared revision identity or the update base.
 
 ## Protocol and authority
 
-Names in this section are proposed contract names. Phase 1 must freeze their exact
+Names in this section are proposed contract names. Stage 1 must freeze their exact
 encoding and proof semantics before callers are implemented.
 
 ### Policy and candidates
@@ -108,6 +152,8 @@ WorkspaceProposed {
 ```
 
 The seed proposal has no parent/base/patch and can contain an empty manifest.
+Candidate review must resolve and display this manifest directly; it cannot
+require the patch-only input used by today's contribution reviewer.
 Every later proposal names a real parent, its exact manifest, and a patch whose
 base/head/delta exactly match the candidate. Proposal sources are typed causal
 references in the same goal, unlike today's advisory contribution citations.
@@ -184,7 +230,7 @@ but may not bless a malformed or unreviewed tree. Open a new epoch, and preserve
 the other branch proposals for fresh composition. Record the chosen history and
 the exclusion of other old-epoch successors visibly, including ones arriving later.
 
-This is new protocol work. Phase 1 must model normal handoff, withheld old decisions,
+This is new protocol work. Stage 1 must model normal handoff, withheld old decisions,
 reviewer forks, authority removal and administrator forks. A checkpoint must not
 create globally usable authority from a proof accepted only inside that checkpoint.
 If the model cannot establish these properties, revise this mechanism before
@@ -257,35 +303,45 @@ to one file as a conflict, even when a text merge tool could combine them.
 An unchanged result is reported as already included, not manufactured into an
 empty patch merely to advance a counter. Reverting is a new proposal based on the
 current revision; it does not erase history. Renames initially use deletion and
-addition. A later local Git merge helper may prepare a candidate, but every replica
-validates its exact resulting delta without invoking Git.
+addition. A worker resolves conflicts in ordinary files and publishes a fresh
+candidate; every replica validates its exact resulting delta without invoking Git.
 
 ## Local checkout lifecycle
 
-`checkout` materializes an exact complete revision into a fresh directory, then
-records its local binding. No daemon request may supply an arbitrary host path
+`checkout` materializes an exact complete revision as plain file copies into a
+fresh ordinary directory, then records its local binding. Each concurrent worker
+uses its own directory. No daemon request may supply an arbitrary host path
 to read or write. The CLI resolves owner-approved local bindings and invokes the
 workspace library. An MCP server remains a daemon client; it must not grow an
 implicit filesystem executor through a new tree operation.
 
 `status` compares managed paths to the bound base and reports newer accepted
-revisions, local modifications, untracked collisions and recovery state. Capture
-uses explicit paths or a named Git commit and preserves the existing export
-exclusions. A directory's mere presence in a checkout does not authorize publishing
-all its contents. Build outputs and credentials must not become incidental uploads.
+revisions, local modifications, untracked collisions and recovery state without
+Git status or an index. Capture uses explicit file paths and preserves the existing
+export exclusions. Resolve paths against the bound root; reject recursive directory
+selection. Do not depend on Git tracking or ignore rules to choose publication
+scope. A directory's mere presence in a checkout does not authorize publishing all
+its contents. Build outputs and credentials must not become incidental uploads.
 
 `update` takes a target revision, checks authority/content and preflights the full
-transition before mutation. Default behavior refuses managed local edits; capture
-or preserve them explicitly before updating. Untracked files remain untouched, and
-an incoming path collision stops the update. A successful update records the exact
-new base only after the final managed-tree bytes and modes are verified.
+transition before mutation. If the union of base and target managed paths already
+matches the target exactly, including additions, removals and modes, acknowledge
+the target as the new base without rewriting files. This lets a worker advance its
+binding after integrating its own edits, explicitly adopting the target's added
+paths while preserving other unmanaged files.
+
+Otherwise, refuse managed local edits and incoming untracked-path collisions.
+Capture alone does not make a checkout clean. Preserve unresolved local work and
+use a fresh checkout when necessary; do not add a general dirty-file merge. A
+successful update records the exact new base only after final bytes and modes are
+verified.
 
 Reuse descriptor-relative no-follow operations and recoverable application, adding
 a durable journal for target revision, original binding and progress. Keep same-root
 Locust updates serialized across processes/principals. A crash after files change
 but before binding update must be recoverable without falsely reporting completion.
 On restart, finish or recover the recorded operation explicitly; never infer success
-from only the binding or Git HEAD. Recheck authority at completion and report a
+from only the binding. Recheck authority at completion and report a
 locally applied but subsequently disputed revision accurately.
 
 An advisory lock cannot stop arbitrary external editor or agent writes. Update is
@@ -297,20 +353,23 @@ Do not change a running process's cwd by swapping a symlink.
 
 ## Proposed agent and user surface
 
-These commands are proposed; they do not exist yet.
+These commands are proposed; they do not exist yet. The five operations above are
+the product loop; the remaining commands expose its seed, inspection and review
+helpers. They share the same records and do not introduce another runtime.
 
 | Operation | Purpose and boundary |
 | --- | --- |
-| `workspace init` | Preview/import a seed tree, publish a seed proposal, then integrate through explicit policy. No files are shared merely by binding a directory. |
+| `workspace init --root DIR --path FILE` or `workspace init --empty` | Preview explicitly selected regular files (repeated paths supported), or create an empty manifest; publish a seed proposal, then integrate through explicit policy. No Git required; no files shared merely by binding a directory. |
 | `workspace head` | Return revision, manifest, authority state, content readiness and known disputes. |
-| `workspace pending` | Paginated integration worklist with exact proposal IDs and structured blockers; local queue order grants no authority. |
+| `workspace pending` | Paginated list derived from signed proposals, decisions and content readiness, with exact IDs and blockers. No queue database or service. |
 | `workspace tree --revision R --path PREFIX` | Paginated path listing pinned to R; no implicit full-tree insertion into agent prompts. |
 | `workspace read --revision R --path FILE` | Read exact file bytes or a typed binary reference, with explicit pagination/ranges where applicable. |
-| `workspace checkout --revision R --destination DIR` | Local fresh-directory creation and binding. |
+| `workspace checkout --revision R --destination DIR` | Materialize independent regular files into a fresh directory and record its checkout ID and base. |
 | `workspace status --checkout ID` | Local base, accepted head, dirty paths and recovery state. |
 | `workspace propose --checkout ID --path PATH` | Capture explicitly selected changes and publish an immutable candidate. Repeated paths supported. |
 | `workspace compose --head R --source EVENT` | Prepare a candidate against R or return structured conflicts. Multiple sources have an explicit order. |
-| `workspace integrate --proposal P --expected-head R` | Author one shared transition if exact policy/evidence permits it. |
+| `workspace review --proposal P` | Read the exact candidate manifest/delta, including seeds with no patch; optional local `--destination DIR` materializes its files for checks. Evidence names P through the existing scoped evidence operations. |
+| `workspace integrate --proposal P --expected-head R` | Author one shared transition if exact policy/evidence permits it. Seed integration instead requires explicit `--expected-empty`; these preconditions are mutually exclusive. |
 | `workspace update --checkout ID --revision R` | Explicit local update with preflight and recovery. |
 
 CLI wrappers can orchestrate these operations, but must persist/reuse the exact
@@ -328,19 +387,21 @@ files read merely because the tree was listed or a checkout was updated. Update
 Codex, Claude Code, Droid and pi launch/setup guidance to use an explicit checkout
 and report a stale base; no provider-specific runtime becomes mandatory.
 
-## Integration work and session recovery
+## Proposal recovery and local status
 
-The following requirements follow from the Gas Town investigation. They are part
-of the proposed first shared-tree workflow, not a separate supervisor or runtime.
+These requirements preserve work across interrupted CLI operations and agent
+sessions. They are part of the five-operation workflow; automatic agent retirement,
+cleanup and dependent-stage scheduling are deferred.
 
-### Durable integration worklist
+### Derived pending-proposal list
 
-Project the integration worklist from signed proposals, required evidence,
+Project the pending-proposal list from signed proposals, required evidence,
 workspace advancements and content availability. Return structured observations
 for missing objects/keys, awaiting review/checks, stale base, content conflict,
 ready, integrated and disputed. Report the exact proposal, candidate manifest,
 parent revision and blockers. Persist authoritative outcomes in the existing
-history; local ordering/scheduling is advisory and cannot select a winner.
+history; list order is advisory and cannot select a winner. Do not create a second
+mutable queue with independently authoritative proposal state.
 
 The integration authority must be able to resume this work after its session or
 daemon restarts. An agent ending its attempt neither removes a pending proposal
@@ -348,6 +409,10 @@ nor makes it integrated. A conflict can become an ordinary resolution task namin
 the base, candidate and affected paths, without automatically launching an agent.
 
 Run required candidate checks in a fresh materialization of the composed manifest.
+The CLI review helper reuses materialization for an unaccepted proposal; this
+creates a fresh owner-selected directory without binding it as an accepted
+checkout or executing commands automatically. Daemon/MCP review stays read-only
+with respect to the host filesystem.
 Bind attestations to that exact proposal and policy. Changes to managed inputs
 during a check invalidate its applicability to the original candidate. A successful
 check on each source separately is insufficient when the combined result fails.
@@ -356,65 +421,66 @@ statement, not independent proof that a command ran correctly.
 
 ### Publication and integration receipts
 
-Persist local handoff metadata before voluntary session retirement: goal,
-principal, attempt/generation, checkout ID, base revision, launch ID, exact pending
-request/idempotency key, and known proposal/publication receipt. Missing or failed
-receipt writes leave publication pending or recovery needed; they must not authorize
-automatic checkout deletion or reuse. Involuntary exits are recovered from these
-records and durable daemon state, not from whether a chat ended normally.
+Before submitting a write, persist goal, principal, checkout ID/base where
+applicable, the exact sealed candidate and request/idempotency key. Record its
+proposal or integration receipt when known. A lost response leaves an uncertain
+operation to reconcile against durable daemon state. Missing or failed receipt
+writes leave publication pending or recovery needed; do not recapture changed
+files or declare success because the agent session ended. Existing task/attempt
+associations can be retained without requiring a new adapter handoff protocol.
 
 Use the accepted `WorkspaceAdvanced` event as the integration receipt, rechecking
-its current standing. After a lost response, resolve that receipt before retrying
-or cleaning up. Report integrated-with-local-cleanup-pending separately from a
-failed integration. Do not automatically close a task merely because its code was
-integrated; task completion/selection rules remain independent.
+its current standing. After a lost response, reconcile that exact request/receipt
+before authoring a replacement. A later local update failure does not change a
+successful integration into a failed one. Do not automatically close a task because
+its code was integrated; task completion/selection rules remain independent.
 
 State the durability boundary: objects and proposal stored by the local daemon do
 not prove any peer holds them. Track confirmed replication separately where such
-evidence exists. Removing an expendable checkout must preserve its unpublished
-work and the required retained objects; a local receipt cannot be advertised as
-protection against total host/disk loss.
+evidence exists. Keep checkout deletion and automatic reuse out of the first
+release. A local receipt cannot be advertised as protection against total host/disk
+loss.
 
 ### One local checkout disposition function
 
-Use one pure disposition function for CLI status, adapter launch/resume, update
-and any later cleanup. Feed it observed session ownership, dirty/untracked work,
-pending journal, pending publication and durable receipt facts. Return structured
+Use one pure disposition function for CLI status and update. Feed it known session
+ownership, observed dirty/untracked work, pending journal, pending publication and
+durable receipt facts. Return structured
 blockers such as active, dirty, publication pending, recovery needed or unknown;
 these can coexist. Do not infer safe reuse from task completion or session absence.
 
 Failed filesystem/process/daemon inspection yields unknown, not permission to
 reset or re-materialize an existing directory. Resuming an attempt retains its
 checkout and base. Materializing a newer revision for another run does not release
-an active checkout. Share these rules with existing managed-adapter recovery;
+an active checkout. Keep the existing managed-adapter authority boundary:
 persisted process IDs and remote events remain insufficient launch/signal authority.
+Later adapter lifecycle or cleanup work must consume this same status instead of
+inventing weaker reuse rules.
 
 Checkout contents, coordination records, provider configuration and host grants
 have separate owners and lifecycles. Importing/updating a tree does not install
 provider configuration, change grants or overwrite Locust's coordination state.
-Adapters advertise supported resume/handoff capabilities explicitly; a provider
-without resume support can start a newly authorized session against the retained
-checkout and durable work context.
 
-### File-dependent work waits for integration
+## Deferred workflow automation
 
-Add an explicit workspace-integration prerequisite alongside existing publication,
-review, completion and selection evidence. In the formation contract and flow
-evaluator, bind it to an exact `WorkspaceAdvanced` witness and its included source
-contribution IDs. Pin the downstream input revision to that witness, or to an
-explicitly chosen accepted descendant satisfying all required integration ancestry.
-If there is no compatible accepted revision, keep the stage pending.
+The first version lets a caller explicitly choose an accepted revision, bind a
+checkout and start the next task there. Generic task completion remains separate
+from integration. No new integration prerequisite or automatic stage-launch rule
+is needed to deliver the shared-tree loop.
 
-Ancestry records incorporation history, not a claim that later edits never reverted
-the files; tasks requiring exact bytes must pin the exact input revision. Record
-the selected workspace revision in task/attempt input context. Never silently
-retarget an in-progress attempt to whatever head happens to be newest.
-Generic findings-only stages keep their existing completion semantics.
+If later work adds file-dependent stage scheduling, it should use an explicit
+workspace-integration prerequisite with an exact `WorkspaceAdvanced` witness.
+Pin inputs to that revision or an explicitly chosen accepted descendant containing
+all required integrations; keep incompatible prerequisites pending. Ancestry
+records incorporation history, not a guarantee that later edits never reverted
+those files. Never silently retarget an active attempt to a newer head. This is a
+follow-up formation/flow change, not a requirement of this implementation.
 
-Several related tasks can feed one ordered, reviewed composition and one accepted
-revision. This provides a unit of integration without introducing extra canonical
-branches in the first version. Batch bisection or named staging branches remain
-later choices requiring implementation and measurement.
+Also defer managed-adapter retirement/handoff automation, automatic checkout
+cleanup, integration workers and scheduling, batch bisection, named branches and
+copy-on-write materialization. No Gas Town supervisor hierarchy, branch manager
+or separate queue service is planned. Several source contributions can already
+feed one ordered, reviewed candidate without introducing those components.
 
 ## Implementation sequence and exit criteria
 
@@ -424,21 +490,23 @@ it as needed. No stage should ship a command that implies later guarantees.
 | Stage | Main work and files | Exit criterion |
 | --- | --- | --- |
 | 1. Freeze and model authority | Protocol proposal, workspace epoch/checkpoint rules, [organization model](../research/tla/organization.md); extend model scenarios before Rust | Delivery-order convergence, forks, exact evidence, handoff fencing and scope isolation checked; counterexample mutations fail. New claims remain bounded-model evidence. |
-| 2. Pure tree operations | [manifest](../crates/locust-proto/src/manifest.rs), [contribution](../crates/locust-proto/src/contribution.rs), [workspace capture/review](../crates/locust-workspace/src/lib.rs) | Shared canonical delta validator and deterministic composition pass add/delete/mode/binary/prefix-conflict and cross-epoch cases. No filesystem dependency in protocol/core. |
+| 2. Tree operations and Git-free seed | [manifest](../crates/locust-proto/src/manifest.rs), [contribution](../crates/locust-proto/src/contribution.rs), [workspace capture/review](../crates/locust-workspace/src/lib.rs) | Shared pure delta validator and deterministic composition pass add/delete/mode/binary/prefix-conflict and cross-epoch cases. Local selected-path and empty seed capture produce canonical manifests without Git. No filesystem dependency in protocol/core. |
 | 3. Signed workspace lifecycle | [event types](../crates/locust-proto/src/event.rs), [formation contract](../crates/locust-proto/src/organization.rs), [goal evaluator](../crates/locust-core/src/goal/mod.rs), [node requests](../crates/locust-core/src/node/requests/mod.rs), [atomic commit](../crates/locust-core/src/node/commit.rs) | Seed, candidate, review, advance, epoch handoff and recovery work under replicated replay, stale writes, removal and same-author forks. Local grants are enforced without becoming replicated permissions. |
 | 4. Content and restart | [content graph](../crates/locust-core/src/node/content_graph.rs), [entry](../crates/locust-core/src/node/entry.rs), [replica](../crates/locust-core/src/node/replica.rs), verified workspace-content lookup | Head metadata and transitive files recover on a second peer, including missing objects/keys, late arrival, withdrawal and restart. Hostile direct API clients cannot bypass byte validation. |
-| 5. Checkout workflow | [workspace library](../crates/locust-workspace/src/lib.rs), [CLI](../crates/locust/src/cli/workspace.rs), [local bindings](../crates/locust-core/src/node/local.rs) | Multiple independent checkouts, capture, compose, update, dirty refusal, collision handling, process-race checks and interrupted-update recovery pass. |
-| 6. Agent-facing completion | [typed API](../crates/locust-proto/src/api.rs), [MCP](../crates/locust/src/mcp.rs), [context](../crates/locust-proto/src/api/context.rs), [adapters](../crates/locust-adapter/src), manual and generated contracts | An agent can discover the current tree, bind a checkout, publish, review/integrate and update through documented operations without manually reconstructing hashes. |
-| 7. Qualify the complete workflow | Existing [workspace CLI tests](../crates/locust/tests/workspace.rs), [graph tests](../crates/locust-core/src/node/content_graph_tests.rs), new multi-peer and real-agent scenarios | Two participants on two daemons produce one reproducible combined tree; offline/restart/conflict cases pass. Separate two-machine evidence is retained before WAN qualification claims. |
+| 5. Ordinary-directory workflow | [workspace library](../crates/locust-workspace/src/lib.rs), [CLI](../crates/locust/src/cli/workspace.rs), [local bindings](../crates/locust-core/src/node/local.rs) | Independent copied checkouts, selected capture, candidate/seed review, compose, update, dirty refusal, collision handling, process-race checks and interrupted-write/update recovery pass without Git. |
+| 6. Agent-facing surface | [typed API](../crates/locust-proto/src/api.rs), [MCP](../crates/locust/src/mcp.rs), [context](../crates/locust-proto/src/api/context.rs), adapter launch/setup guidance, manual and generated contracts | An agent can discover the tree and pending proposals, bind a checkout, publish, review/integrate and update through documented operations without manually reconstructing hashes. No new supervisor or adapter retirement protocol. |
+| 7. Qualify the complete workflow | Existing [workspace CLI tests](../crates/locust/tests/workspace.rs), [graph tests](../crates/locust-core/src/node/content_graph_tests.rs), new multi-peer and real-agent scenarios | With Git unavailable and no repositories/worktrees, two participants on two daemons reproduce the combined tree; offline/restart/conflict cases pass. Separate two-machine evidence is retained before WAN qualification claims. |
 
 Stages 2 and 3 depend on the stage 1 contract. Content readiness and replay in stage
 4 are required before local update is called safe. Stage 6 includes documentation
 and removal of superseded entry points; it is not optional polish after release.
 
-Include integration prerequisites and worklist projection in stage 3's protocol,
-formation and flow changes. Stage 5 implements the shared checkout disposition and
-publication journal. Stage 6 exposes worklist/context fields and extends managed
-adapter handoff metadata; stage 7 exercises the full session-exit/restart sequence.
+Stage 3 derives proposal status from signed history and evidence; stage 4 adds
+content readiness. Stage 5 implements local disposition, bindings and durable
+operation journals, replacing the old CLI's blanket rejection of workspace
+idempotency keys. Stage 6 exposes this state and basic checkout context. Stage 7
+exercises lost responses and restarts. Integration-triggered flow rules, managed
+retirement and automatic cleanup are outside these stages.
 
 Use the existing local `select` grant for integration and `contribute` for proposal
 publication; formation eligibility remains an independent check. Local directory
@@ -457,7 +525,8 @@ Replace public `patch select`/`patch apply` and their `--local-choice` route wit
 workspace integration/update for canonical workspace work. Arbitrary local edits
 remain ordinary local edits and can be proposed explicitly; there is no second
 Locust-maintained local accepted-head concept. Remove the old `integrated` binding
-field, obsolete binding write shape, dispatch branches and documentation. Adapt
+field, obsolete binding write shape, exported-root/Git-HEAD guards in the replaced
+workflow, dispatch branches and documentation. Adapt
 their meaningful safety tests to the new operations. Keep `scope.select` for actual
 task/document decisions and patch capture/review only where they remain used.
 
@@ -472,14 +541,15 @@ automatically delete a user's existing local data.
 
 | Boundary | Required scenarios |
 | --- | --- |
+| No Git dependency | Git unavailable on PATH and no `.git` directories: initialize from selected files and from an empty seed; checkout, add/edit/delete/mode capture, seed/candidate review, integration and update all work; no hidden Git subprocess or ignore/tracking dependency |
 | Tree algebra | Disjoint edits, identical edits, different edits to one file, add/add, edit/delete, rename-as-delete/add, binary/mode changes, file/directory collisions, empty seed, no-op composition, unchanged-file reuse across epochs |
 | Authority | Unauthorized advance, stale expected head, wrong predecessor/goal, wrong-context review, stale composition approvals, missing proof, authority removal, rules change, late old-epoch event, same-author fork, explicit reconciliation, governance fork |
 | Replay | Permuted delivery, duplicate events, missing parent then arrival, missing metadata then arrival, invalid patch/result relation, idempotent lost response, reopen from persisted state, projection retraction |
 | Content | Typed root discovery, opaque leaf preservation, nested object fetching, old/new key epochs, missing file, wrong size/hash, withdrawal and recovery, no cross-goal reads |
-| Filesystem | Clean update, dirty refusal, untracked path collision, multiple checkouts for one principal, same-root concurrent update, symlink/hardlink refusal, case/Unicode alias, file/directory replacement, disk/write failure, kill before/after binding commit, interference from an external writer |
+| Filesystem | Clean update, own publish/integrate then exact-target acknowledgement, edits after capture still refused, dirty refusal, untracked path collision, multiple checkouts for one principal, same-root concurrent update, symlink/hardlink refusal, case/Unicode alias, file/directory replacement, disk/write failure, kill before/after binding commit, interference from an external writer |
 | Agent workflow | Two agent types start from H0, publish independent edits, integrate H1 then recomposed H2, read news, update explicitly, observe identical accepted files; conflicting proposals require an explicit new candidate |
-| Handoff and cleanup | Session exits before publication acknowledgment; lost acknowledgment after durable publish; lost integration reply; completed task with dirty or publication-unknown checkout; unavailable inspection; cleanup fails after successful integration; restart preserves exact checkout/base |
-| Dependent work | Completion without integration does not satisfy an integration prerequisite; inputs pin the witnessed revision; unrelated head movement cannot retarget active work; source changes pass separately but fail when composed |
+| Receipts and restart | Session exits before publication acknowledgment; lost acknowledgment after durable publish; lost integration reply; retry uses the same captured candidate after local files change; completed task with dirty or publication-unknown checkout; unavailable inspection; restart preserves exact checkout/base; successful integration followed by failed local update |
+| Explicit work boundaries | A new task uses its caller-selected accepted revision; unrelated head movement cannot retarget an active checkout; source changes pass separately but fail when composed; changing one checkout cannot change another's files or stored objects |
 | Network qualification | Two real hosts, offline publication, authority unavailable, reconnect catch-up, daemon restart during object transfer; identical revision IDs and independently checked materialized bytes/modes |
 
 For Rust implementation commits, run `cargo fmt --all --check`,
@@ -490,11 +560,12 @@ to changed contracts as described in [testing](testing.md). If formation-editor
 sources under `sites/locust.farm/` change, run its lint, check, test and build gates.
 Stage documentation and indexes before `python3 scripts/check_docs.py`.
 
-The first usable release includes discovery, seed, proposals, integration,
-replication, explicit checkout/update, conflict reporting and recovery. Recursive
-Merkle directories, automatic text merging, live editing, path-level private
-membership and multi-authority consensus are subsequent decisions, not promises
-hidden inside this plan. Current object/manifest bounds must be reported honestly;
+The first usable release completes shared head → ordinary checkout → selected-path
+proposal → exact integration → explicit update, with Git-free seed creation,
+discovery, replication, conflict reporting and recovery. Alongside the deferred
+workflow automation above, recursive Merkle directories, automatic text merging,
+live editing, path-level private membership and multi-authority consensus are
+subsequent decisions. Current object/manifest bounds must be reported honestly;
 do not add new arbitrary agent, work, traversal or execution caps.
 
 ## Readiness

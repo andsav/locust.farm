@@ -13,8 +13,8 @@ is claimed. All external code links below pin the inspected commit.
 
 ## Conclusion
 
-Gas Town reinforces the chosen product direction: workers edit isolated worktrees,
-and an integration process assembles the common project state. Its most useful
+Gas Town's workers edit isolated Git worktrees, and an integration process
+assembles the common project state. Its most useful
 lessons are about work surviving sessions, durable submission/landing evidence,
 checkout recovery and dependent tasks starting from integrated work.
 
@@ -33,8 +33,9 @@ work or cleanup remains. This is not a single directory shared by every agent.
 **Apply:** keep Locust's explicit checkout IDs and base revisions. A session restart
 resumes its existing checkout/attempt rather than silently creating a new attempt
 or resetting files to the current head. A new assignment can choose a newer
-accepted revision. A worktree is an optional local Git optimization; it does not
-replace Locust manifests or become a required peer protocol.
+accepted revision. The accepted Locust plan uses ordinary directories and plain
+file copies, with no Git worktree, branch or repository requirement. Git stays
+optional at import/export boundaries; Gas Town's worktree machinery is not adopted.
 
 The README's hook terminology is less precise than current source. The
 [hook writer](https://github.com/gastownhall/gastown/blob/649b832b7672bc7a2dbef26f5983aba6198b819b/internal/cmd/sling_helpers.go#L888-L895)
@@ -62,8 +63,9 @@ Gas Town's `done` flow retains completion and merge-request identity before sess
 retirement, but some metadata write failures only produce warnings. See
 [completion handoff](https://github.com/gastownhall/gastown/blob/649b832b7672bc7a2dbef26f5983aba6198b819b/internal/cmd/done.go#L1887-L1975).
 Borrow the lifecycle separation, not a blanket guarantee that this path is atomic.
-Locust should persist a handoff record linking attempt/generation, checkout, base,
-exact proposal and publication receipt. Distinguish durable local storage from
+The first Locust workflow persists the checkout/base, exact request/candidate and
+publication receipt for interrupted operations. Extending that record into automatic
+adapter retirement/handoff is deferred. Distinguish durable local storage from
 confirmed replication; neither a queued send nor an agent exit proves peer receipt.
 
 ## 3. Use one checkout disposition classifier
@@ -77,14 +79,15 @@ Its [tests](https://github.com/gastownhall/gastown/blob/649b832b7672bc7a2dbef26f
 explicitly cover terminal tasks whose files/publication still need preservation.
 
 **Apply:** add one local disposition function to Locust's workspace lifecycle,
-shared by status, adapter launch/resume, update and any later cleanup. Report
-active, dirty, publication pending, recovery needed and unknown independently
+shared initially by status and update, and reused by later adapter lifecycle or
+cleanup work. Report active, dirty, publication pending, recovery needed and unknown independently
 where several conditions hold. Completing a task must not erase these blockers.
 
 Locust already preserves unknown process state and separates launch metadata from
 active ownership in [managed adapters](../crates/locust-adapter/src/managed.rs).
-Extend that boundary with checkout identity and shared base revision rather than
-introducing a second supervisor or treating persisted PIDs as launch authority.
+Retain explicit checkout identity and shared base revision when binding an agent's
+work. Deeper lifecycle automation can follow; it must not introduce a second
+supervisor or treat persisted PIDs as launch authority.
 
 ## 4. Integration needs a durable worklist and exact candidates
 
@@ -133,8 +136,9 @@ in [EvidenceKind](../crates/locust-proto/src/organization.rs), resolved by
 [flow evaluation](../crates/locust-core/src/goal/flow.rs). None explicitly means
 that a contribution was incorporated into a workspace revision.
 
-**Apply:** add an explicit integration prerequisite for file-dependent stages and
-pin their input revision to its durable witness. Choose a descendant containing
+**Follow-up, deferred from the first version:** add an explicit integration
+prerequisite for file-dependent stages and pin their input revision to its durable
+witness. Choose a descendant containing
 all required integrations, or keep the stage pending; never read an unrelated
 moving head. Record the chosen revision with the task/attempt context. Existing
 research-only completion semantics remain useful and should not be changed into
@@ -170,9 +174,14 @@ design; named integration branches can wait for a concrete requirement.
 
 ## Resulting plan changes
 
-The [plan](../docs/shared-file-tree-plan.md) now includes a durable integration
-worklist, publication/handoff evidence, a shared local disposition classifier,
-integration-based task prerequisites, and explicit failure cases for lost replies,
-session exit and cleanup. These changes strengthen the original versioned-tree
-direction. They do not adopt Gas Town's role hierarchy, local database topology,
-agent-supervision runtime or unqualified merge guarantees.
+The [plan](../docs/shared-file-tree-plan.md) applies the durable-state lessons to a
+smaller Git-independent loop: shared head, ordinary-directory checkout, selected
+proposal, integration and explicit update. Pending proposals are a derived view
+of signed records. Exact write receipts, local status and interrupted-operation
+recovery are in scope; a separate queue service is not needed.
+
+Integration-based task prerequisites, automatic adapter handoff/retirement,
+checkout cleanup and batch scheduling remain research recommendations for later
+work. The first version does not adopt Gas Town's role hierarchy, branch/worktree
+management, local database topology, agent-supervision runtime or unqualified
+merge guarantees.
