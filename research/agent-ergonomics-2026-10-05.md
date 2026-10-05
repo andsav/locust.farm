@@ -2,7 +2,16 @@
 
 Status: investigation of 2026-10-05. Source read at `5e9d592`; behaviour run on
 the binary `0.1.0 (98d03af6ce6a-dirty) api 5 protocol 5`. It records measured
-results, reproduced defects and proposals. Nothing proposed here is implemented.
+results, reproduced defects and proposals at that snapshot.
+
+Amended after a source review on 2026-10-05 at `01b8fbb` with the shared-file-tree
+replacement present as uncommitted work. The historical measurements below are
+unchanged. The review did not rerun the audit, the tests, or a real-model campaign.
+The current working tree already registers agent-facing `workspace.tree` and
+`workspace.read` in [api.rs](../crates/locust-proto/src/api.rs); that is source
+evidence, not runtime qualification. Reconcile file-related findings and proposals
+against the replacement before implementation. Do not restore superseded patch
+APIs to fix historical defects.
 
 The question was what would make locust.farm easy for coding agents to use while
 they work together on one goal. Here the agent is the user: a model that pays
@@ -46,8 +55,10 @@ Limits:
 
 ## Answer
 
-locust.farm is safe and correct for agents and nearly silent toward them. The
-signed records, fencing and permission boundaries held in every run. What an
+The audit reported that the signed-record, fencing and permission checks it
+exercised held in its local runs. This does not establish general safety or
+correctness: the cancellation and directory-binding findings below remain
+material defects. Locust exposes too little actionable state to agents. What an
 agent needs to know is in the daemon at the moment it answers, but the answer
 does not carry it. So the knowledge lives in an 11.7 KB skill and, in every
 recorded run, in the prompt a harness wrote.
@@ -235,12 +246,20 @@ them.
 
 ## Proposals, in order
 
-Seven steps, each able to land by itself. They are the revised forms; the
-verifier's change is stated where it reversed the first design.
+The numbered tracks below retain the original proposal references; they are not
+seven independent changes or a strict implementation sequence. Start by mapping
+each defect to the current code as still present, replaced, or awaiting runtime
+verification. Then fix lifecycle and local-authority defects, simplify one complete
+worker/reviewer path, add concise awareness and recovery, and finally test hooks.
+Ship accurate descriptions with each behavioral change. Track 5 supplies the
+remaining documentation and checks, rather than delaying essential instructions.
+The verifier's change is stated where it reversed the first design.
 
 ### 1. Guards, defects and free bytes
 
-No API, protocol or store change.
+Prefer fixes within existing records and storage. Validate API and replicated
+semantics per fix; an explicit escape argument or changed cancellation behavior
+cannot be assumed to require no contract change.
 
 - Refuse `completed` in `attempt report` when no effective result names the
   attempt, with an explicit escape. Name the task-bound publish in the refusal.
@@ -254,7 +273,12 @@ No API, protocol or store change.
   Keep `view` required: [an earlier decision](collaboration-followups.md) made
   it explicit. Default `unread_only` to false, because read state is shared by
   every chat of a profile.
-- Send each MCP result once.
+- Measure both MCP wire bytes and the content each supported host actually sends
+  to the model before changing result representation. The
+  [MCP tools specification](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2026-07-28/server/tools.mdx)
+  recommends a text serialization alongside structured content for compatibility.
+  Keep or remove a representation based on tested host requirements; duplicated
+  wire bytes do not prove duplicated model tokens.
 - Authenticate `tools/list` with the hello and filter it by caller, which fixes
   the author credential.
 - Use tool names in the `initialize` instructions and in argument errors.
@@ -262,11 +286,14 @@ No API, protocol or store change.
   Anything that ends an attempt stays destructive.
 - Stop raising the goal revision for a stored blob no event names.
 - Fix the printed command, the skill's `--source`, the broken-pipe panic and the
-  `workspace set` panic. Document or remove exit codes 20 and 21.
+  `workspace set` panic if still applicable after the replacement. Verify that
+  agent calls cannot widen an owner-approved local directory binding. Document
+  or remove exit codes 20 and 21.
 
 Exit: no attempt ends completed without a result; an acknowledged cancellation
 leaves the attempt terminal on every replica; an author lists its tools; MCP
-wire bytes per result halve.
+result representations work on supported hosts, with measured wire and model
+context sizes reported separately.
 
 ### 2. Awareness and guidance core
 
@@ -309,7 +336,11 @@ Derived views over state the daemon already folds. The owner-only farm snapshot
 and attempt states.
 
 - Holder and state for each attempt on the board and in `to_start`.
-- A start response that lists concurrent and earlier attempts and results.
+- A start response that shows occupancy where the formation permits it. Earlier
+  results must not be disclosed automatically to independent attempts. Occupancy
+  is advisory unless the formation explicitly requires exclusion; do not infer
+  exclusive execution from the absence of a selector. Any stronger independence
+  guarantee needs enforcement on other read surfaces too.
 - A roster row per member: roles, reachable, unfinished attempts. *Changed:*
   members are addressed by unique key prefix. Two-word handles were dropped: 16
   bits can be ground to match a chosen name.
@@ -342,11 +373,19 @@ No daemon change. `locust call` stays exact.
   participant text that happened to be 64 hex characters.
 - Default the goal when the agent is in one, pinned and verified so a membership
   change cannot redirect a write.
-- The bridge fills the generation of the claim it relayed. The daemon still
-  checks it.
+- The bridge may fill only the generation bound to the claim it relayed to this
+  session. It must not fetch a newer generation to make a stale write succeed.
+  Preserve the session, principal and generation checks in
+  [claims.rs](../crates/locust-core/src/node/requests/claims.rs). A takeover must
+  leave writes from the old claim rejected, including after bridge restart.
 - The bridge mints and journals a random retry key per uncertain write.
   *Changed:* a key derived from the request cannot tell a retry from a new
   intent; an identical `scope close` after a reopen answered ok and did nothing.
+  A random key alone does not solve this either. Persist an operation identity,
+  request and key before dispatch, and provide an explicit way to resume that
+  same operation after a lost reply or bridge restart. A new intention receives
+  a new identity even with identical arguments. Until that association is
+  defined, retain explicit retry keys rather than promising transparent retries.
 
 Exit: identifier characters typed in the 15-call MCP core loop fall from about
 1,800 to under 500; no "expected a hex identifier" errors in real-model runs.
@@ -379,10 +418,15 @@ The only step that changes signed records.
   rule before the grant, returns the task brief), submit and finish (publish,
   declare, report in order), review with checks. *Changed:* a standalone
   declaration and `check attest` stay. Formations where a role other than the
-  author declares, and check-only formations, complete through them.
+  author declares, and check-only formations, complete through them. Require an
+  atomic durable commit where possible, or an explicit recoverable operation
+  with durable progress and idempotent continuation. Hiding three sequential
+  writes behind one tool is insufficient. Test interruption after each boundary,
+  lost replies and restart, proving no duplicate publication or false completion.
 - An offer survives an ended attempt, with the rule added to the model.
-- File reads as registry operations (`tree`, `read`) as the plan says, a real
-  multi-hunk diff with bounded results, and a local guard that refuses `approve`
+- Qualify the existing workspace registry reads (`workspace.tree`,
+  `workspace.read`) in the replacement through an MCP-only reviewer. Provide a real
+  multi-hunk diff with bounded results and a local guard that refuses `approve`
   while the candidate's content is not held.
 - Commands that need no identifiers inside a checkout. `propose` refuses a stale
   base. Every conflict reported in one result.
@@ -411,7 +455,8 @@ Last, because a wake is worth building only when what it delivers is cheap.
 
 Exit: in a live run a cancellation issued while the worker is busy is
 acknowledged within one tool batch; a relevance wait false-wakes under 10% in a
-quiet hour; two chats on one task produce one attempt.
+quiet hour; resuming the same operation produces one attempt, while distinct
+independent attempts remain possible where the formation permits them.
 
 ## Dropped
 
@@ -438,12 +483,13 @@ quiet hour; two chats on one task produce one attempt.
   proposed.
 - Nothing says what a stage must deliver. In the live demo a reviewer applied
   the wrong stage's bar.
-- Nothing protects a first attempt's independence. Occupancy and earlier results
-  in the start response work against it under independent-attempts.
+- A first attempt's independence needs a defined visibility policy across all
+  reads. Restricting the start response alone does not establish that guarantee.
 - Progress reports are the only sign of life, and each one is news for every
   member.
 - Idle waiting costs tokens: about 1.8 million cached tokens per idle hour at a
-  50-second ceiling. Hooks remove that for Claude Code only.
+  50-second ceiling under the audit's assumptions. Whether hooks remove that cost
+  for Claude Code requires live measurement.
 - Review churn under the plan's integration rule: N parallel proposals can need
   N(N+1)/2 review rounds.
 
@@ -453,9 +499,10 @@ quiet hour; two chats on one task produce one attempt.
 2. May `view` on `context.read` default after all, reversing the recorded
    decision?
 3. Exit 0 for a quiet `wait`, or keep and document 20 and 21?
-4. Remove `structuredContent`, or keep it for a host that needs it?
-5. Should a start on an occupied task be refused by default where the rules name
-   no selector, with an explicit flag to join?
+4. After host qualification, which result representations are needed, and what
+   are their actual wire-byte and model-token costs?
+5. Which formations require exclusive execution or restricted result visibility?
+   Keep occupancy advisory elsewhere.
 6. Is `kind` required on `contribution.publish`? A default of finding would
    silently make results not count.
 7. Does an ended attempt free its offer?
@@ -466,18 +513,21 @@ quiet hour; two chats on one task produce one attempt.
 10. May a person-started watcher resume a closed session on a keypress?
 11. Will you grant `select` to an agent per goal, so no person acts per
     proposal?
-12. Who may bind a directory? `workspace.set` is callable by agents today; the
-    plan says "owner-approved local bindings" and names no mechanism.
+12. Who may create or widen a local directory binding in the workspace replacement,
+    and what enforces owner approval? Recheck the historical `workspace.set`
+    finding against that mechanism.
 13. Two owner permission surfaces exist (`goal grant` and `permission allow`;
     `task authorize` and `permission task allow`). Which one stays?
-14. Budget for a real-model campaign: 30 to 60 million mostly cached input
-    tokens for two hosts, two models and pooled runs before and after.
+14. After a small paired pilot, is a larger real-model campaign justified? The
+    original 30 to 60 million mostly cached input-token estimate is provisional,
+    not a prerequisite for the first evaluation.
 
 ## Weakest claims and a benchmark
 
-- **Wording changes behaviour.** The record says it does not hold. No agent ever
-  called `wait`, and the "skill read 37 times" figure comes from prompts that
-  ordered the read. Native skill discovery has never been run.
+- **Wording changes behaviour.** Wording did not eliminate the reported traps;
+  this does not establish that accurate descriptions cannot improve behavior.
+  No agent called `wait`, and the "skill read 37 times" figure comes from prompts
+  that ordered the read. Native skill discovery has never been run.
 - **Call savings** were often quoted against the skill's path, not the measured
   minimum.
 - **Occupancy prevents duplicate work.** No run shows a model choosing a task
@@ -489,8 +539,9 @@ quiet hour; two chats on one task produce one attempt.
 One classifier over the existing harness ledgers
 ([check_t2_models.py](../scripts/check_t2_models.py),
 [check_shared_context_models.py](../scripts/check_shared_context_models.py),
-[live_farm_demo.py](../scripts/live_farm_demo.py)) would settle these. Per
-configuration it should report:
+[live_farm_demo.py](../scripts/live_farm_demo.py)) can establish historical
+baselines, but cannot settle compaction, native discovery or hook delivery that
+those runs never exercised. Per configuration it should report:
 
 - completion;
 - calls per completed task, split into bookkeeping, work-moving writes and
@@ -508,3 +559,13 @@ configuration it should report:
 Run it with the same goal-only prompt before and after each step, on Codex, pi,
 Claude Code and one CLI-only host, with thresholds stated as falsifiers. The
 harness first needs a cold start with native skill discovery.
+
+Begin with a small paired pilot on a fixed worker/reviewer task, using the same
+model settings, formation and starting state, with repeated runs and raw ledgers
+retained. Report completion and review correctness alongside cost; fewer calls
+are not a win if work or checks are skipped. Compare each change against its
+immediate baseline before expanding the host/model matrix. Add explicit scenarios
+for compaction and resume, cancellation during host work, lost write replies and
+bridge restart, takeover with a stale generation, and independent attempts.
+Measure actual host model inputs separately from MCP transport payloads. Hooks
+and the resume card remain unverified until those scenarios run on real hosts.
