@@ -225,6 +225,18 @@ pub(super) fn code<T: std::fmt::Debug>(result: Result<T, ApiError>) -> ErrorCode
     result.expect_err("the request must be refused").code
 }
 
+/// A refusal reaches models through the MCP bridge and people through the CLI.
+/// Neither surface has dotted operation names, so a message must not use one.
+pub(super) fn names_no_operation(error: &ApiError) {
+    for operation in locust_proto::api::OPERATIONS {
+        assert!(
+            !operation.name.contains('.') || !error.message.contains(operation.name),
+            "{}",
+            error.message
+        );
+    }
+}
+
 pub(super) fn caller_of(answer: &ServerHello) -> Option<Caller> {
     match answer {
         ServerHello::Welcome { caller, .. } => Some(*caller),

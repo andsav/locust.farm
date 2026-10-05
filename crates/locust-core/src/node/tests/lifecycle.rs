@@ -1047,3 +1047,21 @@ fn an_ended_attempt_lists_no_cancellation_request() {
     d.ok(a, Request::AttemptCancel { goal, attempt });
     assert!(pending(&mut d, a, goal).to_acknowledge.is_empty());
 }
+
+#[test]
+fn an_invalid_formation_is_refused_without_naming_an_api_operation() {
+    let (mut d, _, _, a, _) = setup();
+    let refused = d
+        .call(
+            a,
+            Request::GoalCreate {
+                title: "Another goal".into(),
+                formation_json: Some("not a formation".into()),
+                roles: Default::default(),
+                inputs: Default::default(),
+            },
+        )
+        .unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Invalid);
+    names_no_operation(&refused);
+}

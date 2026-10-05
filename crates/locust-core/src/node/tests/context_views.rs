@@ -156,7 +156,9 @@ fn context_continuations_bind_view_preview_limit_and_session() {
             },
         ),
     ] {
-        assert_eq!(code(d.call(conn, request)), ErrorCode::Conflict);
+        let refused = d.call(conn, request).unwrap_err();
+        assert_eq!(refused.code, ErrorCode::Conflict);
+        names_no_operation(&refused);
     }
 }
 
@@ -331,18 +333,19 @@ fn pending_continuations_fence_query_sessions_revisions_and_local_authority() {
         );
     }
     authorize(&mut d, owner, goal, task, principal);
-    assert_eq!(
-        code(d.call(
+    let refused = d
+        .call(
             agent,
             Request::PendingPage {
                 goal,
                 kind: None,
                 after: Some(next),
-                limit: 1
-            }
-        )),
-        ErrorCode::Conflict
-    );
+                limit: 1,
+            },
+        )
+        .unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Conflict);
+    names_no_operation(&refused);
     let next = pending(&mut d, agent, goal, None, None, 1).next.unwrap();
     event(d.ok(
         agent,

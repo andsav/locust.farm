@@ -340,7 +340,7 @@ fn checked_definition(source: &str) -> Result<(DefinitionHash, String), ApiError
     if !inspection.valid {
         return Err(ApiError::new(
             ErrorCode::Invalid,
-            "the formation is invalid; use formation.validate for diagnostics",
+            "the formation is invalid; validate it for diagnostics",
         ));
     }
     let hash = inspection

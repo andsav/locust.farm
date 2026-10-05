@@ -152,7 +152,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }) {
             return Err(ApiError::new(
                 ErrorCode::Conflict,
-                "pending continuation changed; restart pending.page at the current revision",
+                "pending continuation changed; restart the pending page read without `after` at the current revision",
             ));
         }
         let pending = self.pending_work(entry, actor);

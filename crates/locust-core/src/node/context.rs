@@ -202,7 +202,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }) {
             return Err(ApiError::new(
                 ErrorCode::Conflict,
-                "context continuation changed; restart context.read at the current revision",
+                "context continuation changed; restart the context read without `after` at the current revision",
             ));
         }
         let start = after.as_ref().map_or(0, |cursor| cursor.offset);
