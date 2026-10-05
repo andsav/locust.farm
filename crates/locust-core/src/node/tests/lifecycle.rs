@@ -982,3 +982,68 @@ fn completed_round_is_not_startable_and_revision_restores_eligibility() {
         },
     );
 }
+
+#[test]
+fn an_ended_attempt_lists_no_cancellation_request() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    let attempt = claim.attempt;
+    let first = event(d.ok(a, Request::AttemptCancel { goal, attempt }));
+    event(d.ok(a, Request::AttemptCancel { goal, attempt }));
+    let work = pending(&mut d, a, goal);
+    assert_eq!(work.claimed, vec![claim]);
+    assert_eq!(work.to_acknowledge.len(), 2);
+    assert!(work.to_acknowledge.iter().all(|c| c.generation == Some(1)));
+    d.ok(
+        a,
+        Request::CancelAcknowledge {
+            goal,
+            cancel: first,
+            generation: Some(1),
+            outcome: CancelOutcome::Stopped,
+        },
+    );
+    // The other request is moot. Listed with a generation and no claim, it
+    // would fail the managed launcher's snapshot check until answered.
+    let work = pending(&mut d, a, goal);
+    assert!(work.claimed.is_empty());
+    assert!(work.to_acknowledge.is_empty());
+
+    // The same holds for a request made after the worker reported its end.
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    let attempt = claim.attempt;
+    d.ok(
+        a,
+        Request::AttemptReport {
+            goal,
+            attempt,
+            generation: 1,
+            status: AttemptStatus::Failed,
+            text: "failed".into(),
+        },
+    );
+    d.ok(a, Request::AttemptCancel { goal, attempt });
+    assert!(pending(&mut d, a, goal).to_acknowledge.is_empty());
+}

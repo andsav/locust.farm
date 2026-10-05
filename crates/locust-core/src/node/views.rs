@@ -315,11 +315,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 if entry.goal.current_context(attempt.context.scope) != Some(attempt.context) {
                     continue;
                 }
+                // An ended attempt holds no claim and owes no answer. Listing a
+                // request without its claim would leave the session with an
+                // obligation that names no current generation.
+                if !matches!(attempt.status, None | Some(AttemptStatus::Progress)) {
+                    continue;
+                }
                 let claim = entry.claims.get(id);
                 let mine = claim.filter(|claim| Some(claim.instance) == actor.session);
-                if matches!(attempt.status, None | Some(AttemptStatus::Progress))
-                    && let Some(claim) = claim
-                {
+                if let Some(claim) = claim {
                     let view = claim.view(entry.id(), *id);
                     if mine.is_some() {
                         work.claimed.push(view);

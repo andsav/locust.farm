@@ -44,7 +44,8 @@ its terminal report together; `completed` requires the published contribution.
 Repeating the same answer returns its existing record. An `uncertain` answer
 keeps progress and attempt-bound publication fenced, but permits a later terminal
 report after all cancellations have been acknowledged. Acknowledgment never
-stops a process by itself or undoes published work.
+stops a process by itself or undoes published work. A request for an attempt
+that has already ended is not listed as pending work and needs no answer.
 
 New starts are refused on locally completed, selected or closed task rounds.
 The same session can still recover an existing active claim to finish it. A new
