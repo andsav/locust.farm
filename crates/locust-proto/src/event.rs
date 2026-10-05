@@ -13,7 +13,7 @@ use crate::crypto::{self, Keypair, domain};
 use crate::id::{
     BlobHash, DefinitionHash, EffectId, EndpointId, EventId, GoalId, PublicKey, Signature,
 };
-use crate::limits::{MAX_HEADER_BYTES, MAX_PARENTS, MAX_PAYLOAD_BYTES};
+use crate::limits::{MAX_ARTIFACTS, MAX_HEADER_BYTES, MAX_PARENTS, MAX_PAYLOAD_BYTES};
 use crate::seal;
 use crate::store::Blob;
 
@@ -763,6 +763,11 @@ impl Header {
             !(seal::OVERHEAD_BYTES..=MAX_PAYLOAD_BYTES).contains(&(payload.len as usize))
         }) {
             return Err(EventError::BadPayloadLength);
+        }
+        if let Body::ContributionPublished { artifacts, .. } = &self.body
+            && artifacts.len() > MAX_ARTIFACTS
+        {
+            return Err(EventError::BadReferences);
         }
         match &self.body {
             Body::Genesis(genesis) => {

@@ -653,3 +653,124 @@ fn actual_parallel_flow_projects_approved_dag_and_revised_task_rounds() {
             .all(|c| c.round < current_contract.round && !c.selected)
     );
 }
+
+#[test]
+fn duplicate_upstream_stage_prerequisites_are_deduplicated_in_snapshot() {
+    use locust_proto::event::TaskId;
+    use locust_proto::organization::{
+        CompletionRule, EvidenceKind, Formation, Prerequisite, Selector, Stage,
+    };
+    use std::collections::{BTreeMap, BTreeSet};
+
+    fn stage_task(daemon: &Daemon, goal: GoalId, name: &str) -> Option<TaskId> {
+        daemon.node.goals[&goal]
+            .state()
+            .tasks
+            .values()
+            .find(|task| task.rounds[&task.current_round].binding.stage.as_deref() == Some(name))
+            .map(|task| task.id)
+    }
+    fn publish_stage(daemon: &mut Daemon, agent: ConnId, goal: GoalId, task: TaskId) {
+        daemon.ok(
+            agent,
+            Request::ContributionPublish {
+                goal,
+                task: Some(task),
+                attempt: None,
+                generation: None,
+                summary: "stage result".into(),
+                sources: vec![],
+                artifacts: vec![],
+            },
+        );
+    }
+
+    let (mut daemon, principal, owner, agent, goal) = setup();
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Contribution {
+        by: Selector::Members,
+    };
+    let upstream = "upstream";
+    let downstream = "downstream";
+    formation.flow = BTreeMap::from([
+        (
+            upstream.into(),
+            Stage {
+                recipients: Selector::Members,
+                task_type: None,
+                requires: vec![],
+            },
+        ),
+        (
+            downstream.into(),
+            Stage {
+                recipients: Selector::Members,
+                task_type: None,
+                requires: vec![
+                    Prerequisite {
+                        stage: upstream.into(),
+                        evidence: EvidenceKind::Completion,
+                    },
+                    Prerequisite {
+                        stage: upstream.into(),
+                        evidence: EvidenceKind::Publication,
+                    },
+                ],
+            },
+        ),
+    ]);
+    let expected = daemon.node.goals[&goal].state().current_rules.unwrap();
+    daemon.ok(
+        agent,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            roles: Default::default(),
+            inputs: Default::default(),
+        },
+    );
+    let upstream_task =
+        stage_task(&daemon, goal, upstream).expect("flow materializes upstream stage");
+    publish_stage(&mut daemon, agent, goal, upstream_task);
+    let downstream_task =
+        stage_task(&daemon, goal, downstream).expect("both evidence kinds materialize downstream");
+    let mut publication = on(goal);
+    let Request::FarmOn { stage_labels, .. } = &mut publication else {
+        unreachable!()
+    };
+    *stage_labels = BTreeMap::from([
+        (upstream.into(), "Upstream".into()),
+        (downstream.into(), "Downstream".into()),
+    ]);
+    daemon.ok(owner, publication);
+    daemon.ok(owner, consent(goal, principal, true));
+    let upload = daemon.node.farm_poll(2000).remove(0);
+    let body: FarmUploadBody = serde_json::from_str(&upload.request.body).unwrap();
+    body.snapshot.validate().unwrap();
+    let upstream_id = body
+        .snapshot
+        .stages
+        .iter()
+        .find(|s| s.label == "Upstream")
+        .unwrap()
+        .id;
+    let downstream_stage = body
+        .snapshot
+        .stages
+        .iter()
+        .find(|s| s.label == "Downstream")
+        .unwrap();
+    // The same upstream stage required for two evidence kinds projects one
+    // edge, not two duplicate prerequisite IDs.
+    assert_eq!(downstream_stage.prerequisites, vec![upstream_id]);
+    assert_eq!(
+        downstream_stage
+            .prerequisites
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([upstream_id]),
+    );
+    let _ = downstream_task;
+}

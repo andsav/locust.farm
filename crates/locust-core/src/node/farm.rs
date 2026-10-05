@@ -328,11 +328,15 @@ fn project(entry: &Entry, local: &mut FarmLocal) -> Result<FarmSnapshot, String>
                 .get(name)
                 .cloned()
                 .unwrap_or_else(|| format!("Stage {id}"));
-            let prerequisites = stage
-                .requires
-                .iter()
-                .filter_map(|r| stage_ids.get(&(rules_id, r.stage.clone())).copied())
-                .collect();
+            let prerequisites = {
+                let mut seen = BTreeSet::new();
+                stage
+                    .requires
+                    .iter()
+                    .filter_map(|r| stage_ids.get(&(rules_id, r.stage.clone())).copied())
+                    .filter(|id| seen.insert(*id))
+                    .collect()
+            };
             snapshot.stages.push(FarmStage {
                 id,
                 label,

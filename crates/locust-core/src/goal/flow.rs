@@ -104,6 +104,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         name: &str,
         proof: Option<EventId>,
         allowed: Option<&BTreeSet<EventId>>,
+        anchor: EventId,
     ) -> Result<Option<BTreeSet<EventId>>, Standing> {
         let resolved = self.resolve(Context {
             scope: Scope::Goal,
@@ -119,13 +120,22 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             .ok_or(invalid("unknown configured stage"))?;
         let mut evidence = BTreeSet::new();
         for requirement in &stage.requires {
-            let (task, round) = match self.stage_instance(rules, &requirement.stage, proof) {
+            let (task, _) = match self.stage_instance(rules, &requirement.stage, proof) {
                 Ok(value) => value,
                 Err(Standing::Pending(_)) => return Ok(None),
                 Err(other) => return Err(other),
             };
+            // Resolve the applicable round at the effect governance anchor, so a
+            // revised upstream stage is satisfied by its new round rather
+            // than the original materialization.
+            let task_id = TaskId::Derived(task);
+            let round = match self.current_round(task_id, anchor, proof) {
+                Ok(round) => round,
+                Err(Standing::Pending(_)) => return Ok(None),
+                Err(other) => return Err(other),
+            };
             let context = Context {
-                scope: Scope::Task(TaskId::Derived(task)),
+                scope: Scope::Task(task_id),
                 round,
             };
             let mut candidates: Vec<_> = self
@@ -282,7 +292,13 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 let (runner, expected) = self.stage_template(*rules, stage)?;
                 let allowed = effect.evidence.iter().copied().collect();
                 if self
-                    .stage_ready(*rules, stage, proof, Some(&allowed))?
+                    .stage_ready(
+                        *rules,
+                        stage,
+                        proof,
+                        Some(&allowed),
+                        event.header().anchor.unwrap(),
+                    )?
                     .is_none()
                 {
                     return Err(Standing::Pending(Waiting::Evidence));
@@ -347,8 +363,13 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                         continue;
                     };
                     for name in definition.flow.keys() {
-                        if let Ok(Some(witness)) = self.stage_ready(event.id(), name, None, None)
-                            && let Ok((runner, mut effect)) = self.stage_template(event.id(), name)
+                        if let Ok(Some(witness)) = self.stage_ready(
+                            event.id(),
+                            name,
+                            None,
+                            None,
+                            self.chain.state.head.unwrap(),
+                        ) && let Ok((runner, mut effect)) = self.stage_template(event.id(), name)
                         {
                             effect.evidence = witness.into_iter().collect();
                             insert(runner, effect);

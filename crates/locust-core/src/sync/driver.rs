@@ -294,12 +294,20 @@ impl Driver {
         let mut changed = host.take_changed();
         changed.sort_unstable();
         let joins = host.joins();
+        let peers = host.peers();
         let proofs = host.halt_proofs();
+        // Active peers and joins reconcile ordinarily; only contacts that
+        // appear solely as halt-proof recipients get evidence-only delivery.
+        let active: HashSet<(GoalId, EndpointId)> = peers
+            .iter()
+            .copied()
+            .chain(joins.iter().map(|join| (join.goal, join.endpoint)))
+            .collect();
         let mut live = HashSet::new();
         let pairs = joins
             .iter()
             .map(|join| ((join.goal, join.endpoint), Some(join)))
-            .chain(host.peers().into_iter().map(|pair| (pair, None)))
+            .chain(peers.into_iter().map(|pair| (pair, None)))
             .chain(
                 proofs
                     .iter()
@@ -341,10 +349,14 @@ impl Driver {
                     initiator,
                     finishing: None,
                     received_refusal: None,
-                    proof: proofs
-                        .iter()
-                        .find(|(goal, endpoint, _)| (*goal, *endpoint) == pair)
-                        .map(|(_, _, proof)| proof.clone()),
+                    proof: if active.contains(&pair) {
+                        None
+                    } else {
+                        proofs
+                            .iter()
+                            .find(|(goal, endpoint, _)| (*goal, *endpoint) == pair)
+                            .map(|(_, _, proof)| proof.clone())
+                    },
                     proof_sent: false,
                     admitted: false,
                 },

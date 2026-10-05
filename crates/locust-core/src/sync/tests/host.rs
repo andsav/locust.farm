@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use locust_proto::event::Body;
+use locust_proto::event::{Body, WireEvent};
 use locust_proto::id::{EndpointId, EventId, GoalId, PublicKey};
 use locust_proto::invite::JoinRequest;
 use locust_proto::sync::Refusal;
@@ -24,6 +24,12 @@ pub struct TestHost {
     /// Signs the admission of a joined key, anchored at the given event.
     pub administrator: Option<(Author, EventId)>,
     pub reports: Vec<Report>,
+    /// Halt-proof evidence this host would deliver, per (goal, endpoint).
+    pub halt_proofs: BTreeMap<(GoalId, EndpointId), [WireEvent; 2]>,
+    /// Endpoints allowed to deliver halt proofs to this host, per goal.
+    pub halt_accepts: BTreeSet<(GoalId, EndpointId)>,
+    /// Halt proofs this host has received and durably held.
+    pub received_halt_proofs: Vec<(GoalId, EndpointId, [WireEvent; 2])>,
     /// What [`Host::random`] returns, in turn and then again from the start.
     pub random: Vec<u64>,
     draws: usize,
@@ -41,6 +47,9 @@ impl TestHost {
             admitted: BTreeMap::new(),
             administrator: None,
             reports: Vec::new(),
+            halt_proofs: BTreeMap::new(),
+            halt_accepts: BTreeSet::new(),
+            received_halt_proofs: Vec::new(),
             random: vec![0],
             draws: 0,
             seen: BTreeMap::new(),
@@ -86,6 +95,30 @@ impl Host for TestHost {
 
     fn hints(&self, endpoint: &EndpointId) -> Vec<String> {
         vec![format!("test:{}", endpoint.0[0])]
+    }
+
+    fn halt_proofs(&self) -> Vec<(GoalId, EndpointId, [WireEvent; 2])> {
+        self.halt_proofs
+            .iter()
+            .map(|((goal, endpoint), proof)| (*goal, *endpoint, proof.clone()))
+            .collect()
+    }
+
+    fn accepts_halt_proof(&self, goal: &GoalId, remote: &EndpointId) -> bool {
+        self.halt_accepts.contains(&(*goal, *remote))
+    }
+
+    fn receive_halt_proof(
+        &mut self,
+        goal: &GoalId,
+        remote: &EndpointId,
+        proof: [WireEvent; 2],
+    ) -> Result<(), Refusal> {
+        if !self.accepts_halt_proof(goal, remote) {
+            return Err(Refusal::NotAMember);
+        }
+        self.received_halt_proofs.push((*goal, *remote, proof));
+        Ok(())
     }
 
     fn speaks_for_member(&self, goal: &GoalId, endpoint: &EndpointId) -> bool {

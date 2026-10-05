@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::event::{
-    Body, Context, DecisionAction, EffectAction, Scope, ScopeKey, TaskBinding, TaskId,
+    Body, Context, DecisionAction, Doc, EffectAction, Scope, ScopeKey, TaskBinding, TaskId,
 };
 use locust_proto::id::{EventId, PublicKey};
 
@@ -339,6 +339,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
             _ => {}
         }
     }
+    let mut document_selections: Vec<(Doc, EventId, usize)> = Vec::new();
     for (key, decisions) in &mut out.state.decisions {
         decisions.sort_by_key(|decision| {
             v.history
@@ -447,10 +448,20 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                 }
             }
             (Scope::Document(doc), DecisionAction::Select { subject }) => {
-                out.state.documents.entry(*doc).or_default().selected = Some(*subject);
+                let position = v
+                    .chain
+                    .position(&key.context.round)
+                    .expect("effective decision round is in the chain");
+                document_selections.push((*doc, *subject, position));
             }
             _ => {}
         }
+    }
+    // Apply document selections in governance chronology: the latest round's
+    // selection wins, not whichever ScopeKey hash order visits last.
+    document_selections.sort_by_key(|(_, _, position)| *position);
+    for (doc, subject, _) in document_selections {
+        out.state.documents.entry(doc).or_default().selected = Some(subject);
     }
     if let Some(epoch) = out
         .state

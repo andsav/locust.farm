@@ -1374,3 +1374,132 @@ fn new_child_cannot_reuse_parent_round_superseded_at_its_anchor() {
     assert!(matches!(goal.standing(&child), Some(Standing::Excluded(_))));
     assert_eq!(goal.standing(&current), Some(Standing::Effective));
 }
+
+#[test]
+fn document_selection_follows_governance_chronology_not_scopekey_hash_order() {
+    let mut f = Fixture::new(review_formation(1));
+    let doc = Doc::Plan;
+    let first_rules = f.rules;
+    // First governance round: revise and select the document.
+    let first_context = Context {
+        scope: Scope::Document(doc),
+        round: first_rules,
+    };
+    let first_revision = f.worker(
+        0,
+        Body::DocumentRevised {
+            context: first_context,
+            doc,
+            base: None,
+        },
+    );
+    let first_review = f.review(1, first_context, first_revision);
+    f.admin(Body::ScopeDecided {
+        context: first_context,
+        previous: None,
+        action: DecisionAction::Select {
+            subject: first_revision,
+        },
+        evidence: vec![first_review],
+    });
+    // Second governance round: bind new rules, then revise and select again.
+    let (binding, _) = testkit::rules_binding(&f.id, 0, &review_formation(1), BTreeMap::new());
+    let second_rules = f.admin(Body::RulesBound {
+        expected: Some(first_rules),
+        binding,
+    });
+    let second_context = Context {
+        scope: Scope::Document(doc),
+        round: second_rules,
+    };
+    let second_revision = f.worker(
+        0,
+        Body::DocumentRevised {
+            context: second_context,
+            doc,
+            base: Some(first_revision),
+        },
+    );
+    let second_review = f.review(1, second_context, second_revision);
+    f.admin(Body::ScopeDecided {
+        context: second_context,
+        previous: None,
+        action: DecisionAction::Select {
+            subject: second_revision,
+        },
+        evidence: vec![second_review],
+    });
+    let goal = f.goal();
+    let first_key = ScopeKey {
+        context: first_context,
+        purpose: DecisionPurpose::Selection,
+    };
+    let second_key = ScopeKey {
+        context: second_context,
+        purpose: DecisionPurpose::Selection,
+    };
+    // The test is meaningful only when ScopeKey hash order is opposite to
+    // governance chronology; otherwise the bug and the fix agree.
+    assert!(
+        second_key < first_key,
+        "test requires opposite ScopeKey hash order to catch the bug"
+    );
+    // The latest governance round's selection wins, not the last by hash.
+    assert_eq!(
+        goal.state().documents[&doc].selected,
+        Some(second_revision),
+        "latest governance round's document selection should win"
+    );
+    // Both selections are retained in scoped history.
+    assert!(goal.state().selections.contains_key(&first_key));
+    assert!(goal.state().selections.contains_key(&second_key));
+}
+
+#[test]
+fn stage_prerequisite_resolves_revised_upstream_round() {
+    let mut f = Fixture::new(pipeline());
+    let initial = f.goal();
+    let research = initial
+        .evaluation()
+        .desired_effects
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    let materialized = f.admin(Body::EffectMaterialized {
+        effect: research.effect.clone(),
+    });
+    // The upstream research stage is materialized but unfinished.
+    let task_id = TaskId::Derived(research.id);
+    // Revise the unfinished upstream stage before any completion evidence.
+    let EffectAction::OpenTask { binding, .. } = &research.effect.action else {
+        unreachable!()
+    };
+    let revised = f.admin(Body::TaskRevised {
+        task: task_id,
+        expected_round: materialized,
+        binding: binding.clone(),
+    });
+    // Complete the new round: publish and declare completion there.
+    let new_context = Context {
+        scope: Scope::Task(task_id),
+        round: revised,
+    };
+    let subject = f.publish(0, new_context);
+    f.worker(
+        0,
+        Body::CompletionDeclared {
+            context: new_context,
+            subject,
+        },
+    );
+    let goal = f.goal();
+    // The downstream build stage now materializes from the revised round.
+    assert_eq!(
+        goal.evaluation().desired_effects.len(),
+        1,
+        "downstream stage should be desired after upstream completion"
+    );
+    let build = goal.evaluation().desired_effects.values().next().unwrap();
+    assert_eq!(build.effect.transition, "stage:build");
+}

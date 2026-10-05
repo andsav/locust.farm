@@ -167,6 +167,8 @@ result. Clocks and arrival order never decide anything.
   result counts or one is selected.
 - **Selection.** Only the selection decider may select, and only a result that
   counts. Each decision names the previous one in that task's chain (`--expected`).
+  Shared-document selections across rules rounds follow governance chronology,
+  not the lexical order of event hashes; scoped historical selections remain.
 - **Closing.** Only the finish decider may close or reopen. A close blocks new
   attempts by members who have seen it. Attempts started without seeing it stay
   valid.
@@ -174,6 +176,12 @@ result. Clocks and arrival order never decide anything.
 See [fold.rs](../crates/locust-core/src/goal/fold.rs),
 [closure.rs](../crates/locust-core/src/goal/closure.rs) and
 [commitments.rs](../crates/locust-core/src/goal/commitments.rs).
+
+Retained fork evidence does not replace ordinary synchronization with active
+members. Historical-only contacts can receive evidence-only exchanges; active
+peers continue exchanging subsequent work. The
+[driver regression](../crates/locust-core/src/sync/tests/driver.rs) enforces this
+distinction.
 
 Proof event sets use persistent radix trees of bitmap words. Cached ancestor
 closures share unchanged branches; they do not allocate one full-history bitmap
@@ -209,6 +217,10 @@ grant `flow`, so stages do not run until the owner grants it.
 
 Stage recipients are the members matched when the rules were bound (read from
 code). Members admitted later receive stage tasks only after a new `rules bind`.
+Prerequisites use an upstream task's revised round at the materialization's
+governance anchor. Already-materialized effects retain their historical evidence.
+[Goal tests](../crates/locust-core/src/goal/tests.rs) cover revised prerequisites
+and document selections across rules rounds.
 
 Each step has one ID, a hash of the goal, task, trigger, action and target. A
 step signed twice is still one action. The signed event and its outbox entries

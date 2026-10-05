@@ -281,3 +281,41 @@ fn source_declarations_are_signed_but_not_causal_dependencies() {
     assert_ne!(changed.signature(), contribution.signature());
     assert_eq!(Event::from_wire(&changed.to_wire()).unwrap(), changed);
 }
+
+#[test]
+fn signed_event_boundary_rejects_too_many_contribution_artifacts() {
+    use crate::limits::MAX_ARTIFACTS;
+    let (events, _, _) = transcript();
+    let contribution = &events[6];
+    // At the limit the contribution still signs and round-trips.
+    let mut at_limit = contribution.header().clone();
+    let Body::ContributionPublished { artifacts, .. } = &mut at_limit.body else {
+        unreachable!()
+    };
+    artifacts.clear();
+    artifacts.extend((0..MAX_ARTIFACTS).map(|i| BlobHash([i as u8; 32])));
+    let signed = Event::sign(at_limit, &testkit::keypair(2)).unwrap();
+    assert_eq!(Event::from_wire(&signed.to_wire()).unwrap(), signed);
+    // One over the limit is refused at the signed-event boundary, not only
+    // by the local API that constructs contributions.
+    let mut over = contribution.header().clone();
+    let Body::ContributionPublished { artifacts, .. } = &mut over.body else {
+        unreachable!()
+    };
+    artifacts.clear();
+    artifacts.extend((0..=MAX_ARTIFACTS).map(|i| BlobHash([i as u8; 32])));
+    assert_eq!(
+        Event::sign(over, &testkit::keypair(2)),
+        Err(EventError::BadReferences)
+    );
+    // A peer cannot smuggle one past by arriving with pre-signed bytes: the
+    // wire decoder runs the same check before any signature verification.
+    let mut wire = signed.to_wire();
+    let mut header: Header = crate::codec::decode(&wire.header).unwrap();
+    let Body::ContributionPublished { artifacts, .. } = &mut header.body else {
+        unreachable!()
+    };
+    artifacts.push(BlobHash([MAX_ARTIFACTS as u8; 32]));
+    wire.header = crate::codec::encode(&header).unwrap();
+    assert_eq!(Event::from_wire(&wire), Err(EventError::BadReferences));
+}

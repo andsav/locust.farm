@@ -331,3 +331,161 @@ fn a_received_invitation_refusal_survives_a_failed_local_finish() {
         assert_eq!(host.joins.is_empty(), received_refusal);
     }
 }
+
+/// A retained worker fork produces halt-proof evidence. An endpoint that is
+/// still an active member must keep reconciling ordinarily; only a contact
+/// that appears solely as a halt-proof recipient gets evidence-only delivery.
+#[test]
+fn active_peers_reconcile_despite_retained_halt_proof_evidence() {
+    use locust_proto::engine::PeerTime;
+    let founded = Founded::new();
+    // endpoint 2 is an active member; endpoint 3 is a historical contact
+    // (not in the member set) that still owes fork evidence.
+    let mut host = host(1, founded.replica(&[]), &[1, 2]);
+    let mut worker = locust_proto::testkit::Author::new(5);
+    let fork = founded.notes(&mut worker, 2);
+    let proof = [fork[0].to_wire(), fork[1].to_wire()];
+    host.halt_proofs
+        .insert((founded.goal, endpoint(2)), proof.clone());
+    host.halt_proofs
+        .insert((founded.goal, endpoint(3)), proof.clone());
+    let mut driver = Driver::new();
+    let mut out = Vec::new();
+    driver.handle(
+        &mut host,
+        PeerInput::Poll,
+        PeerTime {
+            unix_ms: 0,
+            elapsed_ms: 0,
+        },
+        &mut out,
+    );
+    let mut opens = out
+        .iter()
+        .filter_map(|output| match output {
+            PeerOutput::Open {
+                exchange, endpoint, ..
+            } => Some((*exchange, *endpoint)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    opens.sort_by_key(|(_, endpoint)| endpoint.0[0]);
+    assert_eq!(
+        opens.len(),
+        2,
+        "one exchange per active and historical peer"
+    );
+    let [
+        (active_exchange, active_endpoint),
+        (historical_exchange, historical_endpoint),
+    ] = opens.as_slice()
+    else {
+        unreachable!()
+    };
+    assert_eq!(*active_endpoint, endpoint(2));
+    assert_eq!(*historical_endpoint, endpoint(3));
+    out.clear();
+    // The active peer reconciles: Hello then Frontier, no Evidence preamble.
+    driver.handle(
+        &mut host,
+        PeerInput::Opened(*active_exchange),
+        PeerTime {
+            unix_ms: 1,
+            elapsed_ms: 1,
+        },
+        &mut out,
+    );
+    assert!(
+        !out.iter()
+            .any(|output| matches!(output, PeerOutput::Evidence(_))),
+        "active peer must not get evidence-only delivery"
+    );
+    assert!(
+        out.iter().any(|output| matches!(
+            output,
+            PeerOutput::Send {
+                frame: SyncMessage::Hello { .. },
+                ..
+            }
+        )),
+        "active peer gets a normal hello"
+    );
+    // The outbox pumps one frame per writable; the frontier follows.
+    out.clear();
+    driver.handle(
+        &mut host,
+        PeerInput::Writable(*active_exchange),
+        PeerTime {
+            unix_ms: 1,
+            elapsed_ms: 1,
+        },
+        &mut out,
+    );
+    assert!(
+        out.iter().any(|output| matches!(
+            output,
+            PeerOutput::Send {
+                frame: SyncMessage::Frontier(_),
+                ..
+            }
+        )),
+        "active peer gets a frontier for ordinary reconciliation"
+    );
+    out.clear();
+    // The historical contact gets evidence-only delivery: Evidence then Hello,
+    // and the HaltProof frame on the first writable.
+    driver.handle(
+        &mut host,
+        PeerInput::Opened(*historical_exchange),
+        PeerTime {
+            unix_ms: 2,
+            elapsed_ms: 2,
+        },
+        &mut out,
+    );
+    assert!(
+        out.iter()
+            .any(|output| matches!(output, PeerOutput::Evidence(_))),
+        "historical contact gets evidence preamble"
+    );
+    let hello = out.iter().any(|output| {
+        matches!(
+            output,
+            PeerOutput::Send {
+                frame: SyncMessage::Hello { .. },
+                ..
+            }
+        )
+    });
+    assert!(hello, "historical contact gets a hello after evidence");
+    assert!(
+        !out.iter().any(|output| matches!(
+            output,
+            PeerOutput::Send {
+                frame: SyncMessage::Frontier(_),
+                ..
+            }
+        )),
+        "historical contact gets no frontier"
+    );
+    out.clear();
+    driver.handle(
+        &mut host,
+        PeerInput::Writable(*historical_exchange),
+        PeerTime {
+            unix_ms: 3,
+            elapsed_ms: 3,
+        },
+        &mut out,
+    );
+    assert!(
+        out.iter().any(|output| matches!(
+            output,
+            PeerOutput::Send {
+                frame: SyncMessage::HaltProof(_),
+                ..
+            }
+        )),
+        "historical contact receives the halt proof"
+    );
+}
