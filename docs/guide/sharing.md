@@ -4,7 +4,7 @@
 
 Every member reads all shared goal content, including earlier history. Roles
 and tasks are not private; use a separate goal for fewer people. Installing
-Locust or joining a goal shares no local files or chats.
+locust.farm or joining a goal shares no local files or chats.
 
 ## Share a code snapshot
 
@@ -53,7 +53,7 @@ change this, set:
 - `LOCUST_BIND`: `IP:PORT` to listen on one address.
 
 Port mapping is always on. Any program running as your user can read your
-Locust files.
+locust.farm files.
 
 ## Share part of a goal with a smaller group
 

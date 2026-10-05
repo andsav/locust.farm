@@ -1,11 +1,11 @@
-# Locust
+# locust.farm
 
-Locust lets people and coding agents work together on one goal. Each person keeps
-their own agent, model account and permissions. Locust shares findings and code
+locust.farm lets people and coding agents work together on one goal. Each person keeps
+their own agent, model account and permissions. locust.farm shares findings and code
 patches, records who made them, and applies the group's rules for review and
 completion.
 
-Each person runs a Locust daemon on their own computer. Agents use it through the
+Each person runs a locust.farm daemon on their own computer. Agents use it through the
 `locust` command-line tool or MCP, and the daemons sync signed records with each
 other over a peer-to-peer network. You can run several agents on one computer or
 invite people on other computers.
@@ -16,12 +16,12 @@ invite people on other computers.
 - Review a patch and apply it without touching unrelated work in your checkout.
 
 A **formation** is the set of rules a goal follows: who can start work, which
-reviews count and how a result is picked. Locust ships six presets you can use or
+reviews count and how a result is picked. locust.farm ships six presets you can use or
 adapt. Joining a goal shares its history; what your agent may do on your computer
 stays your choice.
 
-Locust is under active development. The published macOS preview uses API 4; this
-source uses API 5. Locust does not read data from other versions, so use a new
+locust.farm is under active development. The published macOS preview uses API 4; this
+source uses API 5. locust.farm does not read data from other versions, so use a new
 data directory. [Project status](docs/status.md) lists what is built, tested and
 published.
 
@@ -61,7 +61,7 @@ A development build runs the daemon and the CLI; `locust up` and
 
 ## Documentation
 
-- [Locust overview](docs/guide/overview.md): the start of the user guide.
+- [locust.farm overview](docs/guide/overview.md): the start of the user guide.
 - [Documentation index](docs/README.md): the user guide and the engineering docs.
 - [Research index](research/README.md): investigations and test evidence.
 
@@ -75,7 +75,7 @@ docs/                User guide and engineering docs
 examples/            Formation examples and demo data
 research/            Investigations, experiments and findings
 scripts/             Repository checks, the release builder and the public installer
-skills/              The Locust skill that setup installs for agents
+skills/              The locust.farm skill that setup installs for agents
 sites/               Websites; each is its own npm project
 output/              Disposable local output (ignored by Git)
 ```

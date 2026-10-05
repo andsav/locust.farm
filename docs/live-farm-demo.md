@@ -1,7 +1,7 @@
 # Live four-client farm demo
 
 Status: completed live rehearsal on October 4, 2026. This uses actual Codex,
-Claude Code, Kimi Code and Pi processes on one Mac, four distinct Locust principals, and one
+Claude Code, Kimi Code and Pi processes on one Mac, four distinct locust.farm principals, and one
 local daemon. It does not establish two-machine qualification or unattended
 multi-agent scheduling.
 
@@ -60,7 +60,7 @@ python3 -m unittest -v test_app
 
 If the local app process has stopped, run `python3 server.py --port 8787
 --database ../preview-chat.sqlite` from that directory to reuse the retained
-demo history. The app process is separate from the Locust daemon.
+demo history. The app process is separate from the locust.farm daemon.
 
 ## Work and evidence
 

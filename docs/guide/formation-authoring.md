@@ -16,10 +16,10 @@ locust formation normalize peer-review.json
 locust formation diff open.json peer-review.json
 ```
 
-## Read the problems Locust reports
+## Read the problems locust.farm reports
 
 Each problem has a `code`, `phase`, JSON Pointer `path`, `message` and suggested
-`correction`. Locust refuses other schema versions.
+`correction`. locust.farm refuses other schema versions.
 
 ## Build your own from a preset
 
@@ -31,7 +31,7 @@ shows what changed. Keep secrets out: every goal member can read the formation.
 
 An author credential (`locust --owner author enroll NAME`) can draft and
 publish but not create goals. Each draft change and `formation publish` names
-the revision you expect; if the draft changed, Locust refuses and returns it.
+the revision you expect; if the draft changed, locust.farm refuses and returns it.
 This script drafts and publishes:
 
 ```bash
@@ -113,8 +113,8 @@ express. Have it ask before publishing.
 
 The editor at https://locust.farm/formations (password-protected preview)
 builds a formation without JSON: six ways of working, four questions, roles,
-steps and task types. A TypeScript copy of Locust's checks runs in your browser,
-held to Locust's results by shared test cases. Work stays in the browser.
+steps and task types. A TypeScript copy of locust.farm's checks runs in your browser,
+held to locust.farm's results by shared test cases. Work stays in the browser.
 
 The editor copies one prompt. It has your agent check the formation and, if you
 choose, save a private draft and ask before publishing. It never starts a goal.

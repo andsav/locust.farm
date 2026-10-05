@@ -7,7 +7,7 @@ without a daemon.
 ## Versions
 
 The current source uses API 5, protocol 5, formation schema 1 and store schema 5.
-The published preview uses API 4 and protocol 4. Locust refuses data, peers and
+The published preview uses API 4 and protocol 4. locust.farm refuses data, peers and
 formations from other versions. `locust --version` prints the version, API and
 protocol.
 

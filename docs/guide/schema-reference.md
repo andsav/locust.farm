@@ -2,7 +2,7 @@
 
 ## Versions
 
-Locust reads formation schema version 1 only. It refuses other versions and does
+locust.farm reads formation schema version 1 only. It refuses other versions and does
 not convert them. API and protocol versions are in the
 [runtime reference](runtime-reference.md#versions).
 

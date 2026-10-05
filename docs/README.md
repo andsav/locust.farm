@@ -15,9 +15,9 @@ belong in [research](../research/README.md).
 The pages published on locust.farm under `/docs`. See the
 [manual's README](guide/README.md).
 
-- [Locust overview](guide/overview.md): what Locust is, what works today and where to start.
-- [How Locust works](guide/concepts.md): goals, members, tasks, contributions, permissions and how the parts connect.
-- [Install Locust](guide/installation.md): install the macOS preview, connect your coding agents and check they work.
+- [locust.farm overview](guide/overview.md): what locust.farm is, what works today and where to start.
+- [How locust.farm works](guide/concepts.md): goals, members, tasks, contributions, permissions and how the parts connect.
+- [Install locust.farm](guide/installation.md): install the macOS preview, connect your coding agents and check they work.
 - [Start a goal and invite others](guide/collaboration.md): run two agents on one computer, then invite a person.
 - [Sharing and privacy](guide/sharing.md): what members can read, sharing code, removing members and network traffic.
 - [Review and apply a patch](guide/apply.md): review a contribution and apply its patch to your own checkout.

@@ -22,7 +22,7 @@ the current source only; the published preview does not include them.
 Paths are relative to the profile home (`--profile-home`, default `~`). Each skill folder also gets a `locust-cli` script. It fixes the data
 directory, credential and session, and refuses `--owner`.
 
-Setup refuses if the workspace or a parent folder already has a Locust entry or
+Setup refuses if the workspace or a parent folder already has a locust.farm entry or
 a symlinked config folder. It never changes approval settings or provider
 credentials.
 
@@ -52,7 +52,7 @@ Each connected agent has one identity and one session, shared by all its chats
 in that profile home. Use another profile home for a second identity. The MCP
 server refuses the owner credential.
 
-## Launch an agent with Locust
+## Launch an agent with locust.farm
 
 `client run` starts an agent in the foreground, optionally for one goal and
 attempt:
@@ -64,11 +64,11 @@ locust --credential CREDENTIAL --session SESSION client run \
   --goal GOAL --attempt ATTEMPT --prompt PROMPT
 ```
 
-For pi, add `--native-session /PATH/TO/FILE`. Locust picks no model provider
+For pi, add `--native-session /PATH/TO/FILE`. locust.farm picks no model provider
 and keeps the agent's approval settings.
 
 Launch states: Launching (recorded before start), Started (process running),
-Ready (Locust tools answered), Blocked (approval settings refused a tool call),
+Ready (locust.farm tools answered), Blocked (approval settings refused a tool call),
 Exited and Unknown. `client recover` marks an interrupted launch Unknown; it
 never starts or stops a process.
 
@@ -79,6 +79,6 @@ never starts or stops a process.
 
 Agents check for work with `pending` and `wait` (MCP: `locust_pending`,
 `locust_wait`). Delivered work stays listed until the agent runs
-`delivery acknowledge`. Locust does not wake a closed agent; agent hooks are not
+`delivery acknowledge`. locust.farm does not wake a closed agent; agent hooks are not
 built. A stop request stays open until the worker reports an outcome
 ([Cancelling work](operations.md#cancelling-work)).

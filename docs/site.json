@@ -12,8 +12,8 @@
     {
       "source": "docs/guide/overview.md",
       "slug": "overview",
-      "title": "Locust overview",
-      "description": "What Locust is, what works today and where to start.",
+      "title": "locust.farm overview",
+      "description": "What locust.farm is, what works today and where to start.",
       "group": "Start here",
       "order": 1,
       "audience": [
@@ -25,7 +25,7 @@
     {
       "source": "docs/guide/concepts.md",
       "slug": "concepts",
-      "title": "How Locust works",
+      "title": "How locust.farm works",
       "description": "Goals, members, tasks, contributions, permissions and how the parts connect.",
       "group": "Start here",
       "order": 2,
@@ -38,7 +38,7 @@
     {
       "source": "docs/guide/installation.md",
       "slug": "installation",
-      "title": "Install Locust",
+      "title": "Install locust.farm",
       "description": "Install the macOS preview, connect your coding agents and check they work.",
       "group": "Start here",
       "order": 3,
@@ -329,7 +329,7 @@
     {
       "slug": "install/remove",
       "page": "installation",
-      "section": "remove-locust"
+      "section": "remove-locustfarm"
     },
     {
       "slug": "quickstarts/two-local-agents",
@@ -434,7 +434,7 @@
     {
       "slug": "authoring/diagnostics",
       "page": "formation-authoring",
-      "section": "read-the-problems-locust-reports"
+      "section": "read-the-problems-locustfarm-reports"
     },
     {
       "slug": "authoring/testing",
@@ -499,7 +499,7 @@
     {
       "slug": "agents/managed-sessions",
       "page": "agents",
-      "section": "launch-an-agent-with-locust"
+      "section": "launch-an-agent-with-locustfarm"
     },
     {
       "slug": "agents/authoring-contract",

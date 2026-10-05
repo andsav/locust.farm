@@ -93,7 +93,7 @@ locust rules bind --goal GOAL --expected RULES_REVISION \
   --formation-json "$(cat team.json)" --roles '{"reviewer":["MEMBER_KEY"]}'
 ```
 
-If the rules changed since you read them, Locust refuses. New rules apply to new
+If the rules changed since you read them, locust.farm refuses. New rules apply to new
 tasks; existing tasks keep theirs. To move an active task to the current rules,
 run `task revise` with `--expected-round`. Drafts are in
 [Write a formation](formation-authoring.md).

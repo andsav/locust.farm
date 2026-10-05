@@ -2,7 +2,7 @@
 
 Status: built. The public installer supports macOS on Apple Silicon only. The Linux service code is not tested on Linux.
 
-User steps are in [Install Locust](guide/installation.md). The setup prompt in
+User steps are in [Install locust.farm](guide/installation.md). The setup prompt in
 [first contact](first-contact.md#entry-prompt) runs them through an agent.
 
 ## Ways to install
@@ -15,7 +15,7 @@ User steps are in [Install Locust](guide/installation.md). The setup prompt in
 curl -fsSL https://locust.farm/downloads/install.sh | sh
 ```
 
-Both end with `install plan` and `install apply`. Locust never updates itself;
+Both end with `install plan` and `install apply`. locust.farm never updates itself;
 run the installer again to update.
 
 ## What the public installer checks
@@ -95,7 +95,7 @@ It refuses a list that drops an earlier withdrawal, and any other trust key. No
 command changes the key of a prefix.
 
 An interrupted install can leave a `.stage-*` folder or an inactive complete
-release. Locust never activates a partial copy, and checks a complete one again
+release. locust.farm never activates a partial copy, and checks a complete one again
 before using it. Unknown staging folders stay for you to inspect.
 
 A running daemon keeps its old code. `install apply` reports
@@ -138,14 +138,14 @@ locust --json service plan --prefix /PATH/TO/PREFIX --kind launchd --profile-hom
   `stdout.log` and `stderr.log`. launchd restarts the daemon unless it exits
   cleanly; systemd restarts it on failure.
 - [service_install.rs](../crates/locust/src/installation/service_install.rs)
-  saves an ownership record before it creates the unit. Locust never takes over a
+  saves an ownership record before it creates the unit. locust.farm never takes over a
   unit it did not create and refuses an edited one.
 - `service start` restarts a loaded service. Use it after an upgrade.
 - Right after start or stop, `service status` can say `unavailable`. Check again
   until it settles, then run `locust --owner doctor`.
 - `service remove` needs a stopped service. It keeps the data and logs.
 
-Locust creates no root daemon or system service.
+locust.farm creates no root daemon or system service.
 
 ## Agent setup
 
@@ -179,13 +179,13 @@ Setup writes:
   ([launcher.rs](../crates/locust/src/installation/setup/launcher.rs)). It does
   not isolate the agent from the owner credential.
 
-Setup refuses when the workspace or a parent folder already has a Locust MCP
-entry or skill. It also refuses when the profile has another Locust entry or a
+Setup refuses when the workspace or a parent folder already has a locust.farm MCP
+entry or skill. It also refuses when the profile has another locust.farm entry or a
 project configuration folder is a symlink.
 
 Records under `PREFIX/setup/` let an interrupted write resume. Removal restores
 the original file if nothing else changed it; otherwise it removes only the
-Locust entry. An edited Locust entry, skill or script is kept and reported.
+locust.farm entry. An edited locust.farm entry, skill or script is kept and reported.
 
 Setup never grants permissions, changes approval settings or copies provider
 credentials. It reports `reload_required`: the agent sees the change after a
@@ -243,8 +243,8 @@ locust --home /PATH/TO/DATA doctor --client codex
 
 `doctor` reads the journal and checks the release, service, daemon access,
 saved identity, MCP entry, skill, script and workspace. Each failed check names a
-fix. It changes nothing. To see whether the agent loaded Locust, start a new chat
-and ask for its Locust status.
+fix. It changes nothing. To see whether the agent loaded locust.farm, start a new chat
+and ask for its locust.farm status.
 
 ## How this is tested
 

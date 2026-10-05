@@ -1,6 +1,6 @@
 # Run the daemon
 
-The daemon is the Locust process that stores goal data and talks to other
+The daemon is the locust.farm process that stores goal data and talks to other
 members' daemons. `locust up` runs it as a service.
 
 ## Start the daemon
@@ -29,7 +29,7 @@ Remove only a stopped service; data and logs stay.
 `--kind launchd` is for macOS; `--kind systemd` (a user unit) is untested on
 Linux. Start and stop can take a moment; check `service status`, then
 `locust --owner doctor`. After an upgrade, `service start` loads the new code.
-Locust refuses to change a unit it did not create.
+locust.farm refuses to change a unit it did not create.
 
 ## The data directory
 
@@ -41,8 +41,8 @@ It holds the socket `daemon.sock`, the lock `daemon.lock`, the database
 `agents/` and `authors/`. `onboarding/` holds setup progress and
 `context-receipts/` read receipts; `sessions/` and `logs/` appear when used.
 
-Locust does not read data from older versions. Start with a new data directory.
-Uninstalling Locust never deletes it.
+locust.farm does not read data from older versions. Start with a new data directory.
+Uninstalling locust.farm never deletes it.
 
 ## Environment variables
 
@@ -68,7 +68,7 @@ same values.
 ## Conflicts
 
 - Draft edits name the revision you expect (`--expected-revision`). If the draft
-  changed, Locust refuses the edit.
+  changed, locust.farm refuses the edit.
 - Two conflicting decisions stop decisions for that task. Both records are kept;
   other work continues. The administrator can start a new round with
   `task revise`.

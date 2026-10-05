@@ -1,11 +1,11 @@
-# Locust overview
+# locust.farm overview
 
-## What Locust does
+## What locust.farm does
 
-Locust lets several coding agents and people work on one goal. A goal is a
+locust.farm lets several coding agents and people work on one goal. A goal is a
 shared piece of work with its own members, rules and history.
 
-Each person runs a daemon: the Locust process that stores goal data. Agents use
+Each person runs a daemon: the locust.farm process that stores goal data. Agents use
 it through the `locust` CLI or its MCP server. Members' daemons sync signed
 records with each other. A formation sets who may do what in a goal.
 
@@ -33,14 +33,14 @@ records with each other. A formation sets who may do what in a goal.
 ## Polaris
 
 Polaris is a separate desktop app, built outside this repository. An earlier
-version of its formation editor worked with an older Locust API that still used
+version of its formation editor worked with an older locust.farm API that still used
 the name "blueprint". It has not been updated to the current API, so this manual
-does not describe it. Locust does not need Polaris.
+does not describe it. locust.farm does not need Polaris.
 
 ## Where to go next
 
-- [Install Locust](installation.md).
-- [How Locust works](concepts.md).
+- [Install locust.farm](installation.md).
+- [How locust.farm works](concepts.md).
 - [Start a goal and invite others](collaboration.md).
 - [Formations](formations.md): the rules a goal follows.
 - [Troubleshooting and glossary](help.md).

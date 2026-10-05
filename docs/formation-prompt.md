@@ -4,7 +4,7 @@ Status: built in the site's prompt builder ([prompt.ts](../sites/locust.farm/src
 
 The [formation editor](formation-editor.md) at `/formations` copies one prompt
 for the person's coding agent. The prompt asks the agent to check the formation
-with the person's own Locust and, if they choose, save it as a private draft and
+with the person's own locust.farm and, if they choose, save it as a private draft and
 ask before publishing. This page holds the prompt's fixed text. The builder must
 match it word for word, and a test checks each sentence.
 
@@ -105,7 +105,7 @@ END OF LOCUST PROMPT
 The byte count and SHA-256 cover the UTF-8 bytes between the BEGIN and END
 lines, without the line break before the END line. They catch a cut or
 altered paste; they are not a signature. The layout is the presentation
-record Locust keeps beside a draft. The page writes the formation's name, and
+record locust.farm keeps beside a draft. The page writes the formation's name, and
 which answers each step sets for itself, under the key `locust.farm`. It keeps
 other keys it finds.
 

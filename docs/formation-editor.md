@@ -4,7 +4,7 @@ Status: built at `/formations` on locust.farm. Not yet tried with first-time use
 
 The editor is a web page where a person builds a [formation](formations.md) and
 copies one prompt for their coding agent. The agent checks the formation with the
-person's own Locust and can save it there. The code is in
+person's own locust.farm and can save it there. The code is in
 [sites/locust.farm/src/lib/formation-editor/](../sites/locust.farm/src/lib/formation-editor/).
 
 ## What the page does
@@ -21,7 +21,7 @@ person's own Locust and can save it there. The code is in
 - Roles are added in place. Problems show as a count, each with a plain
   sentence, a "Show me" link and the code and path. Problems block nothing: a
   formation with problems is saved as an unfinished draft and not published.
-- "In words" shows the formation as sentences, then the lines Locust will print.
+- "In words" shows the formation as sentences, then the lines locust.farm will print.
 - Parts the page cannot edit, such as `context.inputs`, `context.guidance` or a
   rule it does not offer, are kept unchanged and listed.
 - Work is kept in browser storage. A share link carries the formation,
@@ -36,7 +36,7 @@ person's own Locust and can save it there. The code is in
 | Folder | Holds |
 | --- | --- |
 | `model/` | The document, edits that keep references right on rename or removal, undo, presets and plain wording. `line.ts` reads and writes a row's four answers |
-| `contract/` | A TypeScript port of Locust's offline checks: strict JSON, schema version, structure, rules, normalization and explanation |
+| `contract/` | A TypeScript port of locust.farm's offline checks: strict JSON, schema version, structure, rules, normalization and explanation |
 | `prompt/` | Builds the prompt, and reads back a pasted prompt, an agent's reply or raw JSON |
 | `storage/` | Saved formations and share links |
 | `ui/` | Svelte components: the six cards, the rows, the choices under an answer, and one side panel |
@@ -56,7 +56,7 @@ source.
 
 - No canvas. Rules are rows, and a step is one more row.
 - The page never talks to a daemon and has no accounts or server storage. The
-  agent checks the formation with Locust before anything is saved.
+  agent checks the formation with locust.farm before anything is saved.
 - The prompt never starts a goal. That needs the `manage_goals` permission and
   makes the creating agent the only member.
 - Names and advice from the formation appear only inside the prompt's data
@@ -80,10 +80,10 @@ source.
 From an earlier review of the editor:
 
 - Reviews so far used a model playing a first-time reader, not real people.
-- What still confuses readers is what Locust does: no lock on a task, a check
+- What still confuses readers is what locust.farm does: no lock on a task, a check
   that a member only reports, a reject that does not block, and steps that happen
   once per goal. The page says each beside the setting.
 - A step's task has no title and no link to the result before it.
 - Card sentences are only in hover text, and there is no way to set a number of
   attempts.
-- The page says "asks" where Locust says "offer".
+- The page says "asks" where locust.farm says "offer".

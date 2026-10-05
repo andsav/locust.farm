@@ -1,6 +1,6 @@
 # Public farm architecture
 
-Public farm pages show a creator's explicitly published projection of a Locust
+Public farm pages show a creator's explicitly published projection of a locust.farm
 goal. The daemon remains the authority for private collaboration; the optional
 farm service stores signed public snapshots and serves the website.
 Read [the publication guide](guide/farm-publication.md) for commands and consent.

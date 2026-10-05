@@ -5,7 +5,7 @@ Status: built.
 ## 1. What the manual is
 
 The public manual is the user guide in `docs/guide/`, starting at
-[guide/overview.md](guide/overview.md). Its readers are people who run Locust and
+[guide/overview.md](guide/overview.md). Its readers are people who run locust.farm and
 the coding agents they use. The website renders it under `/docs/next/`, behind
 the site password. Release bundles include it as `manual.tar`, and installation
 keeps that file next to the binary.
@@ -102,9 +102,9 @@ real content.
 
 | Group | Slugs | What the reader gets |
 | --- | --- | --- |
-| Introduction | `overview`, `architecture`, `status` | What Locust does, how the parts fit together, and what works today |
+| Introduction | `overview`, `architecture`, `status` | What locust.farm does, how the parts fit together, and what works today |
 | Installation | `install`, `install/local-candidate`, `install/macos`, `install/linux` | How to install the preview or a package by hand, and what is known about Linux |
-| Setup and removal | `install/onboarding`, `install/verify`, `install/fresh-state`, `install/remove` | How to connect agents, check that setup worked, start with a new data directory and remove Locust |
+| Setup and removal | `install/onboarding`, `install/verify`, `install/fresh-state`, `install/remove` | How to connect agents, check that setup worked, start with a new data directory and remove locust.farm |
 | First collaboration | `quickstarts/two-local-agents`, `quickstarts/invite-a-person` | How to create or join a goal, admit members, grant permissions and see the first shared result |
 | Working with code | `quickstarts/share-a-snapshot`, `quickstarts/contribute-and-review`, `quickstarts/apply-a-patch` | How to share exact files, publish and review a contribution, and apply a chosen patch safely |
 | Core model | `concepts/goals-tasks`, `concepts/participants-roles`, `concepts/context-artifacts`, `concepts/attempts-contributions` | Goals, members, roles, tasks, attempts, contributions and shared files |
@@ -112,10 +112,10 @@ real content.
 | Formations | `organization/formations`, `organization/presets`, `organization/composition` | How to choose a formation, what the presets do, and how steps and task types work |
 | Completion and change | `organization/completion`, `organization/lifecycle` | What makes a result count, what happens when several count, and how drafts, publishing and rule changes work |
 | Writing formations | `authoring/with-your-agent`, `authoring/schema`, `authoring/examples` | How to have your agent draft, check, explain and publish a formation, and the schema and examples |
-| Formation problems | `authoring/diagnostics`, `authoring/testing`, `authoring/custom-patterns` | How to fix validation errors, test a formation and combine the rules Locust supports |
+| Formation problems | `authoring/diagnostics`, `authoring/testing`, `authoring/custom-patterns` | How to fix validation errors, test a formation and combine the rules locust.farm supports |
 | Polaris | `polaris/overview`, `polaris/visual-authoring`, `polaris/round-trip`, `polaris/observe-work` | What Polaris is and why this manual does not describe it |
 | Coding agents | `agents/overview`, `agents/codex`, `agents/claude-code`, `agents/pi`, `agents/droid`, `agents/other-harnesses` | How to connect Codex, Claude Code, pi, Droid or another agent, and what each setup writes |
-| Agent sessions | `agents/managed-sessions`, `agents/authoring-contract` | How to run an agent under Locust, resume it, see its pending work, and find the formation tools |
+| Agent sessions | `agents/managed-sessions`, `agents/authoring-contract` | How to run an agent under locust.farm, resume it, see its pending work, and find the formation tools |
 | Sharing | `sharing/visibility`, `sharing/snapshots`, `sharing/membership` | What members can read, which files are shared, and how invitations and removal work |
 | Trust and retention | `sharing/trust`, `sharing/retention` | Credentials, encryption, network metadata, and why removing a member cannot erase their copies |
 | Operations | `operations/services`, `operations/offline-recovery`, `operations/conflicts` | How to run the daemon as a service, restart and reconnect, and handle conflicting records |

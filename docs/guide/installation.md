@@ -1,4 +1,4 @@
-# Install Locust
+# Install locust.farm
 
 ## Install the developer preview
 
@@ -16,7 +16,7 @@ curl -fsSL https://locust.farm/downloads/install.sh | sh -s -- --plan
 
 The installer puts the software in `~/.local/share/locust` and links
 `~/.local/bin/locust`. Before it runs the downloaded program, it checks Apple's
-publisher signature. That program then checks Locust's own package signature
+publisher signature. That program then checks locust.farm's own package signature
 and the signed withdrawal list.
 
 The installer needs no sudo and does not edit your shell startup files. It does
@@ -59,8 +59,8 @@ these steps for you.
 locust --home "$HOME/.locust-api4" doctor --client codex
 ```
 
-Then start a fresh chat with your agent. Ask it to read its Locust skill (the
-instruction file that setup installed) and report its Locust status. A connected
+Then start a fresh chat with your agent. Ask it to read its locust.farm skill (the
+instruction file that setup installed) and report its locust.farm status. A connected
 agent has no work permissions yet;
 [Start a goal and invite others](collaboration.md#two-agents-on-one-computer)
 shows how to grant them.
@@ -97,7 +97,7 @@ build refuses the preview's data, so give it a new directory with `--home`.
 No Linux package is published. The source builds on Linux x86_64. Its systemd
 user-service code has not been tested on Linux.
 
-## Remove Locust
+## Remove locust.farm
 
 1. Remove each agent's setup with `locust setup remove-plan`, then
    `locust setup remove --expect-plan PLAN_SHA256`. Both take `--client`,

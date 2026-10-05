@@ -2,7 +2,7 @@
 
 Status: published 2026-10-04 as a developer preview. Not production ready.
 
-This is the record of one release: Locust 0.1.0 for macOS on Apple Silicon, API 4.
+This is the record of one release: locust.farm 0.1.0 for macOS on Apple Silicon, API 4.
 It holds the CLI, the daemon and the MCP server. The current source is newer
 (API 5). Install it with:
 

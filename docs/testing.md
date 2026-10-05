@@ -94,7 +94,7 @@ network traffic with macOS `sandbox-exec`.
 
 Some runs use permission-bypassing modes, such as Claude Code's
 `--dangerously-skip-permissions`. They are used only inside these isolated test
-runs. Locust's setup never writes them into a profile.
+runs. locust.farm's setup never writes them into a profile.
 
 | Script | What it runs | What it needs |
 | --- | --- | --- |
@@ -105,7 +105,7 @@ runs. Locust's setup never writes them into a profile.
 | [check_managed_recovery.py](../scripts/check_managed_recovery.py) | Kills the launcher; recovery must report `Unknown` and refuse a second launch | Same as above |
 | [check_installed_clients.py](../scripts/check_installed_clients.py) | Installs a test-signed package, runs `up`, then a full task with Codex, Claude Code or pi | `--bootstrap`, `--bundle`, `--output`, `--timeout-ms` |
 | [check_collaboration_acceptance.py](../scripts/check_collaboration_acceptance.py) | Codex and Merak (a separate coding agent) with real models: permission stop, patch, revision, peer review, apply | `--merak`, `--codex`, `--model`, `--output` |
-| [check_shared_context_models.py](../scripts/check_shared_context_models.py) | Codex and Merak with real models choosing their own Locust calls | `--merak`, `--model`, `--output` |
+| [check_shared_context_models.py](../scripts/check_shared_context_models.py) | Codex and Merak with real models choosing their own locust.farm calls | `--merak`, `--model`, `--output` |
 
 Build the probes with `cargo build --locked -p locust-adapter --examples`. Runs
 with real models cost money.

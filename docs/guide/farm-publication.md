@@ -16,7 +16,7 @@ locust --owner farm on --goal GOAL --title 'Team chat' \
 locust --owner farm show --goal GOAL
 ```
 
-- Labels are public text you type; Locust never copies private names.
+- Labels are public text you type; locust.farm never copies private names.
 - `--title` and `--formation` (default "Locust farm") are optional labels.
 - `--stage-label` and `--role-label` take `ID=Label` and can repeat.
 - `--recent-changes` sets how many recent changes the page lists (default 50).

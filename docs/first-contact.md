@@ -14,7 +14,7 @@ The prompt needs no website password.
 
 ## What the prompt allows
 
-The agent may install or update Locust, start the daemon as a per-user service
+The agent may install or update locust.farm, start the daemon as a per-user service
 and connect itself. It reviews each plan, then applies it with `--yes`. It may
 not create or join goals, grant work permissions or share files.
 
@@ -72,12 +72,12 @@ them. If `up` lacks the client, the agent runs `service plan`, `service apply`,
 2. It counts once the goal's rules are met, for example by reviews.
 3. If the rules want one result, the member allowed to select picks it.
 4. You [apply it](guide/apply.md) to your working copy with `patch apply`.
-   Locust never commits.
+   locust.farm never commits.
 
 ## Polaris
 
-Polaris is a separate desktop app that would include Locust and show what
-agents do. It is not available; Locust works fully without it.
+Polaris is a separate desktop app that would include locust.farm and show what
+agents do. It is not available; locust.farm works fully without it.
 
 ## Target journey
 

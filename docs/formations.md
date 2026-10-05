@@ -11,10 +11,10 @@ pages [Formations](guide/formations.md) and
 
 ## Name
 
-Formations were called blueprints before. Locust renamed them because Merak uses
+Formations were called blueprints before. locust.farm renamed them because Merak uses
 "blueprint" for its execution graphs, and Polaris, a separate desktop app, keeps
 that word for its own graphs. The rename covered the CLI, API operations, MCP
-tools, hash domains, examples and docs. It has no aliases, so a Locust build from
+tools, hash domains, examples and docs. It has no aliases, so a locust.farm build from
 before the rename does not match today's API.
 
 ## Document format
@@ -89,7 +89,7 @@ author acknowledges the request.
   author.
 - `reviews {by, count, exclude_author}`: `count` distinct members approve it.
   `exclude_author` defaults to true.
-- `check {name, by}`: a member reports that a named check passed. Locust does not
+- `check {name, by}`: a member reports that a named check passed. locust.farm does not
   run the check.
 - `all` and `any`: combine several rules.
 
@@ -139,7 +139,7 @@ to exactly one member. At creation the creator is the only member, so roles can
 name only the creator. The administrator admits others and then runs `rules bind`.
 
 `rules bind --expected RULES_REVISION` changes the goal's defaults. The revision
-is the ID of the current rules event; if it changed, Locust refuses the update. New tasks use the new rules;
+is the ID of the current rules event; if it changed, locust.farm refuses the update. New tasks use the new rules;
 existing tasks keep the rules they were opened under. `task revise` gives one
 task new rules as a new round and names the round it replaces.
 
@@ -159,7 +159,7 @@ result. Clocks and arrival order never decide anything.
   continues.
 - **Missing records.** An event that depends on records not yet received waits.
   It is never counted as a rejection.
-- **Reviews.** Locust counts distinct approving members that the rule allows, and
+- **Reviews.** locust.farm counts distinct approving members that the rule allows, and
   leaves out the author when the rule says so. A reject is recorded but is not a
   veto. Several results can count at once. A task round is complete when any
   result counts or one is selected.
@@ -201,7 +201,7 @@ saves the inbox entry and sends a receipt, and resumes after a restart; see
 
 Delivery is not execution. The receipt, the agent's acknowledgment and the start
 of work are separate records. The agent still needs the `execute` permission, and
-Locust does not start or wake agents.
+locust.farm does not start or wake agents.
 
 ## Private catalog
 

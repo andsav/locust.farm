@@ -4,7 +4,7 @@ Last reviewed 2026-10-04.
 
 ## Published
 
-- Locust 0.1.0, a developer preview. It runs on macOS on Apple Silicon only and
+- locust.farm 0.1.0, a developer preview. It runs on macOS on Apple Silicon only and
   uses API 4 and protocol 4.
 - Install it with the first command. The second shows the plan without
   installing.
@@ -96,7 +96,7 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
 - Real models and interactive approval prompts were not tested on the preview's
   bytes.
 - Farm pages show Droid agents as an unknown coding agent.
-- The Polaris desktop app's source pins an API 4 Locust SDK, so it does not match
+- The Polaris desktop app's source pins an API 4 locust.farm SDK, so it does not match
   the current source.
 
 ## Not built yet
@@ -105,7 +105,7 @@ version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
 - A way for members to read a formation's `context.guidance`. The daemon stores it
   but no command returns it.
 - Hooks, and automatic wake of a closed agent. An agent sees new work only when it
-  calls Locust.
+  calls locust.farm.
 - Backup and restore.
 - Linux packages.
 - Closing the whole goal. `scope close` on the goal is recorded and changes

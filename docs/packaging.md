@@ -62,7 +62,7 @@ different binaries.
 | `files` | `path`, `sha256`, `size` and `mode` of each file |
 
 `files` lists exactly `locust` (mode 493, that is 0755), `skills/locust/SKILL.md`
-and `manual.tar` (mode 420, that is 0644). Locust refuses unknown fields and any
+and `manual.tar` (mode 420, that is 0644). locust.farm refuses unknown fields and any
 other set of files. The manifest's SHA-256 identifies the package; the version
 alone does not.
 
