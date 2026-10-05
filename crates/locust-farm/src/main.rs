@@ -93,8 +93,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
                 loop {
                     interval.tick().await;
-                    if let Err(error) = maintenance.expire() {
-                        eprintln!("farm retention error: {error}");
+                    let service = maintenance.clone();
+                    match tokio::task::spawn_blocking(move || service.expire()).await {
+                        Ok(Ok(())) => {}
+                        Ok(Err(error)) => eprintln!("farm retention error: {error}"),
+                        Err(error) => eprintln!("farm retention join error: {error}"),
                     }
                 }
             });

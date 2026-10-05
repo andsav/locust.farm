@@ -24,6 +24,13 @@ projections and tombstones in SQLite, and exposes public snapshots and SSE.
 Monotonic sequence and request identity make interrupted uploads reconcilable.
 A service receipt, creator observation and private peer sync are different facts.
 
+HTTP and SSE database work runs on blocking threads behind a single semaphore
+permit, held until the work finishes even if its request is cancelled. Rate
+accounting and stream cleanup use separate metadata locking. Gallery pages use
+indexed per-farm lookups at a frozen history position; retention uses an indexed
+deadline rather than scanning all farms on each viewer poll. The service's
+regression tests check populated-page query work, cancellation and stream cleanup.
+
 The static SvelteKit website displays the full snapshot and ordered full-state
 updates. Its stage map and task table show observed work, with a keyboard-readable
 view of each task. Quiet means no recent receipt; it does not mean execution
