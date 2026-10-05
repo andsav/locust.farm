@@ -40,6 +40,16 @@ session-model cases matched their expected outcomes; the
 safety checks from witness and mutation counterexamples. No real-agent campaign,
 two-host run or packaged release was performed for this pass.
 
+Implementation update, 2026-10-05, surface pass: eight of the surface defects
+below are fixed and marked where they are listed. Each was reproduced on the
+API 6 binary first, fixed at its cause with a regression test that fails without
+the fix, and checked again by a separate reviewer on a throwaway daemon. A
+cancellation request left on an attempt that has already ended is no longer
+listed as pending; listed without its claim it kept `client run` from exiting.
+The wire, store and API shapes are unchanged. Two answers changed code: an
+unknown `ctx:` reference is `not_found`, not `invalid`, and `wait` refuses a
+`seen` ahead of the goal's revision as `invalid`. No real-agent campaign was run.
+
 The question was what would make locust.farm easy for coding agents to use while
 they work together on one goal. Here the agent is the user: a model that pays
 tokens for every tool description, argument and result, forgets across
@@ -218,21 +228,26 @@ Lifecycle:
 Awareness and surface:
 
 - An author credential gets `-32000` from `tools/list`, so a client registers no
-  tools for it.
+  tools for it. Fixed: the list follows the kind of credential.
 - `wait` with a `seen` above the current revision returns at once, every time.
-  A `blob put` that no event names raises the revision and wakes every waiter.
+  Fixed: it is refused. A `blob put` that no event names raises the revision and
+  wakes every waiter; that half is open.
 - A quiet `wait` exits 20 and a disconnected one 21 on an `ok: true` result.
-  Neither code is documented.
+  Neither code is documented. Fixed: both are documented; the codes are unchanged.
 - Text-mode `pending` prints `locust context read --goal G --limit 20`, which
-  fails for the missing `--view`.
+  fails for the missing `--view`. Fixed, with a test that parses every printed
+  command.
 - The skill prescribes `contribution publish --source EVENT`; the flag is
-  `--sources`.
+  `--sources`. Fixed.
 - CLI output piped into a closed reader panics with exit 101
-  (`locust --help | head -2`).
+  (`locust --help | head -2`). Fixed: the command ends quietly with its own
+  status.
 - 17 tools carry `destructiveHint: true` by fall-through, including
   `attempt_start`.
 - An unknown `ctx:` reference answers with an OS error text and the same
-  message for a typo and for another session's receipt.
+  message for a typo and for another session's receipt. Fixed: it answers
+  `not_found` and says to read context again. The `initialize` instructions and
+  argument errors now use tool names.
 
 Sessions and launch:
 
@@ -253,7 +268,8 @@ Files:
 - `locust_workspace_set` over MCP repoints the directory binding that
   `patch create` trusts. An agent set an unrelated directory and stored its file
   in the goal.
-- `locust workspace set` on the CLI panics.
+- `locust workspace set` on the CLI panics. Gone: the workspace replacement
+  removed the command, and no current `workspace` subcommand panics.
 - A repeated `patch submit` publishes a second contribution and a second review
   obligation; the command refuses an idempotency key.
 - A manifest named only by `rules bind --inputs` is never fetched by peers
