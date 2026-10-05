@@ -4,14 +4,20 @@ Status: investigation of 2026-10-05. Source read at `5e9d592`; behaviour run on
 the binary `0.1.0 (98d03af6ce6a-dirty) api 5 protocol 5`. It records measured
 results, reproduced defects and proposals at that snapshot.
 
-Amended after a source review on 2026-10-05 at `01b8fbb` with the shared-file-tree
-replacement present as uncommitted work. The historical measurements below are
-unchanged. The review did not rerun the audit, the tests, or a real-model campaign.
-The current working tree already registers agent-facing `workspace.tree` and
-`workspace.read` in [api.rs](../crates/locust-proto/src/api.rs); that is source
-evidence, not runtime qualification. Reconcile file-related findings and proposals
-against the replacement before implementation. Do not restore superseded patch
-APIs to fix historical defects.
+Amended after source reviews on 2026-10-05, most recently against `aca601a`,
+which landed signed shared workspaces and recoverable checkouts. This is the
+implementation baseline for remediation. The historical measurements below are
+unchanged. The reviews did not rerun the audit, Rust suites or a real-model
+campaign. The [workspace implementation record](../docs/workspace.md) records
+passing repository gates and same-host native campaigns; two-host, release and
+agent-ergonomics qualification remain separate. Documentation checking passed
+after the landing.
+
+Agent-facing `workspace.tree` and `workspace.read` are registered in
+[api.rs](../crates/locust-proto/src/api.rs). Retire fixes to removed `patch` and
+`workspace.set` APIs from the active backlog; retain their findings below as
+historical evidence. Verify equivalent invariants on the replacement without
+restoring superseded APIs.
 
 The question was what would make locust.farm easy for coding agents to use while
 they work together on one goal. Here the agent is the user: a model that pays
@@ -77,6 +83,11 @@ Five changes would do most of the work:
 Words (tool descriptions, the skill) come after the behaviour they describe.
 
 ## What an agent meets today
+
+This section describes the original audit snapshot, not `aca601a`. Before making
+cost or usability comparisons, measure the landed tool count, catalog bytes,
+descriptions, identifier burden and minimum complete worker/reviewer paths again.
+Use that refreshed baseline for remediation thresholds.
 
 Surface, read from `locust contract` and the bridge, then confirmed on the wire:
 
@@ -255,6 +266,14 @@ Ship accurate descriptions with each behavioral change. Track 5 supplies the
 remaining documentation and checks, rather than delaying essential instructions.
 The verifier's change is stated where it reversed the first design.
 
+The first implementation pass remains lifecycle remediation. Source inspection
+of [claims.rs](../crates/locust-core/src/node/requests/claims.rs) found that
+cancellation acknowledgment emits no terminal report, claim validation rejects
+any cancellation history, and completion reporting has no result guard. Reproduce
+these against the landed baseline, and test pending/start consistency in
+[views.rs](../crates/locust-core/src/node/views.rs). Keep independent attempts
+permitted where the formation allows them.
+
 ### 1. Guards, defects and free bytes
 
 Prefer fixes within existing records and storage. Validate API and replicated
@@ -263,6 +282,11 @@ cannot be assumed to require no contract change.
 
 - Refuse `completed` in `attempt report` when no effective result names the
   attempt, with an explicit escape. Name the task-bound publish in the refusal.
+  Define result evidence separately from workspace integration: a worker may
+  report a published result referencing its proposal while review or integration
+  remains pending with another participant. Do not require accepted workspace
+  head advancement to finish the worker's attempt. Test attempt completion, task
+  completion under its formation, and workspace acceptance as distinct states.
 - Make `cancel acknowledge` end the attempt: `stopped` also signs an abandoned
   report; `completed` is refused without a result; `uncertain` stays fenced
   except for ending. Update the cancellation case in the
@@ -285,9 +309,10 @@ cannot be assumed to require no contract change.
 - Correct the annotations: starting, declining and acknowledging are additive.
   Anything that ends an attempt stays destructive.
 - Stop raising the goal revision for a stored blob no event names.
-- Fix the printed command, the skill's `--source`, the broken-pipe panic and the
-  `workspace set` panic if still applicable after the replacement. Verify that
-  agent calls cannot widen an owner-approved local directory binding. Document
+- Reproduce and fix the printed command, the skill's `--source` and the
+  broken-pipe panic on the landed interface. The removed `workspace.set` panic
+  is no longer an implementation target. Verify local binding authority through
+  current checkout registration, session binding and CLI capture paths. Document
   or remove exit codes 20 and 21.
 
 Exit: no attempt ends completed without a result; an acknowledged cancellation
@@ -363,7 +388,9 @@ response; a rejected author sees an item; after an induced compaction the first
 
 ### 4. Identifiers and defaults in the client layer
 
-No daemon change. `locust call` stays exact.
+Keep resolution and display in the client layer. `locust call` stays exact.
+Recovery may use existing daemon operations; justify any additional state only
+after reviewing the landed durable operation contract.
 
 - One resolver for the bridge and the named CLI: goal title, unique hex prefix,
   nested forms. An ambiguous prefix fails with the candidates, described by
@@ -378,7 +405,14 @@ No daemon change. `locust call` stays exact.
   Preserve the session, principal and generation checks in
   [claims.rs](../crates/locust-core/src/node/requests/claims.rs). A takeover must
   leave writes from the old claim rejected, including after bridge restart.
-- The bridge mints and journals a random retry key per uncertain write.
+- Evaluate the landed prepare/publish/receipt machinery before introducing a
+  bridge journal. Reuse workspace operation identities and receipt lookup for
+  workspace writes; do not create a second competing recovery record. See the
+  [operation types](../crates/locust-proto/src/api/workspace.rs),
+  [handlers](../crates/locust-core/src/node/requests/workspace.rs) and
+  [recovery contract](../docs/workspace.md). These are workspace-specific, not
+  proof that arbitrary task writes already support durable continuation.
+  For writes still needing retry keys, the proposed bridge mints a random key.
   *Changed:* a key derived from the request cannot tell a retry from a new
   intent; an identical `scope close` after a reopen answered ok and did nothing.
   A random key alone does not solve this either. Persist an operation identity,
@@ -387,8 +421,10 @@ No daemon change. `locust call` stays exact.
   a new identity even with identical arguments. Until that association is
   defined, retain explicit retry keys rather than promising transparent retries.
 
-Exit: identifier characters typed in the 15-call MCP core loop fall from about
-1,800 to under 500; no "expected a hex identifier" errors in real-model runs.
+Exit: identifier characters fall against the remeasured landed MCP core loop;
+set a target from that baseline before evaluation. The historical 1,800-to-500
+target is not a measurement of the workspace interface. No "expected a hex
+identifier" errors occur in the paired real-model runs.
 
 ### 5. The words, and gates that keep them true
 
@@ -401,14 +437,17 @@ Exit: identifier characters typed in the 15-call MCP core loop fall from about
 - Gates in the test suite: every name in a description, instruction or skill
   exists and parses; no dotted operation name in any MCP-facing string; the
   skill frontmatter parses; a ceiling on catalog size. Real descriptions for all
-  51 tools come to 60 to 67 KB against 34.6 KB today, so the ceiling matters.
+  original 51 tools were estimated at 60 to 67 KB against the old 34.6 KB catalog.
+  Remeasure the landed catalog before setting any regression threshold.
 
 This step claims accuracy and size only. Whether words change behaviour is the
 weakest claim in this note; see the benchmark below.
 
-### 6. The protocol bump, with the shared file tree's stage 3
+### 6. Result semantics and complete workflows on shared workspaces
 
-The only step that changes signed records.
+Shared workspace records have landed. Implement any further result-kind or
+workflow changes against that contract; assess whether they require another
+protocol change rather than scheduling the already completed workspace stage.
 
 - **A contribution kind** (result, finding, question, dead end) with full fold
   semantics: only a result can be approved, declared, selected or counted. This
@@ -423,6 +462,9 @@ The only step that changes signed records.
   with durable progress and idempotent continuation. Hiding three sequential
   writes behind one tool is insufficient. Test interruption after each boundary,
   lost replies and restart, proving no duplicate publication or false completion.
+  Reuse the existing workspace operation and receipt where it covers the write.
+  A worker's submit-and-finish must not silently review or integrate its proposal,
+  or assume it has another participant's authority.
 - An offer survives an ended attempt, with the rule added to the model.
 - Qualify the existing workspace registry reads (`workspace.tree`,
   `workspace.read`) in the replacement through an MCP-only reviewer. Provide a real
@@ -432,8 +474,10 @@ The only step that changes signed records.
   base. Every conflict reported in one result.
 
 Exit: a finding creates no review obligation; an MCP-only reviewer reads what it
-approves; a worker completes a code task with three calls on the locust.farm
-side.
+approves; a worker can publish its result and finish its attempt while authorized
+review and integration remain pending. Measure calls for both the worker path
+and the complete reviewed/integrated path against the landed baseline; replace
+the unvalidated three-call target after that measurement.
 
 ### 7. Wake, continuity and the child session
 
