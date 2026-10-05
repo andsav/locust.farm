@@ -137,19 +137,17 @@ fn task_label(task: TaskId, tasks: &[TaskView]) -> String {
         .unwrap_or_else(|| task.to_string())
 }
 
-fn command_context(goal: Option<GoalId>) -> String {
-    let mut command = "locust".to_owned();
-    if let Some(goal) = goal {
-        command.push_str(&format!(" {{operation}} --goal {goal}"));
-    } else {
-        command.push_str(" {operation} --goal <goal>");
-    }
-    command
+// Every command a view prints is complete: its reader runs it as printed, with
+// only their own connection flags or environment. A view that cannot name a
+// value prints a command that can, never a placeholder. The test
+// `every_printed_command_parses_as_printed` feeds each one to the parser.
+fn command_context(goal: GoalId) -> String {
+    format!("locust {{operation}} --goal {goal}")
 }
 
 fn pending(
     work: &PendingWork,
-    goal: Option<GoalId>,
+    goal: GoalId,
     principal: Option<PublicKey>,
     tasks: &[TaskView],
 ) -> Vec<String> {
@@ -160,13 +158,11 @@ fn pending(
             "Permission needed: {}",
             task_label(item.task, tasks)
         ));
-        let target = principal
-            .map(|key| key.to_string())
-            .unwrap_or_else(|| "<participant>".into());
-        let goal = goal
-            .map(|id| id.to_string())
-            .unwrap_or_else(|| "<goal>".into());
-        lines.push(format!("  Allow this task: locust --owner permission allow --goal {goal} --agent {target} --task {} execute", item.task));
+        lines.push(match principal {
+            Some(agent) => format!("  Allow this task: locust --owner permission allow --goal {goal} --agent {agent} --task {} execute", item.task),
+            // The owner's own view merges its participants without naming them.
+            None => "  The inbox names the participant and prints the command to allow this task: locust --owner inbox".into(),
+        });
     }
     for item in &work.to_start {
         lines.push(format!("Ready to start: {}", task_label(item.task, tasks)));
@@ -249,7 +245,7 @@ fn pending(
             news.unacknowledged, news.unavailable
         ));
         lines.push(format!(
-            "  Read attributed findings and reviews: {} --limit 20",
+            "  Read attributed findings and reviews: {} --view compact --limit 20",
             context.replace("{operation}", "context read")
         ));
     }
@@ -396,7 +392,7 @@ fn inbox(entries: &[AttentionEntry]) -> Vec<String> {
         }
         lines.extend(pending(
             &entry.pending,
-            Some(entry.goal),
+            entry.goal,
             Some(entry.agent),
             &entry.tasks,
         ));
@@ -441,7 +437,9 @@ pub(super) fn render(
                 lines.push("This participant's local standing permissions:".into());
                 lines.extend(grant_rows(view.grants));
             } else {
-                lines.push(format!("Inspect a participant's local permissions: locust --owner permission inspect --goal {} --agent <name>", view.goal));
+                for member in view.members.iter().filter(|member| member.local) {
+                    lines.push(format!("Inspect local permissions of {}: locust --owner permission inspect --goal {} --agent {}", label(member.member, names), view.goal, member.member));
+                }
             }
             for peer in &view.peers {
                 lines.push(format!("Peer {}: {} · last successful sync {}", peer.endpoint, if peer.connected { "connected" } else { "disconnected" }, peer.last_sync_ms.map(|at| format!("{at} ms since Unix epoch")).unwrap_or_else(|| "not observed".into())));
@@ -471,8 +469,8 @@ pub(super) fn render(
             lines.push(format!("Effective rules: {}", safe(&task.effective_rules_json)));
             lines
         }
-        Response::Pending(work) => pending(work, goal, principal, &[]),
-        Response::Waited(WaitOutcome::Work(work)) => pending(work, goal, principal, &[]),
+        Response::Pending(work) => pending(work, goal?, principal, &[]),
+        Response::Waited(WaitOutcome::Work(work)) => pending(work, goal?, principal, &[]),
         Response::Waited(WaitOutcome::NoEvent) => vec!["No observed change before the requested timeout.".into()],
         Response::Waited(WaitOutcome::Disconnected) => vec!["No observed change before the requested timeout. No peer of this goal is currently reachable.".into()],
         Response::Contributions(contributions) => {
@@ -596,5 +594,154 @@ mod tests {
         assert!(rendered.contains("Task permission:"));
         assert!(rendered.contains("permission revoke"));
         assert!(rendered.contains("do not stop a client process"));
+    }
+
+    /// One of everything a view can ask its reader to do next.
+    fn work() -> PendingWork {
+        use locust_proto::api::{
+            CancelItem, Claim, ContextNews, DeliveryItem, ReviewItem, WorkItem,
+        };
+        use locust_proto::id::{EffectId, EventId, InstanceId};
+        let event = EventId([4; 32]);
+        let task = TaskId::Authored(event);
+        let context = locust_proto::event::Context {
+            scope: Scope::Task(task),
+            round: event,
+        };
+        let claim = Claim {
+            goal: GoalId([1; 32]),
+            task,
+            attempt: event,
+            instance: InstanceId([5; 16]),
+            generation: 1,
+        };
+        PendingWork {
+            workspace: None,
+            revision: 7,
+            context_news: Some(ContextNews {
+                unacknowledged: 2,
+                unavailable: 0,
+            }),
+            to_authorize: vec![WorkItem { task, offer: None }],
+            to_start: vec![
+                WorkItem { task, offer: None },
+                WorkItem {
+                    task: TaskId::Derived(EffectId([6; 32])),
+                    offer: Some(event),
+                },
+            ],
+            claimed: vec![claim],
+            held_elsewhere: vec![claim],
+            to_acknowledge: vec![CancelItem {
+                task,
+                attempt: event,
+                cancel: event,
+                generation: Some(1),
+            }],
+            to_review: vec![ReviewItem {
+                subject: event,
+                context,
+            }],
+            deliveries: vec![DeliveryItem {
+                effect: EffectId([6; 32]),
+                context,
+                acknowledged: false,
+                received: true,
+                available: true,
+                action: "notify".into(),
+            }],
+        }
+    }
+
+    #[test]
+    fn every_printed_command_parses_as_printed() {
+        use super::super::args;
+        use locust_proto::api::{GoalStatus, MemberView, TaskAuthorization};
+        use locust_proto::id::{EndpointId, EventId};
+        let goal = GoalId([1; 32]);
+        let agent = PublicKey([2; 32]);
+        let entry = AttentionEntry {
+            goal,
+            title: Some("Research".into()),
+            agent,
+            name: "worker".into(),
+            halted: None,
+            grants: GoalGrants::default(),
+            pending: work(),
+            tasks: vec![],
+        };
+        let status = GoalStatus {
+            goal,
+            title: None,
+            administrator: agent,
+            governance_head: None,
+            current_rules: None,
+            scope_halts: vec![],
+            members: vec![MemberView {
+                member: agent,
+                endpoint: EndpointId([3; 32]),
+                local: true,
+            }],
+            halted: None,
+            workspace: None,
+            grants: GoalGrants::default(),
+            peers: vec![],
+        };
+        let permissions = GoalPermissions {
+            goal,
+            agent,
+            name: "worker".into(),
+            revoked: false,
+            membership: Some(Membership::Member),
+            grants: GoalGrants::default(),
+            task_authorizations: vec![TaskAuthorization {
+                task: Some(TaskId::Authored(EventId([4; 32]))),
+                round: EventId([4; 32]),
+                current: true,
+                takeover: false,
+            }],
+        };
+        // A participant's view, the owner's merged view, a wait that found
+        // work, and the owner's inbox, goal status and permission views.
+        let views = [
+            (Response::Pending(work()), Some(agent)),
+            (Response::Pending(work()), None),
+            (
+                Response::Waited(WaitOutcome::Work(Box::new(work()))),
+                Some(agent),
+            ),
+            (Response::Inbox(vec![entry]), None),
+            (Response::GoalStatus(status), None),
+            (Response::Permissions(permissions), None),
+        ];
+        let mut operations = std::collections::BTreeSet::new();
+        for (response, principal) in views {
+            let rendered = render(&response, &[], Some(goal), principal).unwrap();
+            // Whatever follows `locust` on a line is a command its reader pastes.
+            for line in rendered.lines() {
+                let Some(start) = line.find("locust ") else {
+                    continue;
+                };
+                let command = &line[start..];
+                assert!(!command.contains(['<', '>']), "placeholder in: {line}");
+                let matches = args::command()
+                    .try_get_matches_from(command.split(' '))
+                    .unwrap_or_else(|error| panic!("{line}\n{error}"));
+                operations.insert(args::selected(&matches).0);
+            }
+        }
+        assert_eq!(
+            operations.iter().map(String::as_str).collect::<Vec<_>>(),
+            [
+                "attempt.start",
+                "context.read",
+                "delivery.acknowledge",
+                "event.show",
+                "inbox",
+                "permission.allow",
+                "permission.inspect",
+                "permission.revoke",
+            ]
+        );
     }
 }
