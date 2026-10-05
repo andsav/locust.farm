@@ -1448,6 +1448,1864 @@
           "lastOutcome": "\"Acknowledged\""
         }
       ]
+    },
+    {
+      "id": "workspace-seed",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-seed.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-handoff",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-handoff.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-fork-recovery",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-fork-recovery.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-late-fork",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-late-fork.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-pending-repair",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-pending-repair.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-invalid-initial",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-invalid-initial.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-missing-initial",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-missing-initial.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-repeated-repair",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-repeated-repair.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-unseeded-fence",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-unseeded-fence.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-null-after-boundary",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-null-after-boundary.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-source-exclusion",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-source-exclusion.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-missing-source",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-missing-source.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-wrong-source",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-wrong-source.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-historical-author",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-historical-author.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-review-fork",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-review-fork.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-authority-fork",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-authority-fork.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-wrong-predecessor",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-wrong-predecessor.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-wrong-goal",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-wrong-goal.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-wrong-evidence",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-wrong-evidence.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-rules",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-rules.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-cutoff",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-cutoff.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-admin-fork",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-admin-fork.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-content",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-content.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-seed-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-seed-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-handoff-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-handoff-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-fork-recovery-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-fork-recovery-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-late-fork-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-late-fork-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-pending-repair-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-pending-repair-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-invalid-initial-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-invalid-initial-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-missing-initial-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-missing-initial-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-repeated-repair-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-repeated-repair-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-unseeded-fence-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-unseeded-fence-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-null-after-boundary-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-null-after-boundary-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-historical-author-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-historical-author-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-review-fork-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-review-fork-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-authority-fork-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-authority-fork-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-admin-fork-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-admin-fork-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-content-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-content-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-checkpoint-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-checkpoint-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "CheckpointHasAuthority"
+      ],
+      "violation": "CheckpointHasAuthority",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-fence-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-fence-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "EpochFence"
+      ],
+      "violation": "EpochFence",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-null-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-null-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "OrdinaryNullCannotErase"
+      ],
+      "violation": "OrdinaryNullCannotErase",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-source-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-source-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "SourceClosureRequired"
+      ],
+      "violation": "SourceClosureRequired",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-authors-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-authors-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "SourceAuthorsExcluded"
+      ],
+      "violation": "SourceAuthorsExcluded",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-isolation-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-isolation-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "NoGlobalForkAuthority"
+      ],
+      "violation": "NoGlobalForkAuthority",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-policy-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-policy-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "NamedPinnedAuthority"
+      ],
+      "violation": "NamedPinnedAuthority",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-cutoff-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-cutoff-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "CutoffFencesEvidence"
+      ],
+      "violation": "CutoffFencesEvidence",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-evidence-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-evidence-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ExactCandidateEvidence"
+      ],
+      "violation": "ExactCandidateEvidence",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-content-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-content-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "AuthorityIndependentOfContent"
+      ],
+      "violation": "AuthorityIndependentOfContent",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-source-cycle",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-source-cycle.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-source-cycle-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-source-cycle-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-missing-policy",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-missing-policy.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-missing-policy-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-missing-policy-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "workspace-content-invalid",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-content-invalid.cfg",
+      "expect": "pass",
+      "kind": "proposed-safety",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork"
+      ]
+    },
+    {
+      "id": "workspace-content-invalid-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "workspace"
+      ],
+      "module": "Workspace.tla",
+      "config": "configs/workspace-content-invalid-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "model_baseline": {
+        "source_commit": "5e9d5927c681ac5b36ccfb28d91347001cfe0700",
+        "status": "proposed-workspace-contract",
+        "protocol_version": 3,
+        "api_version": 3
+      },
+      "properties": [
+        "TypeOK",
+        "ReplayMatchesHeld",
+        "AuthorityIndependentOfContent",
+        "NamedPinnedAuthority",
+        "ExactCandidateEvidence",
+        "SourceClosureRequired",
+        "SourceAuthorsExcluded",
+        "CutoffFencesEvidence",
+        "EpochFence",
+        "CheckpointHasAuthority",
+        "OrdinaryNullCannotErase",
+        "NoGlobalForkAuthority",
+        "GovernanceIgnoresWork",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ]
     }
   ]
 }

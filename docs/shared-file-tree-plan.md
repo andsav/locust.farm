@@ -1,6 +1,7 @@
 # Git-independent shared file tree implementation plan
 
-Status: proposed implementation, revised 2026-10-05 after source-backed review.
+Status: implementation in progress, revised 2026-10-05 after source-backed review
+and the [bounded workspace model](../research/tla/workspace.md).
 The user has accepted the product direction: Locust owns a versioned shared tree;
 agents work in ordinary directories
 and publish selected changes. Git is optional at import/export boundaries. The
@@ -254,7 +255,7 @@ Add one administrator-authored governance event, provisionally `WorkspaceEpoch`:
 WorkspaceEpoch {
     expected_epoch: optional prior workspace-epoch event ID,
     rules: exact rules-binding event ID,
-    checkpoint: optional workspace revision
+    checkpoint: Unseeded | Revision(workspace revision) | RetainBefore(epoch)
 }
 ```
 
@@ -286,19 +287,30 @@ suffix. Preserve excluded proposals for fresh composition and show the chosen
 checkpoint and excluded old history. Content validity remains separate: checkpoint
 authority does not assert that the selected files are usable.
 
-An empty checkpoint explicitly retains the inherited empty starting boundary; it
+`Unseeded` explicitly retains the inherited empty starting boundary; it
 does not assert that no seed exists. Permit it initially, and on later transitions
-only while the preceding epoch chain has never named a revision checkpoint. It
+only while the immediately inherited structural boundary is empty. It
 fences old decisions, including an undisclosed initial seed delivered later. This
 is explicit administrator authority to discard that old seed from the current
 projection. Authoring requires an explicit unseeded choice and refuses it when a
-valid seed is already observed; replay must not depend on observed absence. Once
-an epoch names a revision checkpoint, later handoff/disable/re-enable must retain
-a revision checkpoint in that lineage. Stage 1 must model this choice, including
-its effect on late seeds, and revise the contract if its guarantees do not hold.
-Model it together with delayed checkpoints, authority/reviewer forks, removal
-cutoffs and administrator forks.
-Existing model evidence covers reusable ingredients, not this new checkpoint mode.
+valid seed is already observed; replay must not depend on observed absence.
+Ordinary handoff, disable and re-enable retain a nonempty inherited boundary.
+
+`RetainBefore(epoch)` is a separate explicit administrator restoration. Its target
+must be an ancestor of `expected_epoch`, including that epoch itself. It restores
+the exact structurally inherited boundary before the named transition and fences
+all intervening epochs. The target's attempted checkpoint does not participate in
+the restoration proof; the restored revision and its own exact evidence do.
+This permits recovery from consecutive invalid or unavailable checkpoint attempts.
+Restoration may deliberately return to an earlier empty boundary. It remains
+effective even if a canceled attempted checkpoint's evidence arrives later.
+Tools must identify this rollback explicitly; ordinary null handoff cannot perform
+it. This revises the earlier blanket prohibition on returning to empty after any
+named checkpoint, which could strand the workspace behind an invalid first attempt.
+
+The bounded model checks this choice together with delayed checkpoints,
+authority/reviewer forks, removal cutoffs and administrator forks. Its evidence
+does not substitute for concrete Rust replay tests or transport qualification.
 
 ## Content validation and replication
 

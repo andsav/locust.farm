@@ -41,6 +41,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 - [Executable model guide](tla/README.md)
 - [Organization property and implementation map](tla/organization.md)
+- [Workspace authority model and recovery contract](tla/workspace.md)
 - [Evidence and reproducible helpers](evidence/README.md)
 
 ## Evidence appendices

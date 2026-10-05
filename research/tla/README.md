@@ -14,6 +14,9 @@ not a deductive proof or Rust refinement proof.
   claim generations, principal binding, keyed retries and uncertain commit recovery.
 - [Flow effects](FlowEffects.tla): logical effect identity, duplicate signatures,
   durable outbox source, delivery/acknowledgment/start separation and retraction.
+- [Workspace authority](workspace.md): proposed epoch checkpoint authority,
+  explicit ancestor restoration, handoff fencing, typed source-author exclusion,
+  proof isolation and independent content readiness in [Workspace](Workspace.tla).
 - [Case registry](cases.json): exact finite configurations, safety properties,
   requested witnesses and deliberate mutation expectations.
 
