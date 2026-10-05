@@ -481,7 +481,7 @@ impl OwnedLaunch {
     }
 
     /// Caller reads only the protected per-launch MCP receipt path. The MCP
-    /// bridge reports this AFTER authenticated status and tools/list output.
+    /// bridge reports this AFTER an authenticated hello and tools/list output.
     pub fn observe_tools(&mut self, receipt: &Value) -> Result<bool, Error> {
         if matches!(
             self.record.state,

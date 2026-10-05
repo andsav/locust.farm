@@ -177,6 +177,9 @@ enum ClientRequest {
         goal: locust_proto::id::GoalId,
         reference: String,
     },
+    /// `tools/list`: the hello authenticates the credential and names its
+    /// kind, so no operation is sent.
+    Tools,
 }
 struct Call {
     request: ClientRequest,
@@ -251,6 +254,7 @@ async fn invoke(
             let request = match call.request {
                 ClientRequest::Native(request) => *request,
                 ClientRequest::Acknowledge { goal, reference } => Request::ContextAcknowledge { goal, receipt: cache.load(&reference)? },
+                ClientRequest::Tools => return Ok(json!({"tools": schema::tools(client.caller())})),
             };
             let response = client.call_with(request, call.idempotency, None)
                 .map_err(|error| connection::client_error(error, &auth.socket))?;
@@ -360,7 +364,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                     enqueue(&mut outgoing, error(id, -32002, "Initialize and send notifications/initialized before using tools"), false); continue;
                 }
                 let (kind, call) = match method {
-                    "tools/list" if params.get("cursor").is_none() => (Kind::List, Call { request: ClientRequest::Native(Box::new(Request::Status)), idempotency: None }),
+                    "tools/list" if params.get("cursor").is_none() => (Kind::List, Call { request: ClientRequest::Tools, idempotency: None }),
                     "tools/list" => { enqueue(&mut outgoing, error(id, -32602, "Tool list is not paginated; omit cursor"), false); continue; }
                     "tools/call" => match parse_call(&params) {
                         Ok(call) => (Kind::Tool, call),
@@ -381,7 +385,7 @@ async fn serve<R: AsyncRead + Unpin, W: stdio::Output>(
                 match call.kind {
                     Kind::Tool => enqueue(&mut outgoing, response(call.id, tool_result(result, version)), false),
                     Kind::List => match result {
-                        Ok(_) => enqueue(&mut outgoing, response(call.id, json!({"tools": schema::tools()})), true),
+                        Ok(listing) => enqueue(&mut outgoing, response(call.id, listing), true),
                         Err(failure) => {
                             let mut message = error(call.id, -32000, "Cannot authenticate MCP tools with the daemon");
                             message["error"]["data"] = failure_value(failure);

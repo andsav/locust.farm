@@ -3,6 +3,7 @@ use serde_json::{Value, json};
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -237,4 +238,169 @@ fn closing_stdout_during_an_idle_wait_cancels_and_joins_without_more_input() {
     }
     daemon.join().unwrap();
     drop(stdin);
+}
+
+/// One initialized `locust mcp` process over its real pipes.
+struct Bridge {
+    _child: Process,
+    stdin: std::process::ChildStdin,
+    stdout: BufReader<std::process::ChildStdout>,
+    next: u64,
+}
+impl Bridge {
+    fn start(home: &Path, credential: &Path, session: Option<&Path>) -> Self {
+        let mut command = command(home);
+        command.arg("--credential").arg(credential);
+        if let Some(session) = session {
+            command.arg("--session").arg(session);
+        }
+        let mut child = Process(
+            command
+                .arg("mcp")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap(),
+        );
+        let mut bridge = Self {
+            stdin: child.0.stdin.take().unwrap(),
+            stdout: BufReader::new(child.0.stdout.take().unwrap()),
+            _child: child,
+            next: 0,
+        };
+        let initialized = bridge.ask(
+            "initialize",
+            json!({"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"binary-test","version":"1"}}),
+        );
+        assert_eq!(initialized["result"]["protocolVersion"], "2025-11-25");
+        writeln!(
+            bridge.stdin,
+            "{}",
+            json!({"jsonrpc":"2.0","method":"notifications/initialized"})
+        )
+        .unwrap();
+        bridge
+    }
+    fn ask(&mut self, method: &str, params: Value) -> Value {
+        self.next += 1;
+        writeln!(
+            self.stdin,
+            "{}",
+            json!({"jsonrpc":"2.0","id":self.next,"method":method,"params":params})
+        )
+        .unwrap();
+        let mut line = String::new();
+        self.stdout.read_line(&mut line).unwrap();
+        serde_json::from_str(&line).unwrap()
+    }
+    /// The names `tools/list` answers with.
+    fn tools(&mut self) -> Vec<String> {
+        let answer = self.ask("tools/list", json!({}));
+        answer["result"]["tools"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{answer}"))
+            .iter()
+            .map(|tool| tool["name"].as_str().unwrap().to_owned())
+            .collect()
+    }
+    /// The structured result of calling `name` without arguments.
+    fn call(&mut self, name: &str) -> Value {
+        self.ask("tools/call", json!({"name": name}))["result"]["structuredContent"].clone()
+    }
+}
+
+/// The listing must agree with a real daemon: every kind of credential the
+/// bridge accepts sees tools before calling one, and a tool left out of its
+/// list is one the daemon denies it.
+#[test]
+fn each_kind_of_credential_lists_the_tools_a_real_daemon_lets_it_call() {
+    use locust_proto::api::{Credential, OPERATIONS};
+    let home = scratch();
+    let _daemon = Process(
+        command(home.path())
+            .args(["daemon", "run"])
+            .env("LOCUST_RELAY", "none")
+            .env("LOCUST_LOOKUP", "none")
+            .env("LOCUST_BIND", "127.0.0.1:0")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let owner = |arguments: &[&str]| -> Option<Value> {
+        let output = command(home.path())
+            .args(["--owner", "--json"])
+            .args(arguments)
+            .output()
+            .unwrap();
+        let envelope: Value = serde_json::from_slice(&output.stdout).ok()?;
+        (envelope["ok"] == true).then(|| envelope["result"].clone())
+    };
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while owner(&["status"]).is_none() {
+        assert!(Instant::now() < deadline, "daemon did not start");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let agent = owner(&["agent", "enroll", "worker"]).unwrap()["agent_enrolled"].clone();
+    let author = owner(&["author", "enroll", "scribe"]).unwrap()["author_enrolled"].clone();
+    let viewer = home.path().join("viewer.credential");
+    fs::write(&viewer, [7u8; 32]).unwrap();
+    fs::set_permissions(&viewer, fs::Permissions::from_mode(0o600)).unwrap();
+    let enrollment =
+        json!({"agent": agent["agent"], "credential": Credential([7; 32]).digest()}).to_string();
+    owner(&["call", "viewer.enroll", &enrollment]).unwrap();
+
+    // The author lists before it calls anything, and has no session.
+    let mut bridge = Bridge::start(
+        home.path(),
+        Path::new(author["credential_path"].as_str().unwrap()),
+        None,
+    );
+    let listed = bridge.tools();
+    assert!(listed.contains(&"locust_formation_drafts".to_owned()));
+    assert!(
+        listed
+            .iter()
+            .all(|name| name.starts_with("locust_formation_")),
+        "{listed:?}"
+    );
+    assert_eq!(bridge.call("locust_formation_drafts")["ok"], true);
+    assert_eq!(bridge.call("locust_status")["error"]["code"], "denied");
+
+    let mut bridge = Bridge::start(
+        home.path(),
+        Path::new(agent["credential_path"].as_str().unwrap()),
+        Some(&home.path().join("session")),
+    );
+    let registry: Vec<String> = OPERATIONS
+        .iter()
+        .filter(|operation| operation.tool)
+        .map(|operation| operation.tool_name())
+        .collect();
+    assert_eq!(bridge.tools(), registry);
+    assert_eq!(bridge.call("locust_status")["ok"], true);
+    assert_eq!(bridge.call("locust_formation_drafts")["ok"], true);
+
+    let mut bridge = Bridge::start(home.path(), &viewer, None);
+    let listed = bridge.tools();
+    assert!(listed.contains(&"locust_status".to_owned()));
+    for operation in OPERATIONS.iter().filter(|operation| operation.tool) {
+        if listed.contains(&operation.tool_name()) {
+            assert!(operation.read_only, "{}", operation.name);
+        }
+    }
+    assert_eq!(bridge.call("locust_status")["ok"], true);
+    assert!(!listed.contains(&"locust_formation_drafts".to_owned()));
+    assert_eq!(
+        bridge.call("locust_formation_drafts")["error"]["code"],
+        "denied"
+    );
+
+    let mut bridge = Bridge::start(home.path(), &home.path().join("owner.credential"), None);
+    let answer = bridge.ask("tools/list", json!({}));
+    assert!(answer.get("result").is_none(), "{answer}");
+    assert_eq!(answer["error"]["code"], -32000);
+    assert_eq!(answer["error"]["data"]["code"], "denied");
+    assert_eq!(bridge.call("locust_status")["error"]["code"], "denied");
 }

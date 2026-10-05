@@ -1,17 +1,40 @@
 //! MCP schemas are extracted from the typed request contract.
 use crate::context_receipts::operation_schema;
-use locust_proto::api::{OPERATIONS, Operation};
+use locust_proto::api::{Audience, Caller, OPERATIONS, Operation};
 use serde_json::{Value, json};
 use std::sync::OnceLock;
-pub(super) fn tools() -> &'static [Value] {
-    static TOOLS: OnceLock<Vec<Value>> = OnceLock::new();
-    TOOLS.get_or_init(|| {
-        OPERATIONS
-            .iter()
-            .filter(|operation| operation.tool)
-            .map(tool)
-            .collect()
-    })
+/// The tools listed for `caller`, in registry order.
+pub(super) fn tools(caller: Caller) -> Vec<&'static Value> {
+    static TOOLS: OnceLock<Vec<(&'static Operation, Value)>> = OnceLock::new();
+    TOOLS
+        .get_or_init(|| {
+            OPERATIONS
+                .iter()
+                .filter(|operation| operation.tool)
+                .map(|operation| (operation, tool(operation)))
+                .collect()
+        })
+        .iter()
+        .filter(|(operation, _)| admits(caller, operation))
+        .map(|(_, tool)| tool)
+        .collect()
+}
+/// Whether a connection of `caller` can make `operation` at all. This repeats
+/// the audience rule of the daemon's caller resolution
+/// (`locust-core/src/node/callers.rs`), which stays the authority and still
+/// answers every call: grants, membership and goal state are decided there.
+/// Listing by it keeps a client from registering tools that its kind of
+/// credential is always denied.
+fn admits(caller: Caller, operation: &Operation) -> bool {
+    match caller {
+        // Refused before any listing: owner authority is not exposed to models.
+        Caller::Owner => false,
+        Caller::Agent(_) => operation.audience != Audience::Owner,
+        Caller::Author(_) => operation.audience == Audience::Author,
+        Caller::Viewer(_) => {
+            operation.read_only && !matches!(operation.audience, Audience::Author | Audience::Owner)
+        }
+    }
 }
 fn tool(operation: &Operation) -> Value {
     let mut input =
@@ -52,6 +75,57 @@ fn tool(operation: &Operation) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use locust_proto::id::PublicKey;
+
+    // An agent is listed every registry tool; the first test asserts it.
+    const AGENT: Caller = Caller::Agent(PublicKey([1; 32]));
+
+    fn names(caller: Caller) -> Vec<&'static str> {
+        tools(caller)
+            .iter()
+            .map(|tool| tool["name"].as_str().unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn each_kind_of_credential_is_listed_the_tools_it_can_call() {
+        let registry: Vec<String> = OPERATIONS
+            .iter()
+            .filter(|operation| operation.tool)
+            .map(Operation::tool_name)
+            .collect();
+        assert_eq!(names(AGENT), registry);
+
+        let author = names(Caller::Author(PublicKey([1; 32])));
+        let catalog: Vec<String> = OPERATIONS
+            .iter()
+            .filter(|operation| operation.tool && operation.audience == Audience::Author)
+            .map(Operation::tool_name)
+            .collect();
+        assert_eq!(author, catalog);
+        for name in ["locust_formation_drafts", "locust_formation_draft_create"] {
+            assert!(author.contains(&name), "{name}");
+        }
+        assert!(
+            author
+                .iter()
+                .all(|name| name.starts_with("locust_formation_")),
+            "{author:?}"
+        );
+
+        let viewer = tools(Caller::Viewer(PublicKey([1; 32])));
+        for tool in &viewer {
+            let name = tool["name"].as_str().unwrap();
+            assert_eq!(tool["annotations"]["readOnlyHint"], true, "{name}");
+            assert!(!name.starts_with("locust_formation_"), "{name}");
+        }
+        let viewer = names(Caller::Viewer(PublicKey([1; 32])));
+        for name in ["locust_status", "locust_context_read", "locust_pending"] {
+            assert!(viewer.contains(&name), "{name}");
+        }
+
+        assert!(tools(Caller::Owner).is_empty());
+    }
 
     #[test]
     #[ignore = "explicit schema cost measurement"]
@@ -63,14 +137,14 @@ mod tests {
             .unwrap_or(100);
         assert!(iterations > 0);
         let cold_start = Instant::now();
-        let first = tools();
+        let first = tools(AGENT);
         let cold_ns = cold_start.elapsed().as_nanos();
         let encoded = serde_json::to_vec(&first).unwrap();
         let mut construction_ns = Vec::with_capacity(iterations);
         let mut serialization_ns = Vec::with_capacity(iterations);
         for _ in 0..iterations {
             let start = Instant::now();
-            black_box(tools());
+            black_box(tools(AGENT));
             construction_ns.push(start.elapsed().as_nanos());
             let start = Instant::now();
             black_box(serde_json::to_vec(&first).unwrap());
@@ -93,7 +167,7 @@ mod tests {
 
     #[test]
     fn every_tool_retains_its_client_request_fields() {
-        let tools = tools();
+        let tools = tools(AGENT);
         for operation in OPERATIONS.iter().filter(|operation| operation.tool) {
             let tool = tools
                 .iter()
@@ -110,7 +184,7 @@ mod tests {
 
     #[test]
     fn context_tools_expose_observation_and_explicit_idempotent_acknowledgment() {
-        let tools = tools();
+        let tools = tools(AGENT);
         let read = tools
             .iter()
             .find(|tool| tool["name"] == "locust_context_read")
@@ -152,7 +226,7 @@ mod tests {
 
     #[test]
     fn observations_have_no_retry_key_and_invitations_stay_outside_model_tools() {
-        let tools = tools();
+        let tools = tools(AGENT);
         for operation in OPERATIONS
             .iter()
             .filter(|operation| operation.tool && operation.read_only)
@@ -184,7 +258,7 @@ mod tests {
 
     #[test]
     fn additive_evidence_is_distinguished_from_replacement_and_control() {
-        let tools = tools();
+        let tools = tools(AGENT);
         for name in [
             "task.open",
             "work.offer",

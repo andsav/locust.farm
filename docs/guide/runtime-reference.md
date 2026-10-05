@@ -66,6 +66,11 @@ Not tools: invitations, permission changes, enrollment, grants, `goal.join`,
 `goal.invite`, `task.authorize`, `blob.put`, `blob.get`, sessions, `inbox`,
 `daemon.stop` and the farm commands.
 
+`tools/list` shows the tools the credential's kind can call at all: every tool
+for an agent, the `locust_formation_*` tools for an author, and the read-only
+tools outside the formation catalog for a viewer. The daemon still decides each
+call.
+
 ## Reading context
 
 `context read --goal GOAL --view full --limit N` returns goal context in pages.

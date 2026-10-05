@@ -76,6 +76,33 @@ fn fake_response(
     });
     (thread, received)
 }
+/// Accepts one bridge connection and welcomes it as `caller`.
+fn welcome(listener: &UnixListener, caller: Caller, session: Option<SessionSecret>) -> UnixStream {
+    let (mut stream, _) = listener.accept().unwrap();
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+        .unwrap();
+    let hello: ClientHello =
+        codec::decode(&codec::read_frame(&mut stream, 4096).unwrap().unwrap()).unwrap();
+    assert_eq!(hello.credential, Credential([1; 32]));
+    assert_eq!(hello.session, session);
+    let welcome = ServerHello::Welcome {
+        api_version: API_VERSION,
+        daemon_version: "test".into(),
+        caller,
+        max_blob_bytes: 1024,
+    };
+    codec::write_frame(&mut stream, &codec::encode(&welcome).unwrap()).unwrap();
+    stream
+}
+fn names(answer: &Value) -> Vec<&str> {
+    answer["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect()
+}
 async fn send(writer: &mut (impl AsyncWrite + Unpin), value: Value) {
     writer
         .write_all(format!("{value}\n").as_bytes())
@@ -250,6 +277,15 @@ async fn lifecycle_negotiates_versions_and_requires_initialized() {
         initialize(&mut writer, &mut reader, version).await;
         send(&mut writer, json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"locust_blob_put"}})).await;
         assert_eq!(receive(&mut reader).await["error"]["code"], -32602);
+        // No daemon answers at this socket, so no caller is known to list for.
+        send(
+            &mut writer,
+            json!({"jsonrpc":"2.0","id":3,"method":"tools/list"}),
+        )
+        .await;
+        let answer = receive(&mut reader).await;
+        assert_eq!(answer["error"]["code"], -32000);
+        assert_eq!(answer["error"]["data"]["code"], "unavailable");
         drop(writer);
         bridge.await.unwrap().unwrap();
     }
@@ -333,13 +369,15 @@ async fn nonblocking_fd_reads_writes_and_restores_flags() {
 async fn authenticated_list_advertises_only_registry_tools() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("s");
-    let status = Response::Status(locust_proto::api::DaemonStatus {
-        daemon_version: "test".into(),
-        endpoint: None,
-        agents: vec![],
-        goals: vec![],
+    let agent = Caller::Agent(locust_proto::id::PublicKey([3; 32]));
+    let listener = UnixListener::bind(&socket).unwrap();
+    let daemon = std::thread::spawn(move || {
+        let mut stream = welcome(&listener, agent, Some(SessionSecret([2; 32])));
+        assert!(
+            codec::read_frame(&mut stream, 4096).unwrap().is_none(),
+            "the hello authenticates a listing; no operation follows it"
+        );
     });
-    let (daemon, _) = fake_response(&socket, false, false, Ok(status));
     let (input, mut writer) = tokio::io::duplex(8192);
     let (output, reader) = tokio::io::duplex(8192);
     let mut reader = BufReader::new(reader);
@@ -350,10 +388,38 @@ async fn authenticated_list_advertises_only_registry_tools() {
         json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
     )
     .await;
-    assert_eq!(
-        receive(&mut reader).await["result"]["tools"],
-        json!(schema::tools())
-    );
+    let answer = receive(&mut reader).await;
+    assert_eq!(answer["result"]["tools"], json!(schema::tools(agent)));
+    let registry: Vec<String> = OPERATIONS
+        .iter()
+        .filter(|operation| operation.tool)
+        .map(|operation| operation.tool_name())
+        .collect();
+    assert_eq!(names(&answer), registry);
+    drop(writer);
+    bridge.await.unwrap().unwrap();
+    daemon.join().unwrap();
+}
+
+#[tokio::test]
+async fn owner_credential_is_refused_a_tool_list() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("s");
+    let (daemon, _) = fake(&socket, true, false);
+    let (input, mut writer) = tokio::io::duplex(8192);
+    let (output, reader) = tokio::io::duplex(8192);
+    let mut reader = BufReader::new(reader);
+    let bridge = tokio::spawn(serve(input, output, auth(socket), None));
+    initialize(&mut writer, &mut reader, VERSIONS[0]).await;
+    send(
+        &mut writer,
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+    )
+    .await;
+    let answer = receive(&mut reader).await;
+    assert!(answer.get("result").is_none(), "{answer}");
+    assert_eq!(answer["error"]["code"], -32000);
+    assert_eq!(answer["error"]["data"]["code"], "denied");
     drop(writer);
     bridge.await.unwrap().unwrap();
     daemon.join().unwrap();
@@ -459,25 +525,20 @@ fn a_cancelled_queued_blocking_worker_never_starts_a_handshake() {
 }
 
 #[tokio::test]
-async fn private_author_uses_catalog_without_an_execution_session() {
+async fn private_author_lists_then_uses_its_catalog_without_an_execution_session() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("author-socket");
     let listener = UnixListener::bind(&socket).unwrap();
     let daemon = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().unwrap();
-        stream
-            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
-            .unwrap();
-        let hello: ClientHello =
-            codec::decode(&codec::read_frame(&mut stream, 4096).unwrap().unwrap()).unwrap();
-        assert_eq!(hello.session, None);
-        let welcome = ServerHello::Welcome {
-            api_version: API_VERSION,
-            daemon_version: "test".into(),
-            caller: Caller::Author(locust_proto::id::PublicKey([4; 32])),
-            max_blob_bytes: 1024,
-        };
-        codec::write_frame(&mut stream, &codec::encode(&welcome).unwrap()).unwrap();
+        let author = Caller::Author(locust_proto::id::PublicKey([4; 32]));
+        // An author may not call `status` or any other goal operation, so a
+        // listing that asked one would be denied before any tool was known.
+        let mut stream = welcome(&listener, author, None);
+        assert!(
+            codec::read_frame(&mut stream, 4096).unwrap().is_none(),
+            "the hello authenticates a listing; no operation follows it"
+        );
+        let mut stream = welcome(&listener, author, None);
         let frame: RequestFrame =
             codec::decode(&codec::read_frame(&mut stream, 4096).unwrap().unwrap()).unwrap();
         assert_eq!(frame.request, Request::FormationDrafts);
@@ -503,7 +564,21 @@ async fn private_author_uses_catalog_without_an_execution_session() {
     });
     let bridge = tokio::spawn(serve(input, output, authentication, None));
     initialize(&mut writer, &mut reader, VERSIONS[0]).await;
-    send(&mut writer,json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"locust_formation_drafts"}})).await;
+    send(
+        &mut writer,
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+    )
+    .await;
+    let listed = receive(&mut reader).await;
+    let listed = names(&listed);
+    assert!(listed.contains(&"locust_formation_drafts"), "{listed:?}");
+    assert!(
+        listed
+            .iter()
+            .all(|name| name.starts_with("locust_formation_")),
+        "{listed:?}"
+    );
+    send(&mut writer,json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"locust_formation_drafts"}})).await;
     let answer = receive(&mut reader).await;
     assert_eq!(answer["result"]["structuredContent"]["ok"], true);
     drop(writer);
