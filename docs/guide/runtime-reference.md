@@ -81,7 +81,9 @@ bound to this session. Pass the previous page's `next` as `--after`.
 A read in a session returns a `ctx:` reference.
 `context acknowledge --goal GOAL --receipt REF` marks that content read. Only
 complete text counts. The reference works only with the same credential and
-session.
+session. Any other reference, whether mistyped or read by another session,
+answers `not_found`: read context again and acknowledge the reference that
+read returns.
 
 `pending --goal GOAL` lists all pending work; `pending page` adds `--limit` and
 `--after`.

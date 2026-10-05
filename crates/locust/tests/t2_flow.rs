@@ -698,9 +698,10 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
             .unwrap()
             > 0
     );
-    let denied = other.request("tools/call", json!({"name":"locust_context_acknowledge","arguments":{"goal":goal,"receipt":last_receipt}}));
-    assert_eq!(denied["isError"], true);
-    assert_eq!(denied["structuredContent"]["error"]["code"], "invalid");
+    // Another session's reference is unknown to this one, like a mistyped one.
+    let unknown = other.request("tools/call", json!({"name":"locust_context_acknowledge","arguments":{"goal":goal,"receipt":last_receipt}}));
+    assert_eq!(unknown["isError"], true);
+    assert_eq!(unknown["structuredContent"]["error"]["code"], "not_found");
 }
 
 #[test]

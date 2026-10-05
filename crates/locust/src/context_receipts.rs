@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
-use locust_proto::api::{ContextReceipt, Credential, Response, SessionSecret};
+use locust_proto::api::{ContextReceipt, Credential, ErrorCode, Response, SessionSecret};
 use locust_proto::crypto;
 use rustix::fs::{Mode, OFlags};
 use serde_json::{Value, json};
@@ -84,11 +84,36 @@ impl Cache {
                     OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
                     Mode::empty(),
                 )
-                .map_err(storage)?,
+                .map_err(|error| {
+                    if create {
+                        storage(error)
+                    } else {
+                        self.lookup(error)
+                    }
+                })?,
             );
             check_directory(&directory)?;
         }
         Ok(directory)
+    }
+
+    /// Why a lookup did not open its entry. A missing entry is an unknown
+    /// reference: mistyped, read with another credential or session, or
+    /// removed since. The cache does not tell these apart, so they share one
+    /// `not_found` answer, as a goal the caller is not part of does. The
+    /// reference is well formed, so it is not `invalid`. Any other failure,
+    /// a symbolic link among them, is the cache's own.
+    fn lookup(&self, error: rustix::io::Errno) -> Failure {
+        if error != rustix::io::Errno::NOENT {
+            return storage(error);
+        }
+        Failure::new(
+            ErrorCode::NotFound,
+            format!(
+                "no context receipt with this reference exists for this credential and session; a reference works only with the credential and session that read it. Read context again with {}, then acknowledge the reference it returns",
+                self.surface.context_read()
+            ),
+        )
     }
 
     pub(crate) fn store(&self, receipt: &ContextReceipt) -> Result<String, Failure> {
@@ -141,7 +166,7 @@ impl Cache {
                 OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC | OFlags::NONBLOCK,
                 Mode::empty(),
             )
-            .map_err(storage)?,
+            .map_err(|error| self.lookup(error))?,
         );
         let metadata = file.metadata().map_err(storage)?;
         if !metadata.is_file()
@@ -193,9 +218,7 @@ fn check_directory(directory: &File) -> Result<(), Failure> {
     Ok(())
 }
 fn storage(error: impl std::fmt::Display) -> Failure {
-    Failure::invalid(format!(
-        "context receipt cache: {error}; read context again if this session's receipt was removed"
-    ))
+    Failure::invalid(format!("context receipt cache: {error}"))
 }
 
 /// Agent-facing schemas use a local reference. The native API remains typed.
@@ -312,18 +335,70 @@ mod tests {
             .join(locust_proto::id::BlobHash(Credential([1; 32]).digest()).to_string())
             .join(receipt.session.to_string())
             .join(format!("{}.json", &reference[4..]));
+        // A damaged or replaced entry is never answered as an unknown reference.
+        let refused = |cache: &Cache| {
+            let failure = cache.load(&reference).unwrap_err();
+            assert_eq!(failure.code, ErrorCode::Invalid, "{}", failure.message);
+        };
         std::fs::write(&file, b"{}").unwrap();
-        assert!(cache.load(&reference).is_err());
+        refused(&cache);
         cache.store(&receipt).unwrap();
         std::fs::hard_link(&file, home.path().join("link")).unwrap();
-        assert!(cache.load(&reference).is_err());
+        refused(&cache);
         std::fs::remove_file(&file).unwrap();
         symlink(home.path().join("link"), &file).unwrap();
-        assert!(cache.load(&reference).is_err());
+        refused(&cache);
         let other = tempfile::tempdir().unwrap();
         let path = home.path().join("context-receipts");
         std::fs::rename(&path, home.path().join("previous")).unwrap();
         symlink(other.path(), &path).unwrap();
         assert!(cache.store(&receipt).is_err());
+        refused(&cache);
+    }
+    #[test]
+    fn unknown_reference_is_not_found_and_says_to_read_context_again() {
+        let (home, cache, receipt) = fixture();
+        let cache_for = |credential: u8, session: u8, surface| {
+            Cache::new(
+                home.path(),
+                Credential([credential; 32]),
+                Some(SessionSecret([session; 32])),
+                surface,
+            )
+        };
+        let unknown = format!("ctx:{}", "0".repeat(64));
+        // Before this session stored anything, then beside a stored receipt.
+        let mut failures = vec![cache.load(&unknown).unwrap_err()];
+        let reference = cache.store(&receipt).unwrap();
+        failures.push(cache.load(&unknown).unwrap_err());
+        // The stored reference, presented by another session and credential.
+        failures.push(cache_for(1, 9, Surface::Cli).load(&reference).unwrap_err());
+        failures.push(cache_for(9, 2, Surface::Cli).load(&reference).unwrap_err());
+        for failure in &failures {
+            assert_eq!(failure.code, ErrorCode::NotFound, "{}", failure.message);
+            assert_eq!(failure.message, failures[0].message);
+            assert!(
+                failure
+                    .message
+                    .contains("Read context again with locust context read")
+            );
+            assert!(!failure.message.contains("os error"), "{}", failure.message);
+        }
+        let failure = cache_for(1, 9, Surface::Mcp).load(&reference).unwrap_err();
+        assert_eq!(failure.code, ErrorCode::NotFound);
+        assert!(
+            failure
+                .message
+                .contains("Read context again with locust_context_read")
+        );
+        // The owning session is unaffected; a malformed reference and a
+        // connection without a session are still the caller's mistake.
+        assert_eq!(cache.load(&reference).unwrap(), receipt);
+        assert_eq!(cache.load("ctx:typo").unwrap_err().code, ErrorCode::Invalid);
+        let sessionless = Cache::new(home.path(), Credential([1; 32]), None, Surface::Cli);
+        assert_eq!(
+            sessionless.load(&reference).unwrap_err().code,
+            ErrorCode::Invalid
+        );
     }
 }

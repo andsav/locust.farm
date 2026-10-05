@@ -473,6 +473,41 @@ async fn authenticated_list_advertises_only_registry_tools() {
 }
 
 #[tokio::test]
+async fn unknown_receipt_reference_is_not_found_and_names_the_read_tool() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o700)).unwrap();
+    let socket = dir.path().join("s");
+    let listener = UnixListener::bind(&socket).unwrap();
+    let daemon = std::thread::spawn(move || {
+        let agent = Caller::Agent(locust_proto::id::PublicKey([3; 32]));
+        let mut stream = welcome(&listener, agent, Some(SessionSecret([2; 32])));
+        assert!(
+            codec::read_frame(&mut stream, 4096).unwrap().is_none(),
+            "an unresolved reference acknowledges nothing"
+        );
+    });
+    let (input, mut writer) = tokio::io::duplex(8192);
+    let (output, reader) = tokio::io::duplex(8192);
+    let mut reader = BufReader::new(reader);
+    let bridge = tokio::spawn(serve(input, output, auth(socket), None));
+    initialize(&mut writer, &mut reader, VERSIONS[0]).await;
+    send(&mut writer,json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"locust_context_acknowledge","arguments":{"goal":"01".repeat(32),"receipt":format!("ctx:{}", "0".repeat(64))}}})).await;
+    let answer = receive(&mut reader).await;
+    assert_eq!(answer["result"]["isError"], true);
+    let error = &answer["result"]["structuredContent"]["error"];
+    assert_eq!(error["code"], "not_found");
+    let message = error["message"].as_str().unwrap();
+    assert!(
+        message.contains("Read context again with locust_context_read"),
+        "{message}"
+    );
+    assert!(!message.contains("os error"), "{message}");
+    drop(writer);
+    bridge.await.unwrap().unwrap();
+    daemon.join().unwrap();
+}
+
+#[tokio::test]
 async fn owner_credential_is_refused_a_tool_list() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("s");

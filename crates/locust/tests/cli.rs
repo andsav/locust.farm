@@ -526,6 +526,36 @@ fn claims_require_an_explicit_session_and_present_exact_file_bytes() {
     assert_eq!(hellos[1].session, Some(SessionSecret([7; 32])));
 }
 #[test]
+fn unknown_context_receipt_is_not_found_without_operating_system_text() {
+    let home = scratch();
+    let credential = home.path().join("worker.credential");
+    let session = home.path().join("worker.secret");
+    write_secret(&credential, &[1; 32]);
+    write_secret(&session, &[7; 32]);
+    // No daemon runs: the reference is resolved before any connection.
+    let acknowledge = |receipt: &str| {
+        cli(home.path())
+            .arg("--credential")
+            .arg(&credential)
+            .arg("--session")
+            .arg(&session)
+            .args(["context", "acknowledge", "--goal", &"03".repeat(32)])
+            .args(["--receipt", receipt])
+            .output()
+            .unwrap()
+    };
+    let unknown = envelope(&acknowledge(&format!("ctx:{}", "0".repeat(64))), 5);
+    assert_eq!(unknown["error"]["code"], "not_found");
+    let message = unknown["error"]["message"].as_str().unwrap();
+    assert!(
+        message.contains("Read context again with locust context read"),
+        "{message}"
+    );
+    assert!(!message.contains("os error"), "{message}");
+    let malformed = envelope(&acknowledge("ctx:typo"), 6);
+    assert_eq!(malformed["error"]["code"], "invalid");
+}
+#[test]
 fn doctor_succeeds_for_a_locked_private_home_and_valid_session() {
     let home = scratch();
     write_secret(&home.path().join("owner.credential"), &[1; 32]);
