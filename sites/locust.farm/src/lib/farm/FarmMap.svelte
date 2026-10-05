@@ -72,10 +72,10 @@
 	{@const tasks = snapshot.tasks.filter((task) => (task.stage ?? 0) === stageId)}
 	{@const done = tasks.length > 0 && tasks.every((task) => task.completed)}
 	<div class="step" data-stage={stageId}>
-		<div class="capsule">
-			<span class="disc">{stage?.id ?? '·'}</span><span class="sname"
-				>{stage?.label ?? 'Unstaged work'}</span
-			>
+		<div class="capsule" title={compact ? (stage?.label ?? 'Unstaged work') : undefined}>
+			{#if !compact}<span class="disc">{stage?.id ?? '·'}</span><span class="sname"
+					>{stage?.label ?? 'Unstaged work'}</span
+				>{/if}
 		</div>
 		{#if !compact}
 			<p class="caption">
@@ -88,24 +88,23 @@
 						.map((id) => snapshot.stages.find((item) => item.id === id)?.label ?? `stage ${id}`)
 						.join(' + ')}
 				</p>{/if}
-		{/if}
-		<div class="holders">
-			{#each associations(snapshot, stage?.id ?? null) as { agent, attempts } (agent.id)}
-				<span
-					class="agent"
-					title={`${agent.name} · ${harnessName(agent.harness)}: ${attempts.map(({ task, attempt }) => `${task.reference} ${attempt.state}`).join(', ')}`}
-				>
-					{#if !compact}<span class="num">{agent.id}</span>{agent.name} · {harnessName(
-							agent.harness
-						)}<span class="holds"
+			<div class="holders">
+				{#each associations(snapshot, stage?.id ?? null) as { agent, attempts } (agent.id)}
+					<span
+						class="agent"
+						title={`${agent.name} · ${harnessName(agent.harness)}: ${attempts.map(({ task, attempt }) => `${task.reference} ${attempt.state}`).join(', ')}`}
+					>
+						<span class="num">{agent.id}</span>{agent.name} · {harnessName(agent.harness)}<span
+							class="holds"
 							>{attempts
 								.map(({ task }) => task.reference)
 								.filter((id, i, all) => all.indexOf(id) === i)
 								.join(', ')}</span
-						>{/if}
-				</span>
-			{/each}
-		</div>
+						>
+					</span>
+				{/each}
+			</div>
+		{/if}
 		<div class="marks">
 			{#each tasks as task (task.id)}
 				{#if compact}<span
@@ -128,7 +127,11 @@
 	</div>
 {/snippet}
 
-<div class="map" aria-label={compact ? 'Farm stage preview' : 'Formation stages and reported work'}>
+<div
+	class="map"
+	role={compact ? 'img' : 'group'}
+	aria-label={compact ? 'Farm stage preview' : 'Formation stages and reported work'}
+>
 	<div class="map-body" bind:this={body}>
 		<svg class="edges" aria-hidden="true"
 			><defs
@@ -162,20 +165,17 @@
 				{@render stageBlock(0)}
 			</div>{/if}
 	</div>
-	<div class="tray">
-		{#if !compact}<span class="label">Agents without attempts</span>{/if}
-		{#each unassociated as agent (agent.id)}<span
-				class="agent free"
-				title={`${agent.name} · ${harnessName(agent.harness)}`}
-				>{#if !compact}<span class="num">{agent.id}</span>{agent.name} · {harnessName(
-						agent.harness
-					)}{/if}</span
-			>{/each}
-		{#if !compact && !unassociated.length}<span class="caption">None</span>{/if}
-	</div>
 	{#if compact}<div class="preview-progress">
 			<i
 				style={`width:${snapshot.tasks.length ? (snapshot.tasks.filter((task) => task.completed).length / snapshot.tasks.length) * 100 : 0}%`}
 			></i>
+		</div>{:else}<div class="tray">
+			<span class="label">Agents without attempts</span>
+			{#each unassociated as agent (agent.id)}<span
+					class="agent free"
+					title={`${agent.name} · ${harnessName(agent.harness)}`}
+					><span class="num">{agent.id}</span>{agent.name} · {harnessName(agent.harness)}</span
+				>{/each}
+			{#if !unassociated.length}<span class="caption">None</span>{/if}
 		</div>{/if}
 </div>

@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import FarmKey from '#lib/farm/FarmKey.svelte';
 	import FarmMap from '#lib/farm/FarmMap.svelte';
 	import { watchFarm, serviceNow, type FarmState, type Connection } from '#lib/farm/client.ts';
 	import {
@@ -170,13 +171,7 @@
 						selected = selected === id ? null : id;
 					}}
 				/>
-				<div class="key">
-					<span><i class="dot"></i> open</span><span><i class="dot taken"></i> attempted</span><span
-						><i class="dot waiting"></i> awaiting evidence</span
-					><span><i class="dot done"></i> completed</span><span>□ closed</span><span
-						>◇ disputed</span
-					><span>◌ unavailable</span>
-				</div>
+				<FarmKey />
 				<p class="rule">Select a task to see its details below.</p>
 			</section>
 			<div class="lower">

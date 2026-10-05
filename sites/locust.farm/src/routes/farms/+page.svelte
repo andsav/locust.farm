@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import FarmKey from '#lib/farm/FarmKey.svelte';
 	import FarmMap from '#lib/farm/FarmMap.svelte';
 	import {
 		watchFarm,
@@ -115,7 +116,7 @@
 			</p>
 		</div>
 		<div class="gallery-controls">
-			<div class="filters" aria-label="Filter farms">
+			<div class="filters" role="group" aria-label="Filter farms">
 				{#each [['all', 'All'], ['receiving', 'Receiving updates'], ['quiet', 'Quiet'], ['ended', 'Ended']] as [value, label] (value)}<button
 						aria-pressed={filter === value}
 						onclick={() => {
@@ -128,50 +129,52 @@
 		{#if error}<p class="connection-note" role="status">
 				Can’t reach the farms service. <button onclick={() => load()}>Try again</button>
 			</p>{/if}
-		<div class="gallery-grid">
-			{#each visible as farm (farm.farm_id)}
-				{@const snapshot = farm.snapshot!}
-				{@const mode = farmMode(farm, now)}
-				<a
-					class="farm-card card"
-					href={`/farm/${farm.farm_id}`}
-					data-mode={mode}
-					aria-label={`${snapshot.title ?? 'Title not shared'} · ${modeName(mode)}`}
-				>
-					<FarmMap {snapshot} compact />
-					<div>
-						<h2>{snapshot.title ?? 'Title not shared'}</h2>
-						<p>
-							{snapshot.agents.length} agents · {snapshot.groups.length}
-							{snapshot.groups.length === 1 ? 'group' : 'groups'}
-						</p>
-						<p>
-							{snapshot.formation} · {snapshot.stages.length
-								? `${snapshot.stages.length} stages`
-								: 'no stages'}
-						</p>
-						<p>
-							<strong>{snapshot.tasks.filter((task) => task.completed).length}</strong>
-							of {snapshot.tasks.length}
-							{snapshot.tasks.length === 1 ? 'task' : 'tasks'} completed · {snapshot.tasks.filter(
-								(task) => task.state === 'reported'
-							).length} attempted
-						</p>
-					</div>
-					<div>
-						<p class="state"><span class="status-mark"></span>{modeName(mode)}</p>
-						<p>Updated {age(farm.received_at_ms, serviceNow(farm, now))}</p>
-						{#if connections.get(farm.farm_id) === 'disconnected'}<p>
-								Connection lost · reconnecting
-							</p>{/if}
-					</div>
-				</a>
-			{/each}
-		</div>
-		{#if loading}<p role="status">Loading farms…</p>{:else if !visible.length && !error}<p
-				class="connection-note"
-			>
-				{farms.length ? 'No farms match this filter.' : 'No farms are listed yet.'}
+		{#if visible.length}<div class="gallery-grid">
+				{#each visible as farm (farm.farm_id)}
+					{@const snapshot = farm.snapshot!}
+					{@const mode = farmMode(farm, now)}
+					{@const attempted = snapshot.tasks.filter((task) => task.state === 'reported').length}
+					<a
+						class="farm-card card"
+						href={`/farm/${farm.farm_id}`}
+						data-mode={mode}
+						aria-label={`${snapshot.title ?? 'Title not shared'} · ${modeName(mode)}`}
+					>
+						<FarmMap {snapshot} compact />
+						<div class="summary">
+							<h2>{snapshot.title ?? 'Title not shared'}</h2>
+							<p class="formation">{snapshot.formation}</p>
+							<p class="progress">
+								<strong>{snapshot.tasks.filter((task) => task.completed).length}</strong>
+								of {snapshot.tasks.length}
+								{snapshot.tasks.length === 1 ? 'task' : 'tasks'} completed{attempted
+									? ` · ${attempted} attempted`
+									: ''}
+							</p>
+							<p>
+								{snapshot.agents.length}
+								{snapshot.agents.length === 1 ? 'agent' : 'agents'} · {snapshot.groups.length}
+								{snapshot.groups.length === 1 ? 'group' : 'groups'} · {snapshot.stages.length
+									? `${snapshot.stages.length} ${snapshot.stages.length === 1 ? 'stage' : 'stages'}`
+									: 'no stages'}
+							</p>
+						</div>
+						<div class="foot">
+							<p class="state"><span class="status-mark"></span>{modeName(mode)}</p>
+							<p class="updated">Updated {age(farm.received_at_ms, serviceNow(farm, now))}</p>
+							{#if connections.get(farm.farm_id) === 'disconnected'}<p class="lost">
+									Connection lost · reconnecting
+								</p>{/if}
+						</div>
+					</a>
+				{/each}
+			</div>{/if}
+		{#if !visible.length && !error}<p class="connection-note" role="status">
+				{loading
+					? 'Loading farms…'
+					: farms.length
+						? 'No farms match this filter.'
+						: 'No farms are listed yet.'}
 			</p>{/if}
 		{#if cursor}<div>
 				<button disabled={loading} onclick={() => load(true)}>Load more farms</button>
@@ -179,10 +182,8 @@
 		<div class="about">
 			<section>
 				<h2>Reading the map</h2>
-				<p>
-					One dot per task, grouped by stage. A ring is open, grey is attempted, white is awaiting
-					evidence and ember is completed.
-				</p>
+				<p>One dot per task, grouped by stage.</p>
+				<FarmKey />
 			</section>
 			<section>
 				<h2>Status</h2>
