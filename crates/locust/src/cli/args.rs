@@ -127,6 +127,12 @@ fn operation(name: &'static str, api: &'static str) -> Command {
         }
         command = command.arg(argument);
     }
+    if api == "wait" {
+        // Statuses 20 and 21 accompany an `ok: true` result; see `cli::execute`.
+        command = command.after_help(
+            "Exit status: 0 when the goal changed since --seen, 20 when nothing changed before the timeout, 21 when nothing changed and no peer of the goal is reachable. 20 and 21 are not errors.",
+        );
+    }
     if api == "goal.create" {
         command = command.arg(
             Arg::new("formation")

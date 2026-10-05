@@ -44,6 +44,13 @@ With `--json`, the output is `{"ok":true,"result":...}` or
 - 10: `unsupported_version`
 - 11: `corrupted`
 - 12: `limit_exceeded`
+- 20: `wait` saw no change before its timeout
+- 21: `wait` saw no change before its timeout and no peer of the goal is reachable
+
+Codes 20 and 21 are not errors. The JSON output is still `{"ok":true,...}`, with
+`"waited":"no_event"` for 20 and `"waited":"disconnected"` for 21.
+`call wait` exits the same way. `watch` reports the same outcomes and exits
+with 0.
 
 A reader that closes the output early, as in `locust contract | head`, does not
 change the exit code: the command ends quietly with the code it earned. If the

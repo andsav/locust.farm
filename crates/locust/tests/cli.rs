@@ -413,10 +413,25 @@ fn generic_call_and_wait_use_stable_error_and_timeout_statuses() {
             .output()
             .unwrap();
         let body = envelope(&output, exit);
-        if !expected.is_empty() {
+        if expected.is_empty() {
+            // A quiet wait is a result, not a failure, whatever its status.
+            assert_eq!(body["ok"], true);
+        } else {
             assert_eq!(body["error"]["code"], expected);
         }
         handle.join().unwrap();
+    }
+}
+#[test]
+fn wait_help_names_the_statuses_of_a_quiet_wait() {
+    let output = plain().args(["wait", "--help"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let help = String::from_utf8(output.stdout).unwrap();
+    for status in [
+        "20 when nothing changed before the timeout",
+        "21 when nothing changed and no peer of the goal is reachable",
+    ] {
+        assert!(help.contains(status), "{help}");
     }
 }
 #[test]
