@@ -15,6 +15,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Exclusive claim on a task: proposal](exclusive-task-claim.md)
 - [Farm publication usability audit](farm-publication-ux.md)
 - [Farm development qualification](farm-qualification.md)
+- [Gas Town lessons for shared workspaces](gastown-shared-workspace-assessment.md)
 - [Organization design research](formations.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
 - [Iroh transport probe findings](iroh-transport-probe.md)
