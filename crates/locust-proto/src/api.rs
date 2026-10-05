@@ -65,9 +65,11 @@
 //! time it is asked ([`Request::Pending`]); it never depends on a
 //! notification having been delivered. Every goal has a change counter, its
 //! revision, raised in the same commit as any change to the goal's events or
-//! to a local record that feeds pending work. [`Request::Wait`] answers as
-//! soon as the revision differs from the one the caller has seen, so a change
-//! between two calls is never missed.
+//! to a local record that feeds pending work. It is the daemon's own count
+//! and never falls, a restart included. [`Request::Wait`] answers as soon as
+//! the revision is past the one the caller has seen, so a change between two
+//! calls is never missed; a `seen` ahead of the revision is refused as
+//! [`ErrorCode::Invalid`].
 //!
 //! # Text forms
 //!

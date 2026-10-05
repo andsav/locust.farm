@@ -7,6 +7,7 @@ mod daemon;
 mod farm;
 mod invitations;
 mod permissions;
+mod wait;
 mod workspace;
 mod workspace_lifecycle;
 

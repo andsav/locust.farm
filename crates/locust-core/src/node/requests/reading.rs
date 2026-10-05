@@ -189,8 +189,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
     }
 
-    /// `wait`: answers as soon as the goal's revision differs from `seen`;
-    /// otherwise parks until it does or the timeout passes.
+    /// `wait`: answers as soon as the goal's revision is past `seen`;
+    /// otherwise parks until it is or the timeout passes. The revision never
+    /// falls, so a `seen` ahead of it is no revision this daemon returned.
+    /// It is refused: taken as a change, it would answer every call at once.
     pub(super) fn wait(
         &mut self,
         conn: ConnId,
@@ -201,7 +203,17 @@ impl<S: Store, E: Entropy> Node<S, E> {
         timeout_ms: u32,
     ) -> Result<Step, ApiError> {
         let entry = self.readable(&actor, &goal)?;
-        let outcome = if entry.revision() != seen {
+        let revision = entry.revision();
+        if seen > revision {
+            return Err(ApiError::new(
+                ErrorCode::Invalid,
+                format!(
+                    "seen {seen} is ahead of the goal's revision {revision}; \
+                     pass a revision this daemon returned"
+                ),
+            ));
+        }
+        let outcome = if revision != seen {
             WaitOutcome::Work(Box::new(self.pending_work(entry, &actor)))
         } else if timeout_ms == 0 {
             self.quiet(&goal)
