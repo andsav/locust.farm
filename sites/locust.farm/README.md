@@ -125,15 +125,15 @@ LOCUST_DEPLOY_SERVER=deploy@your-host bash scripts/deploy-production.sh
 
 The script builds committed `HEAD` in a clean temporary checkout and runs lint, check, test and
 build. It uploads the build to `/var/www/locust.farm/releases/<commit>`, checks its SHA-256 list on
-the server, switches the `current` symlink and checks that preview pages answer 401 without the
-password. Then check the pages yourself in a browser. To roll back, point `current` at an earlier
+the server, switches the `current` symlink and checks that the pages answer HTTP 200 without
+credentials. Then check the pages yourself in a browser. To roll back, point `current` at an earlier
 release.
 
 [`ops/nginx.conf`](ops/nginx.conf) serves `locust.farm` and `www.locust.farm`:
 
 - HTTP redirects to HTTPS, except ACME challenges from `/var/www/letsencrypt`.
 - Unknown routes return 404, except `/farm/<id>`, which gets the `farm.html` shell.
-- Preview pages need Basic Auth and send `private, no-store` and `noindex, nofollow`.
+- Website pages are public and send `private, no-store` and `noindex, nofollow`.
 - Farm pages, the gallery, their client assets and `/api/farms` are public. The API proxies to the
   separate `locust-farm` process; the [farm operator guide](ops/README.md) covers it.
 - `/downloads/` is public and serves release files from `/var/www/locust.farm/downloads/`, outside
@@ -141,16 +141,14 @@ release.
 
 First-time setup:
 
-1. Serve an HTTP-only virtual host that exposes the challenge directory and returns 401 elsewhere.
+1. Serve an HTTP-only virtual host that exposes the challenge directory and returns 404 elsewhere.
 2. Issue the certificate with Certbot,
    `certonly --webroot -w /var/www/letsencrypt -d locust.farm -d www.locust.farm`, using the
    server's existing ACME account. Renewal uses the same webroot and a deploy hook that reloads
    Nginx.
 3. Install `ops/nginx.conf` as `/etc/nginx/sites-available/locust.farm`, link it in
    `sites-enabled`, run `nginx -t` and reload.
-4. Create `/etc/nginx/locust.farm.htpasswd` with `htpasswd -cB` (owner `root:www-data`, mode
-   `0640`). Keep passwords and hashes out of Git.
-5. DNS: an apex A record for the host's address and a `www` CNAME to `locust.farm`.
+4. DNS: an apex A record for the host's address and a `www` CNAME to `locust.farm`.
 
 ## Live farms
 

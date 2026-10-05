@@ -2,7 +2,7 @@
 
 The farm API is a separate Rust process. The website remains a static SvelteKit
 build. [nginx.conf](nginx.conf) exposes `/farm/<id>`, `/farms`, their client assets
-and `/api/farms` publicly; other website pages keep the preview password.
+and `/api/farms` publicly, along with the other website pages.
 The configuration in this directory is deployment material, not a record of a
 production rollout.
 
@@ -43,9 +43,9 @@ previous static release and service executable for coordinated rollback.
 
 ## Verify the public boundary
 
-Use a browser without the preview credentials. Check the gallery, an enrolled
+Use a fresh browser without credentials. Check the gallery, an enrolled
 farm URL, its fonts and scripts, and its live updates. Check that `/`, `/start`
-and `/docs` still require the preview password. Verify `Cache-Control: no-store`,
+and `/docs` also load without authentication. Verify `Cache-Control: no-store`,
 the no-referrer policy, and CSP on farm pages. Confirm that suspension removes
 an already open page and gallery card, and that an unlisted farm is absent from
 gallery responses. Do not treat an HTTP 200 page shell as proof of hydrated UI
