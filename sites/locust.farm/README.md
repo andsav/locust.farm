@@ -4,6 +4,7 @@ The Locust website, built with SvelteKit and prerendered to static files. It has
 
 - `/`: what Locust is for, over the swarm animation.
 - `/start`: the setup prompt.
+- `/how-it-works`: four steps, each with a small animated picture.
 - `/formations`: the formation editor.
 - `/docs`: the development manual, built from `docs/guide/`.
 - `/farm/<id>` and `/farms`: public farm pages.

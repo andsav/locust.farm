@@ -18,9 +18,14 @@
 		<h1>Distributed Agent Swarm<span class="accent">.</span></h1>
 		<p>{description}</p>
 		<div class="actions">
-			<a class="button primary" href={GUIDE_PATH}
-				>Start with one prompt <span aria-hidden="true">→</span></a
-			>
+			<div class="start-actions">
+				<a class="button primary" href={GUIDE_PATH}
+					>Start with one prompt <span aria-hidden="true">→</span></a
+				>
+				<a class="button quiet" href="/how-it-works"
+					>How does it work? <span aria-hidden="true">→</span></a
+				>
+			</div>
 			<a
 				class="button quiet"
 				href="https://github.com/andsav/locust.farm"
@@ -73,6 +78,13 @@
 		gap: var(--space-16);
 		padding-top: var(--space-18);
 		border-top: var(--border-hairline);
+	}
+
+	.start-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-16);
 	}
 
 	/* The GitHub link has no surface of its own, so its text takes the halo. */

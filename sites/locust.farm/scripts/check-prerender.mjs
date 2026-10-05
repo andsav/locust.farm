@@ -19,6 +19,7 @@ const hostedDownloads = new Set([
 const routes = [
 	'/',
 	'/start',
+	'/how-it-works',
 	'/formations',
 	'/farms',
 	'/docs',
