@@ -279,7 +279,12 @@
     "docs/formation-prompt.md",
     "docs/swarm-visualization-plan.md",
     "sites/locust.farm/ops/README.md",
-    "docs/workspace.md"
+    "docs/workspace.md",
+    "crates/locust-core/src/node/requests/claims.rs",
+    "crates/locust-core/src/goal/mod.rs",
+    "crates/locust-core/src/node/views.rs",
+    "crates/locust-core/src/node/tests/lifecycle.rs",
+    "crates/locust-core/src/node/tests/failure.rs"
   ],
   "routes": [
     {

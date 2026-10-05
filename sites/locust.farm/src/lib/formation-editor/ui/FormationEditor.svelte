@@ -38,10 +38,10 @@
 		loadSaved,
 		newRecordId,
 		removeSaved,
-		save,
 		type KeyValueStore,
 		type SavedSummary
 	} from '../storage/saved.ts';
+	import { Autosaver, type SaveStatus } from '../autosave.ts';
 	import CopyBar from './CopyBar.svelte';
 	import Icon from './Icon.svelte';
 	import type { IconName } from './icons.ts';
@@ -72,13 +72,19 @@
 	/** The point of a line whose choices are shown, if any. */
 	let openPoint = $state<{ line: LineRef; point: PointName } | null>(null);
 	let announcement = $state('');
-	let saveStatus = $state<{ ok: boolean; text: string }>({ ok: true, text: '' });
+	let saveStatus = $state<SaveStatus>({ ok: true, text: '' });
 	let banner = $state<string | null>(null);
 	let compact = $state(false);
 
 	let store: KeyValueStore | null = null;
 	let recordId = $state(newRecordId());
 	let origin: 'new' | 'link' | 'import' = 'new';
+
+	const autosaver = new Autosaver({
+		debounceMs: 400,
+		onStatus: (status) => (saveStatus = status),
+		currentRecordId: () => recordId
+	});
 
 	const inspection = $derived(inspectFormation(document.formation));
 	const checks = $derived(pageChecks(document.formation));
@@ -117,32 +123,8 @@
 		queueMicrotask(() => (announcement = message));
 	}
 
-	let saveTimer: ReturnType<typeof setTimeout> | undefined;
 	function scheduleSave() {
-		clearTimeout(saveTimer);
-		saveTimer = setTimeout(async () => {
-			if (!store) {
-				saveStatus = {
-					ok: false,
-					text: "Not saved: this browser isn't keeping data for this page. Download or copy a link to keep your work."
-				};
-				return;
-			}
-			const data = await blocks(document);
-			const ok = save(store, {
-				id: recordId,
-				name: document.name,
-				origin,
-				saved: new Date().toISOString(),
-				data: data.text
-			});
-			saveStatus = ok
-				? { ok: true, text: 'Saved in this browser.' }
-				: {
-						ok: false,
-						text: 'Not saved: this browser refused to store it. Download or copy a link to keep your work.'
-					};
-		}, 400);
+		autosaver.schedule(store, { document, recordId, origin });
 	}
 
 	function change(next: EditorDocument) {
@@ -278,6 +260,7 @@
 	}
 
 	function load(next: EditorDocument, from: 'new' | 'link' | 'import', id = newRecordId()) {
+		void autosaver.flush();
 		history = startHistory(next);
 		recordId = id;
 		origin = from;
@@ -300,7 +283,11 @@
 
 	function deleteRecord(id: string) {
 		if (!store) return;
-		removeSaved(store, id);
+		if (!removeSaved(store, id)) {
+			toast('This browser could not remove the saved formation.');
+			return;
+		}
+		autosaver.discard(id);
 		saved = listSaved(store);
 		if (id === recordId) recordId = newRecordId();
 	}
@@ -454,7 +441,10 @@
 			scheduleSave();
 		})();
 
-		return () => media.removeEventListener('change', onMedia);
+		return () => {
+			media.removeEventListener('change', onMedia);
+			autosaver.teardown();
+		};
 	});
 </script>
 
