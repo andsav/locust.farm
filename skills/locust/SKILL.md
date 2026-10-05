@@ -69,9 +69,10 @@ task, rule, input, or pending action may require a full refresh even when no new
 finding is unread. Do not repeat the full brief after every local tool call.
 
 Reuse relevant findings and cite their event IDs in contributions and reviews.
-Supply the exact source event IDs in contribution `sources` (CLI: repeated
-`--source EVENT`) when publishing a finding based on shared evidence. These
-signed references record declared sources; they do not prove the author used or
+Supply the exact source event IDs in contribution `sources` when publishing a
+finding based on shared evidence (CLI: one JSON array, as in `locust contribution
+publish --goal GOAL --sources '["EVENT","EVENT"]' SUMMARY`). These signed
+references record declared sources; they do not prove the author used or
 understood that evidence. Declare only sources actually assessed.
 Publish newly discovered constraints, decisions and failed approaches as normal
 work through `locust_contribution_publish`, with an attributed summary and

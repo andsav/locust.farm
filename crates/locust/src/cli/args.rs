@@ -405,6 +405,69 @@ pub(super) fn text_field(operation: &str) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn long_flags(command: &Command, flags: &mut std::collections::BTreeSet<String>) {
+        flags.extend(
+            command
+                .get_arguments()
+                .filter_map(|argument| argument.get_long().map(String::from)),
+        );
+    }
+    /// The packaged skill is read as instructions: a `locust ...` command it
+    /// names must parse, and a flag named on its own must belong to a command
+    /// group named in the same paragraph.
+    #[test]
+    fn the_skill_names_only_commands_and_flags_this_parser_accepts() {
+        use clap::error::ErrorKind;
+        let skill = include_str!("../../../../skills/locust/SKILL.md");
+        let root = command();
+        let mut checked = 0;
+        for paragraph in skill.split("\n\n") {
+            // Every second piece between backticks is a code span; one may
+            // wrap across lines.
+            let spans: Vec<Vec<&str>> = paragraph
+                .split('`')
+                .skip(1)
+                .step_by(2)
+                .map(|span| span.split_whitespace().collect())
+                .collect();
+            let mut flags = std::collections::BTreeSet::new();
+            for words in &spans {
+                if words.len() < 2 || words[0] != "locust" {
+                    continue;
+                }
+                let named = words.join(" ");
+                if let Err(error) = command().try_get_matches_from(words) {
+                    // Naming a command without its required parts is fine.
+                    assert!(
+                        matches!(
+                            error.kind(),
+                            ErrorKind::MissingRequiredArgument | ErrorKind::MissingSubcommand
+                        ),
+                        "the skill names `{named}`: {error}"
+                    );
+                }
+                long_flags(&root, &mut flags);
+                let mut group = vec![root.find_subcommand(words[1]).expect("parsed above")];
+                while let Some(command) = group.pop() {
+                    long_flags(command, &mut flags);
+                    group.extend(command.get_subcommands());
+                }
+                checked += 1;
+            }
+            for words in &spans {
+                let Some(flag) = words.first().and_then(|word| word.strip_prefix("--")) else {
+                    continue;
+                };
+                assert!(
+                    flags.contains(flag),
+                    "the skill names `{}` beside no command that takes it",
+                    words.join(" ")
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked > 0, "no command or flag was found in the skill");
+    }
     #[test]
     fn optional_sources_use_the_schema_default_in_named_commands() {
         let matches = command()
