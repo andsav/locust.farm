@@ -32,6 +32,7 @@ The pages published on locust.farm under `/docs`. See the
 
 ## Design
 
+- [Versioned shared file tree plan](shared-file-tree-plan.md): proposed goal-wide workspace revisions, integration authority, local checkout workflow and verification stages.
 - [Formation design](formations.md): how formations, tasks, reviews, selection and rule changes work.
 - [Formation editor](formation-editor.md): the `/formations` editor on locust.farm and the rules it follows.
 - [Formation prompt contract](formation-prompt.md): the exact prompt the formation editor copies for an agent.

@@ -30,6 +30,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Public source review](open-source-review.md)
 - [Performance and agent cost pass](performance-cost-pass.md)
 - [Real-model shared-context pilot](shared-context-real-model-pilot.md)
+- [Shared file tree architecture investigation](shared-file-tree-2026-10-04.md)
 - [Separate-goal subgroup acceptance](subgroup-qualification.md)
 - [Published evidence on groups of agents versus one](swarm-evidence.md)
 
