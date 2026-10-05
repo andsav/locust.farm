@@ -1,7 +1,7 @@
 # Formation authoring on locust.farm
 
 Date: 2026-10-04. **Status: research supporting the
-[proposed formation authoring plan](../docs/formation-authoring-plan.md); nothing
+[proposed formation authoring plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formation-authoring-plan.md); nothing
 is implemented. Probes and measurements are listed with their method; everything
 else is source reading or inference.** It extends the
 [formation research](formations.md) to one question:
@@ -16,7 +16,7 @@ inference or recommendation; **[R]** third-party report, not confirmed here.
 This section supersedes the rest of the note where they disagree. The rest
 records the first two rounds of research. Identifiers such as WD4 or WR10 refer
 to earlier drafts of the plan, kept in Git history; the current
-[plan](../docs/formation-authoring-plan.md) lists decisions in plain words.
+[plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formation-authoring-plan.md) lists decisions in plain words.
 
 **Owner decisions after the first rounds.**
 
@@ -108,7 +108,7 @@ merak's impeccable design guidance (`.impeccable.md` and the impeccable
 frontend-design and distill skills) with Locust's colours, and pointed to their
 Catalyst canvas (`~/Projects26/catalyst_demo`) as another example.
 
-Decisions, recorded in [plan](../docs/formation-authoring-plan.md) section 3:
+Decisions, recorded in [plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formation-authoring-plan.md) section 3:
 
 - The ways of working stay at the top as a strip of pictures with names only;
   sentences moved to tooltips.
@@ -145,7 +145,7 @@ package (short answer 3; plan WD1).
 
 The formation contract and agent operations are being built in a separate
 worktree; the plan assumes they exist as the
-[formation implementation plan](../docs/formations-implementation-plan.md)
+[formation implementation plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-implementation-plan.md)
 specifies, with names provisional until O1 freezes them.
 
 ## Short answers
@@ -730,9 +730,9 @@ Parts of findings not adopted, with the verified reason:
 Local sources, read 2026-10-04:
 
 - Locust at `6b9365f`: [accepted direction](../docs/formations.md),
-  [formation implementation plan](../docs/formations-implementation-plan.md),
-  [public documentation plan](../docs/public-documentation-plan.md),
-  [first contact](../docs/first-contact.md), [workstreams](../docs/workstreams.md),
+  [formation implementation plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-implementation-plan.md),
+  [public documentation plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/public-documentation-plan.md),
+  [first contact](../docs/first-contact.md), [workstreams](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/workstreams.md),
   the [lane C log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-c-log.md), the site under
   [sites/locust.farm](../sites/locust.farm/README.md) including its
   [fonts](../sites/locust.farm/src/lib/styles/fonts.css) and

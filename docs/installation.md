@@ -1,242 +1,258 @@
-# Local verified installation
+# How installation works
 
-Status: signed package verification and software activation implemented; the
-[identified macOS candidate](packaging.md) passed ten local native installation,
-upgrade and launchd cases. Client and other-platform evidence is recorded
-separately. Publication, production
-signing custody, distribution origin and license remain owner decisions. This
-procedure starts with an independently trusted Locust executable and an extracted
-candidate made by the [native builder](packaging.md). A verifier downloaded with
-an untrusted candidate does not establish its authenticity.
+Status: built. The public installer supports macOS on Apple Silicon only. The Linux service code is not tested on Linux.
 
-The [local installation prompt](install-prompt.md) composes these commands for
-an explicitly selected candidate, service and dedicated client profile.
-After software activation, [resumable onboarding](onboarding.md) provides `up`
-and `agent add` to compose service readiness, protected enrollment/session files
-and reviewed client setup. The lower-level commands below remain available for
-existing explicit bindings.
+User steps are in [Install Locust](guide/installation.md). The setup prompt in
+[first contact](first-contact.md#entry-prompt) runs them through an agent.
 
-## Published preview
+## Ways to install
 
-The [public macOS Apple Silicon installer](https://locust.farm/downloads/install.sh)
-verifies the publisher and package before activation. The [public installation
-guide](https://locust.farm/downloads/install.md) and [first-contact prompt](first-contact.md)
-cover install/update without access to the authenticated website. The candidate
-procedure below remains useful for explicitly supplied bundles. Public software,
-source-only adapter additions and real-model readiness are separate claims.
-
-## Trust and software activation
-
-The [package verifier](../crates/locust/src/package.rs) verifies the exact manifest
-bytes with a separately selected raw 32-byte Ed25519 public key. The detached
-signature is `manifest.sig` (64 bytes). The current `locust-release-v2` candidate has exactly three declared
-payload paths: `locust`, `skills/locust/SKILL.md` and `manual.tar`. Their SHA-256 digests, lengths,
-Unix modes and binary architecture must match. Symlinks, hardlinks and special
-files in the declared payload paths are refused. Verification does not execute
-the candidate. The [matching manual](packaging.md) includes the repository license,
-versioned documentation, contracts, examples and availability metadata; installed
-readers need no checkout.
-
-Every verification and install takes an explicit signed withdrawal registry:
-
-```json
-{"format":"locust-withdrawals-v1","sequence":1,"withdrawn_manifest_sha256":[]}
-```
-
-Its detached signature is `<registry-path>.sig`, signed with the same independent
-key. A locally supplied registry is not evidence that it is the publisher's
-latest registry. Once an installation has seen a sequence, it refuses rollback,
-changed bytes at the same sequence, reinstatement of a previously withdrawn
-manifest, and replacement of its trust key. Uninstall retains this watermark.
-There is no automatic network update or trust-root migration.
-
-For local qualification only, a participant can explicitly create a disposable
-key, sign an inspected candidate and sign its registry. This does not select a
-production signing identity:
+- **The public installer** installs the published developer preview. Add
+  `-s -- --plan` after `sh` to see the plan only.
+- **By hand**: run a `locust` you already trust against an unpacked package.
 
 ```sh
-/TRUSTED/locust package keygen --secret-key /TEST/signing.key --public-key /TEST/trust.pub
-/TRUSTED/locust package sign --bundle /TEST/bundle --secret-key /TEST/signing.key
-/TRUSTED/locust package sign-withdrawals --registry /TEST/withdrawals.json --secret-key /TEST/signing.key
-/TRUSTED/locust --json package verify --bundle /TEST/bundle --trust-key /TEST/trust.pub --withdrawals /TEST/withdrawals.json
+curl -fsSL https://locust.farm/downloads/install.sh | sh
 ```
 
-The [installer](../crates/locust/src/installation.rs) takes an explicit absolute
-software prefix, separate from the daemon's identity/database home. Review the
-plan and pass its digest back to apply with the same inputs:
+Both end with `install plan` and `install apply`. Locust never updates itself;
+run the installer again to update.
+
+## What the public installer checks
+
+[`install.sh`](../scripts/install.sh) takes `--prefix` (default
+`~/.local/share/locust`), `--bin-dir` (default `~/.local/bin`) and `--plan`. It
+stops at the first failed step:
+
+1. It refuses any host but macOS on arm64, and relative paths.
+2. It refuses a bin directory that is a symlink or someone else's, and an
+   existing `locust` there that points elsewhere.
+3. It downloads `latest.json`. The target must be `aarch64-apple-darwin` and the
+   trust key hash must equal the one in the script.
+4. It downloads the archive, checks its SHA-256 and requires exactly nine files.
+5. It checks the binary's SHA-256 and its timestamped Apple signature (team
+   `P2Q3P9R6AT`). Only then does it run downloaded code.
+6. It downloads the current withdrawal list from `/downloads/` and checks the
+   hash of `trust.pub`.
+7. It runs `package verify`. Commit, version and manifest hash must match
+   `latest.json`.
+8. It prints the `install plan`. With `--plan`, it stops here.
+9. It runs `install apply` and links `BIN_DIR/locust` to `PREFIX/current/locust`.
+
+It uses no sudo, edits no shell startup files, starts no daemon and connects no
+agent. You trust the script itself through HTTPS. Its closing hint omits
+`--home`; the public install notes use `--home "$HOME/.locust-api4"`.
+
+## Install a package by hand
+
+Use a `locust` you already trust: a verifier cannot vouch for the download it came
+in. `BUNDLE` is an unpacked package. The withdrawal list's signature is its path
+plus `.sig`.
 
 ```sh
-/TRUSTED/locust --json install plan --prefix /SOFTWARE/locust --bundle /TEST/bundle --trust-key /TEST/trust.pub --withdrawals /TEST/withdrawals.json
-/TRUSTED/locust --json install apply --prefix /SOFTWARE/locust --bundle /TEST/bundle --trust-key /TEST/trust.pub --withdrawals /TEST/withdrawals.json --expect-plan PLAN_SHA256
-/TRUSTED/locust --json install status --prefix /SOFTWARE/locust
+locust --json install plan --prefix /PATH/TO/PREFIX --bundle /PATH/TO/BUNDLE --trust-key /PATH/TO/trust.pub --withdrawals /PATH/TO/withdrawals.json
+locust --json install apply --prefix /PATH/TO/PREFIX --bundle /PATH/TO/BUNDLE --trust-key /PATH/TO/trust.pub --withdrawals /PATH/TO/withdrawals.json --expect-plan PLAN_SHA256
+locust --json install status --prefix /PATH/TO/PREFIX
 ```
 
-Planning is read-only. Apply rechecks the plan under an exclusive prefix lock,
-copies into a private staging directory, rehashes the copied bytes and executes
-only the verified candidate's `--version` under a cleared environment. Its
-reported version, 12-character source prefix, API and protocol must match the
-signed manifest. The full source commit remains in the manifest. Installation
-currently requires the same API/protocol as the running installer and the native
-macOS arm64 or Linux x86_64 target. Semver downgrades require an explicit
-`--allow-downgrade` in both plan and apply; a new commit at the same version has
-a distinct signed manifest and still requires a fresh plan.
+`package verify` runs the same checks without a prefix.
+[Packaging and releases](packaging.md) explains building and signing.
 
-A verified directory lives under `releases/<manifest-sha256>`. An atomic relative
-`current` symlink selects it; the executable is `/SOFTWARE/locust/current/locust`.
-The installer does not edit shell startup files or the user's PATH. It persists
-the signed policy before changing `current`. An interrupted operation can leave
-a private `.stage-*` directory or a completed inactive release; it never selects
-a partial staged payload. A retry re-verifies a completed release before using
-it. Unrecognized staging directories remain for inspection; they are not
-recursively erased on a guess. Existing daemons require an explicit service
-restart to run new code. Installer file/directory syncs are implemented, but no
-power-loss durability qualification is claimed.
+## Package checks and activation
 
-## Removal
+[package.rs](../crates/locust/src/package.rs) checks the Ed25519 signature in
+`manifest.sig` over the exact `manifest.json` bytes, with the public key you name.
+A package never chooses its own key. It then checks each file's SHA-256, size
+and mode, the binary's machine format, and the signed withdrawal list. Links and
+special files are refused. Verification never runs the binary.
 
-Stop and remove the selected service and client configuration before removing
-software that they reference. Software removal is separately reviewable:
+[installation.rs](../crates/locust/src/installation.rs) activates a package:
+
+- `install plan` changes nothing. It returns the plan and its `plan_sha256`.
+- `install apply` locks the prefix, builds the plan again and refuses if the
+  digest changed.
+- The package must match the host, and its API and protocol must equal those of
+  the `locust` running the command.
+- A lower version needs `--allow-downgrade` in both plan and apply.
+- Apply copies the files to a private staging folder and hashes them again. It
+  runs the new binary's `--version` with an empty environment and compares it
+  with the manifest.
+- Apply saves the trust state before it switches `current`. A crash can leave the
+  old release active, but never new code with an older withdrawal list.
+
+| Prefix path | Contents |
+| --- | --- |
+| `current` | Symlink to the active release |
+| `releases/MANIFEST_SHA256/` | One verified release per manifest |
+| `trust-state.json` | Trust key and newest withdrawal list seen |
+| `install.lock` | Lock file |
+| `service-LABEL.json` | User service ownership record |
+| `setup/` | Agent setup records and journals |
+
+Folders must belong to you and have mode 0700. Once a prefix has seen a
+withdrawal list, it refuses a lower sequence or other bytes at the same sequence.
+It refuses a list that drops an earlier withdrawal, and any other trust key. No
+command changes the key of a prefix.
+
+An interrupted install can leave a `.stage-*` folder or an inactive complete
+release. Locust never activates a partial copy, and checks a complete one again
+before using it. Unknown staging folders stay for you to inspect.
+
+A running daemon keeps its old code. `install apply` reports
+`service_restart_required`; restart the service to run the new code.
+
+## Remove the software
+
+Remove agent setup and the service first, because they point at the software.
 
 ```sh
-/TRUSTED/locust --json install uninstall-plan --prefix /SOFTWARE/locust
-/TRUSTED/locust --json install uninstall --prefix /SOFTWARE/locust --expect-plan PLAN_SHA256
+locust --json install uninstall-plan --prefix /PATH/TO/PREFIX
+locust --json install uninstall --prefix /PATH/TO/PREFIX --expect-plan PLAN_SHA256
 ```
 
-It removes the selected link and unchanged signed software payloads. Modified
-releases and unknown files remain and are reported. The private trust state,
-daemon identity/database, logs, credentials, sessions and client configuration
-are preserved. No data-purge operation is implied by software uninstall.
+Uninstall removes `current` and every unchanged release. It keeps and reports
+modified or unknown files. It keeps the trust state, the data directory, logs,
+credentials, sessions and agent configuration.
 
-## Evidence boundaries
+## User services
 
-The [installation tests](../crates/locust/src/installation/tests.rs) exercise
-read-only plans, stale-plan rejection, repeat install, upgrade, downgrade and
-registry policy, mutated source bytes, failed executable probe, lock contention
-and conservative removal. Their synthetic executable probes do not establish a
-real native install. Native package/service/client results must be recorded
-separately in the [release evidence ledger](release-evidence.md), with candidate
-and harness hashes. A configured CI job is not a completed Linux/macOS run;
-same-host installation is not the deferred physical-machine acceptance pass.
-
-## User-session services
-
-The [service renderer](../crates/locust/src/installation/service.rs) supports a
-macOS arm64 launchd GUI service, Linux x86_64 systemd user service, or explicit
-`none`. The label derives from the selected absolute daemon home. The unit uses
-the installed `current/locust`, the explicit daemon home, a private log directory,
-and HOME/XDG paths under the selected profile. It never invokes a shell.
+[service.rs](../crates/locust/src/installation/service.rs) writes a per-user
+service that runs `PREFIX/current/locust --home DATA daemon run`.
 
 ```sh
-/TRUSTED/locust --json service plan --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
-/TRUSTED/locust --json service apply --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust --expect-plan PLAN_SHA256
-/TRUSTED/locust --json service start --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
-/TRUSTED/locust --json service status --prefix /SOFTWARE/locust --kind launchd --profile-home /PROFILE --daemon-home /DATA/locust --log-dir /LOGS/locust
-/SOFTWARE/locust/current/locust --home /DATA/locust --owner --json doctor
+locust --json service plan --prefix /PATH/TO/PREFIX --kind launchd --profile-home "$HOME" --daemon-home /PATH/TO/DATA --log-dir /PATH/TO/DATA/logs
 ```
 
-On Linux select `--kind systemd` and the profile whose user manager owns the
-configuration. A missing GUI domain or user bus is unavailable, not a stopped
-service. `service start` starts an absent service or restarts an already loaded
-owned service. The reported manager state is separate from a successful daemon
-API roundtrip; run `doctor` with the appropriate scoped credential as well.
-`loaded` means launchd knows the job but does not currently report it running.
-Native service changes can be asynchronous: a successful manager request can
-briefly be followed by an `unavailable` result because the requested running or
-stopped state has not been observed. Inspect `service status` until the state
-settles, then independently check the API after start. Removal still refuses a
-loaded or running service. Do not infer startup failure or completed shutdown
-from the request alone.
+`service apply --expect-plan PLAN_SHA256`, `start`, `status`, `stop`,
+`remove-plan` and `remove --expect-plan PLAN_SHA256` take the same flags.
 
-The [ownership wrapper](../crates/locust/src/installation/service_install.rs)
-writes a private intent before creating a nonce-marked unit. It never adopts a
-pre-existing unit without that record, even if its bytes match. Retry can finish
-an interrupted owned write; edits or an unrelated label collision are refused.
-Start checks installed trust under the prefix lock, and control verifies the
-loaded unit definition before acting on its label. A failed start retains the
-unit and ownership record for inspection and retry.
+| `--kind` | Host | Unit file |
+| --- | --- | --- |
+| `launchd` | macOS arm64 | `PROFILE/Library/LaunchAgents/LABEL.plist` |
+| `systemd` | Linux x86_64 | `PROFILE/.config/systemd/user/LABEL.service` |
+| `none` | any | None; you run the daemon |
 
-Use the same selection arguments with `service stop`, then `service remove-plan`
-and `service remove --expect-plan PLAN_SHA256`. Removal requires an unchanged
-owned unit and an observed stopped/absent service. It preserves daemon data and
-logs. No root daemon, system service or login account is created.
+- `LABEL` is `farm.locust.` plus 16 hex digits of the SHA-256 of the data
+  directory path, so each data directory gets its own service.
+- The unit sets `HOME` and the XDG folders to the profile home and logs to
+  `stdout.log` and `stderr.log`. launchd restarts the daemon unless it exits
+  cleanly; systemd restarts it on failure.
+- [service_install.rs](../crates/locust/src/installation/service_install.rs)
+  saves an ownership record before it creates the unit. Locust never takes over a
+  unit it did not create and refuses an edited one.
+- `service start` restarts a loaded service. Use it after an upgrade.
+- Right after start or stop, `service status` can say `unavailable`. Check again
+  until it settles, then run `locust --owner doctor`.
+- `service remove` needs a stopped service. It keeps the data and logs.
 
-## Client skill and MCP setup
+Locust creates no root daemon or system service.
 
-The [setup implementation](../crates/locust/src/installation/setup.rs) installs a
-bound CLI launcher, a local copy of the signed skill with its launcher prefix,
-and one `locust` stdio server into an explicitly selected
-client profile. Supported targets are Codex (`.codex/config.toml` and
-`.agents/skills/locust`), Claude Code (`.claude.json` and `.claude/skills/locust`),
-Pi (`.pi/agent/mcp.json` and `.pi/agent/skills/locust`), and Droid
-(`.factory/mcp.json` and `.factory/skills/locust`). The portable `shell` target
-uses `.local/share/locust-agent/` for its skill, bound CLI and MCP connection
-descriptor; it does not register a server with an unknown client. Droid and shell
-are source additions: inspect the installed `up --help` before selecting them. Those are the clients'
-user-profile locations; project/ancestor collisions are checked for the selected
-workspace. Managed organization policy remains authoritative. See the official
-[Codex MCP](https://developers.openai.com/codex/mcp),
-[Codex skills](https://developers.openai.com/codex/skills),
-[Claude MCP](https://code.claude.com/docs/en/mcp),
-[Claude skills](https://code.claude.com/docs/en/skills),
-[Pi MCP](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/mcp.md)
-and [Pi skills](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md)
-documentation for the clients' discovery rules.
+## Agent setup
 
-Enroll a dedicated principal and create its explicit session through existing
-owner/session commands. Setup consumes their existing private 32-byte files;
-it does not silently enroll, grant execution permission, change client tool
-approval/sandbox policy, copy provider authentication or expose secret bytes in
-configuration. The MCP definition contains only protected-file paths. This is a
-fixed profile/session binding: use a dedicated profile for this session, and do
-not treat multiple native conversations sharing that profile as independently
-identified Locust sessions. [Managed launch](managed-clients.md) has separate
-native-session binding and lifecycle checks.
-
-The generated `locust-cli` executable lives beside the installed `SKILL.md` at
-mode 0700. It invokes the absolute installed executable with fixed home,
-credential and session paths; it contains no secret bytes and needs no PATH or
-`LOCUST_*` environment setup. The installed skill preserves the signed source's
-frontmatter and body and inserts the shell-quoted launcher prefix. The signed
-release itself stays unchanged; setup records and reviews the generated files.
-`setup plan`, `apply` and `status` return the launcher path; `launcher_ready`
-checks its owned content and mode, not native-client execution.
-
-The [launcher](../crates/locust/src/installation/setup/launcher.rs) refuses
-`--home`, `--credential`, `--session`, `--owner` and `--as`, including their
-`--flag=value` forms anywhere in its arguments. Literal note/result text equal
-to one of those reserved arguments can be supplied on standard input. It does
-not change daemon grants or client policy, and is not isolation from another
-process able to read the owner credential. Rebinding requires reviewed setup.
-
-Close clients that write the selected profile while applying or removing setup.
-Review the actual paths and generated Locust registration, then apply its digest:
+[setup.rs](../crates/locust/src/installation/setup.rs) connects one coding agent
+profile to one enrolled agent. `up` and `agent add` run it for you. Run it
+directly when you already have a credential file and a session file:
 
 ```sh
-/TRUSTED/locust --json setup plan --prefix /SOFTWARE/locust --client codex --profile-home /PROFILE --workspace /WORKSPACE --daemon-home /DATA/locust --credential-file /DATA/locust/agents/worker.credential --session-file /DATA/locust/sessions/worker.secret
-/TRUSTED/locust --json setup apply --prefix /SOFTWARE/locust --client codex --profile-home /PROFILE --workspace /WORKSPACE --daemon-home /DATA/locust --credential-file /DATA/locust/agents/worker.credential --session-file /DATA/locust/sessions/worker.secret --expect-plan PLAN_SHA256
+locust --json setup plan --prefix /PATH/TO/PREFIX --client codex --profile-home "$HOME" --workspace /PATH/TO/WORKSPACE --daemon-home /PATH/TO/DATA --credential-file /PATH/TO/DATA/agents/NAME.credential --session-file /PATH/TO/SESSION
 ```
 
-Unowned name/skill collisions are refused. An interrupted write retains a private
-journal; a retry recognizes only the reviewed before/after states and refuses
-unrelated modifications. Reapplying can update owned content while preserving
-unrelated settings. `setup remove-plan` and `setup remove --expect-plan ...` use
-the same selection arguments. Removal restores the exact original configuration
-when the installed document is otherwise unchanged, or removes just the owned
-entry from a document with unrelated edits. A modified owned entry, skill or launcher is
-preserved and reported as a conflict. Removal remains available after software
-uninstall; credentials and session files remain.
+`setup apply --expect-plan PLAN_SHA256`, `status`, `remove-plan` and `remove`
+take the same flags. Paths are relative to the profile home:
 
-Setup ownership and plans accept only the current version-2 formats, with all
-four owned paths: configuration, skill, bound launcher and ownership record.
-Unsupported ownership or pending-journal formats are refused before changing
-files. Unknown launcher files are never adopted or deleted. The
-[setup tests](../crates/locust/src/installation/setup/tests.rs) cover current
-interruption at every write, unsupported-format refusal with byte preservation,
-quoted paths, overrides and owned edits.
+| Agent | `--client` | MCP entry | Skill folder | Available in |
+| --- | --- | --- | --- | --- |
+| Codex | `codex` | `.codex/config.toml` | `.agents/skills/locust/` | preview, source |
+| Claude Code | `claude` | `.claude.json` | `.claude/skills/locust/` | preview, source |
+| pi | `pi` | `.pi/agent/mcp.json` | `.pi/agent/skills/locust/` | preview, source |
+| Droid | `droid` | `.factory/mcp.json` | `.factory/skills/locust/` | source |
+| Any shell agent | `shell` | `.local/share/locust-agent/mcp.json` | `.local/share/locust-agent/skills/locust/` | source |
 
-Restart the client so it discovers the registration and skill. Setup reports
-`reload_required`, with discovery and API readiness unobserved. Only the actual
-client can establish that its policy permits loading the bridge and calling it.
-Use `locust_status` in that client, then perform the intended task under the
-participant's selected permissions. A written configuration is not proof of
-client readiness, and a successful read is not execution authorization.
+Setup writes:
+
+- an MCP server entry named `locust` that runs `PREFIX/current/locust mcp` with
+  `LOCUST_HOME`, `LOCUST_CREDENTIAL` and `LOCUST_SESSION` set to file paths, not
+  secrets. For `shell`, no app reads this file;
+- a copy of the skill with an "Installed Locust CLI" section;
+- a `locust-cli` script next to the skill. It fixes `--home`, `--credential` and
+  `--session`, and refuses those flags, `--owner` and `--as` in its arguments
+  ([launcher.rs](../crates/locust/src/installation/setup/launcher.rs)). It does
+  not isolate the agent from the owner credential.
+
+Setup refuses when the workspace or a parent folder already has a Locust MCP
+entry or skill. It also refuses when the profile has another Locust entry or a
+project configuration folder is a symlink.
+
+Records under `PREFIX/setup/` let an interrupted write resume. Removal restores
+the original file if nothing else changed it; otherwise it removes only the
+Locust entry. An edited Locust entry, skill or script is kept and reported.
+
+Setup never grants permissions, changes approval settings or copies provider
+credentials. It reports `reload_required`: the agent sees the change after a
+restart or in a new chat.
+
+## Connect agents with up and agent add
+
+`locust up` ([CLI](../crates/locust/src/cli/onboarding.rs),
+[journal](../crates/locust/src/installation/onboarding.rs)) runs these steps:
+
+1. It finds the installed release from its own path or `--prefix`. The release
+   must be verified and not withdrawn. A development build is refused.
+2. Without `--client`, it lists the agents it finds and changes nothing. In a
+   terminal it asks which to connect.
+3. It plans the service (`launchd` on macOS, `systemd` on Linux, or
+   `--service none` to use a running daemon) and the agent setup.
+4. It asks for confirmation. `--plan` only shows the plan. `--yes` applies without
+   asking and needs `--client`. `--json` turns off prompts.
+5. It starts the service and waits for the daemon (`--wait-ms` sets a maximum;
+   `0` checks once). A running service is not restarted.
+6. For each agent, it writes a journal, saves a credential and a session file,
+   enrolls the agent and applies setup.
+7. It checks access with the agent's own credential and session.
+8. It reports `model_ready:false` and `grants_added:false`.
+
+`locust agent add CLIENT` runs the same steps without the service.
+
+Defaults: `--home` falls back to `LOCUST_HOME`, then `~/.locust`.
+`--profile-home` and `--service-profile-home` default to `HOME`, `--workspace`
+to the current folder and `--log-dir` to `DATA/logs`. Without `--name`, names
+look like `codex-maple-1a2b3c4d`. Enrolled agents get no goal permissions and
+cannot create goals.
+
+The journal is `DATA/onboarding/HASH/state.json`, with the `credential` and
+`session` files beside it. `HASH` comes from the client and profile home. If `up`
+stops partway, run it again: it reuses the saved name and credential. Changed
+secrets or configuration stop the retry for you to inspect.
+
+With the default profile home, setup stops when `CODEX_HOME` or
+`PI_CODING_AGENT_DIR` points away from the standard folder, or when
+`CLAUDE_CONFIG_DIR` is set. Unset it or pass `--profile-home`.
+
+Each profile holds one agent identity and one session, shared by all its chats.
+
+The published preview accepts only `codex`, `claude` and `pi`. For another agent,
+the owner runs `service plan`, `apply` and `start`, then
+`locust --owner agent enroll NAME` and `session create PATH`. The agent then uses
+the CLI with `--credential` and `--session`.
+
+## Check a connected agent
+
+```sh
+locust --home /PATH/TO/DATA doctor --client codex
+```
+
+`doctor` reads the journal and checks the release, service, daemon access,
+saved identity, MCP entry, skill, script and workspace. Each failed check names a
+fix. It changes nothing. To see whether the agent loaded Locust, start a new chat
+and ask for its Locust status.
+
+## How this is tested
+
+Unit tests cover [installation](../crates/locust/src/installation/tests.rs),
+[setup](../crates/locust/src/installation/setup/tests.rs) and
+[connecting agents](../crates/locust/src/installation/onboarding/tests.rs).
+[test_public_installer.py](../scripts/tests/test_public_installer.py) checks the
+installer's refusals offline. [check_installation.py](../scripts/check_installation.py)
+and [check_onboarding.py](../scripts/check_onboarding.py) install a local package
+signed with throwaway keys. No test runs the public installer against the live
+server. See [Testing](testing.md).

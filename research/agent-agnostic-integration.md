@@ -2,7 +2,7 @@
 
 Date: 2026-10-03. **Status: researched recommendation, not an accepted design or implemented adapter.** The goal is to connect different coding agents to Locust while enforcing a locally chosen sandbox. Merak native integration and a Pi extension are candidate adapters, not requirements for participation.
 
-**Scope update, October 3:** the owner subsequently made Codex, Claude Code, Factory Droid and Pi the first-release baseline. The [accepted plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) and [client qualification matrix](../docs/release-evidence.md) supersede any implication here that Pi participation is deferred. The owner also restricted automatic wake to Merak for now; the four baseline clients use active sessions and explicit resume. Optional execution/sandbox extensions remain separate work; the source observations below are not runtime qualification.
+**Scope update, October 3:** the owner subsequently made Codex, Claude Code, Factory Droid and Pi the first-release baseline. The [accepted plan](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/implementation-plan.md) and [client qualification matrix](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md) supersede any implication here that Pi participation is deferred. The owner also restricted automatic wake to Merak for now; the four baseline clients use active sessions and explicit resume. Optional execution/sandbox extensions remain separate work; the source observations below are not runtime qualification.
 
 ## Finding
 

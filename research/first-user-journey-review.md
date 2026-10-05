@@ -41,7 +41,7 @@ the person/agent handoff.
 | W8: public demonstration/view | Still a separate follow-up. A recorded example should follow a proven private journey. A public swarm visualization is not required to repair first use. |
 | W9: optional extensions | Open work, independent attempts and configurable review/closure have been addressed by the new model. Do not reintroduce the old proposals. Hooks, hosted publishing, exclusive reservations and broader execution integration remain separate decisions. |
 
-The frozen [organization implementation plan](../docs/formations-implementation-plan.md)
+The frozen [organization implementation plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-implementation-plan.md)
 explicitly says the old last-mile requirements must be revisited against the new
 contract. Its completion does not automatically mark those requirements done.
 
@@ -52,7 +52,7 @@ handoff asks for fresh-chat tool discovery and leaves goal membership and work
 authorization as separate owner actions. This preserves permission boundaries,
 but does not lead the person through those next actions. See
 [onboarding implementation](../crates/locust/src/installation/onboarding.rs) and
-[onboarding guide](../docs/onboarding.md).
+[onboarding guide](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/onboarding.md).
 
 The current [first collaboration article](../docs/guide/collaboration.md) is a
 valuable executable regression recipe: shell functions, JSON extraction,

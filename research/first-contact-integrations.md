@@ -38,13 +38,13 @@ Sources read on 2026-10-03 through targeted search and the official MCP page: th
 
 ## Locust state at `9fbbf74`
 
-- The owner made Codex, Claude Code, Factory Droid and pi the required first-release baseline and scoped automatic wake to Merak only; the four clients use active sessions and explicit resume ([release ledger](../docs/release-evidence.md)). This is required scope, not support evidence.
+- The owner made Codex, Claude Code, Factory Droid and pi the required first-release baseline and scoped automatic wake to Merak only; the four clients use active sessions and explicit resume ([release ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md)). This is required scope, not support evidence.
 
 - The [`locust` binary](../crates/locust/src/main.rs) prints `locust`. There is no daemon, CLI or `locust mcp` bridge yet.
 - The [local API contract](../crates/locust-proto/src/api.rs) defines the operations and read types (goal status, members, peers, board, task detail, pending work, wait outcomes, events). These are types, not a running service, and lane A's [log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-a-log.md) says revision 2 of `api.rs` is still to land.
 - [Workspace export and materialization](../crates/locust-workspace/src/lib.rs) are implemented; manifest-bound patches are not.
 - Lane B has [per-run client configuration](../crates/locust-adapter/src/config.rs) for Codex and Claude Code, an MCP socket fixture, and authenticated [peer links](../crates/locust-net/src/lib.rs). Codex 0.153.4 parsed the generated configuration in a disposable profile; Claude has component tests only ([implementation log](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/lane-b-implementation-log.md)).
-- No installer, install prompt, operating skill or release exists. The [release ledger](../docs/release-evidence.md) records partial component evidence and no passed gate.
+- No installer, install prompt, operating skill or release exists. The [release ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md) records partial component evidence and no passed gate.
 
 ## Polaris
 

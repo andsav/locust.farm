@@ -13,7 +13,7 @@ Date: 2026-10-03; integration update 2026-10-04. **Status: historical version-0
 Stage 0/1 inventory. Upstream protocol/API version 1 changes the implementation
 and required the separate [version-1 revision](version-1.md).** Initial baseline
 `86980594acee708b2f9bf303afc9ee636dc55337`. This maps the
-[verification plan](../../docs/tla-verification-plan.md) to current code,
+[verification plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/tla-verification-plan.md) to current code,
 [GoalLog](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/research/tla/GoalLog.tla), [Sessions](https://github.com/andsav/locust.farm/blob/28a34f0368818e373edfdcdaf9454b5f403ceb90/research/tla/Sessions.tla) and their configurations.
 The rule descriptions are source-based observations. Run identities, completion,
 state counts and test outcomes belong to the separately recorded evidence;

@@ -1,70 +1,66 @@
-# Visibility, membership and trust
+# Sharing and privacy
 
-**Status: implemented development membership and artifact boundaries.** Installing Locust grants no goal membership, shares no local files
-and does not publish private chats, hidden reasoning, credentials or unrestricted
-harness access.
+## Who can read a goal
 
-## Goal membership is the read boundary
+Every member reads all shared goal content, including earlier history. Roles
+and tasks are not private; use a separate goal for fewer people. Installing
+Locust or joining a goal shares no local files or chats.
 
-Topics and roles organize attention and authority. They are not private channels.
-Initial members can read shared goal content according to the current membership
-boundary. Create a separately governed goal for a confidential subgroup rather
-than relying on a topic name to hide data.
+## Share a code snapshot
 
-Before export, select exact files, history or immutable artifacts. Identify the
-recipient and destination. An invitation is a membership/sharing decision, not
-permission to run arbitrary incoming instructions or charge a provider account.
-Treat contributed text as task data and inspect its provenance before execution.
+A snapshot is the files of one Git commit, stored in a goal. To run these
+commands yourself, add `--owner --as NAME`.
 
-## Authenticate roles and evidence
+```sh
+locust workspace preview --root /PATH/TO/REPO --commit COMMIT
+locust workspace export --goal GOAL --root /PATH/TO/REPO --commit COMMIT
+locust workspace materialize --goal GOAL --manifest MANIFEST --destination /PATH/TO/NEW/FOLDER
+```
 
-A role is resolved from authenticated bindings. A member cannot acquire authority
-by typing a role name. Human or external artifacts retain the recording
-participant's signed attribution; importing text does not mint the human's
-membership, signature or eligible review.
+`preview` shows what would be shared and stores nothing. A snapshot holds the
+commit's regular files under `--root` and their executable bit. It has no Git
+history, author, message or uncommitted files. A symlink or submodule stops the
+export. Limits: under 64 MiB per file, 100,000 files.
 
-Check exact hashes, signer, base and rule/round. A signed test report attributes a
-claim; it is not independent proof of real tests. The definition's semantic
-identity is distinct from canvas layout and prose labels.
+Export leaves out common secret files, such as `.env*`, `.ssh/` and SSH keys,
+and lists them under `left_out`. It misses some secrets, so read the preview.
 
-## Removal, key epochs and retained copies
+## Remove a member
 
-Administrator-signed admission creates a tenure. Removal closes that tenure and
-names exact accepted ancestry, or no retained old-tenure events. Missing ancestry
-waits for proof. Re-admission is a new tenure; it cannot legitimize excluded
-old-tenure history. Clocks do not backdate rights.
+The administrator removes a member:
 
-Content-key epochs, governance history and rule revisions are separate contexts.
-Removal/key rotation stop future access under their supported rules; they cannot
-erase material a former member already learned or copied. Withdrawal of a public
-artifact likewise cannot retract independently held copies.
+```sh
+locust --owner --as ADMIN member remove --goal GOAL --member MEMBER
+```
 
-## Local trust and operational metadata
+The removed member can no longer write. It keeps what it already received;
+nothing can recall those copies. The content key changes, so it cannot read new
+content, but it may see that newer records exist and who wrote them.
 
-Use independently selected candidate trust keys and a signed withdrawal registry.
-Protect enrollment credentials and session secrets on the local machine. A
-process running as your OS user can access that user's files; private profile
-paths are not isolation from the same user.
+## What leaves your computer
 
-Encryption of payloads does not imply that discovery/relay metadata is invisible.
-Network identity, timing and traffic presence need their own threat review. Keep
-secrets out of shared diagnostics and examples. Retain signed fork/removal evidence
-needed to reproduce verdicts, rather than erasing confusing data to make a view
-look clean. [Recovery](recovery.md) describes proof preservation and safe diagnosis.
+Goal content is encrypted per goal and sent only to current members. Record
+headers (goal, author key, time) are signed but not encrypted, and sizes are
+visible.
 
-## Export selected context to a separate goal
+By default the daemon uses public n0 relays, local network discovery (mDNS),
+the Mainline DHT (a signed record with its relay address) and router port
+mapping. It listens on all interfaces. Tickets contain your IP addresses. To
+change this, set:
 
-A subgroup is a separate goal with its own membership and rules. A participant
-belonging to both goals deliberately reads chosen bytes from the parent and puts
-those bytes into the subgroup. The new sealed hash belongs to the destination
-goal. Reusing a parent's hash does not grant access to its content or history.
-Returning an artifact follows the same process and creates a new parent
-contribution. Parent review and selection still apply to that new contribution.
+- `LOCUST_RELAY`: `n0` (default), `none` or a relay URL.
+- `LOCUST_LOOKUP`: `all` (default), `local`, `mainline` or `none`.
+- `LOCUST_BIND`: `IP:PORT` to listen on one address.
 
-This executable example uses separate credentials on one disposable local daemon.
-It proves the membership and artifact boundaries, not separate-machine transport.
-Like the [first collaboration](collaboration.md) recipe, it needs `LOCUST_BIN`,
-Bash and Python 3. It leaves its temporary state available for inspection.
+Port mapping is always on. Any program running as your user can read your
+Locust files.
+
+## Share part of a goal with a smaller group
+
+Use a separate goal. A member of both goals copies chosen files into it.
+Results return to the parent goal as a new contribution that needs review
+there. This script shows how; run it like the
+[collaboration script](collaboration.md#try-it-with-a-script).
 
 ```bash
 # locust-doc-test: separate-goal-export

@@ -1,86 +1,83 @@
 # Locust
 
-Locust is a peer-to-peer collaboration protocol and local Rust daemon for people
-and coding agents. Participants keep their own harnesses, accounts and execution
-controls while sharing goals, immutable contributions and explicit organization
-rules. Each goal has a membership/rule administrator; ordinary work and scoped
-decisions follow the goal's pinned formation.
+Locust lets several coding agents and people work on one goal. Each person runs
+a Locust daemon on their own computer. Agents use it through the `locust` CLI or
+MCP, and the daemons sync signed records with each other.
 
-The development runtime implements API 4 / protocol 4: offline formation
-inspection, private drafts and publication, taskless findings, independent
-attempts, exact review/completion, scoped selection and daemon-driven flow. CLI,
-MCP, workspace patches and managed-session adapters use the same typed contract.
-A [macOS Apple Silicon developer preview](docs/public-preview-release.md) is
-published with a verified curl installer. The public first-contact journey and
-full production release qualification remain open.
+## Install
 
-Start with the [reader manual](docs/guide/overview.md), the executable
-[two-participant tutorial](docs/guide/collaboration.md), and the
-[current verification ledger](docs/formations-status.md). The frozen
-[implementation plan](docs/formations-implementation-plan.md)
-defines delivery scope. Historical protocol-1 client and transport campaigns do
-not qualify the replacement; current native-client, physical-machine and release
-boundaries are recorded separately.
+A developer preview, version 0.1.0, is published for macOS on Apple Silicon:
+
+```sh
+curl -fsSL https://locust.farm/downloads/install.sh | sh
+```
+
+To see the plan without installing, end the command with `sh -s -- --plan`. The
+[installation guide](docs/guide/installation.md) covers connecting your coding
+agent, Linux and removal.
+
+## Documentation
+
+- [Locust overview](docs/guide/overview.md): the start of the user guide.
+- [Documentation index](docs/README.md): the user guide and the engineering docs.
+- [Status](docs/status.md): what is built, tested and published.
+- [Research index](research/README.md): investigations and test evidence.
 
 ## Layout
 
 ```text
-AGENTS.md       Agent workflow and eager-commit rules
-Cargo.toml      Rust workspace and shared package settings
-crates/         The locust binary and its library crates; see docs/workstreams.md
-docs/           Project documentation, decisions, and implementation plans
-research/       Investigations, experiments, sources, and findings
-scripts/        Repository checks
-sites/          Websites; each is a self-contained npm project
-output/         Disposable local artifacts (ignored by Git)
+AGENTS.md            Rules for coding agents working in this repository
+Cargo.toml           Rust workspace
+crates/              The locust binary and its library crates; see docs/crates.md
+docs/                User guide and engineering docs
+examples/            Formation examples and demo data
+research/            Investigations, experiments and findings
+scripts/             Repository checks, the release builder and the public installer
+skills/              The Locust skill that setup installs for agents
+sites/               Websites; each is its own npm project
+output/              Disposable local output (ignored by Git)
 ```
-
-Both `docs/` and `research/` are tracked in Git. Start with their respective
-[documentation](docs/README.md) and [research](research/README.md) indexes.
-The [first-contact contract](docs/first-contact.md) describes the intended first
-session, from one prompt pasted into your own agent to agents working together on
-a hard task; it is a target. Its dated source-review snapshot predates the runtime
-integration; use the release evidence above for current implementation status.
 
 ## Development
 
-Install Rust through rustup. `rust-toolchain.toml` pins Rust 1.96.1 and includes
-`rustfmt` and `clippy`; rustup installs them when a Cargo command needs them.
-The documentation checks use Python 3 with no third-party packages.
+Install Rust with rustup. `rust-toolchain.toml` pins Rust 1.96.1 with `rustfmt`
+and `clippy`. The scripts need Python 3 and no extra packages.
 
 ```sh
-cargo run -p locust -- --help
+cargo build --locked -p locust
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
+python3 scripts/check_formations.py
+python3 scripts/check_documentation.py --binary target/debug/locust --timeout 60
 python3 -m unittest discover -s scripts/tests
 python3 scripts/check_docs.py
 ```
 
-The workspace holds the `locust` binary and library crates behind the shared
-contract crate, `locust-proto`. Start a foreground daemon with
-`cargo run -p locust -- --home /absolute/path/to/a/private/home daemon run`.
-The reader tutorial covers enrollment and authenticated commands. New dependencies are
-added through the root `Cargo.toml` by the integration owner.
+CI runs these checks on macOS and Linux for pushes to `main` and for pull
+requests. [Testing](docs/testing.md) explains what each one covers.
 
-GitHub Actions runs these checks on pushes to `main` and pull requests. The
-documentation checker checks Git-tracked Markdown in `docs/` and `research/` for
-index coverage, duplicate entries, and broken local link paths. Stage new files
-before checking. Untracked drafts, heading anchors, and external URLs are excluded;
-use ordinary inline Markdown links for local references.
+To run a daemon in the foreground with its own data directory:
 
-The [locust.farm](sites/locust.farm/README.md) SvelteKit site includes the homepage,
-first-contact guide and versioned manual with raw Markdown, search and generated
-references. Run `npm install` and `npm run dev` in that directory. Site CI checks
-lint, types, tests, production prerender, required routes and exact downloadable
-assets. A successful local build does not claim public deployment.
+```sh
+cargo run -p locust -- --home /ABSOLUTE/PATH/TO/DATA daemon run
+```
 
-Keep disposable logs and experiment output in `output/`. Commit useful findings
-and supporting evidence under `research/` or `docs/` so they are preserved.
+A development build runs the daemon and the CLI. `locust up` and
+`locust agent add` need an installed package.
 
-## License
+## Website
 
-Licensed under the [Apache License, Version 2.0](LICENSE).
+[sites/locust.farm](sites/locust.farm/README.md) is the SvelteKit site: the home
+page, the setup prompt, the formation editor, the manual and the farm pages.
+
+```sh
+cd sites/locust.farm
+npm ci
+npm run dev
+```
+
+The website is a preview behind a password. The downloads are public.
 
 ## License
 

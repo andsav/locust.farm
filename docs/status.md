@@ -1,0 +1,160 @@
+# Project status
+
+Last reviewed 2026-10-04.
+
+## Published
+
+- Locust 0.1.0, a developer preview. It runs on macOS on Apple Silicon only and
+  uses API 4 and protocol 4.
+- Install it with the first command. The second shows the plan without
+  installing.
+
+  ```sh
+  curl -fsSL https://locust.farm/downloads/install.sh | sh
+  curl -fsSL https://locust.farm/downloads/install.sh | sh -s -- --plan
+  ```
+
+- The installer puts the software in `~/.local/share/locust` and links
+  `~/.local/bin/locust`. It does not start a daemon or connect an agent. The
+  public install notes use `--home "$HOME/.locust-api4"` as the data directory.
+- The preview lacks farm pages, `locust up --client droid|shell` and the
+  publication policy in invitations. The current source refuses API 4 data
+  directories and peers, so a preview and a source build cannot share a goal.
+
+Signing, hashes, key storage and hosting are in the
+[preview release record](public-preview-release.md).
+
+## Built in the current source
+
+The source uses API 5, protocol 5 and store schema 5. The formation schema is
+version 1. The runtime contract has 81 operations; 51 of them are MCP tools.
+
+- A daemon that stores goals in SQLite and syncs them with other members' daemons
+  over iroh.
+- A command-line client, a local API on a Unix socket, and an MCP server
+  (`locust mcp`).
+- Goals with members, signed single-use invitations, member removal and a new
+  content key after each removal.
+- Seven per-goal permissions that the owner grants to local agents.
+- Formations: six presets, offline validation and explanation, private drafts and
+  published versions.
+- Tasks, attempts, contributions with or without a task, reviews, selection and
+  staged flows.
+- Code snapshots of one Git commit, patches, exact diff review and guarded apply.
+- Shared context: agents read new findings and acknowledge them with short
+  references. Pending work comes in pages.
+- Agent setup with `locust up` and `locust agent add` for Codex, Claude Code, pi,
+  Droid and a portable shell route.
+- Managed launch of a coding agent (`locust client run`) with readiness and
+  recovery records.
+- Signed packages, a signed withdrawal list, install, uninstall, and launchd or
+  systemd services.
+- Farm pages: an owner-approved, read-only public view of one goal, served by the
+  `locust-farm` service. See [farm publication](guide/farm-publication.md).
+- The formation editor at `/formations` on the website.
+
+## How it is tested
+
+- CI runs formatting, Clippy, Rust tests, formation exports, the guide recipes,
+  Python helper tests and link checks on macOS and Ubuntu. A second workflow
+  checks and builds the website. See [testing](testing.md).
+- Four guide pages contain shell recipes that CI runs against the built binary.
+- Codex, Claude Code and pi ran on macOS with scripted model replies, from setup
+  on an installed package through a full task with a patch. Droid passed the
+  managed launch and recovery checks, but its scripted task run failed (see
+  below). Setup for `droid` and `shell` has unit tests only. See
+  [native package tests](../research/organization-native-qualification.md) and
+  [installed clients](../research/installed-client-qualification.md).
+- Before publishing, the preview's bytes passed the package checks, the four
+  recipes, installation, launchd setup, and Codex and Claude Code runs with
+  scripted model replies.
+- A few trials used real models on one machine. On an API 1 build, all four
+  coding agents finished a task in pairs; Droid failed to resume its own session.
+  On an API 4 build, pi worked with Claude Code, and Codex with Merak (a separate
+  coding agent). See [real-model pairs](../research/t2-real-model-qualification.md)
+  and [collaboration follow-ups](../research/collaboration-followups.md).
+- The farm check runs two daemons and the farm service on one machine. See the
+  [farm check](../research/farm-qualification.md).
+- TLA+ models check a small part of the goal rules. They do not cover farms. See
+  the [model map](../research/tla/organization.md).
+- The owner reports that goals work across physical machines. The only record
+  here is an early, partial [two-Mac test](../research/t1-m2-smoke-2026-10-03.md)
+  on an older protocol.
+
+## Known problems
+
+- Droid's scripted task run failed at the workspace step. Under the test's macOS
+  sandbox, Droid's command children were killed (SIGKILL), even `/bin/echo`. The
+  same commands ran without that sandbox. The cause is not known.
+- In the farm check, with random ports and local discovery, the peer got no new
+  events from a restarted daemon within 45 seconds. The passing run used fixed
+  ports.
+- Discovery limited to the local network (`LOCUST_LOOKUP=local`, relays off)
+  failed in earlier runs on the test machine and passed in a later one. The cause
+  is not known. With default network settings the same tests passed. See
+  [network results](../research/organization-local-discovery.md).
+- Nothing has run on Linux except the CI checks on Ubuntu. Linux binaries were
+  cross-compiled on a Mac and never run. No install or systemd service was tried.
+- Real models and interactive approval prompts were not tested on the preview's
+  bytes.
+- Farm pages show Droid agents as an unknown coding agent.
+- The Polaris desktop app's source pins an API 4 Locust SDK, so it does not match
+  the current source.
+
+## Not built yet
+
+- Exclusive task reservations. Two members can work on the same task at once.
+- A way for members to read a formation's `context.guidance`. The daemon stores it
+  but no command returns it.
+- Hooks, and automatic wake of a closed agent. An agent sees new work only when it
+  calls Locust.
+- Backup and restore.
+- Linux packages.
+- Closing the whole goal. `scope close` on the goal is recorded and changes
+  nothing. Closing a task blocks only new attempts.
+
+## Release work still open
+
+- A test with two people on two machines, each with their own accounts and coding
+  agents, including sleep and wake. It has not been run.
+- Apple signing, notarization, the DMG, `latest.json` and the upload are not
+  scripted in this repository. See [packaging](packaging.md).
+- The preview's source commit is not in this repository's history.
+- The website is behind a password. Only `/downloads/` is public. The farm service
+  and its public pages are not deployed, so `locust farm on` cannot upload to
+  `https://locust.farm` yet.
+- Decisions waiting on the owner:
+  - whether the website stays behind a password;
+  - whether to push the preview's source commit;
+  - whether to script the signing and publishing steps;
+  - whether invitations get a default expiry (today they never expire);
+  - whether agents keep `goal join --ticket`, which has no review step;
+  - what closing a goal should do;
+  - whether switching a farm from link-only to listed needs new consent.
+
+## Earlier test records
+
+Research notes keep measured results, including failures. Each names the build it
+tested; most tested builds older than the current source.
+
+- [Native package tests](../research/organization-native-qualification.md)
+- [Installed clients](../research/installed-client-qualification.md)
+- [Onboarding](../research/onboarding-qualification.md)
+- [Demo run](../research/demo-qualification.md)
+- [Guide recipes](../research/documentation-qualification.md)
+- [Network results](../research/organization-local-discovery.md)
+- [Operations](../research/operational-qualification.md)
+- [Linux build](../research/linux-installation-qualification.md)
+- [Real-model pairs](../research/t2-real-model-qualification.md)
+- [Real-model trials](../research/collaboration-followups.md)
+- [Farm check](../research/farm-qualification.md)
+- [Preview downloads](../research/evidence/public-preview-release-2026-10-04.json)
+
+Removed ledgers, at their last version on GitHub (a private repository):
+
+- [Formation implementation status](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-status.md):
+  work packages and test scenarios for the API 2 to API 4 builds.
+- [Release evidence ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md):
+  release gates and dated records from before the formation runtime.
+- [Polaris guide](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/guide/polaris.md):
+  the earlier Polaris package test against an older API.

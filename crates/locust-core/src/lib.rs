@@ -21,8 +21,7 @@
 //!   and every goal, and implements the two seams of
 //!   [`locust_proto::engine`].
 //!
-//! Depends on `locust-proto` only. Owner: the core stream; see
-//! `docs/workstreams.md`.
+//! Depends on `locust-proto` only; see `docs/crates.md`.
 
 #![forbid(unsafe_code)]
 

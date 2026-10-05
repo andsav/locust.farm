@@ -1,25 +1,9 @@
-# Formation authoring
+# Write a formation
 
-**Status: implemented development authoring and private catalog.** Offline
-inspection needs no daemon. Authenticated drafts and immutable publication use
-the daemon; instantiating a goal is a separate authorized operation.
+## Check a formation without the daemon
 
-## Discover the contract
-
-Fetch the documentation inventory for this development build. Record its source
-commit and formation schema version, then read the matching schema and checked
-examples. The source and schema are separate identities: a source build is not a
-published software release.
-
-Do not invent operation names or fields from a diagram or a prose example. The
-schema exported by the Rust definition model is the shape contract. Canonical
-example files must be checked by that same core validator.
-
-## Offline commands
-
-The development CLI contract provides these commands. They operate on definitions
-without a daemon, account or local state. Use a locally built development binary;
-these commands do not imply that a downloadable release exists.
+No daemon is needed. `-` reads standard input; `--json` adds the response
+envelope.
 
 ```sh
 locust formation contract
@@ -29,57 +13,26 @@ locust formation example peer-review > peer-review.json
 locust formation validate peer-review.json
 locust formation explain peer-review.json
 locust formation normalize peer-review.json
-locust formation example open > open.json
 locust formation diff open.json peer-review.json
 ```
 
-`validate`, `explain` and `normalize` also accept `-` for JSON on standard input.
-Schema, example and normalization commands emit raw JSON by default. `--json`
-uses the CLI's structured result envelope. Inspection reports include validity,
-diagnostics, normalized definition, semantic hash and effective-rule explanation.
-Each diagnostic identifies a code, phase, path, message and suggested correction.
-`diff BEFORE AFTER` compares normalized definitions from two files, returning
-both semantic hashes and exact JSON Pointer changes. Formatting/default expansion
-alone preserves equivalence. An invalid side returns its diagnostics and no
-equivalence claim; the comparison does not evaluate live bindings or permissions.
+## Read the problems Locust reports
 
-The example names are `open`, `coordinator`, `peer-review`, `independent-attempts`,
-`review-panel` and `pipeline`. Source tests and export parity checks qualify the offline surface.
-The runtime has separate signed-event and daemon acceptance tests. The [generated reference](schema-reference.md)
-provides exact field and operation discovery.
+Each problem has a `code`, `phase`, JSON Pointer `path`, `message` and suggested
+`correction`. Locust refuses other schema versions.
 
-## Draft and check
+## Build your own from a preset
 
-Start from a matching example and change only the rules needed for your intended
-organization. Preserve explicit role and authority references. Keep credentials,
-invitation tickets, account identifiers and private transcripts out of definitions
-intended for sharing.
+Start from `locust formation example NAME > team.json`, edit it, and run
+`validate` and `explain` until the rules read right. `diff` against the preset
+shows what changed. Keep secrets out: every goal member can read the formation.
 
-Use the offline validator to check a definition's current supported semantics.
-Use the effective-rule explainer to inspect the rules it resolves. A failure is a
-reason to revise the definition or clarify the intended behavior, not to bypass
-validation or fall back to an older format.
+## Save a draft and publish it
 
-## Shape, semantics and readiness
-
-| Check | What it establishes | What it cannot establish |
-| --- | --- | --- |
-| Schema validation | JSON has the supported field and type shape | That all rules are semantically supported |
-| Core semantic validation | References and rules satisfy the implemented authoring contract | Local permissions, actor availability or live bindings |
-| Effective-rule explanation | How the offline model resolves declared rules | That a runtime action can execute or finalize |
-| Contextual readiness | Daemon checks exact bindings, membership, rules and grants for the requested action | Process start, independent testing, provider permission or remote availability |
-
-A structurally valid definition is not proof of unique decision authority or
-runtime readiness. A successful offline explanation does not publish a definition,
-create an organization instance, grant access or execute an assignment.
-
-## Review before runtime use
-
-Review the effective rules alongside the draft. Keep the checked file and its
-source/schema identity together. A private author credential can create and publish templates without gaining
-goal membership or execution authority. The short recipe below creates one
-private Open template and checks a stale edit refusal. It uses the same local
-build prerequisites as [the collaboration tutorial](collaboration.md).
+An author credential (`locust --owner author enroll NAME`) can draft and
+publish but not create goals. Each draft change and `formation publish` names
+the revision you expect; if the draft changed, Locust refuses and returns it.
+This script drafts and publishes:
 
 ```bash
 # locust-doc-test: private-authoring
@@ -137,75 +90,32 @@ PY
 printf 'Private catalog and observations: %s\n' "$demo"
 ```
 
-A source update uses `formation draft update --expected-revision REVISION`; a
-presentation update has its own revision and does not change the semantic hash.
-A CLI conflict returns `error.details` with the current record. Preserve the local
-edit, reread the source and reconcile before retrying. Never silently overwrite
-it or publish using a hash from an earlier draft. Refresh `formation drafts` or `formation draft show` to retrieve complete records
-with their source revisions/hashes; refresh presentation separately. After
-reconnect, repeat those reads and compare revisions before accepting cached
-validation. Changing credentials invalidates the private catalog view. There is
-no catalog notification subscription; goal-event cursors do not observe unbound
-drafts.
+## Start a goal with your formation
 
-To instantiate deliberately, use an enrolled agent allowed to manage goals and
-pass the reviewed publication's `normalized_json` to `goal create --formation-json`.
-Supply `--roles` and `--inputs` as JSON maps matching its declared slots. The
-result pins the exact semantic definition and contextual bindings. Creating a
-goal grants its creator local administration; contribution, review, flow and
-execution grants remain explicit. The private author credential has no session
-or goal rights, and publication does not distribute a draft to goal members.
+```sh
+locust goal create --title TITLE --formation review-panel --roles '{"reviewer":["YOUR_KEY"]}'
+```
 
-The [concepts](concepts.md) explain the intended distinction between a definition,
-an instance and a participant. The [implementation plan](../formations-implementation-plan.md)
-records the remaining runtime work.
+For your own formation, use `--formation-json "$(cat team.json)"`. `--roles`
+maps roles to public keys (`locust --owner --json status` lists them); `--inputs`
+maps inputs to file hashes. Creating goals needs `agent enroll --manage-goals`.
+You become the administrator and only member, so roles can name only you until
+others join and you run [rules bind](formations.md#changing-the-rules).
 
-## Correct diagnostics and test a custom pattern
+## Write one with your agent
 
-Keep the exact diagnostic phase and JSON path when revising an invalid draft.
-Syntax/type failures belong to shape checks; missing role references or unsupported
-rule combinations require semantic correction. Unsupported versions require a
-current-format definition, never conversion or an old-reader fallback. Contextual
-binding/input failures need the actual instance and cannot be fixed by pretending
-an offline report observed a local permission.
-
-Combine only schema-supported constructs. Explain the result and compare its
-normalized semantic identity before publishing it for review. Do not encode prose
-prompts, drawings or labels as a hidden executable rule. Exclusive reservations,
-mutable votes, vetoes and unimplemented capabilities cannot be introduced by a
-custom field. The validator must refuse unsupported behavior explicitly.
-
-Definition tests cover supported shape/semantics and expected explanation. Runtime
-conformance additionally needs signed traces with missing proof, changed rules,
-competing candidates, authority forks, duplicate delivery and restart. A preset
-validation pass is not one of those runtime transcripts.
-
-## Author with your agent
-
-Describe the intended participants, allowed work, exact contribution evidence,
-completion rule and whether a unique selection is required. Ask the agent to read
-the inventory, current schema, operations and matching example first. Have it
-report unsupported requirements rather than invent fields. Draft, validate,
-explain and compare normalized semantics before requesting publication or binding.
-Publication and goal creation remain distinct operations with distinct credentials
-and grants.
-
-The authoring discovery contract is public JSON and raw Markdown. Agents need
-only the relevant article/schema/example, not the entire manual or a generated
-mega-prompt. Preserve diagnostic codes and paths in a failed draft review; do not
-hide errors with a permissive parser or local permission change.
+Tell your agent who takes part, who starts work, when a result counts and
+whether one result is picked. Ask it to read `locust formation contract`, start
+from an example, validate, explain, and report what the schema cannot
+express. Have it ask before publishing.
 
 ## Use the editor on locust.farm
 
-The editor at [locust.farm/formations](https://locust.farm/formations) builds a
-formation without writing JSON. Choose one of six ways of working, change who
-adds tasks, who works on them, when a result counts and whether one result is
-picked, and add steps if Locust should add tasks in order. The page runs the same offline checks as
-`locust formation validate`, shows Locust's explanation, and copies one prompt.
+The editor at https://locust.farm/formations (password-protected preview)
+builds a formation without JSON: six ways of working, four questions, roles,
+steps and task types. A TypeScript copy of Locust's checks runs in your browser,
+held to Locust's results by shared test cases. Work stays in the browser.
 
-The prompt has your agent find Locust, check the schema version, save the
-formation to a file and check its size and SHA-256, validate and explain it with
-Locust, save a private draft and its name, and ask before publishing. It never
-starts a goal. Its exact text is in the
-[formation prompt contract](../formation-prompt.md). The editor keeps work in the
-browser only; nothing reaches Locust until you paste the prompt.
+The editor copies one prompt. It has your agent check the formation and, if you
+choose, save a private draft and ask before publishing. It never starts a goal.
+[The prompt contract](../formation-prompt.md) has its text.

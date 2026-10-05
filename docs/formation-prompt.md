@@ -1,17 +1,12 @@
 # Formation prompt contract
 
-Date: 2026-10-04. **Status: implemented in the site's prompt builder
-([prompt.ts](../sites/locust.farm/src/lib/formation-editor/prompt/prompt.ts));
-not yet run with real agents.** Part of the
-[formation editor plan](formation-authoring-plan.md).
+Status: built in the site's prompt builder ([prompt.ts](../sites/locust.farm/src/lib/formation-editor/prompt/prompt.ts)); not yet run with real agents.
 
-The formation editor at `/formations` copies one prompt into the person's
-coding agent. The prompt asks the agent to check the formation with the
-person's own Locust and, when they choose, to save it as a private draft and
-ask before publishing. This document holds the prompt's fixed text. The
-builder must match it word for word, and its tests check that. The
-[first contact](first-contact.md) entry prompt is a separate contract and is
-unchanged.
+The [formation editor](formation-editor.md) at `/formations` copies one prompt
+for the person's coding agent. The prompt asks the agent to check the formation
+with the person's own Locust and, if they choose, save it as a private draft and
+ask before publishing. This page holds the prompt's fixed text. The builder must
+match it word for word, and a test checks each sentence.
 
 ## What the prompt may contain
 
@@ -110,16 +105,16 @@ END OF LOCUST PROMPT
 The byte count and SHA-256 cover the UTF-8 bytes between the BEGIN and END
 lines, without the line break before the END line. They catch a cut or
 altered paste; they are not a signature. The layout is the presentation
-record Locust keeps beside a draft. The page writes its part, the formation's
-name, under the key `locust.farm` and keeps other keys it finds.
+record Locust keeps beside a draft. The page writes the formation's name, and
+which answers each step sets for itself, under the key `locust.farm`. It keeps
+other keys it finds.
 
 ## Why the prompt does not start a goal
 
-`goal.create` needs the daemon-wide `manage_goals` grant, makes the creating
-agent the only member and binds roles to it, and needs any required starting
-material as content that exists only after the goal does. Doing that from a
-copied prompt would be confusing and partly impossible, so the prompt stops at
-publishing and leaves starting a goal to a separate request.
+`goal.create` needs the daemon-wide `manage_goals` permission. It makes the
+creating agent the only member, so roles can name only that agent. Required
+inputs must be content that exists only after the goal does. So the prompt
+stops at publishing, and starting a goal is a separate request.
 
 ## Reading prompts and replies back
 

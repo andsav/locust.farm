@@ -13,8 +13,8 @@
       "source": "docs/guide/overview.md",
       "slug": "overview",
       "title": "Locust overview",
-      "description": "Current source capabilities, public availability and the organization direction.",
-      "group": "Understand Locust",
+      "description": "What Locust is, what works today and where to start.",
+      "group": "Start here",
       "order": 1,
       "audience": [
         "people",
@@ -25,9 +25,9 @@
     {
       "source": "docs/guide/concepts.md",
       "slug": "concepts",
-      "title": "Goals and organizations",
-      "description": "The current goal, organization, participant and authority model.",
-      "group": "Understand Locust",
+      "title": "How Locust works",
+      "description": "Goals, members, tasks, contributions, permissions and how the parts connect.",
+      "group": "Start here",
       "order": 2,
       "audience": [
         "people",
@@ -36,11 +36,11 @@
       "status": "implemented"
     },
     {
-      "source": "docs/guide/formation-authoring.md",
-      "slug": "formation-authoring",
-      "title": "Formation authoring",
-      "description": "Offline checks, private publication and contextual runtime readiness.",
-      "group": "Author definitions",
+      "source": "docs/guide/installation.md",
+      "slug": "installation",
+      "title": "Install Locust",
+      "description": "Install the macOS preview, connect your coding agents and check they work.",
+      "group": "Start here",
       "order": 3,
       "audience": [
         "people",
@@ -49,11 +49,11 @@
       "status": "implemented"
     },
     {
-      "source": "docs/guide/architecture.md",
-      "slug": "architecture",
-      "title": "Architecture and local boundaries",
-      "description": "Daemon, harness, transport and optional Polaris responsibilities.",
-      "group": "Understand Locust",
+      "source": "docs/guide/collaboration.md",
+      "slug": "collaboration",
+      "title": "Start a goal and invite others",
+      "description": "Run two agents on one computer, then invite a person to the goal.",
+      "group": "Work together",
       "order": 4,
       "audience": [
         "people",
@@ -62,38 +62,12 @@
       "status": "implemented"
     },
     {
-      "source": "docs/guide/status.md",
-      "slug": "status",
-      "title": "Availability and evidence",
-      "description": "Publication, platform qualification and development capability boundaries.",
-      "group": "Understand Locust",
-      "order": 5,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "development"
-    },
-    {
-      "source": "docs/guide/installation.md",
-      "slug": "installation",
-      "title": "Local installation and onboarding",
-      "description": "Review trusted local candidates, profile/service choices and separate readiness observations.",
-      "group": "Set up locally",
-      "order": 6,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "development"
-    },
-    {
-      "source": "docs/guide/collaboration.md",
-      "slug": "collaboration",
-      "title": "First collaboration journeys",
-      "description": "Concrete two-participant, invitation, snapshot and contribution journeys under the accepted model.",
+      "source": "docs/guide/sharing.md",
+      "slug": "sharing",
+      "title": "Sharing and privacy",
+      "description": "What members can read, how to share code, removing members and network traffic.",
       "group": "Work together",
-      "order": 7,
+      "order": 5,
       "audience": [
         "people",
         "agents"
@@ -103,36 +77,36 @@
     {
       "source": "docs/guide/apply.md",
       "slug": "apply",
-      "title": "Apply a chosen patch",
-      "description": "Separate review and selection from deliberate local application and observed checkout results.",
+      "title": "Review and apply a patch",
+      "description": "Review a contribution and apply its patch to your own checkout.",
       "group": "Work together",
+      "order": 6,
+      "audience": [
+        "people",
+        "agents"
+      ],
+      "status": "implemented"
+    },
+    {
+      "source": "docs/guide/formations.md",
+      "slug": "formations",
+      "title": "Formations",
+      "description": "The rules a goal follows: presets, when results count and who decides.",
+      "group": "Rules",
+      "order": 7,
+      "audience": [
+        "people",
+        "agents"
+      ],
+      "status": "implemented"
+    },
+    {
+      "source": "docs/guide/formation-authoring.md",
+      "slug": "formation-authoring",
+      "title": "Write a formation",
+      "description": "Check, draft and publish a formation with the CLI, your agent or the editor.",
+      "group": "Rules",
       "order": 8,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "implemented"
-    },
-    {
-      "source": "docs/guide/completion.md",
-      "slug": "completion",
-      "title": "Completion, review and selection",
-      "description": "Exact candidate evidence, multiple qualifying outputs and explicitly scoped decision authority.",
-      "group": "Rules and outcomes",
-      "order": 9,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "implemented"
-    },
-    {
-      "source": "docs/guide/organization.md",
-      "slug": "organization",
-      "title": "Presets, composition and lifecycle",
-      "description": "Choose an arrangement and distinguish immutable definitions, contextual bindings and explicit revisions.",
-      "group": "Rules and outcomes",
-      "order": 10,
       "audience": [
         "people",
         "agents"
@@ -142,101 +116,10 @@
     {
       "source": "docs/guide/agents.md",
       "slug": "agents",
-      "title": "Harnesses and managed sessions",
-      "description": "Client discovery, profile/session identity, approvals and lifecycle evidence.",
-      "group": "Agents and Polaris",
-      "order": 11,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "development"
-    },
-    {
-      "source": "docs/guide/sharing.md",
-      "slug": "sharing",
-      "title": "Visibility, membership and trust",
-      "description": "Goal read boundaries, explicit exports, exact artifacts and removal/retention limits.",
-      "group": "Work together",
-      "order": 12,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "implemented"
-    },
-    {
-      "source": "docs/guide/operations.md",
-      "slug": "operations",
-      "title": "Services, fresh state and durable flow",
-      "description": "Separate service readiness, current-format state and daemon-driven materialization/delivery.",
-      "group": "Operate locally",
-      "order": 13,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "implemented"
-    },
-    {
-      "source": "docs/guide/recovery.md",
-      "slug": "recovery",
-      "title": "Offline recovery and conflicts",
-      "description": "Interpret missing proof, uncertain outcomes, forks, revisions and cancellation without unsafe inference.",
-      "group": "Operate locally",
-      "order": 14,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "implemented"
-    },
-    {
-      "source": "docs/guide/polaris.md",
-      "slug": "polaris",
-      "title": "Polaris authoring and observation",
-      "description": "Optional visual editing, semantic/layout identity and native verification boundaries.",
-      "group": "Agents and Polaris",
-      "order": 15,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "development"
-    },
-    {
-      "source": "docs/guide/help.md",
-      "slug": "help",
-      "title": "Troubleshooting, FAQ and glossary",
-      "description": "Symptom-specific next actions and exact collaboration terminology.",
-      "group": "Help",
-      "order": 16,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "development"
-    },
-    {
-      "source": "docs/guide/schema-reference.md",
-      "slug": "schema-reference",
-      "title": "Authoring schema and command reference",
-      "description": "Generated current schema fields, offline CLI operations and exact example downloads.",
-      "group": "Author definitions",
-      "order": 17,
-      "audience": [
-        "people",
-        "agents"
-      ],
-      "status": "implemented"
-    },
-    {
-      "source": "docs/guide/runtime-reference.md",
-      "slug": "runtime-reference",
-      "title": "Local API, MCP and event reference boundaries",
-      "description": "Current transport, effect, event and export qualification rules.",
-      "group": "Reference",
-      "order": 18,
+      "title": "Coding agents",
+      "description": "Supported coding agents, what setup writes, sessions and launching agents.",
+      "group": "Agents and operations",
+      "order": 9,
       "audience": [
         "people",
         "agents"
@@ -246,10 +129,62 @@
     {
       "source": "docs/guide/farm-publication.md",
       "slug": "farm-publication",
-      "title": "Public farm views",
-      "description": "Consent, publication controls, freshness and service operation.",
-      "group": "Use Locust",
-      "order": 19,
+      "title": "Public farm pages",
+      "description": "Publish a public view of a goal with every member's consent.",
+      "group": "Agents and operations",
+      "order": 10,
+      "audience": [
+        "people",
+        "agents"
+      ],
+      "status": "implemented"
+    },
+    {
+      "source": "docs/guide/operations.md",
+      "slug": "operations",
+      "title": "Run the daemon",
+      "description": "Services, the data directory, settings, restarts, conflicts and cancelling work.",
+      "group": "Agents and operations",
+      "order": 11,
+      "audience": [
+        "people",
+        "agents"
+      ],
+      "status": "implemented"
+    },
+    {
+      "source": "docs/guide/help.md",
+      "slug": "help",
+      "title": "Troubleshooting and glossary",
+      "description": "Common problems, short answers and the terms this manual uses.",
+      "group": "Agents and operations",
+      "order": 12,
+      "audience": [
+        "people",
+        "agents"
+      ],
+      "status": "implemented"
+    },
+    {
+      "source": "docs/guide/schema-reference.md",
+      "slug": "schema-reference",
+      "title": "Formation schema reference",
+      "description": "Generated formation fields, offline commands and example files.",
+      "group": "Reference",
+      "order": 13,
+      "audience": [
+        "people",
+        "agents"
+      ],
+      "status": "implemented"
+    },
+    {
+      "source": "docs/guide/runtime-reference.md",
+      "slug": "runtime-reference",
+      "title": "Command, API and MCP reference",
+      "description": "Versions, command basics, exit codes, the local API, MCP and events.",
+      "group": "Reference",
+      "order": 14,
       "audience": [
         "people",
         "agents"
@@ -340,31 +275,22 @@
     }
   ],
   "sourceLinks": [
-    "docs/installation.md",
-    "docs/onboarding.md",
-    "docs/demo.md",
-    "docs/managed-clients.md",
     "docs/first-contact.md",
     "docs/formation-prompt.md",
-    "docs/formations.md",
-    "docs/formations-implementation-plan.md",
-    "docs/formations-semantics.md",
-    "research/onboarding-qualification.md",
-    "docs/formations-status.md",
-    "docs/packaging.md",
-    "research/organization-native-qualification.md",
-    "research/linux-installation-qualification.md",
-    "research/organization-local-discovery.md",
-    "docs/public-preview-release.md",
-    "research/evidence/public-preview-release-2026-10-04.json",
     "docs/swarm-visualization-plan.md",
-    "crates/locust-proto/src/farm.rs",
-    "sites/locust.farm/ops/README.md",
-    "scripts/check_farm.py",
-    "examples/demos/team-chat.json",
-    "research/farm-qualification.md"
+    "sites/locust.farm/ops/README.md"
   ],
   "routes": [
+    {
+      "slug": "architecture",
+      "page": "concepts",
+      "section": "how-the-parts-fit-together"
+    },
+    {
+      "slug": "status",
+      "page": "overview",
+      "section": "what-works-today"
+    },
     {
       "slug": "install",
       "page": "installation",
@@ -373,42 +299,42 @@
     {
       "slug": "install/local-candidate",
       "page": "installation",
-      "section": "review-the-candidate"
+      "section": "install-from-a-package-by-hand"
     },
     {
       "slug": "install/macos",
       "page": "installation",
-      "section": "macos-and-linux-evidence"
+      "section": "install-the-developer-preview"
     },
     {
       "slug": "install/linux",
       "page": "installation",
-      "section": "macos-and-linux-evidence"
+      "section": "linux"
     },
     {
       "slug": "install/onboarding",
       "page": "installation",
-      "section": "select-profile-workspace-and-service"
+      "section": "connect-your-coding-agents"
     },
     {
       "slug": "install/verify",
       "page": "installation",
-      "section": "verify-four-separate-observations"
+      "section": "check-that-it-works"
     },
     {
       "slug": "install/fresh-state",
       "page": "operations",
-      "section": "initialize-fresh-current-model-state"
+      "section": "the-data-directory"
     },
     {
       "slug": "install/remove",
       "page": "installation",
-      "section": "recover-and-remove"
+      "section": "remove-locust"
     },
     {
       "slug": "quickstarts/two-local-agents",
       "page": "collaboration",
-      "section": "owner-handoff-for-installed-clients"
+      "section": "two-agents-on-one-computer"
     },
     {
       "slug": "quickstarts/invite-a-person",
@@ -417,18 +343,18 @@
     },
     {
       "slug": "quickstarts/share-a-snapshot",
-      "page": "collaboration",
+      "page": "sharing",
       "section": "share-a-code-snapshot"
     },
     {
       "slug": "quickstarts/contribute-and-review",
-      "page": "completion",
-      "section": "five-concrete-outcomes"
+      "page": "formations",
+      "section": "when-a-result-counts"
     },
     {
       "slug": "quickstarts/apply-a-patch",
       "page": "apply",
-      "section": "apply-and-verify"
+      "section": "apply-a-patch"
     },
     {
       "slug": "concepts/goals-tasks",
@@ -438,67 +364,67 @@
     {
       "slug": "concepts/participants-roles",
       "page": "concepts",
-      "section": "participants-and-local-agents"
+      "section": "members-and-roles"
     },
     {
       "slug": "concepts/context-artifacts",
       "page": "concepts",
-      "section": "context-artifacts-and-attempts"
+      "section": "tasks-attempts-and-contributions"
     },
     {
       "slug": "concepts/attempts-contributions",
       "page": "concepts",
-      "section": "context-artifacts-and-attempts"
+      "section": "tasks-attempts-and-contributions"
     },
     {
       "slug": "concepts/decisions-completion",
-      "page": "completion",
-      "section": "five-concrete-outcomes"
+      "page": "formations",
+      "section": "when-a-result-counts"
     },
     {
       "slug": "concepts/local-permissions",
       "page": "concepts",
-      "section": "local-permissions-and-synchronization"
+      "section": "permissions-on-your-machine"
     },
     {
       "slug": "concepts/events-sync",
       "page": "concepts",
-      "section": "local-permissions-and-synchronization"
+      "section": "sync-and-offline-work"
     },
     {
       "slug": "organization/formations",
-      "page": "organization",
-      "section": "definition-and-instance-lifecycle"
+      "page": "formations",
+      "section": "what-a-formation-contains"
     },
     {
       "slug": "organization/presets",
-      "page": "organization",
-      "section": "choose-a-preset"
+      "page": "formations",
+      "section": "presets"
     },
     {
       "slug": "organization/composition",
-      "page": "organization",
-      "section": "compose-scopes-deliberately"
+      "page": "formations",
+      "section": "steps-that-run-in-order"
     },
     {
       "slug": "organization/completion",
-      "page": "completion",
-      "section": "count-admissible-evidence"
+      "page": "formations",
+      "section": "when-a-result-counts"
     },
     {
       "slug": "organization/lifecycle",
-      "page": "organization",
-      "section": "definition-and-instance-lifecycle"
+      "page": "formations",
+      "section": "changing-the-rules"
     },
     {
       "slug": "authoring/with-your-agent",
       "page": "formation-authoring",
-      "section": "author-with-your-agent"
+      "section": "write-one-with-your-agent"
     },
     {
       "slug": "authoring/schema",
       "page": "schema-reference",
-      "section": "inspect-the-current-definition"
+      "section": "check-a-formation-against-the-schema"
     },
     {
       "slug": "authoring/examples",
@@ -508,37 +434,37 @@
     {
       "slug": "authoring/diagnostics",
       "page": "formation-authoring",
-      "section": "correct-diagnostics-and-test-a-custom-pattern"
+      "section": "read-the-problems-locust-reports"
     },
     {
       "slug": "authoring/testing",
       "page": "formation-authoring",
-      "section": "correct-diagnostics-and-test-a-custom-pattern"
+      "section": "check-a-formation-without-the-daemon"
     },
     {
       "slug": "authoring/custom-patterns",
       "page": "formation-authoring",
-      "section": "correct-diagnostics-and-test-a-custom-pattern"
+      "section": "build-your-own-from-a-preset"
     },
     {
       "slug": "polaris/overview",
-      "page": "polaris",
-      "section": null
+      "page": "overview",
+      "section": "polaris"
     },
     {
       "slug": "polaris/visual-authoring",
-      "page": "polaris",
-      "section": "use-one-shared-executable-definition"
+      "page": "overview",
+      "section": "polaris"
     },
     {
       "slug": "polaris/round-trip",
-      "page": "polaris",
-      "section": "round-trip-and-unsupported-input"
+      "page": "overview",
+      "section": "polaris"
     },
     {
       "slug": "polaris/observe-work",
-      "page": "polaris",
-      "section": "observe-authoritative-work"
+      "page": "overview",
+      "section": "polaris"
     },
     {
       "slug": "agents/overview",
@@ -548,92 +474,92 @@
     {
       "slug": "agents/codex",
       "page": "agents",
-      "section": "choose-the-supported-local-profile-path"
+      "section": "supported-agents"
     },
     {
       "slug": "agents/claude-code",
       "page": "agents",
-      "section": "choose-the-supported-local-profile-path"
+      "section": "supported-agents"
     },
     {
       "slug": "agents/pi",
       "page": "agents",
-      "section": "refresh-and-prove-discovery"
+      "section": "supported-agents"
     },
     {
       "slug": "agents/droid",
       "page": "agents",
-      "section": "choose-the-supported-local-profile-path"
+      "section": "supported-agents"
     },
     {
       "slug": "agents/other-harnesses",
       "page": "agents",
-      "section": "choose-the-supported-local-profile-path"
+      "section": "other-agents"
     },
     {
       "slug": "agents/managed-sessions",
       "page": "agents",
-      "section": "keep-identity-explicit"
+      "section": "launch-an-agent-with-locust"
     },
     {
       "slug": "agents/authoring-contract",
       "page": "formation-authoring",
-      "section": "author-with-your-agent"
+      "section": "write-one-with-your-agent"
     },
     {
       "slug": "sharing/visibility",
       "page": "sharing",
-      "section": "goal-membership-is-the-read-boundary"
+      "section": "who-can-read-a-goal"
     },
     {
       "slug": "sharing/snapshots",
-      "page": "collaboration",
+      "page": "sharing",
       "section": "share-a-code-snapshot"
     },
     {
       "slug": "sharing/membership",
       "page": "sharing",
-      "section": "removal-key-epochs-and-retained-copies"
+      "section": "remove-a-member"
     },
     {
       "slug": "sharing/trust",
       "page": "sharing",
-      "section": "local-trust-and-operational-metadata"
+      "section": "what-leaves-your-computer"
     },
     {
       "slug": "sharing/retention",
       "page": "sharing",
-      "section": "removal-key-epochs-and-retained-copies"
+      "section": "remove-a-member"
     },
     {
       "slug": "operations/services",
       "page": "operations",
-      "section": "own-only-explicitly-selected-services"
+      "section": "run-it-as-a-service"
     },
     {
       "slug": "operations/offline-recovery",
-      "page": "recovery",
-      "section": "offline-and-uncertain-outcomes"
+      "page": "operations",
+      "section": "offline-work-and-restarts"
     },
     {
       "slug": "operations/conflicts",
-      "page": "recovery",
-      "section": "conflicting-authority-and-author-history"
+      "page": "operations",
+      "section": "conflicts"
     },
     {
       "slug": "operations/cancellation",
-      "page": "recovery",
-      "section": "cancellation-and-redacted-diagnosis"
+      "page": "operations",
+      "section": "cancelling-work"
     },
     {
       "slug": "operations/diagnostics",
-      "page": "recovery",
-      "section": "cancellation-and-redacted-diagnosis"
+      "page": "help",
+      "section": "troubleshooting"
     },
     {
       "slug": "operations/backup-recovery",
-      "page": "recovery",
-      "section": "backup-and-restore-boundaries"
+      "page": "operations",
+      "section": "backups"
     },
     {
       "slug": "reference/cli",
@@ -643,12 +569,12 @@
     {
       "slug": "reference/local-api",
       "page": "runtime-reference",
-      "section": "local-api-transport-and-effects"
+      "section": "local-api"
     },
     {
       "slug": "reference/mcp",
       "page": "runtime-reference",
-      "section": "mcp-and-native-tools"
+      "section": "mcp-server"
     },
     {
       "slug": "reference/formation-schema",
@@ -658,32 +584,32 @@
     {
       "slug": "reference/events",
       "page": "runtime-reference",
-      "section": "signed-event-and-proof-context"
+      "section": "events"
     },
     {
       "slug": "reference/errors",
       "page": "runtime-reference",
-      "section": "errors-versions-and-reference-coverage"
+      "section": "exit-codes"
     },
     {
       "slug": "reference/configuration",
       "page": "operations",
-      "section": "configuration-ownership-and-format-ids"
+      "section": "environment-variables"
     },
     {
       "slug": "reference/formats",
-      "page": "operations",
-      "section": "configuration-ownership-and-format-ids"
+      "page": "runtime-reference",
+      "section": "versions"
     },
     {
       "slug": "reference/protocol",
       "page": "runtime-reference",
-      "section": "signed-event-and-proof-context"
+      "section": "events"
     },
     {
       "slug": "troubleshooting",
       "page": "help",
-      "section": "safe-next-actions"
+      "section": "troubleshooting"
     },
     {
       "slug": "faq",
@@ -697,8 +623,8 @@
     },
     {
       "slug": "release-notes",
-      "page": "help",
-      "section": "development-release-notes"
+      "page": "overview",
+      "section": "what-works-today"
     }
   ]
 }

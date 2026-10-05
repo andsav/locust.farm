@@ -1,6 +1,6 @@
 # Prior art for an agent swarm on ecdsa.fail
 
-Research date: 2026-10-03. **Status: research note. Source review of the owner's earlier Merak work, public solver write-ups and published studies. Nothing was run. Revised the same day after an adversarial review.** It supports the [swarm demonstration proposal](../docs/ecdsa-fail-swarm-proposal.md) and sits beside the [benchmark note](ecdsa-fail-benchmark.md).
+Research date: 2026-10-03. **Status: research note. Source review of the owner's earlier Merak work, public solver write-ups and published studies. Nothing was run. Revised the same day after an adversarial review.** It supports the [swarm demonstration proposal](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/ecdsa-fail-swarm-proposal.md) and sits beside the [benchmark note](ecdsa-fail-benchmark.md).
 
 ## Question
 

@@ -2,7 +2,7 @@
 
 Date: 2026-10-04. **Measured:** the exact macOS arm64 candidate from
 `527ada505a6ecf6b9b68f3b22ae423418e38cc3f` passed fresh-profile Codex and Claude
-onboarding through native workspace execution. The [demo guide](../docs/demo.md)
+onboarding through native workspace execution. The [demo guide](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/demo.md)
 now uses goal/task names, reviewed local membership, explicit permissions and
 contribution-based patch inspection/application. This is local qualification;
 no release was published.

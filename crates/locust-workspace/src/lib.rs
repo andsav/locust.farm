@@ -29,8 +29,7 @@
 //!
 //! Unix only (macOS and Linux): materialization sets modes through
 //! `std::os::unix`; contribution mutations use descriptor-relative `rustix`
-//! filesystem operations. Owner: the workspace
-//! stream; see `docs/workstreams.md`.
+//! filesystem operations. See `docs/crates.md`.
 //!
 //! [`Manifest`]: locust_proto::manifest::Manifest
 

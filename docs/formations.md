@@ -1,180 +1,267 @@
-# Formations: accepted direction
+# Formation design
 
-Date: 2026-10-04. **Status: accepted product direction and authoring requirements.**
-API 5 / protocol 5 now implements the standalone organization runtime, private
-catalog and agent operations. The [implementation plan](formations-implementation-plan.md)
-remains the frozen delivery scope. The separate
-[execution ledger](formations-status.md) records completed checks
-and remaining formal, native/client, transport and publication boundaries. The
-historical [protocol-1 coordinator behavior](https://github.com/andsav/locust.farm/blob/673aad942365c7af827e77c298cfa8bec51046c9/docs/protocol-v1.md) has been replaced;
-it is not available as a fallback.
+Status: built in the current source. Exclusive task reservations and a way to read guidance are not built.
 
-The installed `locust formation contract` command exports the schema, command
-catalog and examples without connecting to a daemon. Validation rejects unknown
-fields, duplicate keys, unresolved role references, invalid selector scopes,
-impossible explicit thresholds and static flow cycles. It normalizes defaults
-and unordered rule sets before deriving semantic identity. These are offline
-definition checks; required member/input bindings, local permissions and runtime
-proofs remain contextual checks. The enforcing implementation is
-[the pure validator](../crates/locust-core/src/organization.rs), with
-[behavioral tests](../crates/locust-core/src/organization/tests.rs) and
-[installed CLI tests](../crates/locust/tests/formations.rs).
-
-This decision follows the [formation research](../research/formations.md)
-and the owner's agreement that agents must easily author formations and Polaris
-should offer a visual authoring experience. It does not adopt every tentative
-protocol mechanism or example field name in that research or the conversation.
-
-The [public documentation plan](public-documentation-plan.md) specifies the full
-locust.farm manual required alongside implementation, including versioned human
-and agent references, tested tutorials, and publication verification.
+A formation is the set of rules a goal follows: who may open tasks, start work,
+publish results, review them, pick one and close a task. This page describes the
+design and the code that enforces it. For how to use formations, see the guide
+pages [Formations](guide/formations.md) and
+[Write a formation](guide/formation-authoring.md). The web editor is described in
+[Formation editor](formation-editor.md).
 
 ## Name
 
-The owner renamed "formation" to "formation" on 2026-10-04. Merak already uses
-"formation" for its local execution graphs, and Locust's deterministic
-organization layer needs its own term. The rename covers the CLI, API operation
-names, MCP tools, hash domains, examples, site and documentation. It has no
-compatibility aliases. References to Merak and Polaris formations keep their name.
+Formations were called blueprints before. Locust renamed them because Merak uses
+"blueprint" for its execution graphs, and Polaris, a separate desktop app, keeps
+that word for its own graphs. The rename covered the CLI, API operations, MCP
+tools, hash domains, examples and docs. It has no aliases, so a Locust build from
+before the rename does not match today's API.
 
-## Greenfield implementation constraint
+## Document format
 
-The owner explicitly selected a clean replacement on 2026-10-04: no migrations,
-backward compatibility, retained legacy runtime, or dead code. Implement the new
-contract directly and remove superseded code, interfaces, flags, dependencies,
-fixtures and active documentation in the same completed logical changes.
-Existing goals/data do not require conversion or continued runtime support.
-Initialize fresh state for the new design; unsupported formats must fail clearly
-before mutation rather than being interpreted through compatibility paths.
+A formation is one strict JSON document with `schema_version: 1`. There is no
+other format. The loader refuses duplicate keys, unknown fields and other schema
+versions; it does not convert them. The types are in
+[organization.rs](../crates/locust-proto/src/organization.rs).
 
-Historical evidence can remain labeled in research or Git history. Definition
-revisions and evidence retention within the supported current model remain product
-features; neither requires retaining obsolete schema/protocol implementations.
-This is an accepted implementation requirement; code enforcement and removal
-checks are specified in the implementation plan and have not run yet.
+A formation has six parts, and each has a default:
 
-## Accepted model
+| Part | Holds |
+| --- | --- |
+| `roles` | Named groups of members, filled when a goal binds the rules |
+| `context` | `guidance` (advice text) and `inputs` (named text or artifact inputs) |
+| `work` | `propose`, `publish` and `starts` |
+| `decisions` | `completion`, `selection` and `finish` |
+| `task_types` | Named alternative rule sets a task can choose |
+| `flow` | Named stages the daemon runs in order |
 
-A formation is a reusable, declarative agreement about how a
-group works together. A goal selects and pins a version; tasks inherit defaults
-or select an allowed task type. The coordinator workflow becomes one arrangement
-among others. Open collaboration must permit useful findings and contributions
-without mandatory assignments, reviews, or a single accepted result.
+`{"schema_version":1}` alone is a complete formation. It is the `open` preset.
 
-The model separates participants/roles, shared context, work/attempts/contributions,
-flow, and decisions. Completion follows a task's explicit rule: what evidence is
-required and whose judgment counts. Submission, approval, selection, and applying
-a change locally remain distinct. Organization rules do not grant local tool,
-filesystem, spending, or sharing permissions.
+Rules name who may act with a selector:
 
-## Accepted governance and scoped decisions
+| Selector | Matches |
+| --- | --- |
+| `members` | Every current member |
+| `role` | Members bound to that role |
+| `participant` | One member, by 64-hex public key |
+| `task_creator` | The member who opened the task (start and completion rules only) |
+| `contribution_author` | The result's author (completion rules only) |
+| `any` | Anyone matched by one of a list of selectors |
+| `nobody` | No one |
 
-The owner resolved D2 on 2026-10-04: each goal has one explicit administrator
-for membership and rules. Administration is separate from work organization,
-review, and local execution. A work event authorized by the pinned rules does
-not need a fresh administrator signature.
+Validation runs offline in
+[validation.rs](../crates/locust-core/src/organization/validation.rs). It reports:
 
-The D4/D5 approach is also accepted: a scope may name an optional authority for
-exclusive reservation or selecting one output. These identities need not be the
-goal administrator. If an authority is unavailable, only the decision requiring
-it waits; authorized independent contributions and non-exclusive evidence can
-continue. No reservation or selection authority is implicit in open work.
+- unknown roles, stages and task types, and bad keys;
+- selectors used where they cannot apply, and empty groups;
+- impossible review counts;
+- a stage that waits for a selection no one can make;
+- cycles in the flow.
 
-Acceptance fixes the product contract, not a signed-event format or finality
-proof. The [semantics and removal inventory](formations-semantics.md)
-records concrete scenarios and the remaining cutoff, fork, proof-retention and
-revision obligations. The administrator must not become a hidden finalizer to
-avoid engineering those obligations.
+Each problem has a code, a phase, a JSON Pointer path, a message and a correction.
 
-## Daemon-driven transitions and delivery
+A valid formation is normalized: defaults are filled in and lists that act as
+sets are sorted. The semantic hash is a BLAKE3 hash of the normalized formation's
+canonical encoding. Layout data is stored apart and never changes it. A draft's
+source hash covers its exact bytes instead.
 
-The accepted D14 correction requires the daemon to advance configured transitions
-and durably deliver ready work without waiting for agents to request each step.
-Deterministic readiness feeds one authorized signer: the goal's administrator
-for configured stages (owner decision, 2026-10-04) and a result's author for
-review requests outside a stage. Stable
-logical effect IDs and atomic event/outbox/deduplication writes make retry and
-restart resume the same work. Delivery, acknowledgment and execution start are
-separate facts. Local execution requires the existing local permission grants;
-flow rules do not grant consent or promise to wake a closed client.
+## Rules
 
-## One contract, two authoring experiences
+### Work
 
-Agents and Polaris edit the same organization definition. There must not be a
-second visual-only organization language or a restricted agent-only format.
-Locust owns the schema, validation, and runtime semantics. Polaris provides a
-visual editor over that contract; Locust remains usable without Polaris.
+- `propose`: who may open tasks.
+- `publish`: who may publish results, with or without a task. Shared documents
+  (`plan`, `summary`) follow the same rule.
+- `starts`: how an attempt may begin. `independent {by}` lets a member start on
+  their own. `offered {by, to}` lets one member offer the task to another, who
+  accepts or declines it once. An empty list allows no attempts, but publishing
+  still works.
 
-The design must support a short path from a user's description to a valid
-formation with a readable explanation. Agent authoring is a primary use case,
-not an import/export feature added after the visual editor.
+Only an attempt's author or the member who offered it may ask to cancel it. The
+author acknowledges the request.
 
-### Agent authoring requirements
+### Decisions
 
-- Small declarative documents with optional structure and reusable examples.
-  A simple arrangement must not require building a graph or enumerating all
-  future work. YAML and JSON are candidate authoring representations, not yet
-  a frozen wire schema.
-- A discoverable machine-readable contract and concise authoring instructions,
-  so agents do not guess field names or rely on long prompt conventions.
-- Structured validation errors identifying the field, violated rule, and useful
-  correction. Distinguish invalid syntax, unsupported semantics, missing role
-  bindings, and unavailable runtime capabilities.
-- Operations for reading, drafting, validating, comparing, and publishing a
-  definition, with a normalized effective-rules view. Exact CLI/MCP names remain
-  to be designed. Every default affecting authority or completion must be visible.
-- A short explanation of who may act, how work moves, what completes a task,
-  and which instructions are advisory. Guidance cannot silently become authority.
+`completion` says when a result counts:
 
-### Polaris visual authoring requirements
+- `contribution {by}`: publishing it is enough.
+- `declaration {by}`: a member declares it done. The default is the result's
+  author.
+- `reviews {by, count, exclude_author}`: `count` distinct members approve it.
+  `exclude_author` defaults to true.
+- `check {name, by}`: a member reports that a named check passed. Locust does not
+  run the check.
+- `all` and `any`: combine several rules.
 
-- Present participants/roles, shared context, work choices, completion rules,
-  and optional flow in terms people can understand. Simple arrangements should
-  be editable without drawing an execution graph.
-- Use the same validator and effective-rule explanation as agent authoring.
-  Unsupported combinations must be visible rather than accepted only by one UI.
-- An agent-authored formation must open for visual editing, and visual edits
-  must remain readable and editable by agents without loss of meaning.
-- Keep layout, colors, and other presentation state separate from organization
-  semantics. Moving a visual element must not change authority or execution.
-- Preserve supported semantics on a round trip. When an editor cannot understand
-  a newer construct, show that limitation and preserve the definition rather
-  than silently dropping the construct.
+`selection` names at most one member who may pick one result per task. `finish`
+names at most one member who may close and reopen a task. Each is a `role` or a
+`participant` key.
 
-## Drafts, publication, and running goals
+### Task types and flow
 
-Keep an editable draft separate from an immutable published definition and a
-goal/task instance that binds participants and inputs. Saving or validating a
-draft does not launch agents, share data, or change an existing goal.
+A task type replaces the goal's `work` or `decisions` group, or both. A part it
+leaves out keeps the goal's whole group. A top-level task may name a task type.
+A subtask must have narrower rules than its parent task; see
+[delegation.rs](../crates/locust-core/src/goal/delegation.rs).
 
-Human and agent edits to the same draft need revision checks and reviewable
-diffs so one does not silently overwrite the other's work. Publishing pins exact
-semantics. Later definition edits do not reinterpret existing work; changing an
-active arrangement requires an explicit, authorized revision boundary.
+A flow stage names its `recipients`, an optional `task_type` and what it
+`requires`: a `publication`, `review`, `completion` or `selection` in another
+stage. A stage runs once for each rules binding, not once per task.
 
-Polaris integration remains a separate delivery step. These authoring requirements
-constrain the Locust contract now without making the desktop editor a prerequisite
-for standalone collaboration.
+## Presets
 
-## Verification required before claiming this works
+Six formations are built into the binary in
+[presets.rs](../crates/locust-proto/src/organization/presets.rs): `open`,
+`coordinator`, `peer-review`, `independent-attempts`, `review-panel` and
+`pipeline`. `examples/formations/` holds copies, and `check_formations.py` keeps
+them equal. The `coordinator` preset sets `exclude_author` to false, so the
+coordinator can approve its own result. The guide's
+[preset table](guide/formations.md#presets) describes each one.
 
-These are future acceptance criteria, not checks already run:
+## Goals and administration
 
-1. An agent creates Open collaboration and Coordinator arrangements from the
-   same primitives, validates them, and explains their different completion rules.
-2. An agent-authored definition opens in Polaris; a person edits a rule; the
-   agent reads the changed definition and accurately explains its effect.
-3. A semantic round trip preserves the definition; layout-only changes preserve
-   executable identity. Invalid and unsupported rules get consistent diagnostics.
-4. Concurrent draft edits report a revision conflict without losing either
-   author's work. Saving and publishing do not mutate already pinned instances.
-5. Task types preserve parent scope and local permissions, and
-   the agent can explain exactly what remains before task completion.
+`goal create` signs three events together: the genesis, which names the creator
+as administrator and pins the formation's semantic hash; the creator's
+admission; and the first rules binding. It takes a preset name (`--formation`) or
+formation JSON (`--formation-json`), plus `--roles` and `--inputs`. It does not
+read the private catalog. It needs the daemon-wide `manage_goals` permission, and
+the creator gets only the local `administer` permission. See
+[goals.rs](../crates/locust-core/src/node/requests/goals.rs).
 
-The remaining engineering questions include exact reservation and decision
-finality, membership/rule cutoffs, proof retention, current-model revision
-transitions, and the signed binding of the declarative schema. D2 and the
-D4/D5 authority approach are accepted; their detailed protocol proofs remain
-open. Earlier compatibility/migration proposals are
-superseded by the greenfield constraint above. Acceptance of the
-product direction does not establish protocol correctness or runtime readiness.
+Only the administrator's events change membership, rules, task rounds or the
+farm publication policy. Events of these kinds from anyone else are excluded.
+Roles never grant this power. See
+[chain.rs](../crates/locust-core/src/goal/chain.rs).
+
+A rules binding must bind every declared role to admitted members and supply
+every required input. A role used as a selection or finish decider must be bound
+to exactly one member. At creation the creator is the only member, so roles can
+name only the creator. The administrator admits others and then runs `rules bind`.
+
+`rules bind --expected RULES_REVISION` changes the goal's defaults. The revision
+is the ID of the current rules event; if it changed, Locust refuses the update. New tasks use the new rules;
+existing tasks keep the rules they were opened under. `task revise` gives one
+task new rules as a new round and names the round it replaces.
+
+## How decisions are evaluated
+
+Every work event names its task (or the goal), the rules round it acts under,
+and the administrator's event it last saw. Each daemon checks the event against
+the rules and membership at that point. Equal records give every daemon the same
+result. Clocks and arrival order never decide anything.
+
+- **Membership periods.** Each admission opens a period, and a removal closes it.
+  A removal may name the member's last accepted event; later ones do not count.
+  Re-admission opens a new period. Removal changes the goal's content key.
+- **Conflicting records.** If an author signs two events at one position, that
+  author's later events do not count. If a decider signs two decisions that
+  both follow the same one, that kind of decision stops for that task. Other work
+  continues.
+- **Missing records.** An event that depends on records not yet received waits.
+  It is never counted as a rejection.
+- **Reviews.** Locust counts distinct approving members that the rule allows, and
+  leaves out the author when the rule says so. A reject is recorded but is not a
+  veto. Several results can count at once. A task round is complete when any
+  result counts or one is selected.
+- **Selection.** Only the selection decider may select, and only a result that
+  counts. Each decision names the previous one in that task's chain (`--expected`).
+- **Closing.** Only the finish decider may close or reopen. A close blocks new
+  attempts by members who have seen it. Attempts started without seeing it stay
+  valid.
+
+See [fold.rs](../crates/locust-core/src/goal/fold.rs),
+[closure.rs](../crates/locust-core/src/goal/closure.rs) and
+[commitments.rs](../crates/locust-core/src/goal/commitments.rs).
+
+## Automatic steps and delivery
+
+The daemon computes three kinds of automatic step from the goal's records, in
+[goal/flow.rs](../crates/locust-core/src/goal/flow.rs):
+
+- Open a stage's task when its requirements are met, and send it to the stage's
+  recipients.
+- Offer a stage's task to each recipient, when the stage's start rules let the
+  administrator make offers.
+- Ask each member who may review a new result for a review.
+
+The administrator signs stage tasks, stage offers and review requests for stage
+tasks. The result's author signs other review requests. A daemon signs a step
+only for a local member that holds the `flow` permission
+([node/flow.rs](../crates/locust-core/src/node/flow.rs)). Goal creation does not
+grant `flow`, so stages do not run until the owner grants it.
+
+Stage recipients are the members matched when the rules were bound (read from
+code). Members admitted later receive stage tasks only after a new `rules bind`.
+
+Each step has one ID, a hash of the goal, task, trigger, action and target. A
+step signed twice is still one action. The signed event and its outbox entries
+are saved in one transaction. The daemon retries until the recipient's daemon
+saves the inbox entry and sends a receipt, and resumes after a restart; see
+[delivery.rs](../crates/locust-core/src/node/delivery.rs).
+
+Delivery is not execution. The receipt, the agent's acknowledgment and the start
+of work are separate records. The agent still needs the `execute` permission, and
+Locust does not start or wake agents.
+
+## Private catalog
+
+Drafts and publications belong to the agent or author that wrote them. Other
+agents and goal members cannot see them.
+
+- A draft keeps the exact source bytes, even incomplete JSON, with a revision
+  number and a source hash. `draft create` needs `--expected-revision 0`.
+  `draft update` names the current revision. A stale revision returns the current
+  draft as a conflict.
+- `formation publish` names the draft revision and source hash it expects. It
+  checks the formation and stores the source, the normalized JSON and the
+  semantic hash. A publication never changes; repeating the same publish is safe.
+- The layout (presentation record) is opaque JSON beside a draft, with its own
+  revision. It never changes the semantic hash.
+- An author credential (`locust --owner author enroll NAME`) can draft and
+  publish. It cannot create goals or use goal sessions.
+
+The records are in
+[catalog.rs](../crates/locust-proto/src/organization/catalog.rs) and the checks
+in [organization/catalog.rs](../crates/locust-core/src/organization/catalog.rs).
+
+## Design rules that still apply
+
+- One current format, with no migration or compatibility code
+  ([AGENTS.md](../AGENTS.md)). Other schema versions are refused, not converted.
+- Formation rules never grant local permissions. The owner grants those per goal.
+- Agents and the web editor use the same contract. The editor's checks are a port
+  held to the CLI's results.
+- Guidance is advice. It never grants rights.
+- Layout never changes what a formation means.
+
+## Not built and open questions
+
+- **Exclusive reservations.** Not built. A proposal is in
+  [exclusive-task-claim.md](../research/exclusive-task-claim.md).
+- **Reading guidance.** `context.guidance` is stored and hashed, but no API
+  returns it to members.
+- **Closing the goal.** A close of the whole goal is recorded but has no effect.
+- **What closing blocks.** Closing a task blocks new attempts only. Publishing and
+  reviews continue.
+- **Rebinding a pipeline.** Stages belong to one rules binding. From the code, each
+  `rules bind` starts the stages again under the new binding. Not run.
+- **Coordinator without `--roles`.** From the code, the first binding leaves
+  `coordinator` unbound and is excluded, so the goal may have no usable rules. Not
+  run.
+- **Combined and check rules.** No signed-replay test covers `all`, `any` or
+  `check` completion.
+
+## Where the code and tests are
+
+| Area | Code | Tests |
+| --- | --- | --- |
+| Format, presets, catalog records | [locust-proto](../crates/locust-proto/src/organization.rs) | |
+| Offline checks | [locust-core](../crates/locust-core/src/organization.rs) | [tests.rs](../crates/locust-core/src/organization/tests.rs) |
+| Goal evaluation | [goal/](../crates/locust-core/src/goal/) | [tests.rs](../crates/locust-core/src/goal/tests.rs) |
+| Flow and delivery | [node/](../crates/locust-core/src/node/) | [delivery.rs](../crates/locust-core/src/node/tests/delivery.rs), [failure.rs](../crates/locust-core/src/node/tests/failure.rs) |
+| Whole engine | | [organizations.rs](../crates/locust-core/tests/organizations.rs) |
+| CLI | | [formations.rs](../crates/locust/tests/formations.rs) |
+| Conformance with the editor | [check_formations.py](../scripts/check_formations.py) | [organization.cases.json](reference/conformance/organization.cases.json) |
+
+Formal models of the goal rules are in
+[research/tla/organization.md](../research/tla/organization.md).

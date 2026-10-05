@@ -98,8 +98,7 @@
 //! No migration or old-format reader is provided.
 //!
 //! Unix only: object files use positional reads and owner-only modes.
-//! Depends on `locust-proto` only. Owner: the storage stream; see
-//! `docs/workstreams.md`.
+//! Depends on `locust-proto` only; see `docs/crates.md`.
 
 #![forbid(unsafe_code)]
 

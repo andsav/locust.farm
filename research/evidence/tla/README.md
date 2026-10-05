@@ -13,7 +13,7 @@ Date: 2026-10-03; runs continued into 2026-10-04 UTC. **Status: implemented and
 locally checked on macOS Arm64. Linux bootstrap CI is configured but unobserved.**
 These are bounded model checks and concrete Rust trace fixtures, not a proof of
 the implementation. Start with the [model guide](../../tla/README.md),
-[property map](../../tla/property-map.md) and [plan](../../../docs/tla-verification-plan.md).
+[property map](../../tla/property-map.md) and [plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/tla-verification-plan.md).
 
 **Integration update, 2026-10-04:** upstream `d253a07` introduces protocol/API
 version 1 and corrects the two goal findings reproduced below. These retained

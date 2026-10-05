@@ -3,8 +3,8 @@
 Measured 2026-10-04 before the organization runtime replacement. **Status: local
 measurement, not a performance requirement or protocol-2 result.** This records
 the O0/V22 baseline required by the
-[organization implementation plan](../docs/formations-implementation-plan.md).
-The [semantics contract](../docs/formations-semantics.md) identifies
+[organization implementation plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-implementation-plan.md).
+The [semantics contract](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-semantics.md) identifies
 the invariants the replacement must retain.
 
 ## Source, environment and reproduction

@@ -1,6 +1,6 @@
 # Independent review of the T1 release candidate — 2026-10-03
 
-**Status: review findings. Nothing here was fixed, and no source under `crates/` or `scripts/` was changed by this review.** Requested by the owner, who asked the session that previously ran lane A to stay on as an independent reviewer after lane A's source moved to the shared orchestrator (see [workstreams](../docs/workstreams.md)). The subject is the runtime integrated in `885b372` and the release candidate built from `3422c7b`, which prints `locust 0.1.0 (3422c7b51948) api 0 protocol 0` and has SHA-256 `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`. The crates are byte-identical between `3422c7b` and the head at review time; later commits changed documentation only.
+**Status: review findings. Nothing here was fixed, and no source under `crates/` or `scripts/` was changed by this review.** Requested by the owner, who asked the session that previously ran lane A to stay on as an independent reviewer after lane A's source moved to the shared orchestrator (see [workstreams](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/workstreams.md)). The subject is the runtime integrated in `885b372` and the release candidate built from `3422c7b`, which prints `locust 0.1.0 (3422c7b51948) api 0 protocol 0` and has SHA-256 `299aafb3c473d7d1051317a636640dfd8c68a52f0d2fe3317cf685b6d56ffbcf`. The crates are byte-identical between `3422c7b` and the head at review time; later commits changed documentation only.
 
 ## Summary
 
@@ -161,7 +161,7 @@ Building from a `git archive` copy at a fixed path, with the commit passed in ex
 
 ## Addendum: the two-Mac run recorded on October 3
 
-Reviewed afterwards, at the owner's request: the [M1 observation](evidence/two-mac-t1-2026-10-03.json), the M2 [join record](evidence/t1-m2-smoke-2026-10-03.json) and [task-readiness record](evidence/t1-m2-task-2026-10-03.json), their [note](t1-m2-smoke-2026-10-03.md) and the rows they add to the [release ledger](../docs/release-evidence.md).
+Reviewed afterwards, at the owner's request: the [M1 observation](evidence/two-mac-t1-2026-10-03.json), the M2 [join record](evidence/t1-m2-smoke-2026-10-03.json) and [task-readiness record](evidence/t1-m2-task-2026-10-03.json), their [note](t1-m2-smoke-2026-10-03.md) and the rows they add to the [release ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md).
 
 **The evidence is consistent with this review for the steps that were run, and it claims no more than it shows.** On two physical Macs: enrollment, `status` and `doctor`; a join that completed in about a second (join sent at 02:57:36.6 UTC, first synchronization at 02:57:37.5); both members and the decrypted title on both sides; M1's note readable on M2, which exercises sealed content and key delivery between machines; the assignment replicated and shown as `to_authorize`, then `to_claim` after the local `task authorize`; a session created. Every recorded command exited 0. None of the 36 findings was touched, which is expected, because they lie outside the guide's path.
 

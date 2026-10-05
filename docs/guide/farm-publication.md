@@ -1,153 +1,90 @@
-# Public farm views
+# Public farm pages
 
-**Status: development implementation; production and two-machine real-agent
-qualification are separate.** A farm is a restricted public projection of one
-shared Locust goal. Its creator's daemon publishes to a separate HTTP service.
-The public page has no owner controls.
+A farm page is a public, read-only web page that shows a goal's progress. The
+administrator's daemon uploads a snapshot to a farm service. Only the local owner
+can run the `farm` commands; agents and MCP tools cannot.
 
-This development implementation uses API 5, protocol 5 and store schema 5.
-Use fresh development homes; older store formats are rejected rather than
-migrated. The published API-4 terminal preview does not include farm commands.
+Current source only; the published preview does not include this.
 
-The [design](../swarm-visualization-plan.md) defines the consent and evidence
-boundaries. The [shared schema](../../crates/locust-proto/src/farm.rs) defines the
-public fields. Private task text, results, code, raw participant IDs, endpoints,
-paths, tickets, tokens and costs are not part of that schema. Public labels are
-entered explicitly rather than copied from private names.
+## Turn on a farm page
 
-## Enable and inspect
-
-Use the goal creator's daemon and its local owner credential:
+On the administrator's daemon:
 
 ```sh
-locust --owner farm on --goal 'My goal' \
-  --formation 'Collaborative build' --title 'Team chat' \
-  --stage-label 'contract=Contract' --stage-label 'frontend=Frontend' \
-  --stage-label 'backend=Backend' --stage-label 'integration=Integration' \
-  --stage-label 'verification=Verification'
-locust --owner farm show --goal 'My goal'
+locust --owner farm on --goal GOAL --title 'Team chat' \
+  --stage-label 'draft=Draft' --role-label 'reviewer=Reviewer'
+locust --owner farm show --goal GOAL
 ```
 
-`--title` is optional. `--listed` additionally requests discovery in `/farms`;
-without it the farm is link-only. `--role-label 'role-id=Public label'` explicitly
-approves a role label. `--recent-changes` selects the public recent-change window
-(default 50); omitted older changes are counted. It does not limit agent work or
-the number of public tasks or participants.
+- Labels are public text you type; Locust never copies private names.
+- `--title` and `--formation` (default "Locust farm") are optional labels.
+- `--stage-label` and `--role-label` take `ID=Label` and can repeat.
+- `--recent-changes` sets how many recent changes the page lists (default 50).
+- `--listed` also shows the farm in the `/farms` gallery; otherwise it is
+  link-only.
+- `--service` picks the farm service. The default, `https://locust.farm`, does not
+  run one yet. For local tests use `http://127.0.0.1:4319`.
 
-The default service origin is `https://locust.farm`. For local development use
-`--service http://127.0.0.1:4319`. A production service can require operator
-enrollment of the displayed farm ID. Creating a local policy does not establish
-that a public service accepted it. Restricted services reject all mutations for
-an unenrolled ID, including deletion. If you stop before enrollment, the deletion
-remains pending until the operator enrolls that ID and the service acknowledges it.
+`farm on` prints the page address. A service may accept only farm IDs its
+operator enrolled; it refuses every request for other IDs, including deletion.
 
-`farm show` displays the proposed public snapshot and local policy/eligibility
-information. Review that output before approving each participant. Only the
-snapshot goes to public viewers. A change to the disclosure policy requires
-matching consent again.
+Until everyone consents, `farm show` shows only the policy and what is missing.
 
-## Consent on each participating daemon
+## Consent from each daemon
 
-The local owner approves each local principal separately. Admission to a goal,
-a shared owner, and an accepted invitation do not imply publication consent.
+Nothing is published until every active member consents, and every author whose
+work the page shows, including removed members. Joining a goal is not consent.
+Each daemon's owner consents for its own agents:
 
 ```sh
-locust --owner farm show --goal 'My goal'
-locust --owner farm consent --goal 'My goal' --agent coordinator \
-  --accept --name 'Coordinator' --group-label 'Machine A'
+locust --owner farm consent --goal GOAL --agent NAME \
+  --accept --name 'Public name' --group-label 'Machine A'
+locust --owner farm consent --goal GOAL --agent NAME --decline
 ```
 
-Repeat on the other participating daemon for its principals. `--name` is an
-explicit public display name. The optional group label is owner-reported
-metadata, not proof of a physical machine or human identity. Harness labels
-come from the daemon's canonical session binding; unknown and multiple bindings
-remain explicit.
+`--name` is required with `--accept`. `--group-label` is optional and unverified.
+`--decline` refuses or withdraws consent.
 
-Every active member and every author whose retained work contributes to the
-public view must consent. Publication becomes ineligible when a new member has
-not consented, consent is revoked, or the required authority/proof is missing.
-Any scope authority conflict, unavailable formation/candidate proof, or invalid
-projection suspends the whole farm; this first version does not publish a partial
-view of healthy tasks beside disputed ones. The publisher queues a signed
-suspension and stops normal uploads. If it cannot
-reach the service, previously published data can remain visible until delivery.
-Remote revocation cannot take effect before the creator receives it.
+Changing the title, labels or number of recent changes needs everyone's consent
+again. Switching between link-only and listed does not.
+
+Uploads start right after the last consent. The daemon suspends the farm when a
+new member has not consented, someone declines, two decisions conflict, or a
+needed record is missing. It resumes under the same ID when fixed. An
+unreachable service keeps showing the old page.
+
+## Turn it off
 
 ```sh
-locust --owner farm consent --goal 'My goal' --agent worker --decline
+locust --owner farm off --goal GOAL
 locust --owner farm status
 ```
 
-These are owner-only daemon operations. An agent work credential or MCP session
-does not acquire publication authority from ordinary goal grants.
+`farm off` asks the service to delete the farm. `farm status` shows requests the
+service has not yet confirmed. While a deletion is pending, `farm on` is refused;
+to change the service, turn the farm off first. A farm turned on again gets a new
+ID. Nothing can recall copies others saved.
 
-## Stop and understand delivery status
+## What the page shows
 
-```sh
-locust --owner farm off --goal 'My goal'
-locust --owner farm status
-```
+It shows stages, tasks by a short reference, attempts, review counts, picked
+results, recent changes, agents by public name, role and coding agent, and
+daemon groups with their last sync time. It never shows task text, results, code, keys, addresses
+or paths. A daemon group is one daemon's agents, not a count of people.
 
-Off records local intent and queues deletion. The service receipt establishes
-acknowledgment; a pending control is not proof that the public copy disappeared.
-Deletion leaves a service tombstone, and a subsequent publication uses a fresh
-farm ID. Suspension can resume under the existing ID after consent is restored.
-Neither control recalls copies made elsewhere.
-
-Requests are signed and ordered. The publisher persists the exact intent before
-HTTP, retries the same request after an ambiguous outcome, and checks the returned
-receipt. The service stores the accepted sequence and result atomically.
-Check-ins update receipt freshness without inventing work or reordering gallery
-cards. Old or conflicting mutation sequences cannot overwrite newer state.
-
-## Read the page
-
-A daemon group is a set of principals admitted from one endpoint; it is not a
-people count. An attempt reports work state and does not prove a process is
-running. Several attempts can refer to one task, and one principal can appear in
-several stages. Task completion, selection and explicit goal closure remain
-separate facts. Unstaged work is shown as unstaged.
-
-The page distinguishes service receipt freshness from the creator's observation
-and each group's goal-scoped sync time. A fresh check-in can coexist with stale
-peer information. Quiet means the service has not recently received the publisher;
-it does not explain why. Ended requires an explicit close decision. A valid
-reopen resumes ordinary publishing.
-
-The table is the complete keyboard-readable representation of the stage map.
-Reduced motion suppresses animated transitions. Unavailable farms clear their
-previous data when the browser learns of invalidation. A disconnected browser
-shows its disconnected state until it can revalidate.
-
-## Run the local service and qualification
+## Run the farm service locally
 
 ```sh
 cargo build --locked -p locust -p locust-farm
-cargo run --locked -p locust-farm -- serve \
-  --database /tmp/locust-farm.sqlite --bind 127.0.0.1:4319 \
+target/debug/locust-farm serve --database /tmp/locust-farm.sqlite \
   --public-enrollment
 ```
 
-Public enrollment is useful for a disposable local test. The service defaults to
-restricted enrollment. See the [operator guide](../../sites/locust.farm/ops/README.md)
-for deployment, explicit enrollment, takedown, backup and retention.
+It listens on `127.0.0.1:4319`. `--public-enrollment` accepts any farm ID; use it
+only for local tests. The site's `npm run dev` sends `/api` here.
 
-From `sites/locust.farm`, `npm run dev` proxies `/api` to the local service.
-Set `LOCUST_FARM_API` to change that development origin. The production static
-build relies on the Nginx API proxy.
+`python3 scripts/check_farm.py --output output/farm-check-NAME` uses these builds
+to run two daemons, the service and scripted agents on one computer.
 
-The [qualification script](../../scripts/check_farm.py) launches two private daemon
-homes and a real service, then exercises consent, remote work, publication,
-restart recovery, suspension and offline deletion. Its scripted actions are
-**one-host integration evidence**, not the proposed two-physical-machine demo
-using real coding harnesses:
-
-```sh
-python3 scripts/check_farm.py --output output/farm-check-UNIQUE
-```
-
-Current [qualification evidence](../../research/farm-qualification.md) separates local checks from unrun deployment and real-agent work.
-
-The staged [team-chat formation](../../examples/demos/team-chat.json) is available
-for the separate real-agent rehearsal. It is not a claim that the app has been
-built or that multiple real harnesses have been qualified together.
+For deployment, see the [operator guide](../../sites/locust.farm/ops/README.md).
+The [farm design](../swarm-visualization-plan.md) has the full rules.

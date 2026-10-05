@@ -4,7 +4,7 @@ Date: 2026-10-04. **Measured:** the installed `locust up` and `locust agent add`
 routes passed on macOS arm64, using both launchd and an existing foreground
 daemon. Each run configured disposable Codex and Claude profiles and passed 14
 grouped checks. These are daemon/configuration checks; no native AI client or
-model ran. See the [onboarding contract](../docs/onboarding.md).
+model ran. See the [onboarding contract](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/onboarding.md).
 
 ## Candidate and method
 

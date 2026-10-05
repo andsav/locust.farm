@@ -17,7 +17,7 @@ edition = "2024"
 license = "AGPL-3.0-only"
 publish = false
 
-# One owner edits this table and Cargo.lock; see docs/workstreams.md.
+# Shared dependency versions; see docs/crates.md.
 [workspace.dependencies]
 locust-adapter = { path = "crates/locust-adapter" }
 locust-core = { path = "crates/locust-core" }

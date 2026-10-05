@@ -1,89 +1,164 @@
-# Native release candidate packaging
+# Packaging and releases
 
-Date: 2026-10-04. Status: the native builder emits the current strict release-v2 package with a matching manual snapshot. The [macOS terminal developer preview](public-preview-release.md) is signed and published with a verified curl installer. Broader platform, client and production qualification remain separate gates in the [release evidence ledger](release-evidence.md).
+Status: building and signing are scripted here. Apple signing, notarization and publishing are not.
 
-## Historical protocol-1 local macOS candidate
+[How installation works](installation.md) covers checking and installing a
+package. [The preview release record](public-preview-release.md) records the one
+published release.
 
-The [retained identity record](../research/evidence/local-candidate-5bb254d-2026-10-03.json)
-identifies the earlier protocol-1 candidate used by the
-[installation campaign](../research/installation-qualification.md). It includes
-T2 and the installed service/profile commands. This is a local candidate, not a
-published release or a completed release gate.
-
-| Field | Observed value |
-|---|---|
-| Source | `5bb254d97504209c1ee4277e74c1365c2d8620e0` |
-| Target | `aarch64-apple-darwin` |
-| Version | `locust 0.1.0 (5bb254d97504) api 1 protocol 1` |
-| Executable size | 13,678,896 bytes |
-| Executable SHA-256 | `abe1c0271de5c8fdbd8145d35b6b0932233d02eee7b5957fc99fc3211eac8580` |
-| Manifest SHA-256 | `3793145c1aa0aa7aae24e8572d4b60683ff8d5205d1ce26202d4d01843c4d8c7` |
-| Unsigned archive SHA-256 | `5f9a51ec62cc4d34cfe8dfdda0cffc945c10caf946d267a19bc3146fb9e413af` |
-| Archive filename | `locust-aarch64-apple-darwin-5bb254d97504-unsigned.tar.gz` |
-
-The archive and checksum are retained under local `output/final-native/`, with
-the fixed-file extraction under `output/final-bundle/`. Independent checks
-confirmed all three archive members, file modes, payload hashes, Mach-O arm64
-format and exact embedded version. `codesign` reports a linker-generated ad hoc
-signature and no TeamIdentifier; Developer ID signing and notarization were not
-performed. Qualification made private copies and used disposable Ed25519 keys;
-the archive itself remains unsigned by a publisher. The separately selected
-trust key and registry required by the [installer](installation.md) cannot be
-inferred from a checksum sidecar.
-
-## Local Linux cross-build
-
-The owner selected build-only Linux scope on 2026-10-04. A native ARM-host
-`cargo zigbuild` release build for `x86_64-unknown-linux-gnu.2.28` completed in
-92.032 seconds from source `95d986045f4f711527d335012d94f1776f2b4498`.
-The [build record](../research/linux-installation-qualification.md) retains
-compiler versions, ELF checks, binary/archive hashes and the exact command.
-The archive contains the binary, Apache-2.0 license, skill and build metadata;
-it is separate from the current native builder's four-entry installer archive below.
-No Linux execution, runtime or installation qualification was performed.
-
-## Build and source identity
-
-Run [`python3 scripts/build_release.py`](../scripts/build_release.py) on macOS arm64 or Linux x86_64. It uses the exact Rust version in `rust-toolchain.toml` and builds only the native target (`aarch64-apple-darwin` or `x86_64-unknown-linux-gnu`) with `cargo build --locked --release`. The helper builds a verified archive of the captured Git `HEAD`, reusing the committed-blob check in [`build_t1.py`](../scripts/build_t1.py), and refuses dirty Rust/build and packaging inputs. Unrelated checkout changes are excluded from the archive. It checks the resulting Mach-O or ELF architecture, executable bit, exact `locust --version` output, embedded source commit, and source protocol/API constants. The archived operating skill and matching manual are included. Selected manual inputs and the repository license must also be committed. The helper uses isolated home, Cargo home and target directories, a pinned absolute compiler, and two build jobs. It does not claim an independently reproducible binary: host SDK, native libraries, build scripts, and dependency resolution remain relevant.
-
-The output is `output/release/locust-<target>-<12-character-commit>-unsigned.tar.gz`, with a sibling `.sha256` checksum file. The archive has exactly four regular file entries at fixed relative paths: `locust`, `skills/locust/SKILL.md`, `manual.tar` and `manifest.json`. Tar ownership and timestamps, gzip timestamp, entry order, and permissions are fixed. No symlink or absolute path is included. Rebuilding the same committed source can only reuse an existing output name when the candidate bytes match; a different binary under the same name is reported as a collision. `output/` is ignored and disposable.
-
-## Candidate manifest and trust boundary
-
-`manifest.json` is UTF-8 JSON with sorted keys, compact separators, and one trailing newline. The format marker is `locust-release-v2`. Its fields are `format`, full `source_commit`, package `version`, Rust `target`, `machine_format` (`mach-o-arm64` or `elf-x86_64`), pinned `toolchain`, numeric `protocol_version` and `api_version`, and `files`. `files` lists exactly `locust`, `skills/locust/SKILL.md` and `manual.tar`, each with relative `path`, SHA-256 hex `sha256`, byte `size`, and integer permission `mode` (493 for executable `0755`, 420 for skill and manual `0644`). The archive checksum is separate; the manifest identifies its contained files.
-
-This builder emits **no signing key or signature**. A signed candidate requires a detached `manifest.sig` containing a raw 64-byte Ed25519 signature over the **exact `manifest.json` bytes**, with a separately supplied, explicit 32-byte public trust root. The installer must verify that signature before trusting the manifest or installing any bytes, then check the target, format, paths, sizes, modes, and file hashes. The signed manifest hash is the candidate content identity; package version alone is not an upgrade order. A `.sha256` sidecar checks transport integrity, not release authenticity. The unsigned archive is for inspection and signing; it is not install-trusted. Apache-2.0 is selected; key custody and release publication remain owner decisions.
-
-## Matching offline manual
-
-`manual.tar` is a deterministic regular-file archive. It contains the exact
-repository `LICENSE`, `docs/site.json`, and the pages, artifacts and source links
-selected by that manifest, including generated schemas, contracts, example
-formations and availability metadata. Its canonical `manual.json` records the
-full source commit, manual versions and each member's SHA-256, size and mode.
-API and protocol versions must match the binary's source constants. The signed
-release manifest authenticates the complete manual payload.
-
-Installation retains it at `current/manual.tar`; it can be listed and read
-without a checkout or extraction:
+## Build a package
 
 ```sh
-tar -tf /SOFTWARE/current/manual.tar
-tar -xOf /SOFTWARE/current/manual.tar manual.json
-tar -xOf /SOFTWARE/current/manual.tar docs/guide/overview.md
-tar -xOf /SOFTWARE/current/manual.tar LICENSE
+python3 scripts/build_release.py
 ```
 
-Verification and install require the current three-payload set; old release
-formats are refused. Uninstall removes the manual with its verified release,
-while retaining modified or unknown files. The
-[builder tests](../scripts/tests/test_build_release.py) cover deterministic
-contents, source/version mismatch and tampering; the
-[installation check](../scripts/check_installation.py) checks installed manual
-reads and rejects changed manual bytes.
+[build_release.py](../scripts/build_release.py):
 
-## CI and qualification
+- builds for the host only: `aarch64-apple-darwin` on macOS arm64, or
+  `x86_64-unknown-linux-gnu` on Linux x86_64;
+- uses the compiler pinned in `rust-toolchain.toml` and
+  `cargo build --locked --release`;
+- builds the committed `HEAD` from a clean copy of the source, so other changes in
+  the checkout are left out;
+- checks the binary's machine format, executable bit and `--version` output
+  against the commit, API and protocol;
+- writes `output/release/locust-TARGET-COMMIT-unsigned.tar.gz` and a `.sha256`
+  file, where `COMMIT` is 12 hex digits.
 
-[`ci.yml`](../.github/workflows/ci.yml) declares pinned-toolchain Rust formatting, Clippy, tests, Python helper tests and documentation checks on both macOS arm64 and Linux x86_64. [`release-build.yml`](../.github/workflows/release-build.yml) is manual only: each native runner repeats those checks, builds an unsigned archive from identified source, and uploads it as a CI artifact for inspection. It has read-only repository permission and no signing or release publication step. These are CI declarations, not a claim that either hosted job has run or passed.
+It refuses to build when:
 
-The [focused builder tests](../scripts/tests/test_build_release.py) run with `python3 -m unittest discover -s scripts/tests -p test_build_release.py`. A local native build establishes one host's package creation only. Installed CLI, service lifecycle, repeat install/uninstall, configuration cleanup, physical network and independent-account checks remain separate gates in the [evidence ledger](release-evidence.md).
+- the host has no supported target, or the pinned compiler or target is missing;
+- Rust sources, the build script, the skill, `LICENSE` or a manual file have
+  uncommitted changes;
+- the source changes during the build;
+- the binary or `docs/site.json` reports other versions than the source;
+- `output/release/` already holds a different file with the same name.
+
+The archive holds four files in this order, with fixed owners, times and modes:
+
+| File | Contents |
+| --- | --- |
+| `locust` | The binary, mode 0755 |
+| `skills/locust/SKILL.md` | The skill that agents read |
+| `manual.tar` | The offline manual |
+| `manifest.json` | The unsigned manifest |
+
+The archive layout is fixed, but two builds of one commit can still produce
+different binaries.
+
+## The manifest
+
+`manifest.json` is JSON with sorted keys, no spaces and one final newline.
+
+| Field | Value |
+| --- | --- |
+| `format` | `locust-release-v2` |
+| `source_commit` | Full commit hash |
+| `version` | Package version, such as `0.1.0` |
+| `target` | `aarch64-apple-darwin` or `x86_64-unknown-linux-gnu` |
+| `machine_format` | `mach-o-arm64` or `elf-x86_64` |
+| `toolchain` | Pinned compiler version |
+| `api_version`, `protocol_version` | Taken from the source |
+| `files` | `path`, `sha256`, `size` and `mode` of each file |
+
+`files` lists exactly `locust` (mode 493, that is 0755), `skills/locust/SKILL.md`
+and `manual.tar` (mode 420, that is 0644). Locust refuses unknown fields and any
+other set of files. The manifest's SHA-256 identifies the package; the version
+alone does not.
+
+## The offline manual
+
+`manual.tar` starts with `manual.json`, which records the commit, the versions
+and each file's hash, size and mode. Then it holds:
+
+- `LICENSE` and `docs/site.json`;
+- every page and artifact that `docs/site.json` names;
+- every file in its `sourceLinks`.
+
+An installed manual is at `PREFIX/current/manual.tar`. Read it without unpacking:
+
+```sh
+tar -tf ~/.local/share/locust/current/manual.tar
+tar -xOf ~/.local/share/locust/current/manual.tar docs/guide/overview.md
+```
+
+## Sign a package
+
+Unpack the archive into a folder, the bundle. Then:
+
+```sh
+locust package keygen --secret-key /PATH/TO/signing.key --public-key /PATH/TO/trust.pub
+locust package sign --bundle /PATH/TO/BUNDLE --secret-key /PATH/TO/signing.key
+locust package sign-withdrawals --registry /PATH/TO/withdrawals.json --secret-key /PATH/TO/signing.key
+locust --json package verify --bundle /PATH/TO/BUNDLE --trust-key /PATH/TO/trust.pub --withdrawals /PATH/TO/withdrawals.json
+```
+
+- `keygen` writes a new 32-byte secret key (mode 0600) and public key. It refuses
+  paths that exist.
+- `sign` checks every file against the manifest, then writes `manifest.sig`.
+- `sign-withdrawals` writes `withdrawals.json.sig`.
+- Both refuse a secret key that is not yours or not mode 0600.
+
+A withdrawal list that withdraws nothing:
+
+```json
+{"format":"locust-withdrawals-v1","sequence":1,"withdrawn_manifest_sha256":[]}
+```
+
+To withdraw a release, add its manifest SHA-256, raise `sequence`, sign the list
+and publish it as `/downloads/withdrawals.json`. Installed copies refuse a lower
+sequence or a list that drops an earlier withdrawal.
+
+The publisher key lives on the owner's computer, as the
+[preview release record](public-preview-release.md) describes. Only the public
+key is published. `install.sh` pins its SHA-256, and installed copies refuse any
+other key. No command moves an installed copy to a new key.
+
+## Publish a release
+
+The web server serves `https://locust.farm/downloads/` from
+`/var/www/locust.farm/downloads/`:
+
+| Path | Contents |
+| --- | --- |
+| `install.sh`, `install.md` | The installer and its notes |
+| `latest.json` | The current release: identity, hashes and file list |
+| `withdrawals.json`, `withdrawals.json.sig` | The current signed withdrawal list |
+| `RELEASE_ID/` | One folder per release, never changed after publishing |
+
+A release folder holds the raw `locust` binary, the archive, a DMG, `INSTALL.md`,
+`manifest.json`, `manifest.sig`, `trust.pub`, the withdrawal list and its
+signature, `release.json` and `SHA256SUMS`. The published archive has nine
+files: the builder's four, plus `manifest.sig`, `trust.pub`, `withdrawals.json`,
+`withdrawals.json.sig` and `INSTALL.md`. The published binary carries an Apple
+Developer ID signature.
+
+Releases are staged outside the public folder. A release folder is checked on the
+server, then moved into place. `latest.json` is replaced last, under a lock.
+Website deploys and rollbacks never touch `/downloads/`
+([site README](../sites/locust.farm/README.md)).
+
+## Not in this repository
+
+No script or record of these release steps is in this repository:
+
+- Apple Developer ID signing of the binary;
+- notarization;
+- building the DMG;
+- building the nine-file archive;
+- writing `INSTALL.md`, `latest.json`, `release.json` and `SHA256SUMS`;
+- uploading to the server and replacing `latest.json`.
+
+## CI
+
+[release-build.yml](../.github/workflows/release-build.yml) runs only when started
+by hand. On macOS 15 and Ubuntu 24.04 it runs formatting, Clippy, the Rust and
+Python tests and the docs check, then `build_release.py`. It uploads the unsigned
+packages as CI artifacts. It does not sign or publish. No Linux package has been
+published.
+
+[test_build_release.py](../scripts/tests/test_build_release.py) tests the builder:
+
+```sh
+python3 -m unittest discover -s scripts/tests -p test_build_release.py
+```

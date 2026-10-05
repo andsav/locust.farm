@@ -181,7 +181,7 @@ installed skill path and required a completed native manifest read. This proves
 explicit skill use; automatic discovery from the client's skill catalog was not
 measured. Source skill placement alone is only preparation.
 
-The [release evidence ledger](../docs/release-evidence.md) remains the authority
+The [release evidence ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md) remains the authority
 for broader gates. These local same-principal pairs do not establish independent
 people/provider accounts, separate collaborating identities or machines, peer
 transport, default interactive approval, worker confinement, managed launch,

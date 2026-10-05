@@ -4,8 +4,7 @@
 //! Every library crate in the workspace depends on this crate and on no other
 //! workspace crate; only the `locust` binary wires them together. Everything
 //! here is plain data and pure functions: no I/O beyond `std::io` traits, no
-//! async runtime, no global state. Changes go through the integration owner
-//! named in `docs/workstreams.md`.
+//! async runtime, no global state. See `docs/crates.md`.
 
 #![forbid(unsafe_code)]
 

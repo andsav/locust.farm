@@ -4,7 +4,7 @@ Date: 2026-10-04. **Status: review findings and a proposal. The owner accepted
 the proposal the same day and the page was rebuilt; see "Owner decisions and
 what was built" at the end. The findings describe the editor before that.** It
 reviews the editor built from the
-[formation editor plan](../docs/formation-authoring-plan.md) at commit
+[formation editor plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formation-authoring-plan.md) at commit
 `9e68cf5`, and extends the [formation authoring research](formation-authoring.md).
 
 Labels: **[V]** checked by the reviewer in source or in the running page;
@@ -66,7 +66,7 @@ The owner's script for real first-time users in the
 | --- | --- | --- |
 | "When is a task done?" | The done rule is judged per posted result. A task can have several results that each count; the task shows completed after the first. | [projection.rs](../crates/locust-core/src/goal/projection.rs) lines 190 to 223 [V] |
 | Start: "Anyone" / "Handed out" decides who does the work | Posting a result checks only the publish rule. An attempt is optional. Start rules decide who may record an attempt or send an offer, not who may deliver. | [fold.rs](../crates/locust-core/src/goal/fold.rs) lines 277 to 303 [V] |
-| "Hand the task out instead" (under things Locust can't do, for first to grab keeps it) | An offer is not exclusive. Exclusive reservation is deferred. | [semantics](../docs/formations-semantics.md) line 44 [V] |
+| "Hand the task out instead" (under things Locust can't do, for first to grab keeps it) | An offer is not exclusive. Exclusive reservation is deferred. | [semantics](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-semantics.md) line 44 [V] |
 | Start: "Nobody" is one of three main ways to start | With no start rules people can still create tasks and post results. Only attempt records and offers go away. No preset uses it. | [organization.rs](../crates/locust-proto/src/organization.rs) [R] |
 | "Finish goal: who can say the whole goal is finished" | Closing the goal scope is recorded and changes nothing. Closing a task refuses new attempts. | [projection.rs](../crates/locust-core/src/goal/projection.rs) lines 382 to 404 [V] |
 | Advice is "shown to people and agents in the goal" | `guidance` is read nowhere outside the format type. | `grep guidance crates` [V] |
@@ -270,7 +270,7 @@ In rough order of value [I]:
 1. `runner` optional, defaulting to the goal's administrator, who also gets the
    `flow` grant. Removes the runner role and the case where stages silently
    never start. Reverses the accepted statement that the runner is "not a
-   default universal coordinator" ([semantics](../docs/formations-semantics.md)),
+   default universal coordinator" ([semantics](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-semantics.md)),
    so it needs an owner decision.
 2. A stage's task carries the stage name as its title and a link to the result
    that triggered it.
@@ -334,7 +334,7 @@ Built, with their checks:
   rows, the lit card chosen by rule equality, a combining list for when a
   result counts, a File menu, and the limits in view. The rail, the More panel,
   the stage canvas and its two packages were removed. Described in the
-  [plan](../docs/formation-authoring-plan.md), section 3. Lint, type check, 174
+  [plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formation-authoring-plan.md), section 3. Lint, type check, 174
   unit tests, the build and 15 browser tests pass, including one that runs the
   copied formation through `locust formation validate`.
 

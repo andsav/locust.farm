@@ -91,7 +91,7 @@
       "scope": "Polaris source 4917caf396 pins Locust c50a43f typed API-4 SDK with exact generated schema parity. Three native adapter tests, the real-daemon author/edit/publish/goal/restart/revocation component test, frontend type and boundary checks, eight organization tests and fifteen observer tests passed.",
       "limits": "Local source component evidence only. Exact Git dependency resolved from explicitly seeded local Cargo cache. No new packaged app, full Tauri workspace build, public dependency fetch or release. Historical package evidence remains API 2.",
       "evidence": [
-        "docs/guide/polaris.md",
+        "docs/status.md",
         "research/collaboration-followups.md"
       ],
       "track": "current-api-4-polaris-source"
@@ -113,7 +113,7 @@
       "scope": "Earlier API 2/protocol 2 source gates, persistent local CLI/daemon acceptance, six formation exports, four executable manual recipes and three-process default-network collaboration and all six operational cases",
       "limits": "No public release, real-provider or physical-machine claim. Same-host default networking passes while isolated key-only multicast discovery fails. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
-        "docs/formations-status.md",
+        "docs/status.md",
         "docs/guide/collaboration.md",
         "docs/guide/formation-authoring.md",
         "docs/guide/apply.md",
@@ -137,7 +137,7 @@
       "scope": "Polaris source aaaf62ae3 pins the Locust 1b81bef typed SDK with exact schema parity. An isolated Developer ID signed QA package passed native editing/publication/goal/readback/restart/revocation against immutable Locust candidate 0a295cd; the exact-byte native adapter test passed.",
       "limits": "The package uses a separate QA identifier/product/title. Canonical installed release, notarization and public fetch remain unqualified. The SDK revision is unpublished and local Cargo verification used an explicitly seeded cache. Broader Merak gates retain failures. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
-        "docs/guide/polaris.md"
+        "docs/status.md"
       ],
       "track": "earlier-isolated-polaris-native-package"
     },
@@ -156,7 +156,6 @@
       "limits": "Not public distribution, physical-machine acceptance or native real-model end-to-end qualification; this earlier candidate evidence does not qualify the API 2/protocol 2 replacement. This record does not qualify the API 3/protocol 3 status, context and invitation additions.",
       "evidence": [
         "docs/installation.md",
-        "docs/onboarding.md",
         "research/onboarding-qualification.md"
       ],
       "track": "historical-pre-organization-cutover-local-candidate"

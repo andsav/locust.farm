@@ -12,7 +12,7 @@ Labels: **[V]** checked by the author in the source or in an accepted document;
 The owner said on 2026-10-04 that an exclusive claim "could be a good
 addition": one member takes a task, and other members cannot work on it until
 it is released or replaced. It is decision 13 in the
-[formation editor plan](../docs/formation-authoring-plan.md) and "wanted, not
+[formation editor plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formation-authoring-plan.md) and "wanted, not
 built" in the [editor review](formation-editor-review.md). The accepted
 documents defer it as package O13.
 
@@ -70,7 +70,7 @@ page. Naming is open question 8.
 | The codec identifies enum variants by declaration index, so variants are only appended. | [codec.rs](../crates/locust-proto/src/codec.rs) module text [V] |
 | A fork in the administrator's own log halts the administrator chain. | [chain.rs](../crates/locust-core/src/goal/chain.rs) lines 193 to 203 [V] |
 | The editor says "Anyone. No lock: two members can work on the same task." | [words.ts](../sites/locust.farm/src/lib/formation-editor/model/words.ts) line 131, [PointBox.svelte](../sites/locust.farm/src/lib/formation-editor/ui/PointBox.svelte) line 252 [V] |
-| O13 is deferred and not selected. V04 is conditional on it. | [status](../docs/formations-status.md) lines 32, 177 and 184 [V] |
+| O13 is deferred and not selected. V04 is conditional on it. | [status](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-status.md) lines 32, 177 and 184 [V] |
 
 ## What the accepted documents already require
 
@@ -85,7 +85,7 @@ From the [accepted direction](../docs/formations.md), section
   Independent work and non-exclusive evidence continue.
 - No reservation authority is implicit in open work.
 
-From the [implementation plan](../docs/formations-implementation-plan.md),
+From the [implementation plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-implementation-plan.md),
 decision D5 and package O13:
 
 - A named, task-scoped, single-writer reservation authority.
@@ -108,7 +108,7 @@ decision D5 and package O13:
 - The gate: the M3 review decides from observed pooled work whether duplicate
   attempts cost enough to build this.
 
-From the [semantics](../docs/formations-semantics.md):
+From the [semantics](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-semantics.md):
 
 - "YAML and exclusive reservations remain deferred". D14 does not bring O13
   forward. Reservation events are absent until O13 is selected.

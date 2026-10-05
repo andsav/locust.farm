@@ -1,8 +1,14 @@
 # locust.farm
 
-The Locust site: prerendered SvelteKit marketing pages, development documentation and live farm views. `/` says what Locust is for, `/start` is the first-contact guide with
-the entry prompt, `/formations` is the formation editor, and `/docs` indexes the unreleased manual. It is a
-self-contained npm project with its own `package.json` and `node_modules`.
+The Locust website, built with SvelteKit and prerendered to static files. It has these pages:
+
+- `/`: what Locust is for, over the swarm animation.
+- `/start`: the setup prompt.
+- `/formations`: the formation editor.
+- `/docs`: the development manual, built from `docs/guide/`.
+- `/farm/<id>` and `/farms`: public farm pages.
+
+It is a self-contained npm project.
 
 ```sh
 npm ci
@@ -10,75 +16,57 @@ npm run dev      # local dev server
 npm run check    # type checking
 npm run lint     # Prettier and ESLint
 npm test         # unit tests, using Node's built-in runner
-npm run build
-npm run test:e2e # browser tests of /formations with Playwright (Chromium), against a production build
+npm run build    # production build, then scripts/check-prerender.mjs
+npm run test:e2e # Playwright tests in Chromium, against a production build
 ```
 
-Tests need Node 22.18 or newer, which runs TypeScript directly. After installing or
-removing a package, run `npx svelte-kit sync` (or any `npm run` script that does):
-npm prunes the generated `node_modules/$app` directory that `tsconfig.json` extends.
+Use Node 22.18 or newer, which runs TypeScript directly. `.node-version` and CI use Node 24.14.1.
+After installing or removing a package, run `npx svelte-kit sync` (or any `npm run` script that
+does): npm prunes the generated `node_modules/$app` directory that `tsconfig.json` extends.
+
+CI ([site.yml](../../.github/workflows/site.yml)) runs `npm ci`, `npm run lint`, `npm run check`,
+`npm test` and `npm run build` for pushes to `main` and pull requests. It does not run the
+Playwright tests. Install their browser once with `npx playwright install chromium`.
 
 ## Layout
 
 ```text
-src/routes/          The homepage, the /start guide, the /formations editor, the development docs, and the root layout that loads fonts and global styles
-src/lib/formation-editor/  The formation editor: checks, model, prompt and storage in plain TypeScript; the stage map and panels in Svelte
-src/lib/styles/      Design tokens and element defaults
-src/lib/components/  Svelte components
-src/lib/onboarding/  The guide's content and the clipboard helper, in plain TypeScript
-src/lib/site.ts      Header links
-src/lib/swarm/       The swarm animation, in plain TypeScript
-src/lib/farm/        Public farm views, shared stage map, live client and generated public types
-static/              Files served as they are
+src/routes/                Pages, the docs routes, llms.txt, sitemap.xml and the root layout
+src/lib/components/        Shared Svelte components
+src/lib/docs/              The manual build: reads docs/site.json and renders docs/guide/
+src/lib/farm/              Farm views, stage map, live client and generated types
+src/lib/formation-editor/  The formation editor
+src/lib/onboarding/        The /start content, the llms.txt text and the clipboard helper
+src/lib/styles/            Design tokens, element defaults and shared components
+src/lib/swarm/             The swarm animation
+src/lib/site.ts            Header links
+e2e/                       Playwright tests for /formations and the farm pages
+scripts/                   Build check, deployment script and farm type generator
+ops/                       Nginx config, farm service unit and the farm operator guide
+static/                    Files served as they are
 ```
 
-Import from `src/lib` through the `#lib/` alias and include the file extension, for
-example `#lib/swarm/swarm.ts`.
+Import from `src/lib` through the `#lib/` alias and include the file extension, for example
+`#lib/swarm/swarm.ts`.
 
 ## Design system
 
-The design system has three layers, all in [`src/lib/styles/`](src/lib/styles/) and
-loaded once by the root layout. Use them before writing new styles; a page or
-component adds only what is its own.
+The root layout loads the design system from [`src/lib/styles/`](src/lib/styles/). Use it before
+writing new styles.
 
-1. [`tokens.css`](src/lib/styles/tokens.css) is the single source of design values, as
-   CSS custom properties in two tiers: a palette of raw values, and roles that refer
-   to the palette. Styles use roles only.
-2. [`base.css`](src/lib/styles/base.css) holds element defaults: the body text, the
-   three heading levels, code, links, the focus ring and the selection.
-3. [`components.css`](src/lib/styles/components.css) holds shared components as
-   classes, and [`prose.css`](src/lib/styles/prose.css) styles text rendered from
-   Markdown under `.prose`.
+- [`tokens.css`](src/lib/styles/tokens.css): every design value, as a palette and roles that refer
+  to it. Styles use roles only.
+- [`base.css`](src/lib/styles/base.css): element defaults, such as body text, headings, code, links
+  and the focus ring.
+- [`components.css`](src/lib/styles/components.css): shared classes (table below).
+- [`prose.css`](src/lib/styles/prose.css): Markdown rendered under `.prose`.
+- [`fonts.css`](src/lib/styles/fonts.css): Geist for text, Major Mono Display for headlines, and
+  Martian Mono for code, identifiers and labels.
 
-[`fonts.css`](src/lib/styles/fonts.css) declares the three self-hosted font faces.
-
-Tokens:
-
-- **Color**: `--color-bg`, `--color-text` and its `-muted`, `-subtle` and `-faint`
-  steps, `--color-border`, `--color-accent`. Layers above the page are
-  `--color-panel`, `--color-surface` and `--color-surface-hover`. The `--swarm-*`
-  roles color the canvas.
-- **Type**: three families. `--font-sans` (Geist) is for all text, `--font-display`
-  (Major Mono Display) for each page's headline, and `--font-mono` (Martian Mono) for
-  code, identifiers such as role names, the wordmark and labels. Each text style is a
-  `font` shorthand: `--text-display`, `--text-title`, `--text-subtitle` and
-  `--text-body` for pages; `--text-ui`, `--text-ui-heading` and `--text-ui-small` for
-  controls, navigation and forms; `--text-code`; and `--text-label` with
-  `--tracking-label` for short uppercase labels.
-- **Space**: `--space-N`, where N is the size in pixels at the default root size.
-- **Layout**: `--gutter-inline`, `--gutter-block-end`, `--measure-display`,
-  `--measure-body`, `--border-hairline`.
-- **Shape and motion**: `--radius-panel` for cards and panels, `--radius-control` for
-  controls, `--shadow-popover` for menus and tooltips, `--duration-fast` and
-  `--duration-slow`.
-- **Text over the swarm**: `--text-halo`, a `text-shadow` in the background color
-  that dims the swarm right around the letterforms so text stays readable as it
-  passes behind. Apply it to any text placed over the canvas.
-
-Element defaults: `h1` is the display headline, `h2` a section title, `h3` a small
-heading. A link inside running text is underlined; a link that stands alone is not.
-
-Components:
+Token names: `--color-*` (with `--swarm-*` for the canvas), `--text-*` font shorthands,
+`--space-N` (N is pixels at the default root size), layout (`--gutter-*`, `--measure-*`,
+`--border-hairline`), `--radius-*`, `--shadow-popover` and `--duration-*`. Apply `--text-halo` to
+any text over the swarm canvas so it stays readable.
 
 | Class                        | Use                                                                  |
 | ---------------------------- | -------------------------------------------------------------------- |
@@ -95,183 +83,124 @@ Components:
 | `.prose`                     | Long-form text rendered from Markdown.                               |
 | `.ui`                        | On a container: bare buttons and fields inside take the shared look. |
 
-The formation editor is a `.ui` container, so its buttons and fields need no class.
-A component's scoped styles always override a shared class.
+Sizes are in `rem`. A component's scoped styles override a shared class. Add a token only when
+something uses it.
 
-Sizes are in `rem`, so the page follows the reader's text size.
+## Setup prompt
 
-Add a token only when something uses it, and add a palette value before a role that
-needs it.
+`/start` shows the setup prompt from [first-contact.md](../../docs/first-contact.md). The prompt
+tells the agent to install or update Locust from the public files at `https://locust.farm/downloads/`,
+start the daemon and connect itself. The agent never needs the password-protected page. Below
+it are what happens next, a note on Polaris, the agent's steps, setup routes for Claude Code,
+Codex, pi, Droid and other agents, and a portable CLI setup.
 
-## First-contact guide
-
-`/start` follows the [first-contact contract](../../docs/first-contact.md). Its
-entry prompt, routing questions and harness routes live in
-[`guide.ts`](src/lib/onboarding/guide.ts); change them together with the contract.
-A test checks that the prompt matches the contract word for word.
-
-- The prompt only points the agent at `https://locust.farm/start`. It carries no
-  command, download, invitation or secret. The address is the canonical one; the
-  preview is hosted at that address behind Basic Auth.
-- `SETUP_ARTIFACT` is unset because no setup is published. The guide then tells
-  agents to report their harness and capabilities and stop. Set it to lane B's
-  canonical setup location once that exists, and update each route's status from
-  lane B's qualification records only.
-- The copy button reports success only when the clipboard write succeeds. On
-  failure it says so in a live status and selects the prompt for manual copying.
-  Without JavaScript the button is not rendered and the prompt stays selectable.
-- Harness details are native `<details>` elements, so they work without JavaScript.
-- `/llms.txt` is a prerendered route built by [`llms.ts`](src/lib/onboarding/llms.ts)
-  from the same content: the site summary, its pages, the entry prompt, and the
-  instructions for agents and harness routes as plain Markdown. The agent steps live
-  in `guide.ts` so the page and the text file cannot drift apart.
+- The text lives in [`guide.ts`](src/lib/onboarding/guide.ts). A test checks that the prompt
+  matches first-contact.md word for word.
+- [`llms.ts`](src/lib/onboarding/llms.ts) builds `/llms.txt` from the same data and
+  `docs/reference/availability.json`.
+- The copy button reports success only when the clipboard write succeeds; otherwise it selects the
+  prompt. The page works without JavaScript.
 
 ## Development manual
 
-Canonical prose lives in `docs/guide/` at the repository root. `docs/site.json`
-explicitly selects pages and metadata. The build module `src/lib/docs/content.ts`
-renders Markdown with raw HTML disabled, assigns deterministic heading IDs,
-validates metadata and links, and maps selected article links to public routes.
-Explicitly approved engineering/source links map to GitHub at the source commit. Dirty source
-trees are labeled explicitly; production artifacts should use committed source.
+`/docs` serves the manual in `docs/guide/`, and `docs/site.json` chooses its pages.
+[docs/manual.md](../../docs/manual.md) explains how the manual is built and checked.
 
-Each `/docs/next/<slug>` page is prerendered with raw Markdown under
-`/docs/next/raw/<slug>.md`. `/docs/next/index.json` records the source commit,
-contract versions, status and SHA-256 hashes of the served raw Markdown. Search
-loads that inventory on first use. Navigation and reading work without JavaScript.
-Unknown slugs return 404 and never resolve arbitrary files. Generated schema/contract/examples are exact downloadable assets selected in the
-manifest; reference tables derive from those exports, with parity tests. The shared
-`docs/reference/availability.json` supplies public-install facts to `/start`,
-`llms.txt` and the manual. Code-copy controls reuse the truthful clipboard helper
-and select the code for manual copying on failure. No released track or
-public installation availability is claimed.
-
-Use Node 22.18 or newer (Node 24.14.1 is pinned by .node-version and CI). CI should run `npm ci`,
-`npm run lint`, `npm run check`, `npm test` and `npm run build` in this directory.
-Prose changes require no Rust build; contract export/parity checks belong to Rust.
+- `src/lib/docs/content.ts` reads the repository at build time, so the build needs a Git checkout.
+- There is one development track, under `/docs/next/`. It describes the current source; the public
+  macOS preview at `/downloads/` can be older.
+- Links to repository files outside `docs/guide/` become GitHub links at the source commit. The
+  repository is private, so only collaborators can open them.
 
 ## Deployment
 
 The preview runs on the shared 3cf.ai Nginx host, `root@96.126.103.38`.
-[`adapter-static`](https://svelte.dev/docs/kit/adapter-static) emits the complete site
-under `build/`; the postbuild check validates the published pages, links, client
-assets and documentation hashes. No Node process is required on the server.
-
-Use the Node version in `.node-version` and run:
+[`adapter-static`](https://svelte.dev/docs/kit/adapter-static) writes the whole site to `build/`.
+No Node process runs on the server. Deploy with the Node version in `.node-version`:
 
 ```sh
 bash scripts/deploy-production.sh
 ```
 
-The script builds committed `HEAD` in a temporary clean checkout, runs all four
-site gates, uploads a release to `/var/www/locust.farm/releases/<commit>`, verifies
-its SHA-256 inventory on the server, and atomically switches `current`. Uncommitted
-work is excluded. It requires the initial server provisioning below and checks
-that unauthenticated requests to the preview pages receive HTTP 401. Authenticated content and browser behavior
-must also be verified after each deployment. Earlier releases remain available
-for rollback by changing the `current` symlink.
+The script builds committed `HEAD` in a clean temporary checkout and runs lint, check, test and
+build. It uploads the build to `/var/www/locust.farm/releases/<commit>`, checks its SHA-256 list on
+the server, switches the `current` symlink and checks that preview pages answer 401 without the
+password. Then check the pages yourself in a browser. To roll back, point `current` at an earlier
+release.
 
-[`ops/nginx.conf`](ops/nginx.conf) serves both `locust.farm` and `www.locust.farm`,
-redirects HTTP to HTTPS, maps extensionless routes to prerendered HTML and returns
-404 for unknown routes, apart from the client-rendered `/farm/<id>` shell. Basic Auth applies to preview pages, with
-`private, no-store` and `noindex, nofollow` response headers. HTTP ACME challenges
-are public, from `/var/www/letsencrypt`.
+[`ops/nginx.conf`](ops/nginx.conf) serves `locust.farm` and `www.locust.farm`:
 
-Farm pages, the gallery, their shared client assets and `/api/farms` are public.
-The API proxies to the separate `locust-farm` process. See the
-[farm operator guide](ops/README.md) for its installation and verification.
-The deployment script's preview authentication checks do not establish that the
-farm service, event stream or hydrated public routes work; verify those separately.
+- HTTP redirects to HTTPS, except ACME challenges from `/var/www/letsencrypt`.
+- Unknown routes return 404, except `/farm/<id>`, which gets the `farm.html` shell.
+- Preview pages need Basic Auth and send `private, no-store` and `noindex, nofollow`.
+- Farm pages, the gallery, their client assets and `/api/farms` are public. The API proxies to the
+  separate `locust-farm` process; the [farm operator guide](ops/README.md) covers it.
+- `/downloads/` is public and serves release files from `/var/www/locust.farm/downloads/`, outside
+  `current`, with no directory listing. Website deployment and rollback do not touch it.
 
-The HTTPS `/downloads/` path is separately public and serves release files from
-`/var/www/locust.farm/downloads/`, outside the website's `current` symlink. It has
-no directory listing. Release staging stays outside that public directory; a
-verified immutable release is moved into place before `latest.json` is updated.
-Website deployment and rollback do not replace binary downloads.
+First-time setup:
 
-Initial provisioning uses an HTTP-only virtual host exposing that challenge
-directory and returning 401 elsewhere. Issue the certificate with Certbot's
-`certonly --webroot -w /var/www/letsencrypt -d locust.farm -d www.locust.farm` mode,
-using the server's existing ACME account. Install `ops/nginx.conf` as
-`/etc/nginx/sites-available/locust.farm`, link it in `sites-enabled`, test with
-`nginx -t`, and reload. The certificate and full trust chain live at
-`/etc/letsencrypt/live/locust.farm/`; renewal uses webroot validation and a deploy
-hook to reload Nginx. Keep the existing server renewal scheduler enabled.
-
-The password file is `/etc/nginx/locust.farm.htpasswd`, owned by `root:www-data`
-with mode `0640`. Provision it using `htpasswd -cB` with an interactive password
-prompt or stdin; keep credentials and password hashes off Git. DNS needs an apex
-A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
+1. Serve an HTTP-only virtual host that exposes the challenge directory and returns 401 elsewhere.
+2. Issue the certificate with Certbot,
+   `certonly --webroot -w /var/www/letsencrypt -d locust.farm -d www.locust.farm`, using the
+   server's existing ACME account. Renewal uses the same webroot and a deploy hook that reloads
+   Nginx.
+3. Install `ops/nginx.conf` as `/etc/nginx/sites-available/locust.farm`, link it in
+   `sites-enabled`, run `nginx -t` and reload.
+4. Create `/etc/nginx/locust.farm.htpasswd` with `htpasswd -cB` (owner `root:www-data`, mode
+   `0640`). Keep passwords and hashes out of Git.
+5. DNS: an apex A record for `96.126.103.38` and a `www` CNAME to `locust.farm`.
 
 ## Live farms
 
-`/farm/<id>` loads a full public snapshot and subscribes to ordered full-state SSE
-updates. `/farms` displays only listed, available farms. Both use the same stage
-map, with the task table supplying the complete keyboard-readable detail. Data
-comes from the API; the production routes contain no mock farms.
+`/farm/<id>` loads a farm's public snapshot, then follows full updates over server-sent events.
+`/farms` shows the listed, available farms. Both use the same stage map, with a task table for
+keyboard and screen readers. All data comes from the API.
 
-For local development, run `locust-farm serve` on `127.0.0.1:4319` and start the
-site with `npm run dev`. `LOCUST_FARM_API` overrides that proxy target. The static
-adapter generates `farm.html` for dynamic farm URLs. Nginx routes only `/farm/`
-through that fallback; unrelated unknown paths retain their normal 404 behavior.
+For local development, run `cargo run -p locust-farm -- serve --database /PATH/TO/farm.sqlite` (it
+listens on `127.0.0.1:4319`), then `npm run dev`. `LOCUST_FARM_API` changes the proxy target. The
+static adapter writes `farm.html` as the shell for farm URLs.
 
-The Rust `FarmSnapshot` schema is exported to
-`docs/reference/generated/farm.schema.json`. After changing it, run
-`node scripts/generate-farm-types.mjs --write` here. Unit tests reject generated
-type drift. Runtime schema validation is enforced by the Rust service before it
-persists any snapshot. The local publication commands and consent workflow are
-documented in [Public farm views](../../docs/guide/farm-publication.md).
+After `cargo build --locked -p locust`, `python3 ../../scripts/check_formations.py --write` exports
+the Rust `FarmSnapshot` schema to `docs/reference/generated/farm.schema.json`. Then run
+`node scripts/generate-farm-types.mjs --write` here; a unit test fails when the generated types are
+stale. The Rust service validates every snapshot it saves. The owner commands and consent
+steps are in [Public farm views](../../docs/guide/farm-publication.md).
 
 ## Formation editor
 
-`/formations` lets a person who has Locust build a formation and copy one prompt
-that has their coding agent add it to their Locust. The plan is in
-[`docs/formation-authoring-plan.md`](../../docs/formation-authoring-plan.md) and the
-prompt's fixed text in [`docs/formation-prompt.md`](../../docs/formation-prompt.md).
+`/formations` lets a person build a formation and copy one prompt that has their coding agent add
+it to their Locust. [docs/formation-editor.md](../../docs/formation-editor.md) describes the
+editor, and [docs/formation-prompt.md](../../docs/formation-prompt.md) holds the prompt's fixed
+text.
 
-- The page is prerendered with its heading and explanation; the editor loads after
-  hydration, so its code stays out of every other page.
-- `contract/` ports Locust's offline checks to TypeScript. A test runs them on
-  every conformance vector that `scripts/check_formations.py` generates with the
-  real CLI and requires the same codes, paths, messages and explanations.
-- `model/` holds the document and every edit, so references stay consistent when
-  roles, steps or kinds of task are renamed or removed. `model/line.ts` reads the
-  four answers of a line (who adds a task, who works on it, when a result counts,
-  whether one result is picked) from the formation and writes them back.
-  `prompt/` builds the prompt and reads pasted prompts, replies and JSON back.
-  `storage/` keeps formations in the browser and makes share links.
-- `ui/` draws the page: the six cards, the line of four points with a picture
-  at each (`diagrams.ts`), the box of choices under a point, the rows for steps
-  and other kinds of task, and one side panel. The side panel is adapted from
-  Polaris's settings panel (dreamcolor10 at `01d8aa3c4`,
-  `crates/polaris/frontend/src/lib/components/blueprint/InspectorPanel.svelte`)
-  and restyled with this site's tokens. `ui/icons.ts` holds the Phosphor icons
-  the page shows, from `@phosphor-icons/core` 2.1.1. There is no canvas.
-- `e2e/formations.spec.ts` drives the built page in Chromium: the first visit,
-  the four points and their pictures, the card that matches the rules, roles made
-  in place, steps, other kinds of task, problems, share links, a phone viewport
-  and the page without JavaScript. When `target/debug/locust` exists it also checks that
-  the copied prompt's formation passes `locust formation validate`. Install the
-  browser once with `npx playwright install chromium`.
+- The editor loads after hydration, so its code stays out of every other page.
+- `contract/` ports Locust's offline checks to TypeScript. A test requires the same results as the
+  real CLI on every conformance vector from `scripts/check_formations.py`.
+- `model/` holds the document and every edit. `model/line.ts` reads and writes a row's four
+  answers: who adds a task, who works on it, when a result counts, and whether one is picked.
+- `prompt/` builds the prompt and reads pasted prompts, replies and JSON. `storage/` saves
+  formations in the browser and makes share links.
+- `ui/` draws the page. Six cards show the ways of working, each with a picture (`diagrams.ts`). A
+  compact rules matrix (`Lines.svelte`) has one row for any task and one per step or task type;
+  each cell opens its choices (`PointBox.svelte`). There is no canvas.
+- The side panel (roles, problems, the prompt, saved formations) is adapted from Polaris's settings
+  panel and restyled with this site's tokens; `SidePanel.svelte` names its source. `ui/icons.ts`
+  holds the Phosphor icons the page uses, from `@phosphor-icons/core` 2.1.1.
+- `e2e/formations.spec.ts` drives the built page. When `target/debug/locust` exists, it also checks
+  that the copied formation passes `locust formation validate`.
 
 ## Swarm animation
 
-`SwarmCanvas.svelte` runs [`createSwarm`](src/lib/swarm/swarm.ts) on a canvas. The
-agents and the locust's cells are simulated on the GPU with transform feedback
-([`renderer.ts`](src/lib/swarm/renderer.ts), [`shaders.ts`](src/lib/swarm/shaders.ts)),
-so a step costs the main thread a fixed handful of draw calls, whatever the number of
-agents. The locust's shape and its Game of Life are plain data on the CPU
-([`locust.ts`](src/lib/swarm/locust.ts)) and are covered by unit tests.
+`SwarmCanvas.svelte` runs [`createSwarm`](src/lib/swarm/swarm.ts) on a canvas, on the homepage
+only. The GPU simulates the agents and the locust's cells with transform feedback
+([`renderer.ts`](src/lib/swarm/renderer.ts), [`shaders.ts`](src/lib/swarm/shaders.ts)), so the main
+thread's cost does not grow with the number of agents. The locust's shape and its Game of Life are
+plain data on the CPU ([`locust.ts`](src/lib/swarm/locust.ts)), covered by unit tests.
 
-- The simulation advances at a fixed 120 steps per second, independent of the
-  display's refresh rate. On a 60 Hz display that is two steps per frame, drawn
-  under a single fade of the trail buffer, which is the costly part of a step.
-- The animation appears only on the homepage and uses `goalMode="cursor"`: the swarm follows the pointer, and
-  wanders on its own when there is none. `catchUp` sets how much harder agents far
-  from the cursor are pulled toward it; 0 gives the design's original, slower chase.
-- Colors come from the `--swarm-*` tokens, read once when the canvas mounts.
-- The drawing buffer uses a pixel ratio of at most 2 and is no larger than a 4K
-  screen; bigger canvases are drawn at a lower ratio.
-- With `prefers-reduced-motion`, a single still frame is drawn instead.
-- Without WebGL2, or where it would run in software, the canvas stays empty and the
-  page is otherwise unaffected.
+- The simulation runs at a fixed 120 steps per second, whatever the display's refresh rate.
+- With `goalMode="cursor"` the swarm follows the pointer. `catchUp` sets how much harder far agents
+  are pulled toward it; 0 gives the original, slower chase.
+- The drawing buffer uses a pixel ratio of at most 2 and is no larger than a 4K screen.
+- With `prefers-reduced-motion`, one still frame is drawn. Without hardware WebGL2 the canvas stays
+  empty.

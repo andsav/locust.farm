@@ -1,32 +1,32 @@
 # Published macOS terminal preview
 
-Date: 2026-10-04. **Status: published developer preview; production readiness is
-not claimed.** The owner authorized publication of the current binary. Locust is
-a terminal CLI, local daemon and stdio MCP bridge. The primary installation route
-is the public HTTPS shell bootstrap:
+Status: published 2026-10-04 as a developer preview. Not production ready.
+
+This is the record of one release: Locust 0.1.0 for macOS on Apple Silicon, API 4.
+It holds the CLI, the daemon and the MCP server. The current source is newer
+(API 5). Install it with:
 
 ```sh
 curl -fsSL https://locust.farm/downloads/install.sh | sh
 ```
 
-To review the verified plan without activating software:
+To see the plan without installing:
 
 ```sh
 curl -fsSL https://locust.farm/downloads/install.sh | sh -s -- --plan
 ```
 
-[Terminal installation instructions](https://locust.farm/downloads/install.md)
-describe the selected harness setup. Installation places software at
-`$HOME/.local/share/locust` and the CLI link at `$HOME/.local/bin/locust`.
-`--prefix` and `--bin-dir` select other absolute destinations. It uses no sudo,
-changes no shell startup files and starts no service or client. The person chooses
-the harness and workspace with `locust up`; work permissions remain separate.
+The installer puts the software in `~/.local/share/locust` and links
+`~/.local/bin/locust`. `--prefix` and `--bin-dir` choose other absolute paths. It
+uses no sudo, edits no shell startup files and starts no daemon or agent. You
+then connect agents with `locust up`, as the
+[install notes](https://locust.farm/downloads/install.md) describe.
 
-## Exact artifact
+## Release details
 
 | Field | Published value |
 | --- | --- |
-| Version | `0.1.0`, developer preview |
+| Release | `0.1.0-cd65921d8a0f`, developer preview |
 | Binary source | `cd65921d8a0f9c7de3a64a2c63b28a38d557e496` |
 | Target | `aarch64-apple-darwin`, macOS Apple Silicon |
 | API / protocol | `4` / `4` |
@@ -38,73 +38,63 @@ the harness and workspace with `locust up`; work permissions remain separate.
 | Apple publisher | Andrei Savin, team `P2Q3P9R6AT` |
 | Notarization | `Accepted`, submission `daf3cbe5-5f98-4db4-9411-99a7e962c083`; DMG ticket stapled and validated |
 
-[Latest metadata](https://locust.farm/downloads/latest.json) identifies the
-installer, immutable artifact URLs, hashes and qualification scope. The
-[raw CLI](https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust) and
-[signed package archive](https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.tar.gz)
-are public. An optional notarized DMG contains the same CLI and supporting files;
-it contains no GUI application. The source-matching manual records the
-prepublication availability snapshot; this record supersedes its download status.
+[latest.json](https://locust.farm/downloads/latest.json) lists every file with
+its URL, size and hash. The
+[raw binary](https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust) and the
+[signed archive](https://locust.farm/downloads/0.1.0-cd65921d8a0f/locust-0.1.0-cd65921d8a0f-aarch64-apple-darwin.tar.gz)
+are public. An optional notarized DMG holds the same CLI and files; it is not an
+app.
 
-## Verification and trust
+The binary's source commit is not in this repository's history. The installer's
+source commit is. The manual inside the package was built before publishing, so
+its availability data still calls the software unpublished.
 
-The [bootstrap](../scripts/install.sh) checks the archive checksum and exact
-member list, streams known members into new regular files, and verifies the
-downloaded executable's Apple-rooted publisher requirement and trusted timestamp
-before executing it. The authenticated verifier then checks the pinned Ed25519
-publisher key, exact signed manifest and payload bytes, current signed withdrawal
-registry, source identity and version. Activation rechecks the exact plan digest.
-Existing foreign CLI links/files and symlinked bin directories are refused.
+## Verification
 
-The dedicated publisher key is retained in the owner's private
-`~/.config/locust-release/signing.key` under a mode-0700 directory; the key is
-mode 0600. Only its public key and signatures are distributed. The signed registry
-starts at sequence 1. Keep its continuity and the [installer's policy
-watermark](installation.md) when publishing later releases. The current registry
-is served separately from immutable archives so the bootstrap can observe later
-withdrawals. HTTPS establishes trust in the shell bootstrap itself.
+The [installer](../scripts/install.sh) checks the archive hash and file list, the
+binary hash and its timestamped Apple signature before it runs the binary. The
+binary then checks the pinned Ed25519 key, the signed manifest and files, and the
+current signed withdrawal list. Apply checks the plan digest again. The installer
+refuses a symlinked bin directory or a `locust` that points elsewhere.
+[How installation works](installation.md) lists each step.
 
-The pinned source passed formatting, strict workspace Clippy, workspace tests,
-Python helper tests and documentation checks. The final signed executable passed
-six formation exports/conformance checks, all four executable tutorials,
-installation cases and launchd onboarding. Native Codex and Claude workflows
-passed with scripted loopback providers: 25/24 passing assertions and 4/5
-explicitly unrun assertions, respectively. These do not qualify real-model use or
-interactive approvals on these bytes. Native installation/client harnesses use
-disposable test signers; production trust is verified separately by the package
-check and public curl route.
+Before publishing, the signed bytes passed the package and withdrawal checks,
+formation exports and the guide's four recipes. Installation, launchd setup, and
+Codex and Claude Code workflows with scripted model replies also passed. Real
+models and interactive approvals were not tested on these bytes.
 
-Unauthenticated HTTPS fetches matched every artifact's exact size and SHA-256,
-plus release and checksum metadata. The public shell route was tested in an
-explicit disposable prefix: read-only planning, installation, CLI link/hash/version
-and repeat installation. The [retained evidence](../research/evidence/public-preview-release-2026-10-04.json)
-records these boundaries and identities. Five bootstrap preflight tests protect
-path selection and existing files; the Python suite at the installer commit passes
-243 tests. The release status/site changes pass lint, type checks, 178 tests with
-one explicit skip, and the static build in an isolated staged copy. Concurrent
-Farm dashboard work in the shared checkout failed formatting/type checks and was
-excluded from this publication and commit. Documentation links pass.
+After publishing, plain HTTPS downloads matched every file's size and SHA-256.
+The public installer ran in a throwaway prefix: plan, install, link, version and
+a repeat install. The [evidence file](../research/evidence/public-preview-release-2026-10-04.json)
+records the hashes and results.
 
-Apple accepted the signed disk image and its stapled ticket validates. On the
-qualification host, legacy `spctl` assessments of both the DMG and standalone
-executable returned invalid-parameter errors. `syspolicy_check` reported that a
-standalone executable has no stapled application ticket; the ticket belongs to
-the DMG. No independent successful Gatekeeper assessment is claimed, and no
-assessment bypass was installed. The terminal bootstrap uses the explicit Apple
-publisher and Locust package verification described above.
+Apple accepted the DMG, and its stapled ticket validates. The ticket belongs to
+the DMG; the standalone binary has none. Local `spctl` checks returned
+invalid-parameter errors, so no Gatekeeper pass is claimed. The installer relies
+on its own Apple signature check and the package signature instead.
 
-Only macOS arm64 is published. The formation editor's exact copied prompt has no
-real-agent qualification, and `/start` and other website preview pages remain
-authenticated. This publication does not establish a complete public one-prompt
-onboarding journey or close the full production release gates.
+## Keys
 
-## Host and promotion
+The Ed25519 publisher key is `~/.config/locust-release/signing.key` on the
+owner's computer. Its folder has mode 0700 and the key has mode 0600. Only the
+public key and signatures are published.
 
-The existing host serves public `/downloads/` files from
-`/var/www/locust.farm/downloads/`, separately from the authenticated website's
-`current` symlink. Release staging remains outside that public directory. Remote
-SHA-256 and exact inventory checks precede an immutable directory promotion;
-`latest.json` is promoted last under a publication lock. Website deploys and
-rollback preserve binary releases. The owner-authorized public scope is the
-download path; the private GitHub repository and website authentication are
-unchanged.
+The withdrawal list starts at sequence 1 and withdraws nothing. The server keeps
+the current list at `/downloads/withdrawals.json`, apart from the release folders,
+so the installer sees later withdrawals. Later releases must use the same key and
+never lower the sequence, because installed copies refuse both. You trust the
+installer script itself through HTTPS.
+
+## Hosting
+
+The server serves `/downloads/` from `/var/www/locust.farm/downloads/`, apart
+from the password-protected website. Releases are staged outside that folder,
+checked by SHA-256 and file list, then moved in. `latest.json` is replaced last,
+under a lock. Website deploys and rollbacks keep the downloads. The GitHub
+repository stays private.
+
+## Limits
+
+- Only macOS on Apple Silicon is published.
+- The website's pages, including `/start`, need a password. The downloads do not.
+- The formation editor's copied prompt has not been tried with real agents.

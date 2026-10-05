@@ -1,57 +1,36 @@
-# Apply a chosen patch
+# Review and apply a patch
 
-**Status: implemented development workspace flow.** A distributed selection and a
-change to a local checkout are independent actions. The normal apply path checks
-that the exact contribution is selected in its scope. An explicit local owner
-choice also supports unselected Open findings without inventing a shared head.
+## Review a contribution
 
-## Select an exact output
-
-Inspect the contribution ID, base snapshot, patch artifact, provenance and pinned
-rule/round. A review applies to that candidate alone. Several candidates may
-qualify; the rule's selection authority can choose one where selection is
-configured. `scope select --goal GOAL --subject CONTRIBUTION` selects the initial
-output. Later changes supply the current decision event with `--expected`.
-`patch review --subject CONTRIBUTION` derives the signed patch and base; `--patch` remains available for inspecting an unpublished patch.
-`patch select --subject CONTRIBUTION` additionally checks the subject's exact patch artifact.
-
-A local owner can choose an effective, unselected contribution for their own
-checkout with `patch apply --local-choice`. This requires authenticated `--owner`
-and `--as PRINCIPAL`; an agent cannot activate it just by adding the flag. It
-creates no review, approval or replicated selection.
-
-## Review the local checkout
-
-Identify the absolute workspace and branch. Compare its base with the contribution
-and inspect staged, unstaged and untracked work. The apply guard preserves
-unrelated files and refuses conflicting changes or a stale base. It never grants
-permission to force-reset a checkout.
-
-Use `patch review --goal GOAL --patch PATCH` to inspect the exact artifact and
-its declared changes. A goal administrator or remote reviewer cannot authorize
-arbitrary filesystem mutation on your machine. Inspect the actual target before
-using either the selected-output or local-choice route.
-
-## Apply and verify
-
-For a selected contribution, use:
+To run these yourself, add `--owner --as NAME`.
 
 ```sh
-locust patch apply --goal GOAL --subject CONTRIBUTION \
-  --root /absolute/checkout --expected-git-head COMMIT
+locust contributions --goal GOAL
+locust patch review --goal GOAL --subject CONTRIBUTION
 ```
 
-Here `CONTRIBUTION` identifies the signed event; `PATCH` identifies the immutable
-patch package; `MANIFEST` identifies its exported base. `COMMIT` is the expected
-Git HEAD of the target. These are different identities. After applying, inspect
-files and run the project's relevant checks. The workspace's `integrated` field
-records the locally applied artifact; it is not a goal-wide accepted result or
-independent test evidence. Applying does not commit or push.
+`patch review` shows the exact diff. Reviewing does not select or apply it
+([When a result counts](formations.md#when-a-result-counts)).
 
-The following executable example creates only disposable Git repositories and a
-fresh local daemon. It proves the Open route leaves the contribution unselected
-and unapproved while changing the intended file. Use the trusted `LOCUST_BIN`
-from [the first tutorial](collaboration.md); Bash, Python 3 and Git are required.
+## Apply a patch
+
+If a coordinator or judge picks results, select first:
+
+```sh
+locust patch select --goal GOAL --subject CONTRIBUTION
+locust patch apply --goal GOAL --subject CONTRIBUTION --root /PATH/TO/CHECKOUT --expected-git-head COMMIT
+```
+
+Otherwise the owner can apply it locally with `--owner --as NAME --local-choice`,
+which shares nothing.
+
+`--root` must be a folder the same agent exported or materialized. Apply keeps
+other changes and never commits. Then run your checks.
+
+## Try it with a script
+
+This script uses `--local-choice`; run it like the
+[collaboration script](collaboration.md#try-it-with-a-script).
 
 ```bash
 # locust-doc-test: open-patch-application
@@ -111,16 +90,8 @@ PY
 printf 'Repositories and observations: %s\n' "$demo"
 ```
 
-## Recovery evidence
+## If applying fails
 
-After interruption, inspect both the local application receipt and actual files
-before retrying. Keep the same exact subject, artifact and base. A timeout is an
-uncertain outcome. If the checkout changed concurrently or the receipt and files
-disagree, preserve the workspace and reconcile it explicitly; do not change the
-expected base simply to bypass a refusal.
-
-The workspace library's tests cover application conflicts and idempotent retry.
-The current CLI qualification also covers reviewed selection and preservation of
-unrelated work. These are local checks; they do not prove that a remote execution
-stopped or that a repository change was committed. [Recovery](recovery.md) and
-[completion](completion.md) describe those separate observations.
+Apply saves originals in `.locust-apply-*` in the checkout. It stops if the Git
+HEAD or an affected file changed. Do not change `--expected-git-head` to force
+it. After an interruption, check the files and retry the same command.

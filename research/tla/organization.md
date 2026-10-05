@@ -109,7 +109,7 @@ about a particular SQLite schema.
 
 ## What remains outside these checks
 
-See the [formal plan](../../docs/tla-verification-plan.md) for expanded signed-body
+See the [formal plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/tla-verification-plan.md) for expanded signed-body
 generation, document and closure streams, full selectors, transport/retention,
 fair scheduling, storage refinement and implementation correspondence. Model
 state counts, witness traces, passing Rust tests and native/end-to-end qualification

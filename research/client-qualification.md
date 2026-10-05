@@ -1,6 +1,6 @@
 # Four-client qualification findings
 
-Date: 2026-10-03 (America/Los_Angeles). **Status: measured client/fixture behavior; no complete Locust client workflow is qualified.** The [runbook](../docs/client-qualification.md) gives reproduction steps and the [ledger](../docs/release-evidence.md) records open release gates.
+Date: 2026-10-03 (America/Los_Angeles). **Status: measured client/fixture behavior; no complete Locust client workflow is qualified.** The [runbook](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/client-qualification.md) gives reproduction steps and the [ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md) records open release gates.
 
 ## Method and sources
 

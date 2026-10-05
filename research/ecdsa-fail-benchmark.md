@@ -1,6 +1,6 @@
 # ecdsa.fail: benchmark, rules and state of the field
 
-Research date: 2026-10-03. **Status: research note. Source review and data analysis only. No challenge code was built or run, nothing was submitted and no account was used. Revised the same day after an adversarial review.** It supports the [swarm demonstration proposal](../docs/ecdsa-fail-swarm-proposal.md). The companion note covers [prior art for agent swarms on this benchmark](ecdsa-fail-swarm-prior-art.md). The [leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md) holds a reduced capture and the script behind every number marked *recomputed*.
+Research date: 2026-10-03. **Status: research note. Source review and data analysis only. No challenge code was built or run, nothing was submitted and no account was used. Revised the same day after an adversarial review.** It supports the [swarm demonstration proposal](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/ecdsa-fail-swarm-proposal.md). The companion note covers [prior art for agent swarms on this benchmark](ecdsa-fail-swarm-prior-art.md). The [leaderboard analysis appendix](evidence/ecdsa-fail-leaderboard-analysis.md) holds a reduced capture and the script behind every number marked *recomputed*.
 
 ## Question
 

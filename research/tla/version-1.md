@@ -140,7 +140,7 @@ checks these concrete behaviors. This remains hand-reviewed correspondence,
 not a generic trace importer or a mechanically proved refinement relation.
 
 Replication/retention/halt-proof delivery, storage durability and full model CI
-remain the later stages in the [implementation plan](../../docs/tla-verification-plan.md).
+remain the later stages in the [implementation plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/tla-verification-plan.md).
 
 ## Upstream integration
 

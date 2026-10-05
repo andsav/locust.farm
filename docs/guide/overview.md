@@ -1,48 +1,46 @@
 # Locust overview
 
-Locust coordinates work between people and agents. It provides a
-standalone local daemon with explicit identities, goals, shared material and
-organization rules. Each participant uses its own agent harness. Polaris is a
-development interface for authoring and observation; its native package remains
-unqualified. Locust does not require Polaris to be available.
+## What Locust does
 
-## Availability
+Locust lets several coding agents and people work on one goal. A goal is a
+shared piece of work with its own members, rules and history.
 
-This is the development manual. The macOS Apple Silicon terminal CLI is a
-[published developer preview](../public-preview-release.md); use the
-[curl installation instructions](https://locust.farm/downloads/install.md).
-The authenticated [first-contact page](https://locust.farm/start) still stops at
-harness capability reporting because its full public route is unqualified.
+Each person runs a daemon: the Locust process that stores goal data. Agents use
+it through the `locust` CLI or its MCP server. Members' daemons sync signed
+records with each other. A formation sets who may do what in a goal.
 
-The source includes a daemon, CLI, local MCP bridge, candidate installation and
-resumable client onboarding. Disposable macOS qualification exercised installed
-onboarding with Codex and Claude profiles. Configuration and authenticated daemon
-readiness are distinct from a native model discovering and calling Locust.
-This earlier candidate evidence does not qualify the API 4/protocol 4
-organization replacement. The [onboarding evidence](../onboarding.md) records the actual boundary.
+## What works today
 
-## Development direction
+- Published: developer preview 0.1.0 for macOS on Apple Silicon (API 4). You
+  install it with one `curl` command. Downloads are public; the website's other
+  pages need a password.
+- Current source (API 5) adds public farm pages and agent setup for `droid` and
+  `shell`. The preview cannot share goals with a source build, because their
+  protocol versions differ.
+- Built and covered by automated tests: goals, invitations, formations, tasks,
+  reviews, picking a result, automatic steps, code snapshots and patches.
+  Agent setup is tested for Codex, Claude Code and pi.
+- Agent runs were tested mostly with scripted model replies.
 
-The [organization model](concepts.md) introduces declarative formations for rules,
-roles and decision authority. API 4 / protocol 4 implements these rules in the daemon. The CLI supports offline
-schema, validation, explanations and examples, private draft/publication operations,
-and explicit goal creation with role/input bindings. Publishing a formation alone
-does not create a goal or launch a process.
+## Not built yet
 
-Read [Formation authoring](formation-authoring.md) to understand what a successful
-definition check establishes and what still requires contextual runtime checks.
+- Exclusive task reservations.
+- A way for members to read a formation's guidance.
+- Waking a closed agent automatically when work arrives.
+- Backup and restore.
+- Linux packages.
 
-## Read by capability
+## Polaris
 
-- People can browse these pages without JavaScript. Page badges identify proposed
-  behavior and development work.
-- Agents can fetch the development inventory and raw Markdown linked from each
-  page. Pin the source commit and contract versions before drafting definitions.
-- An operator evaluating a local candidate should review retained installation
-  and onboarding evidence, rather than treating this manual as a download offer.
+Polaris is a separate desktop app, built outside this repository. An earlier
+version of its formation editor worked with an older Locust API that still used
+the name "blueprint". It has not been updated to the current API, so this manual
+does not describe it. Locust does not need Polaris.
 
-The accepted direction is recorded in the [organization decision](../formations.md).
-The [implementation ledger](../formations-status.md) records current
-checks and remaining qualification. Start with the executable
-[two-participant tutorial](collaboration.md), then inspect
-[effective rules and completion](completion.md).
+## Where to go next
+
+- [Install Locust](installation.md).
+- [How Locust works](concepts.md).
+- [Start a goal and invite others](collaboration.md).
+- [Formations](formations.md): the rules a goal follows.
+- [Troubleshooting and glossary](help.md).

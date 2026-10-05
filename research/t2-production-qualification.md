@@ -3,8 +3,8 @@
 Status: local actual-client investigation, with separate scripted-provider and
 real-model records. No independent collaborators, physical network, installed
 release, default interactive approval or worker confinement is established by
-these runs. The [managed contract](../docs/managed-clients.md) describes the
-implemented behavior; the [release ledger](../docs/release-evidence.md) retains
+these runs. The [managed contract](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/managed-clients.md) describes the
+implemented behavior; the [release ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/release-evidence.md) retains
 the remaining gates.
 
 ## Experiments

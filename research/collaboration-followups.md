@@ -257,4 +257,4 @@ wrong peer patch reads, missing application/work preservation and invalid usage
 counter deltas. Independent review confirmed the three corrected evidence gaps.
 Polaris source commit `4917caf3963900c5ebaa6819eaa034663e589d64` pins Locust
 `c50a43f54a6168a631351c6500b44ccd1167d27c`; its current native SDK/component and
-frontend checks are recorded in the [Polaris guide](../docs/guide/polaris.md).
+frontend checks are recorded in the [Polaris guide](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/guide/polaris.md).

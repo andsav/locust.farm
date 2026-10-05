@@ -3,7 +3,7 @@
 The executable models target the organization protocol subset introduced in
 `c88e3bc960de79eb990b3185a653bd982e587ed6`. Start with the
 [property and evidence map](organization.md). The
-[formal verification plan](../../docs/tla-verification-plan.md) identifies
+[formal verification plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/tla-verification-plan.md) identifies
 unmodeled behavior and later proof work. These are bounded exhaustive checks,
 not a deductive proof or Rust refinement proof.
 

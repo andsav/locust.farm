@@ -52,5 +52,5 @@ ambiguous marked recipes. CI repeats the exact recipes against its built binary.
 The site gates pass lint, Svelte checks with zero errors/warnings, 37 tests and
 production prerender validation of 88 routes, 18 raw articles and ten assets.
 A site build is not a deployed website. The active implementation audit and
-[status ledger](../docs/formations-status.md) retain remaining
+[status ledger](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/formations-status.md) retain remaining
 client/provider, transport and release boundaries separately.

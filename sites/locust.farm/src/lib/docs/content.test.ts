@@ -116,10 +116,7 @@ test('availability distinguishes the published CLI from unqualified first-contac
 });
 
 test('all frozen manual subjects resolve to substantive canonical content', () => {
-	const plan = readFileSync(
-		new URL('../../../../../docs/public-documentation-plan.md', import.meta.url),
-		'utf8'
-	);
+	const plan = readFileSync(new URL('../../../../../docs/manual.md', import.meta.url), 'utf8');
 	const inventorySection = plan.slice(
 		plan.indexOf('## 5. Complete manual inventory'),
 		plan.indexOf('## 6. Build and site implementation')

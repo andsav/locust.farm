@@ -1,89 +1,61 @@
-# Goals and organizations
-
-**Status: implemented development model, API 5 / protocol 5.** Local engine,
-replay and daemon tests exercise this model. Public release and native-client
-qualification remain separate; see [availability](status.md).
+# How Locust works
 
 ## Goals
 
-A goal states the intended outcome and provides a shared collaboration context.
-Joining a goal, accepting an assignment and finishing an artifact are distinct
-acts. A participant's local execution is not the same thing as a distributed
-assignment or an accepted result.
+A goal is a shared piece of work. It has members, a formation (its rules) and a
+history of signed records. Whoever creates a goal with `locust goal create`
+becomes its administrator. The administrator is the only member who admits and
+removes members and changes the rules.
 
-## Organizations and formations
+## Members and roles
 
-An organization defines how participants coordinate: roles, assignments,
-communication rules and decision authority. A formation is a declarative definition
-of those rules. A formation instance adds the concrete bindings required to run
-it, such as who fills a role and which authority may finalize a decision.
+A member is an agent or a person admitted to a goal. A role is a named group of
+members that the rules use, such as `coordinator` or `reviewer`. You fill roles
+with `--roles` when you create a goal or change its rules (`rules bind`). A role
+never gives administrator rights.
 
-A valid definition can describe an organization without being ready to execute.
-Offline checks cannot observe whether a participant is online, local permissions
-exist, or an instance has the required authority. See [Formation authoring](formation-authoring.md).
+## Tasks, attempts and contributions
 
-## Participants and local agents
+A task describes a piece of work. Tasks are optional. An attempt is one member's
+try at a task, and several attempts can share one task.
 
-Distributed participant identity belongs to Locust. An agent harness performs
-local work for that participant under its own tools and approval policies. Merak
-is a possible local executor, not a requirement or a synthetic representation of
-remote participants.
+A contribution is a published result: text, files or a patch. It can belong to a
+task or stand alone. Locust stores files by their content hash. Your daemon
+fetches missing files from other members.
 
-Locust does not sandbox all the tools of a participant's harness. Access to a
-local shell, repository, provider account or credential remains subject to that
-harness and the person's machine policy. Organization rules do not silently grant
-filesystem access or weaken an existing approval boundary.
+## Permissions on your machine
 
-## Daemon-driven progress
+The owner (the person who runs the daemon) grants permissions to each agent, per
+goal. There are seven: administer, contribute, execute, review, select, flow and
+takeover. Joining a goal grants none, and its creator gets only administer. Use
+`locust --owner permission allow`; with `--task`, it grants execute for that
+task only.
 
-The accepted design lets the daemon drive explicitly configured transitions and
-durably deliver ready work. An agent does not have to ask for each transition.
-Only declared transitions are eligible: a daemon must not invent organizational
-rules from a diagram or an inferred intention. Delivery and local execution remain
-separate observations. The sender retains an outbox entry until the receiving
-daemon confirms durable inbox storage. Lost receipts retry the same logical
-identity. Explicit agent acknowledgment and actual local execution remain
-separate. Encoded peer-exchange tests cover lost receipts, both-daemon restart
-and authority retraction; they do not prove physical-machine connectivity.
+Agents connected with `locust up` or `agent add` cannot create goals. The owner
+can create one for them with `locust --owner --as NAME goal create`.
 
-## Decisions and authority
+Locust does not sandbox your agent's own tools. Your agent's approval rules
+still apply to its shell, files and accounts.
 
-Producing work, reviewing it and accepting it are separate responsibilities.
-Rules need an explicit resolution path when authorities are missing, unavailable
-or ambiguous. Offline definition checks describe declared rules; action readiness
-must also consider the current instance and actor.
+## How the parts fit together
 
-Unsupported definitions should receive a clear diagnostic. The greenfield design
-supports one current contract; it does not offer format conversion, mixed-version
-runtime branches or an old-reader fallback.
+- **The daemon** stores goal data and talks to other members' daemons.
+- **The `locust` CLI** sends commands to the daemon over a local socket.
+- **The MCP server**, `locust mcp`, is started by your coding agent so it can
+  call Locust tools. It refuses the owner credential.
+- **Your coding agent** keeps its own model, tools and account. Locust gives it
+  work and records its results.
+- **The network** connects daemons directly or through relays. See
+  [what leaves your computer](sharing.md#what-leaves-your-computer).
+- **Credentials** decide who is acting: the owner or one named agent.
 
-Read the [accepted organization decision](../formations.md) for the
-full model and [implementation plan](../formations-implementation-plan.md)
-for its fixed scope and [implementation ledger](../formations-status.md)
-for completed checks. Return to [Locust overview](overview.md) for
-present availability.
+## Sync and offline work
 
-## Context, artifacts and attempts
+Each member's daemon keeps its own copy of the goal. You can keep working
+offline when your daemon has the records the work needs. Changes sync when the
+daemons reconnect.
 
-An artifact is an exact immutable object with a content identity and provenance.
-Context inputs name the material an organization/task uses; importing material
-does not execute instructions or grant access. Missing object bytes are a pending
-dependency, not evidence that the object does not exist.
-
-Tasks are optional work descriptions. An attempt is a participant's occurrence of
-work; a contribution is the exact submitted finding/output, optionally attached
-to a task and attempt. Several attempts can coexist. A local claim generation
-fences a local execution session and does not establish a distributed exclusive
-reservation. Open findings need no task acceptance or universal selected head.
-
-## Local permissions and synchronization
-
-Membership, role eligibility and local execution/sharing grants are independent.
-A rule-authorized contribution is not permission to spend account funds or mutate
-another person's checkout. The native harness still enforces its own tool policy.
-
-A replica's view identifies its observed evidence and missing dependencies. Clocks
-are diagnostic; they do not select a winner or backdate membership. The same
-admissible proof/context must yield the same projection despite reception order.
-Later forks and removal cutoffs can change an observed verdict; expose stale,
-pending and disputed states instead of presenting an irrevocable accepted head.
+Clocks never decide which record wins. Two signed records conflict when both
+claim to follow the same record, such as two different selections for one task.
+Locust then stops only the decisions they affect; other work goes on. See
+[Conflicts](operations.md#conflicts).

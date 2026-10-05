@@ -1,33 +1,36 @@
-# First collaboration journeys
+# Start a goal and invite others
 
-**Status: implemented development CLI, API 5 / protocol 5.** The local tutorial
-below uses two enrolled participants and separate execution sessions on one
-isolated daemon. It exercises real CLI requests and persistent state. It does not
-establish discovery between machines or native model behavior.
+## Two agents on one computer
 
-## Owner handoff for installed clients
+Codex and Claude Code are [connected](installation.md#connect-your-coding-agents)
+with `--name demo-codex` and `--name demo-claude`. Connected agents cannot create
+goals, so the owner runs these steps with `--as NAME`.
 
-After [onboarding](installation.md), follow the [local Codex and Claude demo](../demo.md).
-`goal create --formation peer-review` selects a bundled arrangement without JSON.
-`goal add-local --goal TITLE --agent NAME --plan` previews whole-goal sharing;
-repeat with `--yes` to approve local admission without copying an invitation.
-Membership adds no work permission. Existing `permission allow`, `inspect` and
-`revoke` choose independent permissions by enrolled name; a task can be selected
-by its unique title. Goal titles and typed short identifiers refuse ambiguity.
-`inbox`, `board`, `pending` and `watch` show current observations without
-acknowledging the agent's context. Native client approval remains independent.
+```sh
+locust --owner --as demo-codex goal create --title demo --formation peer-review
+locust --owner goal add-local --goal demo --agent demo-claude --plan
+locust --owner goal add-local --goal demo --agent demo-claude --yes
+locust --owner permission allow --goal demo --agent demo-codex contribute
+locust --owner permission allow --goal demo --agent demo-claude contribute review
+locust --owner --as demo-codex task open --goal demo 'Make the change'
+locust --owner permission allow --goal demo --agent demo-codex --task 'Make the change' execute
+```
 
-## Executable local CLI check
+`demo-codex` becomes the administrator. With `peer-review`, a result counts once
+another member approves it. The permissions let both agents publish,
+`demo-claude` review, and `demo-codex` work on that one task.
 
-Use a reviewed local build (`cargo build --locked -p locust`) and Bash/Python 3.
-Set `LOCUST_BIN` to its absolute path. The script creates a fresh temporary state
-directory, binds networking to loopback with discovery/relays disabled, and stops
-only its own foreground daemon at exit. It preserves the state for inspection and
-does not configure a service, harness, account or existing checkout.
+Ask Claude Code to publish a finding. Ask Codex to read it, change a
+[copy of the code](sharing.md#share-a-code-snapshot) and publish a patch. Claude
+Code reviews it.
 
-The two grants permit contributions and reviews in this disposable goal. Execution
-is authorized separately for one task. `pick` reads a field from the structured
-CLI envelope; credentials and invitations are never printed.
+`locust --owner status`, `inbox`, `board`, `pending` and `watch` show progress
+without marking anything as read. Then [apply the patch](apply.md#apply-a-patch).
+
+## Try it with a script
+
+This script runs similar steps on a temporary daemon. It needs Bash, Python 3
+and `LOCUST_BIN` set to the absolute path of `locust`.
 
 ```bash
 # locust-doc-test: local-collaboration
@@ -107,77 +110,46 @@ PY
 printf 'Local state and observations: %s\n' "$demo"
 ```
 
-An attempt start records a local claim; this script launches no agent process.
-The claim's `attempt` and `generation` must accompany submissions that name the
-attempt. A terminal `attempt report --status completed` reports that occurrence;
-it does not substitute for the contribution's completion rule. Inspect `pending`
-and `task show` to see the rules and obligations for the current caller.
-
-The repository checks this exact fenced recipe with
-`python3 scripts/check_documentation.py --binary /absolute/locust --timeout 60`.
-The explicit timeout is a test watchdog, not a runtime work limit.
+`python3 scripts/check_documentation.py --binary target/debug/locust --timeout 60`
+runs all guide scripts in a source checkout.
 
 ## Invite a person
 
-An administrator runs `goal invite --goal GOAL` and shares the returned ticket
-through a channel they deliberately choose. Treat the ticket as a capability;
-keep it out of command history, public pages, source control and diagnostic
-transcripts. The recipient runs `invitation inspect --ticket -` with the ticket
-on standard input, or `invitation inspect --ticket-file /private/invitation`.
-A ticket file must be an owner-only regular file with mode `0600` or `0400`.
-Inspection works offline and does not redeem the invitation or change membership.
-
-The preview verifies the administrator's signature over the goal, title,
-endpoint/contact hints, capability, expiry and whole-goal sharing boundary. The
-title is administrator-signed presentation, and the key fingerprint does not
-verify a person's identity. Inspection cannot establish current issuer
-availability, revocation or admission. Available history and shared goal content
-become readable on admission; local files and private chats are not shared
-automatically.
-
-To accept, use `locust --owner invitation join --principal NAME --ticket-file
-/private/invitation --review REVIEW_IDENTIFIER`, where `NAME` is an existing
-enrolled local principal and the full review identifier comes from inspecting
-that exact ticket. Standard input via `--ticket -` also works. A changed ticket
-requires another review. To decline, take no action. A remote join may initially
-report `joining`; `locust --owner status` shows joining/refused state and `goal status`
-becomes readable when signed admission arrives. Retrying the same reviewed ticket
-recovers the pending or admitted result. Expired or refused invitations require a
-fresh invitation; an unresolved pending join rejects ticket substitution. Joining grants no
-local execution, provider spending or workspace permission.
-
-The issuer can run `locust --owner invitation list --goal GOAL` to see pending,
-expired, revoked and redeemed invitations without their capabilities. Use
-`locust --owner invitation revoke --goal GOAL --invitation IDENTIFIER` to revoke
-an unused invitation. Revocation survives restart and repeated requests are
-idempotent. A redeemed invitation requires `member remove` to end membership;
-neither action retracts copies already received. Invitation operations are
-excluded from the model tool surface; an otherwise authorized CLI/API caller
-retains its existing authority.
-
-Before sending, identify the recipient, goal and shared content. Topics and roles
-do not create private channels. Use a separate goal with separate membership for
-a confidential subgroup; export only chosen inputs and review returned material
-under the parent goal's rules. Invitations with endpoint hints were exercised
-locally. Key-only multicast discovery is currently failing on the qualification
-host; see [availability](status.md) before planning a remote journey.
-
-## Share a code snapshot
-
-Choose an exact repository commit and review the files before export. The current
-workspace exporter captures that Git snapshot; it does not export arbitrary
-unstaged files. Choose a commit containing only the intended shared material.
+Only the administrator invites. A person on another computer can join only if
+the administrator agent may manage goals. Agents connected by `up` may not, so
+grant it first. This also lets that agent create and join goals itself.
 
 ```sh
-locust workspace export --goal GOAL --root /absolute/repository --commit COMMIT
-locust workspace materialize --goal GOAL --manifest MANIFEST --destination /absolute/new-workspace
+locust --owner agent grant --agent demo-codex --grants '{"manage_goals":true}'
+locust --owner --as demo-codex goal invite --goal demo
 ```
 
-Use the returned manifest as a named task input declared by the formation, for
-example `task open --goal GOAL --inputs '{"workspace":"MANIFEST"}' 'Review the snapshot'`.
-Undeclared input names are refused. Exporting material does not execute it or
-change the recipient's main checkout. A patch names its exact base and artifact;
-a signed check attributes a claim, not independent test execution.
+Send the printed ticket privately. Only the first agent to use it can join. It
+contains the goal title, the administrator's key and your IP addresses. It never
+expires unless you pass `--expires-ms` with a Unix time in milliseconds.
 
-Read [completion](completion.md) before choosing an output and
-[local patch application](apply.md) before changing a checkout.
+```sh
+locust --owner invitation list --goal demo
+locust --owner invitation revoke --goal demo --invitation INVITATION_ID
+```
+
+Revoking does not remove anyone who joined
+([Remove a member](sharing.md#remove-a-member)).
+
+## Join a goal
+
+Save the ticket in a file only you can read (`chmod 600`). Inspecting changes
+nothing. To accept, join as one of your agents with the printed review ID:
+
+```sh
+locust invitation inspect --ticket-file ticket.txt
+locust --owner invitation join --principal NAME --ticket-file ticket.txt --review REVIEW_ID
+```
+
+`status` shows `joining` until the administrator's daemon admits you, or
+`refused`. Joining grants no permissions. An agent that may manage goals can
+also join with `goal join --ticket -`, which has no review step.
+
+Inspecting also shows the goal's [farm page](farm-publication.md) policy;
+joining does not consent to it. Current source only; the published preview does
+not include this.

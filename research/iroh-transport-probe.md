@@ -1,6 +1,6 @@
 # Iroh transport probe findings
 
-Date: 2026-10-03. **Status: pinned-source findings and qualification method; measured results are listed separately below.** Accepted usage is in the [probe runbook](../docs/transport-probe.md). The [workstream plan](../docs/workstreams.md) calls for direct, forced-relay and alternate-relay checks across separate networks.
+Date: 2026-10-03. **Status: pinned-source findings and qualification method; measured results are listed separately below.** Accepted usage is in the [probe runbook](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/transport-probe.md). The [workstream plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/workstreams.md) calls for direct, forced-relay and alternate-relay checks across separate networks.
 
 ## Source scope
 
@@ -38,7 +38,7 @@ Code commits: `b4daf3f` (path observations and acknowledged stream shutdown), `9
 | Explicit alternate endpoint | Same machine/network; `--mode relay --relay-url https://use1-1.relay.n0.iroh.link./`; 30,000 ms | Both exited 0; IDs matched; both selected relay paths. This checks custom selection of another n0 endpoint, not operator independence |
 | Automatic selection with direct wait | Same machine/network; `--mode auto --n0-relays --wait-for-route direct --bind 127.0.0.1:0`; 30,000 ms; supplied loopback and relay hints | Both exited 0; IDs matched; both selected direct paths. No WAN direct-path conclusion follows |
 
-For the three network checks, the listener's contact records supplied the connector's `--peer`, `--peer-relay` and, for automatic mode, `--peer-addr`. All waits and child cleanup used the process helpers in [the harness](../scripts/check_transport_probe.py); the extra network orchestration was a one-off local runner. The [runbook](../docs/transport-probe.md) gives the equivalent commands for repetition on separate machines. No existing credentials were used, and no endpoint secret keys were retained.
+For the three network checks, the listener's contact records supplied the connector's `--peer`, `--peer-relay` and, for automatic mode, `--peer-addr`. All waits and child cleanup used the process helpers in [the harness](../scripts/check_transport_probe.py); the extra network orchestration was a one-off local runner. The [runbook](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/transport-probe.md) gives the equivalent commands for repetition on separate machines. No existing credentials were used, and no endpoint secret keys were retained.
 
 After the fixes, focused formatting and all-target Clippy passed; `cargo test --locked -p locust-net --all-targets` passed **25 tests** (13 library, 12 example), and Python discovery passed **21 tests**. The initial whole-workspace run passed before unrelated workspace-crate implementation began. The final whole-workspace attempt was blocked by that concurrent work: formatting differences in `crates/locust-workspace`, and a `FnOnce` lifetime compile error at `materialize.rs:165` in Clippy/tests. Those files were not changed by lane B. This record establishes the focused component checks, not a green final integration tree.
 

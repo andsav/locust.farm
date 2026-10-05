@@ -1,148 +1,103 @@
-# Local API, MCP and event reference
+# Command, API and MCP reference
 
-**Status: implemented development API 5 / protocol 5.** The published terminal preview is a separate API-4 artifact; see [availability](status.md).
-The tables below are generated from the Rust request, response and event types,
-operation registry and actual CLI command builder. Download the
-[full runtime contract](../reference/generated/runtime.contract.json), or run
-`locust --json contract` without a daemon or credentials. Offline formation
-inspection has a separate [schema reference](schema-reference.md).
+On the website, tables of every command, operation, response, event and error
+code follow. `locust contract` prints the same contract as JSON,
+without a daemon.
 
-## Local API transport and effects
+## Versions
 
-The local API uses authenticated local transport and structured envelopes.
-It is not a public HTTP API; no OpenAPI facade is implied. The current operation
-registry is the authority for names, audience and effects. Owner administration,
-agent work and read-only viewer calls have different audiences. A viewer read
-cannot acquire a claim or acknowledge shared context. All event and context reads
-are observational; acknowledgment is an explicit session-bound write.
+The current source uses API 5, protocol 5, formation schema 1 and store schema 5.
+The published preview uses API 4 and protocol 4. Locust refuses data, peers and
+formations from other versions. `locust --version` prints the version, API and
+protocol.
 
-Requests and replies use the current canonical local framing and typed response
-variants. CLI JSON output wraps results as `{ "ok": true, "result": ... }` and
-errors as `{ "ok": false, "error": ... }`. Error details retain current draft
-revisions and structured diagnostics where applicable. `events` takes a feed
-position and an explicit page limit; `wait` takes a known revision and explicit
-timeout. These are observation controls, not work execution budgets.
+## Command line basics
 
-## MCP and native tools
+Global flags:
 
-The stdio bridge exposes agent operations under the session's authenticated
-principal. Configured transport, instruction discovery and a model's actual tool
-call are separate observations. Native policy can refuse a call; configuration or
-an organization rule must not weaken it. An owner-only operation cannot be
-advertised as an ordinary agent tool. Read-only pending inspection does not accept
-work or acknowledge cancellation.
+- `--home PATH`: the data directory.
+- `--owner`: use the owner credential.
+- `--as NAME`: with `--owner`, act for the enrolled agent `NAME`.
+- `--credential FILE`: use an agent, author or viewer credential.
+- `--session FILE`: use an agent's session secret.
+- `--json`: print one JSON envelope.
+- `--idempotency-key HEX`: a 16-byte key that makes a retry safe.
 
-Invitation issuance, inspection, inventory, revocation and redemption are not
-model tools. The person-facing `invitation inspect` command verifies a signed
-preview offline; `invitation join` requires direct owner authority, an existing
-local principal and the exact review identifier. It grants membership without
-changing local execution permissions or workspace bindings. `invitation list`
-exposes capability-free issuer inventory; `invitation revoke` durably refuses
-unused tickets and cannot undo a redeemed membership. Existing authorized
-CLI/API callers retain their explicit authority; hiding these operations from
-MCP does not revoke a principal's grants. See the [invitation journey](collaboration.md#invite-a-person).
+A daemon command without a credential fails; it never falls back to the owner.
+Named commands accept a goal title, a full ID or a unique ID prefix.
+`locust call OPERATION JSON` calls any operation; it needs full hex IDs.
 
-## Signed event and proof context
+With `--json`, the output is `{"ok":true,"result":...}` or
+`{"ok":false,"error":{"code":...,"message":...,"details":...}}`.
 
-Events bind goal, signer, author sequence/predecessor, causal parents, governance
-anchor, diagnostic time and sealed payload. Clock time grants no rights. Genesis
-pins the administrator and initial definition identity; admission and rule binding
-are explicit governance. Work binds exact subjects, rules/rounds and eligible
-identities. Content epoch differs from authority and rule revisions.
+## Exit codes
 
-Approval attaches to an exact contribution. Scoped selection requires its named
-authority and predecessor context. A conflicting successor halts that scope;
-missing ancestry is pending verification. Retained proof closure cannot bypass
-membership removal, wrong epoch, invalid subject or the authority stream's fork.
-See the [signed semantics](../formations-semantics.md) for the exact
-implementation contract and [recovery](recovery.md) for observable states.
+- 0: success
+- 1: `internal`
+- 2: a command line usage error
+- 3: `denied`
+- 4: `authorization_required`
+- 5: `not_found`
+- 6: `invalid`
+- 7: `conflict`, `claim_held`, `superseded` or `idempotency_mismatch`
+- 8: `unavailable`, such as a stopped daemon
+- 9: `halted` or `read_only`
+- 10: `unsupported_version`
+- 11: `corrupted`
+- 12: `limit_exceeded`
 
-## Errors, versions and reference coverage
+## Local API
 
-Distinguish invalid evidence, missing proof, unsatisfied criteria, satisfied
-criteria and disputed authority. Readiness diagnostics also separate unavailable
-actors and missing local grants. Preserve structured code, phase/path where
-applicable, scope and subject identity. Do not treat missing proof as rejection.
+The CLI and the MCP server reach the daemon through a Unix socket at
+`HOME/daemon.sock`, not HTTP. Each frame is a 4-byte little-endian length
+followed by postcard bytes. The client sends a hello, then the daemon answers
+each request once, matched by `id`. The hello's credential decides the caller for
+the whole connection: the owner, an agent or a viewer.
 
-The displayed development API/protocol markers identify source, not a qualified
-running release. Schema versions are independent. Unsupported protocol markers
-and persistent formats must be rejected before using an old decoder or mutating
-state. Definition normalization and semantic hash use the current core model;
-layout metadata does not define executable identity.
+## MCP server
 
-The generated tables document executable source. They do not qualify a client,
-platform, public download or remote transport path; see [availability](status.md).
+`locust mcp` serves MCP over standard input and output. It needs absolute data
+directory and credential paths, usually set through `LOCUST_HOME`,
+`LOCUST_CREDENTIAL` and `LOCUST_SESSION`. It refuses the owner credential. It supports MCP versions 2025-11-25, 2025-06-18 and 2025-03-26.
 
-## Status, local permissions and shared context
+A tool name is `locust_` plus the operation name with `_` for `.`, so
+`goal.status` becomes `locust_goal_status`. 51 of the 81 operations are tools.
+Not tools: invitations, permission changes, enrollment, grants, `goal.join`,
+`goal.invite`, `task.authorize`, `blob.put`, `blob.get`, sessions, `inbox`,
+`daemon.stop` and the farm commands.
 
-`locust status`, `goal status`, `board`, `task show`, `pending`, `sessions` and
-`session show` render names, states, reasons and suggested actions for people.
-`--json` retains structured machine responses; context receipt presentation is
-described below. Session reports include the last
-reported state and timestamp; connection attachment and a held claim do not prove
-that an external client is running. `locust --owner inbox` collects local
-participants needing attention without accepting work or acknowledging content.
-`locust watch --goal GOAL` prints the current pending view, waits for a changed
-revision, then prints the new view; `--timeout-ms` is an explicit observation wait.
+## Reading context
 
-Use `locust --owner permission inspect --goal GOAL --agent NAME` to inspect
-membership, all seven local permission categories and task-specific authorizations.
-An agent or its read-only viewer can inspect its own key with the same command
-or `locust_permission_inspect`; inspecting another principal and changing any
-permission require the owner.
-`permission allow` and `permission revoke` take named categories and change only
-those categories. For example, `permission allow --goal GOAL --agent NAME review`
-permits eligible reviews without enabling execution. Add `--task TASK execute`
-to `permission allow` for a task-specific execution authorization. Use
-`permission revoke --goal GOAL --agent NAME --task TASK` to remove that task's
-local authorizations. Revoking a standing category leaves task exceptions visible;
-neither permission edit terminates an external process or cancels an attempt.
-Membership and organization eligibility remain separate requirements.
+`context read --goal GOAL --view full --limit N` returns goal context in pages.
+The full view includes rules, inputs, task state and pending work; `compact`
+keeps counts and news. Pass the previous page's `next` as `--after`.
 
-`context.read` takes a goal, optional task, explicit `view` (`full` or `compact`),
-positive page `limit`, optional `preview_chars`, `unread_only`, and the previous
-`next` as `after`. Full context includes pinned rules, inputs, task state, shared
-document references and complete pending work. Compact context keeps current
-scope/rule/document identities, all pending category counts and session news.
-The first page carries `summary.full` or `summary.compact`; continuations omit
-that summary. Both views return the same attributed event text. Full available
-text is the default; a compact summary never truncates a finding.
+A read in a session returns a `ctx:` reference.
+`context acknowledge --goal GOAL --receipt REF` marks that content read. Only
+complete text counts. The reference works only with the same credential and
+session.
 
-`pending.page` returns detailed obligations with an explicit positive `limit`,
-optional category `kind`, and `next`/`after` continuation. Every page includes
-counts for all seven categories, including categories outside the filter. The
-existing `pending` operation returns the complete view. Follow continuations;
-page size is not an execution budget or a completeness claim. Both pagers bind
-goal revision, reader, session and query controls. A changed revision or query
-requires restarting the read. Acknowledgments do not shift event page offsets.
+`pending --goal GOAL` lists all pending work; `pending page` adds `--limit` and
+`--after`.
 
-Named CLI commands and MCP return a short `ctx:` receipt reference. Pass that
-exact string to `context acknowledge --receipt` or `locust_context_acknowledge`.
-The client saves the daemon-signed receipt under the private Locust home, scoped
-to its credential and execution session. References work across CLI/MCP process
-restarts in that same scope; they are not transferable to another credential or
-session. Removing a receipt file requires reading the page again. There is no
-automatic expiration or acknowledgment on read. The native typed API and raw
-`locust call` retain the full signed receipt object, as declared in the runtime
-contract; the named CLI and MCP schemas describe their reference argument.
+When you publish, name the events you used: `patch submit --source EVENT` or
+`contribution publish --sources '["EVENT"]'`.
+`contribution inspect --goal GOAL --contribution EVENT` shows a contribution with
+its sources, attempt and task.
 
-Only complete content in the receipt becomes read for its principal and session.
-Previews, missing text, lost read responses and another session remain unread.
-Later text availability or changed event standing becomes new context again.
-Acknowledgments survive daemon restart, do not change the goal revision, and do
-not wake goal waiters. Pending reads reflect session `context_news`. Reads without
-a session and viewer reads have no receipt.
+## Events
 
-`contribution.publish` accepts `sources`, an explicit array of source event IDs.
-`patch submit --source EVENT` is repeatable. These references are signed author
-declarations. Local publishing requires each referenced event to be held in the
-same goal; historical and excluded sources can still be cited. Declarations do
-not grant authority, change approval criteria, or introduce causal dependencies.
+Every change to a goal is a signed event. The signature covers:
 
-`contribution inspect --goal GOAL --contribution EVENT` (MCP:
-`locust_contribution_inspect`) shows the contribution, its declared source events,
-and exact attempt/task-round chain. It retains author, current standing, text
-availability and content status; unavailable event headers remain explicit empty
-details. A signed citation or acknowledgment does not prove comprehension, actual
-use or approval. Agents read useful findings, declare sources when publishing,
-and let the resulting artifact and independent review provide that evidence.
+- the goal and the signer
+- the signer's sequence number, its previous event and causal parents
+- the membership or rule change it builds on
+- the event's type and fields
+- the payload hash
+
+The event's time is for display only.
+
+The payload is encrypted with the goal's content key, which changes each time a
+member is removed. Headers are signed but not encrypted.
+`event show --goal GOAL --event EVENT` shows one event. See
+[What leaves your computer](sharing.md#what-leaves-your-computer).

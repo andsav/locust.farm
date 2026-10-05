@@ -1,78 +1,84 @@
-# Harnesses and managed sessions
+# Coding agents
 
-**Status: source integration with capability-specific qualification.** Bring the
-agent you already use. Public setup remains unavailable. First report transport,
-instruction refresh and approval capabilities; do not install an adapter or
-weaken policy to force a route.
+Setup gives each coding agent an MCP entry for `locust mcp` and a skill (an
+instruction file).
 
-## Choose the supported local profile path
+## Supported agents
 
-The current setup implementation owns explicit user-profile entries for Codex,
-Claude Code and Pi. Codex uses `.codex/config.toml` with a skill under
-`.agents/skills/locust`; Claude uses `.claude.json` and `.claude/skills/locust`;
-Pi uses `.pi/agent/mcp.json` and `.pi/agent/skills/locust`. Custom config overrides
-can make these layouts unsuitable. Review the [onboarding source](../onboarding.md)
-for refusal and explicit profile-selection rules before applying a plan.
+[`up` and `agent add`](installation.md#connect-your-coding-agents) take the name
+in parentheses. Setup writes the files shown:
 
-Droid has a managed foreground configuration path; do not describe it as the same
-installed `up` route. An unlisted harness needs a demonstrated local transport,
-instruction-loading mechanism and approval path. No generic support claim follows
-from it being able to run a shell.
+- Codex (`codex`): `.codex/config.toml` and `.agents/skills/locust/`
+- Claude Code (`claude`): `.claude.json` and `.claude/skills/locust/`
+- pi (`pi`): `.pi/agent/mcp.json` and `.pi/agent/skills/locust/`
+- Droid (`droid`): `.factory/mcp.json` and `.factory/skills/locust/`
 
-## Refresh and prove discovery
+Any other agent that can run a shell uses `shell`. `droid` and `shell` are in
+the current source only; the published preview does not include them.
+`client run` spells the names `codex`, `claude-code`, `factory-droid` and `pi`.
 
-Codex configuration changes require a restart; missing skills may also require
-one. Claude watches existing skill directories, but a new top-level directory
-needs its documented reload. Pi's MCP capability depends on native version/mode
-and extension ownership; outside changes require reload. Droid config/skill
-refresh and managed organization restrictions are separately checked.
+## What setup writes
 
-These are client discovery expectations recorded in the [first-contact source](../first-contact.md),
-not qualification of a model. Inspect the client's MCP view, load current
-instructions and complete a harmless authenticated real tool roundtrip. An
-accepted configuration file or scripted test reply is insufficient.
+Paths are relative to the profile home (`--profile-home`, default `~`). Each skill folder also gets a `locust-cli` script. It fixes the data
+directory, credential and session, and refuses `--owner`.
 
-## Keep identity explicit
+Setup refuses if the workspace or a parent folder already has a Locust entry or
+a symlinked config folder. It never changes approval settings or provider
+credentials.
 
-One enrolled profile binds a principal and a fixed Locust execution session.
-Several native chats with that profile can share the binding. Use separate
-profiles/bindings when independent executions are intended. A managed native
-session ID and a Locust session are separate identifiers.
+## Reload the agent after setup
 
-Foreground launch records intent before spawn. Observed owned-child start,
-structured native identity and authenticated tool readiness are distinct lifecycle
-stages. Resume must keep the exact native identity and local selections. Recovery
-of an uncertain session must not spawn another worker merely because no receipt
-was seen. A historical PID is correlation, not process authority.
+Start a new chat (restart Codex first) and ask the agent to call
+`locust_status`. In an open chat, Claude Code needs `/reload-skills` and pi needs
+`/reload`.
 
-## Pending work and stop requests
+## Other agents
 
-The daemon durably materializes configured ready work without an agent
-requesting every transition. Closed-client wake and native launch/resume remain
-adapter-specific capabilities requiring local grants and separate qualification.
-An active session can inspect durable pending state even if a notification was
-lost or duplicated.
+`shell` writes a skill, `locust-cli` and an MCP connection file under
+`.local/share/locust-agent/`. It edits no app config.
 
-Cancellation remains requested until an authorized current execution reports its
-observed outcome. Native child exit, remote request or notification does not
-assert every descendant stopped. Existing harness tool access is not a Locust
-sandbox. See [managed-client evidence](../managed-clients.md) and
-[recovery](recovery.md) for the current launcher limits.
+Or the owner enrolls the agent and creates a session file:
 
-## Current native qualification
+```sh
+locust --owner agent enroll NAME
+locust session create /PATH/TO/NAME.secret
+locust --credential ~/.locust/agents/NAME.credential \
+  --session /PATH/TO/NAME.secret status
+```
 
-The exact macOS arm64 candidate `0a295cd` passed supported installed setup,
-skill/MCP discovery and exercised workspace flows in Codex, Claude Code and Pi.
-All four baseline clients passed ordinary managed lifecycle and recovery checks
-against its production daemon. These runs used real native executables and
-scripted loopback providers; default-policy denials and untested interactive
-approval remain explicit. No real model or independent provider account was
-qualified by them.
+## Agent identity and sessions
 
-Droid's separate full workflow reached authenticated tools, claims, progress,
-wait and resume, but its native Execute child received SIGKILL before producing
-the workspace receipt. The same authored driver passed directly under the same
-network guard. Its full workspace route remains unqualified on this host; no
-client security setting was changed to make it pass. See the
-[exact native evidence](../../research/organization-native-qualification.md) for
-versions, artifact hashes, failures and cleanup scope.
+Each connected agent has one identity and one session, shared by all its chats
+in that profile home. Use another profile home for a second identity. The MCP
+server refuses the owner credential.
+
+## Launch an agent with Locust
+
+`client run` starts an agent in the foreground, optionally for one goal and
+attempt:
+
+```sh
+locust --credential CREDENTIAL --session SESSION client run \
+  --client codex --executable /PATH/TO/codex --client-version VERSION \
+  --workspace /PATH/TO/WORKSPACE --profile /PATH/TO/PROFILE \
+  --goal GOAL --attempt ATTEMPT --prompt PROMPT
+```
+
+For pi, add `--native-session /PATH/TO/FILE`. Locust picks no model provider
+and keeps the agent's approval settings.
+
+Launch states: Launching (recorded before start), Started (process running),
+Ready (Locust tools answered), Blocked (approval settings refused a tool call),
+Exited and Unknown. `client recover` marks an interrupted launch Unknown; it
+never starts or stops a process.
+
+`client status` shows the record and `client pending` the pending work.
+`client run --resume NATIVE_ID` with the same paths resumes.
+
+## Pending work and stopping
+
+Agents check for work with `pending` and `wait` (MCP: `locust_pending`,
+`locust_wait`). Delivered work stays listed until the agent runs
+`delivery acknowledge`. Locust does not wake a closed agent; agent hooks are not
+built. A stop request stays open until the worker reports an outcome
+([Cancelling work](operations.md#cancelling-work)).

@@ -8,8 +8,7 @@
 //! all clients stays separate from each client's argument, configuration and
 //! event formats.
 //!
-//! Depends on `locust-proto` only. Owner: the client lifecycle stream; see
-//! `docs/workstreams.md`.
+//! Depends on `locust-proto` only; see `docs/crates.md`.
 
 #![forbid(unsafe_code)]
 
