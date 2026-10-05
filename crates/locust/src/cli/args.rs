@@ -447,7 +447,12 @@ mod tests {
                     );
                 }
                 long_flags(&root, &mut flags);
-                let mut group = vec![root.find_subcommand(words[1]).expect("parsed above")];
+                // The group is the first subcommand, past any global flag.
+                let mut group: Vec<_> = words[1..]
+                    .iter()
+                    .find_map(|word| root.find_subcommand(word))
+                    .into_iter()
+                    .collect();
                 while let Some(command) = group.pop() {
                     long_flags(command, &mut flags);
                     group.extend(command.get_subcommands());
