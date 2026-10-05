@@ -20,7 +20,7 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 fn opt(name: &'static str, required: bool) -> Arg {
     Arg::new(name).long(name).required(required)
@@ -520,7 +520,12 @@ fn occupied_names(
         match fs::read_to_string(&path) {
             Ok(text) => {
                 if client == Client::Codex {
-                    if text.contains("mcp_servers") && text.contains("locust") {
+                    if let Ok(document) = text.parse::<toml_edit::DocumentMut>()
+                        && document
+                            .get("mcp_servers")
+                            .and_then(toml_edit::Item::as_table_like)
+                            .is_some_and(|table| table.contains_key("locust"))
+                    {
                         names.push("locust".into());
                     }
                 } else {
@@ -581,11 +586,18 @@ fn observe(
         stream_reader(stderr, false, sender.clone()),
     ];
     drop(sender);
-    let mut tail = Vec::new();
+    // Forward raw chunks immediately; buffer only structured event parsing.
+    let mut stdout_lines = LineBuffer::new(Some(MAX_LINE_BUFFER));
+    let mut stdout_finalized = false;
+    let mut tail = LineBuffer::new(None);
     let mut saved_error = initial_failure;
     let mut last = owned.record().clone();
     let mut exited = false;
     let mut direct_exited = false;
+    // Daemon reads follow receipts and a timer, not native output volume.
+    let mut refresh_due = true;
+    let mut next_refresh = Instant::now();
+    const REFRESH_INTERVAL: Duration = Duration::from_millis(250);
     while !exited {
         let mut snapshot_consistent = true;
         if !direct_exited {
@@ -615,18 +627,10 @@ fn observe(
                         Failure::internal("cannot forward native client output")
                     });
                 }
-                if stdout
-                    && let Ok(event) = serde_json::from_slice(&bytes)
-                    && let Err(e) = owned.observe_native(&event)
-                {
-                    saved_error.get_or_insert_with(|| adapter(e));
-                }
-                if stdout
-                    && let Ok(event) = serde_json::from_slice(&bytes)
-                    && blocked_event(&event)
-                    && let Err(e) = owned.blocked()
-                {
-                    saved_error.get_or_insert_with(|| adapter(e));
+                if stdout {
+                    stdout_lines.push(&bytes, |line| {
+                        observe_stdout_event(line, owned, &mut saved_error);
+                    });
                 }
             }
             Ok((_, Err(error))) => {
@@ -635,6 +639,13 @@ fn observe(
             Err(mpsc::RecvTimeoutError::Timeout) => (),
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 streams_closed = true;
+                // A final JSON event need not end with a newline.
+                if !stdout_finalized {
+                    stdout_lines.flush(|line| {
+                        observe_stdout_event(line, owned, &mut saved_error);
+                    });
+                    stdout_finalized = true;
+                }
                 std::thread::sleep(Duration::from_millis(100))
             }
         }
@@ -644,14 +655,15 @@ fn observe(
             saved_error
                 .get_or_insert_with(|| Failure::internal("cannot read lifecycle receipt updates"));
         }
-        tail.extend(added);
-        while let Some(end) = tail.iter().position(|b| *b == b'\n') {
-            let line: Vec<_> = tail.drain(..=end).collect();
-            if let Ok(value) = serde_json::from_slice(&line)
-                && let Err(e) = owned.observe_tools(&value)
-            {
-                saved_error.get_or_insert_with(|| adapter(e));
-            }
+        if !added.is_empty() {
+            tail.push(&added, |line| {
+                if let Ok(value) = serde_json::from_slice::<Value>(line)
+                    && let Err(e) = owned.observe_tools(&value)
+                {
+                    saved_error.get_or_insert_with(|| adapter(e));
+                }
+            });
+            refresh_due = true;
         }
         if let Some(path) = owned.metadata().native_session_file.as_ref()
             && let Ok(file) = File::open(path)
@@ -664,56 +676,22 @@ fn observe(
                 saved_error.get_or_insert_with(|| adapter(e));
             }
         }
-        match session(api, socket) {
-            Ok(view) => {
-                if let Err(e) = owned.observe_session(&view) {
-                    saved_error.get_or_insert_with(|| adapter(e));
-                }
-                if let Some(goal) = owned.metadata().binding.goal {
-                    match pending(api, socket, goal) {
-                        Ok(work) => {
-                            let binding = owned.metadata().binding.clone();
-                            let previous = DeliveryReceipt::decode(&owned.metadata().delivery);
-                            match previous.and_then(|previous| {
-                                delivery::prepare(
-                                    DeliveryBinding {
-                                        goal,
-                                        principal: binding.principal,
-                                        instance: binding.instance,
-                                        claim: binding.claim,
-                                    },
-                                    &view,
-                                    work,
-                                    previous.as_ref(),
-                                )
-                            }) {
-                                Ok(prepared) => {
-                                    if let Ok(value) = prepared.receipt.encode()
-                                        && !same_delivery(&owned.metadata().delivery, &value)
-                                        && let Err(e) = owned.set_delivery(value)
-                                    {
-                                        saved_error.get_or_insert_with(|| adapter(e));
-                                    }
-                                }
-                                Err(e) if e.code == ErrorCode::Superseded => {
-                                    // Session and Pending are separate reads. A claim or
-                                    // cancellation acknowledgment may commit between them.
-                                    // Retry fresh snapshots, including before final exit.
-                                    snapshot_consistent = false;
-                                }
-                                Err(e) => {
-                                    saved_error.get_or_insert_with(|| Failure::from(e));
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            saved_error.get_or_insert(e);
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                saved_error.get_or_insert(e);
+        let now = Instant::now();
+        let finalizing = direct_exited && streams_closed;
+        if refresh_due || now >= next_refresh || finalizing {
+            refresh_session(
+                owned,
+                api,
+                socket,
+                &mut snapshot_consistent,
+                &mut saved_error,
+            );
+            refresh_due = false;
+            next_refresh = now + REFRESH_INTERVAL;
+            if !snapshot_consistent {
+                // Superseded: retry fresh snapshots on the next iteration,
+                // including before final exit.
+                refresh_due = true;
             }
         }
         if direct_exited && streams_closed && snapshot_consistent {
@@ -780,22 +758,6 @@ impl NativeReader {
     }
 }
 
-fn native_lines(
-    partial: &mut Vec<u8>,
-    bytes: &[u8],
-    stdout: bool,
-    sender: &mpsc::SyncSender<NativeMessage>,
-) -> Result<(), Failure> {
-    partial.extend_from_slice(bytes);
-    while let Some(end) = partial.iter().position(|byte| *byte == b'\n') {
-        let line = partial.drain(..=end).collect();
-        sender
-            .send((stdout, Ok(line)))
-            .map_err(|_| Failure::internal("native output receiver closed"))?;
-    }
-    Ok(())
-}
-
 fn stream_reader<T: std::os::fd::AsFd + std::os::fd::AsRawFd + Send + 'static>(
     stream: T,
     stdout: bool,
@@ -815,7 +777,6 @@ fn stream_reader<T: std::os::fd::AsFd + std::os::fd::AsRawFd + Send + 'static>(
             runtime.block_on(async {
                 let stream = tokio::io::unix::AsyncFd::new(stream)
                     .map_err(|_| Failure::internal("cannot register native pipe"))?;
-                let mut partial = Vec::new();
                 let mut bytes = [0u8; 8192];
                 tokio::pin!(stopped);
                 loop {
@@ -823,7 +784,8 @@ fn stream_reader<T: std::os::fd::AsFd + std::os::fd::AsRawFd + Send + 'static>(
                         biased;
                         _ = &mut stopped => {
                             // Snapshot kernel-buffered bytes once. A descendant
-                            // continuously writing cannot extend this drain.
+                            // continuously writing cannot extend this drain. Forward
+                            // raw chunks directly so display is not line-buffered.
                             let mut remaining = rustix::io::ioctl_fionread(stream.get_ref())
                                 .map_err(|_| Failure::internal("cannot inspect buffered native output"))?;
                             while remaining > 0 {
@@ -832,7 +794,9 @@ fn stream_reader<T: std::os::fd::AsFd + std::os::fd::AsRawFd + Send + 'static>(
                                     Ok(0) => break,
                                     Ok(count) => {
                                         remaining -= count as u64;
-                                        native_lines(&mut partial, &bytes[..count], stdout, &sender)?;
+                                        sender
+                                            .send((stdout, Ok(bytes[..count].to_vec())))
+                                            .map_err(|_| Failure::internal("native output receiver closed"))?;
                                     }
                                     Err(rustix::io::Errno::INTR) => continue,
                                     Err(rustix::io::Errno::AGAIN) => break,
@@ -845,16 +809,17 @@ fn stream_reader<T: std::os::fd::AsFd + std::os::fd::AsRawFd + Send + 'static>(
                             let mut ready = readable.map_err(|_| Failure::internal("cannot observe native pipe readiness"))?;
                             match ready.try_io(|fd| rustix::io::read(fd.get_ref(), &mut bytes).map_err(std::io::Error::from)) {
                                 Ok(Ok(0)) => break,
-                                Ok(Ok(count)) => native_lines(&mut partial, &bytes[..count], stdout, &sender)?,
+                                Ok(Ok(count)) => {
+                                    sender
+                                        .send((stdout, Ok(bytes[..count].to_vec())))
+                                        .map_err(|_| Failure::internal("native output receiver closed"))?;
+                                }
                                 Ok(Err(error)) if error.kind() == std::io::ErrorKind::Interrupted => (),
                                 Ok(Err(_)) => return Err(Failure::internal("cannot read native output")),
                                 Err(_) => (),
                             }
                         }
                     }
-                }
-                if !partial.is_empty() {
-                    sender.send((stdout, Ok(partial))).map_err(|_| Failure::internal("native output receiver closed"))?;
                 }
                 Ok(())
             })
@@ -869,19 +834,171 @@ fn stream_reader<T: std::os::fd::AsFd + std::os::fd::AsRawFd + Send + 'static>(
     }
 }
 
-fn same_delivery(left: &Value, right: &Value) -> bool {
-    fn normalize(value: &Value) -> Value {
-        let mut value = value.clone();
-        if let Some(pending) = value
-            .pointer_mut("/notice/pending")
-            .and_then(Value::as_object_mut)
-        {
-            pending.remove("revision");
-        }
-        value
-    }
-    normalize(left) == normalize(right)
+/// Structured parsing only; raw output is never truncated.
+const MAX_LINE_BUFFER: usize = 1 << 20;
+
+/// Scan each byte once and compact once per batch, not once per line.
+/// Oversized lines are discarded through their next newline, including suffixes.
+struct LineBuffer {
+    buf: Vec<u8>,
+    start: usize,
+    scan: usize,
+    oversized: bool,
+    cap: Option<usize>,
 }
+
+impl LineBuffer {
+    fn new(cap: Option<usize>) -> Self {
+        Self {
+            buf: Vec::new(),
+            start: 0,
+            scan: 0,
+            oversized: false,
+            cap,
+        }
+    }
+
+    /// Append `bytes` and call `emit` with each complete line's content (the
+    /// trailing newline is not included). A line exceeding `cap` is discarded
+    /// entirely and splitting resumes after its newline.
+    fn push<F: FnMut(&[u8])>(&mut self, bytes: &[u8], mut emit: F) {
+        self.buf.extend_from_slice(bytes);
+        loop {
+            match self.buf[self.scan..].iter().position(|byte| *byte == b'\n') {
+                Some(rel) => {
+                    let end = self.scan + rel;
+                    let discard =
+                        self.oversized || self.cap.is_some_and(|cap| end - self.start > cap);
+                    if !discard {
+                        emit(&self.buf[self.start..end]);
+                    }
+                    self.start = end + 1;
+                    self.scan = self.start;
+                    self.oversized = false;
+                }
+                None => {
+                    if self
+                        .cap
+                        .is_some_and(|cap| self.buf.len() - self.start > cap)
+                    {
+                        self.oversized = true;
+                    }
+                    self.scan = self.buf.len();
+                    break;
+                }
+            }
+        }
+        self.compact();
+    }
+
+    /// Emit any remaining undelimited bytes as a final line (e.g. at EOF), unless
+    /// that trailing line is oversized, then reset the buffer for reuse.
+    fn flush<F: FnMut(&[u8])>(&mut self, mut emit: F) {
+        if !self.oversized && self.start < self.buf.len() {
+            emit(&self.buf[self.start..]);
+        }
+        self.buf.clear();
+        self.start = 0;
+        self.scan = 0;
+        self.oversized = false;
+    }
+
+    /// Reclaim the consumed prefix once it is large enough to matter, so the
+    /// buffer does not grow with accumulated parsed lines.
+    fn compact(&mut self) {
+        if self.oversized || self.start >= self.buf.len() {
+            self.buf.clear();
+            self.start = 0;
+            self.scan = 0;
+        } else if self.start > 0 && (self.start > 8192 || self.start >= self.buf.len() / 2) {
+            self.buf.drain(..self.start);
+            self.scan = self.buf.len();
+            self.start = 0;
+        }
+    }
+}
+
+fn observe_stdout_event(
+    line: &[u8],
+    owned: &mut managed::OwnedLaunch,
+    saved_error: &mut Option<Failure>,
+) {
+    if let Ok(event) = serde_json::from_slice::<Value>(line) {
+        if let Err(e) = owned.observe_native(&event) {
+            saved_error.get_or_insert_with(|| adapter(e));
+        }
+        if blocked_event(&event)
+            && let Err(e) = owned.blocked()
+        {
+            saved_error.get_or_insert_with(|| adapter(e));
+        }
+    }
+}
+
+/// Read a consistent session/pending snapshot and apply delivery updates. Sets
+/// `snapshot_consistent` to false when separate session and pending reads race
+/// (Superseded) so the caller retries fresh snapshots before final exit.
+fn refresh_session(
+    owned: &mut managed::OwnedLaunch,
+    api: &mut LocalClient,
+    socket: &Path,
+    snapshot_consistent: &mut bool,
+    saved_error: &mut Option<Failure>,
+) {
+    match session(api, socket) {
+        Ok(view) => {
+            if let Err(e) = owned.observe_session(&view) {
+                saved_error.get_or_insert_with(|| adapter(e));
+            }
+            if let Some(goal) = owned.metadata().binding.goal {
+                match pending(api, socket, goal) {
+                    Ok(work) => {
+                        let binding = owned.metadata().binding.clone();
+                        let previous = DeliveryReceipt::decode(&owned.metadata().delivery);
+                        match previous.and_then(|previous| {
+                            delivery::prepare(
+                                DeliveryBinding {
+                                    goal,
+                                    principal: binding.principal,
+                                    instance: binding.instance,
+                                    claim: binding.claim,
+                                },
+                                &view,
+                                work,
+                                previous.as_ref(),
+                            )
+                        }) {
+                            Ok(prepared) => {
+                                if let Ok(value) = prepared.receipt.encode()
+                                    && owned.metadata().delivery != value
+                                    && let Err(e) = owned.set_delivery(value)
+                                {
+                                    saved_error.get_or_insert_with(|| adapter(e));
+                                }
+                            }
+                            Err(e) if e.code == ErrorCode::Superseded => {
+                                // Session and Pending are separate reads. A claim or
+                                // cancellation acknowledgment may commit between them.
+                                // Retry fresh snapshots, including before final exit.
+                                *snapshot_consistent = false;
+                            }
+                            Err(e) => {
+                                saved_error.get_or_insert_with(|| Failure::from(e));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        saved_error.get_or_insert(e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            saved_error.get_or_insert(e);
+        }
+    }
+}
+
 fn droid_blocked(event: &Value) -> bool {
     if event.get("type").and_then(Value::as_str) != Some("tool_result")
         || event.get("isError").and_then(Value::as_bool) != Some(true)
@@ -985,5 +1102,145 @@ mod tests {
         assert!(!blocked_event(
             &json!({"type":"user","message":{"role":"user","content":"Claude requested permissions"}})
         ));
+    }
+
+    #[test]
+    fn codex_occupied_names_use_structural_toml_not_substring_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let profile = dir.path().join("profile");
+        let workspace = dir.path().join("workspace");
+        fs::create_dir_all(profile.join(".codex")).unwrap();
+        fs::create_dir_all(workspace.join(".codex")).unwrap();
+        let baseline = json!({});
+        // An unrelated comment or command containing "locust" must not register
+        // a collision when no mcp_servers.locust table key exists.
+        fs::write(
+            profile.join(".codex/config.toml"),
+            "# locust is mentioned here but not configured\n",
+        )
+        .unwrap();
+        fs::write(
+            workspace.join(".codex/config.toml"),
+            "history_file = \"/tmp/locust-history\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            occupied_names(Client::Codex, &profile, &workspace, &baseline).unwrap(),
+            Vec::<String>::new()
+        );
+        // A true top-level mcp_servers.locust entry is detected structurally.
+        fs::write(
+            workspace.join(".codex/config.toml"),
+            "[mcp_servers]\nlocust = { command = \"locust\" }\nother = { command = \"x\" }\n",
+        )
+        .unwrap();
+        assert_eq!(
+            occupied_names(Client::Codex, &profile, &workspace, &baseline).unwrap(),
+            vec!["locust".to_string()]
+        );
+        // Invalid TOML is ignored rather than producing a false collision.
+        fs::write(
+            workspace.join(".codex/config.toml"),
+            "this is not = valid = toml = and mentions locust\n",
+        )
+        .unwrap();
+        assert_eq!(
+            occupied_names(Client::Codex, &profile, &workspace, &baseline).unwrap(),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn line_buffer_splits_across_arbitrary_chunk_boundaries() {
+        let cases: &[&[u8]] = &[
+            b"ab", b"c\nd", b"ef\n", b"a", b"b", b"c", b"\n", b"", b"x\n",
+        ];
+        let mut buf = LineBuffer::new(None);
+        let mut out = Vec::new();
+        for chunk in cases {
+            buf.push(chunk, |line| {
+                out.push(String::from_utf8_lossy(line).into_owned())
+            });
+        }
+        assert_eq!(out, vec!["abc", "def", "abc", "x"]);
+        // Nothing is emitted for an empty trailing chunk without a newline.
+        let mut out = Vec::new();
+        buf.flush(|line| out.push(String::from_utf8_lossy(line).into_owned()));
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn line_buffer_releases_oversized_bytes_before_the_delimiter() {
+        let mut buf = LineBuffer::new(Some(8));
+        for _ in 0..100 {
+            buf.push(b"oversized", |_| panic!("unfinished line emitted"));
+            assert!(buf.buf.is_empty(), "discarded bytes must not accumulate");
+        }
+        let mut lines = Vec::new();
+        buf.push(b"suffix\nok\n", |line| lines.push(line.to_vec()));
+        assert_eq!(lines, [b"ok".to_vec()]);
+    }
+
+    #[test]
+    fn line_buffer_emits_unterminated_final_line_at_eof() {
+        let mut buf = LineBuffer::new(None);
+        let mut out = Vec::new();
+        buf.push(b"abc\ndef", |line| {
+            out.push(String::from_utf8_lossy(line).into_owned())
+        });
+        assert_eq!(out, vec!["abc"]);
+        // The final line without a newline is emitted by flush, mirroring the
+        // prior reader's unterminated final chunk that serde_json parsed.
+        buf.flush(|line| out.push(String::from_utf8_lossy(line).into_owned()));
+        assert_eq!(out, vec!["abc", "def"]);
+    }
+
+    #[test]
+    fn line_buffer_handles_many_short_lines_linearly() {
+        let mut buf = LineBuffer::new(None);
+        let mut count = 0usize;
+        let one = b"a\n";
+        for _ in 0..50_000 {
+            buf.push(one, |_| count += 1);
+        }
+        assert_eq!(count, 50_000);
+        // The consumed prefix is compacted, not shifted per line.
+        assert!(buf.buf.len() < one.len() * 2);
+    }
+
+    #[test]
+    fn line_buffer_drops_oversized_line_wholesale_then_resumes() {
+        let cap = 4;
+        let mut buf = LineBuffer::new(Some(cap));
+        let mut out = Vec::new();
+        // An oversized line split across chunks is discarded entirely; its
+        // suffix after the cap is not parsed as a fresh event.
+        buf.push(b"over", |line| {
+            out.push(String::from_utf8_lossy(line).into_owned())
+        });
+        buf.push(b"sized!", |line| {
+            out.push(String::from_utf8_lossy(line).into_owned())
+        });
+        buf.push(b"suffix\nok\n", |line| {
+            out.push(String::from_utf8_lossy(line).into_owned())
+        });
+        assert_eq!(out, vec!["ok"]);
+        // A later oversized line at EOF is discarded by flush.
+        buf.push(b"toolong", |line| {
+            out.push(String::from_utf8_lossy(line).into_owned())
+        });
+        buf.flush(|line| out.push(String::from_utf8_lossy(line).into_owned()));
+        assert_eq!(out, vec!["ok"]);
+    }
+
+    #[test]
+    fn line_buffer_oversized_complete_line_in_one_chunk_is_dropped() {
+        let mut buf = LineBuffer::new(Some(4));
+        let mut out = Vec::new();
+        // A complete line exceeding the cap within a single chunk is dropped.
+        buf.push(b"toolong\nok\n", |line| {
+            out.push(String::from_utf8_lossy(line).into_owned())
+        });
+        assert_eq!(out, vec!["ok"]);
     }
 }

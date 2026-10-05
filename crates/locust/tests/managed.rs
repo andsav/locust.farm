@@ -610,3 +610,130 @@ os._exit(0)"#,
         baseline
     );
 }
+
+#[test]
+fn high_volume_native_output_does_not_multiply_daemon_requests_per_line() {
+    let fixture = Fixture::new();
+    // Emit the init identity then many non-identity stdout lines. Each line is
+    // forwarded to stderr exactly; session/pending refresh is timed, not per
+    // output line, so daemon requests stay bounded regardless of volume.
+    let paths = fixture.setup(
+        r#"import json,sys
+print(json.dumps({'type':'system','subtype':'init','session_id':'native-fixture'}),flush=True)
+for i in range(4000):
+    print(json.dumps({'type':'progress','step':i}),flush=True)
+"#,
+    );
+    let output = fixture.launch(&paths).output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("native-fixture"));
+    assert!(
+        stderr.contains("3999"),
+        "last progress step must be forwarded"
+    );
+    assert!(
+        stderr
+            .lines()
+            .filter(|line| line.contains("\"progress\""))
+            .count()
+            == 4000,
+        "all native output lines must be forwarded"
+    );
+    let state = fixture.state.lock().unwrap();
+    let session_pending = state
+        .requests
+        .iter()
+        .filter(|request| matches!(request, Request::Session { .. } | Request::Pending { .. }))
+        .count();
+    // Without throttling, 4000+ output lines would produce thousands of
+    // session/pending round trips. A timed cadence keeps this far below the
+    // line count while still refreshing the final consistent snapshot.
+    assert!(
+        session_pending < 40,
+        "session/pending requests scaled with output volume: {session_pending}"
+    );
+    assert_eq!(state.record.as_ref().unwrap().state, SessionState::Exited);
+}
+
+#[test]
+fn large_newline_free_output_is_forwarded_exactly_without_truncation() {
+    let fixture = Fixture::new();
+    // A large newline-free stdout span (over the structured-parse cap) must be
+    // forwarded to stderr byte-for-byte; only the structured-parse buffer is
+    // bounded, never raw output. The init identity on its own line is still
+    // observed because line splitting is separate from raw forwarding.
+    let paths = fixture.setup(
+        r#"import json,sys
+print(json.dumps({'type':'system','subtype':'init','session_id':'native-fixture'}),flush=True)
+sys.stdout.buffer.write(b'X'*2_000_000)
+sys.stdout.buffer.flush()
+print(json.dumps({'type':'progress','step':'final'}),flush=True)
+"#,
+    );
+    let output = fixture.launch(&paths).output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let stderr = output.stderr;
+    let stderr_text = String::from_utf8_lossy(&stderr);
+    assert!(stderr_text.contains("native-fixture"));
+    assert!(
+        stderr_text.contains("final"),
+        "final line after the span must be forwarded"
+    );
+    // The full 2 MiB newline-free span is present without truncation.
+    assert_eq!(
+        stderr.iter().filter(|byte| **byte == b'X').count(),
+        2_000_000
+    );
+    let state = fixture.state.lock().unwrap();
+    let record = state.record.as_ref().unwrap();
+    assert_eq!(record.state, SessionState::Exited);
+    assert_eq!(record.client_session.as_deref(), Some("native-fixture"));
+    assert!(locust_adapter::managed::decode(record).unwrap().initialized);
+}
+
+#[test]
+fn final_unterminated_stdout_event_is_parsed_after_streams_close() {
+    let fixture = Fixture::new();
+    // The prior reader forwarded an unterminated final stdout chunk that
+    // serde_json parsed. After splitting raw forwarding from structured
+    // parsing, a trailing JSON event with no newline must still be parsed when
+    // the streams close. A second init with a different session id is only
+    // rejected if the final unterminated event reaches observe_native.
+    let paths = fixture.setup(
+        r#"import json,sys,os
+print(json.dumps({'type':'system','subtype':'init','session_id':'native-fixture'}),flush=True)
+sys.stdout.buffer.write(b'{"type": "system", "subtype": "init", "session_id": "native-other"}')
+sys.stdout.buffer.flush()
+os._exit(0)
+"#,
+    );
+    let output = fixture.launch(&paths).output().unwrap();
+    assert!(
+        !output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value = result(&output);
+    assert_eq!(value["error"]["code"], "invalid");
+    assert!(
+        String::from_utf8_lossy(
+            value["error"]["message"]
+                .as_str()
+                .unwrap_or_default()
+                .as_bytes()
+        )
+        .contains("native session identity changed"),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}

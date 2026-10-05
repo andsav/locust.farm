@@ -589,15 +589,17 @@ impl ServiceSpec {
                 if !probe.success {
                     return Err(Failure::unavailable("systemd user manager is unavailable"));
                 }
-                let active = probe
-                    .stdout
-                    .lines()
-                    .any(|line| line == "ActiveState=active");
-                self.check_systemd_fragment(&probe, active)?;
-                if active {
-                    ServiceState::Running
-                } else {
-                    ServiceState::Stopped
+                let active_state = systemd_property(&probe.stdout, "ActiveState")?;
+                let running = active_state == "active";
+                self.check_systemd_fragment(&probe, running)?;
+                // Only established non-running states (inactive/failed) authorize
+                // removal. Transitional states (activating/deactivating/reloading)
+                // and other uncertain values are neither running nor settled, so
+                // they stay non-stopped until the unit reaches a stable state.
+                match active_state {
+                    "active" => ServiceState::Running,
+                    "inactive" | "failed" => ServiceState::Stopped,
+                    _ => ServiceState::Loaded,
                 }
             }
             ServiceKind::None => unreachable!(),
@@ -1015,5 +1017,64 @@ mod tests {
         });
         assert_eq!(absent.unwrap(), ServiceState::Stopped);
         assert_eq!(calls, 1, "an absent manager unit needs no mutating call");
+    }
+
+    #[test]
+    fn systemd_transitional_states_are_not_stopped_and_gate_removal() {
+        let value = spec(ServiceKind::Systemd, "/home", "linux", "x86_64");
+        let fragment = value.unit_path().to_string_lossy().to_string();
+        // Established non-running states authorize removal.
+        for (state, expected) in [
+            ("active", ServiceState::Running),
+            ("inactive", ServiceState::Stopped),
+            ("failed", ServiceState::Stopped),
+        ] {
+            let status = value.run_control_with(ServiceAction::Status, true, |_| {
+                Ok(CommandResult {
+                    success: true,
+                    code: Some(0),
+                    stdout: format!(
+                        "LoadState=loaded\nActiveState={state}\nFragmentPath={fragment}\n"
+                    ),
+                    stderr: String::new(),
+                })
+            });
+            assert_eq!(status.unwrap(), expected, "ActiveState={state}");
+        }
+        // Transitional/uncertain states are neither running nor settled-stopped.
+        for state in ["activating", "deactivating", "reloading", "maintenance"] {
+            let status = value.run_control_with(ServiceAction::Status, true, |_| {
+                Ok(CommandResult {
+                    success: true,
+                    code: Some(0),
+                    stdout: format!(
+                        "LoadState=loaded\nActiveState={state}\nFragmentPath={fragment}\n"
+                    ),
+                    stderr: String::new(),
+                })
+            });
+            assert_eq!(status.unwrap(), ServiceState::Loaded, "ActiveState={state}");
+        }
+        // A still-transitional unit does not authorize removal: stop runs but
+        // the final status check refuses to report it stopped.
+        let mut stop_calls = 0;
+        let removal = value.run_control_with(ServiceAction::Stop, true, |command| {
+            stop_calls += 1;
+            Ok(CommandResult {
+                success: true,
+                code: Some(0),
+                stdout: if command.args.get(1).is_some_and(|a| a == "show") {
+                    format!("LoadState=loaded\nActiveState=activating\nFragmentPath={fragment}\n")
+                } else {
+                    String::new()
+                },
+                stderr: String::new(),
+            })
+        });
+        assert_eq!(removal.unwrap_err().code, ErrorCode::Unavailable);
+        assert!(
+            stop_calls > 1,
+            "stop attempts the mutation then re-checks status"
+        );
     }
 }
