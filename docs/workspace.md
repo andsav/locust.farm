@@ -58,6 +58,14 @@ Local inventories stream file hashes, so a preserved untracked file need not fit
 the publication object limit. Durable plans keep digests, not copies of preserved
 file contents; changed files still have exact recovery copies.
 
+Planning rechecks each mutation preimage against the digest used for composition;
+an intervening editor save requires replanning, not silent adoption. Observed
+opaque Git metadata directories survive preparation and recovery, but neither
+the metadata nor paths beneath it become valid update targets. The
+[planning regressions](../crates/locust-workspace/src/tree.rs) and
+[transaction regressions](../crates/locust-workspace/src/transaction.rs) enforce
+these boundaries.
+
 The [CLI](../crates/locust/src/cli/workspace.rs) owns filesystem reads and writes.
 The daemon stores inert root paths, root identities, base revision/manifest pairs,
 frozen candidates and operation receipts in its durable local store. A checkout
@@ -97,6 +105,10 @@ replacement installation uses no-replace renames. Files, records and directories
 are synchronized, including macOS full-file synchronization. The entire preimage
 and layout are checked repeatedly. Reopening verifies the descriptor, immutable
 plan, backup bytes, phase records and known artifact identities.
+Disposable layout probes use exclusive no-follow creation without durability
+flushes; recovery data and real replacements keep the durable write path.
+[Filesystem tests](../crates/locust-workspace/src/safe_fs.rs) distinguish these
+paths and retain collision checks.
 Each inventory lists a directory once and uses sorted name lookups. Revalidation
 reuses a file's digest only while its device, inode, size, mode, modification time
 and change time match; changes force a fresh read before mutation.

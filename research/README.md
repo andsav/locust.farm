@@ -42,6 +42,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Network recovery constraints and experiments](network-hardening-final.md)
 - [Public source review](open-source-review.md)
 - [Performance and agent cost pass](performance-cost-pass.md)
+- [Rust quality review and remediation](rust-quality-remediation-2026-10-06.md)
 - [Real-model shared-context pilot](shared-context-real-model-pilot.md)
 - [Shared file tree architecture investigation](shared-file-tree-2026-10-04.md)
 - [Shared tree local daemon loop](shared-file-tree-local-loop-2026-10-05.md)
