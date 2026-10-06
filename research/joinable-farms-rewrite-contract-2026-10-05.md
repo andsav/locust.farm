@@ -1,5 +1,10 @@
 # Joinable farms plan: what the rewrite must change, and its contract
 
+Superseded on 2026-10-06 by the rewritten
+[public-goals plan](../docs/joinable-farms-plan.md), which took this note,
+its review and the owner's later answers as input. Kept as the record of
+how that plan was reached.
+
 Status: groundwork of 2026-10-05 for rewriting the
 [joinable farms plan](../docs/joinable-farms-plan.md). Not accepted and
 nothing is built. Four readers compared that plan with the

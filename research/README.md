@@ -69,6 +69,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Evidence for the v2 complexity count](evidence/v2-complexity-count-2026-10-06/README.md)
 - [Evidence for the backup-host design round](evidence/replacing-a-host-design-2026-10-06/README.md)
 - [Evidence for the check of the v2 plan review](evidence/v2-plan-review-verification-2026-10-06/README.md)
+- [Evidence for the rewrite of the public-goals plan](evidence/public-goals-plan-2026-10-06/README.md)
 
 - [ecdsa.fail leaderboard analysis](evidence/ecdsa-fail-leaderboard-analysis.md)
 - [hcom validation evidence](evidence/hcom-validation.md)

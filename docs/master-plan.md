@@ -9,8 +9,7 @@ Replacing a host comes after v2. The name is the product's; the API, store
 and protocol numbers below are separate. It holds every decision the
 owner has made, what is assumed until the owner objects, the pieces of work
 and their state, and the build order. File-level detail stays in the plans it
-links to. One part is still to come and is marked: the public-goals plan
-is being rewritten.
+links to.
 
 ## What v2 does, in plain words
 
@@ -236,7 +235,7 @@ From the [host safety and ending plan](host-safety-and-ending-plan.md):
 | --- | --- | --- |
 | Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases. Phases 1 and 2 are built and phase 3 is being built. Two independent reviews are folded in, the second with every finding [checked](../research/v2-plan-review-verification-2026-10-06.md) first. |
 | Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Five phases: the signing key (K1), the restore guard (G1, G2), ending a goal (E1) and leaving (E2). Corrected against the same review. One section lists what the host's computer signs by itself, with one rule. Three limits are stated at its top. |
-| Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | The old plan, about half of which survives. It is being rewritten. |
+| Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | Rewritten on 6 October 2026 as six phases, J1 to J6. Each phase is described by behaviour: what works, what a host and a joiner see, the records and rules, the tests. File-by-file changes are written when a phase's turn comes. Checked once for agreement with the owner's answers and the other plans and once for fit with the code, and revised. |
 | Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not applied. Not phases. |
 
 Evidence the plans rest on:
@@ -273,7 +272,9 @@ and runs them before it is done.
 
 Afterwards:
 
-- **Public goals.** The first door comes after R10 and E2.
+- **Public goals.** Six phases, J1 to J6, in the
+  [public-goals plan](joinable-farms-plan.md). J1 can land at any time. The
+  first door comes after R10 and E2.
 - **Replacing a host.** It follows v2. Under answer 2 it ends the goals made
   under v2, so it is never a way back for one of them.
 
@@ -338,11 +339,10 @@ for its own person. Answer 26 rules that out for the swarm's work.
 
 ## Not designed, open, or left out
 
-- **The public-goals plan** is being rewritten. Until then the
-  [rewrite contract](../research/joinable-farms-rewrite-contract-2026-10-05.md)
-  and its
-  [review](../research/joinable-farms-rewrite-contract-review-2026-10-05.md)
-  hold what is known.
+- **File-by-file changes for public goals** are not written. The
+  [public-goals plan](joinable-farms-plan.md) describes its six phases by
+  behaviour, so that it stays true while the fifteen phases before it are
+  built. Each phase's change list is written when its turn comes.
 - **How a takeover works.** One design exists, in the
   [design note](../research/replacing-a-host-design-2026-10-06.md). Its last
   check found eight serious breaks with named fixes; applying them, three
