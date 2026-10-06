@@ -1505,6 +1505,100 @@ fn stage_prerequisite_resolves_revised_upstream_round() {
 }
 
 #[test]
+fn revised_stage_round_keeps_its_runner_as_creator_despite_a_member_copy_of_the_effect() {
+    use crate::goal::Exclusion;
+    use locust_proto::organization::{DecisionRules, TaskType};
+    let mut formation = Formation::default();
+    formation.task_types.insert(
+        "owned".into(),
+        TaskType {
+            work: None,
+            decisions: Some(DecisionRules {
+                completion: CompletionRule::Declaration {
+                    by: Selector::TaskCreator,
+                },
+                ..Default::default()
+            }),
+        },
+    );
+    formation.flow.insert(
+        "research".into(),
+        Stage {
+            task_type: Some("owned".into()),
+            requires: Vec::new(),
+            recipients: Selector::Members,
+        },
+    );
+    let mut f = Fixture::new(formation);
+    let administrator = f.admin.key.public();
+    let stage = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert_eq!(stage.runner, administrator);
+    // A member signs the stage's effect at the start of its own log, below
+    // every position the administrator has left.
+    let copy = f.worker(
+        0,
+        Body::EffectMaterialized {
+            effect: stage.effect.clone(),
+        },
+    );
+    let materialized = f.admin(Body::EffectMaterialized {
+        effect: stage.effect.clone(),
+    });
+    assert_eq!(f.event(copy).header().seq, 0);
+    assert!(f.event(materialized).header().seq > 0);
+    let task = TaskId::Derived(stage.id);
+    let EffectAction::OpenTask { binding, .. } = &stage.effect.action else {
+        unreachable!()
+    };
+    let revised = f.admin(Body::TaskRevised {
+        task,
+        expected_round: materialized,
+        binding: binding.clone(),
+    });
+    let context = Context {
+        scope: Scope::Task(task),
+        round: revised,
+    };
+    let subject = f.publish(0, context);
+    let by_member = f.worker(0, Body::CompletionDeclared { context, subject });
+    let by_runner = f.admin(Body::CompletionDeclared { context, subject });
+    let forward = f.goal();
+    let mut reversed = Goal::new(f.id);
+    for event in f.events.iter().rev() {
+        reversed.apply(std::slice::from_ref(event), &f.definitions);
+    }
+    assert_eq!(reversed.evaluation(), forward.evaluation());
+    for goal in [&forward, &reversed] {
+        assert_eq!(
+            goal.standing(&copy),
+            Some(Standing::Excluded(Exclusion::Precondition(
+                "effect signer is not its configured runner"
+            )))
+        );
+        assert_eq!(goal.standing(&materialized), Some(Standing::Effective));
+        assert_eq!(goal.standing(&revised), Some(Standing::Effective));
+        assert_eq!(
+            goal.effective_rules(context, &f.definitions)
+                .unwrap()
+                .creator,
+            Some(administrator)
+        );
+        assert!(matches!(
+            goal.standing(&by_member),
+            Some(Standing::Excluded(_))
+        ));
+        assert_eq!(goal.standing(&by_runner), Some(Standing::Effective));
+    }
+}
+
+#[test]
 fn host_review_fork_retracts_later_governance_but_preserves_prefix_work() {
     use crate::goal::{Exclusion, Halt};
     let mut f = Fixture::new(review_formation(1));

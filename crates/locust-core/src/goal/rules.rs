@@ -55,11 +55,10 @@ pub(super) fn resolve<D: DefinitionLookup + ?Sized>(
             ),
             Body::TaskRevised {
                 task: target,
+                expected_round,
                 binding,
-                ..
             } if *target == task => {
-                let creator =
-                    task_creator(history, task).ok_or(Standing::Pending(Waiting::Reference))?;
+                let creator = task_creator(history, task, *expected_round)?;
                 (binding.rules, Some(binding.clone()), Some(creator))
             }
             Body::EffectMaterialized { effect }
@@ -156,10 +155,36 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
     })
 }
 
-pub(super) fn task_creator(history: &History, task: TaskId) -> Option<PublicKey> {
-    match task {
-        TaskId::Authored(id)=>history.get(&id).filter(|event|matches!(event.header().body,Body::TaskOpened{..})).map(|event|event.header().author),
-        TaskId::Derived(id)=>history.events.iter().filter(|event|matches!(&event.header().body,Body::EffectMaterialized{effect} if effect.id(event.header().goal)==id && matches!(effect.action,EffectAction::OpenTask{..}))).min_by_key(|event|(event.header().seq,event.id())).map(|event|event.header().author),
+/// The author of the record that opened `task`, reached from `round` through
+/// the rounds it replaced. A revision is effective only while it replaces the
+/// current round, so an effective round leads back to the effective opening
+/// record; a held copy of that record under another signature is never on the
+/// path.
+pub(super) fn task_creator(
+    history: &History,
+    task: TaskId,
+    mut round: EventId,
+) -> Result<PublicKey, Standing> {
+    loop {
+        let event = history
+            .get(&round)
+            .ok_or(Standing::Pending(Waiting::Reference))?;
+        let h = event.header();
+        match &h.body {
+            Body::TaskRevised {
+                task: target,
+                expected_round,
+                ..
+            } if *target == task => round = *expected_round,
+            Body::TaskOpened { .. } if task == TaskId::Authored(round) => return Ok(h.author),
+            Body::EffectMaterialized { effect }
+                if task == TaskId::Derived(effect.id(h.goal))
+                    && matches!(effect.action, EffectAction::OpenTask { .. }) =>
+            {
+                return Ok(h.author);
+            }
+            _ => return Err(invalid("task round descends from another task")),
+        }
     }
 }
 

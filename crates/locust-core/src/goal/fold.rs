@@ -286,8 +286,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 if current != *expected_round {
                     return Err(invalid("task round compare-and-swap failed"));
                 }
-                let creator = rules::task_creator(self.history, *task)
-                    .ok_or(Standing::Pending(Waiting::Reference))?;
+                let creator = rules::task_creator(self.history, *task, *expected_round)?;
                 self.task_binding(binding, creator, proof)?;
             }
             Body::WorkOffered { context, recipient } => {
