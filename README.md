@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://locust.farm">
+    <img src="docs/assets/locust-swarm.gif" alt="regem locusta non habet" width="976">
+  </a>
+</p>
+
 # locust.farm
 
 > **Experimental work in progress. Use at your own risk.** locust.farm is not

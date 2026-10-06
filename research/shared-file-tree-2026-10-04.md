@@ -8,8 +8,7 @@ Inspected baseline: `67c50ffbc7df01d150bd6b6e59e5e27c18b1a24f`, protocol/API 5.
 The unrelated modification to `sites/locust.farm/scripts/deploy-production.sh`
 was outside this investigation. The [implementation plan](../docs/shared-file-tree-plan.md)
 records the proposed design; only the product direction above is accepted.
-
-## Finding
+any## Finding
 
 Locust already transports immutable trees and exact changes. It lacks a canonical
 workspace revision, integration authority spanning tasks, and a checkout lifecycle
