@@ -8,10 +8,13 @@ signed transcript; TLC explores every delivery order and duplicate/stutter from
 an already verified founding prefix. This is not arbitrary message generation,
 a cryptographic proof, or a proof that the Rust code refines this specification.
 
-The model includes a narrow administrator log, exact admission cutoffs, pinned
+The model includes a narrow governance log, exact admission cutoffs, pinned
 rule revisions, taskless contributions, distinct positive review identities,
 scope-local exact proof closure and named selection authorities. Ordinary work
 never gains authority merely because another scope selected its author branch.
+Identity 0 is the goal's governance key: it signs every governance record and is
+never a member, so its ordinary work is never valid. Identity 5 is the host's
+agent, admitted by record 2 and otherwise an ordinary member.
 Document bodies, general selectors, closure/reopen, encrypted epochs, malformed
 wire decoding and transport are excluded. Rust regressions cover those seams.
 ***************************************************************************)
@@ -28,7 +31,7 @@ E(id, author, seq, prev, anchor, kind, scope, round, subject, evidence,
 
 Founding == <<
  E(1,0,0,0,0,"genesis",0,0,0,{},0,0,0,0,0),
- E(2,0,1,1,1,"admit",0,0,0,{},0,0,0,0,0),
+ E(2,0,1,1,1,"admit",0,0,0,{},0,5,0,0,0),
  E(3,0,2,2,2,"admit",0,0,0,{},0,1,0,0,0),
  E(4,0,3,3,3,"admit",0,0,0,{},0,2,0,0,0),
  E(5,0,4,4,4,"admit",0,0,0,{},0,3,0,0,0),
@@ -70,6 +73,13 @@ Work == CASE Scenario = "taskless" -> <<
  [] Scenario = "remove-empty" -> Base \o <<Remove(0),Readmit>>
  [] Scenario = "governance-fork" -> Base \o <<
  E(14,0,3,3,3,"admit",0,0,0,{},0,4,0,0,0)>>
+ [] Scenario = "governance-key-work" -> Base \o <<
+ E(14,0,7,7,7,"contribution",0,7,0,{},0,0,0,0,7),
+ E(15,0,8,14,7,"review",8,8,9,{},0,0,0,0,7)>>
+ [] Scenario = "host-agent-fork" -> Base \o <<
+ E(14,5,0,0,7,"contribution",0,7,0,{},0,0,0,0,7),
+ E(15,5,0,0,7,"task",15,15,0,{},0,0,0,0,7),
+ E(16,0,7,7,7,"admit",0,0,0,{},0,6,0,0,0)>>
  [] Scenario = "forged-selection" -> <<Task,Candidate,ReviewA,ReviewB,
  E(12,1,2,9,7,"select",8,8,9,{10,11},0,0,0,0,7)>>
  [] Scenario = "wrong-scope" -> <<Task,Candidate,ReviewA,ReviewB,
@@ -240,6 +250,9 @@ ScopedProofSurvivesFork ==
  => 12 \in view.selected
 DoubleSuccessorHalts == \A d \in held :
  (ByID[d].kind = "select" /\ Cardinality(Conflicts(held,d)) > 1) => d \notin view.selected
+GovernanceKeyIsNoMember == \A id \in view.ordinary \cup view.selected : ByID[id].author # 0
+HostAgentForkCostsGovernanceNothing ==
+ Scenario = "host-agent-fork" => \A id \in held : IsGov(id) => id \in view.governance
 ReplayMatchesHeld == view = Projection(held,definitions)
 NeverWitness == ~witnessReached
 =============================================================================

@@ -18,7 +18,8 @@ pinned definition. It may delay work; it may not substitute default rules.
 
 | Property or scenario | Model rule | Current Rust implementation and regression |
 | --- | --- | --- |
-| Governance stays narrow | `Governance` follows the administrator's usable, correctly anchored chain. A conflicting administrator record retracts its suffix. | [Chain](../../crates/locust-core/src/goal/chain.rs), [history](../../crates/locust-core/src/goal/history.rs); broader wire/administrator checks remain Rust evidence. |
+| Governance stays narrow | `Governance` follows the governance key's usable, correctly anchored chain. A conflicting governance record retracts its suffix. | [Chain](../../crates/locust-core/src/goal/chain.rs), [history](../../crates/locust-core/src/goal/history.rs); broader wire/governance checks remain Rust evidence. |
+| The governance key is no member | Identity 0 signs every governance record and holds no admission, so `MemberAt` never names it; `GovernanceKeyIsNoMember` keeps its contribution and review (`governance-key-work`) out of `view.ordinary` in every reachable state. A fork in the host's agent's log (`host-agent-fork`, identity 5) costs no governance record: `HostAgentForkCostsGovernanceNothing`. | `authorize_base` in [Chain](../../crates/locust-core/src/goal/chain.rs); `the_governance_key_is_never_a_member_and_its_ordinary_work_is_excluded` and `a_review_fork_by_the_hosts_agent_costs_what_a_members_fork_costs` in [goal tests](../../crates/locust-core/src/goal/tests.rs). |
 | Taskless work does not require selection | Ordinary contributions use their rules context and member author prefix; no selection is a prerequisite. `taskless` witness reaches two ordinary contributions without tasks or decisions. | `open_taskless_work_needs_no_administrator_decision` in [goal tests](../../crates/locust-core/src/goal/tests.rs); `open_findings_need_no_task_and_completion_does_not_create_a_selection` in [public-engine tests](../../crates/locust-core/tests/organizations.rs). |
 | Exact definitions and pinned completion rules | `KnownRule`, `RuleFor`, `DistinctPinnedQuorum`; a later one-review rule cannot reinterpret an earlier two-review task. | [Rules resolution](../../crates/locust-core/src/goal/rules.rs), [definition validation](../../crates/locust-core/src/goal/mod.rs); `unknown_definition_waits_and_refresh_uses_exact_hash`, `active_round_revision_never_reinterprets_old_evidence`. |
 | Approval counts distinct eligible identities for the exact subject/round | `Reviewers`, `Approved`, `ExactScope`; duplicate signatures by one reviewer cannot satisfy two identities; a subject from another task cannot be selected. | [Predicate evaluator](../../crates/locust-core/src/goal/fold.rs); `threshold_counts_distinct_non_author_principals_on_the_exact_subject`, `a_selection_cannot_substitute_another_task_or_count_unlisted_reviews`. |
@@ -26,12 +27,14 @@ pinned definition. It may delay work; it may not substitute default rules.
 | Exact scope proof survives an unrelated author fork | `Proof` includes signed ancestry and typed dependencies; only its own decision can use the pins. Two scopes may accept opposite exact branches. Their combination is incompatible. | [Proof closure index](../../crates/locust-core/src/goal/commitments.rs), [scoped projection](../../crates/locust-core/src/goal/projection.rs); `accepted_fork_branch_is_readable_only_in_its_selected_scope`, `incompatible_proof_branches_dispute_only_their_scope`; [read-side regression](../../crates/locust-core/src/node/tests/content.rs). |
 | Cutoffs are exact global tenure restrictions | `Admission`, `CutoffAllows`, `RetainedByCutoff`; empty cutoff excludes old evidence; readmission does not backdate it; a retained original review does not retain its sibling. | [Tenure/cutoff checks](../../crates/locust-core/src/goal/chain.rs); `removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate`, `scope_proof_cannot_retain_evidence_past_the_administrator_cutoff`. |
 
-The model has 16 ordinary safety scenarios. Their transcripts contain 9–18 total
+The model has 18 ordinary safety scenarios. Their transcripts contain 9–18 total
 records including the seven-record founding prefix. The largest scenario has
 11 remaining records and 2,048 held subsets; the missing-definition case adds
 one independent definition arrival. Two rule identities use review thresholds
 2 and 1. The fixed reviewer set is identities 2 and 3; the named selection
-authority is identity 4. Identity 0 alone governs admission/rules. These are finite
+authority is identity 4. Identity 0 is the goal's governance key: it alone
+governs admission/rules and is not a member. Identity 5 is the host's agent,
+admitted by the founding prefix's second record. These are finite
 verification choices, not role, member, history or execution limits in Locust.
 
 Eight deliberate mutations disable pins, scope isolation, cutoff enforcement,

@@ -334,6 +334,60 @@
       ]
     },
     {
+      "id": "organization-governance-key-work",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-governance-key-work.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "GovernanceKeyIsNoMember",
+        "HostAgentForkCostsGovernanceNothing"
+      ]
+    },
+    {
+      "id": "organization-host-agent-fork",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-host-agent-fork.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "GovernanceKeyIsNoMember",
+        "HostAgentForkCostsGovernanceNothing"
+      ]
+    },
+    {
       "id": "organization-forged-selection",
       "suite": [
         "fast",
