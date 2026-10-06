@@ -1,7 +1,7 @@
 # Locust v2: master plan
 
-Status: 6 October 2026. Phases 1 and 2 of the build order are built and
-phase 3 is being built; the rest is proposed.
+Status: 6 October 2026. Phases 1 to 3 of the build order are built
+(`65aecf1`, `48120a4`, `3196be8`); the rest is proposed.
 This is the one document the owner approves. The owner calls this work v2.
 Here v2 means everything in this plan up to and including the first public
 door: the fifteen phases of the build order and the public-goals phases.
@@ -292,7 +292,7 @@ From the [public-goals plan](joinable-farms-plan.md):
 
 | Piece | Document | State |
 | --- | --- | --- |
-| Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases. Phases 1 and 2 are built and phase 3 is being built. Two independent reviews are folded in, the second with every finding [checked](../research/v2-plan-review-verification-2026-10-06.md) first. |
+| Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases. Phases 1 to 3 are built. Two independent reviews are folded in, the second with every finding [checked](../research/v2-plan-review-verification-2026-10-06.md) first. |
 | Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Five phases: the signing key (K1), the restore guard (G1, G2), ending a goal (E1) and leaving (E2). Corrected against the same review. One section lists what the host's computer signs by itself, with one rule. Three limits are stated at its top. |
 | Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | Rewritten on 6 October 2026 as six phases, J1 to J6. Each phase is described by behaviour: what works, what a host and a joiner see, the records and rules, the tests. File-by-file changes are written when a phase's turn comes. Checked once for agreement with the owner's answers and the other plans and once for fit with the code, and revised. |
 | Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not applied. Not phases. |
@@ -315,7 +315,7 @@ and runs them before it is done.
 | --- | --- | --- | --- |
 | 1 | R1 | Starting, joining, leaving, inviting and every change to members or rules are the person's own commands; the old permissions for them are gone. Built | nothing |
 | 2 | R2 | One way to type the person's commands; a command asks the person who typed it to confirm only when it shares something or cannot be undone with one command. Built | R1 |
-| 3 | R3 | One level per agent per goal, auto unless the person chooses another; one check that says which side refused. Being built | R1, R2 |
+| 3 | R3 | One level per agent per goal, auto unless the person chooses another; one check that says which side refused. Built | R1, R2 |
 | 4 | K1 | A goal's members and rules are signed by a key of their own; the agent that started the goal is an ordinary member and can be disconnected and connected again | R1 to R3 |
 | 5 | R4 | Members have names; roles are given with one command; peer approval is the default, a lone member needs none, a member's latest review counts, first files need no approval; changing the rules moves the shared files to them | R1 to R3, K1 |
 | 6 | R5 | Plain `status` is the one view; refusals read the same to a person and to an agent | R2 to R4 |

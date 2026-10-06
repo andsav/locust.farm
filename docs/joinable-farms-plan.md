@@ -5015,7 +5015,7 @@ meanwhile.
 - **The short code and the QR code on the page**, with the alias routes at
   the farm service. The first door has one address, the page's. A phone
   shows the page and says to open it on a computer.
-- **Extra roster figures in `farm door status`.** It shows the door, the
+- **Extra roster figures in the door's view.** It shows the door, the
   members and who is waiting. It does not show last sync, events, tasks
   opened or how many were let in since the door opened.
 - **A new brief type and a special fetch order for newcomers.** A newcomer's

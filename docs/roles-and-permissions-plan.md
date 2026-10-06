@@ -1,7 +1,8 @@
 # Roles and permissions implementation plan
 
 Status: proposed plan of 2026-10-05, corrected on 2026-10-06. Not accepted.
-Phases 1 to 3 are being built; nothing else here is built. It
+Phases 1 to 3 are built (`65aecf1`, `48120a4`, `3196be8`); nothing else
+here is built. It
 turns the [roles and permissions proposal](../research/roles-and-permissions-2026-10-05.md)
 into ordered work and assumes the answers listed under
 [Decisions this plan assumes](#decisions-this-plan-assumes). What it leaves

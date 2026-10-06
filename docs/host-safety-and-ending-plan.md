@@ -240,7 +240,7 @@ Deferred until after v2: E3, in which a goal with no new records dials and
 checks in less often. No answer of the owner asks for it and no other phase
 reads its code. Until it is built every goal keeps today's 30 seconds. E3
 would also have slowed the retries of a computer that was removed. Until then
-that rests on the failure backoff of the public-goals phase J0, so J0 keeps
+that rests on the failure backoff of the public-goals phase J1, so J1 keeps
 it. [Left for later](#left-for-later) says what a person notices without E3.
 
 ## What the host's computer signs by itself
@@ -265,7 +265,7 @@ a request, the same request.
 | 3 | An approved change to the shared plan | Phase 8 | No. A member selects by hand | Yes from the same records, once Phase 8 signs it with no clock reading | Nothing is wanted while a record by this key follows the last one. The goal is read again before each signing. The guard | Phase 8 signs it with no clock reading and adds a restore test. It cannot be the same across two copies: it records the lowest identifier among the revisions that have arrived and count, which answer 3 allows |
 | 4 | An approved change to the shared files, the first files included | Phase 9 | No. The integrator accepts by hand | As row 3, and only with the same content on this computer | As row 3. At another position a second record disputes the files only | As row 3 |
 | 5 | The removal of a member whose agent signed a leave | E2 | No. `member remove` is a command | Yes. It names the member, its admission and the leave, and carries no clock reading, no payload and no new content key | A member the copy shows as removed has not left, so no removal is wanted again. The goal is read again before each. The guard | Nothing more. A member whose log holds two leaves on two branches gets no such record, and the host removes it by hand |
-| 6 | An admission through a public door | J1 | No | As row 1 | The member list answers a retry. A found restore shuts the door until the person opens it again (J1's `held`, set where G1 revokes tickets), and the guard holds the key | As row 1, and a restore test of its own. G1's test covers tickets only |
+| 6 | An admission through a public door | J2 | No | As row 1 | The member list answers a retry. While the guard holds the key the door is closed with that reason, and it opens again by itself when the hold ends | As row 1, and a restore test of its own. G1's test covers tickets only |
 
 Outside the log the governance key signs one more thing with nobody present:
 the description of an open door, each time it is derived (J1, J3). It has no
@@ -3998,7 +3998,7 @@ peer that holds it refuses that computer.
   today (measured,
   [note](../research/goal-lifecycle-characterization-2026-10-05.md), claim 1).
   Asking less often is [left for later](#left-for-later). The joinable
-  plan's J0 backs off after a long run of failed exchanges, and the driver
+  plan's J1 backs off after a long run of failed exchanges, and the driver
   counts a refused exchange as a failed one. The second status sentence
   rests on that refusal by the host's computer. A host's
   computer started from a copy older than the member's admission refuses the
@@ -4125,7 +4125,7 @@ in `farm_poll_local`, and new legend sentences for "Receiving updates" and
 The phase as it was written, with its tests, is in this file at commit
 `541f29b`, and its three unsettled points are in the companion. The joinable
 plan meant to change `idle_interval_ms` for an open door. It now writes its
-failure backoff (J0) and its check-in rule without that function. One fact
+failure backoff (J1) and its check-in rule without that function. One fact
 from G1 goes with the phase: a goal that is catching up keeps the 30-second
 interval, because a hold ends only on exchanges.
 
