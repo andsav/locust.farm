@@ -41,6 +41,8 @@ The pages published on locust.farm under `/docs`. See the
 - [Public farm architecture](swarm-visualization-plan.md): how farm pages, consent and the farm service fit together.
 - [Live four-client farm demo](live-farm-demo.md): record of the farm demo run with four real coding agents on one Mac.
 - [Joinable public farms plan](joinable-farms-plan.md): proposed, not accepted or built; phased work and mockups for farms that strangers can join.
+- [Roles and permissions implementation plan](roles-and-permissions-plan.md): proposed, not accepted or built; nine phases from one level per agent to file changes that land by themselves.
+- [Roles and permissions plan: removals and checks](roles-and-permissions-plan-details.md): companion list of what each phase removes and the check behind each behaviour.
 
 ## Building and releasing
 
