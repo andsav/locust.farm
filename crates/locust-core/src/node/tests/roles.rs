@@ -201,6 +201,7 @@ fn role_give_and_take_work_on_a_role_only_earlier_rules_declare() {
     let (member, _) = join(&mut d, owner, goal, 2, "Maple", None);
     bind(&mut d, owner, goal, formation("peer-review")).unwrap();
     change(&mut d, owner, goal, member, "lead", true);
+    assert_eq!(status(&mut d, owner, goal).roles["lead"], vec![member]);
     change(&mut d, owner, goal, member, "lead", false);
     let status = status(&mut d, owner, goal);
     assert_eq!(status.roles["lead"], vec![host]);
@@ -590,4 +591,34 @@ fn role_commands_refuse_an_owner_on_a_copy_that_does_not_host_the_goal() {
         assert_eq!(code(d.call(owner, request)), ErrorCode::Denied);
     }
     assert_eq!(records(&d, goal), before);
+}
+
+#[test]
+fn a_departed_author_is_not_asked_to_send_review_requests_to_new_members() {
+    for removed in [false, true] {
+        let (mut d, _, owner, _, goal) = setup(None);
+        let (author, agent) = join(&mut d, owner, goal, 2, "Juniper", None);
+        let subject = event(d.ok(agent, finding(goal, "a result before departure")));
+        assert!(status(&mut d, owner, goal).stalled.is_empty());
+        d.ok(
+            owner,
+            if removed {
+                Request::MemberRemove {
+                    goal,
+                    member: author,
+                }
+            } else {
+                Request::GoalLeave {
+                    goal,
+                    agent: author,
+                }
+            },
+        );
+        let (_, cedar) = join(&mut d, owner, goal, 3, "Cedar", None);
+        assert!(status(&mut d, owner, goal).stalled.is_empty());
+        let Response::Pending(pending) = d.ok(cedar, Request::Pending { goal }) else {
+            panic!()
+        };
+        assert!(pending.to_review.iter().any(|item| item.subject == subject));
+    }
 }

@@ -551,7 +551,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 self.source_authors(id)?;
             }
             Body::CompletionDeclared { context, subject } => {
-                let author = self.subject(*subject, *context)?;
+                let author = self.subject(*subject, *context, h.anchor.unwrap())?;
                 let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if !rules::may_declare(
                     &resolved.effective.decisions.completion,
@@ -576,7 +576,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             Body::ReviewRecorded {
                 context, subject, ..
             } => {
-                let author = self.subject(*subject, *context)?;
+                let author = self.subject(*subject, *context, h.anchor.unwrap())?;
                 let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if rules::asks_for_review(&resolved.effective.decisions.completion)
                     && !rules::may_review_with_authors(
@@ -607,7 +607,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 name,
                 ..
             } => {
-                let author = self.subject(*subject, *context)?;
+                let author = self.subject(*subject, *context, h.anchor.unwrap())?;
                 let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if !rules::may_attest(
                     &resolved.effective.decisions.completion,
@@ -762,13 +762,26 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         }
         Ok(resolved)
     }
-    pub fn subject(&self, id: EventId, context: Context) -> Result<PublicKey, Standing> {
+    pub fn subject(
+        &self,
+        id: EventId,
+        context: Context,
+        anchor: EventId,
+    ) -> Result<PublicKey, Standing> {
         let event = self.event(id)?;
         if !matches!(event.header().body,Body::ContributionPublished{context:subject,..}|Body::DocumentRevised{context:subject,..}|Body::WorkspaceProposed{context:subject,..} if subject==context)
         {
             return Err(invalid(
                 "evidence subject is not a contribution in this exact round",
             ));
+        }
+        if self.chain.position(&anchor)
+            < event
+                .header()
+                .anchor
+                .and_then(|anchor| self.chain.position(&anchor))
+        {
+            return Err(invalid("evidence is anchored before its subject"));
         }
         Ok(event.header().author)
     }
@@ -971,7 +984,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         match action {
             DecisionAction::Select { subject } => {
                 self.require(*subject, proof_owner)?;
-                self.subject(*subject, *context)?;
+                self.subject(*subject, *context, event.header().anchor.unwrap())?;
                 if context.scope == Scope::Workspace {
                     let Body::WorkspaceProposed { parent, .. } =
                         self.event(*subject)?.header().body
@@ -1200,7 +1213,7 @@ pub(super) fn evaluate<D: DefinitionLookup + ?Sized>(
             .insert(event.id(), verifier.status(event.id(), None));
     }
     super::projection::project(&verifier, &mut evaluation);
-    evaluation.desired_effects = verifier.desired_effects();
+    evaluation.desired_effects = verifier.desired_effects(&evaluation.state);
     evaluation.rule_refusals = verifier.rule_refusals.into_inner();
     evaluation.scope_halts = verifier.scope_halts.into_inner();
     evaluation.missing = verifier.missing.into_inner();

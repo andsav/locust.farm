@@ -112,7 +112,10 @@ impl Chain {
                         } else {
                             snapshot.members.insert(*member, event.id());
                             if let Some(role) = role {
-                                let holders = snapshot.roles.entry(role.clone()).or_default();
+                                let holders = snapshot
+                                    .roles
+                                    .entry(role.clone())
+                                    .or_insert_with(|| vec![history.host.expect("founded host")]);
                                 holders.push(*member);
                                 holders.sort();
                                 holders.dedup();
@@ -265,8 +268,8 @@ impl Chain {
             chain.state.head = Some(event.id());
             chain.state.epoch = snapshot.epoch;
             chain.state.current_rules = snapshot.rules;
-            chain.state.roles = snapshot.roles.clone();
         }
+        chain.state.roles = snapshot.roles;
         if chain.halt.is_none()
             && let Some(seq) = log.fork
         {
@@ -551,29 +554,37 @@ fn validate_binding<D: DefinitionLookup + ?Sized>(
             "input bindings do not match declared required inputs",
         ));
     }
-    let authority_ok = |authority: &locust_proto::organization::Authority| match authority {
-        locust_proto::organization::Authority::Role { name } => {
-            roles.get(name).is_some_and(|members| members.len() == 1)
-        }
-        locust_proto::organization::Authority::Participant { key } => key
-            .parse::<PublicKey>()
-            .ok()
-            .is_some_and(|key| snapshot.members.contains_key(&key)),
-    };
     let decisions = std::iter::once(&definition.decisions).chain(
         definition
             .task_types
             .values()
             .filter_map(|task_type| task_type.decisions.as_ref()),
     );
-    if decisions
+    for authority in decisions
         .flat_map(|rules| rules.selection.iter().chain(rules.finish.iter()))
         .chain(definition.workspace.iter().map(|policy| &policy.integrator))
-        .any(|authority| !authority_ok(authority))
     {
-        return Standing::Excluded(Exclusion::Precondition(
-            "a role that picks or closes must have exactly one holder",
-        ));
+        let reason = match authority {
+            locust_proto::organization::Authority::Role { name }
+                if roles.get(name).is_none_or(|members| members.len() != 1) =>
+            {
+                Some("a role that picks or closes must have exactly one holder")
+            }
+            locust_proto::organization::Authority::Participant { key }
+                if !key
+                    .parse::<PublicKey>()
+                    .ok()
+                    .is_some_and(|key| snapshot.members.contains_key(&key)) =>
+            {
+                Some(
+                    "the participant that picks, closes or accepts file changes must be a member of the goal",
+                )
+            }
+            _ => None,
+        };
+        if let Some(reason) = reason {
+            return Standing::Excluded(Exclusion::Precondition(reason));
+        }
     }
     snapshot.roles = roles;
     Standing::Effective

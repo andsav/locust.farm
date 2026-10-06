@@ -989,6 +989,7 @@ fn the_hosts_first_files_count_as_posted_whatever_the_trees_rule() {
                 std::collections::BTreeSet::from([seed])
             );
             assert_eq!(goal.standing(&accepted), Some(Standing::Effective));
+            assert_eq!(head(&goal), Some(accepted));
         }
     }
 }
@@ -1086,8 +1087,11 @@ fn first_files_are_once_per_epoch_that_starts_empty() {
         result_manifest: BlobHash([77; 32]),
         sources: vec![],
     });
+    let landed = integrate(&mut f, empty, None, first_again, vec![]);
     for goal in f.replays() {
         assert!(goal.state().workspace_proposals[&first_again].approved);
+        assert_eq!(goal.standing(&landed), Some(Standing::Effective));
+        assert_eq!(head(&goal), Some(landed));
     }
 }
 
@@ -1128,6 +1132,37 @@ fn first_files_and_the_only_member_part_never_disagree() {
                 std::collections::BTreeSet::from([id])
             );
         }
+    }
+    admit_worker(&mut f, 0, None);
+    let with_company = f.agent(Body::WorkspaceProposed {
+        context,
+        parent: Some(accepted),
+        result_manifest: BlobHash([80; 32]),
+        sources: vec![],
+    });
+    for goal in f.replays() {
+        assert!(goal.state().workspace_proposals[&later].approved);
+        assert!(!goal.state().workspace_proposals[&with_company].approved);
+    }
+    let empty = epoch(
+        &mut f,
+        Some(context.round),
+        WorkspaceCheckpoint::RetainBefore {
+            epoch: context.round,
+        },
+    );
+    let first_again = f.agent(Body::WorkspaceProposed {
+        context: empty,
+        parent: None,
+        result_manifest: BlobHash([81; 32]),
+        sources: vec![],
+    });
+    for goal in f.replays() {
+        assert!(goal.state().workspace_proposals[&first_again].approved);
+        assert_eq!(
+            goal.state().workspace_proposals[&first_again].evidence,
+            std::collections::BTreeSet::from([first_again])
+        );
     }
 }
 #[test]

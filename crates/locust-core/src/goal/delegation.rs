@@ -245,4 +245,58 @@ mod tests {
         };
         assert!(!narrows(&child, &parent));
     }
+
+    #[test]
+    fn subtask_picker_and_closer_must_keep_the_same_authority_not_just_its_holder() {
+        use locust_proto::organization::Authority;
+        let key = PublicKey([1; 32]);
+        for selection in [true, false] {
+            let mut parent = effective();
+            for role in ["lead", "deputy"] {
+                parent.roles.insert(role.into(), vec![key]);
+            }
+            let lead = Authority::Role {
+                name: "lead".into(),
+            };
+            let slot = if selection {
+                &mut parent.decisions.selection
+            } else {
+                &mut parent.decisions.finish
+            };
+            *slot = Some(lead.clone());
+            for (authority, expected) in [
+                (
+                    Some(Authority::Role {
+                        name: "deputy".into(),
+                    }),
+                    false,
+                ),
+                (
+                    Some(Authority::Participant {
+                        key: key.to_string(),
+                    }),
+                    false,
+                ),
+                (None, true),
+                (Some(lead.clone()), true),
+            ] {
+                let mut child = parent.clone();
+                let slot = if selection {
+                    &mut child.decisions.selection
+                } else {
+                    &mut child.decisions.finish
+                };
+                *slot = authority;
+                assert_eq!(narrows(&child, &parent), expected);
+            }
+            let child = parent.clone();
+            let slot = if selection {
+                &mut parent.decisions.selection
+            } else {
+                &mut parent.decisions.finish
+            };
+            *slot = None;
+            assert!(!narrows(&child, &parent));
+        }
+    }
 }

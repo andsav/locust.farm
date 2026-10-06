@@ -204,7 +204,8 @@ result. Clocks and arrival order never decide anything.
   leaves out the author when the rule says so. Without pinned evidence, each
   member's latest effective review is read: a reject withdraws that member's
   approval, without vetoing another member's. A selection or materialized step
-  keeps the exact reviews it pinned. Under a rule that asks for no reviews, a
+  keeps the exact reviews it pinned. A review, named check or declaration cannot
+  name a host record earlier on the host's chain than its subject's. Under a rule that asks for no reviews, a
   member's review is an opinion and never contributes to completion. Several results can count at once. A task round is complete when any
   result counts or one is selected.
 - **Selection.** Only the selection decider may select, and only a result that
@@ -261,7 +262,11 @@ Recipients are matched at the signed step's governance anchor. When deciding
 what to send next, the daemon uses holders and members at the current head.
 Review requests are sent only for results that do not yet count and have not
 been selected on an open task; a new reviewer does not receive requests for all
-past results. An already-signed request keeps its historical authority.
+past results. Automatic offers are wanted only for the current round of a stage
+task that is not closed, completed or selected. An already-signed request or
+offer keeps its historical authority. When an ordinary result's author has left
+or been removed, its unsent review requests keep the recipients at the result's
+own anchor; adding a member does not ask that author to sign another request.
 Prerequisites use an upstream task's revised round at the materialization's
 governance anchor. Already-materialized effects retain their historical evidence.
 [Goal tests](../crates/locust-core/src/goal/tests.rs) cover revised prerequisites

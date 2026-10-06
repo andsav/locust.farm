@@ -3,8 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::event::{
-    Body, Context, DecisionAction, Effect, EffectAction, Event, ReviewVerdict, Scope, TaskBinding,
-    TaskId, Trigger,
+    Body, Context, DecisionAction, DecisionPurpose, Effect, EffectAction, Event, ReviewVerdict,
+    Scope, ScopeKey, TaskBinding, TaskId, Trigger,
 };
 use locust_proto::id::{EffectId, EventId, PublicKey};
 use locust_proto::organization::{EvidenceKind, StartRule};
@@ -371,14 +371,19 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         }
         Ok(())
     }
-    pub(super) fn desired_effects(&self) -> BTreeMap<EffectId, DesiredEffect> {
+    pub(super) fn desired_effects(
+        &self,
+        state: &super::state::State,
+    ) -> BTreeMap<EffectId, DesiredEffect> {
         let mut desired = BTreeMap::new();
         let Some(goal) = self.history.events.first().map(|event| event.header().goal) else {
             return desired;
         };
         let mut insert = |runner: PublicKey, effect: Effect| {
             let id = effect.id(goal);
-            if self.history.events.iter().any(|event|matches!(&event.header().body,Body::EffectMaterialized{effect:held} if held.id(goal)==id)&&self.status(event.id(),None)==Standing::Effective){return;}
+            if state.effects.contains_key(&id) {
+                return;
+            }
             desired.insert(
                 id,
                 DesiredEffect {
@@ -389,6 +394,21 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 },
             );
         };
+        let departed: BTreeSet<_> = state
+            .leave_requests
+            .iter()
+            .filter_map(|id| self.history.get(id))
+            .filter_map(|event| {
+                let Body::LeaveRequested { admission } = event.header().body else {
+                    unreachable!("projected leave request");
+                };
+                state
+                    .members
+                    .get(&event.header().author)
+                    .filter(|member| member.admission == admission)
+                    .map(|member| member.principal)
+            })
+            .collect();
         for event in &self.history.events {
             if self.status(event.id(), None) != Standing::Effective {
                 continue;
@@ -420,7 +440,11 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                             self.chain.state.head.unwrap(),
                         ) {
                             for (runner, effect) in offers {
-                                insert(runner, effect);
+                                if state.task_round(effect.context).is_some_and(|round| {
+                                    !round.closed && !round.completed && round.selected.is_none()
+                                }) {
+                                    insert(runner, effect);
+                                }
                             }
                         }
                     }
@@ -435,55 +459,24 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                     {
                         continue;
                     }
-                    let mut decisions: Vec<_> = self
-                        .history
-                        .events
-                        .iter()
-                        .filter(|decision| {
-                            let Body::ScopeDecided { context: other, .. } = &decision.header().body
-                            else {
-                                return false;
-                            };
-                            other == context
-                                && self.status(decision.id(), None) == Standing::Effective
-                        })
-                        .collect();
-                    decisions.sort_by_key(|decision| {
-                        let h = decision.header();
-                        (
-                            self.chain.position(&h.anchor.unwrap()),
-                            h.author,
-                            h.seq,
-                            decision.id(),
-                        )
+                    let selections = state.decisions.get(&ScopeKey {
+                        context: *context,
+                        purpose: DecisionPurpose::Selection,
                     });
-                    if decisions.iter().any(|decision| {
-                        let Body::ScopeDecided {
-                            action: DecisionAction::Select { subject },
-                            ..
-                        } = decision.header().body
-                        else {
-                            return false;
-                        };
-                        subject == event.id() || matches!(context.scope, Scope::Task(_))
+                    if selections.into_iter().flatten().any(|decision| {
+                        matches!(decision.action, DecisionAction::Select { subject }
+                            if subject == event.id() || matches!(context.scope, Scope::Task(_)))
                     }) {
                         continue;
                     }
-                    if decisions
-                        .iter()
-                        .rev()
-                        .find_map(|decision| match decision.header().body {
-                            Body::ScopeDecided {
-                                action: DecisionAction::Close,
-                                ..
-                            } => Some(true),
-                            Body::ScopeDecided {
-                                action: DecisionAction::Reopen,
-                                ..
-                            } => Some(false),
-                            _ => None,
+                    if state
+                        .decisions
+                        .get(&ScopeKey {
+                            context: *context,
+                            purpose: DecisionPurpose::Closure,
                         })
-                        .unwrap_or(false)
+                        .and_then(|decisions| decisions.last())
+                        .is_some_and(|decision| decision.action == DecisionAction::Close)
                     {
                         continue;
                     }
@@ -495,9 +488,19 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                     {
                         continue;
                     }
-                    if let Ok(reviews) =
-                        self.review_templates(event.id(), self.chain.state.head.unwrap())
-                    {
+                    let by_host = state
+                        .task_round(*context)
+                        .is_some_and(|round| round.binding.stage.is_some());
+                    let author = event.header().author;
+                    let anchor =
+                        if by_host || (state.is_member(&author) && !departed.contains(&author)) {
+                            self.chain.state.head.unwrap()
+                        } else {
+                            // Keep requests the author could have signed when posting,
+                            // without asking a departed author to address new members.
+                            event.header().anchor.unwrap()
+                        };
+                    if let Ok(reviews) = self.review_templates(event.id(), anchor) {
                         for (runner, effect) in reviews {
                             insert(runner, effect);
                         }

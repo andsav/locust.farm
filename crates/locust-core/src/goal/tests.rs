@@ -2911,6 +2911,24 @@ fn stage_recipients_and_review_requests_follow_roles_at_the_materialization_anch
     let goal = f.goal();
     assert!(goal.evaluation().desired_effects.values().any(|effect| matches!(effect.effect.action,EffectAction::RequestReview { subject:target,recipient,.. } if target==subject && recipient==f.workers[1].key.public())));
     assert_eq!(goal.standing(&later), Some(Standing::Effective));
+    let request = goal
+        .evaluation()
+        .desired_effects
+        .values()
+        .find(|effect| matches!(effect.effect.action, EffectAction::RequestReview { subject: target, recipient, .. }
+            if target == subject && recipient == f.workers[1].key.public()))
+        .unwrap()
+        .effect
+        .clone();
+    let signed = f.host(Body::EffectMaterialized { effect: request });
+    f.host(Body::MemberRemoved {
+        member: f.workers[1].key.public(),
+        admission: later,
+        last_accepted: None,
+    });
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&signed), Some(Standing::Effective));
+    }
 }
 #[test]
 fn a_stage_does_not_open_on_an_approval_its_member_withdrew() {
@@ -3394,5 +3412,276 @@ fn a_fork_between_two_stage_steps_retracts_them_in_every_replay_order() {
                 Some(Standing::Pending(Waiting::ForkProof))
             );
         }
+    }
+}
+
+#[test]
+fn role_admissions_keep_the_host_when_an_earlier_formation_has_not_arrived() {
+    let mut f = alone(preset_formation("review-panel"));
+    let first_definition = *f.definitions.keys().next().unwrap();
+    admit_worker(&mut f, 0, Some("reviewer"));
+    admit_worker(&mut f, 1, Some("reviewer"));
+    rebind(&mut f, preset_formation("directed"));
+    let context = f.context();
+    let subject = f.publish(0, context);
+    let approval = f.agent(Body::ReviewRecorded {
+        context,
+        subject,
+        verdict: ReviewVerdict::Approve,
+    });
+    let mut expected = vec![
+        f.admin.key.public(),
+        f.workers[0].key.public(),
+        f.workers[1].key.public(),
+    ];
+    expected.sort();
+    let earlier = f.definitions.remove(&first_definition).unwrap();
+    for goal in f.replays() {
+        assert_eq!(goal.state().roles["reviewer"], expected);
+        assert_eq!(goal.standing(&approval), Some(Standing::Effective));
+    }
+    f.definitions.insert(first_definition, earlier);
+    for goal in f.replays() {
+        assert_eq!(goal.state().roles["reviewer"], expected);
+        assert_eq!(goal.standing(&approval), Some(Standing::Effective));
+    }
+}
+
+#[test]
+fn a_binding_names_an_unadmitted_participant_in_its_refusal() {
+    let mut f = Fixture::new(Formation::default());
+    let mut formation = Formation::default();
+    formation.decisions.selection = Some(Authority::Participant {
+        key: testkit::keypair(99).public().to_string(),
+    });
+    let binding = rebind(&mut f, formation);
+    for goal in f.replays() {
+        assert_eq!(
+            goal.standing(&binding),
+            Some(Standing::Excluded(super::Exclusion::Precondition(
+                "the participant that picks, closes or accepts file changes must be a member of the goal"
+            )))
+        );
+    }
+}
+
+#[test]
+fn reviews_checks_and_declarations_cannot_use_an_anchor_before_their_subject() {
+    for kind in ["review", "check", "declaration"] {
+        let mut formation = preset_formation("directed");
+        let by = Selector::Role {
+            name: "reviewer".into(),
+        };
+        formation.decisions.completion = match kind {
+            "review" => CompletionRule::Reviews {
+                by,
+                count: 1,
+                exclude_author: false,
+            },
+            "check" => CompletionRule::Check {
+                name: "build".into(),
+                by,
+            },
+            _ => CompletionRule::Declaration { by },
+        };
+        let mut f = Fixture::new(formation);
+        let context = f.task();
+        let old_anchor = f.anchor;
+        f.host(Body::RoleHolders {
+            role: "reviewer".into(),
+            holders: vec![f.admin.key.public()],
+        });
+        let subject = f.publish(0, context);
+        f.anchor = old_anchor;
+        let witness = f.worker(
+            1,
+            match kind {
+                "review" => Body::ReviewRecorded {
+                    context,
+                    subject,
+                    verdict: ReviewVerdict::Approve,
+                },
+                "check" => Body::CheckAttested {
+                    context,
+                    subject,
+                    name: "build".into(),
+                    passed: true,
+                },
+                _ => Body::CompletionDeclared { context, subject },
+            },
+        );
+        for goal in f.replays() {
+            assert_eq!(
+                goal.standing(&witness),
+                Some(Standing::Excluded(super::Exclusion::Precondition(
+                    "evidence is anchored before its subject"
+                ))),
+                "{kind}"
+            );
+            assert!(!goal.state().contributions[&subject].approved, "{kind}");
+        }
+    }
+}
+
+#[test]
+fn automatic_offers_are_wanted_only_for_an_open_stage_round() {
+    use locust_proto::organization::StartRule;
+    for end in ["completed", "selected", "closed"] {
+        let mut formation = Formation::default();
+        formation.work.starts = vec![StartRule::Offered {
+            by: Selector::TaskCreator,
+            to: Selector::Members,
+        }];
+        formation.decisions.selection = Some(Authority::Participant {
+            key: testkit::keypair(1).public().to_string(),
+        });
+        formation.decisions.finish = formation.decisions.selection.clone();
+        formation.flow.insert(
+            "draft".into(),
+            Stage {
+                task_type: None,
+                requires: vec![],
+                recipients: Selector::Members,
+            },
+        );
+        let mut f = alone(formation);
+        let stage = f
+            .goal()
+            .evaluation()
+            .desired_effects
+            .values()
+            .next()
+            .unwrap()
+            .clone();
+        let opened = f.host(Body::EffectMaterialized {
+            effect: stage.effect,
+        });
+        let context = Context {
+            scope: Scope::Task(TaskId::Derived(stage.id)),
+            round: opened,
+        };
+        let offer = f
+            .goal()
+            .evaluation()
+            .desired_effects
+            .values()
+            .find(|effect| matches!(effect.effect.action, EffectAction::Offer { .. }))
+            .unwrap()
+            .effect
+            .clone();
+        let signed = f.host(Body::EffectMaterialized { effect: offer });
+        let subject = f.agent(publish_body(context));
+        if end == "closed" {
+            f.agent(Body::ScopeDecided {
+                context,
+                previous: None,
+                action: DecisionAction::Close,
+                evidence: vec![],
+            });
+        } else {
+            let declaration = f.agent(Body::CompletionDeclared { context, subject });
+            if end == "selected" {
+                f.agent(Body::ScopeDecided {
+                    context,
+                    previous: None,
+                    action: DecisionAction::Select { subject },
+                    evidence: vec![declaration],
+                });
+            }
+        }
+        admit_worker(&mut f, 0, None);
+        for goal in f.replays() {
+            assert!(!goal.task_available(context), "{end}");
+            assert_eq!(goal.standing(&signed), Some(Standing::Effective), "{end}");
+            assert!(
+                !goal
+                    .evaluation()
+                    .desired_effects
+                    .values()
+                    .any(|effect| matches!(effect.effect.action, EffectAction::Offer { .. })),
+                "{end}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_new_lead_reopens_after_the_old_leads_later_log_position() {
+    let mut formation = review_formation(1);
+    formation.roles.insert("lead".into(), Default::default());
+    formation.decisions.finish = Some(Authority::Role {
+        name: "lead".into(),
+    });
+    let mut f = Fixture::new(formation);
+    let context = f.task();
+    let subject = f.publish(0, context);
+    for _ in 0..3 {
+        f.agent(Body::ReviewRecorded {
+            context,
+            subject,
+            verdict: ReviewVerdict::Reject,
+        });
+    }
+    let closed = f.agent(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Close,
+        evidence: vec![],
+    });
+    f.host(Body::RoleHolders {
+        role: "lead".into(),
+        holders: vec![f.workers[1].key.public()],
+    });
+    let reopened = f.worker(
+        1,
+        Body::ScopeDecided {
+            context,
+            previous: Some(closed),
+            action: DecisionAction::Reopen,
+            evidence: vec![],
+        },
+    );
+    assert!(f.event(closed).header().seq > f.event(reopened).header().seq);
+    let attempt = f.worker(
+        0,
+        Body::AttemptStarted {
+            context,
+            offer: None,
+            closure: Some(reopened),
+        },
+    );
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&attempt), Some(Standing::Effective));
+        assert!(!goal.state().task_round(context).unwrap().closed);
+        assert!(goal.evaluation().desired_effects.values().any(|effect|
+            matches!(effect.effect.action, EffectAction::RequestReview { subject: target, .. } if target == subject)));
+    }
+}
+
+#[test]
+fn neither_of_two_lead_holders_can_pick() {
+    let mut f = Fixture::new(preset_formation("directed"));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let review = f.review(1, context, subject);
+    let mut holders = vec![f.admin.key.public(), f.workers[0].key.public()];
+    holders.sort();
+    f.host(Body::RoleHolders {
+        role: "lead".into(),
+        holders,
+    });
+    let body = Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    };
+    let first = f.agent(body.clone());
+    let second = f.worker(0, body);
+    for goal in f.replays() {
+        for id in [first, second] {
+            assert!(matches!(goal.standing(&id), Some(Standing::Excluded(_))));
+        }
+        assert_eq!(goal.state().task_round(context).unwrap().selected, None);
     }
 }
