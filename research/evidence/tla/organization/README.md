@@ -146,3 +146,10 @@ The same frozen organization model hash was checked before Rust implementation
 and in this final run. The per-case source-baseline pin is updated to the completed
 implementation commit separately; this retained record preserves the exact
 baseline and checkout hashes observed when the checker ran.
+
+The registry now pins all 42 Organization cases to implementation commit
+`8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee`, with status
+`current-organization-role-holder-subset`. All 100 source hashes retained in
+the final run were compared with that committed tree and match. This pin
+changes metadata only; the model, configurations, expected outcomes and
+retained run are unchanged. Other model suites keep their existing baselines.

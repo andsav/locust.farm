@@ -10,6 +10,11 @@ part of this work. The starting point was `a6664a1`, after the
 [phases 1–3 build](v2-phases-1-3-build-notes-2026-10-06.md). The protected
 plan files are owned by another session and were not edited for this phase.
 
+The model and evidence are committed as `3a56930`; the implementation,
+tests, recipes, contracts and site changes as `8c086c1`. A following
+metadata-only commit pins the 42 Organization cases to that implementation.
+All 100 retained source hashes match its committed tree.
+
 ## Implemented behavior and its checks
 
 ### Signed names and roles
