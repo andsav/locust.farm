@@ -68,10 +68,11 @@ fn local_publish_requires_sources_held_in_the_same_goal_and_inspection_is_observ
     let Response::GoalCreated { goal: other } = d.ok(
         owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: principal,
             title: "Other goal".into(),
-            formation_json: None,
-            roles: Default::default(),
+            formation_json: Some("{\"schema_version\":2}".into()),
+
             inputs: Default::default(),
         },
     ) else {

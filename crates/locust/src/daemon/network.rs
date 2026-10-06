@@ -102,7 +102,7 @@ pub(crate) async fn bind(secret_key: [u8; 32]) -> Result<Endpoint, Failure> {
 }
 
 enum Command {
-    Send(SyncMessage),
+    Send(Box<SyncMessage>),
     Finish,
     Refuse(Refusal),
 }
@@ -213,7 +213,7 @@ pub(crate) async fn serve(
                         if let Some(link) = exchanges.get(&exchange) { link.limit.send_modify(|limit| *limit = (*limit).max(EVIDENCE_FRAME_BYTES)); }
                     }
                     PeerOutput::Send { exchange, frame } => {
-                        if exchanges.get(&exchange).is_none_or(|link| link.commands.send(Command::Send(frame)).is_err()) {
+                        if exchanges.get(&exchange).is_none_or(|link| link.commands.send(Command::Send(Box::new(frame))).is_err()) {
                             let _ = jobs.send(Job::Peer(PeerInput::Closed(exchange)));
                         }
                     }
@@ -507,7 +507,7 @@ async fn write_frames(
                 return false;
             }
             Command::Send(frame) => {
-                if matches!(frame, SyncMessage::Done | SyncMessage::Refused(_)) {
+                if matches!(*frame, SyncMessage::Done | SyncMessage::Refused(_)) {
                     ending.store(true, Ordering::Release);
                 }
                 if !matches!(sender.send(&frame).await, Ok(())) {
@@ -819,10 +819,12 @@ mod tests {
                                 tokio::time::sleep(interval).await;
                             }
                             commands
-                                .send(Command::Send(idle_test_chunk(index, count)))
+                                .send(Command::Send(Box::new(idle_test_chunk(index, count))))
                                 .unwrap();
                         }
-                        commands.send(Command::Send(SyncMessage::Done)).unwrap();
+                        commands
+                            .send(Command::Send(Box::new(SyncMessage::Done)))
+                            .unwrap();
                         commands.send(Command::Finish).unwrap();
                     }
                 };
@@ -1032,15 +1034,18 @@ mod tests {
         use locust_proto::api::{Credential, Request, Response};
         let key = joiner.enroll(tag);
         let Ok(Response::GoalCreated { goal }) = inviter.owner().call(Request::GoalCreate {
+            name: "Host".into(),
+
             agent: host_agent,
             title: title.into(),
             formation_json: None,
-            roles: Default::default(),
             inputs: Default::default(),
         }) else {
             panic!("goal not created")
         };
         let Ok(Response::Invited { ticket }) = inviter.owner().call(Request::GoalInvite {
+            role: None,
+
             goal,
             expires_ms: u64::MAX,
         }) else {
@@ -1051,6 +1056,8 @@ mod tests {
         joiner
             .owner()
             .call(Request::GoalJoin {
+                name: "Member".into(),
+
                 agent: key,
                 ticket,
                 level: locust_proto::api::Level::Auto,

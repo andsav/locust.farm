@@ -10,9 +10,10 @@ person's own locust.farm and can save it there. The code is in
 ## What the page does
 
 - It asks "How does your team work?" and offers six ways of working, one per
-  preset: Open, Coordinator, Peer review, Review panel, Independent attempts and
-  Steps in order (`pipeline`). The lit card is the one whose rules equal the
-  current rules.
+  preset: Open, Peer review, Steps in order (`pipeline`), Independent attempts,
+  Review panel and Directed. A new document starts as Peer review. The lit card
+  is the one whose rules equal the current rules. Approval by other members
+  includes the only-member alternative; approvals from a role do not.
 - Rules are shown as rows. Each row answers four questions: who adds tasks, who
   works on a task, when a result counts, and whether one result is picked.
 - The first row is for any task. Each step (flow stage) and other kind of task

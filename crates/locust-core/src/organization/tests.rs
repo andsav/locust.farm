@@ -56,10 +56,10 @@ fn all_presets_are_valid_reusable_templates_and_normalization_is_idempotent() {
         assert!(again.valid);
         assert_eq!(result.semantic_hash, again.semantic_hash);
         assert_eq!(result.normalized, again.normalized);
-        if preset.name == "coordinator" {
+        if preset.name == "directed" {
             assert_eq!(
                 result.explanation.as_ref().unwrap().authority_roles,
-                ["coordinator"]
+                ["lead"]
             );
         }
     }
@@ -259,4 +259,95 @@ fn referenced_role_and_input_slots_are_reported_without_demanding_live_bindings(
     assert_eq!(explanation.required_inputs, ["spec"]);
     assert!(explanation.authority_roles.is_empty());
     assert!(!explanation.contextual_checks.is_empty());
+}
+
+#[test]
+fn only_member_is_one_identity_and_two_presets_carry_the_part() {
+    use locust_proto::organization::{CompletionRule, Selector};
+    let mut formation = locust_proto::organization::Formation::default();
+    formation.decisions.completion = CompletionRule::Reviews {
+        by: Selector::OnlyMember,
+        count: 2,
+        exclude_author: false,
+    };
+    let inspected = super::inspect(&serde_json::to_string(&formation).unwrap());
+    assert!(
+        inspected
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "impossible_threshold")
+    );
+    for preset in locust_proto::organization::presets() {
+        let source = serde_json::to_string(&preset.formation).unwrap();
+        assert_eq!(
+            source.contains("only_member"),
+            matches!(preset.name.as_str(), "peer-review" | "pipeline")
+        );
+    }
+}
+#[test]
+fn role_duties_follow_the_slots_that_name_the_role() {
+    use super::{RoleDuty, is_authority_role, role_duties};
+    for preset in locust_proto::organization::presets() {
+        let lead = role_duties(&preset.formation, "lead");
+        let reviewer = role_duties(&preset.formation, "reviewer");
+        assert_eq!(
+            is_authority_role(&preset.formation, "lead"),
+            matches!(preset.name.as_str(), "directed" | "independent-attempts")
+        );
+        assert_eq!(lead.contains(&RoleDuty::Offer), preset.name == "directed");
+        assert_eq!(lead.contains(&RoleDuty::Close), preset.name == "directed");
+        assert_eq!(
+            reviewer.contains(&RoleDuty::Review),
+            matches!(preset.name.as_str(), "directed" | "review-panel")
+        );
+    }
+}
+
+#[test]
+fn one_rule_checks_a_role_name_in_a_formation_an_event_and_an_invitation() {
+    use locust_proto::{
+        event::{Body, Event, EventError},
+        id::{EndpointId, GoalId},
+        invite::{Invitation, InviteError, InviteSecret},
+        testkit::{self, Author},
+    };
+    for name in ["", "   ", "bad\nrole", "code review", " rôle "] {
+        let valid = locust_proto::organization::is_role_name(name);
+        let mut formation = locust_proto::organization::Formation::default();
+        formation.roles.insert(name.into(), Default::default());
+        let inspected = super::inspect(&serde_json::to_string(&formation).unwrap());
+        assert_eq!(inspected.valid, valid, "{name:?}");
+        let mut author = Author::new(1);
+        let root = author.genesis(testkit::keypair(2).public());
+        let mut header = root.header().clone();
+        header.seq = 1;
+        header.prev = Some(root.id());
+        header.anchor = Some(root.id());
+        header.body = Body::RoleHolders {
+            role: name.into(),
+            holders: vec![testkit::keypair(2).public()],
+        };
+        let event = Event::sign(header, &author.key);
+        assert_eq!(event.is_ok(), valid);
+        if !valid {
+            assert_eq!(event.unwrap_err(), EventError::BadName);
+        }
+        let invitation = Invitation::signed(
+            GoalId([1; 32]),
+            None,
+            EndpointId([2; 32]),
+            vec![],
+            InviteSecret([3; 32]),
+            Some(10),
+            "Maple".into(),
+            Some(name.into()),
+            &testkit::keypair(1),
+        )
+        .unwrap();
+        assert_eq!(invitation.verify().is_ok(), valid);
+        if !valid {
+            assert_eq!(invitation.verify(), Err(InviteError::BadName));
+        }
+    }
 }

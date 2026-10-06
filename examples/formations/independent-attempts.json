@@ -13,13 +13,13 @@
     "finish": null,
     "selection": {
       "kind": "role",
-      "name": "judge"
+      "name": "lead"
     }
   },
   "flow": {},
   "roles": {
-    "judge": {
-      "description": "Picks which result to use. One member."
+    "lead": {
+      "description": "Picks the result to use. One member."
     }
   },
   "schema_version": 2,

@@ -24,7 +24,7 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
     let agent = daemon.connect(credential(1), Some(session(1)));
     let mut formation = locust_proto::organization::presets()
         .into_iter()
-        .find(|preset| preset.name == "coordinator")
+        .find(|preset| preset.name == "directed")
         .unwrap()
         .formation;
     formation.context.inputs.insert(
@@ -37,10 +37,11 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
     let Response::GoalCreated { goal } = daemon.ok(
         owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: principal,
             title: "A test goal".into(),
             formation_json: Some(serde_json::to_string(&formation).unwrap()),
-            roles: std::collections::BTreeMap::from([("coordinator".into(), vec![principal])]),
+
             inputs: Default::default(),
         },
     ) else {
@@ -983,10 +984,11 @@ fn an_invalid_formation_is_refused_without_naming_an_api_operation() {
         .call(
             owner,
             Request::GoalCreate {
+                name: "host".into(),
                 agent: principal,
                 title: "Another goal".into(),
                 formation_json: Some("not a formation".into()),
-                roles: Default::default(),
+
                 inputs: Default::default(),
             },
         )
@@ -1029,10 +1031,11 @@ fn closing_a_task_with_many_approved_contributions_stays_within_the_header_cap()
     let Response::GoalCreated { goal } = d.ok(
         owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: principal,
             title: "Many results".into(),
             formation_json: Some(serde_json::to_string(&formation).unwrap()),
-            roles: std::collections::BTreeMap::new(),
+
             inputs: Default::default(),
         },
     ) else {
@@ -1200,7 +1203,7 @@ fn the_governance_key_is_stored_with_the_goal_and_signs_after_a_restart() {
             goal,
             expected,
             formation_json: "{\"schema_version\":2}".into(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     ));

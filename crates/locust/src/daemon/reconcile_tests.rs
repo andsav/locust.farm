@@ -358,15 +358,18 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     let author = member.enroll(2);
     let mut host_agent_client = host.client(Credential([1; 32]), None);
     let Ok(Response::GoalCreated { goal }) = host.owner().call(Request::GoalCreate {
+        name: "Host".into(),
+
         agent: host_agent,
         title: "Diverged log".into(),
         formation_json: None,
-        roles: Default::default(),
         inputs: Default::default(),
     }) else {
         panic!("goal not created")
     };
     let Ok(Response::Invited { ticket }) = host.owner().call(Request::GoalInvite {
+        role: None,
+
         goal,
         expires_ms: u64::MAX,
     }) else {
@@ -376,6 +379,8 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     member
         .owner()
         .call(Request::GoalJoin {
+            name: "Member".into(),
+
             agent: author,
             ticket,
             level: Level::Auto,

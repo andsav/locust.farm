@@ -124,6 +124,7 @@ pub struct ContextBrief {
     pub title: Option<String>,
     /// The host's agent; absent until the first record is held.
     pub host: Option<PublicKey>,
+    pub host_name: Option<String>,
     pub governance_head: Option<EventId>,
     pub current_rules: Option<EventId>,
     pub halted: Option<Halt>,

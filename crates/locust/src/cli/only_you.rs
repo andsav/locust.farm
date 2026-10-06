@@ -2,7 +2,7 @@
 
 use super::{
     LocalClient, Output, acting_agent, confirm, connection, invitations, presentation, print,
-    resolve_goal, selectors, status,
+    resolve_goal, roles, selectors, status,
 };
 use crate::failure::Failure;
 use clap::{Arg, ArgMatches, Command};
@@ -13,7 +13,7 @@ use locust_proto::api::{
 use locust_proto::event::TaskId;
 use locust_proto::id::{BlobHash, EventId, GoalId, IdempotencyKey, PublicKey};
 use locust_proto::local;
-use locust_proto::organization::Formation;
+use locust_proto::organization::{Authority, Formation, WorkspacePolicy};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -45,11 +45,6 @@ fn formation(command: Command) -> Command {
                 .long("inputs")
                 .help("Input blob hashes as JSON"),
         )
-        .arg(
-            Arg::new("roles")
-                .long("roles")
-                .help("Role bindings as JSON"),
-        )
 }
 
 pub(super) fn commands() -> Vec<(&'static str, Command)> {
@@ -57,16 +52,27 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
         (
             "goal",
             confirm::flags(formation(
-                Command::new("create").arg(option("title", "Goal title")),
+                Command::new("create")
+                    .arg(option("title", "Goal title"))
+                    .arg(name_arg()),
             )),
         ),
         (
             "goal",
-            confirm::flags(Command::new("add").arg(goal_option()).arg(level_arg(false))),
+            confirm::flags(role_args(
+                Command::new("add")
+                    .arg(goal_option())
+                    .arg(level_arg(false))
+                    .arg(name_arg()),
+            )),
         ),
         (
             "goal",
-            confirm::flags(invitations::ticket_input(Command::new("join")).arg(level_arg(false))),
+            confirm::flags(
+                invitations::ticket_input(Command::new("join"))
+                    .arg(level_arg(false))
+                    .arg(name_arg()),
+            ),
         ),
         (
             "goal",
@@ -75,7 +81,7 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
         (
             "goal",
             confirm::flags(
-                Command::new("invite").arg(goal_option()).arg(
+                role_args(Command::new("invite").arg(goal_option())).arg(
                     Arg::new("expires")
                         .long("expires")
                         .default_value("7d")
@@ -104,9 +110,56 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
                     .arg(Arg::new("task-type").long("task-type")),
             ),
         ),
+        ("role", roles::command("give")),
+        ("role", roles::command("take")),
         ("agent", Command::new("revoke")),
         ("agent", Command::new("reconnect")),
     ]
+}
+
+fn name_arg() -> Arg {
+    Arg::new("name")
+        .long("name")
+        .help("Name this agent carries in the goal; defaults to its enrolled name")
+}
+fn role_args(command: Command) -> Command {
+    command
+        .arg(
+            Arg::new("role")
+                .long("role")
+                .conflicts_with("no-role")
+                .help("Role given when the member joins"),
+        )
+        .arg(
+            Arg::new("no-role")
+                .long("no-role")
+                .action(clap::ArgAction::SetTrue)
+                .help("Join without the counting role"),
+        )
+}
+fn member_name(
+    client: &mut LocalClient,
+    socket: &Path,
+    args: &ArgMatches,
+    agent: PublicKey,
+) -> Result<String, Failure> {
+    let name = match args.get_one::<String>("name") {
+        Some(name) => name.clone(),
+        None => {
+            status(client, socket, None)?
+                .agents
+                .into_iter()
+                .find(|candidate| candidate.agent == agent)
+                .ok_or_else(|| Failure::new(ErrorCode::NotFound, "select an enrolled local agent"))?
+                .name
+        }
+    };
+    if !locust_proto::event::is_member_name(&name) {
+        return Err(Failure::invalid(
+            "a member's name must have 1 to 64 bytes, no outer spaces and no control characters",
+        ));
+    }
+    Ok(name)
 }
 
 fn level_arg(required: bool) -> Arg {
@@ -141,6 +194,8 @@ pub(super) fn owns(operation: &str) -> bool {
         operation,
         "level"
             | "allow"
+            | "role.give"
+            | "role.take"
             | "goal.create"
             | "goal.add"
             | "goal.join"
@@ -414,7 +469,12 @@ pub(super) fn run(
     if matches.get_one::<String>("agent").is_some()
         && matches!(
             operation,
-            "goal.invite" | "member.remove" | "rules.bind" | "task.revise"
+            "goal.invite"
+                | "member.remove"
+                | "rules.bind"
+                | "task.revise"
+                | "role.give"
+                | "role.take"
         )
     {
         return Err(Failure::usage(
@@ -427,6 +487,7 @@ pub(super) fn run(
     let owner = client.caller() == Caller::Owner;
     match operation {
         "goal.create" => goal_create(matches, args, &mut client, &socket, owner),
+        "role.give" | "role.take" => roles::run(matches, operation, args, &mut client, &socket),
         "level" => level_set(matches, args, &mut client, &socket),
         "allow" => task_allow(matches, args, &mut client, &socket),
         "goal.add" => goal_add(matches, args, &mut client, &socket),
@@ -469,7 +530,11 @@ fn chosen_formation(args: &ArgMatches) -> Result<(String, Option<String>, Format
             .map_err(|error| Failure::usage(format!("--formation-json: {error}")))?;
         return Ok(("custom".into(), Some(source.clone()), parsed));
     }
-    Ok(("open".into(), None, Formation::default()))
+    let preset = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "peer-review")
+        .expect("peer-review preset");
+    Ok(("peer-review".into(), None, preset.formation))
 }
 
 fn short_goal(goal: GoalId) -> String {
@@ -482,7 +547,7 @@ struct CreateSelection<'a> {
     formation_name: &'a str,
     formation_json: &'a Option<String>,
     formation: &'a Formation,
-    roles: &'a BTreeMap<String, Vec<PublicKey>>,
+    name: &'a str,
     inputs: &'a BTreeMap<String, BlobHash>,
 }
 
@@ -502,13 +567,15 @@ fn create_plan(
         command: "goal create",
         review: json!({"agent":selected.agent,"title":selected.title,"already_titled":titled.len(),
             "formation":selected.formation_name,"formation_json":selected.formation_json,
-            "roles":selected.roles,"inputs":selected.inputs}),
+            "name":selected.name,"inputs":selected.inputs}),
         human: format!(
-            "Start \"{}\" with {} as the host's agent, using {}. {}",
+            "Start \"{}\" with the {} rules. Host: you. {} joins as {}. {}{}",
             presentation::safe(selected.title),
-            name_for(&known, selected.agent),
             presentation::safe(selected.formation_name),
-            presentation::counts_when(&selected.formation.decisions.completion)
+            name_for(&known, selected.agent),
+            presentation::safe(selected.name),
+            presentation::counts_when(&selected.formation.decisions.completion),
+            roles::initial_reviewers(selected.formation, selected.agent, selected.name)
         ),
         warning: None,
         again: String::new(),
@@ -524,13 +591,13 @@ fn goal_create(
 ) -> Result<Output, Failure> {
     let title = value(args, "title");
     let (formation_name, formation_json, formation) = chosen_formation(args)?;
-    let roles: BTreeMap<String, Vec<PublicKey>> = json_map(args, "roles")?;
     let inputs: BTreeMap<String, BlobHash> = json_map(args, "inputs")?;
     let agent = if owner {
         acting_agent(client, socket, matches, None)?
     } else {
         current_agent(client)?
     };
+    let name = member_name(client, socket, args, agent)?;
     if owner {
         let selected = CreateSelection {
             agent,
@@ -538,7 +605,7 @@ fn goal_create(
             formation_name: &formation_name,
             formation_json: &formation_json,
             formation: &formation,
-            roles: &roles,
+            name: &name,
             inputs: &inputs,
         };
         let plan = create_plan(client, socket, &selected)?;
@@ -554,8 +621,8 @@ fn goal_create(
         Request::GoalCreate {
             agent,
             title: title.into(),
+            name: name.clone(),
             formation_json,
-            roles,
             inputs,
         },
         idempotency(matches)?,
@@ -567,9 +634,15 @@ fn goal_create(
     Ok(Output::success(
         result,
         format!(
-            "Started \"{}\" ({}). Host: you. This computer keeps who is in and the rules.",
+            "Started \"{}\" ({}). Host: you. {}{}. The goal runs from this computer.",
             presentation::safe(title),
-            short_goal(goal)
+            short_goal(goal),
+            presentation::safe(&name),
+            if formation.roles.is_empty() {
+                " is at level auto"
+            } else {
+                " holds every role, at level auto"
+            }
         ),
     ))
 }
@@ -580,6 +653,7 @@ fn add_plan(
     goal: GoalId,
     agent: PublicKey,
     level: Level,
+    args: &ArgMatches,
 ) -> Result<confirm::Plan, Failure> {
     let known = status(client, socket, None)?;
     let selected = known
@@ -619,15 +693,30 @@ fn add_plan(
         ));
     }
     let title = goal_status.title.as_deref().unwrap_or("this goal");
+    let name = args
+        .get_one::<String>("name")
+        .cloned()
+        .unwrap_or_else(|| selected.name.clone());
+    if !locust_proto::event::is_member_name(&name) {
+        return Err(Failure::invalid("invalid member name"));
+    }
+    let role = roles::selected_role(client, socket, args, &goal_status)?;
+    let role_words = role
+        .as_deref()
+        .map(|role| format!(", a {}", presentation::safe(role)))
+        .unwrap_or_default();
     Ok(confirm::Plan {
         command: "goal add",
         review: json!({"goal":goal,"title":goal_status.title,"host":goal_status.host,
-            "agent":agent,"name":selected.name,"already_member":joined,"level":level,"current_level":current_level}),
+            "agent":agent,"name":name,"role":role,"already_member":joined,"level":level,"current_level":current_level}),
         human: format!(
-            "Add {} to \"{}\" ({}). This shares the whole goal's history and content. Local files and private chats stay here. Level: read (reads and reports), ask (posts and asks before tasks), auto (takes tasks on its own) [selected: {}].",
+            "Add {} to \"{}\" ({}) as {}{}, at level {}. This shares the whole goal's history and content. Local files and private chats stay here. Level: read (reads and reports), ask (posts and asks before tasks), auto (takes tasks on its own) [selected: {}].",
             presentation::safe(&selected.name),
             presentation::safe(title),
             short_goal(goal),
+            presentation::safe(&name),
+            role_words,
+            level_word(level),
             level_word(level)
         ),
         warning: None,
@@ -635,7 +724,12 @@ fn add_plan(
     })
 }
 
-fn add_retry_key(observed: &GoalStatus, agent: PublicKey, expires_ms: u64) -> IdempotencyKey {
+fn add_retry_key(
+    observed: &GoalStatus,
+    agent: PublicKey,
+    expires_ms: u64,
+    role: Option<&str>,
+) -> IdempotencyKey {
     let bytes = serde_json::to_vec(&(
         "locust-goal-add-v2",
         observed.goal,
@@ -643,6 +737,7 @@ fn add_retry_key(observed: &GoalStatus, agent: PublicKey, expires_ms: u64) -> Id
         observed.governance_head,
         agent,
         expires_ms,
+        role,
     ))
     .expect("public retry selection encodes");
     IdempotencyKey(
@@ -661,13 +756,15 @@ fn goal_add(
     let goal = resolve_goal(client, socket, value(args, "goal"), None)?;
     let agent = acting_agent(client, socket, matches, None)?;
     let level = selected_level(args);
-    let plan = add_plan(client, socket, goal, agent, level)?;
+    let plan = add_plan(client, socket, goal, agent, level, args)?;
     if let Some(output) = reviewed(matches, args, &plan, || {
-        add_plan(client, socket, goal, agent, level)
+        add_plan(client, socket, goal, agent, level, args)
     })? {
         return Ok(output);
     }
     let name = plan.review["name"].as_str().unwrap_or("agent");
+    let role: Option<String> = serde_json::from_value(plan.review["role"].clone())
+        .map_err(|error| Failure::internal(error.to_string()))?;
     let title = plan.review["title"].as_str().unwrap_or("this goal");
     if plan.review["already_member"] == true {
         let current_level = plan.review["current_level"].as_str().unwrap_or("read");
@@ -684,11 +781,16 @@ fn goal_add(
     let goal_status = observed(client, socket, goal)?;
     let now = now_ms()?;
     let expires_ms = (now / 86_400_000 + 2) * 86_400_000;
+    let retry_key = add_retry_key(&goal_status, agent, expires_ms, role.as_deref());
     let Response::Invited { ticket } = call(
         client,
         socket,
-        Request::GoalInvite { goal, expires_ms },
-        Some(add_retry_key(&goal_status, agent, expires_ms)),
+        Request::GoalInvite {
+            goal,
+            expires_ms,
+            role,
+        },
+        Some(retry_key),
     )?
     else {
         unreachable!("typed response")
@@ -720,6 +822,7 @@ fn goal_add(
         socket,
         Request::GoalJoin {
             agent,
+            name: name.into(),
             ticket,
             level,
         },
@@ -756,6 +859,7 @@ fn join_plan(
     preview: &locust_proto::api::InvitationPreview,
     agent: PublicKey,
     level: Level,
+    name: &str,
 ) -> Result<confirm::Plan, Failure> {
     let known = status(client, socket, None)?;
     let standing = known
@@ -763,16 +867,26 @@ fn join_plan(
         .iter()
         .find(|entry| entry.goal == preview.goal && entry.member == agent)
         .map(|entry| entry.membership);
+    let joining_facts = format!(
+        "Host: {}. {}{}",
+        presentation::safe(&preview.host_name),
+        preview.sharing_facts.join(" "),
+        preview
+            .role
+            .as_deref()
+            .map(|role| format!(" Joins as a {}.", presentation::safe(role)))
+            .unwrap_or_default()
+    );
     Ok(confirm::Plan {
         command: "goal join",
         review: json!({"invitation_review":preview.review,"goal":preview.goal,
-            "title":preview.goal_title,"agent":agent,"standing":standing,"level":level}),
+            "title":preview.goal_title,"agent":agent,"name":name,"role":preview.role,"host_name":preview.host_name,"standing":standing,"level":level}),
         human: format!(
             "Join \"{}\" ({}) as {}. This shares what this agent posts with the goal's members. {} Level: read (reads and reports), ask (posts and asks before tasks), auto (takes tasks on its own, so tasks other members wrote run here unasked) [selected: {}]. What a level allows also depends on the goal's rules, which arrive after admission.",
             presentation::safe(preview.goal_title.as_deref().unwrap_or("this goal")),
             short_goal(preview.goal),
-            name_for(&known, agent),
-            preview.sharing_facts.join(" "),
+            presentation::safe(name),
+            joining_facts,
             level_word(level)
         ),
         warning: None,
@@ -801,8 +915,9 @@ fn goal_join(
         current_agent(client)?
     };
     let level = selected_level(args);
+    let name = member_name(client, socket, args, agent)?;
     if owner {
-        let plan = join_plan(client, socket, &preview, agent, level)?;
+        let plan = join_plan(client, socket, &preview, agent, level, &name)?;
         if args
             .get_one::<String>("ticket")
             .is_some_and(|source| source == "-")
@@ -811,7 +926,7 @@ fn goal_join(
             return Ok(plan.shown());
         }
         if let Some(output) = reviewed(matches, args, &plan, || {
-            join_plan(client, socket, &preview, agent, level)
+            join_plan(client, socket, &preview, agent, level, &name)
         })? {
             return Ok(output);
         }
@@ -821,6 +936,7 @@ fn goal_join(
         socket,
         Request::GoalJoin {
             agent,
+            name: name.clone(),
             ticket,
             level,
         },
@@ -835,11 +951,7 @@ fn goal_join(
     else {
         unreachable!("typed response")
     };
-    let name = if owner {
-        name_for(&status(client, socket, None)?, agent)
-    } else {
-        agent.to_string()
-    };
+    let name = presentation::safe(&name);
     let title = presentation::safe(preview.goal_title.as_deref().unwrap_or("this goal"));
     let human = if membership == Membership::Member {
         format!("{name} joined \"{title}\" · {}.", level_word(joined_level))
@@ -969,6 +1081,7 @@ fn invite_plan(
     socket: &Path,
     goal: GoalId,
     typed_duration: &str,
+    args: &ArgMatches,
 ) -> Result<confirm::Plan, Failure> {
     let observed = observed(client, socket, goal)?;
     let Response::Invitations { invitations } =
@@ -981,15 +1094,21 @@ fn invite_plan(
         .filter(|invitation| invitation.state == InvitationState::Pending)
         .count();
     let issued = invitations.len();
+    let role = roles::selected_role(client, socket, args, &observed)?;
+    let role_words = role
+        .as_deref()
+        .map(|role| format!(" as a {}", presentation::safe(role)))
+        .unwrap_or_default();
     Ok(confirm::Plan {
         command: "goal invite",
         review: json!({"goal":goal,"title":observed.title,"host":observed.host,
-            "duration":typed_duration,"issued_invitations":issued,
+            "duration":typed_duration,"role":role,"issued_invitations":issued,
             "pending_invitations":pending}),
         human: format!(
-            "Invite someone to \"{}\" ({}). The ticket shares this goal's history and content with whoever presents it. Expires after {}. Invitations issued: {issued}. Pending invitations: {pending}.",
+            "Invite someone to \"{}\" ({}){}. The ticket shares this goal's history and content with whoever presents it. Expires after {}. Invitations issued: {issued}. Pending invitations: {pending}.",
             presentation::safe(observed.title.as_deref().unwrap_or("this goal")),
             short_goal(goal),
+            role_words,
             typed_duration
         ),
         warning: None,
@@ -1007,21 +1126,29 @@ fn goal_invite(
     let duration = value(args, "expires");
     let lifetime = duration_ms(duration)?;
     let goal = resolve_goal(client, socket, value(args, "goal"), None)?;
-    if owner {
-        let plan = invite_plan(client, socket, goal, duration)?;
+    let role = if owner {
+        let plan = invite_plan(client, socket, goal, duration, args)?;
         if let Some(output) = reviewed(matches, args, &plan, || {
-            invite_plan(client, socket, goal, duration)
+            invite_plan(client, socket, goal, duration, args)
         })? {
             return Ok(output);
         }
-    }
+        serde_json::from_value(plan.review["role"].clone())
+            .map_err(|error| Failure::internal(error.to_string()))?
+    } else {
+        args.get_one::<String>("role").cloned()
+    };
     let expires_ms = now_ms()?
         .checked_add(lifetime)
         .ok_or_else(|| Failure::usage("--expires is too large"))?;
     let response = call(
         client,
         socket,
-        Request::GoalInvite { goal, expires_ms },
+        Request::GoalInvite {
+            goal,
+            expires_ms,
+            role,
+        },
         idempotency(matches)?,
     )?;
     let Response::Invited { ticket } = &response else {
@@ -1117,23 +1244,93 @@ fn rules_plan(
     goal: GoalId,
     formation_name: &str,
     formation_json: &str,
-    roles: &BTreeMap<String, Vec<PublicKey>>,
     inputs: &BTreeMap<String, BlobHash>,
 ) -> Result<confirm::Plan, Failure> {
     let observed = observed(client, socket, goal)?;
     let current = observed
         .current_rules
         .ok_or_else(|| Failure::unavailable("current rules have not arrived"))?;
+    let mut formation: Formation = serde_json::from_str(formation_json)
+        .map_err(|error| Failure::invalid(format!("formation definition: {error}")))?;
+    let workspace = observed
+        .workspace
+        .as_ref()
+        .filter(|workspace| workspace.enabled);
+    let mut file_lines = String::new();
+    if let Some(workspace) = workspace {
+        if formation.workspace.is_none() {
+            let host = observed
+                .host
+                .ok_or_else(|| Failure::unavailable("the host's agent has not arrived"))?;
+            formation.workspace = Some(WorkspacePolicy {
+                integrator: Authority::Participant {
+                    key: host.to_string(),
+                },
+                completion: formation.decisions.completion.clone(),
+            });
+        }
+        let source = serde_json::to_string(&formation)
+            .map_err(|error| Failure::internal(error.to_string()))?;
+        let inspected = locust_core::organization::inspect(&source);
+        if inspected
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "selector_scope" && item.path.starts_with("/workspace"))
+        {
+            return Err(Failure::invalid(
+                "These rules cannot apply to the shared files. Give the files a rule in the formation's workspace part.",
+            ));
+        }
+        let old = roles::current_formation(client, socket, &observed)?;
+        if old
+            .as_ref()
+            .and_then(|old| {
+                old.workspace
+                    .as_ref()
+                    .map(|policy| policy.completion != old.decisions.completion)
+            })
+            .unwrap_or(false)
+        {
+            file_lines.push_str("\nThis replaces the rule you gave the shared files.");
+        }
+        file_lines.push_str("\nShared files will follow these rules too. ");
+        file_lines.push_str(&presentation::counts_when(
+            &formation
+                .workspace
+                .as_ref()
+                .expect("policy added")
+                .completion,
+        ));
+        let Response::WorkspaceProposals(proposals) =
+            call(client, socket, Request::WorkspaceProposals { goal }, None)?
+        else {
+            unreachable!("typed response")
+        };
+        let pending = proposals
+            .iter()
+            .filter(|proposal| {
+                Some(proposal.context.round) == workspace.epoch && proposal.integrated_as.is_empty()
+            })
+            .count();
+        if pending > 0 {
+            file_lines.push_str(&format!("\n{pending} file changes that have not landed must be proposed again by their authors."));
+        }
+    }
+    let source =
+        serde_json::to_string(&formation).map_err(|error| Failure::internal(error.to_string()))?;
     Ok(confirm::Plan {
         command: "rules bind",
         review: json!({"goal":goal,"title":observed.title,"host":observed.host,
             "current_rules":current,"formation":formation_name,
-            "formation_json":formation_json,"roles":roles,"inputs":inputs}),
+            "formation_json":source,"inputs":inputs,
+            "workspace_epoch":workspace.and_then(|workspace| workspace.epoch),
+            "workspace_policy":workspace.and(formation.workspace.as_ref())}),
         human: format!(
-            "Bind \"{}\" ({}) to {}. Open tasks keep their old rules until revised.",
+            "Bind \"{}\" ({}) to {}. Open tasks keep their old rules until revised.{}",
             presentation::safe(observed.title.as_deref().unwrap_or("this goal")),
             short_goal(goal),
-            presentation::safe(formation_name)
+            presentation::safe(formation_name),
+            file_lines
         ),
         warning: None,
         again: String::new(),
@@ -1149,17 +1346,20 @@ fn rules_bind(
 ) -> Result<Output, Failure> {
     let goal = resolve_goal(client, socket, value(args, "goal"), None)?;
     let (name, source, _) = chosen_formation(args)?;
-    let source =
+    let mut source =
         source.ok_or_else(|| Failure::usage("rules bind needs --formation or --formation-json"))?;
-    let roles: BTreeMap<String, Vec<PublicKey>> = json_map(args, "roles")?;
     let inputs: BTreeMap<String, BlobHash> = json_map(args, "inputs")?;
     let plan = if owner {
-        let plan = rules_plan(client, socket, goal, &name, &source, &roles, &inputs)?;
+        let plan = rules_plan(client, socket, goal, &name, &source, &inputs)?;
         if let Some(output) = reviewed(matches, args, &plan, || {
-            rules_plan(client, socket, goal, &name, &source, &roles, &inputs)
+            rules_plan(client, socket, goal, &name, &source, &inputs)
         })? {
             return Ok(output);
         }
+        source = plan.review["formation_json"]
+            .as_str()
+            .expect("reviewed formation")
+            .into();
         Some(plan)
     } else {
         None
@@ -1179,7 +1379,6 @@ fn rules_bind(
             goal,
             expected: current,
             formation_json: source,
-            roles,
             inputs,
         },
         idempotency(matches)?,
@@ -1188,14 +1387,25 @@ fn rules_bind(
         .as_ref()
         .and_then(|plan| plan.review["title"].as_str())
         .unwrap_or("this goal");
-    Ok(Output::success(
-        json!(response),
-        format!(
-            "\"{}\" now follows {}. Open tasks keep their old rules until revised.",
-            presentation::safe(title),
-            presentation::safe(&name)
-        ),
-    ))
+    let mut human = format!(
+        "\"{}\" now follows {}. Open tasks keep their old rules until revised.",
+        presentation::safe(title),
+        presentation::safe(&name)
+    );
+    if let Some(plan) = &plan
+        && !plan.review["workspace_policy"].is_null()
+    {
+        human.push_str(" The shared files follow them too.");
+        if let Some(line) = plan
+            .human
+            .lines()
+            .find(|line| line.ends_with("must be proposed again by their authors."))
+        {
+            human.push('\n');
+            human.push_str(line);
+        }
+    }
+    Ok(Output::success(json!(response), human))
 }
 
 fn task_detail(
@@ -1447,6 +1657,35 @@ fn invitation_revoke(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn add_retry_keys_distinguish_the_invited_role() {
+        let view = GoalStatus {
+            goal: GoalId([1; 32]),
+            title: None,
+            governance: PublicKey([2; 32]),
+            hosted_here: true,
+            host: Some(PublicKey([3; 32])),
+            host_name: Some("Host".into()),
+            roles: Default::default(),
+            deciding: Default::default(),
+            governance_head: None,
+            current_rules: None,
+            scope_halts: vec![],
+            members: vec![],
+            halted: None,
+            workspace: None,
+            abilities: vec![],
+            stalled: vec![],
+            peers: vec![],
+        };
+        let agent = PublicKey([4; 32]);
+        let plain = add_retry_key(&view, agent, 123, None);
+        let reviewer = add_retry_key(&view, agent, 123, Some("reviewer"));
+        assert_ne!(plain, reviewer);
+        assert_ne!(reviewer, add_retry_key(&view, agent, 123, Some("lead")));
+        assert_eq!(reviewer, add_retry_key(&view, agent, 123, Some("reviewer")));
+    }
 
     #[test]
     fn invitation_expiry_requires_a_finite_positive_duration() {

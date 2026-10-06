@@ -34,12 +34,7 @@ pub fn sealed_payload(goal: &GoalId, epoch: u32, text: &[u8]) -> (PayloadRef, Bl
     )
 }
 
-pub fn rules_binding(
-    goal: &GoalId,
-    epoch: u32,
-    formation: &Formation,
-    roles: BTreeMap<String, Vec<PublicKey>>,
-) -> (RulesBinding, Blob) {
+pub fn rules_binding(goal: &GoalId, epoch: u32, formation: &Formation) -> (RulesBinding, Blob) {
     let source = serde_json::to_vec(formation).expect("definition JSON encodes");
     let (object, blob) = sealed_payload(goal, epoch, &source);
     (
@@ -48,7 +43,6 @@ pub fn rules_binding(
                 semantic: definition_hash(formation),
                 object,
             },
-            roles,
             inputs: BTreeMap::new(),
         },
         blob,
@@ -90,6 +84,8 @@ impl Author {
             genesis.header().goal,
             Some(genesis.id()),
             Body::MemberAdmitted {
+                name: "member".into(),
+                role: None,
                 member: host,
                 endpoint,
             },
@@ -151,7 +147,6 @@ pub fn every_body() -> Vec<Body> {
                 key_epoch: 0,
             },
         },
-        roles: BTreeMap::new(),
         inputs: BTreeMap::new(),
     };
     let effect = Effect {
@@ -198,6 +193,8 @@ pub fn every_body() -> Vec<Body> {
             salt: [0; 16],
         }),
         Body::MemberAdmitted {
+            name: "member".into(),
+            role: None,
             member: key,
             endpoint: EndpointId([3; 32]),
         },
@@ -288,5 +285,9 @@ pub fn every_body() -> Vec<Body> {
             effect: crate::id::EffectId([4; 32]),
         },
         Body::LeaveRequested { admission: id },
+        Body::RoleHolders {
+            role: "reviewer".into(),
+            holders: vec![key],
+        },
     ]
 }

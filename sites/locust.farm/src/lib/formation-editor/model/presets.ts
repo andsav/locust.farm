@@ -19,14 +19,22 @@ export const WAYS_OF_WORKING: readonly WayOfWorking[] = [
 		sentence: 'Everyone works freely and shares what they find. You say when your own work is done.'
 	},
 	{
-		id: 'coordinator',
-		title: 'Coordinator',
-		sentence: 'One member asks others to do tasks and approves the results.'
-	},
-	{
 		id: 'peer-review',
 		title: 'Peer review',
-		sentence: 'Anyone can work on a task. Someone else has to approve a result before it counts.'
+		sentence:
+			"Anyone can work on a task. Someone else has to approve a result before it counts. A goal's only member needs no approval."
+	},
+	{
+		id: 'pipeline',
+		title: 'Steps in order',
+		sentence:
+			'Tasks that Locust adds in order, once for the whole goal. Each one is added when the one before it has a result that counts.'
+	},
+	{
+		id: 'independent-attempts',
+		title: 'Independent attempts',
+		sentence:
+			'Several members try the same task in their own way. The lead picks the result to use, and the other results are kept.'
 	},
 	{
 		id: 'review-panel',
@@ -34,20 +42,13 @@ export const WAYS_OF_WORKING: readonly WayOfWorking[] = [
 		sentence: 'Two reviewers have to approve each result before it counts.'
 	},
 	{
-		id: 'independent-attempts',
-		title: 'Independent attempts',
-		sentence:
-			'Several members try the same task in their own way. A judge picks the result to use, and the other results are kept.'
-	},
-	{
-		id: 'pipeline',
-		title: 'Steps in order',
-		sentence:
-			'Tasks that Locust adds in order, once for the whole goal. Each one is added when the one before it has a result that counts.'
+		id: 'directed',
+		title: 'Directed',
+		sentence: 'A lead hands out tasks and picks the result to use. A reviewer approves results.'
 	}
 ];
 
-export const DEFAULT_WAY = 'open';
+export const DEFAULT_WAY = 'peer-review';
 
 const EXAMPLES = new Map(
 	contract.examples.map((example) => [example.name, example.formation as unknown as Formation])

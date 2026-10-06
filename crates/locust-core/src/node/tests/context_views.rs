@@ -531,7 +531,7 @@ fn collaboration_view_setup(
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     );
@@ -670,11 +670,12 @@ fn to_review_counts_approvals_and_shows_each_members_latest_verdict() {
         .find(|item| item.subject == subject)
         .unwrap();
     assert_eq!(item.needed, 2);
-    // Phase 3 preserves replay's existing any-positive approval semantics.
-    assert_eq!(item.approvals, 1);
+    // A member's latest effective review withdraws its earlier approval.
+    assert_eq!(item.approvals, 0);
     assert_eq!(
         item.verdicts,
         vec![locust_proto::api::Verdict {
+            opinion: false,
             member: members[1],
             approve: false,
             event: rejected
@@ -1039,6 +1040,7 @@ fn stages_review_requests_and_admissions_need_no_local_work_setting() {
     let Response::Invited { ticket } = d.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -1048,6 +1050,7 @@ fn stages_review_requests_and_admissions_need_no_local_work_setting() {
     let joined = d.ok(
         owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: member,
             ticket,
             level: Level::Read,

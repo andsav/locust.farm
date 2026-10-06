@@ -40,12 +40,23 @@
     "draft": {
       "decisions": {
         "completion": {
-          "by": {
-            "kind": "members"
-          },
-          "count": 1,
-          "exclude_author": true,
-          "kind": "reviews"
+          "kind": "any",
+          "rules": [
+            {
+              "by": {
+                "kind": "members"
+              },
+              "count": 1,
+              "exclude_author": true,
+              "kind": "reviews"
+            },
+            {
+              "by": {
+                "kind": "only_member"
+              },
+              "kind": "contribution"
+            }
+          ]
         },
         "finish": null,
         "selection": null

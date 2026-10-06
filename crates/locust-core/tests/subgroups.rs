@@ -107,18 +107,14 @@ impl Harness {
             .find(|p| p.name == preset)
             .unwrap()
             .formation;
-        let roles = formation
-            .roles
-            .keys()
-            .map(|name| (name.clone(), vec![creator]))
-            .collect();
         let Response::GoalCreated { goal } = self.ok(
             ConnId(1),
             Request::GoalCreate {
+                name: "host".into(),
                 agent: creator,
                 title: format!("{preset} goal"),
                 formation_json: Some(serde_json::to_string(&formation).unwrap()),
-                roles,
+
                 inputs: BTreeMap::new(),
             },
         ) else {
@@ -130,6 +126,7 @@ impl Harness {
         let Response::Invited { ticket } = self.ok(
             ConnId(1),
             Request::GoalInvite {
+                role: None,
                 goal,
                 expires_ms: 1_000_000,
             },
@@ -140,6 +137,7 @@ impl Harness {
             self.ok(
                 ConnId(1),
                 Request::GoalJoin {
+                    name: "member".into(),
                     agent: principal,
                     ticket,
                     level: locust_proto::api::Level::Auto,
@@ -219,7 +217,7 @@ fn separate_goal_exports_only_selected_bytes_and_returns_a_fresh_parent_candidat
     let mut h = Harness::new();
     let (bridge, parent_member) = h.enroll(2);
     let (child_principal, child_member) = h.enroll(3);
-    let parent = h.goal(bridge, "coordinator");
+    let parent = h.goal(bridge, "directed");
     let child = h.goal(child_principal, "open");
     h.join(child, bridge);
 

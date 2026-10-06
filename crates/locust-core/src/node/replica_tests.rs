@@ -208,16 +208,18 @@ fn reconcile_from(
 fn found(peers: &mut [Peer]) -> GoalId {
     let agent = peers[0].principal;
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        name: "host".into(),
         agent,
         title: "shared durable goal".into(),
         formation_json: Some(r#"{"schema_version":2,"context":{"inputs":{"snapshot":{"kind":"artifact","required":false}}}}"#.into()),
-        roles: BTreeMap::new(),
+
         inputs: BTreeMap::new(),
     }) else {
         panic!("create");
     };
     for index in 1..peers.len() {
         let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 1_000_000,
         }) else {
@@ -225,6 +227,7 @@ fn found(peers: &mut [Peer]) -> GoalId {
         };
         let agent = peers[index].principal;
         peers[index].call(Request::GoalJoin {
+            name: "member".into(),
             agent,
             ticket,
             level: locust_proto::api::Level::Auto,
@@ -246,6 +249,7 @@ fn host_operations_refuse_a_daemon_that_does_not_hold_the_host_key() {
     let member = peers[1].principal;
     let requests = [
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 1_000_000,
         },
@@ -259,7 +263,7 @@ fn host_operations_refuse_a_daemon_that_does_not_hold_the_host_key() {
             goal,
             expected: EventId([0; 32]),
             formation_json: "{}".into(),
-            roles: BTreeMap::new(),
+
             inputs: BTreeMap::new(),
         },
         Request::TaskRevise {
@@ -437,15 +441,17 @@ fn invitations_bind_once_to_authenticated_member_and_survive_restart() {
     let mut peers = [Peer::new(1), Peer::new(2), Peer::new(3)];
     let agent = peers[0].principal;
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        name: "host".into(),
         agent,
         title: "join checks".into(),
-        formation_json: None,
-        roles: BTreeMap::new(),
+        formation_json: Some("{\"schema_version\":2}".into()),
+
         inputs: BTreeMap::new(),
     }) else {
         panic!("create");
     };
     let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 100,
     }) else {
@@ -455,6 +461,7 @@ fn invitations_bind_once_to_authenticated_member_and_survive_restart() {
     let join = JoinRequest::sign(
         goal,
         peers[1].endpoint,
+        "member".into(),
         invite.secret,
         peers[1].node.signer(&peers[1].principal).unwrap(),
     );
@@ -477,6 +484,7 @@ fn invitations_bind_once_to_authenticated_member_and_survive_restart() {
     let other = JoinRequest::sign(
         goal,
         peers[2].endpoint,
+        "member".into(),
         invite.secret,
         peers[2].node.signer(&peers[2].principal).unwrap(),
     );
@@ -486,6 +494,7 @@ fn invitations_bind_once_to_authenticated_member_and_survive_restart() {
         Err(Refusal::InvitationRefused)
     );
     let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 100,
     }) else {
@@ -495,6 +504,7 @@ fn invitations_bind_once_to_authenticated_member_and_survive_restart() {
     let expired = JoinRequest::sign(
         goal,
         endpoint,
+        "member".into(),
         invite.secret,
         peers[2].node.signer(&peers[2].principal).unwrap(),
     );
@@ -567,21 +577,24 @@ fn refused_join_does_not_poison_another_local_principals_invitation() {
     let second = peers[1].principal.max(second);
     let agent = peers[0].principal;
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        name: "host".into(),
         agent,
         title: "independent invitations".into(),
-        formation_json: None,
-        roles: BTreeMap::new(),
+        formation_json: Some("{\"schema_version\":2}".into()),
+
         inputs: BTreeMap::new(),
     }) else {
         panic!("create");
     };
     let Response::Invited { ticket: expired } = peers[0].call(Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 100,
     }) else {
         panic!("invite");
     };
     let Response::Invited { ticket: valid } = peers[0].call(Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 1_000_000,
     }) else {
@@ -591,6 +604,7 @@ fn refused_join_does_not_poison_another_local_principals_invitation() {
         &mut peers[1].node,
         None,
         Request::GoalJoin {
+            name: "member".into(),
             agent: first,
             ticket: expired,
             level: locust_proto::api::Level::Auto,
@@ -600,6 +614,7 @@ fn refused_join_does_not_poison_another_local_principals_invitation() {
         &mut peers[1].node,
         None,
         Request::GoalJoin {
+            name: "member".into(),
             agent: second,
             ticket: valid,
             level: locust_proto::api::Level::Auto,
@@ -657,15 +672,17 @@ fn pending_join_has_exactly_one_status_entry_per_local_principal() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let agent = peers[0].principal;
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        name: "host".into(),
         agent,
         title: "status cardinality".into(),
-        formation_json: None,
-        roles: BTreeMap::new(),
+        formation_json: Some("{\"schema_version\":2}".into()),
+
         inputs: BTreeMap::new(),
     }) else {
         panic!("create");
     };
     let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 1_000_000,
     }) else {
@@ -673,6 +690,7 @@ fn pending_join_has_exactly_one_status_entry_per_local_principal() {
     };
     let agent = peers[1].principal;
     peers[1].call(Request::GoalJoin {
+        name: "member".into(),
         agent,
         ticket,
         level: locust_proto::api::Level::Auto,
@@ -1155,10 +1173,11 @@ fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let agent = peers[0].principal;
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        name: "host".into(),
         agent,
         title: "early readable title".into(),
-        formation_json: None,
-        roles: BTreeMap::new(),
+        formation_json: Some("{\"schema_version\":2}".into()),
+
         inputs: BTreeMap::new(),
     }) else {
         panic!("create")
@@ -1184,6 +1203,7 @@ fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
         })
         .unwrap();
     let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 1_000_000,
     }) else {
@@ -1191,6 +1211,7 @@ fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
     };
     let agent = peers[1].principal;
     peers[1].call(Request::GoalJoin {
+        name: "member".into(),
         agent,
         ticket,
         level: locust_proto::api::Level::Auto,
@@ -1299,15 +1320,17 @@ fn same_key_rejoin(sign_during_recovery: bool) {
     let before_join = crate::node::tests::snapshot(&peers[1].store);
     let agent = peers[0].principal;
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        name: "host".into(),
         agent,
         title: "Rejoin ordering".into(),
-        formation_json: None,
-        roles: BTreeMap::new(),
+        formation_json: Some("{\"schema_version\":2}".into()),
+
         inputs: BTreeMap::new(),
     }) else {
         panic!()
     };
     let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 1_000_000,
     }) else {
@@ -1315,6 +1338,7 @@ fn same_key_rejoin(sign_during_recovery: bool) {
     };
     let agent = peers[1].principal;
     peers[1].call(Request::GoalJoin {
+        name: "member".into(),
         agent,
         ticket: ticket.clone(),
         level: locust_proto::api::Level::Auto,
@@ -1345,6 +1369,7 @@ fn same_key_rejoin(sign_during_recovery: bool) {
     assert!(!peers[1].node.goals.contains_key(&goal));
     let agent = peers[1].principal;
     peers[1].call(Request::GoalJoin {
+        name: "member".into(),
         agent,
         ticket,
         level: locust_proto::api::Level::Auto,

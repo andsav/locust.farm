@@ -1,6 +1,6 @@
 //! Conservative implication over pinned identities, including principals not yet
 //! admitted. Unsupported completion implications fail closed with a diagnostic.
-use super::rules::{self, EffectiveRules};
+use super::rules::EffectiveRules;
 use locust_proto::{
     id::PublicKey,
     organization::{CompletionRule, DecisionRules, Selector, StartRule, WorkRules},
@@ -54,6 +54,8 @@ pub(super) fn inherit(parent: &EffectiveRules) -> (WorkRules, DecisionRules) {
 enum Atom {
     Key(PublicKey),
     Subject,
+    Role(String),
+    OnlyMember,
 }
 fn atoms(selector: &Selector, effective: &EffectiveRules) -> Option<BTreeSet<Atom>> {
     match selector {
@@ -62,16 +64,8 @@ fn atoms(selector: &Selector, effective: &EffectiveRules) -> Option<BTreeSet<Ato
         Selector::Participant { key } => {
             Some(key.parse().ok().map(Atom::Key).into_iter().collect())
         }
-        Selector::Role { name } => Some(
-            effective
-                .roles
-                .get(name)
-                .into_iter()
-                .flatten()
-                .copied()
-                .map(Atom::Key)
-                .collect(),
-        ),
+        Selector::Role { name } => Some(BTreeSet::from([Atom::Role(name.clone())])),
+        Selector::OnlyMember => Some(BTreeSet::from([Atom::OnlyMember])),
         Selector::TaskCreator => Some(effective.creator.map(Atom::Key).into_iter().collect()),
         Selector::ContributionAuthor => Some(BTreeSet::from([Atom::Subject])),
         Selector::Any { selectors } => {
@@ -126,12 +120,9 @@ fn implies(
 }
 pub(super) fn narrows(c: &EffectiveRules, p: &EffectiveRules) -> bool {
     let authority = |child: &Option<_>, parent: &Option<_>| {
-        child.as_ref().is_none_or(|child| {
-            parent.as_ref().is_some_and(|parent| {
-                rules::authority(child, c).is_some()
-                    && rules::authority(child, c) == rules::authority(parent, p)
-            })
-        })
+        child
+            .as_ref()
+            .is_none_or(|child| parent.as_ref() == Some(child))
     };
     subset(&c.work.propose, &p.work.propose, c, p)
         && subset(&c.work.publish, &p.work.publish, c, p)
@@ -161,6 +152,7 @@ mod tests {
             decisions: DecisionRules::default(),
             roles: Default::default(),
             creator: Some(PublicKey([1; 32])),
+            only_member: None,
             rules: EventId([2; 32]),
             definition: DefinitionHash([3; 32]),
         }
@@ -219,5 +211,38 @@ mod tests {
         };
         assert!(implies(&both, &reviews(2, true), &c, &p));
         assert!(!implies(&either, &reviews(2, true), &c, &p));
+    }
+    #[test]
+    fn subtask_narrowing_treats_roles_symbolically() {
+        let mut parent = effective();
+        parent.work.propose = Selector::Role {
+            name: "writers".into(),
+        };
+        parent
+            .roles
+            .insert("writers".into(), vec![PublicKey([1; 32])]);
+        let mut child = parent.clone();
+        child
+            .roles
+            .insert("writers".into(), vec![PublicKey([2; 32])]);
+        assert!(narrows(&child, &parent));
+        child.work.propose = Selector::Participant {
+            key: PublicKey([1; 32]).to_string(),
+        };
+        assert!(!narrows(&child, &parent));
+    }
+    #[test]
+    fn a_subtask_keeps_the_only_member_part_and_cannot_widen_it() {
+        let mut parent = effective();
+        parent.decisions.completion = CompletionRule::Contribution {
+            by: Selector::OnlyMember,
+        };
+        let mut child = parent.clone();
+        (child.work, child.decisions) = inherit(&parent);
+        assert!(narrows(&child, &parent));
+        child.decisions.completion = CompletionRule::Contribution {
+            by: Selector::Members,
+        };
+        assert!(!narrows(&child, &parent));
     }
 }

@@ -278,6 +278,7 @@ fn invitation_discloses_signed_policy_without_implicitly_consenting() {
     let Response::Invited { ticket } = daemon.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -331,6 +332,8 @@ fn join_reconciliation_waits_for_exact_advertised_publication_proof() {
         .unwrap();
     let endpoint = daemon.node.goals[&goal].state().members[&principal].endpoint;
     let mut join = local::JoinRecord {
+        host_name: "host".into(),
+        name: "member".into(),
         governance: principal,
         endpoint,
         hints: vec![],
@@ -518,7 +521,7 @@ fn the_page_keeps_changes_signed_by_the_governance_key() {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     ));
@@ -728,7 +731,7 @@ fn actual_parallel_flow_projects_approved_dag_and_revised_task_rounds() {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     );
@@ -979,7 +982,7 @@ fn duplicate_upstream_stage_prerequisites_are_deduplicated_in_snapshot() {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     );

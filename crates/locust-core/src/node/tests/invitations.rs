@@ -17,6 +17,7 @@ fn issue(daemon: &mut Daemon, _agent: ConnId, goal: GoalId, expires_ms: Option<u
     let Response::Invited { ticket } = daemon.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: expires_ms.unwrap_or(604_801_000),
         },
@@ -36,6 +37,7 @@ fn inventory(daemon: &mut Daemon, owner: ConnId, goal: GoalId) -> Vec<Invitation
 
 fn reviewed(ticket: Ticket, agent: PublicKey) -> Request {
     Request::GoalJoin {
+        name: "member".into(),
         agent,
         ticket,
         level: locust_proto::api::Level::Auto,
@@ -262,6 +264,7 @@ fn invitation_issuance_requires_an_explicit_expiry_and_owner_authority() {
         .is_err()
     );
     let request = Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 604_801_000,
     };
@@ -324,6 +327,7 @@ fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
     let same = JoinRequest::sign(
         goal,
         endpoint,
+        "member".into(),
         invitation.secret,
         daemon.node.signer(&member).unwrap(),
     );
@@ -332,6 +336,7 @@ fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
     let different = JoinRequest::sign(
         goal,
         endpoint,
+        "member".into(),
         invitation.secret,
         daemon.node.signer(&other).unwrap(),
     );
@@ -357,6 +362,7 @@ fn expired_preview_is_readable_but_join_is_refused_without_side_effects() {
     };
     assert!(preview.expired);
     let frame = daemon.frame(Request::GoalJoin {
+        name: "member".into(),
         agent: member,
         ticket,
         level: locust_proto::api::Level::Auto,
@@ -428,7 +434,7 @@ fn an_admission_signed_twice_for_one_request_is_one_record() {
     let second = Invitation::from_ticket(issue(&mut daemon, agent, goal, None).as_str()).unwrap();
     let remote = EndpointId([44; 32]);
     let joiner = Keypair::from_seed([44; 32]);
-    let request = JoinRequest::sign(goal, remote, first.secret, &joiner);
+    let request = JoinRequest::sign(goal, remote, "member".into(), first.secret, &joiner);
     let before = daemon.store.log(&goal, 0, usize::MAX).unwrap();
     let copy = snapshot(&daemon.store);
     daemon.node.join(&remote, &request, 1_000).unwrap();
@@ -444,7 +450,7 @@ fn an_admission_signed_twice_for_one_request_is_one_record() {
         admitted
     );
     let other = Keypair::from_seed([45; 32]);
-    let different = JoinRequest::sign(goal, remote, second.secret, &other);
+    let different = JoinRequest::sign(goal, remote, "member".into(), second.secret, &other);
     daemon.node.join(&remote, &different, 987_654).unwrap();
     assert_ne!(
         daemon.node.goals[&goal].state().members[&other.public()].admission,
@@ -498,6 +504,7 @@ fn a_ticket_names_the_governance_key_and_the_first_record_must_agree() {
     assert_eq!(
         joining.ok(actor, reviewed(forged.to_ticket().unwrap(), joiner)),
         Response::Joined {
+            host_name: "host".into(),
             goal,
             governance: other.public(),
             membership: Membership::Joining,

@@ -7,7 +7,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -16,7 +16,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -67,15 +67,15 @@
       "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
-      "id": "preset/coordinator",
+      "id": "preset/directed",
       "result": {
         "diagnostics": [],
         "explanation": {
           "authority_roles": [
-            "coordinator"
+            "lead"
           ],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -83,15 +83,16 @@
           ],
           "required_inputs": [],
           "required_roles": [
-            "coordinator"
+            "lead",
+            "reviewer"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
-            "Default rules: members bound to role \"coordinator\" may offer work to goal members; the recipient must acknowledge before starting.",
-            "Default rules: completion requires 1 distinct approving reviewer(s) from members bound to role \"coordinator\", including the author if eligible on the exact candidate.",
-            "Default rules: the single member bound to role \"coordinator\" may select one qualifying output; approval alone does not select it.",
-            "Default rules: the single member bound to role \"coordinator\" may declare the scope finished."
+            "Default rules: members bound to role \"lead\" may offer work to goal members; the recipient must acknowledge before starting.",
+            "Default rules: completion requires 1 distinct approving reviewer(s) from members bound to role \"reviewer\", including the author if eligible on the exact candidate.",
+            "Default rules: the single member bound to role \"lead\" may select one qualifying output; approval alone does not select it.",
+            "Default rules: the single member bound to role \"lead\" may declare the scope finished."
           ]
         },
         "normalized": {
@@ -103,7 +104,7 @@
             "completion": {
               "by": {
                 "kind": "role",
-                "name": "coordinator"
+                "name": "reviewer"
               },
               "count": 1,
               "exclude_author": false,
@@ -111,17 +112,20 @@
             },
             "finish": {
               "kind": "role",
-              "name": "coordinator"
+              "name": "lead"
             },
             "selection": {
               "kind": "role",
-              "name": "coordinator"
+              "name": "lead"
             }
           },
           "flow": {},
           "roles": {
-            "coordinator": {
-              "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
+            "lead": {
+              "description": "Hands out tasks, picks the result to use and can close a task. One member."
+            },
+            "reviewer": {
+              "description": "Approves results, including its own."
             }
           },
           "schema_version": 2,
@@ -137,7 +141,7 @@
               {
                 "by": {
                   "kind": "role",
-                  "name": "coordinator"
+                  "name": "lead"
                 },
                 "kind": "offered",
                 "to": {
@@ -148,10 +152,10 @@
           },
           "workspace": null
         },
-        "semantic_hash": "57809c414072a4a8d0753c2d5de6ee2f628eebbe2568cea5a90bd496f7b48568",
+        "semantic_hash": "1833e8d42acb0495558b56b1fe36b68707cfdf212a8deaf7194d7fd909b38081",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"coordinator\"\n      },\n      \"count\": 1,\n      \"exclude_author\": false,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    },\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"coordinator\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"coordinator\": {\n      \"description\": \"Asks members to do tasks, approves results, picks the result to use and can close a task. One member.\"\n    }\n  },\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"role\",\n          \"name\": \"coordinator\"\n        },\n        \"kind\": \"offered\",\n        \"to\": {\n          \"kind\": \"members\"\n        }\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"role\",\n        \"name\": \"reviewer\"\n      },\n      \"count\": 1,\n      \"exclude_author\": false,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": {\n      \"kind\": \"role\",\n      \"name\": \"lead\"\n    },\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"lead\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"lead\": {\n      \"description\": \"Hands out tasks, picks the result to use and can close a task. One member.\"\n    },\n    \"reviewer\": {\n      \"description\": \"Approves results, including its own.\"\n    }\n  },\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"role\",\n          \"name\": \"lead\"\n        },\n        \"kind\": \"offered\",\n        \"to\": {\n          \"kind\": \"members\"\n        }\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "preset/peer-review",
@@ -160,7 +164,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -169,10 +173,10 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
-            "Default rules: completion requires 1 distinct approving reviewer(s) from goal members, excluding the contribution author on the exact candidate.",
+            "Default rules: completion requires any of [1 distinct approving reviewer(s) from goal members, excluding the contribution author; publication by the goal's only member] on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
             "Default rules: no one may declare it finished; an empty task list is not completion."
           ]
@@ -184,12 +188,23 @@
           },
           "decisions": {
             "completion": {
-              "by": {
-                "kind": "members"
-              },
-              "count": 1,
-              "exclude_author": true,
-              "kind": "reviews"
+              "kind": "any",
+              "rules": [
+                {
+                  "by": {
+                    "kind": "members"
+                  },
+                  "count": 1,
+                  "exclude_author": true,
+                  "kind": "reviews"
+                },
+                {
+                  "by": {
+                    "kind": "only_member"
+                  },
+                  "kind": "contribution"
+                }
+              ]
             },
             "finish": null,
             "selection": null
@@ -216,10 +231,10 @@
           },
           "workspace": null
         },
-        "semantic_hash": "4a09ac9cc2d3c4e57206b115ea39b1a547af4c97688536accc92efa269dc14df",
+        "semantic_hash": "37da6246c08d19523e0a34965064e6a74c638d20fe4d2e668a0b68c08e92f27f",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"members\"\n      },\n      \"count\": 1,\n      \"exclude_author\": true,\n      \"kind\": \"reviews\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"kind\": \"any\",\n      \"rules\": [\n        {\n          \"by\": {\n            \"kind\": \"members\"\n          },\n          \"count\": 1,\n          \"exclude_author\": true,\n          \"kind\": \"reviews\"\n        },\n        {\n          \"by\": {\n            \"kind\": \"only_member\"\n          },\n          \"kind\": \"contribution\"\n        }\n      ]\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {},\n  \"roles\": {},\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "preset/review-panel",
@@ -228,7 +243,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -239,7 +254,7 @@
             "reviewer"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires 2 distinct approving reviewer(s) from members bound to role \"reviewer\", excluding the contribution author on the exact candidate.",
@@ -302,10 +317,10 @@
         "diagnostics": [],
         "explanation": {
           "authority_roles": [
-            "judge"
+            "lead"
           ],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -313,14 +328,14 @@
           ],
           "required_inputs": [],
           "required_roles": [
-            "judge"
+            "lead"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
-            "Default rules: the single member bound to role \"judge\" may select one qualifying output; approval alone does not select it.",
+            "Default rules: the single member bound to role \"lead\" may select one qualifying output; approval alone does not select it.",
             "Default rules: no one may declare it finished; an empty task list is not completion."
           ]
         },
@@ -339,13 +354,13 @@
             "finish": null,
             "selection": {
               "kind": "role",
-              "name": "judge"
+              "name": "lead"
             }
           },
           "flow": {},
           "roles": {
-            "judge": {
-              "description": "Picks which result to use. One member."
+            "lead": {
+              "description": "Picks the result to use. One member."
             }
           },
           "schema_version": 2,
@@ -368,10 +383,10 @@
           },
           "workspace": null
         },
-        "semantic_hash": "4d1dafafc555d4492f7e2134a87f0226eac966135302032555453e148c53cac7",
+        "semantic_hash": "0d6e5bfa1028f8a075bf3174f750c83d4a5d652a9906ee6cd5b56b626e87b269",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"judge\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"judge\": {\n      \"description\": \"Picks which result to use. One member.\"\n    }\n  },\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": {\n      \"kind\": \"role\",\n      \"name\": \"lead\"\n    }\n  },\n  \"flow\": {},\n  \"roles\": {\n    \"lead\": {\n      \"description\": \"Picks the result to use. One member.\"\n    }\n  },\n  \"schema_version\": 2,\n  \"task_types\": {},\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "preset/pipeline",
@@ -380,7 +395,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -389,7 +404,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -397,7 +412,7 @@
             "Default rules: no one may declare it finished; an empty task list is not completion.",
             "Task type \"draft\": goal members may propose tasks; goal members may publish contributions without a task.",
             "Task type \"draft\": goal members may start independent attempts; concurrent attempts may coexist.",
-            "Task type \"draft\": completion requires 1 distinct approving reviewer(s) from goal members, excluding the contribution author on the exact candidate.",
+            "Task type \"draft\": completion requires any of [1 distinct approving reviewer(s) from goal members, excluding the contribution author; publication by the goal's only member] on the exact candidate.",
             "Task type \"draft\": qualifying contributions coexist; no single output is selected.",
             "Task type \"draft\": no one may declare it finished; an empty task list is not completion.",
             "Stage \"draft\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
@@ -448,12 +463,23 @@
             "draft": {
               "decisions": {
                 "completion": {
-                  "by": {
-                    "kind": "members"
-                  },
-                  "count": 1,
-                  "exclude_author": true,
-                  "kind": "reviews"
+                  "kind": "any",
+                  "rules": [
+                    {
+                      "by": {
+                        "kind": "members"
+                      },
+                      "count": 1,
+                      "exclude_author": true,
+                      "kind": "reviews"
+                    },
+                    {
+                      "by": {
+                        "kind": "only_member"
+                      },
+                      "kind": "contribution"
+                    }
+                  ]
                 },
                 "finish": null,
                 "selection": null
@@ -494,10 +520,10 @@
           },
           "workspace": null
         },
-        "semantic_hash": "2ad956e7db65e0ae7d8fe663f15b0bc99a289c75c4fc9d76800314e9fc0d9648",
+        "semantic_hash": "d2fc875a8043cabec005f110fc09f71b1ad868a6a50b9570f4f051b3a235caf7",
         "valid": true
       },
-      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {\n    \"draft\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [],\n      \"task_type\": \"draft\"\n    },\n    \"ship\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [\n        {\n          \"evidence\": \"completion\",\n          \"stage\": \"draft\"\n        }\n      ],\n      \"task_type\": null\n    }\n  },\n  \"roles\": {},\n  \"schema_version\": 2,\n  \"task_types\": {\n    \"draft\": {\n      \"decisions\": {\n        \"completion\": {\n          \"by\": {\n            \"kind\": \"members\"\n          },\n          \"count\": 1,\n          \"exclude_author\": true,\n          \"kind\": \"reviews\"\n        },\n        \"finish\": null,\n        \"selection\": null\n      },\n      \"work\": null\n    }\n  },\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
+      "source": "{\n  \"context\": {\n    \"guidance\": \"\",\n    \"inputs\": {}\n  },\n  \"decisions\": {\n    \"completion\": {\n      \"by\": {\n        \"kind\": \"contribution_author\"\n      },\n      \"kind\": \"declaration\"\n    },\n    \"finish\": null,\n    \"selection\": null\n  },\n  \"flow\": {\n    \"draft\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [],\n      \"task_type\": \"draft\"\n    },\n    \"ship\": {\n      \"recipients\": {\n        \"kind\": \"members\"\n      },\n      \"requires\": [\n        {\n          \"evidence\": \"completion\",\n          \"stage\": \"draft\"\n        }\n      ],\n      \"task_type\": null\n    }\n  },\n  \"roles\": {},\n  \"schema_version\": 2,\n  \"task_types\": {\n    \"draft\": {\n      \"decisions\": {\n        \"completion\": {\n          \"kind\": \"any\",\n          \"rules\": [\n            {\n              \"by\": {\n                \"kind\": \"members\"\n              },\n              \"count\": 1,\n              \"exclude_author\": true,\n              \"kind\": \"reviews\"\n            },\n            {\n              \"by\": {\n                \"kind\": \"only_member\"\n              },\n              \"kind\": \"contribution\"\n            }\n          ]\n        },\n        \"finish\": null,\n        \"selection\": null\n      },\n      \"work\": null\n    }\n  },\n  \"work\": {\n    \"propose\": {\n      \"kind\": \"members\"\n    },\n    \"publish\": {\n      \"kind\": \"members\"\n    },\n    \"starts\": [\n      {\n        \"by\": {\n          \"kind\": \"members\"\n        },\n        \"kind\": \"independent\"\n      }\n    ]\n  },\n  \"workspace\": null\n}\n"
     },
     {
       "id": "load/eof",
@@ -947,7 +973,7 @@
           {
             "code": "invalid_structure",
             "correction": "Use formation schema or a bundled example for supported fields and values.",
-            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
+            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`, `only_member`",
             "path": "/work/propose/kind",
             "phase": "definition",
             "related_paths": [],
@@ -1073,7 +1099,7 @@
           {
             "code": "invalid_structure",
             "correction": "Use formation schema or a bundled example for supported fields and values.",
-            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
+            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`, `only_member`",
             "path": "/work/starts/0",
             "phase": "definition",
             "related_paths": [],
@@ -1220,7 +1246,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -1229,7 +1255,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -1485,7 +1511,7 @@
           {
             "code": "invalid_structure",
             "correction": "Use formation schema or a bundled example for supported fields and values.",
-            "message": "unknown variant `x`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
+            "message": "unknown variant `x`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`, `only_member`",
             "path": "/task_types/t/work/propose/kind",
             "phase": "definition",
             "related_paths": [],
@@ -1527,7 +1553,7 @@
           {
             "code": "invalid_structure",
             "correction": "Use formation schema or a bundled example for supported fields and values.",
-            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`",
+            "message": "unknown variant `bogus`, expected one of `members`, `role`, `participant`, `task_creator`, `contribution_author`, `any`, `nobody`, `only_member`",
             "path": "/work/propose",
             "phase": "definition",
             "related_paths": [],
@@ -1917,6 +1943,27 @@
       "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}]}, \"count\": 2}}}"
     },
     {
+      "id": "rules/impossible_threshold-only-member",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "impossible_threshold",
+            "correction": "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.",
+            "message": "The requested distinct-reviewer threshold exceeds the explicitly possible identities",
+            "path": "/decisions/completion/count",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"only_member\"}, \"count\": 2, \"exclude_author\": false}}}"
+    },
+    {
       "id": "rules/impossible_threshold-exclude-author",
       "result": {
         "diagnostics": [
@@ -2166,7 +2213,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2177,7 +2224,7 @@
             "tester"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires any of [check \"ci\" attested by members bound to role \"tester\" on the exact contribution; 2 distinct approving reviewer(s) from goal members, including the author if eligible] on the exact candidate.",
@@ -2253,7 +2300,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2262,7 +2309,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires all of [a completion declaration by the contribution author; publication by goal members] on the exact candidate.",
@@ -2330,7 +2377,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2339,7 +2386,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires publication by goal members on the exact candidate.",
@@ -2396,7 +2443,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2408,7 +2455,7 @@
             "bb"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: members bound to role \"a\" or members bound to role \"bb\" or goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2485,7 +2532,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2496,7 +2543,7 @@
             "a"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; members bound to role \"a\" may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2558,7 +2605,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2569,7 +2616,7 @@
             "c"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: members bound to role \"c\" may offer work to goal members; the recipient must acknowledge before starting.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
@@ -2641,7 +2688,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2650,7 +2697,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; nobody may publish contributions without a task.",
             "Default rules: no new task attempts are permitted.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2700,7 +2747,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2709,7 +2756,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: participant abababababababababababababababababababababababababababababababab may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2776,7 +2823,7 @@
             "judge"
           ],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2788,7 +2835,7 @@
             "judge"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2861,7 +2908,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -2872,7 +2919,7 @@
             "rev"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2996,7 +3043,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -3008,7 +3055,7 @@
           ],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3080,7 +3127,7 @@
             "r"
           ],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -3091,7 +3138,7 @@
             "r"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3234,7 +3281,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -3247,7 +3294,7 @@
             "say \"hi\""
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: members bound to role \"ré\" or members bound to role \"say \\\"hi\\\"\" or members bound to role \"back\\\\slash\" may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3328,7 +3375,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -3341,7 +3388,7 @@
             "c"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: members bound to role \"b\" or members bound to role \"c\" or members bound to role \"aa\" may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3422,7 +3469,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -3431,7 +3478,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3488,7 +3535,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -3497,7 +3544,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3554,7 +3601,7 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -3563,7 +3610,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3635,7 +3682,7 @@
             "integrator"
           ],
           "contextual_checks": [
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.",
+            "Declared roles start with the host's agent; roles that pick or close have one holder.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
@@ -3647,7 +3694,7 @@
             "reviewer"
           ],
           "summary": [
-            "The goal's host manages membership and rules separately from the rules for work.",
+            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",

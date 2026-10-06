@@ -1,7 +1,7 @@
 //! What reads answer with: the API's views, rendered from a goal's state and
 //! this daemon's records about it.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use locust_proto::api::{
     self, Attempting, BlobState, BlobStatus, CancelItem, ContextNews, DeliveryItem, EventDetail,
@@ -10,7 +10,7 @@ use locust_proto::api::{
 };
 use locust_proto::engine::Entropy;
 use locust_proto::event::{AttemptStatus, Body, Event, ReviewVerdict, Scope};
-use locust_proto::id::{BlobHash, EventId, PublicKey};
+use locust_proto::id::{BlobHash, PublicKey};
 use locust_proto::organization::CompletionRule;
 use locust_proto::store::Store;
 
@@ -434,77 +434,42 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     !approved && !selected && (can_review || can_attest)
                 })
                 .collect();
-            // Keep each member's latest verdict, and (until the later replay
-            // change) every member with positive evidence, matching the current
-            // fold.
-            let wanted: BTreeSet<EventId> =
-                candidates.iter().map(|(subject, _, _)| *subject).collect();
-            let mut latest: BTreeMap<EventId, BTreeMap<PublicKey, (u64, Verdict)>> =
-                BTreeMap::new();
-            let mut approvals: BTreeMap<EventId, BTreeSet<PublicKey>> = BTreeMap::new();
-            if !wanted.is_empty() {
-                for author in entry.goal.authors() {
-                    for point in entry.goal.points(author) {
-                        let Some(event) = entry.goal.event(&point.id) else {
-                            continue;
-                        };
-                        let Body::ReviewRecorded {
-                            subject, verdict, ..
-                        } = &event.header().body
-                        else {
-                            continue;
-                        };
-                        if !wanted.contains(subject)
-                            || entry.goal.standing(&event.id()) != Some(Standing::Effective)
-                        {
-                            continue;
-                        }
-                        let approve = *verdict == ReviewVerdict::Approve;
-                        let by_member = latest.entry(*subject).or_default();
-                        if by_member
-                            .get(author)
-                            .is_none_or(|(seq, _)| *seq < point.seq)
-                        {
-                            by_member.insert(
-                                *author,
-                                (
-                                    point.seq,
-                                    Verdict {
-                                        member: *author,
-                                        approve,
-                                        event: event.id(),
-                                    },
-                                ),
-                            );
-                        }
-                        if approve && entry.goal.can_review(*subject, *author, &entry.definitions) {
-                            approvals.entry(*subject).or_default().insert(*author);
-                        }
-                    }
-                }
-            }
             for (subject, context, _) in candidates {
-                let needed = entry
-                    .goal
-                    .effective_rules(context, &entry.definitions)
+                let rules = entry.goal.effective_rules(context, &entry.definitions);
+                let needed = rules
+                    .as_ref()
                     .and_then(|rules| first_review_count(&rules.decisions.completion))
                     .unwrap_or(0);
+                let opinion = rules.as_ref().is_some_and(|rules| {
+                    !crate::goal::asks_for_review(&rules.decisions.completion)
+                });
+                let verdicts: Vec<_> = entry
+                    .goal
+                    .latest_reviews(subject, &entry.definitions)
+                    .into_iter()
+                    .filter_map(|(member, id)| {
+                        let event = entry.goal.event(&id)?;
+                        let Body::ReviewRecorded { verdict, .. } = &event.header().body else {
+                            return None;
+                        };
+                        Some(Verdict {
+                            member,
+                            approve: *verdict == ReviewVerdict::Approve,
+                            event: id,
+                            opinion,
+                        })
+                    })
+                    .collect();
+                let approvals = verdicts
+                    .iter()
+                    .filter(|verdict| verdict.approve && !verdict.opinion)
+                    .count() as u32;
                 work.to_review.push(ReviewItem {
                     subject,
                     context,
                     needed,
-                    approvals: approvals
-                        .get(&subject)
-                        .map_or(0, |members| members.len() as u32),
-                    verdicts: latest
-                        .get(&subject)
-                        .map(|members| {
-                            members
-                                .values()
-                                .map(|(_, verdict)| verdict.clone())
-                                .collect()
-                        })
-                        .unwrap_or_default(),
+                    approvals,
+                    verdicts,
                 });
             }
             for ((effect, recipient), delivery) in &entry.deliveries {

@@ -798,7 +798,7 @@ fn workspace_pinned_epoch_survives_unrelated_rules_rebinding_then_explicitly_dis
     let replacement = Formation::default();
     let hash = testkit::definition_hash(&replacement);
     f.definitions.insert(hash, replacement.clone());
-    let (binding, _) = testkit::rules_binding(&f.id, 0, &replacement, BTreeMap::new());
+    let (binding, _) = testkit::rules_binding(&f.id, 0, &replacement);
     let rebound = f.host(Body::RulesBound {
         expected: Some(f.rules),
         binding,
@@ -936,6 +936,8 @@ fn hosts_agent_integrator_competition(same_position: bool) {
     };
     let member = testkit::keypair(9).public();
     let admission = f.host(Body::MemberAdmitted {
+        name: "member".into(),
+        role: None,
         member,
         endpoint: EndpointId(member.0),
     });
@@ -966,4 +968,218 @@ fn acceptances_by_the_hosts_agent_at_one_log_position_dispute_only_the_files() {
 #[test]
 fn acceptances_by_the_hosts_agent_at_distinct_log_positions_dispute_only_the_files() {
     hosts_agent_integrator_competition(false);
+}
+
+#[test]
+fn the_hosts_first_files_count_as_posted_whatever_the_trees_rule() {
+    for count in [1, 2, 9] {
+        let mut f = Fixture::new(workspace_formation(count));
+        let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
+        let seed = f.agent(Body::WorkspaceProposed {
+            context,
+            parent: None,
+            result_manifest: BlobHash([70; 32]),
+            sources: vec![],
+        });
+        let accepted = integrate(&mut f, context, None, seed, vec![]);
+        for goal in f.replays() {
+            assert!(goal.state().workspace_proposals[&seed].approved);
+            assert_eq!(
+                goal.state().workspace_proposals[&seed].evidence,
+                std::collections::BTreeSet::from([seed])
+            );
+            assert_eq!(goal.standing(&accepted), Some(Standing::Effective));
+        }
+    }
+}
+#[test]
+fn only_the_hosts_own_capture_with_no_parent_is_first_files() {
+    let mut f = Fixture::new(workspace_formation(1));
+    let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
+    let member = proposal(&mut f, 0, context, None, vec![]);
+    let composition = f.agent(Body::WorkspaceProposed {
+        context,
+        parent: None,
+        result_manifest: BlobHash([71; 32]),
+        sources: vec![member],
+    });
+    for goal in f.replays() {
+        assert!(!goal.state().workspace_proposals[&member].approved);
+        assert!(!goal.state().workspace_proposals[&composition].approved);
+    }
+}
+#[test]
+fn every_change_after_the_first_files_follows_the_trees_rule() {
+    let mut f = Fixture::new(workspace_formation(1));
+    let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
+    let first = f.agent(Body::WorkspaceProposed {
+        context,
+        parent: None,
+        result_manifest: BlobHash([72; 32]),
+        sources: vec![],
+    });
+    let accepted = integrate(&mut f, context, None, first, vec![]);
+    let next = f.agent(Body::WorkspaceProposed {
+        context,
+        parent: Some(accepted),
+        result_manifest: BlobHash([73; 32]),
+        sources: vec![],
+    });
+    let another_seed = f.agent(Body::WorkspaceProposed {
+        context,
+        parent: None,
+        result_manifest: BlobHash([74; 32]),
+        sources: vec![],
+    });
+    let invalid = integrate(&mut f, context, Some(accepted), another_seed, vec![]);
+    for goal in f.replays() {
+        assert!(!goal.state().workspace_proposals[&next].approved);
+        assert!(goal.state().workspace_proposals[&another_seed].approved);
+        assert!(matches!(
+            goal.standing(&invalid),
+            Some(Standing::Excluded(_))
+        ));
+    }
+    f.review(0, context, next);
+    for goal in f.replays() {
+        assert!(goal.state().workspace_proposals[&next].approved);
+    }
+}
+#[test]
+fn first_files_are_once_per_epoch_that_starts_empty() {
+    let mut f = Fixture::new(workspace_formation(1));
+    let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
+    let first = f.agent(Body::WorkspaceProposed {
+        context,
+        parent: None,
+        result_manifest: BlobHash([75; 32]),
+        sources: vec![],
+    });
+    let accepted = integrate(&mut f, context, None, first, vec![]);
+    let carried = epoch(
+        &mut f,
+        Some(context.round),
+        WorkspaceCheckpoint::Revision(accepted),
+    );
+    let invalid = f.agent(Body::WorkspaceProposed {
+        context: carried,
+        parent: None,
+        result_manifest: BlobHash([76; 32]),
+        sources: vec![],
+    });
+    for goal in f.replays() {
+        assert!(matches!(
+            goal.standing(&invalid),
+            Some(Standing::Excluded(_))
+        ));
+    }
+    let empty = epoch(
+        &mut f,
+        Some(carried.round),
+        WorkspaceCheckpoint::RetainBefore {
+            epoch: context.round,
+        },
+    );
+    let first_again = f.agent(Body::WorkspaceProposed {
+        context: empty,
+        parent: None,
+        result_manifest: BlobHash([77; 32]),
+        sources: vec![],
+    });
+    for goal in f.replays() {
+        assert!(goal.state().workspace_proposals[&first_again].approved);
+    }
+}
+
+#[test]
+fn first_files_and_the_only_member_part_never_disagree() {
+    let mut formation = preset_formation("peer-review");
+    formation.workspace = Some(WorkspacePolicy {
+        integrator: Authority::Participant {
+            key: testkit::keypair(1).public().to_string(),
+        },
+        completion: formation.decisions.completion.clone(),
+    });
+    let mut f = alone(formation);
+    let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
+    let first = f.agent(Body::WorkspaceProposed {
+        context,
+        parent: None,
+        result_manifest: BlobHash([78; 32]),
+        sources: vec![],
+    });
+    let accepted = f.agent(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject: first },
+        evidence: vec![],
+    });
+    let later = f.agent(Body::WorkspaceProposed {
+        context,
+        parent: Some(accepted),
+        result_manifest: BlobHash([79; 32]),
+        sources: vec![],
+    });
+    for goal in f.replays() {
+        for id in [first, later] {
+            assert!(goal.state().workspace_proposals[&id].approved);
+            assert_eq!(
+                goal.state().workspace_proposals[&id].evidence,
+                std::collections::BTreeSet::from([id])
+            );
+        }
+    }
+}
+#[test]
+fn a_rules_change_carries_the_files_to_the_new_rule() {
+    let mut formation = workspace_formation(1);
+    formation.workspace.as_mut().unwrap().completion = CompletionRule::Declaration {
+        by: Selector::ContributionAuthor,
+    };
+    let mut f = Fixture::new(formation);
+    let old = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
+    let first = f.agent(Body::WorkspaceProposed {
+        context: old,
+        parent: None,
+        result_manifest: BlobHash([80; 32]),
+        sources: vec![],
+    });
+    let accepted = integrate(&mut f, old, None, first, vec![]);
+    let stale = proposal(&mut f, 0, old, Some(accepted), vec![]);
+    let mut replacement = preset_formation("peer-review");
+    replacement.workspace = Some(WorkspacePolicy {
+        integrator: Authority::Participant {
+            key: testkit::keypair(4).public().to_string(),
+        },
+        completion: replacement.decisions.completion.clone(),
+    });
+    rebind(&mut f, replacement);
+    let new = epoch(
+        &mut f,
+        Some(old.round),
+        WorkspaceCheckpoint::Revision(accepted),
+    );
+    let next = proposal(&mut f, 0, new, Some(accepted), vec![]);
+    let discard = f.agent(Body::WorkspaceProposed {
+        context: new,
+        parent: None,
+        result_manifest: BlobHash([81; 32]),
+        sources: vec![],
+    });
+    let stale_selection = integrate(&mut f, new, None, stale, vec![]);
+    for goal in f.replays() {
+        assert!(!goal.state().workspace_proposals[&next].approved);
+        assert!(matches!(
+            goal.standing(&discard),
+            Some(Standing::Excluded(_))
+        ));
+        assert!(matches!(
+            goal.standing(&stale_selection),
+            Some(Standing::Excluded(_))
+        ));
+    }
+    f.review(1, new, next);
+    for goal in f.replays() {
+        assert!(goal.state().workspace_proposals[&next].approved);
+    }
 }

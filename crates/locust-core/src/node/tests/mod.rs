@@ -8,6 +8,7 @@ mod farm;
 mod invitations;
 mod level_reporting;
 mod levels;
+mod roles;
 mod wait;
 mod workspace;
 mod workspace_lifecycle;

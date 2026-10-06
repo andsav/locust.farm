@@ -15,6 +15,7 @@ mod only_you;
 mod package;
 mod presentation;
 mod print;
+mod roles;
 mod selectors;
 mod service;
 mod setup;
@@ -466,6 +467,11 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     };
     let human = if matches.get_flag("json") {
         String::new()
+    } else if let Response::GoalStatus(view) = &response {
+        let formation = roles::current_formation(&mut client, &socket, view)
+            .ok()
+            .flatten();
+        presentation::goal_status(view, &names, formation.as_ref())
     } else if matches!(response, Response::Context(_)) && !generic_call {
         serde_json::to_string_pretty(&result).expect("response encodes")
     } else {

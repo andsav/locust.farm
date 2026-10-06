@@ -486,7 +486,7 @@ mod tests {
     }
 
     #[test]
-    fn new_goal_accepts_optional_formation_and_bindings() {
+    fn new_goal_accepts_optional_formation_and_name() {
         let matches = command()
             .try_get_matches_from(["locust", "goal", "create", "--title", "open"])
             .unwrap();
@@ -498,7 +498,14 @@ mod tests {
         );
         assert!(fields.get_one::<String>("formation").is_none());
         assert!(fields.get_one::<String>("formation-json").is_none());
-        assert!(fields.get_one::<String>("roles").is_none());
+        assert!(fields.get_one::<String>("name").is_none());
+        assert!(
+            command()
+                .try_get_matches_from([
+                    "locust", "goal", "create", "--title", "demo", "--roles", "{}"
+                ])
+                .is_err()
+        );
         assert!(fields.get_one::<String>("inputs").is_none());
     }
     #[test]

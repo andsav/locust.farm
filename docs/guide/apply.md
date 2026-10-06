@@ -26,21 +26,20 @@ locust workspace pending --goal GOAL
 ```
 
 `init` is the person's command to prepare the workspace policy and freeze a
-preview. It defaults to the goal creator as integrator and an author declaration
-as the completion rule; `--integrator` and `--completion` make other choices
-explicit. Policy setup needs the host's authority. Existing workspace policy is
+preview. The host's agent records accepted changes. The shared files follow the goal's
+completion rule unless the formation or `--completion` gives them their own rule.
+The first files need no approval. Policy setup needs the host's authority. Existing workspace policy is
 not silently replaced.
 `--empty` seeds an empty tree. `--commit COMMIT --root /ABSOLUTE/REPO` optionally
 imports the regular files of a named Git commit.
 
 Read the preview before publishing. `publish` uses the stored candidate even if
 the source files subsequently change. `init --publish` combines capture and
-publication, but still requires integration. For the default author declaration,
-the proposal's author declares completion, then the integrator accepts the exact
+publication, but still requires integration. The first files count when posted,
+then the host accepts the exact
 proposal:
 
 ```sh
-locust completion declare --goal GOAL --subject PROPOSAL
 locust workspace integrate --goal GOAL --proposal PROPOSAL --expected-empty
 locust workspace head --goal GOAL
 locust workspace tree --goal GOAL --revision REVISION
@@ -128,7 +127,8 @@ See the [implementation contract](../workspace.md) for ownership and proof limit
 
 This recipe needs Bash, Python 3 and `LOCUST_BIN` set to the absolute path of a
 trusted local `locust` executable. It starts a fresh loopback-only daemon and uses
-one principal with the default author-declaration policy. It launches no models.
+one member with the default peer-review rule. Its results count when posted,
+because it is the goal's only member. It launches no models.
 
 ```bash
 # locust-doc-test: shared-workspace-loop
@@ -167,7 +167,6 @@ printf 'base\n' >"$demo/source/app.txt"
 printf 'original\n' >"$demo/source/local.txt"
 seed_operation=$(person workspace init --goal "$goal" --root "$demo/source" --path app.txt --path local.txt | pick operation.id)
 seed_proposal=$(alice workspace publish --goal "$goal" --operation "$seed_operation" | pick workspace_operation.state.recorded.event)
-alice completion declare --goal "$goal" --subject "$seed_proposal" >/dev/null
 seed_revision=$(alice workspace integrate --goal "$goal" --proposal "$seed_proposal" --expected-empty | pick workspace_operation.state.recorded.event)
 checkout=$(person --agent alice workspace connect --goal "$goal" --revision "$seed_revision" --folder "$demo/checkout" | pick checkout.id)
 alice workspace bind --goal "$goal" --checkout "$checkout" >/dev/null
@@ -178,7 +177,6 @@ printf 'unrelated private note\n' >"$demo/checkout/note.txt"
 operation=$(alice workspace propose --goal "$goal" --checkout "$checkout" --only --path app.txt | pick operation.id)
 proposal=$(alice workspace publish --goal "$goal" --operation "$operation" | pick workspace_operation.state.recorded.event)
 alice workspace review --goal "$goal" --proposal "$proposal" >"$demo/review.json"
-alice completion declare --goal "$goal" --subject "$proposal" >/dev/null
 revision=$(alice workspace integrate --goal "$goal" --proposal "$proposal" --expected-head "$seed_revision" | pick workspace_operation.state.recorded.event)
 # Restore this path to its base to demonstrate receiving the accepted change.
 printf 'base\n' >"$demo/checkout/app.txt"

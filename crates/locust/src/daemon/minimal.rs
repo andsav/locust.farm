@@ -368,10 +368,11 @@ mod tests {
         let goal = GoalId([7; 32]);
         for request in [
             Request::GoalCreate {
+                name: "Host".into(),
+
                 agent: PublicKey([1; 32]),
                 title: "Ship it".to_string(),
                 formation_json: None,
-                roles: Default::default(),
                 inputs: Default::default(),
             },
             Request::Board { goal },

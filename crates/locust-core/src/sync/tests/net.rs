@@ -31,7 +31,7 @@ struct Stream {
 }
 
 enum Msg {
-    Input(usize, PeerInput),
+    Input(usize, Box<PeerInput>),
     /// An encoded frame for one side of a stream.
     Frame(usize, u8, Vec<u8>),
     /// Everything a side sent before finishing was delivered.
@@ -184,7 +184,7 @@ impl Net {
                     .position(|other| other.online && other.host.endpoint == endpoint);
                 let Some(target) = target else {
                     self.queue
-                        .push_back(Msg::Input(node, PeerInput::OpenFailed(exchange)));
+                        .push_back(Msg::Input(node, Box::new(PeerInput::OpenFailed(exchange))));
                     return;
                 };
                 let accepted = ExchangeId::Accepted(self.next_accepted);
@@ -202,13 +202,13 @@ impl Net {
                 let remote = self.nodes[node].host.endpoint;
                 self.queue.push_back(Msg::Input(
                     target,
-                    PeerInput::Accepted {
+                    Box::new(PeerInput::Accepted {
                         exchange: accepted,
                         remote,
-                    },
+                    }),
                 ));
                 self.queue
-                    .push_back(Msg::Input(node, PeerInput::Opened(exchange)));
+                    .push_back(Msg::Input(node, Box::new(PeerInput::Opened(exchange))));
             }
             PeerOutput::Send { exchange, frame } => {
                 let stream = self.by_side[&(node, exchange)];
@@ -238,7 +238,7 @@ impl Net {
 
     fn deliver(&mut self, msg: Msg) {
         match msg {
-            Msg::Input(node, input) => self.input(node, input),
+            Msg::Input(node, input) => self.input(node, *input),
             Msg::Close(stream, side) => {
                 if !self.streams[stream].closed {
                     let (node, exchange) = self.streams[stream].sides[side];
@@ -280,7 +280,7 @@ impl Net {
                 self.log.push((node, frame.clone()));
                 self.input(node, PeerInput::Frame { exchange, frame });
                 self.queue
-                    .push_back(Msg::Input(sender, PeerInput::Writable(sending)));
+                    .push_back(Msg::Input(sender, Box::new(PeerInput::Writable(sending))));
             }
         }
     }
@@ -293,7 +293,7 @@ impl Net {
         state.closed = true;
         for (node, exchange) in state.sides {
             self.queue
-                .push_back(Msg::Input(node, PeerInput::Closed(exchange)));
+                .push_back(Msg::Input(node, Box::new(PeerInput::Closed(exchange))));
         }
     }
 }

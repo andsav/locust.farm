@@ -23,6 +23,8 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
         goal,
         Some(genesis.id()),
         Body::MemberAdmitted {
+            name: "member".into(),
+            role: None,
             member: admin.key.public(),
             endpoint: EndpointId([1; 32]),
         },
@@ -31,11 +33,13 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
         goal,
         Some(self_admission.id()),
         Body::MemberAdmitted {
+            name: "member".into(),
+            role: None,
             member: worker.key.public(),
             endpoint: EndpointId([2; 32]),
         },
     );
-    let (binding, _) = testkit::rules_binding(&goal, 0, &formation, BTreeMap::new());
+    let (binding, _) = testkit::rules_binding(&goal, 0, &formation);
     let bound = governance.event(
         goal,
         Some(admission.id()),

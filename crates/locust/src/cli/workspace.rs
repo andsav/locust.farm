@@ -14,7 +14,7 @@ use locust_proto::id::{
     WorkspaceOperationId,
 };
 use locust_proto::local;
-use locust_proto::organization::{Authority, CompletionRule, Formation, WorkspacePolicy};
+use locust_proto::organization::{Authority, Formation, WorkspacePolicy};
 use locust_workspace::{
     BlobSink, BlobSource, CaptureMode, CheckoutFacts, FrozenTree, SessionOwnership, TreeChange,
     WorkspaceError, checkout_disposition,
@@ -67,8 +67,7 @@ pub(super) fn commands() -> [Command; 1] {
             .arg(goal()).arg(option("root", "Absolute capture input directory", false).required_unless_present("empty"))
             .arg(flag("empty", "Explicitly seed an empty tree").conflicts_with_all(["root", "path", "paths-from", "commit"]))
             .arg(option("commit", "Optional named Git commit import; excludes dirty and untracked files", false).conflicts_with_all(["path", "paths-from", "empty"]))
-            .arg(option("integrator", "Explicit participant name/key; defaults to the goal creator", false))
-            .arg(option("completion", "Exact workspace CompletionRule JSON; defaults to an author declaration", false))))))
+            .arg(option("completion", "Exact workspace CompletionRule JSON; defaults to the goal's rule", false))))))
         .subcommand(Command::new("head").about("Read accepted authority and independent content readiness").arg(goal()))
         .subcommand(Command::new("pending").about("Read exact proposals and their current blockers").arg(goal()))
         .subcommand(Command::new("tree").about("List an exact accepted tree").arg(goal())
@@ -318,10 +317,6 @@ fn init_plan(
 ) -> Result<(confirm::Plan, WorkspaceView), Failure> {
     let head = api.head()?;
     let status = api.status()?;
-    let integrator = args
-        .get_one::<String>("integrator")
-        .map(|name| super::selectors::resolve_member(api.client, api.socket, api.goal, name))
-        .transpose()?;
     let review = json!({
         "goal": api.goal,
         "title": status.title,
@@ -334,7 +329,6 @@ fn init_plan(
         "commit": args.get_one::<String>("commit"),
         "path": args.get_many::<String>("path").map(|paths| paths.cloned().collect::<Vec<_>>()),
         "paths_from": args.get_one::<String>("paths-from"),
-        "integrator": integrator,
         "completion": args.get_one::<String>("completion"),
         "publish": args.get_flag("publish"),
     });
@@ -398,8 +392,7 @@ fn init(
         return Err(conflict("existing unseeded workspace epoch is not ready"));
     }
     if let Some(epoch) = head.epoch
-        && (args.get_one::<String>("integrator").is_some()
-            || args.get_one::<String>("completion").is_some())
+        && args.get_one::<String>("completion").is_some()
     {
         verify_pinned_initial_policy(api, epoch, args)?;
     }
@@ -501,12 +494,13 @@ fn verify_pinned_initial_policy(
         .clone()
         .ok_or_else(|| conflict("pinned workspace policy is disabled"))?;
     let requested = formation.workspace.as_mut().expect("checked policy");
-    if let Some(name) = args.get_one::<String>("integrator") {
-        requested.integrator = Authority::Participant {
-            key: super::selectors::resolve_member(api.client, api.socket, api.goal, name)?
-                .to_string(),
-        };
-    }
+    requested.integrator = Authority::Participant {
+        key: api
+            .status()?
+            .host
+            .ok_or_else(|| conflict("the host's agent has not arrived"))?
+            .to_string(),
+    };
     if let Some(source) = args.get_one::<String>("completion") {
         requested.completion = serde_json::from_str(source)
             .map_err(|error| Failure::usage(format!("--completion: {error}")))?;
@@ -518,7 +512,7 @@ fn verify_pinned_initial_policy(
         .and_then(|formation| formation.workspace);
     if requested.as_ref() != Some(&pinned) {
         return Err(conflict(
-            "policy is already pinned and differs from supplied options; use an explicit workspace epoch to change it",
+            "policy is already pinned and differs from supplied options; use rules bind to change it",
         ));
     }
     Ok(())
@@ -544,18 +538,19 @@ fn initial_epoch(api: &mut Objects<'_>, args: &ArgMatches) -> Result<EventId, Fa
     let bytes = api.bytes(binding.definition.object.hash)?;
     let mut formation: Formation = serde_json::from_slice(&bytes)
         .map_err(|error| Failure::invalid(format!("formation definition: {error}")))?;
-    let explicit = args.get_one::<String>("integrator").is_some()
-        || args.get_one::<String>("completion").is_some();
-    let rules = if formation.workspace.is_none() || explicit {
-        let integrator = match args.get_one::<String>("integrator") {
-            Some(name) => super::selectors::resolve_member(api.client, api.socket, api.goal, name)?,
-            None => status.host.ok_or_else(|| {
-                Failure::new(
-                    ErrorCode::Denied,
-                    "this goal is hosted on another computer; its host decides",
-                )
-            })?,
-        };
+    let host = status
+        .host
+        .ok_or_else(|| conflict("the host's agent has not arrived"))?;
+    let explicit = args.get_one::<String>("completion").is_some();
+    let host_authority = Authority::Participant {
+        key: host.to_string(),
+    };
+    let rules = if formation
+        .workspace
+        .as_ref()
+        .is_none_or(|policy| policy.integrator != host_authority)
+        || explicit
+    {
         let completion = args
             .get_one::<String>("completion")
             .map(|source| {
@@ -563,18 +558,21 @@ fn initial_epoch(api: &mut Objects<'_>, args: &ArgMatches) -> Result<EventId, Fa
                     .map_err(|error| Failure::usage(format!("--completion: {error}")))
             })
             .transpose()?
-            .unwrap_or_else(CompletionRule::default);
+            .unwrap_or_else(|| {
+                formation
+                    .workspace
+                    .as_ref()
+                    .map(|policy| policy.completion.clone())
+                    .unwrap_or_else(|| formation.decisions.completion.clone())
+            });
         formation.workspace = Some(WorkspacePolicy {
-            integrator: Authority::Participant {
-                key: integrator.to_string(),
-            },
+            integrator: host_authority,
             completion,
         });
         recorded(api.call(Request::RulesBind {
             goal: api.goal,
             expected: rules,
             formation_json: serde_json::to_string(&formation).map_err(internal)?,
-            roles: binding.roles,
             inputs: binding.inputs,
         })?)?
     } else {

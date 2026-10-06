@@ -23,6 +23,8 @@ pub(in crate::node) struct InviteRecord {
     pub goal: GoalId,
     pub goal_title: Option<String>,
     pub governance: PublicKey,
+    pub host_name: String,
+    pub role: Option<String>,
     pub created_ms: u64,
     pub expires_ms: Option<u64>,
     pub revoked_ms: Option<u64>,
@@ -46,6 +48,7 @@ impl InviteRecord {
             goal: self.goal,
             goal_title: self.goal_title.clone(),
             governance: self.governance,
+            role: self.role.clone(),
             created_ms: self.created_ms,
             expires_ms: self.expires_ms,
             state,
@@ -157,6 +160,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         actor: &Actor,
         goal: GoalId,
         expires_ms: u64,
+        role: Option<String>,
         now_ms: u64,
     ) -> Plan {
         if expires_ms <= now_ms {
@@ -171,6 +175,28 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "the goal's authority is halted",
             ));
         }
+        let deciding = Self::deciding(entry)?;
+        if let Some(role) = &role {
+            if !entry.state().roles.contains_key(role) {
+                return Err(
+                    ApiError::new(ErrorCode::Invalid, "this goal has no such role")
+                        .with_details(serde_json::json!({"role": role})),
+                );
+            }
+            if deciding.contains(role) {
+                return Err(ApiError::new(
+                    ErrorCode::Invalid,
+                    "this role is held by one member; give it with role give after they join",
+                )
+                .with_details(serde_json::json!({"role": role})));
+            }
+        }
+        let host_name = Self::host_name(entry).ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::Unavailable,
+                "the host's admission has not arrived yet",
+            )
+        })?;
         let own = self.own_endpoint()?;
         let secret = InviteSecret(self.random());
         // The owner reads the title: the governance key is no member.
@@ -183,6 +209,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             own.hints.iter().take(MAX_HINTS).cloned().collect(),
             secret,
             Some(expires_ms),
+            host_name.clone(),
+            role.clone(),
             signer,
         )
         .map_err(invite_error)?;
@@ -206,6 +234,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 goal,
                 goal_title,
                 governance,
+                host_name,
+                role,
                 created_ms: now_ms,
                 expires_ms: Some(expires_ms),
                 revoked_ms: None,
@@ -219,10 +249,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)] // The signed name is part of joining.
     pub(super) fn goal_join(
         &self,
         actor: &Actor,
         agent: PublicKey,
+        name: String,
         ticket: Ticket,
         level: locust_proto::api::Level,
         now_ms: u64,
@@ -271,6 +303,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     response: Response::Joined {
                         goal,
                         governance: invitation.governance,
+                        host_name: invitation.host_name.clone(),
                         membership: Membership::Member,
                         level: entry.local.level(&principal),
                     },
@@ -281,6 +314,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 let same = join.secret == invitation.secret
                     && join.endpoint == invitation.endpoint
                     && join.governance == invitation.governance;
+                if same && join.name != name {
+                    return Err(conflict(
+                        "the pending admission already has a different name",
+                    ));
+                }
                 if same && join.refused {
                     return Err(denied(
                         "the inviter refused this invitation; request a fresh invitation from the host",
@@ -294,6 +332,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         response: Response::Joined {
                             goal,
                             governance: invitation.governance,
+                            host_name: invitation.host_name.clone(),
                             membership: Membership::Joining,
                             level,
                         },
@@ -326,6 +365,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             let request = locust_proto::invite::JoinRequest::sign(
                 goal,
                 own,
+                name.clone(),
                 invitation.secret,
                 self.signer(&principal)?,
             );
@@ -339,6 +379,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 response: Response::Joined {
                     goal,
                     governance: invitation.governance,
+                    host_name: invitation.host_name.clone(),
                     membership: Membership::Member,
                     level,
                 },
@@ -351,6 +392,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             &principal,
             &local::JoinRecord {
                 governance: invitation.governance,
+                host_name: invitation.host_name.clone(),
+                name,
                 endpoint: invitation.endpoint,
                 hints: invitation.hints.clone(),
                 secret: invitation.secret,
@@ -370,6 +413,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             response: Response::Joined {
                 goal,
                 governance: invitation.governance,
+                host_name: invitation.host_name.clone(),
                 membership: Membership::Joining,
                 level,
             },

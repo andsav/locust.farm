@@ -21,8 +21,7 @@
 		{/each}
 		{#if hasSteps}
 			<li>
-				The Locust of whoever started the goal adds each step's task and sends it out. Locust never
-				starts an agent.
+				The host's Locust adds each step's task and sends it out. Locust never starts an agent.
 			</li>
 		{/if}
 	</ul>

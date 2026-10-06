@@ -22,6 +22,8 @@ function selector(value: Selector): string {
 			return `members bound to role ${rustDebug(value.name)}`;
 		case 'participant':
 			return `participant ${value.key}`;
+		case 'only_member':
+			return "the goal's only member";
 		case 'task_creator':
 			return 'the task creator';
 		case 'contribution_author':
@@ -98,7 +100,7 @@ const EVIDENCE_WORDS = {
 } as const;
 
 export const CONTEXTUAL_CHECKS = [
-	'Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.',
+	"Declared roles start with the host's agent; roles that pick or close have one holder.",
 	'Supply required inputs and verify child rules stay within delegated parent authority.',
 	'Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.',
 	'Check authority availability and local execution, filesystem, spending and sharing permissions separately.',
@@ -108,7 +110,7 @@ export const CONTEXTUAL_CHECKS = [
 /** Explains a normalized formation. */
 export function explain(value: Formation): Explanation {
 	const summary = [
-		"The goal's host manages membership and rules separately from the rules for work."
+		"Members organize themselves on the goal's board; the host keeps membership and the rules."
 	];
 	work(value.work, 'Default rules', summary);
 	decisions(value.decisions, 'Default rules', summary);

@@ -772,3 +772,54 @@ fn session_rebinding_cannot_bypass_active_or_unknown_checkout_ownership() {
     };
     assert_eq!(checkouts[0].session, Some(session(45).instance()));
 }
+
+#[test]
+fn only_the_person_posts_a_change_with_no_parent() {
+    use locust_proto::api::WorkspaceCandidate;
+    use locust_proto::event::{Context, Scope};
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
+    let (base, manifest) = workspace_lifecycle::accepted_tree(&mut d, agent, goal, 40);
+    let mut bound = checkout(55);
+    bound.base_revision = base;
+    bound.base_manifest = manifest;
+    d.ok(
+        owner,
+        Request::WorkspaceConnect {
+            goal,
+            agent: principal,
+            checkout: bound.clone(),
+        },
+    );
+    let epoch = d.node.goals[&goal]
+        .state()
+        .workspace
+        .as_ref()
+        .unwrap()
+        .epoch;
+    for (tag, checkout) in [(80, None), (81, Some(bound.id))] {
+        let operation = WorkspaceOperation {
+            id: WorkspaceOperationId([tag; 16]),
+            checkout,
+            idempotency_key: IdempotencyKey([tag; 16]),
+            state: WorkspaceOperationState::Prepared,
+            kind: WorkspaceOperationKind::Capture {
+                candidate: WorkspaceCandidate {
+                    context: Context {
+                        scope: Scope::Workspace,
+                        round: epoch,
+                    },
+                    parent: None,
+                    result_manifest: manifest,
+                    sources: vec![],
+                    captured_paths: vec!["tree.txt".into()],
+                    replacement: true,
+                },
+            },
+        };
+        let request = Request::WorkspaceOperationPrepare { goal, operation };
+        let error = d.call(agent, request.clone()).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Denied);
+        assert_eq!(error.message, "only the host shares a goal's first files");
+        d.on_behalf(owner, principal, request).unwrap();
+    }
+}

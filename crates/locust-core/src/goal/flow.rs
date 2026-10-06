@@ -22,12 +22,17 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             | EffectAction::RequestReview { recipient, .. } => BTreeSet::from([*recipient]),
         }
     }
-    fn stage_template(&self, rules: EventId, name: &str) -> Result<(PublicKey, Effect), Standing> {
+    fn stage_template(
+        &self,
+        rules: EventId,
+        name: &str,
+        anchor: EventId,
+    ) -> Result<(PublicKey, Effect), Standing> {
         let context = Context {
             scope: Scope::Goal,
             round: rules,
         };
-        let resolved = self.resolve(context)?;
+        let resolved = self.resolve(context, anchor)?;
         let definition = self
             .definitions
             .definition(&resolved.effective.definition)
@@ -48,18 +53,20 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             parent: Some(context),
             stage: Some(name.to_owned()),
         };
+        let snapshot = self
+            .chain
+            .snapshot(&anchor)
+            .ok_or(Standing::Pending(Waiting::Anchor))?;
         let effective = rules::resolve_binding(
             self.history,
             self.definitions,
             rules,
             Some(binding.clone()),
             Some(runner),
+            &snapshot.roles,
+            (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap()),
         )?
         .effective;
-        let snapshot = self
-            .chain
-            .snapshot(&rules)
-            .ok_or(Standing::Pending(Waiting::Anchor))?;
         let recipients = rules::selected(
             &stage.recipients,
             snapshot.members.keys().copied(),
@@ -92,7 +99,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         name: &str,
         proof: Option<EventId>,
     ) -> Result<(EffectId, EventId), Standing> {
-        let (_, template) = self.stage_template(rules, name)?;
+        let (_, template) = self.stage_template(rules, name, rules)?;
         let goal = self.event(rules)?.header().goal;
         let id = template.id(goal);
         let event=self.history.events.iter().filter(|event|matches!(&event.header().body,Body::EffectMaterialized{effect} if effect.id(goal)==id)).filter(|event|self.status(event.id(),proof)==Standing::Effective).min_by_key(|event|(event.header().seq,event.id())).ok_or(Standing::Pending(Waiting::Reference))?;
@@ -106,10 +113,13 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         allowed: Option<&BTreeSet<EventId>>,
         anchor: EventId,
     ) -> Result<Option<BTreeSet<EventId>>, Standing> {
-        let resolved = self.resolve(Context {
-            scope: Scope::Goal,
-            round: rules,
-        })?;
+        let resolved = self.resolve(
+            Context {
+                scope: Scope::Goal,
+                round: rules,
+            },
+            anchor,
+        )?;
         let definition = self
             .definitions
             .definition(&resolved.effective.definition)
@@ -178,6 +188,24 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 if !matching || self.status(event.id(), proof) != Standing::Effective {
                     continue;
                 }
+                if requirement.evidence == EvidenceKind::Review
+                    && !rules::asks_for_review(
+                        &self
+                            .resolve(context, h.anchor.unwrap())?
+                            .effective
+                            .decisions
+                            .completion,
+                    )
+                {
+                    continue;
+                }
+                if allowed.is_none()
+                    && requirement.evidence == EvidenceKind::Review
+                    && let Body::ReviewRecorded { subject, .. } = &h.body
+                    && self.latest_review(*subject, h.author, None) != Some(event.id())
+                {
+                    continue;
+                }
                 let witness = if requirement.evidence == EvidenceKind::Completion {
                     let Some(witness) = self.approval(event.id(), proof, allowed)? else {
                         continue;
@@ -196,14 +224,18 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         }
         Ok(Some(evidence))
     }
-    fn review_templates(&self, subject: EventId) -> Result<Vec<(PublicKey, Effect)>, Standing> {
+    fn review_templates(
+        &self,
+        subject: EventId,
+        anchor: EventId,
+    ) -> Result<Vec<(PublicKey, Effect)>, Standing> {
         let event = self.event(subject)?;
         let (Body::ContributionPublished { context, .. } | Body::DocumentRevised { context, .. }) =
             event.header().body
         else {
             return Err(invalid("review trigger is not a contribution"));
         };
-        let resolved = self.resolve(context)?;
+        let resolved = self.resolve(context, anchor)?;
         let runner =
             if let Some(stage) = resolved.task.as_ref().and_then(|task| task.stage.as_ref()) {
                 let definition = self
@@ -221,7 +253,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             };
         let snapshot = self
             .chain
-            .snapshot(&event.header().anchor.unwrap())
+            .snapshot(&anchor)
             .ok_or(Standing::Pending(Waiting::Anchor))?;
         Ok(snapshot
             .members
@@ -258,8 +290,9 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         rules: EventId,
         name: &str,
         proof: Option<EventId>,
+        anchor: EventId,
     ) -> Result<Vec<(PublicKey, Effect)>, Standing> {
-        let (runner, template) = self.stage_template(rules, name)?;
+        let (runner, template) = self.stage_template(rules, name, anchor)?;
         let EffectAction::OpenTask { recipients, .. } = template.action else {
             unreachable!()
         };
@@ -268,7 +301,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             scope: Scope::Task(TaskId::Derived(task)),
             round,
         };
-        let resolved = self.resolve(context)?;
+        let resolved = self.resolve(context, anchor)?;
         Ok(recipients.into_iter().filter(|recipient|resolved.effective.work.starts.iter().any(|rule|matches!(rule,StartRule::Offered{by,to} if rules::matches(by,runner,&resolved.effective,None)&&rules::matches(to,*recipient,&resolved.effective,None)))).map(|recipient|{
             (runner,Effect{context,transition:format!("stage:{name}:offer"),trigger:Trigger::Stage{rules,stage:name.to_owned()},target_slot:recipient.to_string(),action:EffectAction::Offer{context,recipient},evidence:vec![round]})
         }).collect())
@@ -289,7 +322,8 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 if binding.rules != *rules {
                     return Err(invalid("stage binding uses different rules"));
                 }
-                let (runner, expected) = self.stage_template(*rules, stage)?;
+                let (runner, expected) =
+                    self.stage_template(*rules, stage, event.header().anchor.unwrap())?;
                 let allowed = effect.evidence.iter().copied().collect();
                 if self
                     .stage_ready(
@@ -306,7 +340,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 (runner, expected)
             }
             EffectAction::RequestReview { subject, .. } => self
-                .review_templates(*subject)?
+                .review_templates(*subject, event.header().anchor.unwrap())?
                 .into_iter()
                 .find(|(_, candidate)| candidate.action == effect.action)
                 .ok_or(invalid("review delivery recipient is not configured"))?,
@@ -314,7 +348,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 let Trigger::Stage { rules, stage } = &effect.trigger else {
                     return Err(invalid("automatic offer requires a stage trigger"));
                 };
-                self.offer_templates(*rules, stage, proof)?
+                self.offer_templates(*rules, stage, proof, event.header().anchor.unwrap())?
                     .into_iter()
                     .find(|(_, candidate)| candidate.action == effect.action)
                     .ok_or(invalid("automatic offer is not authorized"))?
@@ -369,20 +403,97 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                             None,
                             None,
                             self.chain.state.head.unwrap(),
-                        ) && let Ok((runner, mut effect)) = self.stage_template(event.id(), name)
+                        ) && let Ok((runner, mut effect)) =
+                            self.stage_template(event.id(), name, self.chain.state.head.unwrap())
                         {
                             effect.evidence = witness.into_iter().collect();
                             insert(runner, effect);
                         }
-                        if let Ok(offers) = self.offer_templates(event.id(), name, None) {
+                        if let Ok(offers) = self.offer_templates(
+                            event.id(),
+                            name,
+                            None,
+                            self.chain.state.head.unwrap(),
+                        ) {
                             for (runner, effect) in offers {
                                 insert(runner, effect);
                             }
                         }
                     }
                 }
-                Body::ContributionPublished { .. } | Body::DocumentRevised { .. } => {
-                    if let Ok(reviews) = self.review_templates(event.id()) {
+                Body::ContributionPublished { context, .. }
+                | Body::DocumentRevised { context, .. } => {
+                    if self
+                        .approval(event.id(), None, None)
+                        .ok()
+                        .flatten()
+                        .is_some()
+                    {
+                        continue;
+                    }
+                    let mut decisions: Vec<_> = self
+                        .history
+                        .events
+                        .iter()
+                        .filter(|decision| {
+                            let Body::ScopeDecided { context: other, .. } = &decision.header().body
+                            else {
+                                return false;
+                            };
+                            other == context
+                                && self.status(decision.id(), None) == Standing::Effective
+                        })
+                        .collect();
+                    decisions.sort_by_key(|decision| {
+                        let h = decision.header();
+                        (
+                            self.chain.position(&h.anchor.unwrap()),
+                            h.author,
+                            h.seq,
+                            decision.id(),
+                        )
+                    });
+                    if decisions.iter().any(|decision| {
+                        let Body::ScopeDecided {
+                            action: DecisionAction::Select { subject },
+                            ..
+                        } = decision.header().body
+                        else {
+                            return false;
+                        };
+                        subject == event.id() || matches!(context.scope, Scope::Task(_))
+                    }) {
+                        continue;
+                    }
+                    if decisions
+                        .iter()
+                        .rev()
+                        .find_map(|decision| match decision.header().body {
+                            Body::ScopeDecided {
+                                action: DecisionAction::Close,
+                                ..
+                            } => Some(true),
+                            Body::ScopeDecided {
+                                action: DecisionAction::Reopen,
+                                ..
+                            } => Some(false),
+                            _ => None,
+                        })
+                        .unwrap_or(false)
+                    {
+                        continue;
+                    }
+                    if let Scope::Task(task) = context.scope
+                        && self
+                            .current_round(task, self.chain.state.head.unwrap(), None)
+                            .ok()
+                            != Some(context.round)
+                    {
+                        continue;
+                    }
+                    if let Ok(reviews) =
+                        self.review_templates(event.id(), self.chain.state.head.unwrap())
+                    {
                         for (runner, effect) in reviews {
                             insert(runner, effect);
                         }

@@ -1,27 +1,29 @@
 //! Goals and membership: founding, status, levels and the workspace binding.
 
+use crate::goal::DefinitionLookup;
 use locust_proto::api::{ApiError, ErrorCode, GoalStatus, Level, MemberView, Response};
 use locust_proto::crypto::{ContentKey, Keypair};
 use locust_proto::engine::Entropy;
-use locust_proto::event::{Body, DefinitionRef, Genesis, RulesBinding};
+use locust_proto::event::{Body, DefinitionRef, Genesis, RulesBinding, WorkspaceCheckpoint};
 use locust_proto::id::{BlobHash, DefinitionHash, EventId, GoalId, PublicKey};
+use locust_proto::organization::Formation;
 use locust_proto::store::Store;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{Plan, Planned, answer};
 use crate::node::Node;
-use crate::node::access::not_found;
+use crate::node::access::{conflict, not_found};
 use crate::node::authoring::{Place, seal_text, sign_at};
 use crate::node::callers::Actor;
 use crate::node::commit::Tx;
-use crate::node::entry::key_write;
+use crate::node::entry::{Entry, key_write};
 use crate::node::local;
 
 pub(super) struct GoalCreateInput {
     pub agent: PublicKey,
     pub title: String,
     pub formation_json: Option<String>,
-    pub roles: BTreeMap<String, Vec<PublicKey>>,
+    pub name: String,
     pub inputs: BTreeMap<String, BlobHash>,
 }
 
@@ -44,7 +46,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             agent,
             title,
             formation_json,
-            roles,
+            name,
             inputs,
         } = input;
         let host = self.local_agent(actor, agent)?.principal()?;
@@ -52,8 +54,17 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let seed: [u8; 32] = self.random();
         let governance = Keypair::from_seed(seed);
         let signer = &governance;
-        let source = formation_json.unwrap_or_else(|| "{\"schema_version\":2}".into());
-        let (definition, normalized) = checked_definition(&source)?;
+        let source = formation_json.unwrap_or_else(|| {
+            serde_json::to_string(
+                &locust_proto::organization::presets()
+                    .into_iter()
+                    .find(|preset| preset.name == "peer-review")
+                    .expect("peer-review preset")
+                    .formation,
+            )
+            .expect("formation encodes")
+        });
+        let (definition, normalized, _) = checked_definition(&source)?;
         let genesis = Genesis {
             governance: governance.public(),
             host,
@@ -89,6 +100,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Body::MemberAdmitted {
                 member: host,
                 endpoint,
+                name,
+                role: None,
             },
             None,
             now_ms,
@@ -112,7 +125,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         semantic: definition,
                         object,
                     },
-                    roles,
                     inputs,
                 },
             },
@@ -138,7 +150,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         goal: GoalId,
         expected: EventId,
         source: String,
-        roles: BTreeMap<String, Vec<PublicKey>>,
         inputs: BTreeMap<String, BlobHash>,
         now: u64,
     ) -> Plan {
@@ -146,7 +157,23 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if entry.state().current_rules != Some(expected) {
             return Err(crate::node::access::conflict("the rules revision changed"));
         }
-        let (semantic, normalized) = checked_definition(&source)?;
+        let (semantic, normalized, formation) = checked_definition(&source)?;
+        let deciding = Self::deciding(entry)?;
+        for role in formation
+            .roles
+            .keys()
+            .filter(|role| entry.state().roles.contains_key(*role))
+        {
+            let was_deciding = deciding.contains(role);
+            if was_deciding != crate::organization::is_authority_role(&formation, role) {
+                let reason = if was_deciding {
+                    "this role picks or closes in this goal and has one holder; these rules make it a group. Use another role name."
+                } else {
+                    "this role is a group in this goal; these rules make it pick or close. Use another role name."
+                };
+                return Err(conflict(reason).with_details(serde_json::json!({"role": role})));
+            }
+        }
         let epoch = entry.state().epoch;
         let key = entry.keys.get(&epoch).ok_or_else(|| {
             ApiError::new(
@@ -164,9 +191,172 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 expected: Some(expected),
                 binding: RulesBinding {
                     definition: DefinitionRef { semantic, object },
-                    roles,
                     inputs,
                 },
+            },
+            None,
+            now,
+            &mut tx,
+        )?;
+        if let Some(workspace) = entry
+            .state()
+            .workspace
+            .as_ref()
+            .filter(|workspace| workspace.enabled)
+            && formation.workspace.is_some()
+        {
+            // Extend the binding in this transaction, never sign twice at the
+            // unchanged durable tip. Replay applies both records on landing.
+            let binding = tx.commit.events.last().expect("binding was signed");
+            let place = Place {
+                seq: binding
+                    .header()
+                    .seq
+                    .checked_add(1)
+                    .ok_or_else(|| conflict("the author's log is exhausted"))?,
+                prev: Some(event),
+                anchor: Some(event),
+                epoch,
+            };
+            sign_at(
+                goal,
+                self.key_for(entry, &governance)?,
+                place,
+                Body::WorkspaceEpoch {
+                    expected_epoch: Some(workspace.epoch),
+                    rules: event,
+                    checkpoint: workspace
+                        .head
+                        .map_or(WorkspaceCheckpoint::Unseeded, WorkspaceCheckpoint::Revision),
+                },
+                None,
+                now,
+                &mut tx,
+            )?;
+        }
+        super::tasks::recorded(event, tx)
+    }
+
+    /// The name is shared evidence once admitted, and the ticket's claim
+    /// while a joining copy is still waiting for that evidence.
+    pub(in crate::node) fn host_name(entry: &Entry) -> Option<String> {
+        entry
+            .state()
+            .host
+            .and_then(|host| entry.state().members.get(&host))
+            .map(|member| member.name.clone())
+            .or_else(|| {
+                entry
+                    .local
+                    .joins
+                    .values()
+                    .next()
+                    .map(|join| join.host_name.clone())
+            })
+    }
+
+    /// Every binding matters: a role keeps its kind even when only old work
+    /// refers to it. Missing definitions prevent any change of roles or kind.
+    pub(in crate::node) fn deciding(entry: &Entry) -> Result<BTreeSet<String>, ApiError> {
+        let (roles, complete) = Self::deciding_known(entry);
+        complete.then_some(roles).ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::Unavailable,
+                "the goal's earlier rules have not arrived yet",
+            )
+        })
+    }
+
+    fn deciding_known(entry: &Entry) -> (BTreeSet<String>, bool) {
+        let mut roles = BTreeSet::new();
+        let mut complete = true;
+        for rules in entry.state().rules.values() {
+            if let Some(formation) = entry
+                .definitions
+                .definition(&rules.binding.definition.semantic)
+            {
+                roles.extend(
+                    formation
+                        .roles
+                        .keys()
+                        .filter(|name| crate::organization::is_authority_role(formation, name))
+                        .cloned(),
+                );
+            } else {
+                complete = false;
+            }
+        }
+        (roles, complete)
+    }
+
+    #[allow(clippy::too_many_arguments)] // The API's compare-and-set role change.
+    pub(super) fn role_change(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        role: String,
+        member: PublicKey,
+        expected: Vec<PublicKey>,
+        give: bool,
+        now: u64,
+    ) -> Plan {
+        let (entry, governance) = self.host(actor, &goal)?;
+        if entry.goal.evaluation().host_halt.is_some() {
+            return Err(ApiError::new(
+                ErrorCode::Halted,
+                "the goal's authority is halted",
+            ));
+        }
+        let holders = entry.state().roles.get(&role).ok_or_else(||
+            ApiError::new(ErrorCode::Invalid, "this goal has no such role")
+                .with_details(serde_json::json!({"role": role, "roles": entry.state().roles.keys().collect::<Vec<_>>()})))?;
+        if *holders != expected {
+            return Err(conflict(
+                "the holders of this role changed; look again and repeat",
+            ));
+        }
+        if !entry.is_member(&member) {
+            return Err(conflict("the principal is not a member of this goal"));
+        }
+        let deciding = Self::deciding(entry)?.contains(&role);
+        let host = entry
+            .state()
+            .host
+            .ok_or_else(|| not_found("the host's agent is not known"))?;
+        let mut next = holders.clone();
+        if give {
+            if holders.contains(&member) {
+                return Err(conflict("the member already holds this role"));
+            }
+            if deciding {
+                next.clear();
+            }
+            next.push(member);
+            next.sort();
+        } else {
+            if !holders.contains(&member) {
+                return Err(conflict("the member does not hold this role"));
+            }
+            if deciding && member == host {
+                return Err(conflict(
+                    "this role has one holder; give it to another member instead of taking it from the host's agent",
+                ));
+            }
+            next.retain(|holder| *holder != member);
+            if next.is_empty() {
+                next.push(host);
+            }
+            if next == *holders {
+                return answer(Response::Done);
+            }
+        }
+        let mut tx = Tx::none();
+        let event = self.author(
+            entry,
+            &governance,
+            Body::RoleHolders {
+                role,
+                holders: next,
             },
             None,
             now,
@@ -203,6 +393,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
             governance,
             hosted_here: self.hosts(entry),
             host: state.host,
+            host_name: Self::host_name(entry),
+            roles: state.roles.clone(),
+            deciding: Self::deciding_known(entry).0,
             governance_head: state.head,
             current_rules: state.current_rules,
             scope_halts: entry
@@ -221,6 +414,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .filter(|(_, member)| member.is_active())
                 .map(|(member, record)| MemberView {
                     member: *member,
+                    name: record.name.clone(),
                     endpoint: record.endpoint,
                     local: self.principals.holds(member),
                 })
@@ -348,7 +542,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 }
 
-fn checked_definition(source: &str) -> Result<(DefinitionHash, String), ApiError> {
+fn checked_definition(source: &str) -> Result<(DefinitionHash, String, Formation), ApiError> {
     let inspection = crate::organization::inspect(source);
     if !inspection.valid {
         return Err(ApiError::new(
@@ -361,7 +555,7 @@ fn checked_definition(source: &str) -> Result<(DefinitionHash, String), ApiError
         .expect("valid semantic hash")
         .parse()
         .map_err(|_| ApiError::new(ErrorCode::Internal, "invalid semantic hash"))?;
-    let normalized = serde_json::to_string(&inspection.normalized.expect("valid definition"))
-        .expect("definition encodes");
-    Ok((hash, normalized))
+    let formation = inspection.normalized.expect("valid definition");
+    let normalized = serde_json::to_string(&formation).expect("definition encodes");
+    Ok((hash, normalized, formation))
 }

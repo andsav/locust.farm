@@ -331,6 +331,7 @@ fn removed_principal_needs_an_older_path_even_for_an_old_file() {
         panic!("enroll")
     };
     let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: 1_000_000,
     }) else {
@@ -340,6 +341,7 @@ fn removed_principal_needs_an_older_path_even_for_an_old_file() {
         &mut peers[1].node,
         None,
         Request::GoalJoin {
+            name: "member".into(),
             agent: current,
             ticket,
             level: locust_proto::api::Level::Auto,

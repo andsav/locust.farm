@@ -226,10 +226,10 @@
       "status": "implemented"
     },
     {
-      "id": "example-coordinator",
-      "source": "examples/formations/coordinator.json",
-      "url": "/docs/next/examples/coordinator.json",
-      "title": "coordinator",
+      "id": "example-directed",
+      "source": "examples/formations/directed.json",
+      "url": "/docs/next/examples/directed.json",
+      "title": "directed",
       "kind": "example",
       "status": "implemented"
     },

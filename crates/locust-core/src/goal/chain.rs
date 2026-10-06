@@ -29,6 +29,7 @@ pub(super) struct Snapshot {
     pub rules: Option<EventId>,
     pub workspace_epoch: Option<EventId>,
     pub members: BTreeMap<PublicKey, EventId>,
+    pub roles: BTreeMap<String, Vec<PublicKey>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -94,7 +95,12 @@ impl Chain {
                     Body::Genesis(genesis) => {
                         initial_definition = Some(genesis.definition);
                     }
-                    Body::MemberAdmitted { member, endpoint } => {
+                    Body::MemberAdmitted {
+                        member,
+                        endpoint,
+                        name,
+                        role,
+                    } => {
                         if *member == governance {
                             status = Standing::Excluded(Exclusion::Precondition(
                                 "the goal's signing key is not a member",
@@ -105,6 +111,12 @@ impl Chain {
                             ));
                         } else {
                             snapshot.members.insert(*member, event.id());
+                            if let Some(role) = role {
+                                let holders = snapshot.roles.entry(role.clone()).or_default();
+                                holders.push(*member);
+                                holders.sort();
+                                holders.dedup();
+                            }
                             chain.tenures.insert(
                                 event.id(),
                                 Tenure {
@@ -117,6 +129,7 @@ impl Chain {
                             chain.state.members.insert(
                                 *member,
                                 Member {
+                                    name: name.clone(),
                                     principal: *member,
                                     endpoint: *endpoint,
                                     admission: event.id(),
@@ -141,6 +154,12 @@ impl Chain {
                             ));
                         } else {
                             snapshot.members.remove(member);
+                            for holders in snapshot.roles.values_mut() {
+                                holders.retain(|key| key != member);
+                                if holders.is_empty() {
+                                    holders.push(history.host.expect("founded host"));
+                                }
+                            }
                             let tenure = chain
                                 .tenures
                                 .get_mut(admission)
@@ -162,6 +181,20 @@ impl Chain {
                             }
                         }
                     }
+                    Body::RoleHolders { role, holders } => {
+                        if holders.is_empty()
+                            || !holders.is_sorted_by(|a, b| a < b)
+                            || holders
+                                .iter()
+                                .any(|key| !snapshot.members.contains_key(key))
+                        {
+                            status = Standing::Excluded(Exclusion::Precondition(
+                                "role holders must name distinct admitted members in ascending order",
+                            ));
+                        } else {
+                            snapshot.roles.insert(role.clone(), holders.clone());
+                        }
+                    }
                     Body::RulesBound { expected, binding } => {
                         if *expected != snapshot.rules {
                             status = Standing::Excluded(Exclusion::Precondition(
@@ -178,7 +211,8 @@ impl Chain {
                         } else {
                             status = validate_binding(
                                 binding,
-                                &snapshot,
+                                &mut snapshot,
+                                history.host.expect("founded host"),
                                 definitions,
                                 &mut chain.missing,
                             );
@@ -231,6 +265,7 @@ impl Chain {
             chain.state.head = Some(event.id());
             chain.state.epoch = snapshot.epoch;
             chain.state.current_rules = snapshot.rules;
+            chain.state.roles = snapshot.roles.clone();
         }
         if chain.halt.is_none()
             && let Some(seq) = log.fork
@@ -486,7 +521,8 @@ impl Chain {
 
 fn validate_binding<D: DefinitionLookup + ?Sized>(
     binding: &RulesBinding,
-    snapshot: &Snapshot,
+    snapshot: &mut Snapshot,
+    host: PublicKey,
     definitions: &D,
     missing: &mut BTreeSet<Dependency>,
 ) -> Standing {
@@ -497,24 +533,9 @@ fn validate_binding<D: DefinitionLookup + ?Sized>(
     if !super::valid_definition(&binding.definition.semantic, definition) {
         return Standing::Excluded(Exclusion::InvalidDefinition);
     }
-    for (role, principals) in &binding.roles {
-        if !definition.roles.contains_key(role)
-            || !principals.is_sorted_by(|a, b| a < b)
-            || principals
-                .iter()
-                .any(|key| !snapshot.members.contains_key(key))
-        {
-            return Standing::Excluded(Exclusion::Precondition(
-                "role bindings must name distinct admitted principals and declared roles",
-            ));
-        }
-    }
-    if definition
-        .roles
-        .keys()
-        .any(|role| !binding.roles.contains_key(role))
-    {
-        return Standing::Excluded(Exclusion::Precondition("declared role is not bound"));
+    let mut roles = snapshot.roles.clone();
+    for role in definition.roles.keys() {
+        roles.entry(role.clone()).or_insert_with(|| vec![host]);
     }
     if binding
         .inputs
@@ -531,10 +552,9 @@ fn validate_binding<D: DefinitionLookup + ?Sized>(
         ));
     }
     let authority_ok = |authority: &locust_proto::organization::Authority| match authority {
-        locust_proto::organization::Authority::Role { name } => binding
-            .roles
-            .get(name)
-            .is_some_and(|members| members.len() == 1),
+        locust_proto::organization::Authority::Role { name } => {
+            roles.get(name).is_some_and(|members| members.len() == 1)
+        }
         locust_proto::organization::Authority::Participant { key } => key
             .parse::<PublicKey>()
             .ok()
@@ -552,8 +572,9 @@ fn validate_binding<D: DefinitionLookup + ?Sized>(
         .any(|authority| !authority_ok(authority))
     {
         return Standing::Excluded(Exclusion::Precondition(
-            "an authority must bind exactly one admitted principal",
+            "a role that picks or closes must have exactly one holder",
         ));
     }
+    snapshot.roles = roles;
     Standing::Effective
 }

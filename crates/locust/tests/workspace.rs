@@ -93,7 +93,6 @@ impl State {
                             key_epoch: 0,
                         },
                     },
-                    roles: BTreeMap::new(),
                     inputs: BTreeMap::new(),
                 },
             )]),
@@ -171,8 +170,8 @@ impl State {
                 agents:vec![AgentView { agent:PRINCIPAL,name:"worker".into(),author_only:false,revoked:self.agent_revoked }],
                 goals:vec![GoalSummary { goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,halted:None,abilities:Self::abilities() }] })),
             Request::GoalStatus { goal } => Ok(Response::GoalStatus(serde_json::from_value(json!({
-                "goal":goal,"title":"workspace","governance":GOVERNANCE,"hosted_here":self.hosted_here,"host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
-                "scope_halts":[],"members":[{"member":PRINCIPAL,"endpoint":locust_proto::id::EndpointId([0x40;32]),"local":self.hosted_here}],"halted":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
+                "goal":goal,"title":"workspace","governance":GOVERNANCE,"hosted_here":self.hosted_here,"host_name":"Host","roles":{},"deciding":[],"host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
+                "scope_halts":[],"members":[{"member":PRINCIPAL,"name":"worker","endpoint":locust_proto::id::EndpointId([0x40;32]),"local":self.hosted_here}],"halted":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
             })).unwrap())),
             Request::AgentRevoke { agent } => { assert_eq!(agent, PRINCIPAL); self.agent_revoked = true; Ok(Response::Done) }
             Request::AgentReconnect { agent } => { assert_eq!(agent, PRINCIPAL); self.agent_revoked = false; Ok(Response::Done) }
@@ -186,13 +185,13 @@ impl State {
                 Ok(Response::Event(Box::new(EventDetail { view:EventView { position:Some(1),event,author:GOVERNANCE,kind:"rules_bound".into(),at_ms:1,standing:Standing::Effective,by_owner:false,by_host:true },
                     anchor:None,body:Body::RulesBound {expected:None,binding},payload:None,text:None,task:None,content:vec![] })))
             }
-            Request::RulesBind { expected, formation_json, roles, inputs, .. } => {
+            Request::RulesBind { expected, formation_json, inputs, .. } => {
                 assert_eq!(expected,self.rules);
                 let formation: Formation = serde_json::from_str(&formation_json).unwrap();
                 assert!(formation.workspace.is_some());
                 let bytes = formation_json.into_bytes(); let hash = content_hash(&bytes); self.objects.insert(hash,bytes.clone());
                 let event = self.event(); self.rules = event;
-                self.rules_bindings.insert(event,RulesBinding { definition:DefinitionRef { semantic:DefinitionHash([2;32]),object:PayloadRef { hash,len:bytes.len() as u32,key_epoch:0 } },roles,inputs });
+                self.rules_bindings.insert(event,RulesBinding { definition:DefinitionRef { semantic:DefinitionHash([2;32]),object:PayloadRef { hash,len:bytes.len() as u32,key_epoch:0 } },inputs });
                 Ok(Response::Recorded {event})
             }
             Request::WorkspaceEpochSet { expected_epoch, rules, checkpoint, .. } => {
@@ -1219,8 +1218,6 @@ fn lost_initial_epoch_reply_accepts_only_equivalent_pinned_policy() {
                 files.path().to_str().unwrap(),
                 "--path",
                 "a",
-                "--integrator",
-                "worker",
                 "--completion",
                 criterion,
             ],

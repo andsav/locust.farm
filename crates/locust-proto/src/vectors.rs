@@ -36,6 +36,8 @@ fn transcript() -> (Vec<Event>, Effect, crate::store::Blob) {
             goal,
             Some(anchor),
             Body::MemberAdmitted {
+                name: "member".into(),
+                role: None,
                 member: key,
                 endpoint: EndpointId(key.0),
             },
@@ -43,7 +45,7 @@ fn transcript() -> (Vec<Event>, Effect, crate::store::Blob) {
         anchor = event.id();
         events.push(event);
     }
-    let (binding, blob) = testkit::rules_binding(&goal, 0, &definition, BTreeMap::new());
+    let (binding, blob) = testkit::rules_binding(&goal, 0, &definition);
     let bound = governance.event(
         goal,
         Some(anchor),
@@ -125,28 +127,28 @@ fn transcript() -> (Vec<Event>, Effect, crate::store::Blob) {
 const GOAL: &str = "18df46ce1036892230c7fda35e6a126a5d53292e3b108ff7a6d84281f5500a42";
 const DEFINITION: &str = "3ae37e5bb845dca7c3b9d7857b6ad41b4d8fb6b926650b11ffc4996bcdac56d2";
 const BLOB: &str = "2b74dd0380d0e39290b060e98235b60a1f888eb737206416cf831e38a9103056";
-const EFFECT: &str = "770d299d316365cf7b6396fd844f98eae55e2092aa226ed58622d5d46350a07c";
+const EFFECT: &str = "6dd4435871365af8bf420633cd26437eaac9d22f5c42298c46c7750b1ca4a36c";
 const ID0: &str = "b0048b3e7a2b5c07935317e61b4f4ecab84069a8b14a36786c8d8cf4f1ea0f0e";
 const SIGNATURE0: &str = "e6ec5dacdc02f17a7be1990956a02818d6d5ba35c502bb43b896b3b98cc512a88993cb0ffdd047c8cd47d52f59637c7f3dcbd0e4b8391b552a4410747269db0e";
 const HEADER0: &str = "0718df46ce1036892230c7fda35e6a126a5d53292e3b108ff7a6d84281f5500a428a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c0000000080d8c1a28c3400028a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5cca93ac1705187071d67b83c7ff0efe8108e8ec4530575d7726879333dbdabe7c3ae37e5bb845dca7c3b9d7857b6ad41b4d8fb6b926650b11ffc4996bcdac56d200000000000000000000000000000000";
-const ID1: &str = "2f2f9053bc168b17050beb18b647628c45fb70133ba0818d4be10580d57e3205";
-const SIGNATURE1: &str = "e6a6c6fa7d646d29085ea995948591d45d4f1bbb96a7f27c6199e5152bf0c5a24b76fbd6b29d7015895de76535623ea2e2fba907d49802f6c1a3e1aab6a1d609";
-const ID2: &str = "ae0561399222c74ed4353cb4c845e8771be9b4ddff012ef1f31af938d11f4912";
-const SIGNATURE2: &str = "6d29fa208d1bf2bf83e9eef9c0b80b5c724a33548f11c38e6d621837f37152aa704538c7e55da35f3795c365b97cf100b73e8bf7b3c3fc0083697a8a315b9300";
-const ID3: &str = "72a45d5815ed38ea4de90e890adb62c0826ed8194a72472b67171144c4e7da80";
-const SIGNATURE3: &str = "d6b8b43a43cca4b99ffc3b7d40a5920ae0715eddd1051f6c0c50bf89dad37247d6420e7fc8e54feb8250bca5451d63b519c5365de8bd7669065cb800b80fe307";
-const ID4: &str = "d88a5c0f85c8e7530f0387f75212e471aba4a9de289e76741d5baa82bb390006";
-const SIGNATURE4: &str = "7959314eefac182cb4b4659806151c6c55629cf876fcaf22d7461c9122e9795303338b8cd22f1f1364affbfaa9ee529a547f3c5223ab13462eac7bc5de2ba002";
-const ID5: &str = "4b20ce85c33d8851323356aad597d78e5d3ce761effc9811391256451184832d";
-const SIGNATURE5: &str = "358c3de098cfc7ab0eb3d8a3aa510b551a7bbdaeb9243023b177b81f3d3bf3f37deb7b566e976fc5d79af78872a87bdcb6f2003529cd04c6861bef50849e5502";
-const HEADER5: &str = "0718df46ce1036892230c7fda35e6a126a5d53292e3b108ff7a6d84281f5500a428139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394000001d88a5c0f85c8e7530f0387f75212e471aba4a9de289e76741d5baa82bb3900060080d8c1a28c340009d88a5c0f85c8e7530f0387f75212e471aba4a9de289e76741d5baa82bb39000600000000";
-const ID6: &str = "ca408fc9b61fb62d84f1ae87947e573ee3d4756ecf1ac539a952af7e34d57ed3";
-const SIGNATURE6: &str = "272016c565beb4067b6dd9ba597b1f2f36af8ed369ec6332bd737ae8cce38a4b1cb50ccb6852514ac04f0bcb9e2e8bd3dd9497933bcf3a5c235429f903cf1b00";
-const ID7: &str = "09739b9c5aa9631e47ee5c0edd50c22b831a48ce9caaa0d693be3a351e0db24b";
-const SIGNATURE7: &str = "c8d8885b05dd428d5af09ed21ed6b5c83b4475be4fccb09799d817566d09c7c6b305444b96ad3a88bed6f5297344c414eb0a2ec6cac876255cfcf352aafe6506";
-const ID8: &str = "3a3dbf6f30b74ad09820e7c0f2545f446d42fd3d51de77b77d4198f4a92d3309";
-const SIGNATURE8: &str = "ed0c20568aad62bde1c30ac1e6a8ff035028cfc4101521224c0af0d99a45e93a958f91863f5016c3931ee552f7b5d078d6ed3d839da49be89834848623223b0b";
-const BODY_DIGEST: &str = "b59a8195644a97c668b11a0471d09dbe4819388a125225763992e7d505bf7494";
+const ID1: &str = "259c5fd64821741ebf073b5d2bc5bbf02685d9bb3bdc9eeebdf13f013ceacd67";
+const SIGNATURE1: &str = "e28240cfa4ff719f2cf143575e7fa42605f4194dc1292d839ea0b0e5d9b4b070ad1bc75bfae103cf6d7d7a66ca11fdd72f48151f82faa60e08e7f3a14c98180c";
+const ID2: &str = "672a8f3a252d3697c757079fa0a0a85e67b87ca80bdfe2f883b3ded94f9d9c63";
+const SIGNATURE2: &str = "229c8183084a41907b48e8f766d9769cb58ee33fc8df2b66476bb07f71788e906513f3baa6514c07f06a22f26c1b410a7767af9a405cf2b0239b0b01dc96c107";
+const ID3: &str = "1dfb152d373a85a66b4b4127a5254d8366cc23c6b35bcb95afc50855b97bde1d";
+const SIGNATURE3: &str = "c46216b58572c3db5fdd2b18db42d796cbbaae4ffc552203e1c81d4468a2835b886a9682634b6a0cb456b4a0a4fc7b6fb2d0c82632075ed8ebef24ff931ed001";
+const ID4: &str = "c169c4bd2777e03b134d7203fb073caa358524cf6d1c12c5618838f68da97ea8";
+const SIGNATURE4: &str = "94a51c0c2651388cda9202ae0b77a24af516e83f591000a48e76571cab5f988c83a1acf6d18d3f6cddfcd2c71f5e784eae4c1080fa856c91b2779a8bd6984f0a";
+const ID5: &str = "a91be5d1feed993d2daf7166664ea4fa0367ba9b265321fab3fac5249f438941";
+const SIGNATURE5: &str = "881b4c0a80b35e60ef4e414858e5aa0b038063e68f1cf1da766afb2df0849bb96ed438692f4bdf9065f1e35a321f1674d892d761dcc16273d1b1d0a0e8a7da01";
+const HEADER5: &str = "0718df46ce1036892230c7fda35e6a126a5d53292e3b108ff7a6d84281f5500a428139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394000001c169c4bd2777e03b134d7203fb073caa358524cf6d1c12c5618838f68da97ea80080d8c1a28c340009c169c4bd2777e03b134d7203fb073caa358524cf6d1c12c5618838f68da97ea800000000";
+const ID6: &str = "8843d40d6d272e67c6962ae56c77356b2461f552cbf1856f68629c4498c3980d";
+const SIGNATURE6: &str = "665eec98d09c3b705c9f7b473a70b1b2a9a1576ca839e8c7c695237714712f7b6c901dc984ab3eedcec830abfd473d074799114b41ba2dd86a39ca3efbf77d09";
+const ID7: &str = "24c7e300e24ced64a742f0ccbe5cd301f29633d41af5170f995b8138bed72d03";
+const SIGNATURE7: &str = "f9a9503cefcb0df6f8bb003f26609bcdd55b5ae7b240bba9a4f3b14bf7cc44bcafd40a7c0c42dcf20e40556d5b533be9f03e7fd257ae73187e38c1e2edfa3305";
+const ID8: &str = "19da8201de72c48e2e897e283cd402cdf957ebe25687705b425b183b23ead4ef";
+const SIGNATURE8: &str = "d7567a9d017e253782b8422ab4e1a4f57e8cf7caf62a0f11c44940ed533736675af637f23a5e6309ef2729fe1b6466eb6ba483a6c3aa64f94cffb764bd1db10a";
+const BODY_DIGEST: &str = "120ac5fc1e75cf9d5e09232176de2cec509199acde9dda906c882c361d612b6e";
 
 #[test]
 fn signed_current_protocol_vectors_are_frozen() {
@@ -201,6 +203,7 @@ fn body_indices_and_bytes_are_current_contract() {
         "effect_materialized",
         "delivery_acknowledged",
         "leave_requested",
+        "role_holders",
     ];
     assert_eq!(bodies.len(), names.len());
     for (index, body) in bodies.iter().enumerate() {
@@ -321,4 +324,37 @@ fn signed_event_boundary_rejects_too_many_contribution_artifacts() {
     artifacts.push(BlobHash([MAX_ARTIFACTS as u8; 32]));
     wire.header = crate::codec::encode(&header).unwrap();
     assert_eq!(Event::from_wire(&wire), Err(EventError::BadReferences));
+}
+
+#[test]
+fn an_admission_with_a_bad_name_is_not_an_event() {
+    let (events, _, _) = transcript();
+    for name in [
+        String::new(),
+        "x".repeat(65),
+        " member".into(),
+        "member ".into(),
+        "mem\nber".into(),
+        "member\u{7f}".into(),
+    ] {
+        let mut header = events[1].header().clone();
+        let Body::MemberAdmitted { name: value, .. } = &mut header.body else {
+            panic!("admission")
+        };
+        *value = name;
+        assert_eq!(
+            Event::sign(header.clone(), &testkit::keypair(1)),
+            Err(EventError::BadName)
+        );
+        assert_eq!(
+            Event::decode(
+                &crate::codec::encode(&header).unwrap(),
+                events[1].signature()
+            ),
+            Err(EventError::BadName)
+        );
+    }
+    assert!(is_member_name("Juniper ; North"));
+    assert!(is_member_name(&"é".repeat(32)));
+    assert!(!is_member_name(&"é".repeat(33)));
 }

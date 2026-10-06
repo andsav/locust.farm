@@ -17,6 +17,8 @@ fn invitation() -> Invitation {
         vec!["127.0.0.1:3140".into()],
         InviteSecret([3; 32]),
         None,
+        "Host".into(),
+        None,
         &Keypair::from_seed([4; 32]),
     )
     .unwrap()

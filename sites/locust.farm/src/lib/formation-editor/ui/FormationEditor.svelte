@@ -672,7 +672,7 @@
 				<p class="muted">
 					{roles.length === 0
 						? 'None. Every member takes part on equal terms.'
-						: 'Members are put into roles later, in Locust.'}
+						: 'The host gives roles to members in Locust, after the goal starts.'}
 				</p>
 			</section>
 

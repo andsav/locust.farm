@@ -347,10 +347,10 @@ class Qualification:
                 events[event_id] = event
 
     def create_goal(self, machine, title):
-        formation = self.cli(machine, ["formation", "example", "coordinator"], local=True)
+        formation = self.cli(machine, ["formation", "example", "directed"], local=True)
         formation["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
         created = self.cli(machine, ["--agent", f"m{machine.number}", "goal", "create", "--title", title,
-            "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [machine.agent]})], owner=True)
+            "--formation-json", json.dumps(formation)], owner=True)
         return identity(variant(created, "goal_created")["goal"], "goal")
 
     def join_goal(self, machine, ticket):
@@ -446,8 +446,9 @@ class Qualification:
         task = "task:" + self.recorded(m1, ["task", "open", "--goal", goal, task_text])
         offer = self.recorded(m1, ["work", "offer", "--goal", goal, "--task", task, "--member", m2.agent])
         self.summary["events"].update(task=task, offer=offer)
-        self.wait("M2 receives offer", lambda: any(item.get("task") == task
-            for item in variant(self.cli(m2, ["board", "--goal", goal]), "board")))
+        self.wait("M2 receives offer", lambda: any(
+            item.get("task") == task and item.get("offer") == offer
+            for item in variant(self.cli(m2, ["pending", "--goal", goal]), "pending")["ask_first"]))
         self.cli(m2, ["--agent", "m2", "allow", "--goal", goal, "--task", task], owner=True)
         session_path = m2.home / "sessions" / "qualification.secret"
         session = self.cli(m2, ["session", "create", session_path], local=True)

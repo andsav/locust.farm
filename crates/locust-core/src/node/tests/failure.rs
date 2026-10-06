@@ -173,10 +173,11 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
             panic!()
         };
         let request = Request::GoalCreate {
+            name: "host".into(),
             agent,
             title: "Atomic creation".into(),
-            formation_json: None,
-            roles: Default::default(),
+            formation_json: Some("{\"schema_version\":2}".into()),
+
             inputs: Default::default(),
         };
         fail.set(Some(after));

@@ -343,7 +343,7 @@ def prepare(daemon, coordinator, worker, setup, output):
     seed_root.mkdir(mode=0o700)
     for name, text in zip(FILES, (BASE_CODE, TEST_CODE, NOTES)):
         private_write(seed_root / name, text)
-    completion = {'kind': 'reviews', 'by': {'kind': 'role', 'name': 'coordinator'}, 'count': 1, 'exclude_author': False}
+    completion = {'kind': 'reviews', 'by': {'kind': 'role', 'name': 'reviewer'}, 'count': 1, 'exclude_author': False}
     capture = daemon.call(['workspace', 'init', '--goal', daemon.goal, '--root', seed_root,
         '--completion', json.dumps(completion), '--publish', *[value for name in FILES for value in ('--path', name)]], owner=True)
     seed_proposal = capture['operation']['state']['recorded']['event']

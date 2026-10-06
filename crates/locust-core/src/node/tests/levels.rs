@@ -259,6 +259,7 @@ fn removal_clears_the_level_and_allowance_before_readmission() {
     let Response::Invited { ticket } = d.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -268,6 +269,7 @@ fn removal_clears_the_level_and_allowance_before_readmission() {
     d.ok(
         owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: member,
             ticket,
             level: Level::Auto,
@@ -322,6 +324,7 @@ fn owner_only_commands_report_why_and_do_not_use_operation_names_in_messages() {
         ),
         (
             Request::GoalInvite {
+                role: None,
                 goal,
                 expires_ms: 604_801_000,
             },
@@ -347,6 +350,7 @@ fn joining_agent_can_choose_a_level_before_admission() {
     let Response::Invited { ticket } = d.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -355,6 +359,8 @@ fn joining_agent_can_choose_a_level_before_admission() {
     };
     let invitation = locust_proto::invite::Invitation::from_ticket(ticket.as_str()).unwrap();
     let join = crate::node::local::JoinRecord {
+        host_name: "host".into(),
+        name: "member".into(),
         governance: invitation.governance,
         endpoint: invitation.endpoint,
         hints: Vec::new(),
@@ -407,7 +413,7 @@ fn abilities_include_named_checks_and_own_declaration_opportunities() {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     );

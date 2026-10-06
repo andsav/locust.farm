@@ -146,10 +146,11 @@ fn unbound_network() -> (Network, GoalId, PublicKey, PublicKey) {
     let Response::GoalCreated { goal } = net.nodes[0].ok(
         owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: source,
             title: "Durable delivery".into(),
-            formation_json: None,
-            roles: BTreeMap::new(),
+            formation_json: Some("{\"schema_version\":2}".into()),
+
             inputs: BTreeMap::new(),
         },
     ) else {
@@ -166,6 +167,7 @@ fn unbound_network() -> (Network, GoalId, PublicKey, PublicKey) {
     let Response::Invited { ticket } = net.nodes[0].ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -176,6 +178,7 @@ fn unbound_network() -> (Network, GoalId, PublicKey, PublicKey) {
     net.nodes[1].ok(
         joining_owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: target,
             ticket,
             level: locust_proto::api::Level::Auto,
@@ -199,7 +202,7 @@ pub(super) fn pipeline_request(goal: GoalId, expected: locust_proto::id::EventId
         goal,
         expected,
         formation_json: serde_json::to_string(&formation).unwrap(),
-        roles: BTreeMap::new(),
+
         inputs: BTreeMap::new(),
     }
 }
@@ -567,6 +570,7 @@ fn a_restored_hosts_agent_forks_only_its_own_log() {
         let Response::Invited { ticket } = net.nodes[0].ok(
             owner,
             Request::GoalInvite {
+                role: None,
                 goal,
                 expires_ms: 604_801_000,
             },
@@ -577,6 +581,7 @@ fn a_restored_hosts_agent_forks_only_its_own_log() {
         net.nodes[1].ok(
             joining_owner,
             Request::GoalJoin {
+                name: "member".into(),
                 agent: newcomer,
                 ticket,
                 level: locust_proto::api::Level::Auto,
@@ -657,6 +662,7 @@ fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_us
     let Response::Invited { ticket } = net.nodes[0].ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -677,6 +683,7 @@ fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_us
     let request = JoinRequest::sign(
         goal,
         Network::endpoint(1),
+        "member".into(),
         invitation.secret,
         net.nodes[1].node.signer(&newcomer).unwrap(),
     );
@@ -716,6 +723,7 @@ fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_us
         code(net.nodes[0].call(
             owner,
             Request::GoalInvite {
+                role: None,
                 goal,
                 expires_ms: 604_801_000,
             }

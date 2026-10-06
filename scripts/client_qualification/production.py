@@ -278,10 +278,10 @@ class ProductionDaemon:
             for path in (self.credential, self.session):
                 if path.is_symlink() or not path.is_file() or path.stat().st_mode & 0o777 != 0o600 or path.stat().st_size != 32:
                     raise ProductionError("production authentication files are not private 32-byte secrets")
-            formation = self.call(["formation", "example", "coordinator"])
+            formation = self.call(["formation", "example", "directed"])
             formation["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
             created = self.call(["--agent", "qualification", "goal", "create", "--title", "Production client qualification",
-                "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [self.principal]})], owner=True)
+                "--formation-json", json.dumps(formation)], owner=True)
             self.goal = created.get("goal_created", {}).get("goal")
             if not isinstance(self.goal, str) or not PUBLIC_ID.fullmatch(self.goal):
                 raise ProductionError("production goal creation did not return a goal")

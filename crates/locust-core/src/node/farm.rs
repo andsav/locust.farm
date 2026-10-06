@@ -273,17 +273,11 @@ fn project(entry: &Entry, local: &mut FarmLocal) -> Result<FarmSnapshot, String>
             *group_label = None;
         }
         let roles = state
-            .current_rules
-            .and_then(|id| state.rules.get(&id))
-            .map(|r| {
-                r.binding
-                    .roles
-                    .iter()
-                    .filter(|(_, keys)| keys.contains(key))
-                    .filter_map(|(role, _)| local.policy.role_labels.get(role).cloned())
-                    .collect()
-            })
-            .unwrap_or_default();
+            .roles
+            .iter()
+            .filter(|(_, keys)| keys.contains(key))
+            .filter_map(|(role, _)| local.policy.role_labels.get(role).cloned())
+            .collect();
         snapshot.agents.push(FarmAgent {
             id: agent,
             group,
@@ -572,6 +566,31 @@ fn requirement(rule: &locust_proto::organization::CompletionRule) -> String {
         Reviews { count, .. } => format!("{count} eligible distinct reviews"),
         Check { .. } => "Authorized check".into(),
         All { .. } => "All configured requirements".into(),
+        Any { rules }
+            if rules.len() == 2
+                && rules.iter().any(|rule| {
+                    matches!(
+                        rule,
+                        Contribution {
+                            by: locust_proto::organization::Selector::OnlyMember
+                        }
+                    )
+                }) =>
+        {
+            requirement(
+                rules
+                    .iter()
+                    .find(|rule| {
+                        !matches!(
+                            rule,
+                            Contribution {
+                                by: locust_proto::organization::Selector::OnlyMember
+                            }
+                        )
+                    })
+                    .expect("other rule"),
+            )
+        }
         Any { .. } => "Any configured requirement".into(),
     }
 }

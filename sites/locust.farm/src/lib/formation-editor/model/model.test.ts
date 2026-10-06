@@ -21,6 +21,8 @@ import {
 	addStep,
 	afterAnswer,
 	countsAnswer,
+	countsRule,
+	withoutOnlyMember,
 	kinds,
 	follows,
 	lineRules,
@@ -76,12 +78,12 @@ test('each way of working is four answers', () => {
 		{ kind: 'list', approvals: null, check: null },
 		'nobody'
 	]);
-	assert.deepEqual(answers('coordinator'), [
+	assert.deepEqual(answers('directed'), [
 		'anyone',
 		'asks',
 		{
 			kind: 'list',
-			approvals: { by: { kind: 'role', name: 'coordinator' }, count: 1, excludeAuthor: false },
+			approvals: { by: { kind: 'role', name: 'reviewer' }, count: 1, excludeAuthor: false },
 			check: null
 		},
 		'role'
@@ -107,8 +109,8 @@ test('the lit card is the one whose rules match, whatever was clicked', () => {
 	assert.equal(matchingWay(document.formation), 'peer-review');
 	// A role no rule names is not a rule, and neither is a role's description.
 	assert.equal(matchingWay(addRole(newDocument('open'), 'helper').formation), 'open');
-	document = addRole(newDocument('open'), 'judge');
-	document = setPick(document, MAIN, { pick: { kind: 'role', name: 'judge' } });
+	document = addRole(newDocument('open'), 'lead');
+	document = setPick(document, MAIN, { pick: { kind: 'role', name: 'lead' } });
 	assert.equal(matchingWay(document.formation), 'independent-attempts');
 	// An arrangement no card shows.
 	document = setCounts(document, MAIN, {
@@ -132,7 +134,7 @@ test('approvals and a check combine, and are read back', () => {
 	assert.ok(valid(document));
 	assert.equal(
 		phrase(document.formation, MAIN, 'counts'),
-		'After 1 approval, not the author\'s and the check "tests" reported as passed.'
+		'When (it has 1 approval, not the author\'s, or the goal\'s only member posts it) and the check "tests" is reported as passed.'
 	);
 	const none = setCounts(document, MAIN, { kind: 'list', approvals: null, check: null });
 	assert.deepEqual(none.formation.decisions.completion, {
@@ -191,20 +193,29 @@ test('a step keeps its own answer when the main rule passes through the same val
 	document = setCounts(document, MAIN, approvals(1));
 	assert.equal(follows(document, draft, 'counts'), false);
 	document = setCounts(document, MAIN, approvals(2));
-	assert.equal(phrase(document.formation, draft, 'counts'), "After 1 approval, not the author's.");
+	assert.equal(
+		phrase(document.formation, draft, 'counts'),
+		"After 1 approval, not the author's, or the goal's only member posts it."
+	);
 	// The same when the step's answer was changed on the page.
 	document = setCounts(document, draft, approvals(3));
 	document = setCounts(document, MAIN, approvals(3));
 	assert.equal(follows(document, draft, 'counts'), false);
 	document = setCounts(document, MAIN, approvals(2));
-	assert.equal(phrase(document.formation, draft, 'counts'), "After 3 approvals, not the author's.");
+	assert.equal(
+		phrase(document.formation, draft, 'counts'),
+		"After 3 approvals, not the author's, or the goal's only member posts it."
+	);
 	// The mark travels with the formation and comes back when it is opened again.
 	assert.deepEqual(presentation(document)['locust.farm'], { name: '', own: { draft: ['counts'] } });
 	// Given back to the main rules, the step follows them again.
 	document = useMain(document, draft, 'counts');
 	assert.equal(follows(document, draft, 'counts'), true);
 	document = setCounts(document, MAIN, approvals(4));
-	assert.equal(phrase(document.formation, draft, 'counts'), "After 4 approvals, not the author's.");
+	assert.equal(
+		phrase(document.formation, draft, 'counts'),
+		"After 4 approvals, not the author's, or the goal's only member posts it."
+	);
 	assert.deepEqual(presentation(document)['locust.farm'], { name: '' });
 });
 
@@ -212,7 +223,7 @@ test('removing a role repairs what steps wait for and who they are sent to', () 
 	let document = newDocument('independent-attempts');
 	document = addStep(addStep(document).document).document;
 	assert.equal(document.formation.flow['step 2'].requires[0].evidence, 'selection');
-	document = removeRole(document, 'judge');
+	document = removeRole(document, 'lead');
 	assert.equal(document.formation.flow['step 2'].requires[0].evidence, 'completion');
 	assert.ok(valid(document));
 
@@ -229,8 +240,8 @@ test('removing a role repairs what steps wait for and who they are sent to', () 
 });
 
 test('a choice that changes nothing is not a change', () => {
-	const document = newDocument('coordinator');
-	assert.equal(setPick(document, MAIN, { pick: { kind: 'role', name: 'coordinator' } }), document);
+	const document = newDocument('directed');
+	assert.equal(setPick(document, MAIN, { pick: { kind: 'role', name: 'lead' } }), document);
 	assert.equal(setAdd(document, MAIN, { kind: 'anyone' }), document);
 });
 
@@ -252,7 +263,10 @@ test('the pipeline is two steps, and only the draft has an answer of its own', (
 	assert.equal(sameAsMain(formation, ship, 'counts'), true);
 	assert.deepEqual(afterAnswer(formation, 'draft'), { kind: 'start' });
 	assert.deepEqual(afterAnswer(formation, 'ship'), { kind: 'after', step: 'draft', picked: false });
-	assert.equal(phrase(formation, draft, 'counts'), "After 1 approval, not the author's.");
+	assert.equal(
+		phrase(formation, draft, 'counts'),
+		"After 1 approval, not the author's, or the goal's only member posts it."
+	);
 	assert.equal(phrase(formation, ship, 'add'), 'Locust, after "draft" has a result that counts.');
 	assert.deepEqual(kinds(formation), []);
 });
@@ -275,7 +289,7 @@ test('a step gets rules of its own only where it differs, and gives them up agai
 });
 
 test('a step keeps following the main rules at the points it did not change', () => {
-	let document = addRole(addStep(newDocument('open')).document, 'judge');
+	let document = addRole(addStep(newDocument('open')).document, 'lead');
 	const step: LineRef = { kind: 'step', name: 'step' };
 	document = setCounts(document, step, {
 		kind: 'list',
@@ -283,17 +297,17 @@ test('a step keeps following the main rules at the points it did not change', ()
 		check: null
 	});
 	// The picker is set later, for any task; the step follows it.
-	document = setPick(document, MAIN, { pick: { kind: 'role', name: 'judge' } });
+	document = setPick(document, MAIN, { pick: { kind: 'role', name: 'lead' } });
 	assert.deepEqual(lineRules(document.formation, step).decisions.selection, {
 		kind: 'role',
-		name: 'judge'
+		name: 'lead'
 	});
 	assert.equal(sameAsMain(document.formation, step, 'pick'), true);
 	assert.equal(sameAsMain(document.formation, step, 'counts'), false);
 });
 
 test('new steps wait for the one before; a later step waits for a pick when someone picks', () => {
-	let document = addRole(newDocument('open'), 'judge');
+	let document = addRole(newDocument('open'), 'lead');
 	document = addStep(document).document;
 	document = addStep(document).document;
 	assert.deepEqual(stageOrder(document.formation), ['step', 'step 2']);
@@ -303,7 +317,7 @@ test('new steps wait for the one before; a later step waits for a pick when some
 	document = setPick(
 		document,
 		{ kind: 'step', name: 'step' },
-		{ pick: { kind: 'role', name: 'judge' } }
+		{ pick: { kind: 'role', name: 'lead' } }
 	);
 	assert.deepEqual(document.formation.flow['step 2'].requires, [
 		{ stage: 'step', evidence: 'selection' }
@@ -383,15 +397,15 @@ test('the name is the only presentation the page keeps, beside other tools keys'
 });
 
 test('renaming a role rewrites every rule that names it', () => {
-	const document = renameRole(newDocument('coordinator'), 'coordinator', 'lead');
+	const document = renameRole(newDocument('directed'), 'lead', 'owner');
 	const text = formationText(document.formation);
-	assert.equal(text.includes('"coordinator"'), false);
+	assert.equal(text.includes('"lead"'), false);
 	assert.ok(valid(document));
-	assert.deepEqual(Object.keys(document.formation.roles), ['lead']);
+	assert.deepEqual(Object.keys(document.formation.roles).sort(), ['owner', 'reviewer']);
 });
 
 test('removing a role leaves its rules to nobody, never to everyone', () => {
-	const document = removeRole(newDocument('coordinator'), 'coordinator');
+	const document = removeRole(removeRole(newDocument('directed'), 'lead'), 'reviewer');
 	assert.equal(document.formation.decisions.selection, null);
 	assert.equal(document.formation.decisions.finish, null);
 	const completion = document.formation.decisions.completion;
@@ -411,7 +425,7 @@ test('the summary is plain', () => {
 	const pipeline = summarize(newDocument('pipeline').formation).map((line) => line.text);
 	assert.ok(
 		pipeline.includes(
-			'Step "draft": Locust adds this task at the start. A result counts when it has 1 approval, not the author\'s.'
+			'Step "draft": Locust adds this task at the start. A result counts when it has 1 approval, not the author\'s, or the goal\'s only member posts it.'
 		)
 	);
 	assert.ok(
@@ -538,4 +552,54 @@ test('workspace selectors normalize without admitting task-relative authority', 
 	});
 	document.formation.workspace.completion = { kind: 'declaration', by: { kind: 'task_creator' } };
 	assert.equal(inspectFormation(document.formation).diagnostics[0].code, 'selector_scope');
+});
+
+test('a new document starts as peer review', () => {
+	const document = newDocument();
+	assert.equal(matchingWay(document.formation), 'peer-review');
+	assert.ok(withoutOnlyMember(document.formation.decisions.completion));
+	assert.deepEqual(Object.keys(document.formation.roles), []);
+});
+
+test("approvals from any member carry the only-member part and a role's do not", () => {
+	const approval = { by: { kind: 'anyone' as const }, count: 1, excludeAuthor: true };
+	const answer = { kind: 'list' as const, approvals: approval, check: null };
+	const rule = countsRule(answer);
+	assert.equal(rule.kind, 'any');
+	assert.deepEqual(withoutOnlyMember(rule), {
+		kind: 'reviews',
+		by: { kind: 'members' },
+		count: 1,
+		exclude_author: true
+	});
+	assert.deepEqual(countsAnswer(rule), answer);
+	const roleRule = countsRule({
+		...answer,
+		approvals: { ...approval, by: { kind: 'role', name: 'reviewer' } }
+	});
+	assert.equal(roleRule.kind, 'reviews');
+	assert.equal(withoutOnlyMember(roleRule), null);
+	assert.equal(
+		countsRule({ ...answer, approvals: { ...approval, excludeAuthor: false } }).kind,
+		'reviews'
+	);
+});
+
+test('only-member is one identity and remains a selector through normalization', () => {
+	const document = newDocument('open');
+	document.formation.decisions.completion = {
+		kind: 'reviews',
+		by: { kind: 'only_member' },
+		count: 2,
+		exclude_author: false
+	};
+	const result = inspectFormation(document.formation);
+	assert.ok(result.diagnostics.some((diagnostic) => diagnostic.code === 'impossible_threshold'));
+	document.formation.decisions.completion = { kind: 'contribution', by: { kind: 'only_member' } };
+	const loaded = inspect(formationText(document.formation));
+	assert.ok(loaded.valid);
+	assert.deepEqual(
+		loaded.normalized?.decisions.completion,
+		document.formation.decisions.completion
+	);
 });

@@ -24,7 +24,7 @@ use locust_proto::organization::{Formation, Selector, StartRule};
 use locust_proto::store::{Store, StoreError};
 use locust_proto::sync::{AuthorFrontier, Frontier};
 
-pub use rules::EffectiveRules;
+pub use rules::{EffectiveRules, asks_for_review};
 pub use standing::{
     Changes, Dependency, DesiredEffect, Evaluation, Exclusion, Halt, Next, RuleRefusal, Standing,
     Waiting,
@@ -221,9 +221,15 @@ impl Goal {
             context,
             purpose: locust_proto::event::DecisionPurpose::Selection,
         })?;
-        rules::resolve(&self.history, definitions, context)
-            .ok()
-            .map(|resolved| resolved.effective)
+        rules::resolve(
+            &self.history,
+            definitions,
+            context,
+            &self.state().roles,
+            self.only_member(),
+        )
+        .ok()
+        .map(|resolved| resolved.effective)
     }
     pub fn event(&self, id: &EventId) -> Option<&Event> {
         self.history.get(id)
@@ -328,6 +334,42 @@ impl Goal {
                 }),
         }
     }
+    pub fn role_holders(&self) -> &BTreeMap<String, Vec<PublicKey>> {
+        &self.state().roles
+    }
+    fn only_member(&self) -> Option<PublicKey> {
+        let mut members = self
+            .state()
+            .members
+            .values()
+            .filter(|member| member.is_active());
+        let first = members.next()?.principal;
+        members.next().is_none().then_some(first)
+    }
+    pub fn latest_reviews<D: DefinitionLookup + ?Sized>(
+        &self,
+        subject: EventId,
+        definitions: &D,
+    ) -> BTreeMap<PublicKey, EventId> {
+        let verifier = fold::Verifier::new(
+            &self.history,
+            &self.chain,
+            definitions,
+            self.closure_index.clone(),
+        );
+        self.history
+            .events
+            .iter()
+            .map(|event| event.header().author)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter_map(|member| {
+                verifier
+                    .latest_review(subject, member, None)
+                    .map(|id| (member, id))
+            })
+            .collect()
+    }
     pub fn effective_rules<D: DefinitionLookup + ?Sized>(
         &self,
         context: Context,
@@ -336,9 +378,15 @@ impl Goal {
         if self.standing(&context.round) != Some(Standing::Effective) {
             return None;
         }
-        rules::resolve(&self.history, definitions, context)
-            .ok()
-            .map(|resolved| resolved.effective)
+        rules::resolve(
+            &self.history,
+            definitions,
+            context,
+            &self.state().roles,
+            self.only_member(),
+        )
+        .ok()
+        .map(|resolved| resolved.effective)
     }
     pub fn eligible<D: DefinitionLookup + ?Sized>(
         &self,

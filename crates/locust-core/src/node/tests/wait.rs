@@ -111,6 +111,7 @@ fn the_revision_never_falls_across_restart_leaving_removal_and_rejoining() {
     let Response::Invited { ticket } = d.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -120,6 +121,7 @@ fn the_revision_never_falls_across_restart_leaving_removal_and_rejoining() {
     d.ok(
         owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: member,
             ticket,
             level: locust_proto::api::Level::Auto,

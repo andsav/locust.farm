@@ -431,10 +431,11 @@ fn owner_at_read_can_post_for_agent_but_goal_rules_still_apply_and_mark_the_even
     let Response::GoalCreated { goal: open_goal } = d.ok(
         owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: principal,
             title: "Open rules".into(),
-            formation_json: None,
-            roles: Default::default(),
+            formation_json: Some("{\"schema_version\":2}".into()),
+
             inputs: Default::default(),
         },
     ) else {

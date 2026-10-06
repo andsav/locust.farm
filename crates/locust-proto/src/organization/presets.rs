@@ -30,40 +30,41 @@ fn preset(name: &str, description: &str, formation: Formation) -> Preset {
 pub fn presets() -> Vec<Preset> {
     let open = Formation::default();
 
-    let mut coordinator = Formation::default();
+    let mut directed = Formation::default();
     declare_role(
-        &mut coordinator,
-        "coordinator",
-        "Asks members to do tasks, approves results, picks the result to use and can close a task. One member.",
+        &mut directed,
+        "lead",
+        "Hands out tasks, picks the result to use and can close a task. One member.",
     );
-    coordinator.work.starts = vec![StartRule::Offered {
-        by: role("coordinator"),
+    directed.work.starts = vec![StartRule::Offered {
+        by: role("lead"),
         to: Selector::Members,
     }];
-    coordinator.decisions = DecisionRules {
+    declare_role(
+        &mut directed,
+        "reviewer",
+        "Approves results, including its own.",
+    );
+    directed.decisions = DecisionRules {
         completion: CompletionRule::Reviews {
-            by: role("coordinator"),
+            by: role("reviewer"),
             count: 1,
             exclude_author: false,
         },
-        selection: Some(authority("coordinator")),
-        finish: Some(authority("coordinator")),
+        selection: Some(authority("lead")),
+        finish: Some(authority("lead")),
     };
 
     let mut peer_review = Formation::default();
-    peer_review.decisions.completion = CompletionRule::Reviews {
-        by: Selector::Members,
-        count: 1,
-        exclude_author: true,
-    };
+    peer_review.decisions.completion = peer_completion();
 
     let mut independent = Formation::default();
     declare_role(
         &mut independent,
-        "judge",
-        "Picks which result to use. One member.",
+        "lead",
+        "Picks the result to use. One member.",
     );
-    independent.decisions.selection = Some(authority("judge"));
+    independent.decisions.selection = Some(authority("lead"));
 
     let mut panel = Formation::default();
     declare_role(
@@ -83,11 +84,7 @@ pub fn presets() -> Vec<Preset> {
         TaskType {
             work: None,
             decisions: Some(DecisionRules {
-                completion: CompletionRule::Reviews {
-                    by: Selector::Members,
-                    count: 1,
-                    exclude_author: true,
-                },
+                completion: peer_completion(),
                 selection: None,
                 finish: None,
             }),
@@ -116,33 +113,48 @@ pub fn presets() -> Vec<Preset> {
     vec![
         preset(
             "open",
-            "Members contribute and independently start work; authors declare completion.",
+            "Members start work on their own and say when their own result is done.",
             open,
         ),
         preset(
-            "coordinator",
-            "A coordinator offers work, reviews completion, selects contributions and closes the goal.",
-            coordinator,
-        ),
-        preset(
             "peer-review",
-            "Members independently start work; completion requires one review by another member.",
+            "Members start work on their own; a result counts once another member approves it, and a goal's only member needs no approval.",
             peer_review,
         ),
         preset(
+            "pipeline",
+            "A draft stage needs one approval by another member, or none while the goal has one member; a ship stage opens when a draft counts.",
+            pipeline,
+        ),
+        preset(
             "independent-attempts",
-            "Authors complete independent attempts; a bound judge selects contributions.",
+            "Members try the same task on their own; the lead picks the result to use.",
             independent,
         ),
         preset(
             "review-panel",
-            "Completion requires two distinct reviews from the reviewer role, excluding the author.",
+            "A result counts once two reviewers who did not write it approve it.",
             panel,
         ),
         preset(
-            "pipeline",
-            "A draft stage needs one review by another member; a ship stage starts when the draft is complete.",
-            pipeline,
+            "directed",
+            "A lead hands out tasks, picks the result to use and closes tasks; a reviewer approves results.",
+            directed,
         ),
     ]
+}
+
+fn peer_completion() -> CompletionRule {
+    CompletionRule::Any {
+        rules: vec![
+            CompletionRule::Reviews {
+                by: Selector::Members,
+                count: 1,
+                exclude_author: true,
+            },
+            CompletionRule::Contribution {
+                by: Selector::OnlyMember,
+            },
+        ],
+    }
 }

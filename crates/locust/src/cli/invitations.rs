@@ -248,6 +248,10 @@ fn render_preview(preview: &InvitationPreview, now_ms: u64) -> String {
     } else {
         text.push_str("Publication policy at issuance: none. Joining does not consent to future public publication.\n");
     }
+    text.push_str(&format!("Host: {}\n", safe(&preview.host_name)));
+    if let Some(role) = &preview.role {
+        text.push_str(&format!("Role on joining: {}\n", safe(role)));
+    }
     for fact in &preview.sharing_facts {
         text.push_str(&format!("- {fact}\n"));
     }
@@ -270,6 +274,8 @@ mod tests {
             EndpointId([2; 32]),
             vec![],
             InviteSecret([3; 32]),
+            None,
+            "Host".into(),
             None,
             &Keypair::from_seed([4; 32]),
         )

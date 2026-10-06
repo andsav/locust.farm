@@ -678,6 +678,8 @@ mod tests {
                 goal,
                 Some(root.id()),
                 Body::MemberAdmitted {
+                    name: "member".into(),
+                    role: None,
                     member: testkit::keypair(3).public(),
                     endpoint: EndpointId([endpoint; 32]),
                 },
@@ -777,7 +779,13 @@ mod tests {
 
     #[test]
     fn decode_round_trips_every_frame() {
-        let join: JoinRequest = codec::decode(&[3; 192]).unwrap();
+        let join = JoinRequest::sign(
+            GoalId([3; 32]),
+            EndpointId([3; 32]),
+            "member".into(),
+            crate::invite::InviteSecret([3; 32]),
+            &testkit::keypair(3),
+        );
         let key: ContentKey = codec::decode(&[4; 32]).unwrap();
         let messages = [
             SyncMessage::Hello {
@@ -1011,7 +1019,13 @@ mod tests {
 
         // What a non-member may send, and what it is answered with before
         // admission, fits the hello limit.
-        let join: JoinRequest = codec::decode(&[0xff; 192]).unwrap();
+        let join = JoinRequest::sign(
+            GoalId([0xff; 32]),
+            EndpointId([0xff; 32]),
+            "member".into(),
+            crate::invite::InviteSecret([0xff; 32]),
+            &testkit::keypair(3),
+        );
         for message in [
             SyncMessage::Hello {
                 version: PROTOCOL_VERSION,

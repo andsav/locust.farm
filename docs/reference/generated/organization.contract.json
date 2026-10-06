@@ -1,7 +1,7 @@
 {
   "examples": [
     {
-      "description": "Members contribute and independently start work; authors declare completion.",
+      "description": "Members start work on their own and say when their own result is done.",
       "formation": {
         "context": {
           "guidance": "",
@@ -42,7 +42,7 @@
       "name": "open"
     },
     {
-      "description": "A coordinator offers work, reviews completion, selects contributions and closes the goal.",
+      "description": "Members start work on their own; a result counts once another member approves it, and a goal's only member needs no approval.",
       "formation": {
         "context": {
           "guidance": "",
@@ -50,70 +50,23 @@
         },
         "decisions": {
           "completion": {
-            "by": {
-              "kind": "role",
-              "name": "coordinator"
-            },
-            "count": 1,
-            "exclude_author": false,
-            "kind": "reviews"
-          },
-          "finish": {
-            "kind": "role",
-            "name": "coordinator"
-          },
-          "selection": {
-            "kind": "role",
-            "name": "coordinator"
-          }
-        },
-        "flow": {},
-        "roles": {
-          "coordinator": {
-            "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
-          }
-        },
-        "schema_version": 2,
-        "task_types": {},
-        "work": {
-          "propose": {
-            "kind": "members"
-          },
-          "publish": {
-            "kind": "members"
-          },
-          "starts": [
-            {
-              "by": {
-                "kind": "role",
-                "name": "coordinator"
+            "kind": "any",
+            "rules": [
+              {
+                "by": {
+                  "kind": "members"
+                },
+                "count": 1,
+                "exclude_author": true,
+                "kind": "reviews"
               },
-              "kind": "offered",
-              "to": {
-                "kind": "members"
+              {
+                "by": {
+                  "kind": "only_member"
+                },
+                "kind": "contribution"
               }
-            }
-          ]
-        },
-        "workspace": null
-      },
-      "name": "coordinator"
-    },
-    {
-      "description": "Members independently start work; completion requires one review by another member.",
-      "formation": {
-        "context": {
-          "guidance": "",
-          "inputs": {}
-        },
-        "decisions": {
-          "completion": {
-            "by": {
-              "kind": "members"
-            },
-            "count": 1,
-            "exclude_author": true,
-            "kind": "reviews"
+            ]
           },
           "finish": null,
           "selection": null
@@ -143,7 +96,95 @@
       "name": "peer-review"
     },
     {
-      "description": "Authors complete independent attempts; a bound judge selects contributions.",
+      "description": "A draft stage needs one approval by another member, or none while the goal has one member; a ship stage opens when a draft counts.",
+      "formation": {
+        "context": {
+          "guidance": "",
+          "inputs": {}
+        },
+        "decisions": {
+          "completion": {
+            "by": {
+              "kind": "contribution_author"
+            },
+            "kind": "declaration"
+          },
+          "finish": null,
+          "selection": null
+        },
+        "flow": {
+          "draft": {
+            "recipients": {
+              "kind": "members"
+            },
+            "requires": [],
+            "task_type": "draft"
+          },
+          "ship": {
+            "recipients": {
+              "kind": "members"
+            },
+            "requires": [
+              {
+                "evidence": "completion",
+                "stage": "draft"
+              }
+            ],
+            "task_type": null
+          }
+        },
+        "roles": {},
+        "schema_version": 2,
+        "task_types": {
+          "draft": {
+            "decisions": {
+              "completion": {
+                "kind": "any",
+                "rules": [
+                  {
+                    "by": {
+                      "kind": "members"
+                    },
+                    "count": 1,
+                    "exclude_author": true,
+                    "kind": "reviews"
+                  },
+                  {
+                    "by": {
+                      "kind": "only_member"
+                    },
+                    "kind": "contribution"
+                  }
+                ]
+              },
+              "finish": null,
+              "selection": null
+            },
+            "work": null
+          }
+        },
+        "work": {
+          "propose": {
+            "kind": "members"
+          },
+          "publish": {
+            "kind": "members"
+          },
+          "starts": [
+            {
+              "by": {
+                "kind": "members"
+              },
+              "kind": "independent"
+            }
+          ]
+        },
+        "workspace": null
+      },
+      "name": "pipeline"
+    },
+    {
+      "description": "Members try the same task on their own; the lead picks the result to use.",
       "formation": {
         "context": {
           "guidance": "",
@@ -159,13 +200,13 @@
           "finish": null,
           "selection": {
             "kind": "role",
-            "name": "judge"
+            "name": "lead"
           }
         },
         "flow": {},
         "roles": {
-          "judge": {
-            "description": "Picks which result to use. One member."
+          "lead": {
+            "description": "Picks the result to use. One member."
           }
         },
         "schema_version": 2,
@@ -191,7 +232,7 @@
       "name": "independent-attempts"
     },
     {
-      "description": "Completion requires two distinct reviews from the reviewer role, excluding the author.",
+      "description": "A result counts once two reviewers who did not write it approve it.",
       "formation": {
         "context": {
           "guidance": "",
@@ -239,7 +280,7 @@
       "name": "review-panel"
     },
     {
-      "description": "A draft stage needs one review by another member; a ship stage starts when the draft is complete.",
+      "description": "A lead hands out tasks, picks the result to use and closes tasks; a reviewer approves results.",
       "formation": {
         "context": {
           "guidance": "",
@@ -248,53 +289,33 @@
         "decisions": {
           "completion": {
             "by": {
-              "kind": "contribution_author"
+              "kind": "role",
+              "name": "reviewer"
             },
-            "kind": "declaration"
+            "count": 1,
+            "exclude_author": false,
+            "kind": "reviews"
           },
-          "finish": null,
-          "selection": null
-        },
-        "flow": {
-          "draft": {
-            "recipients": {
-              "kind": "members"
-            },
-            "requires": [],
-            "task_type": "draft"
+          "finish": {
+            "kind": "role",
+            "name": "lead"
           },
-          "ship": {
-            "recipients": {
-              "kind": "members"
-            },
-            "requires": [
-              {
-                "evidence": "completion",
-                "stage": "draft"
-              }
-            ],
-            "task_type": null
+          "selection": {
+            "kind": "role",
+            "name": "lead"
           }
         },
-        "roles": {},
+        "flow": {},
+        "roles": {
+          "lead": {
+            "description": "Hands out tasks, picks the result to use and can close a task. One member."
+          },
+          "reviewer": {
+            "description": "Approves results, including its own."
+          }
+        },
         "schema_version": 2,
-        "task_types": {
-          "draft": {
-            "decisions": {
-              "completion": {
-                "by": {
-                  "kind": "members"
-                },
-                "count": 1,
-                "exclude_author": true,
-                "kind": "reviews"
-              },
-              "finish": null,
-              "selection": null
-            },
-            "work": null
-          }
-        },
+        "task_types": {},
         "work": {
           "propose": {
             "kind": "members"
@@ -305,15 +326,19 @@
           "starts": [
             {
               "by": {
-                "kind": "members"
+                "kind": "role",
+                "name": "lead"
               },
-              "kind": "independent"
+              "kind": "offered",
+              "to": {
+                "kind": "members"
+              }
             }
           ]
         },
         "workspace": null
       },
-      "name": "pipeline"
+      "name": "directed"
     }
   ],
   "operations": [
@@ -751,6 +776,19 @@
             "properties": {
               "kind": {
                 "const": "nobody",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "only_member",
                 "type": "string"
               }
             },

@@ -170,6 +170,8 @@ impl Host for TestHost {
                 goal,
                 Some(*anchor),
                 Body::MemberAdmitted {
+                    name: "member".into(),
+                    role: None,
                     member: request.member,
                     endpoint: *remote,
                 },

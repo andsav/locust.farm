@@ -193,7 +193,8 @@ class LiveDemoTests(unittest.TestCase):
                                               "member": principals["coordinator"]}]}}
             if operation == ("goal", "status"):
                 return {"goal_status": {"members": [{"member": p} for p in principals.values()],
-                                         "current_rules": "rules", "workspace": bindings.get(role)}}
+                                         "current_rules": "rules", "workspace": bindings.get(role),
+                                         "roles": {name: [principals["coordinator"]] for name in principals}}}
             if operation in (("farm", "on"), ("farm", "show")):
                 return {"farm_preview": {"status": {"farm_id": "farm"}}}
             if operation == ("workspace", "init"):

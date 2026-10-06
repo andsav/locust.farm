@@ -284,10 +284,13 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         {
             return Err(invalid("workspace rules are after its governance anchor"));
         }
-        let _ = self.resolve(Context {
-            scope: Scope::Workspace,
-            round: event.id(),
-        })?;
+        let _ = self.resolve(
+            Context {
+                scope: Scope::Workspace,
+                round: event.id(),
+            },
+            event.header().anchor.unwrap(),
+        )?;
         let boundary = self.workspace_boundary(event.id())?;
         if let Some(revision) = boundary {
             if matches!(checkpoint, WorkspaceCheckpoint::Revision(_)) {

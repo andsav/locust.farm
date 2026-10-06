@@ -38,6 +38,7 @@ fn offline_removed_member_retries_refused_peers_and_fresh_ticket_returns_stale_m
             0,
             Who::Owner,
             Request::GoalInvite {
+                role: None,
                 goal,
                 expires_ms: r.w.wall_ms(0) + 7 * 24 * 60 * 60 * 1_000,
             },
@@ -86,6 +87,7 @@ fn offline_removed_member_retries_refused_peers_and_fresh_ticket_returns_stale_m
             2,
             Who::Owner,
             Request::GoalJoin {
+                name: "member".into(),
                 agent: member,
                 ticket,
                 level: locust_proto::api::Level::Auto,

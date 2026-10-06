@@ -129,7 +129,17 @@ export interface Check {
 export type CountsAnswer =
 	{ kind: 'list'; approvals: Approvals | null; check: Check | null } | { kind: 'own' };
 
+/** The alternative that makes a lone member's posted result count. */
+export function withoutOnlyMember(rule: CompletionRule): CompletionRule | null {
+	if (rule.kind !== 'any' || rule.rules.length !== 2) return null;
+	const index = rule.rules.findIndex(
+		(part) => part.kind === 'contribution' && part.by.kind === 'only_member'
+	);
+	return index === -1 ? null : rule.rules[1 - index];
+}
+
 function approvalsOf(rule: CompletionRule): Approvals | null {
+	rule = withoutOnlyMember(rule) ?? rule;
 	if (rule.kind !== 'reviews') return null;
 	const by = whoOf(rule.by);
 	return by === null ? null : { by, count: rule.count, excludeAuthor: rule.exclude_author };
@@ -160,12 +170,17 @@ export function countsAnswer(rule: CompletionRule): CountsAnswer {
 export function countsRule(answer: Extract<CountsAnswer, { kind: 'list' }>): CompletionRule {
 	const rules: CompletionRule[] = [];
 	if (answer.approvals !== null) {
-		rules.push({
+		const review: CompletionRule = {
 			kind: 'reviews',
 			by: selectorOf(answer.approvals.by),
 			count: answer.approvals.count,
 			exclude_author: answer.approvals.excludeAuthor
-		});
+		};
+		rules.push(
+			answer.approvals.by.kind === 'anyone' && answer.approvals.excludeAuthor
+				? { kind: 'any', rules: [review, { kind: 'contribution', by: { kind: 'only_member' } }] }
+				: review
+		);
 	}
 	if (answer.check !== null) {
 		rules.push({ kind: 'check', name: answer.check.name, by: selectorOf(answer.check.by) });

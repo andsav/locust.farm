@@ -83,7 +83,10 @@ pub use level::*;
 
 use crate::organization::catalog::{Draft, Presentation, Publication};
 use schemars::{JsonSchema, schema_for};
-use std::{collections::BTreeMap, fmt};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -398,19 +401,24 @@ pub enum Request {
     #[serde(rename = "goal.create")]
     GoalCreate {
         agent: PublicKey,
+        name: String,
         title: String,
         formation_json: Option<String>,
-        roles: BTreeMap<String, Vec<PublicKey>>,
         inputs: BTreeMap<String, BlobHash>,
     },
     #[serde(rename = "goal.join")]
     GoalJoin {
         agent: PublicKey,
+        name: String,
         ticket: Ticket,
         level: Level,
     },
     #[serde(rename = "goal.invite")]
-    GoalInvite { goal: GoalId, expires_ms: u64 },
+    GoalInvite {
+        goal: GoalId,
+        expires_ms: u64,
+        role: Option<String>,
+    },
     #[serde(rename = "goal.leave")]
     GoalLeave { goal: GoalId, agent: PublicKey },
     #[serde(rename = "level.set")]
@@ -435,12 +443,25 @@ pub enum Request {
     GoalStatus { goal: GoalId },
     #[serde(rename = "member.remove")]
     MemberRemove { goal: GoalId, member: PublicKey },
+    #[serde(rename = "role.give")]
+    RoleGive {
+        goal: GoalId,
+        role: String,
+        member: PublicKey,
+        expected: Vec<PublicKey>,
+    },
+    #[serde(rename = "role.take")]
+    RoleTake {
+        goal: GoalId,
+        role: String,
+        member: PublicKey,
+        expected: Vec<PublicKey>,
+    },
     #[serde(rename = "rules.bind")]
     RulesBind {
         goal: GoalId,
         expected: EventId,
         formation_json: String,
-        roles: BTreeMap<String, Vec<PublicKey>>,
         inputs: BTreeMap<String, BlobHash>,
     },
     #[serde(rename = "checkout.register")]
@@ -843,6 +864,8 @@ operations! {
     TaskDisallow { .. } => ("task.disallow", false, true, Owner, false, "Remove this agent's task allowance or request"),
     GoalStatus { .. } => ("goal.status", true, true, Agent, true, "goal status"),
     MemberRemove { .. } => ("member.remove", false, true, Host, false, "member remove"),
+    RoleGive { .. } => ("role.give", false, true, Host, false, "role give"),
+    RoleTake { .. } => ("role.take", false, true, Host, false, "role take"),
     RulesBind { .. } => ("rules.bind", false, true, Host, false, "rules bind"),
     CheckoutRegister { .. } => ("checkout.register", false, true, Agent, true, "Make a new folder for this agent from an accepted shared revision"),
     WorkspaceConnect { .. } => ("workspace.connect", false, true, Owner, false, "Connect a folder you named to this goal for an agent"),
@@ -944,6 +967,7 @@ impl Request {
             | Self::TaskDisallow { goal, .. } => Some(*goal),
             Self::GoalStatus { goal, .. } => Some(*goal),
             Self::MemberRemove { goal, .. } => Some(*goal),
+            Self::RoleGive { goal, .. } | Self::RoleTake { goal, .. } => Some(*goal),
             Self::RulesBind { goal, .. } => Some(*goal),
             Self::WorkspaceRecoveryParentCheck { goal, .. } => Some(*goal),
             Self::WorkspaceEpochSet { goal, .. }
@@ -1015,6 +1039,34 @@ impl Request {
     }
     pub fn check(&self) -> Result<(), ApiError> {
         match self {
+            Self::GoalCreate { name, .. } | Self::GoalJoin { name, .. }
+                if !crate::event::is_member_name(name) =>
+            {
+                Err(ApiError::new(
+                    ErrorCode::Invalid,
+                    "member name must contain 1 to 64 bytes with no outer spaces or control characters",
+                ))
+            }
+            Self::GoalInvite {
+                role: Some(role), ..
+            }
+            | Self::RoleGive { role, .. }
+            | Self::RoleTake { role, .. }
+                if !crate::organization::is_role_name(role) =>
+            {
+                Err(ApiError::new(
+                    ErrorCode::Invalid,
+                    "role name must contain visible text and no control characters",
+                ))
+            }
+            Self::RoleGive { expected, .. } | Self::RoleTake { expected, .. }
+                if !expected.is_sorted_by(|a, b| a < b) =>
+            {
+                Err(ApiError::new(
+                    ErrorCode::Invalid,
+                    "expected role holders must be distinct and ascending",
+                ))
+            }
             Self::AgentEnroll { name, .. } | Self::AuthorEnroll { name, .. }
                 if !is_agent_name(name) =>
             {
@@ -1080,6 +1132,8 @@ impl Request {
             Self::GoalLeave { .. } => matches!(response, Response::Recorded { .. }),
             Self::GoalStatus { .. } => matches!(response, Response::GoalStatus(_)),
             Self::MemberRemove { .. } => matches!(response, Response::Recorded { .. }),
+            Self::RoleGive { .. } => matches!(response, Response::Recorded { .. }),
+            Self::RoleTake { .. } => matches!(response, Response::Recorded { .. } | Response::Done),
             Self::RulesBind { .. } => matches!(response, Response::Recorded { .. }),
             Self::WorkspaceRecoveryParentCheck { .. } => matches!(response, Response::Done),
             Self::WorkspaceEpochSet { .. } => matches!(response, Response::Recorded { .. }),
@@ -1236,6 +1290,7 @@ pub enum Response {
     /// What the caller joined, as the ticket named it. `membership` is
     /// `Joining` until the host's admission has arrived.
     Joined {
+        host_name: String,
         /// The goal the ticket named.
         goal: GoalId,
         /// The host's key, to show as a fingerprint.
@@ -1422,6 +1477,9 @@ pub struct GoalStatus {
     pub hosted_here: bool,
     /// The host's agent, named by the first record; absent until it is held.
     pub host: Option<PublicKey>,
+    pub host_name: Option<String>,
+    pub roles: BTreeMap<String, Vec<PublicKey>>,
+    pub deciding: BTreeSet<String>,
     pub governance_head: Option<EventId>,
     pub current_rules: Option<EventId>,
     pub scope_halts: Vec<ScopeHalt>,
@@ -1433,8 +1491,9 @@ pub struct GoalStatus {
     pub peers: Vec<PeerView>,
 }
 /// One current member of a goal.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct MemberView {
+    pub name: String,
     /// The member's key.
     pub member: PublicKey,
     /// The daemon its admission bound it to.
@@ -1941,6 +2000,7 @@ impl From<InviteError> for ApiError {
             InviteError::NotATicket
             | InviteError::TooLong
             | InviteError::Malformed
+            | InviteError::BadName
             | InviteError::BadHints => ErrorCode::Invalid,
         };
         Self::new(code, error.to_string())
@@ -2008,7 +2068,7 @@ mod tests {
                 agent: PublicKey([4; 32]),
                 title: "open".into(),
                 formation_json: None,
-                roles: BTreeMap::new(),
+                name: "member".into(),
                 inputs: BTreeMap::new(),
             },
         };
@@ -2084,6 +2144,68 @@ mod tests {
                 serde_json::json!({"goal.status":{"goal":GoalId([1;32]),"invented":true}})
             )
             .is_err()
+        );
+    }
+}
+
+#[cfg(test)]
+mod names_and_roles_tests {
+    use super::*;
+    #[test]
+    fn a_request_with_an_unusable_name_or_role_is_invalid() {
+        let agent = PublicKey([1; 32]);
+        let goal = GoalId([2; 32]);
+        for name in ["", " padded", "line\nbreak"] {
+            assert_eq!(
+                Request::GoalCreate {
+                    agent,
+                    name: name.into(),
+                    title: "Goal".into(),
+                    formation_json: None,
+                    inputs: BTreeMap::new()
+                }
+                .check()
+                .unwrap_err()
+                .code,
+                ErrorCode::Invalid
+            );
+            assert_eq!(
+                Request::GoalJoin {
+                    agent,
+                    name: name.into(),
+                    ticket: Ticket("unused".into()),
+                    level: Level::Auto
+                }
+                .check()
+                .unwrap_err()
+                .code,
+                ErrorCode::Invalid
+            );
+        }
+        for role in ["", "  ", "a\nb"] {
+            assert_eq!(
+                Request::GoalInvite {
+                    goal,
+                    expires_ms: 1,
+                    role: Some(role.into())
+                }
+                .check()
+                .unwrap_err()
+                .code,
+                ErrorCode::Invalid
+            );
+        }
+        assert_eq!(
+            Request::RoleGive {
+                goal,
+                member: agent,
+                role: "lead".into(),
+                expected: vec![PublicKey([2; 32]), agent]
+            }
+            .check()
+            .unwrap_err()
+            .code,
+            ErrorCode::Invalid
         );
     }
 }

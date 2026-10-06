@@ -183,9 +183,7 @@
 				</p>
 			{/if}
 		</div>
-		<p class="note">
-			The Locust of whoever started the goal adds the task, so that computer has to be on.
-		</p>
+		<p class="note">The host's Locust adds the task, so that computer has to be on.</p>
 	{:else if point === 'add'}
 		<div class="options">
 			<label class="option">

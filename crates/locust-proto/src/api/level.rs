@@ -163,6 +163,7 @@ pub struct Attempting {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Verdict {
+    pub opinion: bool,
     pub member: PublicKey,
     pub approve: bool,
     pub event: EventId,

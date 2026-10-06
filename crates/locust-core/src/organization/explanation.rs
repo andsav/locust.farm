@@ -15,6 +15,7 @@ fn selector(value: &Selector) -> String {
             .collect::<Vec<_>>()
             .join(" or "),
         Selector::Nobody => "nobody".into(),
+        Selector::OnlyMember => "the goal's only member".into(),
     }
 }
 fn authority(value: &Authority) -> String {
@@ -98,7 +99,8 @@ fn decisions(value: &DecisionRules, prefix: &str, lines: &mut Vec<String>) {
 }
 pub(super) fn explain(value: &Formation) -> Explanation {
     let mut summary = vec![
-        "The goal's host manages membership and rules separately from the rules for work.".into(),
+        "Members organize themselves on the goal's board; the host keeps membership and the rules."
+            .into(),
     ];
     work(&value.work, "Default rules", &mut summary);
     decisions(&value.decisions, "Default rules", &mut summary);
@@ -158,7 +160,7 @@ pub(super) fn explain(value: &Formation) -> Explanation {
     Explanation { summary, required_roles: references.roles.into_iter().collect(), authority_roles: references.authorities.into_iter().collect(),
         required_inputs: value.context.inputs.iter().filter(|(_, input)| input.required).map(|(name, _)| name.clone()).collect(),
         contextual_checks: vec![
-            "Bind referenced role slots to authenticated eligible members; decision-authority roles require exactly one member.".into(),
+            "Declared roles start with the host's agent; roles that pick or close have one holder.".into(),
             "Supply required inputs and verify child rules stay within delegated parent authority.".into(),
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.".into(),
             "Check authority availability and local execution, filesystem, spending and sharing permissions separately.".into(),

@@ -266,7 +266,6 @@ pub struct DefinitionRef {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct RulesBinding {
     pub definition: DefinitionRef,
-    pub roles: BTreeMap<String, Vec<PublicKey>>,
     pub inputs: BTreeMap<String, BlobHash>,
 }
 
@@ -405,6 +404,8 @@ pub enum Body {
     PublicationConsent(crate::farm::PublicationConsent),
     Genesis(Genesis),
     MemberAdmitted {
+        name: String,
+        role: Option<String>,
         member: PublicKey,
         endpoint: EndpointId,
     },
@@ -503,6 +504,10 @@ pub enum Body {
     LeaveRequested {
         admission: EventId,
     },
+    RoleHolders {
+        role: String,
+        holders: Vec<PublicKey>,
+    },
 }
 
 impl Body {
@@ -513,6 +518,7 @@ impl Body {
                 | Self::PublicationSet(_)
                 | Self::MemberAdmitted { .. }
                 | Self::MemberRemoved { .. }
+                | Self::RoleHolders { .. }
                 | Self::RulesBound { .. }
                 | Self::WorkspaceEpoch { .. }
                 | Self::TaskRevised { .. }
@@ -531,6 +537,7 @@ impl Body {
             Self::PublicationConsent(_) => "publication_consent",
             Self::Genesis(_) => "genesis",
             Self::MemberAdmitted { .. } => "member_admitted",
+            Self::RoleHolders { .. } => "role_holders",
             Self::MemberRemoved { .. } => "member_removed",
             Self::RulesBound { .. } => "rules_bound",
             Self::WorkspaceEpoch { .. } => "workspace_epoch",
@@ -719,6 +726,8 @@ pub enum EventError {
     /// A genesis event that does not found the goal it names under this
     /// version's rules, or a later event with no anchor.
     BadAnchor,
+    /// A signed member or role name is unusable.
+    BadName,
     /// The payload reference names more than [`MAX_PAYLOAD_BYTES`].
     /// The payload length is outside what a sealed payload can have: shorter
     /// than an empty sealed object, or above the payload limit.
@@ -744,6 +753,7 @@ impl fmt::Display for EventError {
                 f.write_str("sequence number is out of range or disagrees with the previous event")
             }
             Self::BadReferences => f.write_str("references are out of order or too many"),
+            Self::BadName => f.write_str("member or role name is unusable"),
             Self::BadAnchor => f.write_str("anchor does not fit the event kind"),
             Self::BadPayloadLength => {
                 f.write_str("payload length is not that of an admitted sealed object")
@@ -761,6 +771,20 @@ impl Header {
     pub fn check(&self) -> Result<(), EventError> {
         if self.version != PROTOCOL_VERSION {
             return Err(EventError::UnsupportedVersion(self.version));
+        }
+        match &self.body {
+            Body::MemberAdmitted { name, role, .. }
+                if !is_member_name(name)
+                    || role
+                        .as_ref()
+                        .is_some_and(|role| !crate::organization::is_role_name(role)) =>
+            {
+                return Err(EventError::BadName);
+            }
+            Body::RoleHolders { role, .. } if !crate::organization::is_role_name(role) => {
+                return Err(EventError::BadName);
+            }
+            _ => {}
         }
         if self.seq > i64::MAX as u64 || (self.seq == 0) != self.prev.is_none() {
             return Err(EventError::BadSequence);
@@ -981,6 +1005,14 @@ fn check_size_and_version(bytes: &[u8]) -> Result<(), EventError> {
         Some(&version) => Err(EventError::UnsupportedVersion(version)),
         None => Err(EventError::Malformed),
     }
+}
+
+/// Names signed into admissions are bounded, visible, and unpadded.
+pub fn is_member_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= crate::limits::MAX_MEMBER_NAME_BYTES
+        && name.trim() == name
+        && !name.chars().any(char::is_control)
 }
 
 #[cfg(test)]

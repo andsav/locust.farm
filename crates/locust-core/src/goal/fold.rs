@@ -29,7 +29,7 @@ pub(super) struct Verifier<'a, D: DefinitionLookup + ?Sized> {
     memo: RefCell<BTreeMap<CacheKey, Standing>>,
     visiting: RefCell<BTreeSet<CacheKey>>,
     proofs: RefCell<BTreeMap<EventId, Result<Rc<Proof>, Standing>>>,
-    resolved: RefCell<BTreeMap<Context, Result<Resolved, Standing>>>,
+    resolved: RefCell<BTreeMap<(Context, EventId), Result<Resolved, Standing>>>,
     pub checkpoint_lineages: RefCell<BTreeMap<EventId, Result<BTreeSet<EventId>, Standing>>>,
     pub missing: RefCell<BTreeSet<Dependency>>,
     pub scope_halts: RefCell<BTreeMap<ScopeKey, Halt>>,
@@ -109,12 +109,26 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         );
         invalid(reason)
     }
-    pub fn resolve(&self, context: Context) -> Result<Resolved, Standing> {
-        if let Some(result) = self.resolved.borrow().get(&context).cloned() {
+    pub fn resolve(&self, context: Context, anchor: EventId) -> Result<Resolved, Standing> {
+        if let Some(result) = self.resolved.borrow().get(&(context, anchor)).cloned() {
             return result;
         }
-        let result = rules::resolve(self.history, self.definitions, context);
-        self.resolved.borrow_mut().insert(context, result.clone());
+        let snapshot = self
+            .chain
+            .snapshot(&anchor)
+            .ok_or(Standing::Pending(Waiting::Anchor))?;
+        let only_member =
+            (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap());
+        let result = rules::resolve(
+            self.history,
+            self.definitions,
+            context,
+            &snapshot.roles,
+            only_member,
+        );
+        self.resolved
+            .borrow_mut()
+            .insert((context, anchor), result.clone());
         result
     }
     pub fn event(&self, id: EventId) -> Result<&Event, Standing> {
@@ -254,7 +268,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 if binding.stage.is_some() {
                     return Err(invalid("only a configured effect may create a stage task"));
                 }
-                let resolved = self.task_binding(binding, h.author, proof)?;
+                let resolved = self.task_binding(binding, h.author, proof, h.anchor.unwrap())?;
                 if let Some(
                     parent_context @ Context {
                         scope: Scope::Task(_),
@@ -263,7 +277,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 ) = binding.parent
                 {
                     self.active_context(parent_context, event, proof)?;
-                    let parent = self.resolve(parent_context)?;
+                    let parent = self.resolve(parent_context, h.anchor.unwrap())?;
                     if !rules::matches(
                         &parent.effective.work.propose,
                         h.author,
@@ -320,11 +334,11 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     return Err(invalid("task round compare-and-swap failed"));
                 }
                 let creator = rules::task_creator(self.history, *task, *expected_round)?;
-                self.task_binding(binding, creator, proof)?;
+                self.task_binding(binding, creator, proof, h.anchor.unwrap())?;
             }
             Body::WorkOffered { context, recipient } => {
                 self.active_context(*context, event, proof)?;
-                let resolved = self.resolve(*context)?;
+                let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if !matches!(context.scope, Scope::Task(_)) {
                     return Err(invalid("work offers require a task"));
                 }
@@ -370,7 +384,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 if !matches!(context.scope, Scope::Task(_)) {
                     return Err(invalid("attempt requires a task"));
                 }
-                let resolved = self.resolve(*context)?;
+                let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if let Some(offer) = offer {
                     let (offered, recipient) = self.offer(*offer)?;
                     if offered != *context || recipient != h.author {
@@ -462,7 +476,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                         "documents and workspace candidates use their typed events",
                     ));
                 }
-                let resolved = self.resolve(*context)?;
+                let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if !rules::matches(
                     &resolved.effective.work.publish,
                     h.author,
@@ -498,7 +512,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     return Err(invalid("workspace proposal requires workspace scope"));
                 }
                 self.active_context(*context, event, proof)?;
-                let resolved = self.resolve(*context)?;
+                let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if resolved.effective.decisions.selection.is_none() {
                     return Err(invalid("workspace writes are disabled in this epoch"));
                 }
@@ -525,7 +539,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             }
             Body::CompletionDeclared { context, subject } => {
                 let author = self.subject(*subject, *context)?;
-                let resolved = self.resolve(*context)?;
+                let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if !rules::may_declare(
                     &resolved.effective.decisions.completion,
                     h.author,
@@ -550,14 +564,16 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 context, subject, ..
             } => {
                 let author = self.subject(*subject, *context)?;
-                let resolved = self.resolve(*context)?;
-                if !rules::may_review_with_authors(
-                    &resolved.effective.decisions.completion,
-                    h.author,
-                    &resolved.effective,
-                    author,
-                    &self.source_authors(*subject)?,
-                ) {
+                let resolved = self.resolve(*context, h.anchor.unwrap())?;
+                if rules::asks_for_review(&resolved.effective.decisions.completion)
+                    && !rules::may_review_with_authors(
+                        &resolved.effective.decisions.completion,
+                        h.author,
+                        &resolved.effective,
+                        author,
+                        &self.source_authors(*subject)?,
+                    )
+                {
                     let (qualifies, except_author) = rules::completion_qualifies(
                         &resolved.effective.decisions.completion,
                         Rule::Review,
@@ -579,7 +595,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 ..
             } => {
                 let author = self.subject(*subject, *context)?;
-                let resolved = self.resolve(*context)?;
+                let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if !rules::may_attest(
                     &resolved.effective.decisions.completion,
                     name,
@@ -606,7 +622,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     return Err(invalid("document context names another document"));
                 }
                 self.active_context(*context, event, proof)?;
-                let resolved = self.resolve(*context)?;
+                let resolved = self.resolve(*context, h.anchor.unwrap())?;
                 if !rules::matches(
                     &resolved.effective.work.publish,
                     h.author,
@@ -665,6 +681,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             | Body::PublicationSet(_)
             | Body::MemberAdmitted { .. }
             | Body::MemberRemoved { .. }
+            | Body::RoleHolders { .. }
             | Body::RulesBound { .. }
             | Body::WorkspaceEpoch { .. }
             | Body::ScopeDecided { .. } => unreachable!(),
@@ -681,19 +698,26 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         binding: &TaskBinding,
         creator: PublicKey,
         proof: Option<EventId>,
+        anchor: EventId,
     ) -> Result<Resolved, Standing> {
         self.require(binding.rules, proof)?;
+        let snapshot = self
+            .chain
+            .snapshot(&anchor)
+            .ok_or(Standing::Pending(Waiting::Anchor))?;
         let resolved = rules::resolve_binding(
             self.history,
             self.definitions,
             binding.rules,
             Some(binding.clone()),
             Some(creator),
+            &snapshot.roles,
+            (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap()),
         )?;
         if let Some(parent) = binding.parent {
             self.require(parent.round, proof)?;
             let parent_context = parent;
-            let parent = self.resolve(parent_context)?;
+            let parent = self.resolve(parent_context, anchor)?;
             if parent.effective.rules != binding.rules {
                 return Err(invalid("child task cannot replace the parent definition"));
             }
@@ -848,7 +872,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             context: *context,
             purpose: action.purpose(),
         };
-        let resolved = self.resolve(*context)?;
+        let resolved = self.resolve(*context, event.header().anchor.unwrap())?;
         if context.scope == Scope::Workspace {
             self.active_context(*context, event, checkpoint)?;
             if !matches!(action, DecisionAction::Select { .. }) {
@@ -977,7 +1001,12 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         else {
             return Err(invalid("completion subject is not a contribution"));
         };
-        let resolved = self.resolve(context)?;
+        if matches!(&event.header().body, Body::WorkspaceProposed { parent: None, sources, .. } if sources.is_empty())
+            && Some(event.header().author) == self.history.host
+        {
+            return Ok(Some(BTreeSet::from([subject])));
+        }
+        let resolved = self.resolve(context, event.header().anchor.unwrap())?;
         self.predicate(
             &resolved.effective.decisions.completion,
             subject,
@@ -986,6 +1015,30 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             proof,
             allowed,
         )
+    }
+    /// Latest effective review, or attestation of a named check, in this member's log.
+    pub fn latest_review(
+        &self,
+        subject: EventId,
+        member: PublicKey,
+        check: Option<&str>,
+    ) -> Option<EventId> {
+        self.witnesses
+            .get(&subject)
+            .into_iter()
+            .flatten()
+            .filter_map(|id| self.history.get(id))
+            .filter(|event| {
+                event.header().author == member
+                    && match (&event.header().body, check) {
+                        (Body::ReviewRecorded { .. }, None) => true,
+                        (Body::CheckAttested { name, .. }, Some(check)) => name == check,
+                        _ => false,
+                    }
+            })
+            .filter(|event| self.status(event.id(), None) == Standing::Effective)
+            .max_by_key(|event| (event.header().seq, event.id()))
+            .map(Event::id)
     }
     fn predicate(
         &self,
@@ -1035,6 +1088,19 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 continue;
             }
             let principal = candidate.header().author;
+            if allowed.is_none() {
+                let latest = match rule {
+                    CompletionRule::Reviews { .. } => self.latest_review(subject, principal, None),
+                    CompletionRule::Check { name, .. } => {
+                        self.latest_review(subject, principal, Some(name))
+                    }
+                    _ => Some(candidate.id()),
+                };
+                if latest != Some(candidate.id()) {
+                    continue;
+                }
+            }
+            let resolved = self.resolve(context, candidate.header().anchor.unwrap())?;
             let eligible = match (rule, &candidate.header().body) {
                 (
                     CompletionRule::Declaration { by },

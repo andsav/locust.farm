@@ -57,6 +57,7 @@ fn revoking_the_hosts_agent_stops_that_agent_and_not_governance() {
                 owner,
                 member,
                 Request::GoalInvite {
+                    role: None,
                     goal,
                     expires_ms: 1_000_000,
                 }
@@ -67,6 +68,7 @@ fn revoking_the_hosts_agent_stops_that_agent_and_not_governance() {
         let Response::Invited { ticket } = d.ok(
             owner,
             Request::GoalInvite {
+                role: None,
                 goal,
                 expires_ms: 1_000_000,
             },

@@ -101,7 +101,7 @@ owner agent enroll bob >/dev/null
 "$LOCUST_BIN" session create "$demo/bob.session" >/dev/null
 alice() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/alice.credential" --session "$demo/alice.session" --json "$@"; }
 bob() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/bob.credential" --session "$demo/bob.session" --json "$@"; }
-goal=$(person --agent alice goal create --title 'Local research' | pick goal_created.goal)
+goal=$(person --agent alice goal create --title 'Local research' --formation open | pick goal_created.goal)
 person goal add --goal "$goal" --agent bob >"$demo/join.json"
 # Exercise the ask walk deliberately; ordinary joins default to auto.
 owner --agent alice level --goal "$goal" ask >/dev/null

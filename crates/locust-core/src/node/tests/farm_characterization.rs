@@ -240,10 +240,11 @@ fn default_formation_has_no_goal_finish_decider() {
     let Response::GoalCreated { goal } = d.ok(
         owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: host,
             title: "Default".into(),
-            formation_json: None,
-            roles: Default::default(),
+            formation_json: Some("{\"schema_version\":2}".into()),
+
             inputs: Default::default(),
         },
     ) else {
@@ -296,7 +297,7 @@ fn goal_close_follows_finish_role_instead_of_host_identity() {
     let (member, _) = join_local(&mut d, agent, goal, 2);
     let formation = locust_proto::organization::presets()
         .into_iter()
-        .find(|p| p.name == "coordinator")
+        .find(|p| p.name == "directed")
         .unwrap()
         .formation;
     let expected = d.node.goals[&goal].state().current_rules.unwrap();
@@ -306,8 +307,18 @@ fn goal_close_follows_finish_role_instead_of_host_identity() {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: std::collections::BTreeMap::from([("coordinator".into(), vec![member])]),
+
             inputs: Default::default(),
+        },
+    );
+    let expected = d.node.goals[&goal].state().roles["lead"].clone();
+    d.ok(
+        owner,
+        Request::RoleGive {
+            goal,
+            role: "lead".into(),
+            member,
+            expected,
         },
     );
     let close = Request::ScopeClose {

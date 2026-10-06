@@ -55,6 +55,8 @@ impl Fixture {
                 id,
                 Some(anchor),
                 Body::MemberAdmitted {
+                    name: "member".into(),
+                    role: None,
                     member: principal,
                     endpoint: EndpointId(principal.0),
                 },
@@ -63,7 +65,7 @@ impl Fixture {
             admissions.push(event.id());
             events.push(event);
         }
-        let roles = formation
+        let roles: BTreeMap<String, Vec<_>> = formation
             .roles
             .keys()
             .map(|name| {
@@ -75,7 +77,7 @@ impl Fixture {
                 (name.clone(), principals)
             })
             .collect();
-        let (binding, _) = testkit::rules_binding(&id, 0, &formation, roles);
+        let (binding, _) = testkit::rules_binding(&id, 0, &formation);
         let bound = governance.event(
             id,
             Some(anchor),
@@ -87,6 +89,11 @@ impl Fixture {
         anchor = bound.id();
         let rules = bound.id();
         events.push(bound);
+        for (role, holders) in roles {
+            let event = governance.event(id, Some(anchor), Body::RoleHolders { role, holders });
+            anchor = event.id();
+            events.push(event);
+        }
         Self {
             governance,
             admin,
@@ -613,6 +620,8 @@ fn removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate(
     assert!(matches!(goal.standing(&after), Some(Standing::Excluded(_))));
     assert!(!goal.state().is_member(&f.workers[0].key.public()));
     f.host(Body::MemberAdmitted {
+        name: "member".into(),
+        role: None,
         member: f.workers[0].key.public(),
         endpoint: EndpointId([2; 32]),
     });
@@ -1346,7 +1355,7 @@ fn nested_task_keeps_parent_rules_after_future_defaults_change() {
     let mut f = Fixture::new(Formation::default());
     let parent = f.task();
     let old_rules = f.rules;
-    let (binding, _) = testkit::rules_binding(&f.id, 0, &Formation::default(), BTreeMap::new());
+    let (binding, _) = testkit::rules_binding(&f.id, 0, &Formation::default());
     f.host(Body::RulesBound {
         expected: Some(old_rules),
         binding,
@@ -1603,7 +1612,7 @@ fn document_selection_follows_governance_chronology_not_scopekey_hash_order() {
         evidence: vec![first_review],
     });
     // Second governance round: bind new rules, then revise and select again.
-    let (binding, _) = testkit::rules_binding(&f.id, 0, &review_formation(1), BTreeMap::new());
+    let (binding, _) = testkit::rules_binding(&f.id, 0, &review_formation(1));
     let second_rules = f.host(Body::RulesBound {
         expected: Some(first_rules),
         binding,
@@ -1788,6 +1797,8 @@ fn the_governance_key_is_never_a_member_and_its_ordinary_work_is_excluded() {
     let mut f = Fixture::new(review_formation(1));
     let governance = f.governance.key.public();
     let admission = f.host(Body::MemberAdmitted {
+        name: "member".into(),
+        role: None,
         member: governance,
         endpoint: EndpointId(governance.0),
     });
@@ -1891,6 +1902,8 @@ fn removing_the_hosts_agent_is_excluded_and_it_stays_a_member() {
         verdict: ReviewVerdict::Approve,
     });
     let later = f.host(Body::MemberAdmitted {
+        name: "member".into(),
+        role: None,
         member: testkit::keypair(9).public(),
         endpoint: EndpointId([9; 32]),
     });
@@ -1923,11 +1936,15 @@ fn a_fork_in_the_governance_log_retracts_later_governance_and_preserves_prefix_w
         let context = f.context();
         let subject = f.publish(0, context);
         let first = f.host(Body::MemberAdmitted {
+            name: "member".into(),
+            role: None,
             member: testkit::keypair(8).public(),
             endpoint: EndpointId([8; 32]),
         });
         let fork_seq = f.event(first).header().seq;
         let later = f.host(Body::MemberAdmitted {
+            name: "member".into(),
+            role: None,
             member: testkit::keypair(9).public(),
             endpoint: EndpointId([9; 32]),
         });
@@ -2007,6 +2024,8 @@ fn a_review_fork_by_the_hosts_agent_costs_what_a_members_fork_costs() {
         .into_iter()
         .map(|n| {
             f.host(Body::MemberAdmitted {
+                name: "member".into(),
+                role: None,
                 member: testkit::keypair(n).public(),
                 endpoint: EndpointId([n; 32]),
             })
@@ -2157,11 +2176,15 @@ fn retracted_anchor_keeps_same_goal_author_descendants_pending_even_at_surviving
     let context = f.context();
     let member = testkit::keypair(8).public();
     let host_work = f.host(Body::MemberAdmitted {
+        name: "member".into(),
+        role: None,
         member,
         endpoint: EndpointId(member.0),
     });
     let member = testkit::keypair(9).public();
     let retracted = f.host(Body::MemberAdmitted {
+        name: "member".into(),
+        role: None,
         member,
         endpoint: EndpointId(member.0),
     });
@@ -2232,6 +2255,8 @@ fn retained_events_authorize_with_one_cutoff_traversal_per_tenure() {
 
     // Readmission does not backdate eligibility to the post-cutoff event.
     f.host(Body::MemberAdmitted {
+        name: "member".into(),
+        role: None,
         member: f.workers[0].key.public(),
         endpoint: EndpointId([2; 32]),
     });
@@ -2278,4 +2303,864 @@ fn missing_cutoff_ancestor_waits_and_retraverses_on_arrival() {
     assert_eq!(goal.standing(&last), Some(Standing::Effective));
     // The fresh fold re-traverses once and caches the now-complete ancestry.
     assert_eq!(goal.cutoff_traversals(), 1);
+}
+
+fn preset_formation(name: &str) -> Formation {
+    locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == name)
+        .unwrap()
+        .formation
+}
+fn publish_body(context: Context) -> Body {
+    Body::ContributionPublished {
+        context,
+        attempt: None,
+        sources: vec![],
+        artifacts: vec![],
+    }
+}
+fn rebind(f: &mut Fixture, formation: Formation) -> EventId {
+    let formation = crate::organization::inspect(&serde_json::to_string(&formation).unwrap())
+        .normalized
+        .unwrap();
+    let (binding, _) = testkit::rules_binding(&f.id, f.goal().state().epoch, &formation);
+    f.definitions
+        .insert(testkit::definition_hash(&formation), formation);
+    let id = f.host(Body::RulesBound {
+        expected: Some(f.rules),
+        binding,
+    });
+    f.rules = id;
+    id
+}
+fn alone(formation: Formation) -> Fixture {
+    let formation = crate::organization::inspect(&serde_json::to_string(&formation).unwrap())
+        .normalized
+        .unwrap();
+    let mut governance = Author::new(GOVERNANCE);
+    let admin = Author::new(1);
+    let genesis = governance.genesis_with(admin.key.public(), &formation);
+    let id = genesis.header().goal;
+    let admission = governance.event(
+        id,
+        Some(genesis.id()),
+        Body::MemberAdmitted {
+            member: admin.key.public(),
+            endpoint: EndpointId([1; 32]),
+            name: "Maple".into(),
+            role: None,
+        },
+    );
+    let (binding, _) = testkit::rules_binding(&id, 0, &formation);
+    let bound = governance.event(
+        id,
+        Some(admission.id()),
+        Body::RulesBound {
+            expected: None,
+            binding,
+        },
+    );
+    let rules = bound.id();
+    let admissions = vec![admission.id()];
+    Fixture {
+        governance,
+        admin,
+        workers: (2..=4).map(Author::new).collect(),
+        events: vec![genesis, admission, bound],
+        definitions: BTreeMap::from([(testkit::definition_hash(&formation), formation)]),
+        id,
+        anchor: rules,
+        rules,
+        admissions,
+    }
+}
+fn admit_worker(f: &mut Fixture, worker: usize, role: Option<&str>) -> EventId {
+    let key = f.workers[worker].key.public();
+    f.host(Body::MemberAdmitted {
+        member: key,
+        endpoint: EndpointId(key.0),
+        name: format!("Worker {worker}"),
+        role: role.map(str::to_owned),
+    })
+}
+
+#[test]
+fn role_holders_are_read_at_each_events_governance_position() {
+    let mut formation = review_formation(1);
+    formation
+        .roles
+        .insert("reviewer".into(), Default::default());
+    formation.decisions.completion = CompletionRule::Reviews {
+        by: Selector::Role {
+            name: "reviewer".into(),
+        },
+        count: 1,
+        exclude_author: true,
+    };
+    let mut f = Fixture::new(formation);
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let old = f.review(1, context, subject);
+    f.host(Body::RoleHolders {
+        role: "reviewer".into(),
+        holders: vec![f.workers[2].key.public()],
+    });
+    let refused = f.review(1, context, subject);
+    let new = f.review(2, context, subject);
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&old), Some(Standing::Effective));
+        assert!(matches!(
+            goal.standing(&refused),
+            Some(Standing::Excluded(_))
+        ));
+        assert_eq!(goal.standing(&new), Some(Standing::Effective));
+        assert!(goal.state().contributions[&subject].approved);
+    }
+}
+#[test]
+fn a_member_given_reviewer_can_review_a_result_in_a_task_opened_before() {
+    let mut f = alone(preset_formation("review-panel"));
+    admit_worker(&mut f, 0, None);
+    admit_worker(&mut f, 1, None);
+    let context = f.task();
+    let subject = f.publish(0, context);
+    f.host(Body::RoleHolders {
+        role: "reviewer".into(),
+        holders: vec![f.workers[1].key.public()],
+    });
+    let review = f.review(1, context, subject);
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&review), Some(Standing::Effective));
+    }
+}
+#[test]
+fn a_role_list_outlives_the_binding_that_declared_it_and_old_tasks_read_it() {
+    let mut f = Fixture::new(preset_formation("directed"));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    rebind(&mut f, preset_formation("peer-review"));
+    f.host(Body::RoleHolders {
+        role: "reviewer".into(),
+        holders: vec![f.workers[1].key.public()],
+    });
+    f.host(Body::RoleHolders {
+        role: "lead".into(),
+        holders: vec![f.workers[2].key.public()],
+    });
+    let review = f.review(1, context, subject);
+    let pick = f.worker(
+        2,
+        Body::ScopeDecided {
+            context,
+            previous: None,
+            action: DecisionAction::Select { subject },
+            evidence: vec![review],
+        },
+    );
+    let refused = f.agent(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    rebind(&mut f, preset_formation("directed"));
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&pick), Some(Standing::Effective));
+        assert!(matches!(
+            goal.standing(&refused),
+            Some(Standing::Excluded(_))
+        ));
+        assert_eq!(goal.state().roles["lead"], vec![f.workers[2].key.public()]);
+        assert_eq!(
+            goal.state().roles["reviewer"],
+            vec![f.workers[1].key.public()]
+        );
+    }
+}
+#[test]
+fn decisions_by_successive_authorities_follow_governance_chronology() {
+    let mut f = Fixture::new(preset_formation("independent-attempts"));
+    let context = f.task();
+    let first = f.publish(0, context);
+    let second = f.publish(1, context);
+    let first_done = f.worker(
+        0,
+        Body::CompletionDeclared {
+            context,
+            subject: first,
+        },
+    );
+    let second_done = f.worker(
+        1,
+        Body::CompletionDeclared {
+            context,
+            subject: second,
+        },
+    );
+    for _ in 0..4 {
+        f.agent(publish_body(f.context()));
+    }
+    let old = f.agent(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject: first },
+        evidence: vec![first_done],
+    });
+    f.host(Body::RoleHolders {
+        role: "lead".into(),
+        holders: vec![f.workers[2].key.public()],
+    });
+    let new = f.worker(
+        2,
+        Body::ScopeDecided {
+            context,
+            previous: Some(old),
+            action: DecisionAction::Select { subject: second },
+            evidence: vec![second_done],
+        },
+    );
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&new), Some(Standing::Effective));
+        assert_eq!(
+            goal.state().task_round(context).unwrap().selected,
+            Some(second)
+        );
+    }
+}
+#[test]
+fn removal_drops_the_member_from_every_role_and_an_empty_role_falls_to_the_host() {
+    let mut f = Fixture::new(preset_formation("directed"));
+    for role in ["lead", "reviewer"] {
+        f.host(Body::RoleHolders {
+            role: role.into(),
+            holders: vec![f.workers[1].key.public()],
+        });
+    }
+    rebind(&mut f, preset_formation("peer-review"));
+    f.host(Body::MemberRemoved {
+        member: f.workers[1].key.public(),
+        admission: f.admissions[2],
+        last_accepted: None,
+    });
+    for goal in f.replays() {
+        for role in ["lead", "reviewer"] {
+            assert_eq!(goal.state().roles[role], vec![f.admin.key.public()]);
+        }
+    }
+}
+#[test]
+fn role_holders_must_be_distinct_admitted_and_non_empty() {
+    let mut f = Fixture::new(Formation::default());
+    let a = f.admin.key.public();
+    let b = f.workers[0].key.public();
+    let mut unsorted = vec![a, b];
+    unsorted.sort();
+    unsorted.reverse();
+    for holders in [
+        vec![],
+        vec![a, a],
+        unsorted,
+        vec![testkit::keypair(99).public()],
+    ] {
+        let record = f.host(Body::RoleHolders {
+            role: "reader".into(),
+            holders,
+        });
+        for goal in f.replays() {
+            assert_eq!(
+                goal.standing(&record),
+                Some(Standing::Excluded(super::Exclusion::Precondition(
+                    "role holders must name distinct admitted members in ascending order"
+                )))
+            );
+        }
+    }
+}
+#[test]
+fn rules_bound_fills_unheld_declared_roles_with_the_host_and_requires_one_holder_per_authority() {
+    let mut f = alone(preset_formation("directed"));
+    assert_eq!(f.goal().state().roles["lead"], vec![f.admin.key.public()]);
+    admit_worker(&mut f, 0, None);
+    let mut holders = vec![f.admin.key.public(), f.workers[0].key.public()];
+    holders.sort();
+    f.host(Body::RoleHolders {
+        role: "lead".into(),
+        holders,
+    });
+    let binding = rebind(&mut f, preset_formation("directed"));
+    for goal in f.replays() {
+        assert_eq!(
+            goal.standing(&binding),
+            Some(Standing::Excluded(super::Exclusion::Precondition(
+                "a role that picks or closes must have exactly one holder"
+            )))
+        );
+    }
+}
+#[test]
+fn a_members_latest_review_counts_and_a_later_reject_withdraws_only_its_own_approval() {
+    let mut f = Fixture::new(review_formation(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    f.review(1, context, subject);
+    assert!(f.goal().state().contributions[&subject].approved);
+    let rejected = f.worker(
+        1,
+        Body::ReviewRecorded {
+            context,
+            subject,
+            verdict: ReviewVerdict::Reject,
+        },
+    );
+    for goal in f.replays() {
+        assert!(!goal.state().contributions[&subject].approved);
+        assert!(!goal.state().task_round(context).unwrap().completed);
+        assert_eq!(
+            goal.latest_reviews(subject, &f.definitions)[&f.workers[1].key.public()],
+            rejected
+        );
+    }
+    f.review(2, context, subject);
+    for goal in f.replays() {
+        assert!(goal.state().contributions[&subject].approved);
+    }
+}
+#[test]
+fn a_reject_after_a_pinned_approval_leaves_the_decision_and_its_subject_selected() {
+    let mut f = Fixture::new(review_formation(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let review = f.review(1, context, subject);
+    let decision = f.agent(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    f.worker(
+        1,
+        Body::ReviewRecorded {
+            context,
+            subject,
+            verdict: ReviewVerdict::Reject,
+        },
+    );
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&decision), Some(Standing::Effective));
+        assert_eq!(
+            goal.state().task_round(context).unwrap().selected,
+            Some(subject)
+        );
+    }
+}
+#[test]
+fn a_forked_reviewers_latest_effective_review_is_the_last_before_the_fork() {
+    let mut f = Fixture::new(review_formation(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    f.review(1, context, subject);
+    let reject = f.worker(
+        1,
+        Body::ReviewRecorded {
+            context,
+            subject,
+            verdict: ReviewVerdict::Reject,
+        },
+    );
+    f.fork(reject, 3);
+    for goal in f.replays() {
+        assert!(goal.state().contributions[&subject].approved);
+    }
+}
+#[test]
+fn check_counts_one_passing_attestation_by_a_named_member() {
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Check {
+        name: "build".into(),
+        by: Selector::Members,
+    };
+    let mut f = Fixture::new(formation);
+    let context = f.task();
+    let subject = f.publish(0, context);
+    f.worker(
+        1,
+        Body::CheckAttested {
+            context,
+            subject,
+            name: "build".into(),
+            passed: true,
+        },
+    );
+    assert!(f.goal().state().contributions[&subject].approved);
+    f.worker(
+        1,
+        Body::CheckAttested {
+            context,
+            subject,
+            name: "build".into(),
+            passed: false,
+        },
+    );
+    for goal in f.replays() {
+        assert!(!goal.state().contributions[&subject].approved);
+    }
+}
+#[test]
+fn a_review_the_rule_does_not_ask_for_is_an_opinion_and_counts_for_nothing() {
+    let mut f = Fixture::new(Formation::default());
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let approve = f.review(0, context, subject);
+    let reject = f.worker(
+        1,
+        Body::ReviewRecorded {
+            context,
+            subject,
+            verdict: ReviewVerdict::Reject,
+        },
+    );
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&approve), Some(Standing::Effective));
+        assert_eq!(goal.standing(&reject), Some(Standing::Effective));
+        assert!(!goal.state().contributions[&subject].approved);
+    }
+    f.worker(0, Body::CompletionDeclared { context, subject });
+    for goal in f.replays() {
+        assert!(goal.state().contributions[&subject].approved);
+    }
+}
+#[test]
+fn the_only_members_result_counts_as_posted_and_a_second_admission_ends_that() {
+    let mut f = alone(preset_formation("peer-review"));
+    let context = f.context();
+    let first = f.agent(publish_body(context));
+    admit_worker(&mut f, 0, None);
+    let second = f.agent(publish_body(context));
+    for goal in f.replays() {
+        assert!(goal.state().contributions[&first].approved);
+        assert_eq!(
+            goal.state().contributions[&first].evidence,
+            std::collections::BTreeSet::from([first])
+        );
+        assert!(!goal.state().contributions[&second].approved);
+    }
+    f.review(0, context, second);
+    for goal in f.replays() {
+        assert!(goal.state().contributions[&second].approved);
+    }
+}
+#[test]
+fn removing_the_last_other_member_makes_the_hosts_results_count_again() {
+    let mut f = alone(preset_formation("peer-review"));
+    let admission = admit_worker(&mut f, 0, None);
+    let context = f.context();
+    let before = f.agent(publish_body(context));
+    f.host(Body::MemberRemoved {
+        member: f.workers[0].key.public(),
+        admission,
+        last_accepted: None,
+    });
+    let after = f.agent(publish_body(context));
+    for goal in f.replays() {
+        assert!(!goal.state().contributions[&before].approved);
+        assert!(goal.state().contributions[&after].approved);
+    }
+}
+#[test]
+fn nobody_but_the_host_agent_is_ever_the_only_member() {
+    let mut f = alone(preset_formation("peer-review"));
+    admit_worker(&mut f, 0, None);
+    let context = f.context();
+    let subject = f.publish(0, context);
+    let removal = f.host(Body::MemberRemoved {
+        member: f.admin.key.public(),
+        admission: f.admissions[0],
+        last_accepted: None,
+    });
+    for goal in f.replays() {
+        assert!(!goal.state().contributions[&subject].approved);
+        assert!(matches!(
+            goal.standing(&removal),
+            Some(Standing::Excluded(_))
+        ));
+    }
+}
+#[test]
+fn the_hosts_agent_can_anchor_no_further_back_than_its_own_latest_anchor() {
+    let mut f = alone(preset_formation("peer-review"));
+    let old = f.anchor;
+    admit_worker(&mut f, 0, None);
+    let context = f.context();
+    f.agent(publish_body(context));
+    f.anchor = old;
+    let bad = f.agent(publish_body(context));
+    for goal in f.replays() {
+        assert_eq!(
+            goal.standing(&bad),
+            Some(Standing::Excluded(super::Exclusion::AnchorRegressed))
+        );
+    }
+    let mut f = alone(preset_formation("peer-review"));
+    let old = f.anchor;
+    admit_worker(&mut f, 0, None);
+    f.anchor = old;
+    let context = f.context();
+    let historical = f.agent(publish_body(context));
+    for goal in f.replays() {
+        assert!(goal.state().contributions[&historical].approved);
+    }
+}
+
+#[test]
+fn an_ex_holder_anchored_before_the_change_still_counts_and_after_it_is_excluded() {
+    let mut f = Fixture::new(preset_formation("directed"));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let before = f.anchor;
+    f.host(Body::RoleHolders {
+        role: "reviewer".into(),
+        holders: vec![f.admin.key.public()],
+    });
+    let after = f.anchor;
+    f.anchor = before;
+    let old = f.review(1, context, subject);
+    f.anchor = after;
+    let late = f.review(1, context, subject);
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&old), Some(Standing::Effective));
+        assert!(matches!(goal.standing(&late), Some(Standing::Excluded(_))));
+        assert!(goal.state().contributions[&subject].approved);
+    }
+}
+#[test]
+fn stage_recipients_and_review_requests_follow_roles_at_the_materialization_anchor() {
+    let mut formation = preset_formation("pipeline");
+    formation.roles.insert("workers".into(), Default::default());
+    formation.flow.get_mut("draft").unwrap().recipients = Selector::Role {
+        name: "workers".into(),
+    };
+    let mut f = alone(formation);
+    let newcomer = admit_worker(&mut f, 0, Some("workers"));
+    let desired = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .find(|e| e.effect.transition == "stage:draft")
+        .unwrap()
+        .clone();
+    assert_eq!(
+        desired.recipients,
+        std::collections::BTreeSet::from([f.admin.key.public(), f.workers[0].key.public()])
+    );
+    let opened = f.host(Body::EffectMaterialized {
+        effect: desired.effect.clone(),
+    });
+    f.host(Body::RoleHolders {
+        role: "workers".into(),
+        holders: vec![f.admin.key.public()],
+    });
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&newcomer), Some(Standing::Effective));
+        assert_eq!(goal.standing(&opened), Some(Standing::Effective));
+    }
+    let context = Context {
+        scope: Scope::Task(TaskId::Derived(desired.id)),
+        round: opened,
+    };
+    let subject = f.publish(0, context);
+    let later = admit_worker(&mut f, 1, None);
+    let goal = f.goal();
+    assert!(goal.evaluation().desired_effects.values().any(|effect| matches!(effect.effect.action,EffectAction::RequestReview { subject:target,recipient,.. } if target==subject && recipient==f.workers[1].key.public())));
+    assert_eq!(goal.standing(&later), Some(Standing::Effective));
+}
+#[test]
+fn a_stage_does_not_open_on_an_approval_its_member_withdrew() {
+    for evidence in [EvidenceKind::Review, EvidenceKind::Completion] {
+        let mut formation = preset_formation("pipeline");
+        formation.flow.get_mut("ship").unwrap().requires[0].evidence = evidence;
+        let mut f = Fixture::new(formation);
+        let stage = f
+            .goal()
+            .evaluation()
+            .desired_effects
+            .values()
+            .find(|e| e.effect.transition == "stage:draft")
+            .unwrap()
+            .clone();
+        let opened = f.host(Body::EffectMaterialized {
+            effect: stage.effect,
+        });
+        let context = Context {
+            scope: Scope::Task(TaskId::Derived(stage.id)),
+            round: opened,
+        };
+        let subject = f.publish(0, context);
+        f.review(1, context, subject);
+        let ready = f
+            .goal()
+            .evaluation()
+            .desired_effects
+            .values()
+            .find(|e| e.effect.transition == "stage:ship")
+            .unwrap()
+            .clone();
+        f.worker(
+            1,
+            Body::ReviewRecorded {
+                context,
+                subject,
+                verdict: ReviewVerdict::Reject,
+            },
+        );
+        assert!(
+            !f.goal()
+                .evaluation()
+                .desired_effects
+                .values()
+                .any(|e| e.effect.transition == "stage:ship")
+        );
+        // A recorded stage keeps the approvals its own record pinned.
+        let pinned = f.host(Body::EffectMaterialized {
+            effect: ready.effect,
+        });
+        for goal in f.replays() {
+            assert_eq!(goal.standing(&pinned), Some(Standing::Effective));
+        }
+    }
+}
+#[test]
+fn a_withdrawn_approval_signs_no_second_request_to_the_same_reviewer() {
+    let mut f = Fixture::new(review_formation(1));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let requests: Vec<_> = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .cloned()
+        .collect();
+    for request in requests {
+        f.worker(
+            0,
+            Body::EffectMaterialized {
+                effect: request.effect,
+            },
+        );
+    }
+    f.review(1, context, subject);
+    f.worker(
+        1,
+        Body::ReviewRecorded {
+            context,
+            subject,
+            verdict: ReviewVerdict::Reject,
+        },
+    );
+    assert!(f.goal().evaluation().desired_effects.is_empty());
+    f.host(Body::MemberAdmitted {
+        member: testkit::keypair(8).public(),
+        endpoint: EndpointId([8; 32]),
+        name: "New reviewer".into(),
+        role: None,
+    });
+    let goal = f.goal();
+    assert_eq!(goal.evaluation().desired_effects.len(), 1);
+    let approval = f.review(2, context, subject);
+    f.agent(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![approval],
+    });
+    f.worker(
+        2,
+        Body::ReviewRecorded {
+            context,
+            subject,
+            verdict: ReviewVerdict::Reject,
+        },
+    );
+    for goal in f.replays() {
+        assert!(goal.evaluation().desired_effects.is_empty());
+    }
+}
+#[test]
+fn review_requests_skip_results_that_count_and_tasks_that_are_not_open() {
+    let mut formation = review_formation(1);
+    formation.decisions.finish = formation.decisions.selection.clone();
+    let mut f = Fixture::new(formation);
+    let context = f.task();
+    let subject = f.publish(0, context);
+    f.review(1, context, subject);
+    assert!(f.goal().evaluation().desired_effects.is_empty());
+    let other = f.publish(0, context);
+    assert!(!f.goal().evaluation().desired_effects.is_empty());
+    f.agent(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Close,
+        evidence: vec![],
+    });
+    for goal in f.replays() {
+        assert!(!goal.state().contributions[&other].approved);
+        assert!(goal.evaluation().desired_effects.is_empty());
+    }
+}
+#[test]
+fn all_counts_only_when_every_part_does() {
+    let mut formation = review_formation(1);
+    let review = formation.decisions.completion.clone();
+    formation.decisions.completion = CompletionRule::All {
+        rules: vec![
+            review,
+            CompletionRule::Check {
+                name: "build".into(),
+                by: Selector::Members,
+            },
+        ],
+    };
+    let mut f = Fixture::new(formation);
+    let context = f.task();
+    let subject = f.publish(0, context);
+    f.review(1, context, subject);
+    assert!(!f.goal().state().contributions[&subject].approved);
+    f.worker(
+        1,
+        Body::CheckAttested {
+            context,
+            subject,
+            name: "build".into(),
+            passed: true,
+        },
+    );
+    for goal in f.replays() {
+        assert!(goal.state().contributions[&subject].approved);
+    }
+}
+#[test]
+fn any_counts_when_one_part_does() {
+    let mut formation = review_formation(1);
+    let review = formation.decisions.completion.clone();
+    formation.decisions.completion = CompletionRule::Any {
+        rules: vec![
+            review,
+            CompletionRule::Check {
+                name: "build".into(),
+                by: Selector::Members,
+            },
+        ],
+    };
+    let mut f = Fixture::new(formation);
+    let context = f.task();
+    let subject = f.publish(0, context);
+    f.worker(
+        1,
+        Body::CheckAttested {
+            context,
+            subject,
+            name: "build".into(),
+            passed: true,
+        },
+    );
+    for goal in f.replays() {
+        assert!(goal.state().contributions[&subject].approved);
+    }
+}
+
+#[test]
+fn a_rules_change_strands_no_task_and_revise_moves_one_to_the_current_rules() {
+    let mut f = Fixture::new(preset_formation("directed"));
+    let context = f.task();
+    let subject = f.publish(0, context);
+    let old_rules = f.rules;
+    rebind(&mut f, preset_formation("peer-review"));
+    let current = f.rules;
+    let child = f.worker(
+        0,
+        Body::TaskOpened {
+            binding: TaskBinding {
+                rules: old_rules,
+                task_type: None,
+                inputs: BTreeMap::new(),
+                parent: Some(context),
+                stage: None,
+            },
+        },
+    );
+    let child_context = Context {
+        scope: Scope::Task(TaskId::Authored(child)),
+        round: child,
+    };
+    let child_subject = f.publish(0, child_context);
+    f.review(1, context, subject);
+    f.review(1, child_context, child_subject);
+    let Scope::Task(task) = context.scope else {
+        unreachable!()
+    };
+    let revised = f.host(Body::TaskRevised {
+        task,
+        expected_round: context.round,
+        binding: TaskBinding {
+            rules: current,
+            task_type: None,
+            inputs: BTreeMap::new(),
+            parent: None,
+            stage: None,
+        },
+    });
+    let newer = Context {
+        scope: Scope::Task(task),
+        round: revised,
+    };
+    let new_subject = f.publish(0, newer);
+    let review = f.agent(Body::ReviewRecorded {
+        context: newer,
+        subject: new_subject,
+        verdict: ReviewVerdict::Approve,
+    });
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&review), Some(Standing::Effective));
+        for id in [subject, child_subject, new_subject] {
+            assert!(goal.state().contributions[&id].approved);
+        }
+    }
+}
+
+#[test]
+fn an_opinion_never_opens_a_stage_that_requires_a_counting_review() {
+    let mut formation = preset_formation("pipeline");
+    formation.task_types.clear();
+    formation.flow.get_mut("draft").unwrap().task_type = None;
+    formation.flow.get_mut("ship").unwrap().requires[0].evidence = EvidenceKind::Review;
+    let mut f = Fixture::new(formation);
+    let stage = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .find(|e| e.effect.transition == "stage:draft")
+        .unwrap()
+        .clone();
+    let opened = f.host(Body::EffectMaterialized {
+        effect: stage.effect,
+    });
+    let context = Context {
+        scope: Scope::Task(TaskId::Derived(stage.id)),
+        round: opened,
+    };
+    let subject = f.publish(0, context);
+    let opinion = f.review(1, context, subject);
+    for goal in f.replays() {
+        assert_eq!(goal.standing(&opinion), Some(Standing::Effective));
+        assert!(
+            !goal
+                .evaluation()
+                .desired_effects
+                .values()
+                .any(|e| e.effect.transition == "stage:ship")
+        );
+    }
 }

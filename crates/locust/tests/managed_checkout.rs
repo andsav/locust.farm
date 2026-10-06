@@ -113,7 +113,7 @@ fn agent_gets_a_daemon_created_folder_and_publishes_without_owner_folder_action(
             "goal.create",
             &json!({
                 "agent": agent, "title": "Managed files", "formation_json": null,
-                "roles": {}, "inputs": {},
+                "name":"Host", "inputs": {},
             })
             .to_string(),
         ],
@@ -147,17 +147,6 @@ fn agent_gets_a_daemon_created_folder_and_publishes_without_owner_folder_action(
     let proposal = proposal["workspace_operation"]["state"]["recorded"]["event"]
         .as_str()
         .unwrap();
-    daemon.run(
-        false,
-        &[
-            "completion",
-            "declare",
-            "--goal",
-            &goal,
-            "--subject",
-            proposal,
-        ],
-    );
     daemon.run(
         false,
         &[
@@ -264,7 +253,7 @@ fn invitation_confirmation_follows_shown_state_without_unrelated_rules_binding()
                 "goal": goal,
                 "expected": status["goal_status"]["current_rules"],
                 "formation_json": serde_json::to_string(&definition).unwrap(),
-                "roles": {}, "inputs": {},
+                "inputs": {},
             })
             .to_string(),
         ],

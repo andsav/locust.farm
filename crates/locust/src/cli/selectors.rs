@@ -94,25 +94,92 @@ pub(super) fn resolve_member(
     else {
         unreachable!("typed client checks response kind")
     };
-    let local = status(client, socket, None)?;
-    let needle = value.to_ascii_lowercase();
-    unique(
-        "member",
-        value,
-        observed
+    if prefix(value) {
+        let matches: Vec<_> = observed
             .members
             .iter()
             .filter(|member| {
-                (prefix(value) && member.member.to_string().starts_with(&needle))
-                    || (member.local
-                        && local
-                            .agents
-                            .iter()
-                            .any(|agent| agent.agent == member.member && agent.name == value))
+                member
+                    .member
+                    .to_string()
+                    .starts_with(&value.to_ascii_lowercase())
             })
-            .map(|member| member.member),
-    )
+            .map(|member| member.member)
+            .collect();
+        if !matches.is_empty() {
+            return unique("member", value, matches);
+        }
+    }
+    if let Some(member) = member_by_name(&observed.members, value)? {
+        return Ok(member);
+    }
+    let local = status(client, socket, None)?;
+    let candidates = observed
+        .members
+        .iter()
+        .filter(|member| {
+            member.local
+                && local
+                    .agents
+                    .iter()
+                    .any(|agent| agent.agent == member.member && agent.name == value)
+        })
+        .map(|member| member.member)
+        .collect::<BTreeSet<_>>();
+    match candidates.len() {
+        0 => Err(Failure::new(
+            ErrorCode::NotFound,
+            format!(
+                "no member of {} is named {}",
+                &goal.to_string()[..8],
+                super::presentation::safe(value)
+            ),
+        )),
+        _ => unique("member", value, candidates),
+    }
 }
+pub(super) fn member_key_prefix(
+    members: &[locust_proto::api::MemberView],
+    key: PublicKey,
+) -> String {
+    let full = key.to_string();
+    let length = (8..=64)
+        .find(|length| {
+            !members.iter().any(|member| {
+                member.member != key && member.member.to_string().starts_with(&full[..*length])
+            })
+        })
+        .expect("distinct full keys");
+    full[..length].into()
+}
+fn member_by_name(
+    members: &[locust_proto::api::MemberView],
+    value: &str,
+) -> Result<Option<PublicKey>, Failure> {
+    let candidates: BTreeSet<_> = members
+        .iter()
+        .filter(|member| member.name == value)
+        .map(|member| member.member)
+        .collect();
+    match candidates.len() {
+        0 => Ok(None),
+        1 => Ok(candidates.first().copied()),
+        _ => Err(Failure::invalid(format!(
+            "member name {} is shared; choose a key prefix: {}",
+            super::presentation::safe(value),
+            candidates
+                .into_iter()
+                .map(|key| format!(
+                    "{} ({})",
+                    super::presentation::safe(value),
+                    member_key_prefix(members, key)
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ))),
+    }
+}
+
 fn validate_task(value: &str) -> Result<(), Failure> {
     nonempty(value, "task")?;
     if let Some((kind, id)) = value.split_once(':')
@@ -293,6 +360,33 @@ mod tests {
             closed: false,
         }
     }
+    #[test]
+    fn a_member_resolves_by_key_prefix_then_name_and_a_shared_name_lists_key_prefixes() {
+        let first = PublicKey([1; 32]);
+        let second = PublicKey([2; 32]);
+        let mut members = vec![locust_proto::api::MemberView {
+            member: first,
+            name: "Maple".into(),
+            endpoint: locust_proto::id::EndpointId([3; 32]),
+            local: false,
+        }];
+        assert_eq!(member_by_name(&members, "Maple").unwrap(), Some(first));
+        assert_eq!(member_by_name(&members, "Other").unwrap(), None);
+        members.push(locust_proto::api::MemberView {
+            member: second,
+            name: "Maple".into(),
+            endpoint: locust_proto::id::EndpointId([4; 32]),
+            local: false,
+        });
+        let error = member_by_name(&members, "Maple").unwrap_err();
+        assert_eq!(error.code, ErrorCode::Invalid);
+        assert!(
+            error.message.contains("Maple (01010101), Maple (02020202)"),
+            "{}",
+            error.message
+        );
+    }
+
     #[test]
     fn typed_task_prefixes_keep_authored_and_derived_identities_separate() {
         let a = TaskId::Authored(EventId([0xab; 32]));

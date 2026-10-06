@@ -119,18 +119,14 @@ impl Harness {
         self.goal_from(preset_formation(preset))
     }
     fn goal_from(&mut self, formation: locust_proto::organization::Formation) -> GoalId {
-        let roles = formation
-            .roles
-            .keys()
-            .map(|role| (role.clone(), vec![self.principal]))
-            .collect();
         let Response::GoalCreated { goal } = self.ok(
             self.owner,
             Request::GoalCreate {
+                name: "host".into(),
                 agent: self.principal,
                 title: "Goal".into(),
                 formation_json: Some(serde_json::to_string(&formation).unwrap()),
-                roles,
+
                 inputs: BTreeMap::new(),
             },
         ) else {
@@ -414,7 +410,7 @@ fn stage_steps_are_signed_while_the_hosts_agent_is_disconnected() {
             goal,
             expected: status.current_rules.unwrap(),
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: BTreeMap::new(),
+
             inputs: BTreeMap::new(),
         },
     ));
@@ -664,10 +660,11 @@ fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
     let Response::GoalCreated { goal } = h.ok(
         h.owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: h.principal,
             title: "Causal closure".into(),
             formation_json: Some(serde_json::to_string(&formation).unwrap()),
-            roles: BTreeMap::new(),
+
             inputs: BTreeMap::new(),
         },
     ) else {
@@ -767,7 +764,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
             goal,
             expected: old_rules,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: BTreeMap::new(),
+
             inputs: BTreeMap::new(),
         },
     ));

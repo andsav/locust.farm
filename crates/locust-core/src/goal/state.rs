@@ -11,6 +11,7 @@ use locust_proto::id::{BlobHash, EffectId, EndpointId, EventId, PublicKey};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Member {
+    pub name: String,
     pub principal: PublicKey,
     pub endpoint: EndpointId,
     pub admission: EventId,
@@ -205,6 +206,7 @@ pub struct State {
     pub head: Option<EventId>,
     pub epoch: u32,
     pub members: BTreeMap<PublicKey, Member>,
+    pub roles: BTreeMap<String, Vec<PublicKey>>,
     pub current_rules: Option<EventId>,
     pub workspace: Option<Workspace>,
     pub workspace_proposals: BTreeMap<EventId, WorkspaceProposal>,

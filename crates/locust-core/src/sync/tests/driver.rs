@@ -280,6 +280,7 @@ fn a_received_invitation_refusal_survives_a_failed_local_finish() {
             request: JoinRequest::sign(
                 founded.goal,
                 endpoint(1),
+                "member".into(),
                 InviteSecret([9; 32]),
                 &Author::new(4).key,
             ),

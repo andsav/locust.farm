@@ -7,6 +7,8 @@ use serde::Serialize;
 use serde_json::Value;
 
 mod explanation;
+mod roles;
+pub use roles::{RoleDuty, is_authority_role, role_duties};
 mod normalize;
 mod strict_json;
 mod validation;

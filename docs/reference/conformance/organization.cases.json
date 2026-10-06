@@ -6,8 +6,8 @@
       "example": "open"
     },
     {
-      "id": "preset/coordinator",
-      "example": "coordinator"
+      "id": "preset/directed",
+      "example": "directed"
     },
     {
       "id": "preset/peer-review",
@@ -280,6 +280,10 @@
     {
       "id": "rules/impossible_threshold",
       "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}]}, \"count\": 2}}}"
+    },
+    {
+      "id": "rules/impossible_threshold-only-member",
+      "source": "{\"schema_version\": 2, \"decisions\": {\"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"only_member\"}, \"count\": 2, \"exclude_author\": false}}}"
     },
     {
       "id": "rules/impossible_threshold-exclude-author",

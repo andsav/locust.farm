@@ -21,6 +21,7 @@ import {
 	noTasks,
 	sameAsMain,
 	workAnswer,
+	withoutOnlyMember,
 	type LineRef,
 	type LineRules,
 	type PointName,
@@ -43,6 +44,8 @@ export function who(value: Selector): string {
 			return `members in the ${quoted(value.name)} role`;
 		case 'participant':
 			return `one specific member (key ${shortKey(value.key)})`;
+		case 'only_member':
+			return "the goal's only member";
 		case 'task_creator':
 			return 'the member who added the task';
 		case 'contribution_author':
@@ -70,6 +73,8 @@ function startSentence(start: StartRule): string {
 
 /** "a result counts when …", without the opening words. */
 export function countsClause(rule: CompletionRule): string {
+	const other = withoutOnlyMember(rule);
+	if (other) return `${countsClause(other)}, or the goal's only member posts it`;
 	switch (rule.kind) {
 		case 'declaration':
 			return rule.by.kind === 'contribution_author'
@@ -89,7 +94,9 @@ export function countsClause(rule: CompletionRule): string {
 		case 'check':
 			return `the check ${quoted(rule.name)} is reported as passed`;
 		case 'all':
-			return rule.rules.map(countsClause).join(' and ');
+			return rule.rules
+				.map((part) => (part.kind === 'any' ? `(${countsClause(part)})` : countsClause(part)))
+				.join(' and ');
 		case 'any':
 			return `one of these is true: ${rule.rules.map(countsClause).join('; ')}`;
 	}
@@ -154,6 +161,9 @@ export function phrase(formation: Formation, ref: LineRef, point: PointName): st
 		case 'counts': {
 			const rule = rules.decisions.completion;
 			const answer = countsAnswer(rule);
+			if (rule.kind === 'all' && rule.rules.some((part) => withoutOnlyMember(part) !== null)) {
+				return `When ${countsClause(rule)}.`;
+			}
 			if (answer.kind === 'own') return `When ${countsClause(rule)}.`;
 			const parts: string[] = [];
 			if (answer.approvals !== null) {
@@ -167,7 +177,10 @@ export function phrase(formation: Formation, ref: LineRef, point: PointName): st
 			if (answer.check !== null) {
 				parts.push(`the check ${quoted(answer.check.name)} reported as passed`);
 			}
-			return parts.length === 0 ? 'When its author says so.' : `After ${parts.join(' and ')}.`;
+			const onlyMember = withoutOnlyMember(rule) !== null;
+			return parts.length === 0
+				? 'When its author says so.'
+				: `After ${parts.join(' and ')}${onlyMember ? ", or the goal's only member posts it" : ''}.`;
 		}
 		case 'pick': {
 			const { selection, finish } = rules.decisions;
@@ -274,7 +287,7 @@ export function summarize(formation: Formation): SummaryLine[] {
 		text:
 			roles.length === 0
 				? 'There are no roles. Every member takes part on equal terms.'
-				: `Roles: ${list(roles)}. Members are put into roles later, in Locust.`
+				: `Roles: ${list(roles)}. The host gives roles to members in Locust, after the goal starts.`
 	});
 	for (const text of sentences(lineRules(formation, MAIN), POINTS, 'tasks')) {
 		lines.push({ area: 'rules', text });

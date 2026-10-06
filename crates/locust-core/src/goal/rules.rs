@@ -15,6 +15,7 @@ pub struct EffectiveRules {
     pub decisions: DecisionRules,
     pub roles: BTreeMap<String, Vec<PublicKey>>,
     pub creator: Option<PublicKey>,
+    pub only_member: Option<PublicKey>,
     pub rules: EventId,
     pub definition: DefinitionHash,
 }
@@ -30,6 +31,8 @@ pub(super) fn resolve<D: DefinitionLookup + ?Sized>(
     history: &History,
     definitions: &D,
     context: Context,
+    roles: &BTreeMap<String, Vec<PublicKey>>,
+    only_member: Option<PublicKey>,
 ) -> Result<Resolved, Standing> {
     let event = history
         .get(&context.round)
@@ -76,7 +79,15 @@ pub(super) fn resolve<D: DefinitionLookup + ?Sized>(
             _ => return Err(invalid("context round belongs to another task")),
         },
     };
-    let mut resolved = resolve_binding(history, definitions, rules, task, creator)?;
+    let mut resolved = resolve_binding(
+        history,
+        definitions,
+        rules,
+        task,
+        creator,
+        roles,
+        only_member,
+    )?;
     if context.scope == Scope::Workspace {
         let definition = definitions
             .definition(&resolved.effective.definition)
@@ -105,6 +116,8 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
     rules: EventId,
     task: Option<TaskBinding>,
     creator: Option<PublicKey>,
+    roles: &BTreeMap<String, Vec<PublicKey>>,
+    only_member: Option<PublicKey>,
 ) -> Result<Resolved, Standing> {
     let event = history
         .get(&rules)
@@ -122,7 +135,7 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
         .as_ref()
         .and_then(|task| task.parent)
         .filter(|context| matches!(context.scope, Scope::Task(_)))
-        .map(|context| resolve(history, definitions, context))
+        .map(|context| resolve(history, definitions, context, roles, only_member))
         .transpose()?;
     let (mut work, mut decisions) = if let Some(parent) = &inherited {
         super::delegation::inherit(&parent.effective)
@@ -145,7 +158,8 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
         effective: EffectiveRules {
             work,
             decisions,
-            roles: binding.roles.clone(),
+            roles: roles.clone(),
+            only_member,
             creator,
             rules,
             definition: binding.definition.semantic,
@@ -197,6 +211,7 @@ pub(super) fn matches(
     match selector {
         Selector::Members => true,
         Selector::Nobody => false,
+        Selector::OnlyMember => rules.only_member == Some(principal),
         Selector::Role { name } => rules
             .roles
             .get(name)
@@ -356,4 +371,15 @@ pub(super) fn may_attest_any(
 
 pub(super) fn invalid(reason: &'static str) -> Standing {
     Standing::Excluded(Exclusion::Precondition(reason))
+}
+
+/// Whether a completion rule asks for reviews, rather than accepting opinions.
+pub fn asks_for_review(rule: &CompletionRule) -> bool {
+    match rule {
+        CompletionRule::Reviews { .. } => true,
+        CompletionRule::All { rules } | CompletionRule::Any { rules } => {
+            rules.iter().any(asks_for_review)
+        }
+        _ => false,
+    }
 }

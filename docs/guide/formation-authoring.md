@@ -93,16 +93,15 @@ printf 'Private catalog and observations: %s\n' "$demo"
 ## Start a goal with your formation
 
 ```sh
-locust --owner --agent NAME goal create --title TITLE --formation review-panel --roles '{"reviewer":["YOUR_KEY"]}' --plan
-locust --owner --agent NAME goal create --title TITLE --formation review-panel --roles '{"reviewer":["YOUR_KEY"]}' --confirm PLAN_ID
+locust --owner --agent NAME goal create --title TITLE --formation review-panel --plan
+locust --owner --agent NAME goal create --title TITLE --formation review-panel --confirm PLAN_ID
 ```
 
-For your own formation, use `--formation-json "$(cat team.json)"`. `--roles`
-maps roles to public keys (`locust --owner --json status` lists them); `--inputs`
+For your own formation, use `--formation-json "$(cat team.json)"`. `--inputs`
 maps inputs to file hashes. Starting a goal is the person's command, naming
 the enrolled agent who becomes the host's agent. That agent is initially the
-only member, so roles can name only it until
-others join and you run [rules bind](formations.md#changing-the-rules).
+only member. It initially holds every declared role. After others join,
+use `locust --owner role give --goal GOAL --member MEMBER ROLE` to give a role.
 
 ## Write one with your agent
 

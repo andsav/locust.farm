@@ -188,7 +188,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let refused = Refused {
             agent,
             agent_name,
-            member_name: None,
+            member_name: entry
+                .state()
+                .members
+                .get(&agent)
+                .map(|member| member.name.clone()),
             goal: Some(entry.id()),
             goal_title: entry.local.title.clone(),
             act,
@@ -255,8 +259,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                                 rule: rule.rule,
                                 qualifies: rule.qualifies.clone(),
                                 except_author: rule.except_author,
-                                host: entry.state().governance.unwrap_or(principal),
-                                host_name: None,
+                                host: entry.state().host.unwrap_or(principal),
+                                host_name: Self::host_name(entry),
                             },
                         ));
                     }

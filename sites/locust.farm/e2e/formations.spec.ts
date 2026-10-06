@@ -6,11 +6,12 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const locust = new URL('../../../target/debug/locust', import.meta.url).pathname;
 
-async function open(page: Page) {
+async function open(page: Page, formation = 'Open') {
 	await page.goto('/formations');
 	await page.evaluate(() => localStorage.clear());
 	await page.reload();
 	await expect(page.getByRole('button', { name: 'Copy prompt' })).toBeEnabled();
+	if (formation !== 'Peer review') await way(page, formation).click();
 }
 
 const way = (page: Page, title: string) => page.locator('.ways .way', { hasText: title });
@@ -30,24 +31,24 @@ function block(prompt: string, name: string): string {
 	return lines.slice(begin + 1, end).join('\n');
 }
 
-test('a first visit is ready to copy with the Open way of working', async ({ page }) => {
-	await open(page);
+test('a first visit is ready to copy with Peer review', async ({ page }) => {
+	await open(page, 'Peer review');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('How does your swarm work?');
 	await expect(page.locator('.ways .way')).toHaveCount(6);
 	await expect(page.locator('.ways .diagram text')).toHaveCount(0);
 	await expect(page.locator('.ways .title')).toHaveText([
 		'Open',
-		'Coordinator',
 		'Peer review',
-		'Review panel',
+		'Steps in order',
 		'Independent attempts',
-		'Steps in order'
+		'Review panel',
+		'Directed'
 	]);
-	await expect(way(page, 'Open')).toHaveAttribute('aria-pressed', 'true');
+	await expect(way(page, 'Peer review')).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.getByRole('button', { name: 'No problems' })).toBeVisible();
 	await page.getByRole('button', { name: 'In words' }).click();
 	await expect(page.locator('.summary .lines')).toContainText(
-		'A result counts when its author says so.'
+		"A result counts when it has 1 approval, not the author's, or the goal's only member posts it."
 	);
 	await page.getByLabel('Prompt options', { exact: true }).click();
 	await page.getByRole('button', { name: 'See the prompt' }).click();
@@ -73,11 +74,11 @@ test('the four questions and their answers are on the page without hovering', as
 
 test('each way of working is a different answer at one or two points', async ({ page }) => {
 	await open(page);
-	await way(page, 'Coordinator').click();
-	await expect(point(page, 'work')).toContainText('"coordinator" asks a member. They can say no.');
-	await expect(point(page, 'counts')).toContainText('After 1 approval from "coordinator".');
+	await way(page, 'Directed').click();
+	await expect(point(page, 'work')).toContainText('"lead" asks a member. They can say no.');
+	await expect(point(page, 'counts')).toContainText('After 1 approval from "reviewer".');
 	await expect(point(page, 'pick')).toContainText(
-		'"coordinator" picks one result per task and can close a task.'
+		'"lead" picks one result per task and can close a task.'
 	);
 	await way(page, 'Review panel').click();
 	await expect(point(page, 'counts')).toContainText(
@@ -85,7 +86,7 @@ test('each way of working is a different answer at one or two points', async ({ 
 	);
 	await way(page, 'Independent attempts').click();
 	await expect(point(page, 'counts')).toContainText('When its author says so.');
-	await expect(point(page, 'pick')).toContainText('"judge" picks one result per task.');
+	await expect(point(page, 'pick')).toContainText('"lead" picks one result per task.');
 });
 
 test('the compact matrix keeps role-specific answers and editable rules', async ({ page }) => {
@@ -96,9 +97,9 @@ test('the compact matrix keeps role-specific answers and editable rules', async 
 	await point(page, 'counts').click();
 	await expect(page.getByLabel('It has approvals')).toBeChecked();
 	await page.keyboard.press('Escape');
-	await way(page, 'Coordinator').click();
-	await expect(point(page, 'work')).toContainText('coordinator');
-	await expect(point(page, 'pick')).toContainText('coordinator');
+	await way(page, 'Directed').click();
+	await expect(point(page, 'work')).toContainText('lead');
+	await expect(point(page, 'pick')).toContainText('lead');
 });
 
 test('prompt utilities are available by keyboard and dismiss with Escape or an outside click', async ({
@@ -129,13 +130,15 @@ test('the lit card is the one the rules match, and none when no card shows them'
 	await open(page);
 	await point(page, 'counts').click();
 	await page.getByLabel('It has approvals').check();
-	await expect(point(page, 'counts')).toContainText("After 1 approval, not the author's.");
+	await expect(point(page, 'counts')).toContainText(
+		"After 1 approval, not the author's, or the goal's only member posts it."
+	);
 	await expect(way(page, 'Peer review')).toHaveAttribute('aria-pressed', 'true');
 	await expect(way(page, 'Open')).toHaveAttribute('aria-pressed', 'false');
 	// A review and a check together: the rule no card shows.
 	await page.getByLabel('A check is reported as passed').check();
 	await expect(point(page, 'counts')).toContainText(
-		'After 1 approval, not the author\'s and the check "tests" reported as passed.'
+		'When (it has 1 approval, not the author\'s, or the goal\'s only member posts it) and the check "tests" is reported as passed.'
 	);
 	await expect(page.locator('.box')).toContainText('Locust does not run the check.');
 	await expect(page.locator('.ways .way[aria-pressed="true"]')).toHaveCount(0);
@@ -146,15 +149,15 @@ test('a role is made where it is needed', async ({ page }) => {
 	await open(page);
 	await point(page, 'pick').click();
 	await page.getByLabel('One role picks one result per task').check();
-	await page.getByLabel('Name of the new role').first().fill('judge');
+	await page.getByLabel('Name of the new role').first().fill('lead');
 	await page.getByRole('button', { name: 'Add role' }).click();
-	await expect(point(page, 'pick')).toContainText('"judge" picks one result per task.');
-	await expect(page.getByRole('button', { name: 'Role "judge"' })).toBeVisible();
+	await expect(point(page, 'pick')).toContainText('"lead" picks one result per task.');
+	await expect(page.getByRole('button', { name: 'Role "lead"' })).toBeVisible();
 	await expect(way(page, 'Independent attempts')).toHaveAttribute('aria-pressed', 'true');
 	// One undo takes back the role and the rule together.
 	await page.keyboard.press('Escape');
 	await page.getByRole('button', { name: 'Undo' }).click();
-	await expect(page.getByRole('button', { name: 'Role "judge"' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Role "lead"' })).toHaveCount(0);
 	await expect(way(page, 'Open')).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -199,7 +202,7 @@ test('the pipeline is steps in order, each saying only what differs', async ({ p
 	const ship = row(page, 'ship');
 	await expect(draft.locator('[data-point="add"]')).toContainText('Locust, at the start.');
 	await expect(draft.locator('[data-point="counts"]')).toContainText(
-		"After 1 approval, not the author's."
+		"After 1 approval, not the author's, or the goal's only member posts it."
 	);
 	await expect(draft.locator('[data-point="work"]')).toContainText('Same as any task');
 	await expect(ship.locator('[data-point="add"]')).toContainText(
@@ -256,7 +259,7 @@ test('another kind of task follows its own rules', async ({ page }) => {
 	await kind.locator('[data-point="counts"]').click();
 	await page.locator('.box').getByLabel('It has approvals').check();
 	await expect(kind.locator('[data-point="counts"]')).toContainText(
-		"After 1 approval, not the author's."
+		"After 1 approval, not the author's, or the goal's only member posts it."
 	);
 	// The rules for any task are unchanged.
 	await expect(point(page, 'counts')).toContainText('When its author says so.');
@@ -266,8 +269,8 @@ test('another kind of task follows its own rules', async ({ page }) => {
 
 test('problems are explained in plain words and can be found', async ({ page }) => {
 	await open(page);
-	await way(page, 'Coordinator').click();
-	await page.getByRole('button', { name: 'Role "coordinator"' }).click();
+	await way(page, 'Directed').click();
+	await page.getByRole('button', { name: 'Role "reviewer"' }).click();
 	await page.getByRole('button', { name: 'Remove role' }).click();
 	await page.getByRole('button', { name: /^\d+ problems?$/ }).click();
 	await expect(page.locator('.panel.open h2')).toHaveText(/^\d+ problems?$/);
@@ -291,9 +294,11 @@ test('a step keeps its own answer while the rule for any task is edited past it'
 	await page.locator('.box').getByLabel('It has approvals').check();
 	await page.locator('.box').getByLabel('How many?').fill('2');
 	await page.locator('.box').getByLabel('How many?').press('Enter');
-	await expect(point(page, 'counts')).toContainText("After 2 approvals, not the author's.");
+	await expect(point(page, 'counts')).toContainText(
+		"After 2 approvals, not the author's, or the goal's only member posts it."
+	);
 	await expect(draft.locator('[data-point="counts"]')).toContainText(
-		"After 1 approval, not the author's."
+		"After 1 approval, not the author's, or the goal's only member posts it."
 	);
 	// A number Locust could not load is refused.
 	await page.locator('.box').getByLabel('How many?').fill('5000000000');

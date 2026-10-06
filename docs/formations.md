@@ -19,7 +19,7 @@ A formation has seven parts, and each has a default:
 
 | Part | Holds |
 | --- | --- |
-| `roles` | Named groups of members, filled when a goal binds the rules |
+| `roles` | Named groups of members; declared roles initially hold the host's agent |
 | `context` | `guidance` (advice text) and `inputs` (named text or artifact inputs) |
 | `work` | `propose`, `publish` and `starts` |
 | `decisions` | `completion`, `selection` and `finish` |
@@ -28,18 +28,20 @@ A formation has seven parts, and each has a default:
 | `workspace` | Optional exact integrator and completion policy for the shared file tree |
 
 `{"schema_version":2}` alone is a complete formation. It is the `open` preset.
+A goal created without a formation follows `peer-review`.
 
 Rules name who may act with a selector:
 
 | Selector | Matches |
 | --- | --- |
-| `members` | Every current member |
-| `role` | Members bound to that role |
+| `members` | Every member at the act's governance anchor |
+| `role` | Holders of that role at the act's governance anchor |
 | `participant` | One member, by 64-hex public key |
 | `task_creator` | The member who opened the task (start and completion rules only). A stage's task is opened by the host's computer, which is no member, so in the rules a stage's task uses it may appear only in the `by` of an `offered` start |
 | `contribution_author` | The result's author (completion rules only) |
 | `any` | Anyone matched by one of a list of selectors |
 | `nobody` | No one |
+| `only_member` | The one member while the goal has exactly one member at the act's governance anchor |
 
 Validation runs offline in
 [validation.rs](../crates/locust-core/src/organization/validation.rs). It reports:
@@ -92,11 +94,16 @@ names at most one member who may close and reopen a task. Each is a `role` or a
 ### Workspace
 
 `workspace` is optional. Its `integrator` names exactly one participant or one
-singly bound role; its `completion` pins the evidence required for a tree
-proposal. Enabling or changing active workspace authority requires an explicit
-workspace epoch with a typed checkpoint. Ordinary rules changes alone do not
-retarget active workspace policy. Integration also follows the local level and
-formation eligibility. Generic task/document selection remains separate. See the
+role with one holder; its `completion` pins the evidence required for a tree
+proposal. Enabling or changing active workspace authority requires a workspace
+epoch with a typed checkpoint. The `rules bind` command binds the new rules and
+moves an active tree to them in the same commit, carrying its accepted revision
+forward. A formation's explicit `workspace` policy is used as written; otherwise
+the command uses the host's agent as integrator and the goal's completion rule.
+The host's first files, with no parent and no composition source in an epoch
+that starts empty, count when posted. Later changes follow the tree's rule.
+Integration remains the host's explicit command in this phase. It also follows
+the local level and formation eligibility. Generic task/document selection remains separate. See the
 [workspace contract](workspace.md) for retained lineage, disputes and recovery.
 
 ### Task types and flow
@@ -114,18 +121,20 @@ stage. A stage runs once for each rules binding, not once per task.
 
 Six formations are built into the binary in
 [presets.rs](../crates/locust-proto/src/organization/presets.rs): `open`,
-`coordinator`, `peer-review`, `independent-attempts`, `review-panel` and
-`pipeline`. `examples/formations/` holds copies, and `check_formations.py` keeps
-them equal. The `coordinator` preset sets `exclude_author` to false, so the
-coordinator can approve its own result. The guide's
+`peer-review`, `pipeline`, `independent-attempts`, `review-panel` and
+`directed`. `examples/formations/` holds copies, and `check_formations.py` keeps
+them equal. `directed` gives its `lead` the choice of result and task closure;
+its `reviewer` may approve its own result. `peer-review` and the pipeline's draft
+also count the goal's only member's result when posted. `review-panel` always
+requires two eligible reviewers. The guide's
 [preset table](guide/formations.md#presets) describes each one.
 
-## Goals and administration
+## Goals, names and roles
 
 The person's `goal create` command signs three events together: the genesis,
 which names the host's agent and pins the formation's semantic hash; that agent's
 admission; and the first rules binding. It takes a preset name (`--formation`) or
-formation JSON (`--formation-json`), plus `--roles` and `--inputs`. It does not
+formation JSON (`--formation-json`), plus `--name` and `--inputs`. It does not
 read the private catalog. The person names the enrolled agent who becomes the
 host's agent. All three are signed by the goal's own signing key, which the
 hosting computer makes with the goal and keeps; the goal identifier commits to
@@ -133,20 +142,32 @@ that key and to the host's agent. The key is never a member. See
 [goals.rs](../crates/locust-core/src/node/requests/goals.rs) and
 [event.rs](../crates/locust-proto/src/event.rs).
 
-Only events signed by the goal's key change membership, rules, task rounds or
+Only events signed by the goal's key change membership, role holders, rules, task rounds or
 the farm publication policy, and only it signs a stage's steps. Events of these
 kinds from anyone else are excluded, and anything else it signs is excluded as
 a non-member's. Roles never grant this power. The host's agent is an ordinary
 member: it cannot leave or be removed, and disconnecting it stops no host
 command. See [chain.rs](../crates/locust-core/src/goal/chain.rs).
 
-A rules binding must bind every declared role to admitted members and supply
-every required input. A role used as a selection or finish decider must be bound
-to exactly one member. At creation the creator is the only member, so roles can
-name only the creator. The host admits others and then runs `rules bind`.
+Every admission signs the member's name into the goal. A rules binding supplies
+every required input and starts each newly declared role with the host's agent.
+The host changes a role with `role give` and `role take`. A role used to pick a
+result or close a task has one holder; the host's daemon keeps each role's kind
+for the life of the goal. Taking the last holder or removing that member falls
+back to the host's agent. A new binding keeps all role lists, even those it does
+not declare, so work under earlier rules can still use them. Roles are resolved
+at each act's own governance anchor, not where its task's rules were bound.
+The host's daemon checks role kind before signing; replay requires one holder
+when a deciding role is used.
 
-`rules bind --expected RULES_REVISION` changes the goal's defaults. The revision
-is the ID of the current rules event; if it changed, locust.farm refuses the update. New tasks use the new rules;
+Where the completion rule needs reviewers the host's agent cannot supply alone,
+`goal add` and `goal invite` choose the reviewer role by default. `--no-role`
+admits a member without that role. A role carried by a ticket becomes part of
+the signed admission.
+
+`rules bind` changes the goal's defaults. Its plan records the current rules
+event; if it changes before confirmation, locust.farm refuses the update.
+New tasks use the new rules;
 existing tasks keep the rules they were opened under. `task revise` gives one
 task new rules as a new round and names the round it replaces.
 
@@ -167,8 +188,11 @@ result. Clocks and arrival order never decide anything.
 - **Missing records.** An event that depends on records not yet received waits.
   It is never counted as a rejection.
 - **Reviews.** locust.farm counts distinct approving members that the rule allows, and
-  leaves out the author when the rule says so. A reject is recorded but is not a
-  veto. Several results can count at once. A task round is complete when any
+  leaves out the author when the rule says so. Without pinned evidence, each
+  member's latest effective review is read: a reject withdraws that member's
+  approval, without vetoing another member's. A selection or materialized step
+  keeps the exact reviews it pinned. Under a rule that asks for no reviews, a
+  member's review is an opinion and never contributes to completion. Several results can count at once. A task round is complete when any
   result counts or one is selected.
 - **Selection.** Only the selection decider may select, and only a result that
   counts. Each decision names the previous one in that task's chain (`--expected`).
@@ -220,8 +244,11 @@ The result's author signs other review requests. A daemon signs each eligible
 step for its local member without a separate flow setting
 ([node/flow.rs](../crates/locust-core/src/node/flow.rs)).
 
-Stage recipients are the members matched when the rules were bound (read from
-code). Members admitted later receive stage tasks only after a new `rules bind`.
+Recipients are matched at the signed step's governance anchor. When deciding
+what to send next, the daemon uses holders and members at the current head.
+Review requests are sent only for results that do not yet count and have not
+been selected on an open task; a new reviewer does not receive requests for all
+past results. An already-signed request keeps its historical authority.
 Prerequisites use an upstream task's revised round at the materialization's
 governance anchor. Already-materialized effects retain their historical evidence.
 [Goal tests](../crates/locust-core/src/goal/tests.rs) cover revised prerequisites
@@ -279,11 +306,6 @@ in [organization/catalog.rs](../crates/locust-core/src/organization/catalog.rs).
   reviews continue.
 - **Rebinding a pipeline.** Stages belong to one rules binding. From the code, each
   `rules bind` starts the stages again under the new binding. Not run.
-- **Coordinator without `--roles`.** From the code, the first binding leaves
-  `coordinator` unbound and is excluded, so the goal may have no usable rules. Not
-  run.
-- **Combined and check rules.** No signed-replay test covers `all`, `any` or
-  `check` completion.
 
 ## Where the code and tests are
 

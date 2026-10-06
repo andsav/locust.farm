@@ -147,10 +147,11 @@ fn content_put_get_scope_withdrawal_and_reput_survive_restart() {
     let Response::GoalCreated { goal: other } = daemon.ok(
         owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: principal,
             title: "Other".into(),
-            formation_json: None,
-            roles: Default::default(),
+            formation_json: Some("{\"schema_version\":2}".into()),
+
             inputs: Default::default(),
         },
     ) else {
@@ -384,6 +385,7 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
     let Response::Invited { ticket } = daemon.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 5000,
         },
@@ -409,6 +411,7 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
     let Response::Joined { membership, .. } = daemon.ok(
         owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: principal,
             ticket,
             level: locust_proto::api::Level::Auto,
@@ -428,6 +431,7 @@ fn pending_join_cannot_relabel_the_host() {
     let Response::Invited { ticket } = issuer.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -451,6 +455,7 @@ fn pending_join_cannot_relabel_the_host() {
     joining.ok(
         actor,
         Request::GoalJoin {
+            name: "member".into(),
             agent: joiner,
             ticket: ticket.clone(),
             level: locust_proto::api::Level::Auto,
@@ -464,6 +469,7 @@ fn pending_join_cannot_relabel_the_host() {
         code(joining.call(
             actor,
             Request::GoalJoin {
+                name: "member".into(),
                 agent: joiner,
                 ticket: altered.to_ticket().unwrap(),
                 level: locust_proto::api::Level::Auto,
@@ -475,12 +481,14 @@ fn pending_join_cannot_relabel_the_host() {
         joining.ok(
             actor,
             Request::GoalJoin {
+                name: "member".into(),
                 agent: joiner,
                 ticket,
                 level: locust_proto::api::Level::Auto,
             }
         ),
         Response::Joined {
+            host_name: "host".into(),
             goal,
             governance,
             membership: Membership::Joining,

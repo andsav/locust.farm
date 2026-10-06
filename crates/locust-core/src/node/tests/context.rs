@@ -459,7 +459,7 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: BTreeMap::new(),
+
             inputs: BTreeMap::new(),
         },
     );
@@ -655,7 +655,7 @@ fn pending_reviews_only_count_the_callers_effective_reviews() {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     );

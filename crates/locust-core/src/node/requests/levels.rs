@@ -27,17 +27,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let level = entry.local.level(&agent);
         let rules = entry.goal.abilities(agent, level, &entry.definitions);
         let roles = entry
-            .goal
-            .current_context(locust_proto::event::Scope::Goal)
-            .and_then(|context| entry.goal.effective_rules(context, &entry.definitions))
-            .map(|rules| {
-                rules
-                    .roles
-                    .into_iter()
-                    .filter_map(|(name, members)| members.contains(&agent).then_some(name))
-                    .collect()
-            })
-            .unwrap_or_default();
+            .state()
+            .roles
+            .iter()
+            .filter_map(|(name, members)| members.contains(&agent).then_some(name.clone()))
+            .collect();
         let mut allowed_tasks = Vec::new();
         let mut wanted_tasks = Vec::new();
         for ((task, principal), allowance) in &entry.local.allowances {

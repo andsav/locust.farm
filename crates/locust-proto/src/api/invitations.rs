@@ -24,6 +24,8 @@ pub enum InvitationSharing {
 /// verification attributes the presentation to a key, not a human identity.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct InvitationPreview {
+    pub host_name: String,
+    pub role: Option<String>,
     pub goal: GoalId,
     pub goal_title: Option<String>,
     pub governance: PublicKey,
@@ -71,6 +73,7 @@ pub enum InvitationState {
 /// none of these fields can redeem an invitation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct InvitationSummary {
+    pub role: Option<String>,
     pub invitation: String,
     pub goal: GoalId,
     pub goal_title: Option<String>,

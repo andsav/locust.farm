@@ -263,7 +263,6 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
         .unwrap()
         .formation;
     let formation = serde_json::to_string(&definition).unwrap();
-    let roles = json!({"judge":[agent]}).to_string();
     let created = p.approved_cli(
         &["--owner", "--agent", agent],
         &[
@@ -273,8 +272,6 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
             "T2 real core",
             "--formation-json",
             &formation,
-            "--roles",
-            &roles,
         ],
     );
     let goal = created["goal_created"]["goal"].as_str().unwrap();

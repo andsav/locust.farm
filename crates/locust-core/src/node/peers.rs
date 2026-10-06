@@ -242,7 +242,13 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
                         goal: *goal,
                         endpoint: join.endpoint,
                         hints: join.hints.clone(),
-                        request: JoinRequest::sign(*goal, endpoint, join.secret, signer),
+                        request: JoinRequest::sign(
+                            *goal,
+                            endpoint,
+                            join.name.clone(),
+                            join.secret,
+                            signer,
+                        ),
                     })
                 })
             })
@@ -324,12 +330,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if let Some((member, endpoint)) = invite.redeemed {
             return if member == request.member
                 && endpoint == *remote
-                && entry
-                    .state()
-                    .members
-                    .get(&member)
-                    .is_some_and(|member| member.is_active() && member.endpoint == *remote)
-            {
+                && entry.state().members.get(&member).is_some_and(|member| {
+                    member.is_active() && member.endpoint == *remote && member.name == request.name
+                }) {
                 Ok(Tx::none())
             } else {
                 Err(refused)
@@ -350,6 +353,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Body::MemberAdmitted {
                 member: request.member,
                 endpoint: *remote,
+                name: request.name.clone(),
+                role: invite.role.clone(),
             },
             &mut tx,
         )

@@ -348,6 +348,8 @@ function fixedMembers(selector: Selector): Set<string> | null {
 			return new Set([selector.key.toLowerCase()]);
 		case 'task_creator':
 			return new Set(['task_creator']);
+		case 'only_member':
+			return new Set(['only_member']);
 		case 'contribution_author':
 			return new Set(['contribution_author']);
 		case 'any': {

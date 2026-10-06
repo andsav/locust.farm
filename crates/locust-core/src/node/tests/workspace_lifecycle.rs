@@ -35,7 +35,7 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     ));
@@ -217,12 +217,13 @@ pub(super) fn accepted_tree(
 #[test]
 fn publication_declaration_and_integration_are_distinct_durable_steps() {
     let (mut daemon, _, _, agent, goal) = setup();
+    let (initial, _) = accepted_tree(&mut daemon, agent, goal, 20);
     let manifest = tree(&mut daemon, agent, goal, b"seed files");
     let captured = capture(&mut daemon, agent, goal, 1, manifest);
     let proposal = publish(&mut daemon, agent, goal, &captured);
     let before = view(&mut daemon, agent, goal);
     assert_eq!(before.authority, WorkspaceAuthority::Ready);
-    assert!(before.head.is_none());
+    assert_eq!(before.head.unwrap().revision, initial);
     let Response::WorkspaceProposal(candidate) =
         daemon.ok(agent, Request::WorkspaceProposal { goal, proposal })
     else {
@@ -249,7 +250,10 @@ fn publication_declaration_and_integration_are_distinct_durable_steps() {
         ErrorCode::Conflict
     );
     declare(&mut daemon, agent, goal, proposal);
-    assert!(view(&mut daemon, agent, goal).head.is_none());
+    assert_eq!(
+        view(&mut daemon, agent, goal).head.unwrap().revision,
+        initial
+    );
     let (receipt, revision) = recorded(daemon.ok(
         agent,
         Request::WorkspaceIntegrate {
@@ -549,10 +553,11 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
     let Response::GoalCreated { goal } = net.nodes[0].ok(
         owner,
         Request::GoalCreate {
+            name: "host".into(),
             agent: integrator,
             title: "Shared workspace transport".into(),
             formation_json: Some(serde_json::to_string(&formation).unwrap()),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     ) else {
@@ -569,6 +574,7 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
     let Response::Invited { ticket } = net.nodes[0].ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -579,6 +585,7 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
     net.nodes[1].ok(
         joining_owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: worker,
             ticket,
             level: locust_proto::api::Level::Auto,
@@ -766,6 +773,18 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
             manifest
         );
     }
+    let host_owner = net.nodes[0].owner();
+    let new_rules = bind_peer_files(&mut net.nodes[0], host_owner, integrator, goal);
+    net.poll(1);
+    let carried = view(&mut net.nodes[0], left, goal);
+    assert_eq!(carried.head, accepted.head);
+    assert_ne!(carried.epoch, accepted.epoch);
+    assert_eq!(view(&mut net.nodes[1], right, goal), carried);
+    assert_eq!(
+        net.nodes[1].node.goals[&goal].state().current_rules,
+        Some(new_rules)
+    );
+    let accepted = carried;
     net.restart();
     let left = net.nodes[0].connect(credential(1), None);
     let right = net.nodes[1].connect(credential(2), None);
@@ -781,4 +800,162 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
             notes_bytes
         );
     }
+}
+
+fn bind_peer_files(daemon: &mut Daemon, owner: ConnId, host: PublicKey, goal: GoalId) -> EventId {
+    let mut formation = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "peer-review")
+        .unwrap()
+        .formation;
+    formation.workspace = Some(WorkspacePolicy {
+        integrator: Authority::Participant {
+            key: host.to_string(),
+        },
+        completion: formation.decisions.completion.clone(),
+    });
+    let expected = daemon.node.goals[&goal].state().current_rules.unwrap();
+    lifecycle::event(daemon.ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            inputs: Default::default(),
+        },
+    ))
+}
+
+#[test]
+fn the_host_accepts_its_first_files_with_no_approval_and_its_next_change_waits() {
+    let (mut d, host, owner, agent, goal) = setup();
+    let (_, reviewer) = super::authorization::join_local(&mut d, agent, goal, 2);
+    bind_peer_files(&mut d, owner, host, goal);
+    let manifest = tree(&mut d, agent, goal, b"first files");
+    let operation = capture(&mut d, agent, goal, 1, manifest);
+    let proposal = publish(&mut d, agent, goal, &operation);
+    assert!(d.node.goals[&goal].state().workspace_proposals[&proposal].approved);
+    let operation = prepare_integration(&mut d, agent, goal, 101, proposal);
+    d.ok(
+        agent,
+        Request::WorkspaceIntegrate {
+            goal,
+            operation: operation.id,
+        },
+    );
+    let next_manifest = tree(&mut d, agent, goal, b"later files");
+    let operation = capture(&mut d, agent, goal, 2, next_manifest);
+    let proposal = publish(&mut d, agent, goal, &operation);
+    assert!(!d.node.goals[&goal].state().workspace_proposals[&proposal].approved);
+    let operation = prepare_integration(&mut d, agent, goal, 102, proposal);
+    assert_eq!(
+        code(d.call(
+            agent,
+            Request::WorkspaceIntegrate {
+                goal,
+                operation: operation.id
+            }
+        )),
+        ErrorCode::Conflict
+    );
+    d.ok(
+        reviewer,
+        Request::ReviewRecord {
+            goal,
+            subject: proposal,
+            verdict: locust_proto::event::ReviewVerdict::Approve,
+            text: "checked".into(),
+        },
+    );
+    d.ok(
+        agent,
+        Request::WorkspaceIntegrate {
+            goal,
+            operation: operation.id,
+        },
+    );
+    assert_eq!(
+        view(&mut d, agent, goal).head.unwrap().result_manifest,
+        next_manifest
+    );
+}
+
+#[test]
+fn rules_bind_signs_the_binding_and_the_epoch_in_one_commit() {
+    let (mut d, host, owner, agent, goal) = setup();
+    let (head, manifest) = accepted_tree(&mut d, agent, goal, 1);
+    let (_, reviewer) = super::authorization::join_local(&mut d, agent, goal, 2);
+    let old_epoch = d.node.goals[&goal]
+        .state()
+        .workspace
+        .as_ref()
+        .unwrap()
+        .epoch;
+    let new_manifest = tree(&mut d, agent, goal, b"not yet landed");
+    let operation = capture(&mut d, agent, goal, 2, new_manifest);
+    let old_proposal = publish(&mut d, agent, goal, &operation);
+    declare(&mut d, agent, goal, old_proposal);
+    let old_integration = prepare_integration(&mut d, agent, goal, 102, old_proposal);
+    let before = d.node.goals[&goal].local.revision;
+    let rules = bind_peer_files(&mut d, owner, host, goal);
+    // One externally visible revision contains both adjacent governance records.
+    assert_eq!(d.node.goals[&goal].local.revision, before + 1);
+    let workspace = d.node.goals[&goal].state().workspace.as_ref().unwrap();
+    let epoch = workspace.epoch;
+    assert_ne!(epoch, old_epoch);
+    assert_eq!(workspace.head, Some(head));
+    let binding = d.store.event(&rules).unwrap().unwrap();
+    let epoch_event = d.store.event(&epoch).unwrap().unwrap();
+    assert_eq!(epoch_event.header().prev, Some(rules));
+    assert_eq!(epoch_event.header().seq, binding.header().seq + 1);
+    assert!(matches!(epoch_event.header().body, Body::WorkspaceEpoch {
+        rules: actual, checkpoint: WorkspaceCheckpoint::Revision(revision), ..
+    } if actual == rules && revision == head));
+    assert_eq!(
+        view(&mut d, agent, goal).head.unwrap().result_manifest,
+        manifest
+    );
+    assert_eq!(
+        code(d.call(
+            agent,
+            Request::WorkspaceIntegrate {
+                goal,
+                operation: old_integration.id
+            }
+        )),
+        ErrorCode::Conflict
+    );
+    let operation = capture(&mut d, agent, goal, 3, new_manifest);
+    let proposal = publish(&mut d, agent, goal, &operation);
+    assert!(!d.node.goals[&goal].state().workspace_proposals[&proposal].approved);
+    d.ok(
+        reviewer,
+        Request::ReviewRecord {
+            goal,
+            subject: proposal,
+            verdict: locust_proto::event::ReviewVerdict::Approve,
+            text: "new rule met".into(),
+        },
+    );
+    assert!(d.node.goals[&goal].state().workspace_proposals[&proposal].approved);
+    d.restart();
+    assert_eq!(
+        d.node.goals[&goal].state().workspace.as_ref().unwrap().head,
+        Some(head)
+    );
+    assert_eq!(
+        d.node.goals[&goal]
+            .state()
+            .workspace
+            .as_ref()
+            .unwrap()
+            .epoch,
+        epoch
+    );
+
+    let (mut d, host, owner, _, goal) = lifecycle::setup();
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    bind_peer_files(&mut d, owner, host, goal);
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before + 1);
+    assert!(d.node.goals[&goal].state().workspace.is_none());
 }

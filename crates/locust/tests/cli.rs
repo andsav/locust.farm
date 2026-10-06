@@ -195,6 +195,10 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
             Request::GoalStatus { goal: selected } => {
                 assert_eq!(selected, goal);
                 Ok(Response::GoalStatus(GoalStatus {
+                    host_name: Some("Host".into()),
+                    roles: Default::default(),
+                    deciding: Default::default(),
+
                     goal,
                     title: Some("Goal title".into()),
                     governance: PublicKey([9; 32]),
@@ -204,6 +208,8 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
                     current_rules: None,
                     scope_halts: vec![],
                     members: vec![MemberView {
+                        name: "Member".into(),
+
                         member: agent,
                         endpoint: EndpointId([3; 32]),
                         local: true,
@@ -838,21 +844,34 @@ fn goal_create_uses_owner_authority_and_names_the_selected_host_agent() {
     let home = scratch();
     write_secret(&home.path().join("owner.credential"), &[1; 32]);
     let agent = PublicKey([2; 32]);
+    let mut created = false;
     let handle = server(home.path(), 3, move |frame| {
         if matches!(frame.request, Request::Status) {
-            return Ok(status(vec![]));
+            return Ok(if created {
+                status(vec![])
+            } else {
+                status_agents(vec![AgentView {
+                    agent,
+                    name: "Maple".into(),
+                    author_only: false,
+                    revoked: false,
+                }])
+            });
         }
         assert_eq!(frame.on_behalf, None);
         let Request::GoalCreate {
             agent: selected,
             title,
+            name,
             ..
         } = frame.request
         else {
             panic!("expected goal.create");
         };
+        created = true;
         assert_eq!(selected, agent);
         assert_eq!(title, "Owner's goal");
+        assert_eq!(name, "Maple");
         Ok(Response::GoalCreated {
             goal: GoalId([3; 32]),
         })
@@ -978,7 +997,7 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
             assert_eq!(selected, goal);
             return Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
@@ -994,6 +1013,7 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
         let Request::GoalInvite {
             goal: selected,
             expires_ms,
+            ..
         } = frame.request
         else {
             panic!("expected goal.invite");
@@ -1068,7 +1088,7 @@ fn changed_goal_title_refuses_an_invitation_confirm_without_issuing_a_ticket() {
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
                     "goal":goal,"title":if reads < 3 {"Demo"} else {"Renamed"},
-                    "governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
+                    "governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
                     "scope_halts":[],"members":[],"halted":null,
                     "abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1165,9 +1185,9 @@ fn member_selector_resolves_local_name_and_visible_key_prefix() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
-                    "members":[{"member":worker,"endpoint":EndpointId([3;32]),"local":true}],
+                    "members":[{"member":worker,"name":"Member","endpoint":EndpointId([3;32]),"local":true}],
                     "halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
                 .unwrap(),
@@ -1213,6 +1233,10 @@ fn hosted_goal_status(
     use locust_proto::api::{GoalStatus, MemberView};
     use locust_proto::id::EndpointId;
     GoalStatus {
+        host_name: Some("Host".into()),
+        roles: Default::default(),
+        deciding: Default::default(),
+
         goal,
         title: Some("Demo".into()),
         governance: PublicKey([9; 32]),
@@ -1222,6 +1246,8 @@ fn hosted_goal_status(
         current_rules: None,
         scope_halts: vec![],
         members: vec![MemberView {
+            name: "Member".into(),
+
             member: host_agent,
             endpoint: EndpointId([3; 32]),
             local: hosted_here,
@@ -1532,7 +1558,7 @@ fn subtask_revision_plan_names_parent_rules() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1602,7 +1628,8 @@ fn raw_call_invite_sends_exact_request_without_plan_reads() {
             frame.request,
             Request::GoalInvite {
                 goal,
-                expires_ms: 42
+                expires_ms: 42,
+                role: None,
             }
         );
         Ok(Response::Invited {
@@ -1635,7 +1662,7 @@ fn invitation_revoke_all_runs_immediately_and_reports_count() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1999,6 +2026,8 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
         vec![],
         InviteSecret([6; 32]),
         None,
+        "Host".into(),
+        None,
         &locust_proto::crypto::Keypair::from_seed([4; 32]),
     )
     .unwrap();
@@ -2011,12 +2040,15 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
         assert_eq!(
             frame.request,
             Request::GoalJoin {
+                name: "Member".into(),
+
                 agent: PublicKey([2; 32]),
                 ticket: expected.clone(),
                 level: locust_proto::api::Level::Auto,
             }
         );
         Ok(Response::Joined {
+            host_name: "Host".into(),
             goal: invitation.goal,
             governance: invitation.governance,
             membership: Membership::Joining,
@@ -2032,6 +2064,8 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
                 &PublicKey([2; 32]).to_string(),
                 "goal",
                 "join",
+                "--name",
+                "Member",
                 "--ticket",
                 "-",
             ])
@@ -2488,4 +2522,528 @@ fn generic_calls_keep_full_typed_identity_contract_and_reject_human_selectors_of
                 .contains("socket")
         );
     }
+}
+
+#[test]
+fn role_give_sends_the_holders_it_read_and_a_change_in_between_is_conflict() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let host = PublicKey([2; 32]);
+    let member = PublicKey([3; 32]);
+    let handle = server(home.path(), 1, move |frame| match frame.request {
+        Request::GoalStatus { .. } => {
+            let mut view = hosted_goal_status(goal, host, true);
+            view.roles.insert("reviewer".into(), vec![host]);
+            view.members.push(locust_proto::api::MemberView {
+                member,
+                name: "Maple".into(),
+                endpoint: locust_proto::id::EndpointId([3; 32]),
+                local: false,
+            });
+            Ok(Response::GoalStatus(view))
+        }
+        Request::RoleGive {
+            goal: selected,
+            role,
+            member: selected_member,
+            expected,
+        } => {
+            assert_eq!(
+                (selected, role.as_str(), selected_member, expected),
+                (goal, "reviewer", member, vec![host])
+            );
+            Err(ApiError::new(
+                ErrorCode::Conflict,
+                "the holders of this role changed; look again and repeat",
+            ))
+        }
+        request => panic!("unexpected {request:?}"),
+    });
+    let output = cli(home.path())
+        .args([
+            "--owner",
+            "role",
+            "give",
+            "--goal",
+            &goal.to_string(),
+            "--member",
+            &member.to_string(),
+            "reviewer",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(envelope(&output, 7)["error"]["code"], "conflict");
+    handle.join().unwrap();
+}
+
+#[test]
+fn role_undo_lines_put_the_holders_back_and_name_the_member_by_key() {
+    use std::sync::{Arc, Mutex};
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let host = PublicKey([2; 32]);
+    let member = PublicKey([3; 32]);
+    let role = "review team's";
+    let holders = Arc::new(Mutex::new(vec![host]));
+    let server_holders = holders.clone();
+    let handle = server(home.path(), 6, move |frame| match frame.request {
+        Request::Status => Ok(status(vec![GoalSummary {
+            goal,
+            title: Some("Demo".into()),
+            member: host,
+            membership: Membership::Member,
+            halted: None,
+            abilities: abilities(goal, host),
+        }])),
+        Request::GoalStatus { .. } => {
+            let mut view = hosted_goal_status(goal, host, true);
+            view.roles
+                .insert(role.into(), server_holders.lock().unwrap().clone());
+            view.members[0].name = "Harbor".into();
+            view.members.push(locust_proto::api::MemberView {
+                member,
+                name: "Maple ; touch forbidden".into(),
+                endpoint: locust_proto::id::EndpointId([3; 32]),
+                local: false,
+            });
+            Ok(Response::GoalStatus(view))
+        }
+        Request::RoleGive {
+            member, expected, ..
+        } => {
+            let mut held = server_holders.lock().unwrap();
+            assert_eq!(*held, expected);
+            held.push(member);
+            held.sort();
+            held.dedup();
+            Ok(Response::Recorded {
+                event: locust_proto::id::EventId([5; 32]),
+            })
+        }
+        Request::RoleTake {
+            member, expected, ..
+        } => {
+            let mut held = server_holders.lock().unwrap();
+            assert_eq!(*held, expected);
+            if *held == vec![host] && member == host {
+                return Ok(Response::Done);
+            }
+            held.retain(|key| *key != member);
+            if held.is_empty() {
+                held.push(host);
+            }
+            Ok(Response::Recorded {
+                event: locust_proto::id::EventId([6; 32]),
+            })
+        }
+        request => panic!("unexpected {request:?}"),
+    });
+    let run = |verb: &str, who: PublicKey| {
+        let output = plain()
+            .arg("--home")
+            .arg(home.path())
+            .args([
+                "--owner",
+                "role",
+                verb,
+                "--goal",
+                &goal.to_string(),
+                "--member",
+                &who.to_string(),
+                role,
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let give = run("give", member);
+    assert!(
+        give.contains(
+            "Undo: locust --owner role take --goal 04040404 --member 03030303 'review team'\\''s'"
+        ),
+        "{give}"
+    );
+    assert!(
+        !give
+            .lines()
+            .find(|line| line.starts_with("Undo:"))
+            .unwrap()
+            .contains("Maple")
+    );
+    let take_host = run("take", host);
+    assert!(take_host.contains("Undo: locust --owner role give --goal 04040404 --member 02020202"));
+    let take_last = run("take", member);
+    assert!(!take_last.contains("Undo:"));
+    assert!(take_last.contains("Give it back:"));
+    assert!(take_last.contains("The host's agent holds"));
+    let no_change = run("take", host);
+    assert!(no_change.contains("stays with the host's agent"));
+    assert!(!no_change.contains("Undo:"));
+    let binary_dir = std::path::Path::new(env!("CARGO_BIN_EXE_locust"))
+        .parent()
+        .unwrap();
+    let shell_path = format!(
+        "{}:{}",
+        binary_dir.display(),
+        std::env::var("PATH").unwrap()
+    );
+    for line in take_last.lines().filter(|line| line.contains(": locust ")) {
+        let (_, command) = line.split_once(": ").unwrap();
+        let output = Command::new("sh")
+            .args(["-c", command])
+            .env("PATH", &shell_path)
+            .env("LOCUST_HOME", home.path())
+            .env_remove("LOCUST_CREDENTIAL")
+            .env_remove("LOCUST_SESSION")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{command}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    assert_eq!(*holders.lock().unwrap(), vec![member]);
+    handle.join().unwrap();
+    assert_eq!(
+        plain()
+            .args([
+                "--owner",
+                "role",
+                "give",
+                "--goal",
+                &goal.to_string(),
+                "--member",
+                &member.to_string(),
+                role,
+                "--plan"
+            ])
+            .output()
+            .unwrap()
+            .status
+            .code(),
+        Some(2)
+    );
+}
+
+#[test]
+fn a_plan_shows_the_name_and_defaults_to_the_enrolled_one() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let agent = PublicKey([2; 32]);
+    let handle = server(home.path(), 2, move |frame| {
+        assert_eq!(frame.request, Request::Status);
+        Ok(status_agents(vec![AgentView {
+            agent,
+            name: "codex-maple-12345678".into(),
+            author_only: false,
+            revoked: false,
+        }]))
+    });
+    for (extra, expected) in [
+        (vec![], "codex-maple-12345678"),
+        (vec!["--name", "Maple"], "Maple"),
+    ] {
+        let output = cli(home.path())
+            .args([
+                "--owner",
+                "--agent",
+                &agent.to_string(),
+                "goal",
+                "create",
+                "--title",
+                "Names",
+                "--plan",
+            ])
+            .args(extra)
+            .output()
+            .unwrap();
+        let envelope = envelope(&output, 0);
+        assert_eq!(envelope["result"]["plan"]["name"], expected);
+        assert_eq!(envelope["result"]["plan"]["formation"], "peer-review");
+        assert!(envelope["result"]["plan"].get("roles").is_none());
+    }
+    handle.join().unwrap();
+}
+
+fn formation_event(_goal: GoalId, event: locust_proto::id::EventId, bytes: &[u8]) -> Response {
+    use locust_proto::api::{EventDetail, EventView, Standing};
+    use locust_proto::event::{Body, DefinitionRef, PayloadRef, RulesBinding};
+    let hash = locust_proto::crypto::content_hash(bytes);
+    let formation = serde_json::from_slice(bytes).unwrap();
+    Response::Event(Box::new(EventDetail {
+        view: EventView {
+            event,
+            position: Some(1),
+            author: PublicKey([9; 32]),
+            kind: "rules_bound".into(),
+            at_ms: 0,
+            standing: Standing::Effective,
+            by_host: true,
+            by_owner: false,
+        },
+        anchor: None,
+        body: Body::RulesBound {
+            expected: None,
+            binding: RulesBinding {
+                definition: DefinitionRef {
+                    semantic: locust_proto::organization::semantic_hash(&formation)
+                        .parse()
+                        .unwrap(),
+                    object: PayloadRef {
+                        hash,
+                        len: bytes.len() as u32,
+                        key_epoch: 0,
+                    },
+                },
+                inputs: Default::default(),
+            },
+        },
+        payload: None,
+        text: None,
+        task: None,
+        content: vec![],
+    }))
+}
+
+#[test]
+fn add_and_invite_carry_the_role_the_rules_count_on() {
+    use locust_proto::id::EventId;
+    for (formation, expected) in [
+        ("review-panel", Some("reviewer")),
+        ("peer-review", None),
+        ("directed", None),
+    ] {
+        let home = scratch();
+        write_secret(&home.path().join("owner.credential"), &[1; 32]);
+        let goal = GoalId([4; 32]);
+        let host = PublicKey([2; 32]);
+        let worker = PublicKey([3; 32]);
+        let rules = EventId([5; 32]);
+        let formation = locust_proto::organization::presets()
+            .into_iter()
+            .find(|preset| preset.name == formation)
+            .unwrap()
+            .formation;
+        let bytes = serde_json::to_vec(&formation).unwrap();
+        let mut invites = 0;
+        let handle = server(home.path(), 6, move |frame| match frame.request {
+            Request::Status => Ok(status_agents(vec![AgentView {
+                agent: worker,
+                name: "worker".into(),
+                author_only: false,
+                revoked: false,
+            }])),
+            Request::GoalStatus { .. } => {
+                let mut view = hosted_goal_status(goal, host, true);
+                view.current_rules = Some(rules);
+                Ok(Response::GoalStatus(view))
+            }
+            Request::GoalInvitations { .. } => Ok(Response::Invitations {
+                invitations: vec![],
+            }),
+            Request::Event { .. } => Ok(formation_event(goal, rules, &bytes)),
+            Request::BlobGet { .. } => Ok(Response::Blob {
+                bytes: bytes.clone(),
+            }),
+            Request::GoalInvite { role, .. } => {
+                assert_eq!(role.as_deref(), if invites == 0 { expected } else { None });
+                invites += 1;
+                Ok(Response::Invited {
+                    ticket: locust_proto::invite::Ticket("fixture-ticket".into()),
+                })
+            }
+            other => panic!("a plan wrote {other:?}"),
+        });
+        for command in ["add", "invite"] {
+            for override_none in [false, true] {
+                let mut command_line = cli(home.path());
+                command_line.args([
+                    "--owner",
+                    "goal",
+                    command,
+                    "--goal",
+                    &goal.to_string(),
+                    "--plan",
+                ]);
+                if command == "add" {
+                    command_line.args(["--agent", &worker.to_string()]);
+                }
+                if override_none {
+                    command_line.arg("--no-role");
+                }
+                let output = command_line.output().unwrap();
+                let envelope = envelope(&output, 0);
+                let plan = envelope["result"]["plan"].clone();
+                if command == "invite" {
+                    let mut confirmed = cli(home.path());
+                    confirmed.args([
+                        "--owner",
+                        "goal",
+                        "invite",
+                        "--goal",
+                        &goal.to_string(),
+                        "--confirm",
+                        envelope["result"]["plan_id"].as_str().unwrap(),
+                    ]);
+                    if override_none {
+                        confirmed.arg("--no-role");
+                    }
+                    let output = confirmed.output().unwrap();
+                    assert!(
+                        output.status.success(),
+                        "{}",
+                        String::from_utf8_lossy(&output.stdout)
+                    );
+                }
+                assert_eq!(
+                    plan["role"].as_str(),
+                    if override_none { None } else { expected }
+                );
+            }
+        }
+        handle.join().unwrap();
+    }
+}
+
+#[test]
+fn rules_bind_moves_the_shared_files_to_the_new_rules_and_says_so() {
+    use locust_proto::id::EventId;
+    use locust_proto::organization::{
+        Authority, CompletionRule, Formation, Selector, WorkspacePolicy,
+    };
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let host = PublicKey([2; 32]);
+    let rules = EventId([5; 32]);
+    let epoch = EventId([6; 32]);
+    let tree_on = Arc::new(AtomicBool::new(true));
+    let server_tree_on = tree_on.clone();
+    let old = Formation {
+        workspace: Some(WorkspacePolicy {
+            integrator: Authority::Participant {
+                key: host.to_string(),
+            },
+            completion: CompletionRule::Contribution {
+                by: Selector::Members,
+            },
+        }),
+        ..Formation::default()
+    };
+    let bytes = serde_json::to_vec(&old).unwrap();
+    let handle = server(home.path(), 4, move |frame| match frame.request {
+        Request::GoalStatus { .. } => {
+            let mut view = hosted_goal_status(goal, host, true);
+            view.current_rules = Some(rules);
+            if server_tree_on.load(Ordering::SeqCst) {
+                view.workspace = Some(locust_proto::api::WorkspaceView {
+                    epoch: Some(epoch),
+                    checkpoint: None,
+                    head: None,
+                    enabled: true,
+                    authority: locust_proto::api::WorkspaceAuthority::Ready,
+                    content: None,
+                });
+            }
+            Ok(Response::GoalStatus(view))
+        }
+        Request::Event { .. } => Ok(formation_event(goal, rules, &bytes)),
+        Request::BlobGet { .. } => Ok(Response::Blob {
+            bytes: bytes.clone(),
+        }),
+        Request::WorkspaceProposals { .. } => Ok(Response::WorkspaceProposals(vec![])),
+        Request::RulesBind {
+            expected,
+            formation_json,
+            ..
+        } => {
+            assert_eq!(expected, rules);
+            let formation: Formation = serde_json::from_str(&formation_json).unwrap();
+            if server_tree_on.load(Ordering::SeqCst) {
+                let policy = formation.workspace.as_ref().unwrap();
+                assert_eq!(
+                    policy.integrator,
+                    Authority::Participant {
+                        key: host.to_string()
+                    }
+                );
+                assert_eq!(policy.completion, formation.decisions.completion);
+            } else {
+                assert!(formation.workspace.is_none());
+            }
+            Ok(Response::Recorded {
+                event: EventId([7; 32]),
+            })
+        }
+        request => panic!("unexpected {request:?}"),
+    });
+    let run = |extra: &[&str]| {
+        plain()
+            .arg("--home")
+            .arg(home.path())
+            .args([
+                "--owner",
+                "rules",
+                "bind",
+                "--goal",
+                &goal.to_string(),
+                "--formation",
+                "peer-review",
+            ])
+            .args(extra)
+            .output()
+            .unwrap()
+    };
+    let plan = run(&["--plan"]);
+    assert!(
+        plan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&plan.stderr)
+    );
+    let text = String::from_utf8(plan.stdout).unwrap();
+    assert!(
+        text.contains("Shared files will follow these rules too."),
+        "{text}"
+    );
+    assert!(
+        text.contains("This replaces the rule you gave the shared files."),
+        "{text}"
+    );
+    let id = text
+        .lines()
+        .find_map(|line| line.strip_prefix("Plan id: "))
+        .unwrap();
+    let committed = run(&["--confirm", id]);
+    assert!(
+        committed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&committed.stderr)
+    );
+    assert!(
+        String::from_utf8(committed.stdout)
+            .unwrap()
+            .contains("The shared files follow them too.")
+    );
+    tree_on.store(false, Ordering::SeqCst);
+    let plan = run(&["--plan"]);
+    let text = String::from_utf8(plan.stdout).unwrap();
+    assert!(!text.contains("Shared files will"), "{text}");
+    let id = text
+        .lines()
+        .find_map(|line| line.strip_prefix("Plan id: "))
+        .unwrap();
+    assert!(run(&["--confirm", id]).status.success());
+    handle.join().unwrap();
 }

@@ -154,6 +154,8 @@ fn equal_length_divergent_histories_converge_with_both_events_on_both_sides() {
             goal,
             Some(genesis.id()),
             Body::MemberAdmitted {
+                name: "member".into(),
+                role: None,
                 member: testkit::keypair(3).public(),
                 endpoint: EndpointId([endpoint; 32]),
             },

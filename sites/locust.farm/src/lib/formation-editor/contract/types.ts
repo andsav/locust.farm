@@ -9,7 +9,8 @@ export type Selector =
 	| { kind: 'task_creator' }
 	| { kind: 'contribution_author' }
 	| { kind: 'any'; selectors: Selector[] }
-	| { kind: 'nobody' };
+	| { kind: 'nobody' }
+	| { kind: 'only_member' };
 
 /** A single decider: a role that must have exactly one member, or one participant. */
 export type Authority = { kind: 'role'; name: string } | { kind: 'participant'; key: string };

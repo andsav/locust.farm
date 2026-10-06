@@ -226,7 +226,6 @@ class Demo:
             wrapper = self.root / "tools" / role / "locust-demo"
             private_write(wrapper, "#!/bin/sh\nexec " + shlex.join(self.command(role)) + ' "$@"\n', executable=True)
         formation = (ROOT / "examples/demos/team-chat.json").read_text()
-        roles = {role: [principal] for role, principal in self.data["agents"].items()}
         if not self.data.get("goal"):
             existing = {g["goal"] for g in self.call(["status"], owner=True)["status"]["goals"]
                         if g.get("title") == GOAL_TITLE and g["member"] == self.data["agents"]["coordinator"]}
@@ -242,7 +241,14 @@ class Demo:
                 self.call(["goal", "add", "--goal", goal, "--agent", role], owner=True)
         if not self.data.get("rules_bound"):
             self.call(["rules", "bind", "--goal", goal,
-                       "--formation-json", formation, "--roles", json.dumps(roles)], owner=True)
+                       "--formation-json", formation], owner=True)
+            holders = self.call(["goal", "status", "--goal", goal])["goal_status"]["roles"]
+            for role, principal in self.data["agents"].items():
+                if role != "coordinator":
+                    if principal not in holders[role]:
+                        self.call(["role", "give", "--goal", goal, "--member", principal, role], owner=True)
+                    if self.data["agents"]["coordinator"] in holders[role]:
+                        self.call(["role", "take", "--goal", goal, "--member", self.data["agents"]["coordinator"], role], owner=True)
             self.data["rules_bound"] = True
             self.save()
         args = ["farm", "on", "--goal", goal, "--service", service, "--listed",

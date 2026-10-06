@@ -22,7 +22,7 @@ impl Validator<'_> {
         ));
     }
     fn name(&mut self, name: &str, path: &str) {
-        if name.trim().is_empty() || name.chars().any(char::is_control) {
+        if !is_role_name(name) {
             self.error(
                 "invalid_name",
                 path,
@@ -341,6 +341,7 @@ fn completion_task_creator(rule: &CompletionRule, path: &str, found: &mut Vec<St
 fn fixed_members(selector: &Selector) -> Option<BTreeSet<String>> {
     match selector {
         Selector::Nobody => Some(BTreeSet::new()),
+        Selector::OnlyMember => Some(BTreeSet::from(["only_member".into()])),
         Selector::Participant { key } => Some(BTreeSet::from([key.to_lowercase()])),
         Selector::TaskCreator => Some(BTreeSet::from(["task_creator".into()])),
         Selector::ContributionAuthor => Some(BTreeSet::from(["contribution_author".into()])),

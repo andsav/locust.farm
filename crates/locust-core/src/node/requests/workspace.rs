@@ -986,6 +986,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
             return Err(conflict("checkout has an unresolved file operation"));
         }
         if let WorkspaceOperationKind::Capture { candidate } = &operation.kind {
+            if candidate.parent.is_none() && !actor.owner_act {
+                return Err(crate::node::access::denied(
+                    "only the host shares a goal's first files",
+                ));
+            }
             if checkout.is_none() && candidate.sources.is_empty() && !actor.owner_act {
                 return Err(crate::node::access::denied(
                     "sharing files from this computer needs a folder your owner connected to this goal",

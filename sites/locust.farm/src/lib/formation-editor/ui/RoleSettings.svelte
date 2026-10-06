@@ -61,7 +61,7 @@
 			: uses === 1
 				? 'Used by 1 rule.'
 				: `Used by ${uses} rules.`}
-		Members are put into this role later, in Locust.
+		The host gives this role to members in Locust, after the goal starts.
 	</p>
 </div>
 

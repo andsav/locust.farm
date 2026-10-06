@@ -45,6 +45,7 @@ fn invite(daemon: &mut Daemon, _agent: ConnId, goal: GoalId) -> locust_proto::in
     let Response::Invited { ticket } = daemon.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 604_801_000,
         },
@@ -56,10 +57,11 @@ fn invite(daemon: &mut Daemon, _agent: ConnId, goal: GoalId) -> locust_proto::in
 
 fn creation(agent: PublicKey) -> Request {
     Request::GoalCreate {
+        name: "host".into(),
         agent,
         title: "Owner's goal".into(),
-        formation_json: None,
-        roles: Default::default(),
+        formation_json: Some("{\"schema_version\":2}".into()),
+
         inputs: Default::default(),
     }
 }
@@ -144,6 +146,7 @@ fn join_and_leave_are_the_owners_acts_for_a_named_agent() {
     let member_conn = d.connect(credential(10), None);
     let ticket = invite(&mut d, host_conn, goal);
     let request = Request::GoalJoin {
+        name: "member".into(),
         agent: member,
         ticket,
         level: locust_proto::api::Level::Auto,
@@ -237,7 +240,7 @@ fn host_operations_need_no_grant_and_sign_with_the_governance_key() {
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
     ));
@@ -264,6 +267,7 @@ fn host_operations_need_no_grant_and_sign_with_the_governance_key() {
     let Response::Invited { ticket } = d.ok(
         owner,
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 2_000,
         },
@@ -314,6 +318,7 @@ pub(super) fn join_local(
         daemon.ok(
             owner,
             Request::GoalJoin {
+                name: "member".into(),
                 agent: member,
                 ticket,
                 level: locust_proto::api::Level::Auto,
@@ -351,6 +356,7 @@ fn local_join_is_atomic_and_expired_or_invalid_tickets_do_not_admit() {
         code(daemon.call(
             owner,
             Request::GoalInvite {
+                role: None,
                 goal,
                 expires_ms: 1000
             }
@@ -371,6 +377,7 @@ fn fabricated_join_intent_never_grants_read_access_on_a_shared_daemon() {
         code(daemon.call(
             owner,
             Request::GoalJoin {
+                name: "member".into(),
                 agent: intruder,
                 ticket: forged.to_ticket().unwrap(),
                 level: locust_proto::api::Level::Auto,
@@ -389,6 +396,8 @@ fn fabricated_join_intent_never_grants_read_access_on_a_shared_daemon() {
     assert!(daemon.node.goals[&goal].membership(&intruder).is_none());
     // Remote join intent and refused intent both preserve no plaintext authority.
     let mut join = crate::node::local::JoinRecord {
+        host_name: "host".into(),
+        name: "member".into(),
         publication: None,
         governance: forged.governance,
         endpoint: forged.endpoint,
@@ -510,6 +519,7 @@ fn removed_principal_cannot_read_new_epoch_but_readmission_restores_history() {
     daemon.ok(
         owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: member,
             ticket,
             level: locust_proto::api::Level::Auto,
@@ -544,15 +554,28 @@ fn no_credential_and_no_on_behalf_reaches_the_governance_key() {
         },
         Request::FarmOff { goal },
         Request::GoalInvite {
+            role: None,
             goal,
             expires_ms: 2_000,
         },
         Request::MemberRemove { goal, member: host },
+        Request::RoleGive {
+            goal,
+            role: "reviewer".into(),
+            member: host,
+            expected: vec![host],
+        },
+        Request::RoleTake {
+            goal,
+            role: "reviewer".into(),
+            member: host,
+            expected: vec![host],
+        },
         Request::RulesBind {
             goal,
             expected: rules,
             formation_json: "{\"schema_version\":2}".into(),
-            roles: Default::default(),
+
             inputs: Default::default(),
         },
         Request::WorkspaceEpochSet {
@@ -811,6 +834,7 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
         code(daemon.call(
             owner,
             Request::GoalJoin {
+                name: "member".into(),
                 agent: principal,
                 ticket: invitation.to_ticket().unwrap(),
                 level: locust_proto::api::Level::Auto,
@@ -823,6 +847,7 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
     daemon.ok(
         owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: principal,
             ticket: invitation.to_ticket().unwrap(),
             level: locust_proto::api::Level::Auto,
@@ -851,6 +876,7 @@ fn leaving_member_cannot_clear_local_departure_with_a_spare_ticket() {
         code(daemon.call(
             owner,
             Request::GoalJoin {
+                name: "member".into(),
                 agent: principal,
                 ticket: spare,
                 level: locust_proto::api::Level::Auto,
@@ -890,7 +916,7 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
     let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     let remote = EndpointId([44; 32]);
     let worker = Keypair::from_seed([44; 32]);
-    let request = JoinRequest::sign(goal, remote, invitation.secret, &worker);
+    let request = JoinRequest::sign(goal, remote, "member".into(), invitation.secret, &worker);
     daemon.node.join(&remote, &request, 1000).unwrap();
     let events = daemon.store.log(&goal, 0, 20).unwrap();
     let own = &events[1].1;

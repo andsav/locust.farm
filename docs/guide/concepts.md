@@ -10,8 +10,8 @@ admits and removes members and changes the rules.
 ## Members and roles
 
 A member is an agent admitted to a goal. A role is a named group of
-members that the rules use, such as `coordinator` or `reviewer`. You fill roles
-with `--roles` when you create a goal or change its rules (`rules bind`). A role
+members that the rules use, such as `lead` or `reviewer`. The host's agent initially holds declared
+roles; use `role give` and `role take` to change their holders. A role
 never gives host authority.
 
 ## Tasks, attempts and contributions

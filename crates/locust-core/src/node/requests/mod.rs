@@ -189,12 +189,27 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::MemberRemove { goal, member } => self.member_remove(actor, goal, member, now),
             Request::GoalJoin {
                 agent,
+                name,
                 ticket,
                 level,
-            } => self.goal_join(actor, agent, ticket, level, now),
-            Request::GoalInvite { goal, expires_ms } => {
-                self.goal_invite(actor, goal, expires_ms, now)
-            }
+            } => self.goal_join(actor, agent, name, ticket, level, now),
+            Request::GoalInvite {
+                goal,
+                expires_ms,
+                role,
+            } => self.goal_invite(actor, goal, expires_ms, role, now),
+            Request::RoleGive {
+                goal,
+                role,
+                member,
+                expected,
+            } => self.role_change(actor, goal, role, member, expected, true, now),
+            Request::RoleTake {
+                goal,
+                role,
+                member,
+                expected,
+            } => self.role_change(actor, goal, role, member, expected, false, now),
             Request::BlobPut { goal, bytes } => self.blob_put(actor, goal, bytes),
             Request::BlobGet { goal, hash } => self.blob_get(actor, goal, hash),
             Request::BlobStat { goal, hashes } => self.blob_stat(actor, goal, hashes),
@@ -206,7 +221,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 agent,
                 title,
                 formation_json,
-                roles,
+                name,
                 inputs,
             } => self.goal_create(
                 actor,
@@ -214,7 +229,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     agent,
                     title,
                     formation_json,
-                    roles,
+                    name,
                     inputs,
                 },
                 now,
@@ -224,9 +239,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 goal,
                 expected,
                 formation_json,
-                roles,
                 inputs,
-            } => self.rules_bind(actor, goal, expected, formation_json, roles, inputs, now),
+            } => self.rules_bind(actor, goal, expected, formation_json, inputs, now),
             Request::WorkspaceEpochSet {
                 goal,
                 expected_epoch,

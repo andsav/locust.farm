@@ -62,3 +62,6 @@ pub const MAX_PATH_BYTES: usize = 1024;
 
 /// Largest client-owned detail blob in one session record.
 pub const MAX_SESSION_DETAIL_BYTES: usize = 64 * 1024;
+
+/// Maximum UTF-8 byte length of a signed member name.
+pub const MAX_MEMBER_NAME_BYTES: usize = 64;

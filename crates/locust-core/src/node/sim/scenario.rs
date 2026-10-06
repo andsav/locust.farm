@@ -110,6 +110,7 @@ fn restart(r: &mut Run, m: usize) -> Result<(), Fail> {
 pub fn join(r: &mut Run, m: usize, expect: usize) -> Result<(), Fail> {
     let goal = r.goal();
     let request = Request::GoalInvite {
+        role: None,
         goal,
         expires_ms: r.w.wall_ms(M1) + 7 * 24 * 60 * 60 * 1_000,
     };
@@ -120,6 +121,7 @@ pub fn join(r: &mut Run, m: usize, expect: usize) -> Result<(), Fail> {
         m,
         Who::Owner,
         Request::GoalJoin {
+            name: "member".into(),
             agent: r.principals[m],
             ticket,
             level: locust_proto::api::Level::Auto,
@@ -330,19 +332,20 @@ fn submit(goal: GoalId, attempt: EventId, generation: u32, artifacts: Vec<BlobHa
 pub fn create(r: &mut Run) -> Result<(), Fail> {
     r.step = "create the goal";
     let create = Request::GoalCreate {
+        name: "host".into(),
         agent: r.principals[M1],
         title: TITLE.into(),
         formation_json: Some(
             serde_json::to_string(
                 &locust_proto::organization::presets()
                     .into_iter()
-                    .find(|preset| preset.name == "coordinator")
+                    .find(|preset| preset.name == "directed")
                     .unwrap()
                     .formation,
             )
             .unwrap(),
         ),
-        roles: BTreeMap::from([("coordinator".into(), vec![r.principals[M1]])]),
+
         inputs: BTreeMap::new(),
     };
     let Response::GoalCreated { goal } = r.op(M1, Who::Owner, create)? else {

@@ -7,7 +7,7 @@
     "completion": {
       "by": {
         "kind": "role",
-        "name": "coordinator"
+        "name": "reviewer"
       },
       "count": 1,
       "exclude_author": false,
@@ -15,17 +15,20 @@
     },
     "finish": {
       "kind": "role",
-      "name": "coordinator"
+      "name": "lead"
     },
     "selection": {
       "kind": "role",
-      "name": "coordinator"
+      "name": "lead"
     }
   },
   "flow": {},
   "roles": {
-    "coordinator": {
-      "description": "Asks members to do tasks, approves results, picks the result to use and can close a task. One member."
+    "lead": {
+      "description": "Hands out tasks, picks the result to use and can close a task. One member."
+    },
+    "reviewer": {
+      "description": "Approves results, including its own."
     }
   },
   "schema_version": 2,
@@ -41,7 +44,7 @@
       {
         "by": {
           "kind": "role",
-          "name": "coordinator"
+          "name": "lead"
         },
         "kind": "offered",
         "to": {

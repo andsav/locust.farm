@@ -108,6 +108,7 @@ pub enum Selector {
         selectors: Vec<Selector>,
     },
     Nobody,
+    OnlyMember,
 }
 
 /// One scope-specific authority. A role used here must bind exactly one member.
@@ -289,3 +290,8 @@ mod contract;
 pub use contract::{OPERATIONS, Operation, contract};
 
 pub mod catalog;
+
+/// The shared validation rule for declared, signed and invited roles.
+pub fn is_role_name(name: &str) -> bool {
+    !name.trim().is_empty() && !name.chars().any(char::is_control)
+}

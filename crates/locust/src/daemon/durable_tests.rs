@@ -124,19 +124,20 @@ pub(super) fn recorded(response: Response) -> EventId {
 fn goal(client: &mut LocalClient, agent: PublicKey) -> GoalId {
     let Response::GoalCreated { goal } = client
         .call(Request::GoalCreate {
+            name: "Host".into(),
+
             agent,
             title: "Durable lifecycle".into(),
             formation_json: Some(
                 serde_json::to_string(
                     &locust_proto::organization::presets()
                         .into_iter()
-                        .find(|p| p.name == "coordinator")
+                        .find(|p| p.name == "directed")
                         .unwrap()
                         .formation,
                 )
                 .unwrap(),
             ),
-            roles: [("coordinator".into(), vec![agent])].into(),
             inputs: Default::default(),
         })
         .unwrap()
@@ -325,6 +326,8 @@ fn reviewed_invitation_joins_two_real_daemons_at_read_level() {
     let goal = goal(&mut host_owner, host_agent);
     let Response::Invited { ticket: revoked } = host_owner
         .call(Request::GoalInvite {
+            role: None,
+
             goal,
             expires_ms: u64::MAX,
         })
@@ -347,6 +350,8 @@ fn reviewed_invitation_joins_two_real_daemons_at_read_level() {
         })
         .unwrap();
     let refused_join = Request::GoalJoin {
+        name: "Member".into(),
+
         agent: principal,
         ticket: revoked,
         level: Level::Read,
@@ -381,6 +386,8 @@ fn reviewed_invitation_joins_two_real_daemons_at_read_level() {
     );
     let Response::Invited { ticket } = host_owner
         .call(Request::GoalInvite {
+            role: None,
+
             goal,
             expires_ms: u64::MAX,
         })
@@ -398,6 +405,8 @@ fn reviewed_invitation_joins_two_real_daemons_at_read_level() {
     };
     assert_eq!(preview.goal_title.as_deref(), Some("Durable lifecycle"));
     let join = Request::GoalJoin {
+        name: "Member".into(),
+
         agent: principal,
         ticket,
         level: Level::Read,
@@ -497,6 +506,8 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let Response::Invited { ticket } = coordinator
         .owner()
         .call(Request::GoalInvite {
+            role: None,
+
             goal,
             expires_ms: u64::MAX,
         })
@@ -507,6 +518,8 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     worker
         .owner()
         .call(Request::GoalJoin {
+            name: "Member".into(),
+
             agent: worker_key,
             ticket,
             level: Level::Auto,
@@ -653,6 +666,8 @@ fn peer_decode_and_prefix_failures_deliver_refusals_before_close() {
     let Response::Invited { ticket } = running
         .owner()
         .call(Request::GoalInvite {
+            role: None,
+
             goal,
             expires_ms: u64::MAX,
         })
@@ -746,6 +761,8 @@ fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
                 inviter.hints(),
                 InviteSecret([96; 32]),
                 None,
+                "Host".into(),
+                None,
                 &locust_proto::crypto::Keypair::from_seed([95; 32]),
             )
             .unwrap()
@@ -754,6 +771,8 @@ fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
             running
                 .owner()
                 .call(Request::GoalJoin {
+                    name: "Member".into(),
+
                     agent: principal,
                     ticket,
                     level: Level::Read,
@@ -817,6 +836,8 @@ fn newer_connection_replaces_older_ones_from_the_same_endpoint() {
     let Response::Invited { ticket } = running
         .owner()
         .call(Request::GoalInvite {
+            role: None,
+
             goal,
             expires_ms: u64::MAX,
         })
@@ -923,7 +944,7 @@ fn replay(home: &Path, events: Vec<locust_proto::event::Event>) {
 
 /// The current rules, rebound unchanged: a record only the goal's own key
 /// signs, on the governance log rather than any member's.
-fn rebind_rules(owner: &mut LocalClient, goal: GoalId, agent: PublicKey) -> EventId {
+fn rebind_rules(owner: &mut LocalClient, goal: GoalId, _agent: PublicKey) -> EventId {
     let Response::GoalStatus(status) = owner.call(Request::GoalStatus { goal }).unwrap() else {
         panic!()
     };
@@ -935,12 +956,11 @@ fn rebind_rules(owner: &mut LocalClient, goal: GoalId, agent: PublicKey) -> Even
                 formation_json: serde_json::to_string(
                     &locust_proto::organization::presets()
                         .into_iter()
-                        .find(|p| p.name == "coordinator")
+                        .find(|p| p.name == "directed")
                         .unwrap()
                         .formation,
                 )
                 .unwrap(),
-                roles: [("coordinator".into(), vec![agent])].into(),
                 inputs: Default::default(),
             })
             .unwrap(),
@@ -1011,6 +1031,8 @@ fn sqlite_older_directory_forks_only_the_hosts_agent_when_its_own_work_was_lost(
         let Response::Invited { .. } = restored
             .owner()
             .call(Request::GoalInvite {
+                role: None,
+
                 goal,
                 expires_ms: u64::MAX,
             })

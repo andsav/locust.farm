@@ -116,6 +116,7 @@ pub struct Invitation {
     /// to the joiner as a fingerprint and checked against the genesis record
     /// once it arrives.
     pub governance: PublicKey,
+    pub host_name: String,
     /// The daemon that redeems the invitation.
     pub endpoint: EndpointId,
     /// Ways to reach `endpoint`; see [`Hint`]. At most [`MAX_HINTS`], each
@@ -131,6 +132,7 @@ pub struct Invitation {
     pub publication: Option<InvitationPublication>,
     /// Host signature over every preceding field, including the
     /// capability digest. Verified before any preview or join intent.
+    pub role: Option<String>,
     pub signature: Signature,
 }
 
@@ -150,6 +152,7 @@ pub enum InviteError {
     /// Too many contact hints, or one that is empty, too long or carries a
     /// control character.
     BadHints,
+    BadName,
     /// The governance key did not sign these exact invitation fields.
     InvalidSignature,
 }
@@ -163,6 +166,7 @@ impl fmt::Display for InviteError {
             Self::UnsupportedVersion(version) => {
                 write!(f, "invitation uses unsupported protocol version {version}")
             }
+            Self::BadName => f.write_str("invitation carries an unusable member or role name"),
             Self::BadHints => f.write_str("invitation carries unusable contact hints"),
             Self::InvalidSignature => f.write_str(
                 "invitation signature is invalid; request a fresh invitation from the host",
@@ -205,6 +209,7 @@ fn is_hint_text(hint: &str) -> bool {
 
 impl Invitation {
     /// Signs all reviewable facts and the capability together.
+    #[allow(clippy::too_many_arguments)]
     pub fn signed(
         goal: GoalId,
         goal_title: Option<String>,
@@ -212,6 +217,8 @@ impl Invitation {
         hints: Vec<String>,
         secret: InviteSecret,
         expires_ms: Option<u64>,
+        host_name: String,
+        role: Option<String>,
         governance: &Keypair,
     ) -> Result<Self, InviteError> {
         let mut invitation = Self {
@@ -219,6 +226,8 @@ impl Invitation {
             goal,
             goal_title,
             governance: governance.public(),
+            host_name,
+            role,
             endpoint,
             hints,
             secret,
@@ -247,12 +256,14 @@ impl Invitation {
             self.goal,
             &self.goal_title,
             self.governance,
+            &self.host_name,
             self.endpoint,
             &self.hints,
             self.secret.digest(),
             self.expires_ms,
             self.sharing,
             &self.publication,
+            &self.role,
         ))
         .map_err(|_| InviteError::Malformed)?;
         Ok(crypto::domain_hash(INVITATION_SIGNATURE, &bytes))
@@ -282,6 +293,8 @@ impl Invitation {
             goal: self.goal,
             goal_title: self.goal_title.clone(),
             governance: self.governance,
+            host_name: self.host_name.clone(),
+            role: self.role.clone(),
             endpoint: self.endpoint,
             hints: self.hints.clone(),
             expires_ms: self.expires_ms,
@@ -299,6 +312,14 @@ impl Invitation {
     /// Checks the version and the contact hints. Runs when a ticket is
     /// written and again when one is read.
     fn check(&self) -> Result<(), InviteError> {
+        if !crate::event::is_member_name(&self.host_name)
+            || self
+                .role
+                .as_ref()
+                .is_some_and(|role| !crate::organization::is_role_name(role))
+        {
+            return Err(InviteError::BadName);
+        }
         if self.version != PROTOCOL_VERSION {
             return Err(InviteError::UnsupportedVersion(self.version));
         }
@@ -373,6 +394,7 @@ const INVITATION_REVIEW: &str = "locust invitation review";
 /// proves the joiner holds the key that the invitation will be bound to.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JoinRequest {
+    pub name: String,
     /// The goal to join.
     pub goal: GoalId,
     /// The key to admit.
@@ -388,13 +410,20 @@ pub struct JoinRequest {
 impl JoinRequest {
     /// Builds the request `key` sends to redeem an invitation for itself,
     /// with `endpoint` as the daemon that will speak for it.
-    pub fn sign(goal: GoalId, endpoint: EndpointId, secret: InviteSecret, key: &Keypair) -> Self {
+    pub fn sign(
+        goal: GoalId,
+        endpoint: EndpointId,
+        name: String,
+        secret: InviteSecret,
+        key: &Keypair,
+    ) -> Self {
         let member = key.public();
-        let digest = join_digest(&goal, &member, &endpoint, &secret);
+        let digest = join_digest(&goal, &member, &endpoint, &name, &secret);
         Self {
             goal,
             member,
             endpoint,
+            name,
             secret,
             signature: key.sign(domain::JOIN_SIGNATURE, &digest),
         }
@@ -408,13 +437,20 @@ impl JoinRequest {
     /// the member to an endpoint that never asked. Whether the secret names a
     /// live invitation is the issuer's lookup by [`InviteSecret::digest`].
     pub fn verify(&self) -> bool {
-        let digest = join_digest(&self.goal, &self.member, &self.endpoint, &self.secret);
-        crypto::verify(
+        let digest = join_digest(
+            &self.goal,
             &self.member,
-            domain::JOIN_SIGNATURE,
-            &digest,
-            &self.signature,
-        )
+            &self.endpoint,
+            &self.name,
+            &self.secret,
+        );
+        crate::event::is_member_name(&self.name)
+            && crypto::verify(
+                &self.member,
+                domain::JOIN_SIGNATURE,
+                &digest,
+                &self.signature,
+            )
     }
 }
 
@@ -422,12 +458,15 @@ fn join_digest(
     goal: &GoalId,
     member: &PublicKey,
     endpoint: &EndpointId,
+    name: &str,
     secret: &InviteSecret,
 ) -> [u8; 32] {
     let mut hasher = crypto::domain_hasher(domain::JOIN_SIGNATURE);
     hasher.update(&goal.0);
     hasher.update(&member.0);
     hasher.update(&endpoint.0);
+    hasher.update(&(name.len() as u64).to_le_bytes());
+    hasher.update(name.as_bytes());
     hasher.update(&secret.digest());
     *hasher.finalize().as_bytes()
 }
@@ -454,6 +493,8 @@ mod tests {
             vec!["https://relay.example".to_string()],
             InviteSecret([0x5a; 32]),
             Some(1_790_000_000_000),
+            "host".into(),
+            None,
             &testkit::keypair(1),
         )
         .unwrap()
@@ -516,9 +557,11 @@ mod tests {
     #[test]
     fn every_reviewed_fact_and_capability_is_signed() {
         let original = invitation();
-        let changes: [fn(&mut Invitation); 8] = [
+        let changes: [fn(&mut Invitation); 10] = [
             |i| i.goal = GoalId([9; 32]),
             |i| i.goal_title = Some("Different goal".into()),
+            |i| i.host_name = "another host".into(),
+            |i| i.role = Some("reviewer".into()),
             |i| i.governance = testkit::keypair(9).public(),
             |i| i.endpoint = EndpointId([9; 32]),
             |i| i.hints = vec!["https://other.example".into()],
@@ -662,6 +705,7 @@ mod tests {
     #[test]
     fn the_largest_valid_invitation_fits_the_published_size() {
         let mut largest = Invitation {
+            host_name: "h".repeat(crate::limits::MAX_MEMBER_NAME_BYTES),
             hints: vec!["h".repeat(MAX_HINT_BYTES); MAX_HINTS],
             expires_ms: Some(u64::MAX),
             ..invitation()
@@ -671,6 +715,14 @@ mod tests {
         assert!(codec::encode(&largest).unwrap().len() <= MAX_INVITATION_BYTES);
         assert!(ticket.as_str().len() <= MAX_TICKET_BYTES);
         assert_eq!(Invitation::from_ticket(ticket.as_str()), Ok(largest));
+    }
+
+    #[test]
+    fn a_role_is_bounded_by_the_whole_invitation_size() {
+        let mut invitation = invitation();
+        invitation.role = Some("r".repeat(MAX_INVITATION_BYTES));
+        invitation.sign(&testkit::keypair(1)).unwrap();
+        assert_eq!(invitation.to_ticket(), Err(InviteError::TooLong));
     }
 
     #[test]
@@ -748,6 +800,7 @@ mod tests {
         let request = JoinRequest::sign(
             invitation.goal,
             EndpointId([3; 32]),
+            "member".into(),
             invitation.secret,
             &testkit::keypair(3),
         );
@@ -802,11 +855,12 @@ mod tests {
         let request = JoinRequest::sign(
             GoalId([1; 32]),
             EndpointId([2; 32]),
+            "member".into(),
             secret,
             &testkit::keypair(3),
         );
         let frame = codec::encode(&request).unwrap();
-        assert_eq!(frame.len(), 32 + 32 + 32 + 32 + 64);
+        assert_eq!(frame.len(), 32 + 32 + 32 + 32 + 64 + 7);
         assert_eq!(codec::decode::<JoinRequest>(&frame), Ok(request));
     }
 
@@ -822,11 +876,12 @@ mod tests {
     }
 
     #[test]
-    fn a_join_request_is_bound_to_its_key_goal_endpoint_and_secret() {
+    fn a_join_request_is_bound_to_its_key_goal_endpoint_name_and_secret() {
         let key = testkit::keypair(3);
         let request = JoinRequest::sign(
             GoalId([1; 32]),
             EndpointId([2; 32]),
+            "member".into(),
             InviteSecret([9; 32]),
             &key,
         );
@@ -844,6 +899,9 @@ mod tests {
         other_secret.secret = InviteSecret([8; 32]);
         assert!(!other_secret.verify());
 
+        let mut other_name = request.clone();
+        other_name.name = "other".into();
+        assert!(!other_name.verify());
         let mut other_goal = request;
         other_goal.goal = GoalId([8; 32]);
         assert!(!other_goal.verify());

@@ -1,12 +1,12 @@
 //! Human views of authoritative API responses. Labels never act as identity.
 
 use locust_proto::api::{
-    Abilities, AgentView, GoalStatus, Halt, Level, Membership, PendingWork, Response, Rule,
-    SessionState, SessionView, TaskView, WaitOutcome,
+    Abilities, AgentView, GoalStatus, Halt, Level, MemberView, Membership, PendingWork, Response,
+    Rule, SessionState, SessionView, TaskView, WaitOutcome,
 };
 use locust_proto::event::{Body, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
-use locust_proto::organization::{CompletionRule, Selector};
+use locust_proto::organization::{CompletionRule, Formation, Selector};
 
 pub(super) fn utc(ms: u64) -> String {
     let seconds = ms / 1_000;
@@ -83,6 +83,31 @@ fn counts_clause(rule: &CompletionRule) -> String {
             .map(counts_clause)
             .collect::<Vec<_>>()
             .join(" and "),
+        CompletionRule::Any { rules }
+            if rules.iter().any(|rule| {
+                matches!(
+                    rule,
+                    CompletionRule::Contribution {
+                        by: Selector::OnlyMember
+                    }
+                )
+            }) =>
+        {
+            format!(
+                "{}, or the goal's only member posts it",
+                rules
+                    .iter()
+                    .filter(|rule| !matches!(
+                        rule,
+                        CompletionRule::Contribution {
+                            by: Selector::OnlyMember
+                        }
+                    ))
+                    .map(counts_clause)
+                    .collect::<Vec<_>>()
+                    .join(" or ")
+            )
+        }
         CompletionRule::Any { rules } => format!(
             "one of these is true: {}",
             rules
@@ -96,6 +121,7 @@ fn counts_clause(rule: &CompletionRule) -> String {
 
 fn selector_words(selector: &Selector) -> String {
     match selector {
+        Selector::OnlyMember => "the goal's only member".into(),
         Selector::Members => "any member".into(),
         Selector::Role { name } => format!("members in the \"{}\" role", safe(name)),
         Selector::Participant { key } => format!(
@@ -135,6 +161,15 @@ fn label(key: PublicKey, names: &[AgentView]) -> String {
         .unwrap_or_else(|| key.to_string())
 }
 
+pub(super) fn member_label(key: PublicKey, members: &[MemberView]) -> String {
+    let prefix = &key.to_string()[..8];
+    members
+        .iter()
+        .find(|member| member.member == key)
+        .map(|member| format!("{} ({prefix})", safe(&member.name)))
+        .unwrap_or_else(|| prefix.to_owned())
+}
+
 /// A record's signer: the host's computer prints as `host` with no key.
 fn signer(by_host: bool, key: PublicKey, names: &[AgentView]) -> String {
     if by_host {
@@ -146,11 +181,21 @@ fn signer(by_host: bool, key: PublicKey, names: &[AgentView]) -> String {
 
 /// The `Host:` line of a goal: this computer, the host's agent, or nothing
 /// yet before the first record is held.
-fn host_line(view: &GoalStatus, names: &[AgentView]) -> String {
-    match (view.hosted_here, view.host) {
-        (true, _) => "Host: you".into(),
-        (false, Some(agent)) => format!("Host: {}", label(agent, names)),
-        (false, None) => "Host: on another computer".into(),
+fn host_line(view: &GoalStatus, _names: &[AgentView]) -> String {
+    let host = view
+        .host
+        .map(|key| member_label(key, &view.members))
+        .or_else(|| view.host_name.as_ref().map(|name| safe(name)));
+    if view.hosted_here {
+        format!(
+            "Host: you{}",
+            host.map(|name| format!(" · {name}")).unwrap_or_default()
+        )
+    } else {
+        format!(
+            "Host: {} · another computer",
+            host.unwrap_or_else(|| "name has not arrived".into())
+        )
     }
 }
 
@@ -364,7 +409,12 @@ fn pending(
             lines.push(format!(
                 "  {}: {} ({})",
                 verdict.member,
-                if verdict.approve { "approve" } else { "reject" },
+                match (verdict.opinion, verdict.approve) {
+                    (true, true) => "opinion: approve",
+                    (true, false) => "opinion: reject",
+                    (false, true) => "approve",
+                    (false, false) => "reject",
+                },
                 verdict.event
             ));
         }
@@ -483,6 +533,153 @@ fn session(view: &SessionView, names: &[AgentView]) -> Vec<String> {
     lines
 }
 
+pub(super) fn goal_status(
+    view: &GoalStatus,
+    names: &[AgentView],
+    formation: Option<&Formation>,
+) -> String {
+    let mut lines = vec![
+        format!(
+            "{} ({})",
+            safe(view.title.as_deref().unwrap_or("Title unavailable")),
+            view.goal
+        ),
+        host_line(view, names),
+    ];
+    if let Some(reason) = view.halted {
+        lines.push(halt(reason).into());
+    }
+    for item in &view.scope_halts {
+        lines.push(format!(
+            "{}: {}",
+            scope(item.context.scope),
+            halt(item.reason)
+        ));
+    }
+    for member in &view.members {
+        lines.push(format!(
+            "Member: {} · {} · endpoint {}",
+            member_label(member.member, &view.members),
+            if member.local { "local" } else { "remote" },
+            member
+                .endpoint
+                .to_string()
+                .chars()
+                .take(8)
+                .collect::<String>()
+        ));
+        let roles = view
+            .roles
+            .iter()
+            .filter(|(_, holders)| holders.contains(&member.member))
+            .map(|(role, _)| safe(role))
+            .collect::<Vec<_>>();
+        if !roles.is_empty() {
+            lines
+                .last_mut()
+                .expect("member line")
+                .push_str(&format!(" · {}", roles.join(", ")));
+        }
+    }
+    if !view.roles.is_empty() {
+        lines.push(format!(
+            "Roles: {}",
+            view.roles
+                .iter()
+                .map(|(role, holders)| format!(
+                    "{}{} {}",
+                    safe(role),
+                    if formation.is_some_and(|formation| !formation.roles.contains_key(role)) {
+                        " (earlier rules)"
+                    } else {
+                        ""
+                    },
+                    holders
+                        .iter()
+                        .map(|holder| member_label(*holder, &view.members))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ))
+                .collect::<Vec<_>>()
+                .join(" · ")
+        ));
+    }
+    if let Some(formation) = formation
+        && let Some(role) = super::roles::counting_role(formation)
+    {
+        let missing = super::roles::missing_reviewers(
+            formation,
+            &role,
+            view.roles.get(&role).map_or(0, Vec::len),
+        )
+        .unwrap_or(0);
+        if missing > 0 {
+            lines.push(format!(
+                "{missing} more {}{} needed; members you add or invite become {}s.",
+                safe(&role),
+                if missing == 1 { " is" } else { "s are" },
+                safe(&role)
+            ));
+        }
+    }
+    if let Some(rules) = view.current_rules {
+        lines.push(format!("Rules revision: {rules}"));
+    }
+    if let Some(workspace) = &view.workspace {
+        lines.push(format!("Shared workspace: {}", tag(&workspace.authority)));
+        if let Some(head) = &workspace.head {
+            lines.push(format!("Shared revision: {}", head.revision));
+        }
+    }
+    for abilities in &view.abilities {
+        lines.push(format!(
+            "{} · level {} · {}",
+            safe(&abilities.name),
+            tag(&abilities.level),
+            standing_line(abilities)
+        ));
+        for wanted in &abilities.wanted_tasks {
+            let title = safe(wanted.title.as_deref().unwrap_or("this task"));
+            // An allowance lowers the bar to ask, so at read only a level helps.
+            if abilities.level == locust_proto::api::Level::Read {
+                lines.push(format!("  Asked to take \"{}\", but at read it only reads: locust --owner --agent {} level --goal {} ask", title, abilities.agent, view.goal));
+            } else {
+                lines.push(format!(
+                    "  Asked to take \"{}\": locust --owner --agent {} allow --goal {} --task {}",
+                    title, abilities.agent, view.goal, wanted.task
+                ));
+            }
+        }
+    }
+    for stalled in &view.stalled {
+        lines.push(format!(
+            "Step {} stalled for {}: {}",
+            stalled.effect,
+            signer(stalled.runner == view.governance, stalled.runner, names),
+            tag(&stalled.reason)
+        ));
+    }
+    for peer in &view.peers {
+        lines.push(format!(
+            "Peer {}: {} · last successful sync {}",
+            peer.endpoint,
+            if peer.connected {
+                "connected"
+            } else {
+                "disconnected"
+            },
+            peer.last_sync_ms
+                .map(|at| format!("{at} ms since Unix epoch"))
+                .unwrap_or_else(|| "not observed".into())
+        ));
+    }
+    lines.push(
+        "Peer connectivity describes this daemon's observation, not a remote process's activity."
+            .into(),
+    );
+    lines.join("\n")
+}
+
 pub(super) fn render(
     response: &Response,
     names: &[AgentView],
@@ -504,39 +701,7 @@ pub(super) fn render(
             }
             lines
         }
-        Response::GoalStatus(view) => {
-            let mut lines = vec![format!("{} ({})", safe(view.title.as_deref().unwrap_or("Title unavailable")), view.goal), host_line(view, names)];
-            if let Some(reason) = view.halted { lines.push(halt(reason).into()); }
-            for item in &view.scope_halts { lines.push(format!("{}: {}", scope(item.context.scope), halt(item.reason))); }
-            for member in &view.members {
-                lines.push(format!("Member: {} · {} · endpoint {}", label(member.member, names), if member.local { "local" } else { "remote" }, member.endpoint));
-            }
-            if let Some(rules) = view.current_rules { lines.push(format!("Rules revision: {rules}")); }
-            if let Some(workspace) = &view.workspace {
-                lines.push(format!("Shared workspace: {}", tag(&workspace.authority)));
-                if let Some(head) = &workspace.head { lines.push(format!("Shared revision: {}", head.revision)); }
-            }
-            for abilities in &view.abilities {
-                lines.push(format!("{} · level {} · {}", safe(&abilities.name), tag(&abilities.level), standing_line(abilities)));
-                for wanted in &abilities.wanted_tasks {
-                    let title = safe(wanted.title.as_deref().unwrap_or("this task"));
-                    // An allowance lowers the bar to ask, so at read only a level helps.
-                    if abilities.level == locust_proto::api::Level::Read {
-                        lines.push(format!("  Asked to take \"{}\", but at read it only reads: locust --owner --agent {} level --goal {} ask", title, abilities.agent, view.goal));
-                    } else {
-                        lines.push(format!("  Asked to take \"{}\": locust --owner --agent {} allow --goal {} --task {}", title, abilities.agent, view.goal, wanted.task));
-                    }
-                }
-            }
-            for stalled in &view.stalled {
-                lines.push(format!("Step {} stalled for {}: {}", stalled.effect, signer(stalled.runner == view.governance, stalled.runner, names), tag(&stalled.reason)));
-            }
-            for peer in &view.peers {
-                lines.push(format!("Peer {}: {} · last successful sync {}", peer.endpoint, if peer.connected { "connected" } else { "disconnected" }, peer.last_sync_ms.map(|at| format!("{at} ms since Unix epoch")).unwrap_or_else(|| "not observed".into())));
-            }
-            lines.push("Peer connectivity describes this daemon's observation, not a remote process's activity.".into());
-            lines
-        }
+        Response::GoalStatus(view) => return Some(goal_status(view, names, None)),
         Response::Board(tasks) => {
             if tasks.is_empty() { vec!["No tasks in this goal.".into()] } else {
                 let mut lines = vec![format!("{} tasks", tasks.len())];
@@ -764,6 +929,10 @@ mod tests {
             closed: false,
         };
         let status = GoalStatus {
+            host_name: Some("Host".into()),
+            roles: Default::default(),
+            deciding: Default::default(),
+
             goal,
             title: Some("Parser cleanup".into()),
             governance,
@@ -773,6 +942,8 @@ mod tests {
             current_rules: Some(event),
             scope_halts: vec![],
             members: vec![MemberView {
+                name: "maple".into(),
+
                 member: agent,
                 endpoint: EndpointId([3; 32]),
                 local: true,
@@ -842,10 +1013,7 @@ mod tests {
             None,
         )
         .unwrap();
-        assert!(
-            elsewhere.contains(&format!("Host: maple ({agent})")),
-            "{elsewhere}"
-        );
+        assert!(elsewhere.contains("Host: maple (02020202)"), "{elsewhere}");
     }
 
     #[test]
@@ -889,6 +1057,55 @@ mod tests {
     }
 
     #[test]
+    fn goal_status_names_the_host_members_and_roles_and_counts_missing_reviewers() {
+        let Response::GoalStatus(mut view) = hosted(PublicKey([9; 32]), false).pop().unwrap()
+        else {
+            panic!("goal status fixture")
+        };
+        view.halted = None;
+        view.stalled.clear();
+        view.members[0].name = "Harbor".into();
+        view.host_name = Some("Harbor".into());
+        view.roles
+            .insert("reviewer".into(), vec![view.host.unwrap()]);
+        view.roles.insert("lead".into(), vec![view.host.unwrap()]);
+        let panel = locust_proto::organization::presets()
+            .into_iter()
+            .find(|preset| preset.name == "review-panel")
+            .unwrap()
+            .formation;
+        let text = goal_status(&view, &[], Some(&panel));
+        assert!(
+            text.contains("Host: Harbor (02020202) · another computer"),
+            "{text}"
+        );
+        assert!(
+            text.contains("Member: Harbor (02020202) · local · endpoint 03030303 · lead, reviewer"),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "Roles: lead (earlier rules) Harbor (02020202) · reviewer Harbor (02020202)"
+            ),
+            "{text}"
+        );
+        assert!(text.contains("2 more reviewers are needed"), "{text}");
+        let peer = locust_proto::organization::presets()
+            .into_iter()
+            .find(|preset| preset.name == "peer-review")
+            .unwrap()
+            .formation;
+        view.roles.clear();
+        let text = goal_status(&view, &[], Some(&peer));
+        assert!(!text.contains("Roles:"), "{text}");
+        assert!(!text.contains("more reviewers"), "{text}");
+        assert_eq!(
+            counts_when(&peer.decisions.completion),
+            "A result counts when it has 1 approval, not the author's, or the goal's only member posts it."
+        );
+    }
+
+    #[test]
     fn a_name_never_replaces_its_identity() {
         let key = PublicKey([1; 32]);
         let names = [AgentView {
@@ -898,6 +1115,13 @@ mod tests {
             revoked: false,
         }];
         assert_eq!(label(key, &names), format!("worker ({key})"));
+        let members = [MemberView {
+            member: key,
+            name: "Maple".into(),
+            endpoint: locust_proto::id::EndpointId([2; 32]),
+            local: false,
+        }];
+        assert_eq!(member_label(key, &members), "Maple (01010101)");
     }
 
     /// One of everything a view can ask its reader to do next.
@@ -994,6 +1218,10 @@ mod tests {
             claims: vec![],
         };
         let status = GoalStatus {
+            host_name: Some("Host".into()),
+            roles: Default::default(),
+            deciding: Default::default(),
+
             goal,
             title: None,
             governance: PublicKey([9; 32]),
@@ -1003,6 +1231,8 @@ mod tests {
             current_rules: None,
             scope_halts: vec![],
             members: vec![MemberView {
+                name: "Member".into(),
+
                 member: agent,
                 endpoint: EndpointId([3; 32]),
                 local: true,

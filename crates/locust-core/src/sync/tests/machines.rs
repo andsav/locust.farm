@@ -557,6 +557,7 @@ fn joining_an_untrusted_endpoint_discloses_no_held_headers() {
     let request = JoinRequest::sign(
         founded.goal,
         endpoint(1),
+        "member".into(),
         InviteSecret([9; 32]),
         &Author::new(4).key,
     );

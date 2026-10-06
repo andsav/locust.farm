@@ -131,7 +131,7 @@ const DRAWINGS: Record<
 			pulse(svg, cycle, n[1], 0.88);
 		}
 	},
-	coordinator: {
+	directed: {
 		cycle: 8,
 		still: 0.46,
 		draw(svg, cycle) {
@@ -203,14 +203,14 @@ const DRAWINGS: Record<
 		draw(svg, cycle) {
 			const task = P(160, 26);
 			const w = [P(78, 90), P(160, 90), P(242, 90)];
-			const judge = P(160, 156);
+			const lead = P(160, 156);
 			w.forEach((p) => {
 				edge(svg, task, p);
-				edge(svg, p, judge);
+				edge(svg, p, lead);
 			});
 			node(svg, task, 8);
 			w.forEach((p) => node(svg, p));
-			node(svg, judge, 9, true);
+			node(svg, lead, 9, true);
 			w.forEach((p) => dot(svg, cycle, bent(task, p, 0), 0.03, 0.14));
 			const attempts: [number, number][] = [
 				[0, 0.3],
@@ -219,9 +219,9 @@ const DRAWINGS: Record<
 			];
 			for (const [i, end] of attempts) {
 				glow(svg, cycle, w[i], 10, 0.14, end);
-				dot(svg, cycle, bent(w[i], judge, 0), end, end + 0.12, 'result');
+				dot(svg, cycle, bent(w[i], lead, 0), end, end + 0.12, 'result');
 			}
-			const chosen = el(svg, 'path', { d: bent(w[0], judge, 0), class: 'd-chosen', opacity: 0 });
+			const chosen = el(svg, 'path', { d: bent(w[0], lead, 0), class: 'd-chosen', opacity: 0 });
 			el(chosen, 'animate', {
 				attributeName: 'opacity',
 				dur: `${cycle}s`,
@@ -230,7 +230,7 @@ const DRAWINGS: Record<
 				keyTimes: times([0, 0.6, 0.64, 0.9, 0.94, 1])
 			});
 			glow(svg, cycle, w[0], 10, 0.6, 0.94, 'decision');
-			pulse(svg, cycle, judge, 0.6, 9, 20);
+			pulse(svg, cycle, lead, 0.6, 9, 20);
 		}
 	},
 	pipeline: {

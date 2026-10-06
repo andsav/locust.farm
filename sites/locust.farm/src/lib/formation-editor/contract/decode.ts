@@ -173,7 +173,8 @@ const SELECTOR_KINDS = [
 	'task_creator',
 	'contribution_author',
 	'any',
-	'nobody'
+	'nobody',
+	'only_member'
 ] as const;
 
 function selector(value: JsonValue, place: Place): Selector {

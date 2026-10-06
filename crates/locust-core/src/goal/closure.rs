@@ -7,6 +7,8 @@ use locust_proto::{
 };
 use std::collections::BTreeSet;
 
+type DecisionOrder = (usize, locust_proto::id::PublicKey, u64, EventId);
+
 impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
     pub(super) fn open_at_observed_closure(
         &self,
@@ -26,7 +28,13 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         }
         // A scope without a closure authority cannot contain an effective
         // closure decision. Avoid traversing unrelated ancestry in open work.
-        if self.resolve(context)?.effective.decisions.finish.is_none() {
+        if self
+            .resolve(context, event.header().anchor.unwrap())?
+            .effective
+            .decisions
+            .finish
+            .is_none()
+        {
             return Ok(());
         }
         // Traverse exact signed author and typed dependency ancestry, never
@@ -39,7 +47,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             .chain(h.body.dependencies())
             .collect();
         let mut visited = BTreeSet::new();
-        let mut latest: Option<(u64, EventId, DecisionAction)> = None;
+        let mut latest: Option<(DecisionOrder, EventId, DecisionAction)> = None;
         while let Some(id) = pending.pop() {
             if !visited.insert(id) {
                 continue;
@@ -54,9 +62,25 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 && *target == context
                 && action.purpose() == DecisionPurpose::Closure
                 && self.status(id, proof) == Standing::Effective
-                && latest.as_ref().is_none_or(|(seq, _, _)| ah.seq > *seq)
+                && latest.as_ref().is_none_or(|(order, _, _)| {
+                    (
+                        self.chain.position(&ah.anchor.unwrap()).unwrap(),
+                        ah.author,
+                        ah.seq,
+                        id,
+                    ) > *order
+                })
             {
-                latest = Some((ah.seq, id, action.clone()));
+                latest = Some((
+                    (
+                        self.chain.position(&ah.anchor.unwrap()).unwrap(),
+                        ah.author,
+                        ah.seq,
+                        id,
+                    ),
+                    id,
+                    action.clone(),
+                ));
             }
             pending.extend(ah.prev);
             pending.extend(ah.anchor);

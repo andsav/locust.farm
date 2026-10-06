@@ -342,11 +342,17 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
     let mut document_selections: Vec<(Doc, EventId, usize)> = Vec::new();
     for (key, decisions) in &mut out.state.decisions {
         decisions.sort_by_key(|decision| {
-            v.history
+            let h = v
+                .history
                 .get(&decision.id)
                 .expect("decision exists")
-                .header()
-                .seq
+                .header();
+            (
+                v.chain.position(&h.anchor.unwrap()),
+                h.author,
+                h.seq,
+                decision.id,
+            )
         });
         let Some(last) = decisions.last() else {
             continue;
@@ -407,7 +413,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                 _ => unreachable!("selection requires a contribution or revision"),
             };
             let task = v
-                .resolve(key.context)
+                .resolve(key.context, v.chain.state.head.unwrap())
                 .expect("effective context resolves")
                 .task
                 .map(|binding| TaskRound {
@@ -490,7 +496,7 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
             None
         };
         let enabled = ready
-            && v.resolve(context)
+            && v.resolve(context, v.chain.state.head.unwrap())
                 .is_ok_and(|rules| rules.effective.decisions.selection.is_some());
         out.state.workspace = Some(Workspace {
             epoch,

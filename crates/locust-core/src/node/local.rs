@@ -46,6 +46,8 @@ pub(super) struct JoinRecord {
     /// The governance the ticket named, checked against the genesis record
     /// once it arrives.
     pub governance: PublicKey,
+    pub host_name: String,
+    pub name: String,
     /// The inviting daemon.
     pub endpoint: EndpointId,
     pub hints: Vec<String>,
