@@ -34,6 +34,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Independent v2 plan review: soundness, phase order, cuts and the first public door](v2-plan-review-2026-10-06.md)
 - [Independent public-goals plan review: safety, waits, journeys and evidence comparison](public-goals-plan-review-2026-10-06.md)
 - [Locust v2 phases 1–3 build notes](v2-phases-1-3-build-notes-2026-10-06.md)
+- [Locust v2 phase K1 build notes: a goal's governance has its own key](v2-phase-k1-build-notes-2026-10-06.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
 - [Iroh transport probe findings](iroh-transport-probe.md)
 - [Distributed agent collaboration landscape](landscape.md)
