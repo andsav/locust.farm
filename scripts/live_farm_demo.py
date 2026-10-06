@@ -286,7 +286,6 @@ class Demo:
             self.save()
         if not self.data.get("seed_revision"):
             self.proposal(self.data["seed_proposal"])
-            self.call(["completion", "declare", "--goal", goal, "--subject", self.data["seed_proposal"]])
             accepted = self.integrate(self.data["seed_proposal"])
             self.data["seed_revision"] = accepted["workspace_operation"]["state"]["recorded"]["event"]
             self.save()

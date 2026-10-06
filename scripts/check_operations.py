@@ -210,12 +210,11 @@ class Operations(Qualification):
         (source / "notes.txt").write_text("base notes\n")
         self.stop(second)
         captured = self.cli(lead, ["workspace", "init", "--goal", goal, "--root", source,
-            "--path", "large.bin", "--path", "code.txt", "--path", "notes.txt", "--publish"], owner=True)
+            "--path", "large.bin", "--path", "code.txt", "--path", "notes.txt", "--completion", json.dumps({"kind": "declaration", "by": {"kind": "contribution_author"}}), "--publish"], owner=True)
         seed_proposal = operation_event(captured["operation"])
         base = captured["candidate"]["result_manifest"]
         epoch = captured["candidate"]["context"]["round"]
         require(not (source / ".git").exists(), "ordinary seed unexpectedly acquired Git metadata")
-        self.api(lead, "completion.declare", goal=goal, subject=seed_proposal)
         seed_receipt = variant(self.cli(lead, ["workspace", "integrate", "--goal", goal,
             "--proposal", seed_proposal, "--expected-empty", "--expected-epoch", epoch]), "workspace_operation")
         seed_revision = operation_event(seed_receipt)
@@ -468,9 +467,8 @@ class WorkspaceSmoke(Operations):
         seed_input.mkdir()
         (seed_input / "code.txt").write_text("base\n")
         (seed_input / "notes.txt").write_text("base notes\n")
-        capture = self.cli(lead, ["workspace", "init", "--goal", goal, "--root", seed_input, "--path", "code.txt", "--path", "notes.txt", "--publish"], owner=True)
+        capture = self.cli(lead, ["workspace", "init", "--goal", goal, "--root", seed_input, "--path", "code.txt", "--path", "notes.txt", "--completion", json.dumps({"kind": "declaration", "by": {"kind": "contribution_author"}}), "--publish"], owner=True)
         seed_proposal = operation_event(capture["operation"])
-        self.api(lead, "completion.declare", goal=goal, subject=seed_proposal)
         seed = operation_event(variant(self.cli(lead, ["workspace", "integrate", "--goal", goal, "--proposal", seed_proposal, "--expected-empty"]), "workspace_operation"))
         accepted_directory = root / "accepted"
         accepted_checkout = self.checkout(lead, goal, seed, accepted_directory)

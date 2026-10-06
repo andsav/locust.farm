@@ -177,6 +177,7 @@ class LiveDemoTests(unittest.TestCase):
         binary.write_bytes(b"not an executable client")
         bindings = {}
         calls = []
+        role_changes = []
         interrupt = [True]
 
         def call(args, role="coordinator", **_):
@@ -187,6 +188,11 @@ class LiveDemoTests(unittest.TestCase):
                 role, args = args[1], args[2:]
             calls.append(args[:2])
             operation = tuple(args[:2])
+            if operation == ("completion", "declare"):
+                raise AssertionError("first files count without a declaration")
+            if operation in (("role", "give"), ("role", "take")):
+                role_changes.append((args[1], args[args.index("--member") + 1], args[-1]))
+                return {}
             if args[0] == "status":
                 return {"status": {"agents": [{"name": name, "agent": principal} for name, principal in principals.items()],
                                    "goals": [{"goal": "existing-goal", "title": runner.GOAL_TITLE,
@@ -230,6 +236,10 @@ class LiveDemoTests(unittest.TestCase):
         self.assertEqual(calls.count(["workspace", "init"]), 1)
         self.assertEqual(calls.count(["workspace", "connect"]), 4)
         self.assertNotIn(["goal", "create"], calls)
+        self.assertCountEqual(role_changes, [
+            (action, principals[role if action == "give" else "coordinator"], role)
+            for role in ("frontend", "backend", "reviewer") for action in ("give", "take")
+        ])
         self.assertTrue(runner.Demo(self.demo.root).data["prepared"])
 
     def test_review_integration_and_update_keep_exact_proposal_and_checkout_boundaries(self):
