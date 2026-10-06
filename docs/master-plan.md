@@ -310,17 +310,17 @@ for its own person. Answer 26 rules that out for the swarm's work.
    being read for them. A person's own acts (start, join, invite, remove,
    set rules, publish, end) and choices a person made (level ask) are not in
    question.
-4. **After a restore or a move (answer 13).** The owner first chose that
-   Locust waits for one command from the person, for a goal with nobody else
-   to ask. An [independent review](../research/v2-plan-review-2026-10-06.md)
-   then showed that the rules which end a wait by themselves are guesses, so
-   the choice became: wait for a person in every hosted goal, or carry on by
-   itself under a new key and drop whatever the old copy had not kept. The
-   owner was asked this directly and answered with 26 and 27, not in those
-   words. The plan author reads them as "carry on by itself". That design is
-   scoped in the
+4. **After a restore or a move (answer 13).** The wait stays, in that
+   accident only. An
+   [independent review](../research/v2-plan-review-2026-10-06.md) showed that
+   the rules which ended such a wait by themselves were guesses. Carrying on
+   under a new key was scoped in the
    [check of the review](../research/v2-plan-review-verification-2026-10-06.md)
-   and is being designed in full; answer 13's wait goes if the design holds.
+   and set aside: on 6 October 2026 the owner chose to keep the restore
+   guard as planned and to spend no more design on it. So after a
+   whole-computer restore or a move, the goals a person hosts wait for one
+   command from that person, and the note of what a computer last signed is
+   forced to disk. Everything else about the guard is unchanged.
 
 Not the owner's to decide, and no longer put to the owner: whether the key
 for members and rules may also sign what the host's computer records by
