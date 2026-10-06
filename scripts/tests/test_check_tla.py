@@ -112,6 +112,56 @@ The depth of the complete state graph search is 17.
         text = FAIL.replace("/\\ x", "x").replace("/\\ found = FALSE\n", "").replace("/\\ found = TRUE\n", "")
         self.assertEqual(tla.trace_states(text)[-1]["variables_tla"]["x"], "2")
 
+    def test_temporal_completion_requires_a_temporal_check(self):
+        case = dict(GOOD, temporal_properties=["EventuallyOne"])
+        self.assertFalse(tla.classify(PASS, 0, case)["matched_expectation"])
+        self.assertTrue(tla.classify(PASS + "Finished checking temporal properties in 00s", 0, case)["matched_expectation"])
+
+    def test_temporal_counterexamples_keep_stuttering_and_cycle_targets(self):
+        prefix = "Error: Temporal properties were violated.\nError: The following behavior constitutes a counter-example:\n"
+        finish = "2 states generated, 2 distinct states found, 0 states left on queue.\nFinished in 00s at (2026-10-06 00:00:00)\n"
+        for states, loop, final in [
+            ("State 1: <Initial predicate>\nx = 0\n\nState 2: Stuttering\n", {"kind": "stuttering", "state": 1}, "0"),
+            ("State 1: <Initial predicate>\nx = 0\n\nState 2: <Tick>\nx = 1\n\nBack to state 1: <Tick>\n", {"kind": "back", "state": 1}, "1")]:
+            output = prefix + states + finish
+            case = dict(BAD, violation="EventuallyOne", temporal_properties=["EventuallyOne"],
+                        trace_require=[{"x": final}], trace_loop=loop)
+            result = tla.classify(output, 13, case)
+            self.assertTrue(result["matched_expectation"], result)
+            self.assertEqual(result["loop"], loop)
+            self.assertEqual(result["trace"][-1]["variables_tla"], {"x": final})
+            for changed in [dict(case, violation="Other"), dict(case, trace_loop={"kind": "back", "state": 99}),
+                            dict(case, temporal_properties=["EventuallyOne", "Other"]),
+                            dict(case, trace_require=[{"x": "99"}])]:
+                self.assertFalse(tla.classify(output, 13, changed)["matched_expectation"])
+            for malformed, code in [(output, 12), (output.split("Finished in")[0], 13),
+                                    (output.replace("State 2: Stuttering", "Missing loop").replace("Back to state 1: <Tick>", "Missing loop"), 13),
+                                    (output.replace("Back to state 1:", "Back to state 99:"), 13)]:
+                if malformed != output or code != 13:
+                    self.assertFalse(tla.classify(malformed, code, case)["matched_expectation"])
+            self.assertFalse(tla.classify(output, 13, case, timed_out=True)["matched_expectation"])
+
+    def test_temporal_registry_checks_exact_property_and_loop_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "M.tla").write_text("module fixture")
+            (root / "M.cfg").write_text("SPECIFICATION Spec\nINVARIANT TypeOK\nPROPERTY EventuallyOne\n")
+            case = dict(id="temporal", module="M.tla", config="M.cfg", expect="violation",
+                        properties=["TypeOK", "EventuallyOne"], temporal_properties=["EventuallyOne"],
+                        violation="EventuallyOne", trace_require=[{"x": "0"}],
+                        trace_loop={"kind": "stuttering", "state": 1})
+            tla.validate_cases({"cases": [case]}, root)
+            for update in [{"temporal_properties": []}, {"properties": ["TypeOK"]},
+                           {"trace_loop": None}, {"trace_loop": {"kind": "back", "state": 0}},
+                           {"trace_loop": {"kind": "back", "state": True}},
+                           {"trace_loop": {"kind": "wrong", "state": 1}}]:
+                with self.subTest(update=update), self.assertRaises(tla.CheckError):
+                    tla.validate_cases({"cases": [dict(case, **update)]}, root)
+            (root / "M.cfg").write_text("PROPERTIES EventuallyOne EventuallyTwo\n")
+            with self.assertRaises(tla.CheckError):
+                tla.validate_cases({"cases": [dict(case, properties=["EventuallyOne", "EventuallyTwo"],
+                                                       temporal_properties=["EventuallyOne", "EventuallyTwo"])]}, root)
+
     def test_bad_checksum_refuses_cache_without_network(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "tool.jar"

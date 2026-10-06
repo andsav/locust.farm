@@ -33,6 +33,8 @@ TOOLS = ROOT / "output/tla/tools"
 COUNTS = re.compile(r"([\d,]+) states generated, ([\d,]+) distinct states found, ([\d,]+) states left on queue")
 STATE = re.compile(r"^State (\d+): <([^\n]+)>\s*$", re.M)
 VARIABLE = re.compile(r"^(?:/\\ )?([A-Za-z_]\w*) = (.*)$", re.M)
+TEMPORAL = "Error: Temporal properties were violated."
+LOOP = re.compile(r"^(?:State (\d+): Stuttering|(?:State \d+: )?Back to state (\d+)(?:[: ].*)?)$", re.M)
 VIOLATION = re.compile(r"^Error: Invariant (\w+) is violated\.", re.M)
 
 
@@ -136,10 +138,14 @@ def tools(manifest, *, bootstrap=False, directory=TOOLS):
 
 def trace_states(output):
     """Parse full TLC state blocks, retaining opaque TLA values verbatim."""
-    if "Error: The behavior up to this point is:" not in output:
+    markers = ("Error: The behavior up to this point is:",
+               "Error: The following behavior constitutes a counter-example:")
+    marker = next((value for value in markers if value in output), None)
+    if marker is None:
         return []
-    tail = output.split("Error: The behavior up to this point is:", 1)[1]
+    tail = output.split(marker, 1)[1]
     tail = re.split(r"\n(?:The coverage statistics|[\d,]+ states generated|Finished in)", tail, maxsplit=1)[0]
+    tail = LOOP.split(tail, maxsplit=1)[0]
     headers = list(STATE.finditer(tail))
     states = []
     for index, header in enumerate(headers):
@@ -167,6 +173,12 @@ def classify(output, returncode, case, *, timed_out=False):
               if count_matches else None)
     finished = bool(re.search(r"^Finished in .+ at \(", output, re.M))
     name = VIOLATION.search(output)
+    temporal = TEMPORAL in output
+    loop_match = LOOP.search(output)
+    loop = None
+    if loop_match:
+        loop = ({"kind": "stuttering", "state": int(loop_match[1]) - 1}
+                if loop_match[1] else {"kind": "back", "state": int(loop_match[2])})
     try:
         trace = trace_states(output)
     except CheckError as error:
@@ -174,12 +186,21 @@ def classify(output, returncode, case, *, timed_out=False):
     depth = re.search(r"The depth of the complete state graph search is (\d+)\.", output)
     collisions = re.findall(r"^\s+(calculated \(optimistic\)|based on the actual fingerprints):\s+val = ([\d.Ee+-]+)", output, re.M)
     result = {"counts": counts, "trace": trace, "matched_expectation": False,
-              "depth": int(depth[1]) if depth else None,
+              "depth": int(depth[1]) if depth else None, "loop": loop,
               "fingerprint_collision_estimates": dict(collisions)}
     if returncode == 0 and finished and counts and counts["queue"] == 0 and \
-            "Model checking completed. No error has been found." in output and not re.search(r"^Error:", output, re.M):
+            "Model checking completed. No error has been found." in output and \
+            (not case.get("temporal_properties") or
+             "Finished checking temporal properties" in output) and not re.search(r"^Error:", output, re.M):
         result.update(status="complete", matched_expectation=case["expect"] == "pass")
-    elif returncode == 12 and finished and counts and name and len(trace) >= 2:
+    elif (returncode == 12 and name and len(trace) >= 2 or
+          returncode == 13 and temporal and trace and loop and
+          1 <= loop["state"] <= len(trace) and
+          (loop["kind"] != "stuttering" or loop["state"] == len(trace))) and finished and counts:
+        # TLC names invariant failures, but prints no property name for liveness.
+        # Permit one configured temporal property only; never infer among several.
+        temporal_names = case.get("temporal_properties", [])
+        violation = temporal_names[0] if temporal and len(temporal_names) == 1 else (name[1] if name else None)
         requirements = case.get("trace_require", [])
         matched = bool(requirements) and all(requirement and
                     all(trace[-1]["variables_tla"].get(key) == value for key, value in requirement.items())
@@ -193,9 +214,10 @@ def classify(output, returncode, case, *, timed_out=False):
                 matched = False
                 break
             cursor += 1
-        result.update(status="counterexample", violation=name[1],
+        result.update(status="counterexample", violation=violation,
                       matched_expectation=case["expect"] == "violation" and
-                      name[1] == case.get("violation") and bool(requirements) and matched)
+                      violation == case.get("violation") and bool(requirements) and matched and
+                      (not temporal or case.get("trace_loop") == loop))
     elif "Error: Deadlock reached." in output:
         result.update(status="unexpected_violation", reason="deadlock")
     else:
@@ -240,13 +262,27 @@ def validate_cases(registry, model_root=MODELS):
                 raise CheckError("trace requirements must be nonempty maps of TLA variable text")
         if not case.get("properties"):
             raise CheckError("case declares no checked properties")
-        # Configs in this registry use plain INVARIANT(S) names, without overrides.
+        # Plain invariant and temporal property names, without overrides.
         config = re.sub(r"\\\*[^\n]*", "", (model_root / case["config"]).read_text())
         sections = re.findall(r"^INVARIANTS?\b(.*?)(?=^[A-Z_]+\b|\Z)", config, re.M | re.S)
         configured = set(re.findall(r"\b\w+\b", " ".join(sections)))
-        if configured != set(case["properties"]):
+        temporal_sections = re.findall(r"^PROPERT(?:Y|IES)\b(.*?)(?=^[A-Z_]+\b|\Z)", config, re.M | re.S)
+        temporal = set(re.findall(r"\b\w+\b", " ".join(temporal_sections)))
+        declared_temporal = case.get("temporal_properties", [])
+        if len(temporal) > 1 or temporal != set(declared_temporal):
+            raise CheckError("configure exactly one temporal property per case when used")
+        if case.get("trace_loop") is not None:
+            loop = case["trace_loop"]
+            if (case["expect"] != "violation" or case.get("violation") not in temporal or
+                    not isinstance(loop, dict) or set(loop) != {"kind", "state"} or
+                    loop["kind"] not in ("stuttering", "back") or
+                    type(loop["state"]) is not int or loop["state"] < 1):
+                raise CheckError("invalid temporal trace loop")
+        if case["expect"] == "violation" and case.get("violation") in temporal and not case.get("trace_loop"):
+            raise CheckError("expected temporal violation needs an exact trace loop")
+        if configured | temporal != set(case["properties"]):
             raise CheckError(f"property/config mismatch: {case['id']}")
-        if case["expect"] == "violation" and case["violation"] not in configured:
+        if case["expect"] == "violation" and case["violation"] not in configured | temporal:
             raise CheckError("expected property is not configured")
 
 
@@ -321,7 +357,7 @@ def run_case(case, java, jar, run_dir, *, memory_mb=1024, timeout=None, model_ro
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bootstrap", action="store_true", help="fetch verified private tool cache")
-    parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended", "organization", "sessions", "effects", "workspace"))
+    parser.add_argument("--suite", default="fast", choices=("fixtures", "fast", "extended", "organization", "sessions", "effects", "workspace", "restore"))
     parser.add_argument("--case", action="append", help="run only specified case IDs")
     parser.add_argument("--timeout", type=float, help="optional wall-time deadline in seconds; no implicit deadline")
     parser.add_argument("--memory-mb", type=int, default=4096)
