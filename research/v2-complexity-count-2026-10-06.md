@@ -207,8 +207,9 @@ Three ways to settle it:
 3. **Record both when they do not touch the same files,** where the order
    does not change the result, and fall back to 1 or 2 when they do.
 
-The author of the plans recommends 1, with 3 as a later refinement. It is the
-owner's decision.
+The author of the plans recommended 1, with 3 as a later refinement. The
+owner chose 1 on 6 October 2026, and decision 3 in the master plan is
+reworded.
 
 ### What a level allows for work that came through the door
 
@@ -231,6 +232,12 @@ This may be exactly the intended workflow: the host's agent is trusted to
 review, and that is what a reviewer is for. Or the owner may want a person
 asked at one of these three steps when the work came through the door. The
 plans should state, for each step, what read, ask and auto allow.
+
+The owner answered on 6 October 2026: "I don't want the swarm to stop to ask
+a human for anything." So no person is asked at any of the three steps. That
+answer also puts decision 18 itself in question, because a door member's
+task waiting for a person is the swarm stopping for a human. See "Decisions
+still needed" in the master plan.
 
 ## What the count missed
 

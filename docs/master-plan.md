@@ -43,8 +43,14 @@ Principles:
 2. No migration. No release reads goals made under an earlier signed format.
    A later change of signed format ends the goals made before it, and the
    texts say so.
-3. Nothing every computer must agree on is decided by clock, timeout, arrival
-   order or lowest hash.
+3. No computer decides anything shared from its own clock, a timeout, the
+   order records arrived in or a comparison of identifiers. The host's
+   computer may choose among changes that each already count, by signing one
+   record that every other computer follows: when several approved changes
+   build on the same version it records the one with the lowest identifier
+   among those it holds, and the other authors rebuild. (Narrowed by the
+   owner on 6 October 2026. It first read: "Nothing every computer must
+   agree on is decided by clock, timeout, arrival order or lowest hash.")
 4. One master plan that the owner approves, with detail in the plans it
    links to.
 
@@ -122,6 +128,14 @@ The name:
 
 25. What this plan builds is called v2.
 
+Added on 6 October 2026:
+
+26. "I don't want the swarm to stop to ask a human for anything." Agents
+    decide among themselves. What a person does is start, join, invite,
+    remove, set rules, publish and end, and the work never waits on those.
+    This answer puts three things in the plans in question; they are listed
+    under [Decisions still needed](#decisions-still-needed).
+
 ## Assumed until the owner objects
 
 Each of these is the plan author's recommendation and is written into a plan.
@@ -148,9 +162,6 @@ assumes" and "Questions for the owner".
   connect` ask first, because no single command undoes them. `invitation
   revoke` applies at once.
 - `workspace init` shares the first files in the same run, after one yes.
-- When two approved changes build on the same version, the host's computer
-  records the one with the lowest identifier among those it holds; the other
-  author rebuilds and is approved again.
 
 From the [host safety and ending plan](host-safety-and-ending-plan.md):
 
@@ -252,24 +263,26 @@ built. The full count is in
 
 ## Decisions still needed
 
-Each blocks the phases named. The detail is in the count, under "Two
-decisions the count exposes".
+Answer 26 puts these in question. In the plans, "asks first" has always
+meant that an agent stops and waits for its own person.
 
-1. **Arrival order at the host's computer.** Answer 3 forbids deciding by
-   arrival order or lowest hash. R8 and R9 have the host's computer record,
-   among several approved changes that build on the same version, the one
-   with the lowest identifier it holds at that moment. Every computer still
-   agrees, because each follows the host's one record, but the wording of
-   answer 3 is against it. Either answer 3 is narrowed to allow this, or the
-   host's computer records neither and someone must act. Blocks R8 and R9.
-2. **What a level allows for work that came through the door.** Answer 18
-   covers taking a task. It does not say whether a person is asked before a
-   door member's change is recorded for the goal, applied to a folder, or
-   run. Blocks the public preset.
-3. **Whether the key for members and rules may also sign what the host's
-   computer records by itself.** Answer 9 calls it "a key that does nothing
-   else". K1 has it sign a stage's steps, and R8 and R9 add recordings.
-   Blocks K1's wording, R8 and R9.
+1. **A task written by a door member (answer 18).** As recorded, such a task
+   waits for the person of each agent that would take it, at every level.
+   That stops the swarm for a human. What replaces it is not decided. Blocks
+   the public preset and the check that R3 and R5 lack.
+2. **The level a joining agent gets.** `goal join` requires `--level`, and
+   its examples use ask, where the agent waits for its person before each
+   task. Under answers 1 and 26 the level would default to auto, with ask and
+   read as choices a person makes.
+3. **After a whole-computer restore with nobody else to ask (answer 13).**
+   Locust waits for one command from the person. The owner chose this on 6
+   October 2026 before giving answer 26; it is rare and stays unless the
+   owner says otherwise.
+
+Not the owner's to decide, and no longer put to the owner: whether the key
+for members and rules may also sign what the host's computer records by
+itself. A person sees no difference. It is settled with the contract for
+unattended signing, and the wording of answer 9 follows what that settles.
 
 ## Not designed yet
 

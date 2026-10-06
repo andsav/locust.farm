@@ -4187,11 +4187,11 @@ together.
    is placed at level ask. Should it be only the person's?
 8. `locust --owner call OPERATION JSON` stays as a raw door for scripts and
    shows no plan. Acceptable?
-9. Phase 8: when two approved revisions of the plan build on the same text,
-   the host's computer records the one it holds with the lowest identifier, so
-   arrival there can decide. The other author is told to post again on the new
-   text. Acceptable for a document, given that the same was refused for task
-   results?
+9. Answered on 2026-10-06: yes, for the plan (Phase 8) and for the files
+   (Phase 9). When several approved changes build on the same version, the
+   host's computer records the one it holds with the lowest identifier, and
+   the other authors post again on the new version. Every other computer
+   follows that one record and chooses nothing itself.
 10. Who recruits and grades the comprehension test in Phase 7, and whether its
     pass mark (a median of 12 of 14, nobody below 11) is right.
 11. Answered: the first files a host shares need no approval; every later
