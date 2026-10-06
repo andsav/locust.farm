@@ -1750,13 +1750,20 @@ wrote, and is the database the file last used.
 
 | Marks | Database | The start is | What follows |
 | --- | --- | --- | --- |
-| kept | the file last used | ordinary | nothing is held. If a mark is ahead of the store all the same, the database was overwritten in place, and that goal is treated as in the next row |
+| kept | the file last used | ordinary | nothing is held. If a mark is ahead of the store all the same, the database was overwritten in place; one file holds every goal, so every goal is treated as in the next row, not only the one whose mark is ahead |
 | kept | another file | the data directory was replaced by a copy | each key whose mark is ahead of the store is behind; where that key is the governance key, every agent's key in that goal on this computer is held with it; every other key signs at once |
-| lost, or a copy | the file last used | ordinary | nothing is held; the marks are written again from the store |
+| lost, or a copy | the file last used | ordinary | nothing is held; the marks are written again from the store. One exception: in a goal that still holds its `RESTORED` record, every local key is unheard, as in the row below |
 | lost, or a copy | another file | a copy of unknown age | every key this daemon holds is unheard in every goal; the marks are written again from the store |
 
-In the second and fourth rows, and for a goal found overwritten in place,
-`restore_found` runs once per goal (below). The marks are also lost when
+The third row's exception exists because a behind hold is remembered only
+by the marks: losing them while a restore is still being caught up must not
+make that goal ordinary. Where this daemon hosts the goal it then waits
+for the person's `goal.continue`, as every unheard hold there does; on a
+member's computer the hold ends when the host's computer is heard. In the
+second and fourth rows, and for every goal when the database was
+overwritten in place, `restore_found` runs once per goal (below): the
+overwrite rolled the whole file back, not only the goal whose mark is
+ahead. The marks are also lost when
 their file holds a record whose checksum fails. A torn write then leads to the
 third or the fourth row, never to a key with no mark that signs at once.
 
@@ -1851,9 +1858,10 @@ second or the third "caught up".
   `StoreError::Failed`, and the store refuses further calls as after a failed
   sync. `Store` gains `fn marks(&self) -> Result<Marks, StoreError>`: `file`
   identifies where the store keeps its records now; `kept` is `None` when no
-  marks were found, they did not read, or their directory is not the one they
-  were written in. `MemStore`: `MemState` gains a `FileId` drawn from a
-  process-wide counter in `MemStore::new`, so `reopen` keeps it and a new
+  marks were found, they did not read, or the file that holds them is not
+  the one they were written in. `MemStore`: `MemState` gains a `FileId`
+  drawn from a process-wide counter in `MemStore::new`, so `reopen` keeps
+  it and a new
   store has another; the marks live in new `MemMarks` (a shared cell that
   reads as lost until first written), with `MemStore::with_marks(MemMarks)`
   and `MemStore::marks_handle()`. The `conformance` module gains one case. The
@@ -1864,9 +1872,10 @@ second or the third "caught up".
 - `crates/locust-store/src/marks.rs` (new),
   [store.rs](../crates/locust-store/src/store.rs) and the crate comment in
   [lib.rs](../crates/locust-store/src/lib.rs): the file. One header (a magic
-  value and the `FileId` of its own directory when it was created) and fixed
-  records of 112 bytes: goal, key, position, event id, `shared`, a 4-byte
-  checksum. A changed mark is one positional write in place, and a new
+  value and the marks file's own `FileId`, read after the file is created)
+  and fixed records of 112 bytes: goal, key, position, event id, `shared`,
+  a 4-byte checksum. A changed mark is one positional write in place, and a
+  new
   record is appended. Every commit that carries marks writes them all and then
   syncs the file once, before `commit` returns, so no signature can lose its
   mark to a power failure. That is one more flush for a commit that signs,
@@ -1875,12 +1884,16 @@ second or the third "caught up".
   `Files::create` does today for the object directory
   ([files.rs](../crates/locust-store/src/files.rs)). Both syncs pass the fault
   points of `faults.rs`, as the syncs of files.rs do. `read(dir)` answers
-  `None` when the file is missing, the header does not read, `FileId::of(dir)`
-  differs from the header's, or any record's checksum fails; such a file is
-  replaced by an empty one with a fresh header. So a torn record makes the
-  marks lost, which the first table handles, and never leaves a key with no
-  mark that signs at once. The marks a start writes (below) follow the same
-  rule and are on disk before the transport starts. `FileId::of(path)` takes
+  `None` when the file is missing, the header does not read, the file's own
+  `FileId` differs from the header's, or any record's checksum fails; such
+  a file is replaced by an empty one with a fresh header. So a torn record
+  makes the marks lost, which the first table handles, and never leaves a
+  key with no mark that signs at once. Identifying the file by its own
+  identity, not its directory's, is what makes an older marks file restored
+  into the same directory read as lost: a directory keeps its inode and
+  creation time when a file inside it is replaced. The marks a start writes
+  (below) follow the same rule and are on disk before the transport starts.
+  `FileId::of(path)` takes
   the inode number and the creation time from the file's metadata; the device
   number is left out because it can change between boots. Where the file
   system reports no creation time, `created_ms` is `None` (measured on
@@ -2039,7 +2052,10 @@ second or the third "caught up".
   `store.marks()` after loading the goals and before its last loop, which
   calls `drive_flow` and today signs before any peer is heard. It builds
   `Guard` by the first table and writes one commit: `restore_found` for each
-  goal the table names; marks from the store's own tips where they are lost;
+  goal the table names; marks from the store's own tips where they are lost,
+  except in a goal that still holds its `RESTORED` record, whose keys become
+  unheard instead (the first table's exception, decided before the marks are
+  rewritten and before any `RESTORED` record is deleted);
   any mark below the store's tip raised to it; the `RESTORED` record deleted
   where the start is ordinary and no key of this daemon is held in the goal;
   and `file` when it changed. That commit syncs the marks like any other, so a
@@ -2167,7 +2183,10 @@ second or the third "caught up".
   `marks_survive_reopen_and_a_torn_record_makes_them_lost` (one record's
   checksum fails and `kept` is `None`);
   `marks_in_a_copied_directory_are_not_kept` (the directory is copied file by
-  file and `kept` is `None`); `a_failed_commit_writes_no_mark`;
+  file and `kept` is `None`);
+  `an_older_marks_file_put_back_into_its_directory_reads_as_lost` (the marks
+  directory survives, an older marks file is restored into it, and `kept` is
+  `None`); `a_failed_commit_writes_no_mark`;
   `a_failed_mark_sync_breaks_the_store_and_nothing_is_released` (the sync of
   the marks file fails at the existing fault point `Point::FileSync`; `commit`
   answers `StoreError::Failed` and the store refuses further calls);
@@ -2286,7 +2305,15 @@ second or the third "caught up".
   directories; the copy is started with the original's marks; the request
   exits `read_only`, and after the events return it signs at N+1). New
   `a_lost_marks_directory_is_an_ordinary_start_and_a_copy_of_both_is_not` and
-  `a_database_overwritten_in_place_is_found_by_its_marks`.
+  `a_database_overwritten_in_place_is_found_by_its_marks`. The first holds
+  only where no goal still holds its `RESTORED` record; with one held, the
+  lost marks make that goal's keys unheard instead, and
+  `lost_marks_while_a_restore_is_caught_up_make_the_goal_unheard` covers it
+  (on the host the goal then waits for `goal.continue`; on a member's
+  computer the hold ends when the host's computer is heard). The second now
+  treats every goal in the file as restored: a second goal with no mark
+  ahead gets its `RESTORED` record and, where this daemon hosts it, its
+  pending invitations revoked, and no key of it is behind.
 - In [reconcile_tests.rs](../crates/locust/src/daemon/reconcile_tests.rs):
   `a_diverged_author_log_reconciles_between_two_real_daemons` sends
   `goal.continue` on the owner's connection before the restored member signs,
@@ -2311,8 +2338,9 @@ second or the third "caught up".
   machine (the model's `restore-finding-private-reuse`). For an agent's key
   on the machine that hosts the goal it holds whenever the marks are lost,
   because the key is held with the governance key. With the marks kept it
-  holds for an agent's key whose missing record another machine that can
-  still be asked holds. Where the record reached no other machine the mark
+  holds for an agent's key in runs with no removal that the restored copy
+  does not hold, where the missing record is held by another machine that
+  can still be asked. Where the record reached no other machine the mark
   is given up once every other computer has answered, and the position can
   be signed again (the model's `restore-finding-unseen-agent-reuse`).
   It is not claimed for an agent's key on a member's machine whose marks are
@@ -2320,7 +2348,8 @@ second or the third "caught up".
   each case left out, both under residual 5 in the notes: a member's machine
   restored with its marks lost, whose agent's last record reached another
   member's machine and not the host's; and an agent's record that reached only
-  a machine removed since, given up with the marks kept. These bounds are from
+  a machine whose removal the restored copy does not hold, given up with the
+  marks kept. These bounds are from
   reading. A seed that breaks the invariant inside them is a finding. The
   invariant that every machine holds every acknowledged record leaves out a
   record that only the restored machine held. Sleep stays what it is there,
@@ -2377,7 +2406,14 @@ second or the third "caught up".
   identifier clears it. The same copy and put-back on B, a member's computer:
   every local key shows `unheard`, and it clears with no command after A has
   answered twice.
-- Delete A's marks directory and restart A: no `guard` entry.
+- Both folders restored into the surviving home with `rsync -a`: the older
+  marks file lands in its own directory and still reads as lost, every local
+  key shows `unheard`, and the goal A hosts waits for `goal.continue`.
+- Delete A's marks directory and restart A: no `guard` entry. Then the same
+  with a restore still being caught up: stop A after the first drill's
+  put-back, before B has answered, delete A's marks directory and restart A.
+  The goal still shows `unheard`, not an ordinary start, and waits for
+  `goal.continue`.
 - A host alone in its goal signs a waiting step during start, with no peer and
   no command.
 - The simulator's seeded runs with `Kind::Restored` pass the new invariant
@@ -2412,8 +2448,10 @@ second or the third "caught up".
   example an old computer left on after a move. No single daemon can see this.
   (2) A rollback that keeps every file's identity and carries the marks: a
   disk image, a snapshot of a virtual machine or a volume, a tool that writes
-  the database and the marks in place. Rare on a laptop, ordinary where
-  machines are restored from snapshots; for public goals the service check can
+  the database and the marks in place. Ordinary where machines are restored
+  from snapshots, and a restore that writes both folders in place is the same
+  shape on a laptop; for private goals nothing in v2 detects it, and for
+  public goals the service check can
   catch it through `guard_attest`, except for records signed after the last
   request the service saw. (3) A database overwritten in place while the marks
   are lost: two faults at once. (4) With the marks kept, a member that is the
@@ -2444,7 +2482,10 @@ second or the third "caught up".
   else holds.
 - Storage that reports a sync it did not do can, after a power failure, leave
   a mark ahead of the store or short of it. Ahead: that key is behind after an
-  ordinary restart. An agent's key is released once every other computer has
+  ordinary restart, and because one such mark treats every goal in the file
+  as restored, it can also revoke the pending invitations of every goal this
+  computer hosts, not only that key's goal. An agent's key is released once
+  every other computer has
   answered. A governance key in a shared goal waits for the record to come
   back from a computer that received it and, where none did, for the person's
   `goal continue`. Short: an ordinary start raises the mark, but a data
@@ -2463,10 +2504,16 @@ second or the third "caught up".
   one volume is an ordinary start. Caught only because a mark is ahead:
   `cp` over the existing path and `rsync --inplace`, which keep the inode
   and the creation time while the content verifiably rolls back, on both
-  systems. Row 1's caveat is the whole defence against them, and with the
-  marks lost too they are residual 3. Where no mark is ahead such an
-  overwrite is invisible by design: nothing this daemon signed was lost,
-  and records it received return by exchange. A plain limit, measured in
+  systems. Row 1's caveat is the whole defence against them: one mark ahead
+  treats every goal in the file as restored, and with the marks lost too
+  they are residual 3. Where no goal in the file has a mark ahead, such an
+  overwrite passes as an ordinary start. Nothing this daemon signed was
+  lost and records it received return by exchange; what silently comes back
+  is local: invitations revoked since the copy are pending again, and
+  settings changed since are as the copy held them. A false alarm has one
+  measured path on APFS: anything that sets an earlier modification time
+  lowers the same file's creation time, so `FileId` can change with no copy
+  at all, and the start then reads as row 2. A plain limit, measured in
   its two halves: a file system can report no creation time (tmpfs, where
   `created_ms` is `None`) and an allocator can hand a replaced file its old
   number back (overlayfs). A file system with both would make even a
@@ -4360,8 +4407,10 @@ the names the model gives them:
 
 - `StoreNoFork` (cases `restore-p1-store`, `restore-p1-store-extended`):
   after RestoreStore without Continue, no two computers hold different
-  records at one position, with the plan's exemption for the agent key
-  after a removal. This is what the guard guarantees. The stronger
+  records at one position, with the plan's exemption for the agent key: a
+  removal that the restored copy does not hold, signed after the copy or
+  signed before it and never delivered to it. This is what the guard
+  guarantees. The stronger
   `StoreNoReuse` fails, by design: a record that was lost everywhere can
   have its position used again under the plan's two rules for that, the
   never-shared release of the governance mark and the give-up of an agent

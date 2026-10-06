@@ -2,7 +2,13 @@
 
 Measured results, 6 October 2026. This note is the gate for phase G1 of the
 [host safety and ending plan](../docs/host-safety-and-ending-plan.md) and the
-recorded note its exit criteria ask for (G1, "Exit criteria", last item).
+recorded note its exit criteria ask for (G1, "Exit criteria", last item). It
+meets that criterion in part. Still owed: a reboot on APFS (the criterion
+asks whether `FileId` stays equal across one); native ext4 on a plain Linux
+disk (reboot, rename, `cp -R`, `rsync -a` and the inode-reuse probe,
+including a file system that reports no creation time); and the same rows
+for the marks directory beside the data directory. The plan's exit
+criterion says what may be built before they land.
 
 G1's restore guard decides, at every start, whether the database file is the
 file this installation last used. It answers with `FileId { ino, created_ms }`:
@@ -77,8 +83,8 @@ untouched — a restore of the data directory does not carry it — so the marks
 read as *kept* and the start lands in row 1 or 2, exactly as the plan's layout
 intends. In the whole-fixture copies and the cross-volume move, the marker and
 its directory changed identity with everything else, so the marks file's
-header check (`FileId` of its own directory, G1's `marks.rs` item) reads them
-as *lost or a copy* and the start lands in row 4, a copy of unknown age.
+header check (`FileId` of the marks file itself, G1's `marks.rs` item) reads
+them as *lost or a copy* and the start lands in row 4, a copy of unknown age.
 
 How to read the creation-time column:
 
@@ -111,10 +117,13 @@ How to read the creation-time column:
 Measured on both systems: `cp older.sqlite data/db.sqlite` over the existing
 path and `rsync --inplace` keep the inode *and* the creation time while the
 content verifiably rolls back (5 → 3 rows). The start lands in row 1. What the
-plan already does about it: row 1's own caveat — "If a mark is ahead of the
-store all the same, the database was overwritten in place, and that goal is
-treated as in the next row" (first table, G1 "Changes") — so with the marks
-kept, every goal that signed anything since the copy is caught; this is the
+plan does about it: row 1's own caveat — if a mark is ahead of the store all
+the same, the database was overwritten in place, and because one file holds
+every goal, every goal is treated as in the next row, not only the one whose
+mark is ahead (first table, G1 "Changes") — so with the marks
+kept, every goal that signed anything since the copy is caught and held, and
+every other goal still gets `restore_found`: where this computer hosts it,
+its pending invitations are revoked; this is the
 test `a_database_overwritten_in_place_is_found_by_its_marks` (G1 "Tests",
 `durable_tests.rs` item), and `restore_found` runs for such a goal (G1
 "Changes", `Node::restore_found`). What it does not cover: the marks are the
@@ -126,14 +135,18 @@ the database and the marks in place — a disk image, a VM or volume snapshot �
 is residual 2, invisible by construction; the plan's only answer is the
 farm-service check `guard_attest` for public goals, and only as far back as
 the last request the service saw (G1 "Changes", `Node::guard_attest`). For a
-goal where no mark is ahead, an in-place overwrite is invisible by design:
-nothing this daemon signed in that goal was lost, and records it merely
-received return by exchange. One more measured limit: where the filesystem
+goal where no mark is ahead, an in-place overwrite loses nothing this daemon
+signed in that goal, and records it merely
+received return by exchange; such a goal is noticed but not held when another
+goal's mark is ahead. What stays invisible is the overwrite where no goal in
+the file has a mark ahead: the start is ordinary, and what silently comes
+back is local — invitations revoked since the copy are pending again, and
+settings changed since are as the copy held them. One more measured limit: where the filesystem
 reports no creation time (tmpfs, measured) `created_ms` is `None`, and the
 measured inode reuse on overlayfs shows that an allocator can hand a replaced
 file its old number back; a filesystem with both properties would make even a
 replaced directory read as the same file. This is the plan's note "The first
-table rests on file numbers" ("Risks and notes") seen from the other side.
+table rests on file identity" ("Risks and notes") seen from the other side.
 
 **An ordinary start that G1 would take for another file — a false alarm on
 every start.** Not reproduced on this Mac. Ordinary use keeps both values:
@@ -143,7 +156,16 @@ survives. Locust itself never vacuums: `crates/locust-store` sets
 `journal_mode=WAL` and runs `wal_checkpoint(FULL)` (`connection.rs`), and no
 code path replaces the database file. A rename — the one operation the plan's
 exit criterion calls out — changes nothing either. So on APFS there is no
-ordinary path to a false alarm. What the plan does about the shape anyway:
+ordinary path to a false alarm, with one exception, and it is the clamp above
+seen from the other side: on APFS the creation time of the same file or
+directory drops whenever anything sets an earlier modification time. A tool
+that back-dates an existing file's mtime (`touch -t`, or `rsync -a` writing
+onto a file whose mtime is newer than its creation time) lowers its creation
+time with no copy, and the next start reads the file as another one. The
+clamp itself is measured above for new copies; the same-file case is named
+by the K1 review of 6 October 2026 and was not separately run. The cost is
+row 2's, and the rule stays: Linux needs the creation time, and erring
+toward "another file" is the safe direction. What the plan does about the shape anyway:
 the same "Risks and notes" item accepts it as conservative for filesystems
 that do not keep file numbers across a remount ("every start looks like a
 copy: pending invitations are revoked at each start, and with the marks on
@@ -170,6 +192,11 @@ restore, which is the safe direction for the guard to err.
 - **A reboot.** The exit criterion asks whether `FileId` stays equal across a
   reboot; rebooting this Mac was out of scope. The rename half of that
   criterion is measured above (stays equal).
+- **A restore of both folders into the surviving home.** The row-4 conclusion
+  above rests on copies made to a new place. A restore that puts the data
+  directory and the marks back together into the surviving base (`rsync -a`,
+  tar, `ditto`, `cp -R` into the existing directories) was not run. G1's
+  drill covers it by command before the phase is done.
 - **Native ext4.** No bare-metal Linux was at hand; the Linux rows are
   Docker's overlayfs (which does report birth time) on an ext4-backed VM, plus
   the tmpfs probe. An ext4 filesystem with small inodes — the real-world case
