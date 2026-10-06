@@ -467,4 +467,4 @@ Removed or rewritten:
 | A daemon that does not hold the host's agent never accepts, and reports the change as waiting for the host's computer. | `a_daemon_without_the_host_agent_never_accepts`; `goal status` on the member's computer. |
 | A formation with no `workspace` part has no shared files; with one, the signer is the host's agent. | `no_policy_means_no_files_and_a_policy_makes_the_host_agent_the_signer`. |
 | A request to accept a file change is refused as state, whoever sends it. | An added case in Phase 3's `levels.rs` for `ScopeDecided` at workspace scope. |
-| What two acceptances by the host's agent after one predecessor stop: the files only, or the whole goal. | `two_host_acceptances_after_one_predecessor`, written first; its result goes to the owner. |
+| Two acceptances by the host's agent after one predecessor dispute only the files when they sit at different positions of its log, and halt governance when they share one. | `host_integrator_acceptances_at_distinct_log_positions_dispute_only_workspace` and `host_integrator_acceptances_at_same_log_position_halt_governance`, both already in the tree from `7bcdbbc`; renamed here. |

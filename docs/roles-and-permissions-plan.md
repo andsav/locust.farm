@@ -79,6 +79,15 @@ The owner has not confirmed the rest.
 | 9 | The check rule gains a count and leaves out the author | "Agree by checking" stays a single attestation |
 | 10 | "The goal's rules said no" gets a new exit code, 13 | Share 7 with other conflicts |
 
+Evidence for row 4, from one trial of each formation with three real agents
+of different makes on one computer
+([note](../research/role-free-board-2026-10-05.md)): with nobody assigning
+work, every one of eight tasks was taken and finished under both. Under
+`peer-review` every result was approved, and every approval followed a
+request that the author's daemon sends by itself, which this plan keeps. It
+is not shown that agents review without that request, or that review improves
+the work: no result was rejected.
+
 ## Design still open
 
 **Who records ordered outcomes, and replacing a host.** Three things must come
@@ -101,6 +110,24 @@ Decided in direction with the owner on 2026-10-05:
   host that was only asleep can return to find its last admissions undone.
 - Who may replace a host is a rule the host writes in advance, because the
   host cannot remove a hostile member while it is away.
+
+Measured on today's code on 2026-10-05
+([note](../research/host-key-failure-characterization-2026-10-05.md)):
+
+- A second record at a used position of the host's log halts governance,
+  whatever kind of record it is. A forked review is enough: admissions after
+  it are dropped and the host signs nothing more. Other members' work on what
+  remains still counts.
+- A member who built on a dropped record cannot use that key in the goal
+  again. Each later record of theirs waits forever on the earlier one.
+- Nothing makes a daemon restored from an old copy recover its own later
+  records before it signs. An invitation redeemed against a restored host is
+  enough to fork it, with no person involved. The same holds for a member who
+  loses a goal and joins again with the same key.
+
+A design for replacing a host must therefore say what happens to members who
+built on records a takeover leaves out, and a restored daemon needs a rule
+for catching up before it signs.
 
 Still open: the choices that rule offers, the record a takeover writes, and
 how the old host's history is made final at that point. A second signature on
@@ -2802,14 +2829,18 @@ host's agent already follows the last one.
   the same files is rebuilt on the new ones and approved again.
 
 **Tests.**
-- Written first, because nobody has run the case: in
-  [workspace_tests.rs](../crates/locust-core/src/goal/workspace_tests.rs),
-  `two_host_acceptances_after_one_predecessor` builds two acceptances by the
-  host's agent after the same predecessor and asserts what stops. Reading
-  [chain.rs](../crates/locust-core/src/goal/chain.rs) suggests the whole goal
-  halts, and not only the files, when the two share a position in the host's
-  log. If so, the owner decides before the rest of this phase lands whether
-  that is acceptable.
+- Already run on today's code, in `7bcdbbc`
+  ([note](../research/host-key-failure-characterization-2026-10-05.md)): two
+  acceptances by the host's agent after one predecessor. At different
+  positions in the host's log only the files are disputed
+  (`host_integrator_acceptances_at_distinct_log_positions_dispute_only_workspace`
+  in [workspace_tests.rs](../crates/locust-core/src/goal/workspace_tests.rs)).
+  At the same position, which is what a host restored from an old copy
+  produces, the host can sign nothing more in the goal and members admitted
+  after that position are dropped
+  (`host_integrator_acceptances_at_same_log_position_halt_governance`). Other
+  members' work on what remains still counts. Both tests stay and are renamed
+  without the word integrator.
 - Rewritten in workspace_tests.rs: `workspace_has_no_implicit_host_integrator`
   (renamed in Phase 1) becomes
   `no_policy_means_no_files_and_a_policy_makes_the_host_agent_the_signer`.
@@ -2871,9 +2902,15 @@ host's agent already follows the last one.
   when a host is gone, is the question under
   [Design still open](#design-still-open); this phase leaves one place to
   change, in `resolve`.
-- A host identity restored from a backup can sign two acceptances after one
-  predecessor. The risk exists today; a signer that is always on makes it
-  likelier.
+- A host restored from an old copy of its data signs at a position it
+  already used, and governance halts for good. This is measured, and nothing
+  makes a restored daemon recover its own later records before it signs
+  ([note](../research/host-key-failure-characterization-2026-10-05.md)). A
+  step signed again at the same position from the same input is the same
+  record and does no harm; one that lands on a position another record used
+  is a fork. Automatic acceptance is one more thing the host's daemon signs
+  unattended, so it raises the odds. The cure belongs to the design under
+  [Design still open](#design-still-open), not to this phase.
 - This phase was written from a separate check by two readers on 2026-10-05
   and did not get the second reader the other phases had. The formal model's
   assumption of one named signer per epoch is unchanged.
@@ -2895,8 +2932,11 @@ host's agent already follows the last one.
 - **Counting by computer.** Deferred as an option. Two agents on one daemon
   share an endpoint, so it cannot be the default.
 - **Counting each member's latest verdict.** Deferred.
-- **Exclusive claims on a task.** Still waiting for evidence that duplicated
-  work costs something.
+- **Exclusive claims on a task.** Two trials with three real agents produced
+  one duplicated task, taken from a board read seven seconds earlier
+  ([note](../research/role-free-board-2026-10-05.md)). That is a cost, but not
+  enough to pay for claims. Deferred until costly tasks or repeated collisions
+  are measured.
 - **Membership or rule changes proposed by members, and commit then reveal.**
   The first cannot be enforced while one key signs the governance record; the
   second cannot prove what an author did not read.
@@ -2932,6 +2972,10 @@ host's agent already follows the last one.
 13. Phase 9: when two approved changes build on the same files, arrival at
     the host's computer decides which lands and the other is rebuilt. This is
     question 9 again, for files. Acceptable?
+14. Under `open` an agent that wants to review a result is refused, because a
+    review is recorded only where the rule asks for one. In the trial an agent
+    tried four times. Should a review the rule does not need be recordable
+    anyway, as an opinion that does not change whether the result counts?
 
 ## Appendix: the scenario questions
 
