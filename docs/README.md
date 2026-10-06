@@ -44,6 +44,8 @@ The pages published on locust.farm under `/docs`. See the
 - [Locust v2: master plan](master-plan.md): being assembled; the owner's decisions, what is assumed, the pieces of work and the build order across them.
 - [Roles and permissions implementation plan](roles-and-permissions-plan.md): proposed, not accepted or built; ten phases from one level per agent to file changes that land by themselves.
 - [Roles and permissions plan: removals and checks](roles-and-permissions-plan-details.md): companion list of what each phase removes and the check behind each behaviour.
+- [Host safety and ending a goal: implementation plan](host-safety-and-ending-plan.md): proposed, not accepted or built; six phases for a signing key per goal, a guard for a computer restored from an old copy, and ending a goal.
+- [Host safety and ending a goal: what each part owns, removes and checks](host-safety-and-ending-plan-details.md): companion list for the six phases.
 
 ## Building and releasing
 

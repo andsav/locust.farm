@@ -152,7 +152,7 @@ assumes" and "Questions for the owner".
   records the one with the lowest identifier among those it holds; the other
   author rebuilds and is approved again.
 
-From the host safety and ending plan, which is being assembled:
+From the [host safety and ending plan](host-safety-and-ending-plan.md):
 
 - No text a person reads names the signing key. Status says "Host: you".
 - The host cannot yet remove the agent they started a goal with. It can be
@@ -179,7 +179,7 @@ The contract is being revised against that review and the answers above.
 | Piece | Document | State |
 | --- | --- | --- |
 | Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases written. An [independent review](../research/roles-and-permissions-plan-review-2026-10-05.md) is folded in. Each phase was checked against the code by a second reader. |
-| Host safety and ending a goal | `docs/host-safety-and-ending-plan.md`, not yet in the repository | Six phases written and checked: the signing key (K1), the restore guard (G1, G2) and ending a goal (E1, E2, E3). A reader found 28 seams between them; the fixes are being applied. |
+| Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Six phases written and checked: the signing key (K1), the restore guard (G1, G2) and ending a goal (E1, E2, E3). A reader found 28 seams between them; the fixes are applied, and their consequences are written into the roles plan. E2 is being revised for answer 14. Four known gaps are listed at its top. |
 | Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | The old plan. About half its text survives. It is rewritten as nine phases, J0 to J8, once the contract is revised. |
 | Replacing a host | [research note](../research/replacing-a-host-2026-10-05.md) | The first version is decided (answers 11, 12 and 19). How a takeover works needs one more design round before it becomes phases. |
 
@@ -275,10 +275,16 @@ built. The full count is in
 
 ## How to review
 
+Two of the four pieces are written as phases and can be reviewed now: roles
+and permissions, and host safety and ending a goal. In the second, phase E2
+is being rewritten for answer 14. Public goals exists only as a contract
+that is marked for revision, so it can be reviewed for scope and not for
+detail. Replacing a host follows v2 and is a research note.
+
 1. The decisions and assumptions above.
-2. In the roles plan, "Intended behavior" and the terminal texts: they are
-   what a person will see.
-3. The build order.
+2. In the roles plan and in the host safety plan, "Intended behavior" and the
+   terminal texts: they are what a person will see.
+3. The build order and the size.
 4. Phase detail only where something looks wrong. Each phase was read
    against the code by a second reader, but nothing was built or run, so
    file-level claims are carefully read, not proven.

@@ -169,7 +169,10 @@ pieces, which is why no single ledger lists it. The larger ones:
     owners on 8 and on 16 computers, and a measured member ceiling that
     decides whether the door ships.
 11. **The host safety plan is not yet a document.** Its text is a file in a
-    session's scratch folder with 28 fixes still to apply.
+    session's scratch folder with 28 fixes still to apply. (Assembled later
+    the same day as the
+    [host safety and ending plan](../docs/host-safety-and-ending-plan.md),
+    with the fixes applied.)
 
 The smaller ones:
 
