@@ -150,6 +150,8 @@ pub struct Driver {
     /// Frames of the exchange being handled, reused across calls.
     frames: Vec<SyncMessage>,
     finishing_accepted: HashSet<u64>,
+    /// Next proof per historical contact; failed transports retry the same one.
+    halt_proof_cursor: HashMap<(GoalId, EndpointId), usize>,
     /// Monotonic sample from the current input, never a persisted timestamp.
     elapsed_ms: u64,
 }
@@ -296,6 +298,14 @@ impl Driver {
         let joins = host.joins();
         let peers = host.peers();
         let proofs = host.halt_proofs();
+        let mut proofs_by_pair: HashMap<(GoalId, EndpointId), Vec<&[WireEvent; 2]>> =
+            HashMap::new();
+        for (goal, endpoint, proof) in &proofs {
+            proofs_by_pair
+                .entry((*goal, *endpoint))
+                .or_default()
+                .push(proof);
+        }
         // Active peers and joins reconcile ordinarily; only contacts that
         // appear solely as halt-proof recipients get evidence-only delivery.
         let active: HashSet<(GoalId, EndpointId)> = peers
@@ -339,6 +349,15 @@ impl Driver {
                 None => (Initiator::new(pair.0), host.hints(&pair.1)),
             };
             initiator.set_remote(pair.1);
+            let proof = if !active.contains(&pair)
+                && let Some(available) = proofs_by_pair.get(&pair)
+                && !available.is_empty()
+            {
+                let cursor = self.halt_proof_cursor.entry(pair).or_insert(0);
+                Some((*available[*cursor % available.len()]).clone())
+            } else {
+                None
+            };
             self.dialed.insert(
                 number,
                 Dialed {
@@ -349,14 +368,7 @@ impl Driver {
                     initiator,
                     finishing: None,
                     received_refusal: None,
-                    proof: if active.contains(&pair) {
-                        None
-                    } else {
-                        proofs
-                            .iter()
-                            .find(|(goal, endpoint, _)| (*goal, *endpoint) == pair)
-                            .map(|(_, _, proof)| proof.clone())
-                    },
+                    proof,
                     proof_sent: false,
                     admitted: false,
                 },
@@ -367,9 +379,11 @@ impl Driver {
                 hints,
             });
         }
-        // Pairs no longer a member or a join are forgotten once idle.
+        // Pairs no longer a member or a join are forgotten once idle, along
+        // with their proof-delivery cursor.
         self.links
             .retain(|pair, link| link.in_flight.is_some() || live.contains(pair));
+        self.halt_proof_cursor.retain(|pair, _| live.contains(pair));
     }
 
     /// Starts a dialed exchange once it is open (`frame` is `None`), or feeds
@@ -385,10 +399,20 @@ impl Driver {
         let Some(dialed) = self.dialed.get_mut(&number) else {
             return;
         };
+        let exchange = ExchangeId::Dialed(number);
+        if (dialed.proof.is_some() || dialed.proof_sent)
+            && let Some(SyncMessage::Refused(reason)) = &frame
+        {
+            // A received refusal remains definitive even if our FIN is pending.
+            dialed.received_refusal = Some(*reason);
+            if dialed.finishing.replace(Ended::Refused(*reason)).is_none() {
+                out.push(PeerOutput::Finish(exchange));
+            }
+            return;
+        }
         if dialed.finishing.is_some() {
             return;
         }
-        let exchange = ExchangeId::Dialed(number);
         if dialed.proof.is_some() || dialed.proof_sent {
             if frame.is_none() {
                 out.push(PeerOutput::Evidence(exchange));
@@ -399,9 +423,6 @@ impl Driver {
                         goal: dialed.goal,
                     },
                 });
-            } else if let Some(SyncMessage::Refused(reason)) = frame {
-                dialed.finishing = Some(Ended::Refused(reason));
-                out.push(PeerOutput::Finish(exchange));
             }
             return;
         }
@@ -465,6 +486,13 @@ impl Driver {
                 let jitter = host.random() % (backoff.delay_ms / 2);
                 backoff.retry_at_ms = self.elapsed_ms.saturating_add(backoff.delay_ms - jitter);
             }
+        }
+        // Transport failures retry this proof; definitive outcomes rotate.
+        if (dialed.proof.is_some() || dialed.proof_sent)
+            && matches!(ended, Ended::Completed | Ended::Refused(_))
+            && let Some(cursor) = self.halt_proof_cursor.get_mut(&pair)
+        {
+            *cursor = cursor.wrapping_add(1);
         }
         host.exchange_ended(Report {
             goal: dialed.goal,

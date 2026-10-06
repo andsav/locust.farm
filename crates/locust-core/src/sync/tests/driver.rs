@@ -346,9 +346,9 @@ fn active_peers_reconcile_despite_retained_halt_proof_evidence() {
     let fork = founded.notes(&mut worker, 2);
     let proof = [fork[0].to_wire(), fork[1].to_wire()];
     host.halt_proofs
-        .insert((founded.goal, endpoint(2)), proof.clone());
+        .insert((founded.goal, endpoint(2)), vec![proof.clone()]);
     host.halt_proofs
-        .insert((founded.goal, endpoint(3)), proof.clone());
+        .insert((founded.goal, endpoint(3)), vec![proof.clone()]);
     let mut driver = Driver::new();
     let mut out = Vec::new();
     driver.handle(
@@ -593,4 +593,338 @@ fn only_its_own_next_frame_makes_a_readable_accepted_exchange_stop_reading() {
         exchange,
         frame: SyncMessage::Refused(Refusal::NotAMember),
     }));
+}
+
+/// A historical contact that owes more than one fork proof receives them in
+/// fair rotation: repeated completed exchanges deliver each proof in turn,
+/// instead of always selecting the first and starving the rest.
+#[test]
+fn historical_contact_rotates_through_multiple_halt_proofs() {
+    use locust_proto::engine::PeerTime;
+    let founded = Founded::new();
+    // endpoint 2 is an active member; endpoint 3 is a historical contact
+    // (not in the member set) that owes two distinct fork proofs.
+    let mut host = host(1, founded.replica(&[]), &[1, 2]);
+    let mut worker_a = locust_proto::testkit::Author::new(5);
+    let mut worker_b = locust_proto::testkit::Author::new(6);
+    let notes_a = founded.notes(&mut worker_a, 2);
+    let notes_b = founded.notes(&mut worker_b, 2);
+    let proof_a = [notes_a[0].to_wire(), notes_a[1].to_wire()];
+    let proof_b = [notes_b[0].to_wire(), notes_b[1].to_wire()];
+    assert_ne!(proof_a[0].id(), proof_b[0].id());
+    host.halt_proofs.insert(
+        (founded.goal, endpoint(3)),
+        vec![proof_a.clone(), proof_b.clone()],
+    );
+    let mut driver = Driver::new();
+    let mut out = Vec::new();
+    // Drive four completed exchanges and record which proof each delivered.
+    let mut delivered = Vec::new();
+    for step in 0..4 {
+        let elapsed = step * crate::sync::ANTI_ENTROPY_MS;
+        driver.handle(
+            &mut host,
+            PeerInput::Poll,
+            PeerTime {
+                unix_ms: elapsed,
+                elapsed_ms: elapsed,
+            },
+            &mut out,
+        );
+        let exchange = out
+            .iter()
+            .find_map(|output| match output {
+                PeerOutput::Open {
+                    exchange,
+                    endpoint: ep,
+                    ..
+                } if *ep == endpoint(3) => Some(*exchange),
+                _ => None,
+            })
+            .expect("historical contact opens an exchange");
+        out.clear();
+        // Opened: evidence preamble and hello.
+        driver.handle(
+            &mut host,
+            PeerInput::Opened(exchange),
+            PeerTime {
+                unix_ms: elapsed,
+                elapsed_ms: elapsed,
+            },
+            &mut out,
+        );
+        out.clear();
+        // First writable: the halt proof frame.
+        driver.handle(
+            &mut host,
+            PeerInput::Writable(exchange),
+            PeerTime {
+                unix_ms: elapsed,
+                elapsed_ms: elapsed,
+            },
+            &mut out,
+        );
+        let proof = out
+            .iter()
+            .find_map(|output| match output {
+                PeerOutput::Send {
+                    frame: SyncMessage::HaltProof(proof),
+                    ..
+                } => Some(proof.clone()),
+                _ => None,
+            })
+            .expect("halt proof delivered");
+        delivered.push(proof[0].id());
+        out.clear();
+        // Second writable: Done and Finish, marking the exchange Completed.
+        driver.handle(
+            &mut host,
+            PeerInput::Writable(exchange),
+            PeerTime {
+                unix_ms: elapsed,
+                elapsed_ms: elapsed,
+            },
+            &mut out,
+        );
+        assert!(
+            out.iter().any(|output| matches!(
+                output,
+                PeerOutput::Send {
+                    frame: SyncMessage::Done,
+                    ..
+                }
+            )),
+            "proof exchange completes with Done"
+        );
+        assert!(
+            out.iter()
+                .any(|output| matches!(output, PeerOutput::Finish(_))),
+            "proof exchange finishes"
+        );
+        out.clear();
+        driver.handle(
+            &mut host,
+            PeerInput::Finished(exchange),
+            PeerTime {
+                unix_ms: elapsed,
+                elapsed_ms: elapsed,
+            },
+            &mut out,
+        );
+        assert_eq!(host.reports.last().unwrap().ended, Ended::Completed);
+        out.clear();
+    }
+    // Fair rotation: a, b, a, b — both proofs delivered, neither starved.
+    assert_eq!(
+        delivered,
+        [
+            proof_a[0].id(),
+            proof_b[0].id(),
+            proof_a[0].id(),
+            proof_b[0].id()
+        ],
+        "proofs rotate fairly across completed exchanges"
+    );
+}
+
+/// A transport failure before a proof is delivered does not advance the
+/// cursor: the same proof is retried on the next exchange, so an aborted
+/// delivery loses no obligation.
+#[test]
+fn aborted_proof_delivery_retries_the_same_proof() {
+    use locust_proto::engine::PeerTime;
+    let founded = Founded::new();
+    let mut host = host(1, founded.replica(&[]), &[1, 2]);
+    let mut worker_a = locust_proto::testkit::Author::new(5);
+    let mut worker_b = locust_proto::testkit::Author::new(6);
+    let notes_a = founded.notes(&mut worker_a, 2);
+    let notes_b = founded.notes(&mut worker_b, 2);
+    let proof_a = [notes_a[0].to_wire(), notes_a[1].to_wire()];
+    let proof_b = [notes_b[0].to_wire(), notes_b[1].to_wire()];
+    host.halt_proofs.insert(
+        (founded.goal, endpoint(3)),
+        vec![proof_a.clone(), proof_b.clone()],
+    );
+    let mut driver = Driver::new();
+    let mut out = Vec::new();
+    // First exchange opens with proof_a (cursor 0) but fails to open.
+    driver.handle(
+        &mut host,
+        PeerInput::Poll,
+        PeerTime {
+            unix_ms: 0,
+            elapsed_ms: 0,
+        },
+        &mut out,
+    );
+    let exchange = out
+        .iter()
+        .find_map(|output| match output {
+            PeerOutput::Open {
+                exchange,
+                endpoint: ep,
+                ..
+            } if *ep == endpoint(3) => Some(*exchange),
+            _ => None,
+        })
+        .expect("historical contact opens an exchange");
+    out.clear();
+    driver.handle(
+        &mut host,
+        PeerInput::OpenFailed(exchange),
+        PeerTime {
+            unix_ms: 0,
+            elapsed_ms: 0,
+        },
+        &mut out,
+    );
+    assert_eq!(host.reports.last().unwrap().ended, Ended::Aborted);
+    out.clear();
+    // After the backoff window, the retry still selects proof_a: the cursor
+    // did not advance on the aborted delivery.
+    driver.handle(
+        &mut host,
+        PeerInput::Poll,
+        PeerTime {
+            unix_ms: crate::sync::MIN_BACKOFF_MS,
+            elapsed_ms: crate::sync::MIN_BACKOFF_MS,
+        },
+        &mut out,
+    );
+    let exchange = out
+        .iter()
+        .find_map(|output| match output {
+            PeerOutput::Open {
+                exchange,
+                endpoint: ep,
+                ..
+            } if *ep == endpoint(3) => Some(*exchange),
+            _ => None,
+        })
+        .expect("historical contact retries after backoff");
+    out.clear();
+    driver.handle(
+        &mut host,
+        PeerInput::Opened(exchange),
+        PeerTime {
+            unix_ms: crate::sync::MIN_BACKOFF_MS,
+            elapsed_ms: crate::sync::MIN_BACKOFF_MS,
+        },
+        &mut out,
+    );
+    out.clear();
+    driver.handle(
+        &mut host,
+        PeerInput::Writable(exchange),
+        PeerTime {
+            unix_ms: crate::sync::MIN_BACKOFF_MS,
+            elapsed_ms: crate::sync::MIN_BACKOFF_MS,
+        },
+        &mut out,
+    );
+    let retried = out
+        .iter()
+        .find_map(|output| match output {
+            PeerOutput::Send {
+                frame: SyncMessage::HaltProof(proof),
+                ..
+            } => Some(proof[0].id()),
+            _ => None,
+        })
+        .expect("halt proof delivered on retry");
+    assert_eq!(
+        retried,
+        proof_a[0].id(),
+        "aborted delivery retries the same proof"
+    );
+}
+
+#[test]
+fn historical_proof_refusal_survives_close_before_finish_and_rotates() {
+    use locust_proto::{engine::PeerTime, sync::Refusal};
+    let step = |driver: &mut Driver,
+                host: &mut dyn crate::sync::Host,
+                input: PeerInput,
+                elapsed_ms: u64| {
+        let mut out = Vec::new();
+        driver.handle(
+            host,
+            input,
+            PeerTime {
+                unix_ms: elapsed_ms,
+                elapsed_ms,
+            },
+            &mut out,
+        );
+        out
+    };
+    let opened = |out: Vec<PeerOutput>| {
+        out.into_iter()
+            .find_map(|output| match output {
+                PeerOutput::Open {
+                    exchange,
+                    endpoint: remote,
+                    ..
+                } if remote == endpoint(3) => Some(exchange),
+                _ => None,
+            })
+            .expect("historical contact opens")
+    };
+    for finish_pending in [false, true] {
+        let founded = Founded::new();
+        let mut host = host(1, founded.replica(&[]), &[1]);
+        let mut worker_a = locust_proto::testkit::Author::new(5);
+        let mut worker_b = locust_proto::testkit::Author::new(6);
+        let notes_a = founded.notes(&mut worker_a, 2);
+        let notes_b = founded.notes(&mut worker_b, 2);
+        let proof_b = [notes_b[0].to_wire(), notes_b[1].to_wire()];
+        host.halt_proofs.insert(
+            (founded.goal, endpoint(3)),
+            vec![
+                [notes_a[0].to_wire(), notes_a[1].to_wire()],
+                proof_b.clone(),
+            ],
+        );
+        let mut driver = Driver::new();
+        let exchange = opened(step(&mut driver, &mut host, PeerInput::Poll, 0));
+        step(&mut driver, &mut host, PeerInput::Opened(exchange), 0);
+        step(&mut driver, &mut host, PeerInput::Writable(exchange), 0);
+        if finish_pending {
+            let out = step(&mut driver, &mut host, PeerInput::Writable(exchange), 0);
+            assert!(out.contains(&PeerOutput::Finish(exchange)));
+        }
+        step(
+            &mut driver,
+            &mut host,
+            PeerInput::Frame {
+                exchange,
+                frame: SyncMessage::Refused(Refusal::NotAMember),
+            },
+            0,
+        );
+        step(&mut driver, &mut host, PeerInput::Closed(exchange), 0);
+        assert_eq!(
+            host.reports.last().unwrap().ended,
+            Ended::Refused(Refusal::NotAMember),
+            "received refusal is definitive even with finish_pending={finish_pending}"
+        );
+        let retry_at = crate::sync::MIN_BACKOFF_MS;
+        let exchange = opened(step(&mut driver, &mut host, PeerInput::Poll, retry_at));
+        step(
+            &mut driver,
+            &mut host,
+            PeerInput::Opened(exchange),
+            retry_at,
+        );
+        let out = step(
+            &mut driver,
+            &mut host,
+            PeerInput::Writable(exchange),
+            retry_at,
+        );
+        assert!(out.contains(&PeerOutput::Send {
+            exchange,
+            frame: SyncMessage::HaltProof(proof_b),
+        }));
+    }
 }

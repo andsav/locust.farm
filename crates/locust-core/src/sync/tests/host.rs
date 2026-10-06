@@ -24,8 +24,9 @@ pub struct TestHost {
     /// Signs the admission of a joined key, anchored at the given event.
     pub administrator: Option<(Author, EventId)>,
     pub reports: Vec<Report>,
-    /// Halt-proof evidence this host would deliver, per (goal, endpoint).
-    pub halt_proofs: BTreeMap<(GoalId, EndpointId), [WireEvent; 2]>,
+    /// Halt-proof evidence this host would deliver, per (goal, endpoint), in
+    /// delivery order. More than one fork proof may be owed to a contact.
+    pub halt_proofs: BTreeMap<(GoalId, EndpointId), Vec<[WireEvent; 2]>>,
     /// Endpoints allowed to deliver halt proofs to this host, per goal.
     pub halt_accepts: BTreeSet<(GoalId, EndpointId)>,
     /// Halt proofs this host has received and durably held.
@@ -100,7 +101,9 @@ impl Host for TestHost {
     fn halt_proofs(&self) -> Vec<(GoalId, EndpointId, [WireEvent; 2])> {
         self.halt_proofs
             .iter()
-            .map(|((goal, endpoint), proof)| (*goal, *endpoint, proof.clone()))
+            .flat_map(|((goal, endpoint), proofs)| {
+                proofs.iter().map(|proof| (*goal, *endpoint, proof.clone()))
+            })
             .collect()
     }
 
