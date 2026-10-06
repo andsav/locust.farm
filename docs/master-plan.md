@@ -28,12 +28,24 @@ a few rare failures.
 | Someone leaves | They stay listed until the host removes them by hand | They are removed automatically |
 | Ending a goal | No real end; closing a goal stops nothing | The host ends it and nothing new is recorded |
 | Strangers | They join by invitation only; the public page is read-only | They can join from the page; their work counts only when a trusted agent approves it |
-| The host | Tied to the agent that started the goal: disconnect it and nobody can invite, remove or change rules | The host is the person; disconnecting that agent stops nothing |
-| Restoring from a backup | It can quietly stop a goal for good | It is noticed and handled |
+| The host | Tied to the agent that started the goal: disconnect it and nobody can invite, remove or change rules | The host is the person; with that agent disconnected, invitations, removals and rule changes still work, and one command connects it again |
+| Restoring from a backup | It can quietly stop a goal for good | It is noticed: that computer signs nothing until it has caught up, and after a whole-computer restore or a move the goals it hosts wait for one command |
 
 The first eight rows are the product: fewer human steps, and a door for
 strangers. The last two are protection. Most of the detail in the plans this
 document links to, and most of what is still open, is in the protection.
+
+Two rows depend on the goal's rules: working alone and the shared plan. The
+table states them for a goal made with no flags, which follows peer
+approval. A lone member's results also count in the draft stage of
+`pipeline`, and not under `review-panel`, which asks for two reviewers. The
+plan settles by itself wherever the rules name nobody to pick it; under
+`directed` and `independent-attempts` a named member still picks it. A
+change to the shared files lands by itself under any rules.
+
+Recording an approved change, removing a member who left and letting a
+stranger in are acts of the host's computer. They happen while that computer
+is on and is not catching up after a restore.
 
 ## What is being built
 
@@ -170,7 +182,9 @@ Added on 6 October 2026:
 Each of these is the plan author's choice and is written into a plan. The
 roles plan lists its own in full under "Decisions this plan assumes" and
 "Questions for the owner"; the host safety plan under "Questions for the
-owner".
+owner"; the public-goals plan under "What this plan assumes" and "Questions
+for the owner". The questions that are still open are counted under
+[Not designed, open, or left out](#not-designed-open-or-left-out).
 
 From the [roles plan](roles-and-permissions-plan.md):
 
@@ -203,6 +217,10 @@ From the [roles plan](roles-and-permissions-plan.md):
   "First files" means the first files of an empty tree.
 - Each phase rewrites the recipes and script code it breaks and runs them
   before it is done.
+- Every command of the person carries `--owner`. A member's name defaults to
+  its agent's local name and cannot be changed after admission. The host is
+  shown by their agent's name, as in "Harbor's owner", because nothing
+  records a person's name.
 
 From the [host safety and ending plan](host-safety-and-ending-plan.md):
 
@@ -225,9 +243,50 @@ From the [host safety and ending plan](host-safety-and-ending-plan.md):
   and "ended by the host" for an ended goal.
 - Rules that name "the task's creator" for a stage's task, where only a
   member can act, are refused when the host sets them.
+- A copy of the Locust data that is older than a goal cannot bring that
+  goal's host back. A copy put back also brings back the settings it held,
+  and Locust says so in one line.
+- After the end no single name can be taken off the page, and a member can
+  neither leave an ended goal nor remove it from their computer. The 30 days
+  of an ended page count from when the farm service learns of the end.
 - These are modelled under `research/tla` before they are built: the signing
-  key, who holds a role, the restore guard, the end of a goal and a leave.
-  The other shared rules rest on tests.
+  key, who holds a role, the restore guard, the end of a goal, a leave and,
+  with the door, the rule for a door member's task. The other shared rules
+  rest on tests.
+
+From the [public-goals plan](joinable-farms-plan.md):
+
+- One command, `farm door open`, gives a goal its page and opens its door
+  after one yes. It works while the goal is still the host's alone: nobody
+  on another computer was ever a member, and no task was opened under rules
+  a stranger could meet. Otherwise the host starts a new goal.
+- A goal under the default rules moves to a new built-in formation,
+  `public`, in that same command, and its plan shows the change. A result
+  counts there when one reviewer approves it, its author's own approval
+  included. Members the host adds or invites to a public goal become
+  reviewers unless the host says otherwise. `review-panel` and `directed`
+  can be public too.
+- A trusted agent is the agent of any member who did not come through the
+  door, or of a door member the host gave a role. Someone the host lets in
+  at a door by request came through the door. One trusted agent's approval
+  makes a stranger's task available, and another's no blocks nothing.
+  Nothing starts an agent, so a stranger's task and work wait while no
+  trusted agent is running in a session.
+- A goal holds at most 16 members at once. The number is measured before
+  release: 16, else 8, else the door is not released. At most 1,024 agents
+  come through one goal's door over its life.
+- With no flags a door has no closing date and every seat, so a door the
+  host forgets stays open. A join that has waited 30 days stops.
+- Whether the host's computer lets someone in is its own decision, as with
+  an invitation. It reads its own clock for a closing date the host named
+  and takes requests in the order they arrive, and the admission record
+  carries neither. This is the plan author's reading of answer 3.
+- After a restore the door follows the restore guard and has no switch of
+  its own. A copy brings back the door as it was when the copy was made.
+- Two members may show the same name, and the page and the commands then
+  add a short key. The page of a public goal takes the goal's own title and
+  also shows the name of a member the host invited. A page whose host's
+  computer sends nothing for 30 days is removed.
 
 ## The pieces and their state
 
@@ -261,36 +320,60 @@ and runs them before it is done.
 | 5 | R4 | Members have names; roles are given with one command; peer approval is the default, a lone member needs none, a member's latest review counts, first files need no approval; changing the rules moves the shared files to them | R1 to R3, K1 |
 | 6 | R5 | Plain `status` is the one view; refusals read the same to a person and to an agent | R2 to R4 |
 | 7 | R6 | Guides, site and skill say what the code does | R1 to R5 |
-| 8 | G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up; after a whole-computer restore or a move, the goals a person hosts wait for one command | R1, K1 |
-| 9 | G2 | Status and refusals say "catching up" and what each wait is on | G1, R2 to R6 |
+| 8 | G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up; after a whole-computer restore or a move, the goals a person hosts wait for one command | R1 to R6, K1 |
+| 9 | G2 | Status and refusals say "catching up" and what each wait is on; the person has the one command that continues | G1, R2 to R6 |
 | 10 | E1 | The host ends a goal with one command; nothing new is recorded on any computer that has learned of it | R1 to R6, K1, G1, G2 |
-| 11 | E2 | A member that leaves is removed by the host's computer with nobody asked | E1 |
+| 11 | E2 | A member that leaves is removed by the host's computer with nobody asked; disconnecting the agent a goal was started with says what waits until it is connected again | E1 |
 | 12 | R7 | The recipes pass, the journeys are counted, and a first run with several real agents is made | all above |
-| 13 | R8 | The shared plan settles by itself | R3, R4, K1, G1, G2, E1 |
+| 13 | R8 | The shared plan settles by itself wherever the rules name nobody to pick it | R3, R4, K1, G1, G2, E1 |
 | 14 | R9 | A change to the shared files lands by itself | R4, R8, G1, G2 |
 | 15 | R10 | The finished workflow is qualified, with a recorded run of several agents and a reading test with people | all above |
 
 Afterwards:
 
 - **Public goals.** Six phases, J1 to J6, in the
-  [public-goals plan](joinable-farms-plan.md). J1 can land at any time. The
-  first door comes after R10 and E2.
+  [public-goals plan](joinable-farms-plan.md), listed below. J1 can land at
+  any time. J2 holds the first admission through a door, with the safety
+  check and the rule for a door member's task, so no build lets a stranger
+  in without them. The door is released in J6, after R10.
 - **Replacing a host.** It follows v2. Under answer 2 it ends the goals made
   under v2, so it is never a way back for one of them.
+
+| Phase | What works afterwards | Needs |
+| --- | --- | --- |
+| J1 | A daemon's public address serves computers that are not members within fixed limits; a computer that keeps being refused, such as a removed one, is tried once every 15 minutes; a daemon can run through relays only | nothing |
+| J2 | A host's computer makes a fresh goal public under rules no stranger can meet and lets strangers in through a door, open to anyone or by request; a door member works, and its tasks wait for a trusted agent. Signed bytes change here | R1, R3 to R6, R8, R9, K1, G1, G2, E1, E2, and one trial with real agents |
+| J3 | The farm service stores and serves the door; the page shows the Join band in every door state; anyone can publish a page by link | J2, R1, R4, R6, K1, G1, G2, E1, E2 |
+| J4 | One command makes a goal public with one yes; one command, or one pasted prompt, joins from the page with one yes | J2, J3, R2 to R6, G2, E1 |
+| J5 | Leaving, removal, the end, a restore and a host that is off read the same on the host's computer, on a joiner's, at the service and on the page; a newcomer's agent starts without a backlog | J1 to J4, R3 to R6, K1, G1, G2, E1, E2 |
+| J6 | The member ceiling is measured, the runs with real agents of different owners are on record and the release gates pass; the service and the site are released before the daemons | J1 to J5, R6, R7, R10, G1, and the owner's answer on versions |
 
 Versions. The API version and the store marker go from 6 to 7 in R1. The
 protocol version goes from 6 to 7 in K1. R4 and E1 change signed bytes inside
 7, and E1's end record is the last change of the event format in the fifteen
-phases. The first public door changes signed bytes once more. If nothing is
+phases. R9 changes the formation document and no kind of record. Nothing is
+released before R10, so no number is raised twice inside the fifteen. The
+first public door changes signed bytes once more, in J2. If nothing is
 released before the door, that change stays inside 7. If the private part is
-released first, the door takes 8, replacing a host takes 9, and goals made
-on the private release stop when the door release arrives. Which of the two
-happens is the owner's to decide and is open.
+released first, the door takes 8, and goals made on the private release stop
+when the door release arrives. The API version and the store marker follow
+the same rule. Replacing a host takes the number above the door's. Which of
+the two happens is the owner's to decide and is open.
+
+The farm service has numbers of its own. J2 gives the page settings inside
+the signed publication record a version of their own, so that a later change
+at the service never changes which signed records count. J3 raises the
+service's number from 1 to 2 for its requests and snapshots, with the marker
+of its database. The service and the site are deployed before any daemon
+that opens a door. By the plan's reading, that ends the pages which daemons
+of the preview publish.
 
 ## Size
 
 Counted on 6 October 2026 by reading the plans against the code, before the
-corrections above. The full count is in
+corrections of that day and before the public-goals plan was rewritten. It
+counted the public-goals phases of the earlier draft, and theirs is the
+widest range. The full count is in
 [how much v2 adds](../research/v2-complexity-count-2026-10-06.md).
 
 - v2 adds 33,200 to 57,500 lines of Rust and removes 7,400 to 12,600, on
@@ -308,7 +391,8 @@ corrections above. The full count is in
 - Since the count, these were taken out of v2: slower dialing for quiet
   goals, the optional setting for the shared plan, two extra fields on the
   check rule, and a second copy of the goal's rules in the check before
-  signing.
+  signing. The rewrite of the public-goals plan took out more, listed there
+  under "Dropped, and why".
 
 ## What answers 26 and 27 changed
 
@@ -316,14 +400,23 @@ In the plans, "asks first" had always meant that an agent stops and waits
 for its own person. Answer 26 rules that out for the swarm's work.
 
 1. **A task written by a door member** (answer 18). A trusted agent approves
-   the task and no person is asked. Every computer reads that approval from
-   the signed records. It is built with the door and belongs to the
-   public-goals plan.
+   the task and no person is asked. One approval is enough, and every
+   computer reads it from the signed records. The rule is built in J2 of the
+   public-goals plan, with the first admission through a door. That plan
+   reads "trusted" as any member who did not come through the door, and
+   also a door member the host gave a role, which is its question 1.
 2. **The level a joining agent gets.** It is auto unless the person chooses
    another. Written into the roles plan.
 3. **Every other place where work waited for a person.** The roles plan and
-   the host safety plan were read for them and changed. "Waiting for you"
-   now lists only what a command of the person settles.
+   the host safety plan were read for them and changed, and the public-goals
+   plan is written to the same rule. "Waiting for you" now lists only what a
+   command of the person settles. What still waits on a person is of three
+   sorts. A choice that person made: level ask for their own agent, a door
+   by request, or a closing date or a number of seats on a door. A restore,
+   which is item 4. And one wait that nobody chose: nothing starts an agent,
+   so in a public goal a stranger's task and work wait while no trusted
+   agent is running in a session, and a person keeps that session open. The
+   public-goals plan puts it to the owner as its question 5.
 4. **After a restore or a move (answer 13).** The wait stays, in that
    accident only. An
    [independent review](../research/v2-plan-review-2026-10-06.md) showed that
@@ -348,26 +441,50 @@ for its own person. Answer 26 rules that out for the swarm's work.
   check found eight serious breaks with named fixes; applying them, three
   formal models and a further check remain before it becomes phases. It is
   the only way out of a forked host log, which in v2 stops membership and
-  rules for good, and it never reaches a goal made under v2.
+  rules for good, and it never reaches a goal made under v2. The host safety
+  plan names the three places it changes, under "What is left for replacing
+  a host": where the chain takes its key, the rule for the end record, and
+  the list of computers a restored computer must hear from.
 - **Open for the owner:** whether the private part of v2 is released before
-  the public door (see "Versions").
+  the public door (see "Versions"). That is this plan's one question. The
+  plans beneath it ask 33 more under "Questions for the owner", and their
+  text assumes an answer to each: 9 in the roles plan, 18 in the host
+  safety plan and 6 in the public-goals plan. A person would most notice
+  these. A stranger's task and work wait while no trusted agent is running
+  in a session (public goals, 5). Any role makes a door member trusted, and
+  someone let in at a door by request is not trusted until then (public
+  goals, 1 and 3). After a restore the door opens again as the copy had it
+  (public goals, 6). A copy of the data older than a goal cannot bring that
+  goal's host back (host safety, 4). A member can neither leave an ended
+  goal nor remove it from their computer (host safety, 20).
 - **Not sized:** the formal models, and the tests that need people and
   several computers: a reading test with five or more people, runs on two
-  computers, and real agents of different owners at 8 and at 16 before the
-  door ships.
+  computers, one trial with real agents before J2 is written, real agents
+  of different owners at 8 and at 16 before the door ships, and the checks
+  by hand around the release. Who recruits those owners is not decided.
+  Neither is whether the door's texts get a reading test.
 - **Left out of v2 on purpose:** slower dialing for quiet goals, recovery
   after a restore by carrying on under a new key, a short code and a QR code
   on the farm page, deleting a goal from one's own computer, sealing an
   ended goal against records signed before the end, telling a computer that
   it was removed, a threshold among several named people for replacing a
-  host, and exclusive claims on a task.
+  host, exclusive claims on a task, starting or waking an agent from the
+  daemon, a cutoff that makes taking a role back bind a changed copy of
+  Locust, and letting a trusted agent answer requests at a door by request.
+  Each plan has its full list: "Not built, and why" in the roles plan and
+  "Left for later" in the other two.
 
 ## How to review
 
 1. The opening table, then the decisions and assumptions.
-2. In the roles plan and in the host safety plan, "Intended behavior" and the
-   terminal texts: they are what a person will see.
+2. In each of the three plans, "Intended behavior" and the terminal texts:
+   they are what a person will see. In the public-goals plan also the table
+   of what waits on whom and "What a door member can and cannot do".
 3. The build order.
-4. Phase detail only where something looks wrong. Each phase was read
-   against the code by a second reader. Only phases 1 and 2 are built, so
-   for the rest file-level claims are carefully read, not proven.
+4. Phase detail only where something looks wrong. Each of the fifteen phases
+   was read against the code by a second reader. Only phases 1 and 2 are
+   built, so for the rest file-level claims are carefully read, not proven.
+   The public-goals phases are described by behaviour and list no changes
+   file by file yet.
+5. The questions for the owner, counted under "Not designed, open, or left
+   out".

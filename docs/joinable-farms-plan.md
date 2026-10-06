@@ -572,11 +572,12 @@ With any other value that is not an address:
 **J2-1. The host's status with an open door**
 
 Proposed output of locust --owner status on Ana's computer, in the form of the
-roles plan's P5-1. The door line and the count line are J2's. The count is by
-author and is never an entry under 'Waiting for you'. Below it are the three
-lines that follow the count when no trusted agent can approve, one per cause.
-Each names who is waited for and why, and prints the command that ends the
-wait where a command does. The level line prints ask, the least level that
+roles plan's P5-1. The door line and the count line are J2's. Ana named no
+closing date and no number of seats, so the door line shows neither. The count
+is by author and is never an entry under 'Waiting for you'. Below it are the
+three lines that follow the count when no trusted agent can approve, one per
+cause. Each names who is waited for and why, and prints the command that ends
+the wait where a command does. The level line prints ask, the least level that
 approves, as the roles plan's refusal 1 does for read. For an agent with no
 running session there is no command: Locust cannot start an agent.
 
@@ -586,7 +587,7 @@ Nothing is waiting for you.
 Static site search (7f3a9c1e) · host: you
   Harbor (claude-harbor-51c2e9aa) · reviewer · auto
       posts, reviews, approves door members' tasks; takes tasks on its own
-  Door: open · 5 of 64 seats used · 6 of 16 members · closes 2026-11-05
+  Door: open · 6 of 16 members
     locust --owner farm door close --goal 7f3a9c1e
   13 tasks from people who came through the door wait for a trusted agent's approval
     (10 by Wren, 3 by Pike).
@@ -609,27 +610,32 @@ When no trusted agent can approve, one of these follows the count line, by cause
 **J2-2. The door line in each state, and requests at a door by request**
 
 Proposed. One line per answer of door_state, as the host's status prints it
-under the goal. J2 owns these sentences; J4 and J5 quote them. Every command
-runs as printed: a bare farm door open on a door closed for its date or its
-seats applies the default again, 30 more days or 64 more seats, so the line
-carries no placeholder. A door whose 1024 seats are all used prints no
-command. A request at a door by request is an entry under 'Waiting for you',
-because farm door admit settles it. Pike's key prefix is invented for the
-example.
+under the goal. J2 owns these sentences; J4 and J5 quote them. The first line
+is a door opened with no flags: it has no closing date and every seat, and the
+line shows neither. The second is a door whose host named 64 seats and a
+closing date. Every command runs as printed and carries no placeholder. A bare
+farm door open on a door whose date has passed opens it again with no date. A
+door whose named seats are used opens again only with more seats, so its line
+prints --seats 1024, every seat a goal can have; the host may type another
+number. A door whose 1,024 seats are all used prints no command. A request at
+a door by request is an entry under 'Waiting for you', because farm door admit
+settles it. Pike's key prefix is invented for the example.
 
 ```text
+  Door: open · 6 of 16 members
+    locust --owner farm door close --goal 7f3a9c1e
   Door: open · 5 of 64 seats used · 6 of 16 members · closes 2026-11-05
     locust --owner farm door close --goal 7f3a9c1e
   Door: open by request · 2 waiting
     locust --owner farm door close --goal 7f3a9c1e
   Door: full · 16 of 16 members · a place opens when someone leaves
   Door: closed · all 64 seats used
-    locust --owner farm door open --goal 7f3a9c1e
+    locust --owner farm door open --goal 7f3a9c1e --seats 1024
   Door: closed · its closing date, 2026-11-05, has passed
     locust --owner farm door open --goal 7f3a9c1e
   Door: closed by you
     locust --owner farm door open --goal 7f3a9c1e
-  Door: closed · all 1024 seats used · this door cannot open again
+  Door: closed · all 1,024 seats used · this door cannot open again
   Door: closed while this computer is catching up
   Door: closed · this goal is halted
 
@@ -647,10 +653,12 @@ computer, one sentence per stored reason. J2 owns these sentences; J4 and J5
 quote them. The verb is G2's: Locust asks the host's computer again. The agent
 shows as joining and is never an entry under 'Waiting for you'. Each sentence
 says who is waited for. door_full is the answer for the ceiling only. A
-request that found the waiting list full reads as join_pending. The
-catching-up sentence is G2's word for word and promises no end. The sentence
-for no answer is Phase 5's. The last two reasons are final and the agent shows
-as refused.
+request that found the waiting list full reads as door_closed. The catching-up
+sentence is G2's word for word and promises no end. The sentence for no answer
+is Phase 5's. A waiting join stops by the joiner's own clock when its
+description lapses, which is after 30 days or at the door's closing date if
+that is sooner, and then reads the sentence marked stopped. The last two
+reasons are final and the agent shows as refused.
 
 ```text
 Static site search (7f3a9c1e) · host: Harbor's owner, on another computer
@@ -667,7 +675,7 @@ join_pending  The host lets each person in and has not answered this request. It
               host, not for you. Locust asks the host's computer again by itself.
 no answer     Admission has not arrived. It comes from the host's computer when that computer
               is on; nothing here waits for you.
-date passed   This door closed; start again from the goal's page.
+stopped       This door closed; start again from the goal's page.
 
   Wren (codex-wren-0a1b2c3d) · refused
 join_denied   The host turned this request down.
@@ -905,8 +913,8 @@ joining_door_member      /decisions/selection
     These rules name Wren (5e6f7a8b) directly, and Wren came through the door. Give Wren a role
     with role give instead.
 
-"Parser cleanup" cannot be made public: it has a member on another computer. Start a new goal
-  and open its door: locust --owner goal create, then locust --owner farm door open.
+"Parser cleanup" cannot be made public: it has, or had, a member on another computer. Start a
+  new goal and open its door: locust --owner goal create, then locust --owner farm door open.
 "Parser cleanup" cannot be made public: it has tasks under rules that someone who came through
   the door could meet. Start a new goal and open its door: locust --owner goal create, then
   locust --owner farm door open.
@@ -936,11 +944,12 @@ Row 6, whole:
 
 **J3-1. The Join band in each door state**
 
-Page text, as this phase builds it. The first two lines of each state are
-fixed by the plan; the site prints the state the host reported and works
-nothing out from seats or counts. J4 adds the prompt button and the command
-line between the state lines and the fine print (text J4-10). The last two
-blocks carry a line from the service's clock, marked as the farm service's
+Page text, as this phase builds it. The state lines are fixed by the plan; the
+site prints the state the host reported and works nothing out from seats or
+counts. The line Closes DATE prints only where the host named a closing date,
+so a door opened with no flags shows none. J4 adds the prompt button and the
+command line between the state lines and the fine print (text J4-10). The last
+two blocks carry a line from the service's clock, marked as the farm service's
 word. A page that is not public shows no band. The pictures under
 docs/mockups/joinable-farms are the old plan's and show layout only; where
 they differ, this text governs.
@@ -949,10 +958,14 @@ they differ, this text governs.
 OPEN, TO ANYONE
 Join this farm                                                              Hide
 Open · 10 places free
-Closes Nov 5
 Joining makes your agent a member of this goal. It can read everything in it and appears
 here under the name you choose. Needs a Mac with Apple Silicon.
 Goals made now end at the next change of Locust's signed format.
+
+OPEN, TO ANYONE, THE HOST NAMED A CLOSING DATE
+Open · 10 places free
+Closes Nov 5
+(fine print as above)
 
 OPEN, BY REQUEST
 Open by request · the host lets each person in
@@ -976,12 +989,11 @@ This page is removed on Nov 5.
 
 OPEN OR FULL, NO ACCEPTED REQUEST FOR 120 SECONDS
 Open · 10 places free
-Closes Nov 5
 Farm service: a join started now waits until the host's computer is back.
 (fine print as above. The status card above the band reads Quiet and Last check-in
 14 min ago, as it does today.)
 
-THE HOST STILL REPORTS OPEN, THE CLOSING DATE HAS PASSED BY THE SERVICE'S CLOCK
+THE HOST STILL REPORTS OPEN, A CLOSING DATE THE HOST NAMED HAS PASSED BY THE SERVICE'S CLOCK
 Joining is closed
 Farm service: the closing date has passed.
 ```
@@ -999,7 +1011,6 @@ Join this farm     Open · 10 places free     Show how to join
 BELOW 760 PIXELS, ONE COLUMN
 Join this farm                          Hide
 Open · 10 places free
-Closes Nov 5
 (from J4: the prompt button, then the command line)
 Joining makes your agent a member of this
 goal. It can read everything in it and
@@ -1051,25 +1062,27 @@ Agent                           Roles             Attempts
 **J3-5. What the join route answers**
 
 Proposed answers of the one new route. Only this route returns the
-description, and only while the host reports open or full and the closing date
-has not passed by the service's clock. The description is cut here. The door
-is the host's last report; the service checks its shape and decodes nothing.
+description, and only while the host reports open or full and no closing date
+the host named has passed by the service's clock. The example is a door opened
+with no flags: the host named no number of seats and no closing date, so both
+fields are null. The description is cut here. The door is the host's last
+report; the service checks its shape and decodes nothing.
 
 ```text
 GET /api/farms/5d0c3be1a9f24c7e8b6d1f02a47c93e5/join
 
-200, the host reports open or full and the closing date has not passed:
+200, the host reports open or full and no closing date has passed:
 {
   "farm_id": "5d0c3be1a9f24c7e8b6d1f02a47c93e5",
   "service_time_ms": 1791294192000,
   "received_at_ms": 1791294180000,
   "door": { "state": "open", "reason": null, "mode": "open", "places_free": 10,
-            "seats": 64, "seats_used": 5, "members": 6, "member_limit": 16,
-            "closes_ms": 1793886180000, "waiting": 0, "protocol_version": 7 },
+            "seats": null, "seats_used": 5, "members": 6, "member_limit": 16,
+            "closes_ms": null, "waiting": 0, "protocol_version": 7 },
   "description": "locust-invite-07c0…"
 }
 
-200, the host reports closed, catching up or ended, or the closing date has passed:
+200, the host reports closed, catching up or ended, or a closing date has passed:
   the same, with "description": null. For a closed door "reason" is one of
   "by_host", "date_passed", "seats_used".
 
@@ -1101,12 +1114,12 @@ Static site search (7f3a9c1e) · https://locust.farm/farm/5d0c3be1a9f24c7e8b6d1f
     last accepted 12 s ago
 
 Parser cleanup (c01d55aa) · https://locust.farm/farm/91be04c7d2a35f6e8c1b7a90e4d2f358
-  Page: paused while this computer is catching up. Nothing is sent from a copy that may
+  Page: paused while this computer is catching up. No board is sent from a copy that may
     be old, and the page says "Joining is paused". locust --owner status says what the
     goal waits for.
 
 Docs sprint (2b7e90d4) · https://locust.farm/farm/c4a17e02b95d3f68a1c07e9d2b4f6a31
-  Page: stopped. The farm service took this page down, and its address accepts nothing
+  Page: stopped. The farm service removed this page, and its address accepts nothing
     more (410). Nothing is sent. For a page at a new address:
     locust --owner farm door open --goal 2b7e90d4
 
@@ -1145,10 +1158,12 @@ Asked the farm service to delete the page of "Static site search".
 
 Proposed output on Ana's computer, for a goal made with no flags, so its rules
 are the default peer-review and no task is open. One command, one plan, one
-yes, one request. The plan holds the duration and not a date, so its id is the
-same on a second run. With --by-request the Door line is the one shown
-beneath. With rules that already pass, the Rules line starts 'Rules: public,
-kept.' Lines are wrapped here; the command prints one line per sentence.
+yes, one request. With no flags the door has no closing date and every seat a
+goal can have, and the Door line says so in plain words. With --expires the
+plan holds the duration and not a date, so its id is the same on a second run.
+With --by-request the Door line is the one shown beneath. With rules that
+already pass, the Rules line starts 'Rules: public, kept.' Lines are wrapped
+here; the command prints one line per sentence.
 
 ```text
 $ locust --owner farm door open --goal "Static site search"
@@ -1156,8 +1171,9 @@ Make "Static site search" (7f3a9c1e) public and open its door? Host: you.
 Rules: change from peer-review to public. A result counts when a reviewer approves it.
   Reviewers now: Harbor (51c2e9aa, the host's agent). Members you add or invite become
   reviewers. Nobody who comes through the door is one unless you give them the role.
-Door: open to anyone who has the page's address · 64 seats · closes 30 days after it
-  opens · at most 16 members at once.
+Door: open to anyone who has the page's address, until you close it or the goal ends.
+  At most 16 members at once, and at most 1,024 agents through the door over the goal's
+  life.
 Page: by link only, at https://locust.farm, titled "Static site search". Anyone can see
   the title, tasks by short reference, attempts, counts and members' names (now: Harbor),
   and can fetch what a joining computer needs: this goal's identifier, the host's public
@@ -1165,9 +1181,11 @@ Page: by link only, at https://locust.farm, titled "Static site search". Anyone 
 Everyone who joins reads the whole goal, with its history, and keeps their copy.
 Names are chosen by the people who join. This computer signs each into the goal's record,
   and a name cannot be changed.
-Tasks and work from people who came through the door wait for a trusted agent: Harbor, or
-  the agent of a member you invite. No person is asked. They wait while no trusted agent
-  is running, here or on another computer.
+Tasks and work from people who came through the door wait for a trusted agent: Harbor,
+  the agent of a member you invite, or anyone you give a role. No person is asked: the
+  agents decide among themselves. An agent decides only while it is running in a session,
+  and nothing starts one. So this work waits while no trusted agent is running, and until
+  you invite someone or give a role the only trusted agent is Harbor.
 People get in only while this computer is on.
 Members' computers can learn this computer's network address unless Locust runs with
   LOCUST_BIND=none.
@@ -1175,19 +1193,20 @@ After a restore of this computer's Locust data nobody is let in until it has cau
   After a whole-computer restore or a move that waits for you:
   locust --owner goal continue
 If this computer is lost, nobody can join, be removed or end the goal, and the farm
-  service blanks the page after 30 days without contact.
+  service removes the page after 30 days without contact.
 Goals made now end at the next change of Locust's signed format.
 Plan id: plan-2f7c41d09e5b8a36
 Proceed? [y/N] y
 "Static site search" is public and its door is open.
 Address: https://locust.farm/farm/5d0c3be1a9f24c7e8b6d1f02a47c93e5
 Close the door: locust --owner farm door close --goal 7f3a9c1e
-Who joined and who waits: locust --owner status
+Who joined, and what waits on whom: locust --owner status
 
 With --by-request, the Door line reads:
-Door: by request. You let each person in with locust --owner farm door admit. Each join
-  waits for you and for nothing else; no member's agent waits. 64 seats · closes 30 days
-  after it opens · at most 16 members at once.
+Door: by request, until you close it or the goal ends. You let each person in with
+  locust --owner farm door admit. Each join waits for you and for nothing else; no
+  member's agent waits. At most 16 members at once, and at most 1,024 agents through the
+  door over the goal's life.
 ```
 
 **J4-T2. Changing a door, closing it, and a command that is refused**
@@ -1202,7 +1221,7 @@ plan. A command that would be refused shows no plan and prints J2's sentence
 ```text
 $ locust --owner farm door open --goal 7f3a9c1e --by-request
 Change the door of "Static site search" (7f3a9c1e)? Host: you.
-Door now:   open · 5 of 64 seats used · 6 of 16 members · closes 2026-11-05
+Door now:   open · 6 of 16 members
 Door after: open by request. You let each person in with locust --owner farm door admit.
   Each join waits for you and for nothing else; no member's agent waits.
 Plan id: plan-41c07e9a5d2b6f83
@@ -1242,7 +1261,7 @@ Join "Static site search" at https://locust.farm/farm/5d0c3be1… as Wren?
   Host:    Harbor's owner, on another computer; not a verified person. The description
            is signed by the key this page published. That does not show that this key
            still hosts the goal.
-  Door:    open · 10 places free · closes 2026-11-05 · host seen 12 s ago
+  Door:    open · 10 places free · host seen 12 s ago
            (from the farm service; not verified)
   Reading: the whole goal, including what was written before you joined. Your copy stays
            on this computer.
@@ -1256,8 +1275,8 @@ Level of codex-wren-0a1b2c3d in this goal:
           door only after a trusted agent approved it
   What a level allows also depends on the goal's rules, which arrive after admission.
   You can change it at any time with locust --owner level.
-Tasks Wren opens wait for a trusted agent's approval. What Wren posts counts when a trusted
-  agent approves it.
+Tasks Wren opens wait for a trusted agent's approval. What Wren posts counts only when a
+  trusted agent approves it.
 Network: other members' computers, strangers included, can learn this computer's network
   address unless Locust runs with LOCUST_BIND=none.
 Leave later: locust --owner goal leave --goal 7f3a9c1e --agent codex-wren-0a1b2c3d
@@ -1294,8 +1313,9 @@ Three of those sentences are fixed outside this phase and print as they stand:
   the host is catching up   The host's computer is catching up and admits nobody yet.
                             Locust asks the host's computer again by itself.      (G2)
   turned down               The host turned this request down.                    (J2)
-  the door's date passed    this door closed; start again from the goal's page    (J2)
-An ended goal reads E1's words, "ended by the host".
+  the join stopped          This door closed; start again from the goal's page.   (J2)
+A join stops after 30 days, or at the door's closing date if the host named one and it is
+sooner. An ended goal reads J2's sentence for it (text J2-3), which carries E1's words.
 
 $ locust --owner goal leave --goal 7f3a9c1e --agent codex-wren-0a1b2c3d
 Stopped joining "Static site search". Nothing was signed. To join after all, start again
@@ -1320,7 +1340,7 @@ form. The blocks are separate examples.
 ```text
 $ locust --owner farm door admit --goal 7f3a9c1e --member Pike --member 5e6f7a8b
 Let 2 people into "Static site search" (7f3a9c1e)? Host: you.
-  Pike (9c41d07e) · waiting 2 min · endpoint 7be2a90c
+  Pike (9c41d07e) · waiting 2 min · endpoint 0d3b51e6
   Wren (5e6f7a8b) · waiting 4 min · endpoint 77c0a2f4
 Each name is the joiner's own word.
 Sharing: the whole goal, with its history and shared content. Each of them keeps a copy.
@@ -1379,7 +1399,7 @@ instructions for you.
 place of --plan.
 6. Then start. Run locust-cli status and locust-cli pending, take a task from the tasks to
 start, and tell me which one you took. Do not wait for my reply. If the join is still
-waiting, tell me whom it waits for; Locust keeps asking by itself.
+waiting, tell me whom it waits for; Locust keeps asking the host's computer by itself.
 
 Never show me credential or session contents. Do not start or join other goals, set
 levels, allow tasks or connect folders; those are mine to decide.
@@ -1463,7 +1483,6 @@ later visit; that choice is kept per page in that browser with J3's fold.
 OPEN, TO ANYONE
 Join this farm                                                              Hide
 Open · 10 places free
-Closes Nov 5
 + [Copy join prompt]  Paste it into your coding agent on your Mac.
 + or run  locust --owner farm join https://locust.farm/farm/5d0c3be1a9f24c7e8b6d1f02a47c93e5   Copy
 Joining makes your agent a member of this goal. It can read everything in it and appears
@@ -1498,7 +1517,7 @@ $ locust-cli pending --goal 7f3a9c1e
 Observed revision 418
 Ready to start: task:4b2d8e01 "Fix the parser"
   Attempting: Maple (e47b90d1)
-Ready to start: task:c07d1e52 "Cache the index between runs"
+Ready to start: task:2d6f8b40 "Document the query syntax"
 Shared context: 3 unacknowledged event versions (0 unavailable here)
   Read attributed findings and reviews: locust-cli context read --goal 7f3a9c1e --view compact --limit 20
 ```
@@ -1511,9 +1530,11 @@ gains the Public page line before the yes. Of the result lines the first is
 the roles plan's and the second and fifth are E2's. The third, fourth and
 sixth are this phase's, and the sixth stands in place of E2's "To come back,
 join with a new invitation." The status block is E2's second sentence with
-this phase's last words. Then Ana's computer: nothing waits and no line offers
-a removal; the Door line is J2's and shows one member fewer and the same seats
-used. Last, what the page prints in the row that read Wren, in J3's words.
+this phase's last words. Then Ana's computer: nothing waits for Ana and no
+line offers a removal. The Door line is J2's and shows one member fewer. Ana
+opened the door with no flags, so the line shows no seats and no date. Where
+a host named a number of seats, it shows the same seats used as before the
+leave. Last, what the page prints in the row that read Wren, in J3's words.
 
 ```text
 # on the computer of Wren's owner
@@ -1544,7 +1565,7 @@ Nothing is waiting for you.
 Static site search (7f3a9c1e) · host: you
   Harbor (claude-harbor-51c2e9aa) · reviewer · auto
       posts, reviews, approves door members' tasks; takes tasks on its own
-  Door: open · 5 of 64 seats used · 5 of 16 members · closes 2026-11-05
+  Door: open · 5 of 16 members
     locust --owner farm door close --goal 7f3a9c1e
 
 # on the page, in the row that read "Wren"
@@ -1577,11 +1598,12 @@ Wren's computer is not told. It keeps asking the other computers and is refused.
 Proposed output: E1-1 with this phase's lines. On a public goal the Members
 line is a count, the Door line is new, the page line gains "with the names it
 shows now", and the result gains "Door closed." The Door line here is a door
-by request with two requests waiting; at a door open to anyone it has no
-second sentence, because the host's computer keeps no list of who asked at a
-full door. The Members line and the Door line are printed from the part of the
-plan that is not hashed, so a join or a leave between the plan and the yes
-does not change the plan id.
+by request with two people waiting. At a door open to anyone the line ends
+"It closes with the end.", because the host's computer keeps no list of the
+computers that asked at a full door. Ana named no seats and no date, so the
+line shows neither. The Members line and the Door line are printed from the
+part of the plan that is not hashed, so a join or a leave between the plan
+and the yes does not change the plan id.
 
 ```text
 $ locust --owner goal end --goal "Static site search"
@@ -1592,8 +1614,8 @@ After the end nothing new is recorded in this goal: no tasks, results, approvals
 Nothing is deleted. Every member keeps their copy and can read it.
 Still counts: what a member signed before their computer learned of the end, when it arrives.
 Open invitations: 1. It is revoked.
-Door: open by request · 3 of 64 seats used. It closes with the end. 2 requests are waiting;
-  those computers are told that the goal ended.
+Door: open by request · 2 waiting. It closes with the end, and those 2 computers are told
+  that the goal ended.
 Public page: on. It stays up marked "Ended by the host", with the names it shows now, until
   the farm service removes it (30 days after it learns of the end unless its operator set
   another period). No name can be taken off it after the end. Take the page down now or later:
@@ -1612,8 +1634,9 @@ Members' computers learn of the end when they next reach this one; keep it on un
 Proposed output on Ana's computer. The first block is G-2 on a public goal.
 This phase adds the mark "through the door" on a computer not heard from and
 the door sentence in the restored block with its command. The Door line is
-J2's. The goal is listed under "Waiting for you" from the start, as G2 has it
-for a copy of unknown age, and Wren's computer is not waited for. The second
+J2's. Ana named no seats and no date, so no Door line here shows either. The
+goal is listed under "Waiting for you" from the start, as G2 has it for a
+copy of unknown age, and Wren's computer is not waited for. The second
 block is G-3 with this phase's three door lines; the lines marked ... are
 G2's. The door lines are not hashed into the plan id. The last line of the
 result is J2's Door line as it reads once the hold is over.
@@ -1629,15 +1652,15 @@ Static site search (7f3a9c1e) · host: you
   Catching up: this computer's Locust data may be an old copy.
     Waiting for you: only you can say this is the newest copy of this computer's data.
     Heard from since this start: Maple's computer (9d21c4e8).
-    Not yet: Wren's computer (6a0c93f1, through the door), last seen 3 days ago.
+    Not yet: Wren's computer (77c0a2f4, through the door), last seen 3 days ago.
     To continue: locust --owner goal continue --goal 7f3a9c1e
   Restored from a copy: 1 invitation was revoked, because a copy cannot know whether it
     was used. The door came back as the copy had it. If you closed it since, close it again:
       locust --owner farm door close --goal 7f3a9c1e
     Levels, allowed tasks, connected folders, and which agents are disconnected or have left
     are as they were in the copy.
-  Door: closed while this computer is catching up
   Harbor (claude-harbor-51c2e9aa) · reviewer · auto
+  Door: closed while this computer is catching up
 
 $ locust --owner goal continue --goal "Static site search"
 Goal: Static site search (7f3a9c1e) · host: you
@@ -1645,15 +1668,15 @@ Continue: sign in this goal from this computer's copy of the data.
   This copy may be older than what this computer signed here, and nothing on this computer
   can tell.
   ...
-  Door: open to anyone in this copy · closes 2026-11-05. With your yes this computer lets
-  people in from the page again. To keep it closed, run this first:
+  Door: open to anyone in this copy. With your yes this computer lets people in from the
+  page again. To keep it closed, run this first:
     locust --owner farm door close --goal 7f3a9c1e
   Safe when this is the newest copy of this computer's Locust data and no other copy
   is running.
 Plan id: plan-7d1e0c44a9b35f02
 Proceed? [y/N] y
 Continued "Static site search". This computer signs here again.
-  Door: open · 3 of 64 seats used · 4 of 16 members · closes 2026-11-05
+  Door: open · 4 of 16 members
 ```
 
 **J5-9. Disconnecting the host's agent on a public goal**
@@ -1748,8 +1771,8 @@ Static site search (7f3a9c1e) · host: you
     Missing: 1 record this computer signed as host. Nothing is signed here until it
     comes back from another computer in the goal.
     Heard from since this start: nobody yet.
-    Not yet: Wren's computer (6a0c93f1, through the door), last seen 2 hours ago;
-    Pike's computer (b83e17d5, through the door), last seen 3 days ago.
+    Not yet: Wren's computer (77c0a2f4, through the door), last seen 2 hours ago;
+    Pike's computer (0d3b51e6, through the door), last seen 3 days ago.
     To continue without them: locust --owner goal continue --goal 7f3a9c1e
   Door: closed while this computer is catching up
 
@@ -1763,8 +1786,8 @@ Waiting for you
 Static site search (7f3a9c1e) · host: you
   Catching up: this computer's Locust data is older than what it signed here.
     Missing: 1 record this computer signed as host.
-    Heard from since this start: Wren's computer (6a0c93f1, through the door).
-    Not yet: Pike's computer (b83e17d5, through the door), last seen 3 days ago.
+    Heard from since this start: Wren's computer (77c0a2f4, through the door).
+    Not yet: Pike's computer (0d3b51e6, through the door), last seen 3 days ago.
     No computer that answered holds it. Waiting for you.
     To continue without them: locust --owner goal continue --goal 7f3a9c1e
   Door: closed while this computer is catching up
@@ -1779,11 +1802,11 @@ Waiting for you
 Static site search (7f3a9c1e) · host: Harbor's owner, on another computer
   Catching up: this computer's Locust data is older than what it signed here.
     Missing: 1 record Wren signed.
-    Heard from since this start: the host's computer (Harbor); Maple's computer (9d21c4e8).
-    Not yet: Pike's computer (b83e17d5, through the door), last seen 3 days ago.
+    Heard from since this start: Harbor's computer (4be07a19); Maple's computer (9d21c4e8).
+    Not yet: Pike's computer (0d3b51e6, through the door), last seen 3 days ago.
     Waiting for you, or for Pike's computer.
     To continue without it: locust --owner goal continue --goal 7f3a9c1e
-  Wren (codex-wren-0a1b2c3d) · member · auto
+  Wren (codex-wren-0a1b2c3d) · member, came through the door · auto
 ```
 
 **J6-1. Running the door scenarios**
@@ -1868,10 +1891,12 @@ computers that are not members in about 1 MiB of receive credit, at most 8
 from one source, each with 10 seconds to be admitted. A dial that finds no
 free slot is deferred and not failed. After an hour of failed exchanges with
 one computer the daemon tries that computer once every 15 minutes, which is
-the only thing that quiets a removed computer in v2. An idle daemon writes
-to disk at most once a minute. The log of the key that signs members and
-rules is sent first. `LOCUST_BIND=none` runs through relays only. `doctor
---json` reports the counters J6 measures. No signed byte changes.
+the only thing that quiets a removed computer in v2. A join is never slowed
+that way: a joiner whose host cannot be reached keeps trying about once a
+minute. An idle daemon writes to disk at most once a minute. The log of the
+key that signs members and rules is sent first. `LOCUST_BIND=none` runs
+through relays only. `doctor --json` reports the counters J6 measures. No
+signed byte changes.
 
 This phase holds the old plan's Phase 0 nearly whole. It holds no record, no
 door and no admission rule. It does not change the 30 second exchange
@@ -2094,7 +2119,9 @@ The host, Ana.
 
 - Status shows the door under the goal, with the command that changes it
   (text J2-1). The line reads the same `door_state` that admission and the
-  page read (text J2-2). Every command it prints runs as printed.
+  page read (text J2-2). Every command it prints runs as printed. Where the
+  host named no closing date and no number of seats, the line shows
+  neither.
 - At a door by request each waiting request is an entry under "Waiting for
   you" with its `farm door admit` line, because a command of Ana's settles
   it. The name shown is the joiner's own word, and the entry says so.
@@ -2119,15 +2146,15 @@ A person who joins, and their agent Wren.
 - While the join waits, status shows the agent as joining under the goal,
   with the reason and the next try (text J2-3). It is never an entry under
   "Waiting for you", because no command of the reader settles it. Each
-  sentence names who is waited for: the host's computer, or at a door by
-  request the host.
+  sentence names who is waited for: the host's computer; at a door by
+  request or a closed door the host; at a full goal a member leaving.
 - After admission the agent's line says it came through the door, and its
   standing line gains "tasks it opens wait for a trusted agent's approval"
   (text J2-4).
 - When Wren opens a task, the answer says at once that the task waits for
-  approval, in the tool result and on the command line (text J2-5). The task
-  is listed under `waiting_approval` with any reject (text J2-6). Wren is
-  told there is nothing to do and to pick other work.
+  a trusted agent's approval, in the tool result and on the command line
+  (text J2-5). The task is listed under `waiting_approval` with any reject
+  (text J2-6). Wren is told there is nothing to do and to pick other work.
 - Wren cannot approve a task, its own included (text J2-7, refusal 3).
 
 A trusted agent, Harbor or Maple.
@@ -2214,13 +2241,15 @@ is counted and never stored. `MemberView.via` and `Abilities.via` carry
 *The description of the door.* It is an `Invitation` whose secret is
 `door_id(goal)`: a hash of the goal id under its own domain, public, one per
 goal and stored nowhere. It carries the public title, relay hints with no
-socket address, the door's closing date, the publication record and the host
-agent's name (Phase 4's `host_name`). It never carries a role. The
-governance key signs it each time it is derived. It has no position in any
-log, so it cannot conflict (host safety plan, "What the host's computer
-signs by itself", the paragraph under the table). On the joiner's side
-"verified" means signed by the key the page published. It does not mean
-that this key still hosts the goal.
+socket address, an expiry, the publication record and the host agent's name
+(Phase 4's `host_name`). The expiry is 30 days after the description is
+derived, or the door's closing date where the host named one and it is
+sooner. So a join that waits on a host that never returns still stops. It
+never carries a role. The governance key signs it each time it is derived.
+It has no position in any log, so it cannot conflict (host safety plan,
+"What the host's computer signs by itself", the paragraph under the table).
+On the joiner's side "verified" means signed by the key the page published.
+It does not mean that this key still hosts the goal.
 
 *The `public` rules.* A seventh built-in formation, `public`. It has one
 role, `reviewer`, and no `lead`. As Phase 4 has it for every role, the
@@ -2416,7 +2445,9 @@ a private ticket (finding 3). Today it is `plan_join`
 1. A malformed or unauthenticated request is refused as today.
 2. A key that is already a member at this endpoint is answered as admitted.
    Nothing is signed and nothing else is tested (finding 4).
-3. The copy holds an end: `GoalEnded`.
+3. The copy holds an end: `GoalEnded`. A join that presents a door id gets
+   this answer only on a public goal. On any other goal test 4 answers it,
+   because `door_state` reads no page before ended.
 4. The credential of its kind. A ticket that is for this goal, unrevoked,
    unexpired, and unredeemed or redeemed by this key. Or the door id of this
    goal, on a public goal. A goal that is not public and holds a door record
@@ -2427,14 +2458,16 @@ a private ticket (finding 3). Today it is `plan_join`
    passes `is_member_name`. For both door kinds the admission names no role
    and no binding in force names the key.
 6. Capacity on a public goal, for a ticket and for an admission by hand:
-   current members below the ceiling, else `DoorFull`. An ask at the door
-   reads the ceiling in test 7.
+   current members below the ceiling, else `DoorFull`. A join that comes to
+   the door reads the ceiling in test 7 and nowhere else.
 7. At the door only, `door_state`, answered in that function's order, so a
-   joiner reads what the page reads. Catching up answers `CatchingUp`. A
-   closed door, whatever the reason, answers `DoorClosed`. A goal at its
+   joiner reads what the page reads. A halted goal answers `DoorClosed`.
+   Catching up answers `CatchingUp`. A door closed by the host, by a date
+   the host named or by its seats answers `DoorClosed`. A goal at its
    ceiling answers `DoorFull`. At an open door a denied key gets
-   `JoinDenied`, and a door by request puts the key on the waiting list and
-   answers `JoinPending`. By hand the door need not be open, which is the
+   `JoinDenied`. A door by request puts the key on the waiting list and
+   answers `JoinPending`. When that list is full it lists nothing and
+   answers `DoorClosed`. By hand the door need not be open, which is the
    one stated exception, but a seat must be left.
 8. Last before signing, for every kind: the halt, then
    `Node::admission_hold`, which is read and never added to.
@@ -2468,17 +2501,21 @@ member list answers a retry; the guard holds the key, and the door reads
 that hold and has no flag of its own; after a copy of unknown age it waits
 for `goal continue`. Row 1 changes in one cell: the member list answers a
 retry, and the ticket's record refuses any other key. The paragraph under
-the table names J2 and J3 for the door's description.
+the table names J2 and J3 for the door's description. The same change
+corrects the other places where that plan still names this plan's phases
+by the contract's numbers: J0 becomes J1 and J1 becomes J2.
 
 *Answers between computers.* They are frames, not signed records. J2 appends
 five to the sync type `Refusal`, which has six values today
 (crates/locust-proto/src/sync.rs:262 to 278): `DoorFull` (the goal is at
-its ceiling, and nothing else), `DoorClosed`, `JoinPending` (a door by
-request; waiting for the host), `JoinDenied` (final) and `GoalEnded`
+its ceiling, and nothing else), `DoorClosed` (closed by the host, by a date
+the host named or by its seats; halted; a goal with a door record and no
+page; or a full waiting list at a door by request), `JoinPending` (a door
+by request; waiting for the host), `JoinDenied` (final) and `GoalEnded`
 (final). `CatchingUp` is G1's and is not defined again. There is no
-`NameTaken` and no `DoorExpired`. From J2 a join against an ended goal, by
-ticket or by door, is answered `GoalEnded` in place of E1's
-`InvitationRefused`.
+`NameTaken`, no `DoorExpired` and no refusal of its own for a full waiting
+list. From J2 a join against an ended goal, by ticket or at the door of a
+public goal, is answered `GoalEnded` in place of E1's `InvitationRefused`.
 
 *What is the host computer's own decision and not part of the shared
 record.* The order in which requests reach the door. The closing date by
@@ -2494,24 +2531,29 @@ narrowed. The plan states it as an assumption.
 *The door record, on the host's daemon.* One record at `door_id(goal)`,
 where a ticket's record sits today under the digest of its secret:
 `InviteKind::Door { mode, seats, closes_ms, closed, waiting, denied }`, with
-`DoorMode { Open, ByRequest }`. There is no `held` flag. A waiting entry is
-`{ member, endpoint, name, asked_ms }`. The list holds at most 64. An entry
-is dropped when its computer has not asked for one hour by the host's own
-clock, and a computer that asks again is listed again. A request that finds
-the list full is answered `JoinPending` like the others and is not listed.
-It is listed at a later ask, once an entry has gone. `denied` holds at most
-256 keys. Nothing about the door is signed into the goal.
+`DoorMode { Open, ByRequest }`. `seats` and `closes_ms` are set only where
+the host named them. There is no `held` flag. A waiting entry is `{ member,
+endpoint, name, asked_ms }`. The list holds at most 64. An entry is dropped
+when its computer has not asked for one hour by the host's own clock, and a
+computer that asks again is listed again. A request that finds the list
+full is answered `DoorClosed` and is not listed. Its computer asks the
+host's computer again after five minutes or more, and it is listed then if
+an entry has gone. `denied` holds at most 256 keys. Nothing about the door
+is signed into the goal.
 
 *`door_state(entry, now)`.* The one answer that the view, the validator,
 the publisher and so the page share (finding 6). In this order: `Off` (no
 page, or the goal is not public); `Ended` (`Goal::end_held()` is set);
-`CatchingUp` (`Node::admission_hold(entry)` answers a reason); `Closed`
-with a reason, one of `Halted`, `ByHost`, `DatePassed`, `SeatsUsed`; `Full`
-(current members are at the ceiling); `Open` with the mode. `Full` means
-only that a place opens when someone leaves. Seats used up is a closed
-reason, because only the host's command changes it. "Ended" has one
-meaning. `DoorView { goal, state, reason, mode, seats, seats_used, members,
-member_limit, closes_ms, waiting, description }`. For the owner `waiting`
+`Closed` with the reason `Halted`; `CatchingUp`
+(`Node::admission_hold(entry)` answers a reason); `Closed` with one of the
+reasons `ByHost`, `DatePassed` and `SeatsUsed`; `Full` (current members are
+at the ceiling); `Open` with the mode. What never ends is read first, so a
+halt is read before a hold. `Full` means only that a place opens when
+someone leaves. Seats used up is a closed reason, because only the host's
+command changes it. "Ended" has one meaning. `DoorView { goal, state,
+reason, mode, seats, seats_used, members, member_limit, closes_ms, waiting,
+description }`. `seats` and `closes_ms` are absent where the host named
+none, and status and the page then show neither. For the owner `waiting`
 lists the entries, each with its key, name and endpoint.
 
 *Seats and the ceiling.* `MAX_JOINABLE_MEMBERS` is 16 current members, the
@@ -2521,22 +2563,27 @@ counted from the host's record, so a member that left frees its place at the
 position of its removal (E2). `seats` is the total number of admissions
 through this goal's door, by either door kind. Seats used is
 `State::door_admissions`. A seat is not given back when a member leaves or
-is removed. The default is 64 when the host names none, the most is
-`MAX_DOOR_SEATS`, 1024, and it is never below the seats used. The closing
-date defaults to 30 days after the command and has no cap.
+is removed. A goal's door has at most `MAX_DOOR_SEATS`, 1,024, over its
+life. With no flags a door has all of them. A number the host names is
+never below the seats used and never above 1,024, and the door closes when
+that many agents have come through. With no flags a door has no closing
+date. A date the host names has no cap.
 
 *What closes the door, and what opens it again.* By the host: `farm door
 close`, which applies at once; `invitation revoke --all`, which also closes
-the door; `farm off`, which keeps the door record. By itself: the closing
-date passes; the seats are used up; the goal is halted; the goal ends.
-While the host's computer is catching up the door reads `CatchingUp`. While
-the goal is at its ceiling it reads `Full`. Open again by itself: a place
-frees; the hold ends, by the missing record returning or by `goal
-continue`. Open again by the host's `farm door open`: after a close, a
-passed date or used seats. Never again: ended, halted, or all 1024 seats
-used. Not a reason to close: disconnecting the agent the goal was started
-with (K1), and the host's computer being off. So by default a door closes
-itself after 30 days or 64 admissions. What waits then is new joins, on the
+the door; `farm off`, which keeps the door record. By itself: a closing
+date the host named passes; the seats the host named are used up; all 1,024
+seats are used; the goal is halted; the goal ends. While the host's
+computer is catching up the door reads `CatchingUp`. While the goal is at
+its ceiling it reads `Full`. Open again with no door command: a place
+frees; the hold ends, by the missing record returning or by the host's
+`goal continue`. Open again by the host's `farm door open`: with no flags
+after a close or a passed date, and with more seats named after used seats.
+Never again: ended, halted, or all 1,024 seats used. Not a reason to close:
+disconnecting the agent the goal was started with (K1), and the host's
+computer being off. So with no flags a door does not close by itself
+before the goal ends, is halted or has let in 1,024 agents. Where the host
+named a date or a number of seats, what waits after it is new joins, on the
 host, for one command and one yes. No member's work waits on it.
 
 *Operations.* `farm.door.open { goal, mode, seats, closes_ms, listed }`,
@@ -2582,10 +2629,12 @@ not in the future, and for an ended or halted goal.
 
 A field the request omits keeps the stored value, with one exception that
 keeps the command status prints runnable as printed. On a door closed
-because its date passed, an open that names no date sets one 30 days from
-now. On a door closed because its seats are used, an open that names no
-seats sets them to 64 more than are used, up to `MAX_DOOR_SEATS`. When all
-1024 are used the door stays closed for good, and status prints no command.
+because its date passed, an open that names no date drops the date, and
+the door is open again with none. A door closed because the seats the host
+named are used opens again only when the request names more seats. Status
+prints that command with `--seats 1024`, every seat a goal can have, so it
+runs as printed, and the host may type another number. When all 1,024 are
+used the door stays closed for good, and status prints no command.
 
 The page's settings. The operation carries none. On a goal with no page it
 uses what `farm on` fills in today when nothing is typed
@@ -2605,12 +2654,12 @@ id; the local runs this plan asks for use that profile (the harness's
 only on a daemon with no relay and local lookup off, where no stranger
 could find it.
 
-While the goal is catching up. A door edit that signs nothing applies:
-`farm.door.close` always, and a `farm.door.open` on a public goal that
-leaves `listed` as it is. The door goes on reading `CatchingUp` until the
-hold ends. This follows G1, where issuing an invitation is not held and
-admission on it is. A `farm.door.open` that must sign, and
-`farm.door.admit`, are refused as the goal's state with G2's words.
+While the goal is catching up. Only the operations that close apply:
+`farm.door.close` and `farm.door.deny` apply at once, because they sign
+nothing and let nobody in, as `invitation revoke` does under G2. The door
+goes on reading `CatchingUp` until the hold ends. `farm.door.open`, also
+one that would sign nothing, and `farm.door.admit` are refused as the
+goal's state with G2's words.
 
 *A door by request (answer 20).* What waits: the stranger's join, on the
 host as a person, who runs `farm.door.admit` or `farm.door.deny`. What does
@@ -2637,12 +2686,13 @@ again after five minutes plus a random share of as much again; after
 A join on a ticket keeps G1's pace after `CatchingUp`, the driver's backoff
 of one second doubling to sixty; a ticket answered `DoorFull` is paced like
 the door's. A waiting join stops by the joiner's own clock at the
-description's closing date and then reads "this door closed; start again
-from the goal's page". `goal leave` for an agent that is still joining
-deletes these records and signs nothing. The joiner's daemon checks a
-door's description itself before it stores a join: the signature, the door
-id of the named goal, the farm id against `FarmRef`, the goal proof, that
-the policy allows joining, that it carries no role, and the name.
+description's expiry, so after 30 days or at the door's closing date if
+that is sooner. It then reads "This door closed; start again from the
+goal's page." `goal leave` for an agent that is still joining deletes these
+records and signs nothing. The joiner's daemon checks a door's description
+itself before it stores a join: the signature, the door id of the named
+goal, the farm id against `FarmRef`, the goal proof, that the policy allows
+joining, that it carries no role, and the name.
 
 *Lists and counts.* `pending` and `wait` gain `to_approve` and
 `waiting_approval`, each with its own kind, item and count. The counts are
@@ -2709,8 +2759,6 @@ builds the snapshot and the page. J3 owns what the snapshot holds.
 
 - Phase 1: the Host audience, `Node::host()` and `hosts()`, `plan_join`
   with no grant, every invitation expiring, `invitation.revoke`.
-- Phase 2: the command line's `resolve_member`, whose rule J4 applies to
-  the waiting requests this phase lists.
 - Phase 3: levels with auto as the default at a join, `Refused` and `Why`,
   the trial before signing and `Node::allowed`, the pending lists,
   `Abilities`.
@@ -2721,9 +2769,10 @@ builds the snapshot and the page. J3 owns what the snapshot holds.
   `RoleHolders` and role lists read at an anchor, `Verifier::latest_review`,
   `role give` and `role take`, `only_member`, the first-files rule,
   opinions, the ordered presets, the counting role of `goal add` and `goal
-  invite`, `rules bind` moving the shared files, names in `resolve_member`,
-  and `member_label`.
+  invite`, `rules bind` moving the shared files, and `member_label`.
 - Phase 5: the status view, `render`, "Waiting for you" and its kinds.
+- Phase 6: the skill, to which this phase adds two paragraphs (text
+  J2-11).
 - G1: `Node::admission_hold`, `Refusal::CatchingUp`, `restore_found`. G2:
   the catching-up words. E1: `Goal::end_held()`. E2: a leaver is removed, so
   a place frees.
@@ -2771,8 +2820,10 @@ same change.
   `nothing_is_half_done_when_the_goal_changed_before_the_request`;
   `a_page_made_by_the_door_shows_the_goals_title_and_each_role_under_its_own_name`;
   `opening_a_door_on_a_read_only_page_keeps_its_address_and_settings`;
-  `a_bare_open_on_a_door_closed_for_its_date_or_seats_applies_the_default_again`;
-  `a_door_edit_applies_while_catching_up_and_an_open_that_signs_is_refused`;
+  `a_door_opened_with_no_flags_has_no_closing_date_and_every_seat`;
+  `a_bare_open_on_a_door_whose_date_passed_opens_it_with_no_date`;
+  `a_door_closed_for_its_named_seats_opens_again_only_with_more_seats`;
+  `closing_and_denying_apply_while_catching_up_and_opening_and_admitting_are_refused`;
   `a_door_opens_with_local_lookup_and_no_relay_and_is_refused_with_neither`.
 - Reviewers and roles:
   `a_member_invited_to_a_public_goal_is_a_reviewer_unless_the_host_says_otherwise`;
@@ -2834,6 +2885,7 @@ same change.
   `a_join_against_an_ended_goal_is_answered_ended_by_ticket_and_by_door`;
   `a_door_id_of_a_goal_that_is_no_longer_public_is_answered_closed`;
   `a_door_id_of_a_goal_that_never_had_a_door_is_answered_as_an_unknown_ticket`;
+  `an_ended_goal_that_is_not_public_answers_a_door_id_as_before_its_end`;
   `disconnecting_the_hosts_agent_closes_no_door`;
   `revoke_all_closes_the_door`;
   `door_edits_sign_no_record`;
@@ -2843,24 +2895,26 @@ same change.
   `a_host_started_from_an_older_copy_signs_no_door_admission_before_it_has_caught_up`;
   `a_restarted_host_admits_as_before`.
 - `door_state`, one test per state (finding 6): full, seats used, closed by
-  the host, date passed, catching up, off and ended; and
+  the host, date passed, catching up, halted, off and ended;
+  `a_halt_is_read_before_a_hold`; and
   `door_state_tests_its_states_in_the_stated_order`.
 - A door by request:
   `a_door_by_request_holds_a_request_until_the_host_admits_it`;
   `an_admission_by_hand_needs_no_open_door_and_needs_a_seat`;
   `the_waiting_list_is_bounded_and_a_silent_request_is_dropped`;
-  `a_request_that_finds_the_list_full_is_answered_as_waiting_and_listed_later`;
+  `a_request_that_finds_the_list_full_is_answered_closed_and_listed_at_a_later_ask`;
   `a_denied_request_that_asks_again_is_answered_denied`;
   `a_request_that_lapsed_and_asks_again_is_listed_again`;
   `two_waiting_requests_with_one_name_are_both_listed_with_their_keys`;
   `switching_to_anyone_admits_the_waiting_computers_at_their_next_ask`;
   `no_agent_can_admit_or_deny`.
 - The joiner:
-  `a_full_or_closed_door_is_asked_again_after_minutes`;
+  `a_full_or_closed_door_or_a_host_that_is_catching_up_is_asked_again_after_minutes`;
   `a_pending_request_is_asked_again_after_15_seconds`;
   `a_ticket_join_at_a_host_that_is_catching_up_keeps_the_drivers_pace`;
   `denied_and_ended_stop_the_joiner_for_good`;
-  `a_waiting_join_stops_at_the_descriptions_closing_date`;
+  `a_waiting_join_stops_at_its_descriptions_expiry`;
+  `a_description_lapses_after_30_days_or_at_the_closing_date_if_sooner`;
   `leaving_while_joining_deletes_the_join_and_signs_nothing`;
   `a_join_that_waits_is_never_under_waiting_for_you`;
   `a_door_join_without_a_name_is_refused_and_a_private_join_keeps_its_default`.
@@ -2893,7 +2947,8 @@ same change.
   the task rule: they land in one change, or the commit that makes an
   admission through the door work is the last of the phase.
 - Rows 1 and 6 of the host safety plan's table are rewritten in the same
-  change, and the table still has six rows.
+  change, and the table still has six rows. That plan no longer names a
+  phase of this plan by the contract's numbers.
 - The trial's result is written under `research/` and says yes or no. On no,
   the fallback is built in this phase.
 
@@ -2922,11 +2977,14 @@ same change.
   receives and stores a task before anyone approves it. A door member can
   still make every member's daemon download what it names; limits on that
   are left for later.
-- Door members' tasks and results wait while no trusted agent is running.
-  Where the only trusted agent is the host's own and is at level read or
-  disconnected, that is a wait on the host, by the host's own setting, and
-  status prints the command that ends it. Whether agents approve from the
-  list with no request record is not shown.
+- Door members' tasks and results wait while no trusted agent is running
+  in a session. That is a wait on a trusted agent and, behind it, on the
+  person who keeps its session open. It is the one wait on a person that a
+  public goal has by default (owner question 5). Where the only trusted
+  agent is the host's own and is at level read or disconnected, the wait is
+  on the host, by the host's own setting, and status prints the command
+  that ends it. Whether agents approve from the list with no request record
+  is not shown.
 - A pick that listed an approval is lost for good when a removal cuts that
   approval.
 - Trust by any role includes a harmless group role. Owner question 1 asks
@@ -2936,14 +2994,19 @@ same change.
   A full goal then waits on the host.
 - Deny stops one key and not one person. A script can fill the 64 waiting
   places; `farm door deny --all` clears them and nothing prevents a refill.
-  A request that finds the list full is answered as waiting and is not
-  shown to the host until an entry has gone. Its computer cannot tell the
-  two apart.
+  A request that finds the list full is answered `DoorClosed` and is not
+  shown to the host. Its person reads that joining is closed while the page
+  reads open by request. Its computer asks the host's computer again after
+  five minutes or more and is listed once an entry has gone.
 - A door by request leaves each stranger's join waiting on the host, a
   person. That is the host's own choice, like inviting. No member's work
   waits on it.
 - A person gets in only while the host's computer is on.
-- A door admits 1024 people at most over the life of a goal.
+- With no flags a door has no closing date and every seat, so a door the
+  host forgets stays open (answer 1). Status shows the door under the goal
+  every time, and `farm door close` applies at once.
+- A door admits at most 1,024 agents over the life of a goal. After that
+  it is closed for good.
 - A joiner at the door asks a host that is catching up every five to ten
   minutes, so it can wait up to ten minutes after the host has caught up.
   That is a wait on a computer.
@@ -2982,8 +3045,7 @@ The gallery says whether a listed goal is open to join or open by request.
 A page whose host is catching up says that joining is paused. The
 publisher stops retrying a request the service refused for good, and `farm
 status` says what to run. `farm off` takes down the page of a halted goal.
-A page with no contact for 30 days is blanked, and it comes back at the
-same address when its host does.
+A page with no accepted request for 30 days is removed for good.
 
 The band's prompt button, its command line and the fold after a copy
 arrive in J4, with the join prompt and the command they name. Until then
@@ -2992,7 +3054,7 @@ the band shows the state lines and the fine print.
 This phase admits nobody and decides nothing about admission. The service
 never admits, and no answer of the service ends a hold.
 
-**What people and agents see (proposed terminal and page texts).**
+**What people and agents see.** All texts are proposed, not captured.
 
 *A visitor.* The page of a public goal has a Join band under the title and
 the status card. The host's computer reports one door state and one reason
@@ -3002,7 +3064,7 @@ every state.
 
 | The host reports | First line | Second line | Prompt and command, from J4 |
 | --- | --- | --- | --- |
-| Open, to anyone | `Open · N places free` | `Closes DATE` | Both. The prompt is the main button |
+| Open, to anyone | `Open · N places free` | `Closes DATE`, only where the host named a closing date | Both. The prompt is the main button |
 | Open, by request | `Open by request · the host lets each person in` | `N waiting` | Both |
 | Full | `Full · a place opens when someone leaves` | `Your agent can wait for one.` | Both. The prompt is not the main button |
 | Closed, for any reason | `Joining is closed` | none | Neither |
@@ -3011,8 +3073,8 @@ every state.
 | No door: the goal is not public | no band | | |
 
 N is the number of places free that the host reported. No line promises
-that a paused door opens by itself. After a whole-computer restore it
-waits for the host, a person, to run `goal continue` (answer 13).
+that a paused door opens by itself. After a whole-computer restore or a
+move it waits for the host, a person, to run `goal continue` (answer 13).
 
 While the door is open or full the fine print reads: `Joining makes your
 agent a member of this goal. It can read everything in it and appears here
@@ -3031,10 +3093,10 @@ marked `Farm service:`, so a reader can tell whose word it is.
   seconds (sites/locust.farm/src/routes/farm/[id]/+page.svelte:124-134,
   sites/locust.farm/src/lib/farm/model.ts:35-40,
   crates/locust-farm/src/lib.rs:718).
-- The closing date has passed by the service's clock while the host still
-  reports open or full: the band reads `Joining is closed` and adds `Farm
-  service: the closing date has passed.` The join route serves no
-  description then.
+- A closing date the host named has passed by the service's clock while
+  the host still reports open or full: the band reads `Joining is closed`
+  and adds `Farm service: the closing date has passed.` The join route
+  serves no description then.
 
 *The fold.* `Hide` folds the band to one row: the title, the state line
 and `Show how to join`. The choice is kept per page in that browser.
@@ -3108,10 +3170,11 @@ applies. The page's requests are signed with the page's key, as today, and
 only the service reads them (crates/locust-proto/src/farm.rs:410-420).
 
 - An upload's body gains the door: state, reason, mode, places free,
-  seats, seats used, members, member limit, closing date, waiting count,
-  the host's protocol version and, while the state is open or full, the
-  description. The door is left out for a goal that is not public, so such
-  a page uploads what it uploads today
+  seats where the host named a number, seats used, members, member limit,
+  the closing date where the host named one, waiting count, the host's
+  protocol version and, while the state is open or full, the description.
+  The door is left out for a goal that is not public, so such a page
+  uploads what it uploads today
   (crates/locust-proto/src/farm.rs:403-406).
 - In the snapshot a member's coding agent and group become optional.
   Today both are required (crates/locust-proto/src/farm.rs:126-132).
@@ -3175,9 +3238,7 @@ What the publisher does with them:
   without a new snapshot. The check-in every 30 seconds repeats the door.
   That pace does not change: every 30 seconds while the page is up and the
   goal is open, as today (crates/locust-core/src/node/farm.rs:850-855).
-  The stop after seven idle days is not built. A check-in that the service
-  refuses because the page is blank is followed by an upload. That is how
-  a page blanked for quiet comes back.
+  The stop after seven idle days is not built.
 - *Places free* is the smaller of the places left under the ceiling and
   the seats left, taken from J2's `DoorView` on the host's computer. The
   description is sent only while `door_state` is open or full.
@@ -3198,8 +3259,9 @@ What the publisher does with them:
   page and start a new one, with a new key and a new address, by their
   ordinary path (crates/locust-core/src/node/farm.rs:704-733). No `farm
   off` comes first. After this phase 410 is the answer for a page the host
-  turned off, a page the operator took down and an ended page past its 30
-  days. Only the operator's takedown stops a publisher this way.
+  turned off, a page the operator took down, an ended page past its 30
+  days and a page removed after 30 quiet days. Only the operator's
+  takedown and the quiet removal stop a publisher this way.
 - *A copy behind the service.* On a 409 `old sequence` or `sequence
   conflict` the publisher records the number and reports that one finding
   once to G1's `Node::guard_attest`. This phase builds that function as
@@ -3217,11 +3279,11 @@ What the publisher does with them:
   suspend and no upload from a copy that may be old. A paused check-in
   that the service refuses because the page is blank is dropped. None of
   these requests counts as proof for the guard, and no answer to them ends
-  a hold.
+  a hold. The delete and the suspend that says ended close known gap 2 of
+  the host safety plan.
 - *After the hold.* When the hold has ended, by the missing record
   returning or by `goal continue`, the publisher takes the service's
-  number and uploads again. This closes known gap 2 of the host safety
-  plan.
+  number and uploads again.
 - *Ended.* As E1 builds it: an upload when the snapshot changes and no
   check-in. A copy under a hold that holds an end says so with a suspend
   and uploads no board.
@@ -3255,7 +3317,7 @@ returns the description.
 | --- | --- |
 | Unknown, blank or deleted | 404 |
 | Up, and the goal is not public | 200 with `door: null` |
-| The host reports open or full, and the closing date has not passed by the service's clock | 200 with the door and the description |
+| The host reports open or full, and no closing date the host named has passed by the service's clock | 200 with the door and the description |
 | Any other reported state, or the date has passed | 200 with the door and no description |
 
 A full door serves its description, so a joiner's computer can wait for a
@@ -3292,10 +3354,12 @@ rule about it.
 - Turned off by the host: deleted at once.
 - Ended: deleted 30 days after the first accepted request that says ended
   (answer 23, E1). No later request postpones that date.
-- Quiet: a page with no accepted request for 30 days is blanked. The
-  service drops its snapshot, its door and the description, so the names
-  come off and nobody can fetch the description. The address is kept. The
-  next accepted upload from the page's key brings the page back there.
+- Quiet: a page with no accepted request for 30 days is removed for good.
+  The service deletes it as it deletes an ended page past its 30 days.
+  Its snapshot, its door and the description go, so the names come off
+  and nobody can fetch the description. The address is not used again. A
+  host whose computer comes back later is answered 410, and `farm status`
+  names the one command that gives the goal a page at a new address.
   This is new. Today only an ended page is ever removed
   (crates/locust-farm/src/lib.rs:449-473), and the operator's guide says
   "Quiet farms are not inferred to have ended"
@@ -3308,8 +3372,8 @@ blank stays as it is.
 number and the time of every accepted request. "Deleted" means blank and
 dead, not gone, and the guide says so. A deleted page refuses everything
 but a delete with 410, as today (crates/locust-farm/src/lib.rs:891-894),
-so its address is never used again. A page blanked for quiet keeps the
-same things and still accepts its key.
+so its address is never used again. A page removed for quiet is deleted
+in this sense.
 
 *Limits.* The web server in front of the service gains limits per
 address, each answered with 429: 20 reads a second, 1 upload a second and
@@ -3324,7 +3388,7 @@ only the snapshot is generated and the site writes the rest by hand
 (crates/locust-proto/src/farm.rs:534-536,
 sites/locust.farm/src/lib/farm/client.ts:3-13).
 
-**Needs (by the earlier phase's own name for the thing).**
+**Needs.**
 
 - J2: the door record and `door_state` with its reasons; `DoorView`; the
   door's description; `State::joinable()`; the approval state on the task
@@ -3345,7 +3409,7 @@ sites/locust.farm/src/lib/farm/client.ts:3-13).
   signs nothing for a goal that is ended or catching up.
 - E2: the leave the host's computer holds, for `Former member`.
 
-**Tests (named by the behaviour they show).**
+**Tests.** Named by the behaviour they show.
 
 The service:
 
@@ -3360,9 +3424,9 @@ The service:
 - `a_passed_closing_date_stops_the_description_by_the_services_clock`
 - `the_description_is_stored_without_being_decoded`
 - `a_door_change_by_check_in_reaches_viewers_and_keeps_gallery_order`
-- `a_page_with_no_accepted_request_for_the_quiet_period_is_blanked_and_keeps_its_address`
-- `the_next_upload_brings_a_blanked_page_back_at_its_address`
-- `a_check_in_postpones_the_quiet_blanking_and_never_the_ended_removal`
+- `a_page_with_no_accepted_request_for_the_quiet_period_is_removed_for_good`
+- `a_page_removed_for_quiet_answers_its_own_key_with_gone`
+- `a_check_in_postpones_the_quiet_removal_and_never_the_ended_removal`
 - `a_deleted_page_keeps_its_number_and_refuses_everything_but_a_delete`
 - `a_database_of_another_version_is_refused`
 - The tests that show an upload from a page the operator did not enroll
@@ -3385,7 +3449,6 @@ The publisher, on real nodes with a harness for the service:
 - `after_gone_the_next_farm_on_starts_a_new_page_with_no_farm_off_first`
 - `an_ended_page_the_service_removed_reads_ended_and_names_nothing_to_run`
 - `a_page_that_wants_listing_is_published_by_link_and_status_says_so`
-- `a_check_in_refused_for_a_blank_page_is_followed_by_an_upload`
 - `the_publisher_reports_a_copy_behind_the_service_once`
 - `a_copy_behind_the_service_that_is_not_catching_up_takes_the_number_and_uploads_at_once`
 - G1's two:
@@ -3411,6 +3474,7 @@ The site, at 1440 and 390 pixels:
 
 - "the Join band prints the host's reported state", once per state
 - "the band prints nothing worked out from seats or counts"
+- "the band prints a closing date only where the host named one"
 - "the quiet-host line and the passed-date line are marked as the farm
   service's"
 - "the band folds when hidden and stays folded after a reload", and
@@ -3443,15 +3507,20 @@ The site, at 1440 and 390 pixels:
   hold the page updates again and no further 409 is seen. On a goal the
   person has continued, a 409 is followed at once by an upload above the
   service's number.
-- A page is blanked by the quiet rule with the period set short. The
-  host's next upload brings it back at the same address.
+- A page is removed by the quiet rule with the period set short. The
+  host's next request is answered 410, `farm status` reads stopped and
+  names `farm door open`, and that command gives the goal a page at a new
+  address.
 - `farm off` removes the page of a goal halted by a forked host record,
   and `events` shows no new record.
 - `output/farm-ui/` holds a screenshot of every door state at both
   widths.
 - The guide page on public pages says: what a public goal's page gives
   out, the names rule, the three retentions, and what the service keeps
-  after a delete.
+  after a delete. Its promise that a page never copies private names
+  (docs/guide/farm-publication.md:19) is rewritten: a page made by `farm
+  door open` takes the goal's own title and shows each role under its own
+  name.
 
 **Risks and stated limits.**
 
@@ -3462,10 +3531,11 @@ The site, at 1440 and 390 pixels:
 - Two running copies of one Locust data folder take the service's number
   from each other, and the page then alternates. Nothing in v2 protects a
   goal from two running copies (host safety plan).
-- A page whose publisher is stopped, or whose host is away, is blanked
-  after 30 quiet days. Until its host uploads again a visitor reads `Farm
-  unavailable` and nobody can fetch the description. The page of a lost
-  host stays blank for good, and the service keeps its id, key and number.
+- A page whose publisher is stopped, or whose host is away, is removed
+  after 30 quiet days, for good. Nobody can fetch the description from
+  then on, and links to the old address stop working. A host that comes
+  back later gets a page at a new address with one command and one yes.
+  The service keeps the old page's id, key and number.
 - Publishing by link is open to anyone. Today an upload from a page the
   operator did not enroll is refused before its signature and snapshot
   are checked (crates/locust-farm/src/lib.rs:399-406). After this phase
@@ -3514,7 +3584,7 @@ computers says where a join stands and whom it waits for.
 This phase adds no operation and no record. Every command calls J2's
 operations, and the join reads J3's join route.
 
-**What people and agents see (proposed terminal and page texts).**
+**What people and agents see.** All texts are proposed, not captured.
 
 The commands, each after `locust --owner`:
 
@@ -3536,13 +3606,15 @@ The commands build their plans from J2's operation `farm.door.status`.
 No plan id covers a clock reading, places free, seats used, the member
 count, the waiting count or last-seen text. A plan may print them.
 
-*The host's one command.* With no flags it works: open to anyone, 64
-seats, 30 days, by link only. `--seats` and `--expires` are never
-required. `--expires` takes `Nd` or `Nh`, as `goal invite` does. The plan
-holds the duration and not a date, so its id is the same on a second run.
-A flag left out keeps the stored value. A bare command also opens a door
-whose date has passed: the door then closes 30 days after the command.
-That rule is J2's, and the plan prints it.
+*The host's one command.* With no flags it works: open to anyone, with no
+closing date and every seat a goal can have, by link only. `--seats` and
+`--expires` are never required. `--seats N` gives the door fewer than
+1,024 seats, and `--expires` names a closing date. `--expires` takes `Nd`
+or `Nh`, as `goal invite` does. The plan holds the duration and not a
+date, so its id is the same on a second run. A flag left out keeps the
+stored value, with one exception: a bare command also opens a door whose
+date has passed, and the door then has no closing date. That rule is
+J2's, and the plan prints it.
 
 On a goal with no public page the command does everything in one plan and
 one yes (text J4-T1). The plan, in Phase 2's plan grammar, says:
@@ -3551,15 +3623,19 @@ one yes (text J4-T1). The plan, in Phase 2's plan grammar, says:
 - the rules line, kept or changed, with what makes a result count, who
   the reviewers are now, and that members you add or invite become
   reviewers;
-- the door line: to anyone or by request, the seats, the closing date,
-  at most 16 members at once;
+- the door line: to anyone or by request, open until the host closes it
+  or the goal ends, with the seats and the closing date where the host
+  named them, at most 16 members at once and at most 1,024 agents through
+  the door over the goal's life;
 - what anyone can see on the page, with the names that show now;
 - that everyone who joins reads the whole goal and keeps it;
 - that names are chosen by the people who join, are signed by this
   computer and cannot be changed;
 - that tasks and work by people who came through the door wait for a
-  trusted agent and for no person, and so wait while no trusted agent is
-  running, here or on another computer;
+  trusted agent, that no person is asked, that an agent decides only
+  while it is running in a session and nothing starts one, and that until
+  the host invites someone or gives a role the only trusted agent is the
+  host's own;
 - that people get in only while this computer is on;
 - that members' computers can learn this computer's address unless it
   runs with `LOCUST_BIND=none`;
@@ -3595,13 +3671,13 @@ prints J2's sentence unchanged (text J2-12) and words nothing anew:
   meet: J2's one sentence that names `goal create` followed by `farm door
   open`;
 - rules written by hand that fail the safety check: the check's findings
-  as J2 words them, and J2's sentence that Locust does not replace rules
-  written by hand;
+  as J2 words them. Rules written by hand are never replaced;
 - hosted on another computer, ended or halted: the sentences of Phase 1
   and E1;
-- catching up: a command that would sign is refused with G2's sentence.
-  Whether a change of the door that signs nothing applies meanwhile is
-  J2's rule, and this command prints J2's answer.
+- catching up: `farm door open` and `farm door admit` are refused with
+  G2's catching-up sentence, also where the change would sign nothing.
+  `farm door close` and `farm door deny` apply at once meanwhile, because
+  they sign nothing and let nobody in.
 
 *A door by request (answer 20).* What waits: the stranger's join. It
 waits on the host, a person, who runs `farm door admit` with a plan and a
@@ -3616,8 +3692,9 @@ request, in the order listed, and prints one line for each. A request
 that lapsed or found the goal full meanwhile gets J2's refusal on its
 line, and the others are let in. With `--all` the plan id covers the
 requests that wait when the plan is built. If someone new waits at
-`--confirm`, the command asks again, because the yes would share the goal
-with a person the plan did not show.
+`--confirm`, the command shows the new plan and asks the host again,
+because the yes would share the goal with a person the plan did not
+show.
 
 A request is found by key, prefix or name through `resolve_member`, to
 which J2 supplies the waiting requests. Two requests with one name list
@@ -3662,8 +3739,8 @@ line from the service, marked as not verified; that you read the whole
 goal, including what was written before you joined; that nothing is
 shared from this computer unless your agent posts it; the name line; the
 three levels with the one in force marked; `Tasks NAME opens wait for a
-trusted agent's approval. What NAME posts counts when a trusted agent
-approves it.`; the network line; the leave command; the plan id. It
+trusted agent's approval. What NAME posts counts only when a trusted
+agent approves it.`; the network line; the leave command; the plan id. It
 prints no key of the host: no text a person reads names the signing key
 (master plan, "Assumed until the owner objects"; the roles plan's P3-2).
 The plan id still covers the key that issued the description. The level
@@ -3673,8 +3750,8 @@ trusted agent approved it`.
 
 `--confirm ID` fetches and checks again and builds the plan again. A busy
 door, a check-in or a later closing date between the plan and the yes
-keeps the plan. A changed issuer, goal, name or level asks again
-(finding 7).
+keeps the plan. A changed issuer, goal, name or level asks the person
+who typed the command again (finding 7).
 
 After the yes the command waits up to 20 seconds and prints where the
 join stands (text J4-T4). For a join that waits it prints one line of its
@@ -3742,7 +3819,8 @@ built commands.
 | Joiner in a chat, Locust not set up | 1 pasted prompt | 1, the name | 2: setup, then join |
 | Host at a door by request, for everyone who waits | 1 command | 0 | 1 |
 
-After these, no person is asked again in either journey.
+After these no person is asked again, with one exception that the host
+chose: at a door by request each later request waits for the host.
 
 **Signed records and the rule every computer applies.** None of its own.
 The host's command has J2's one operation sign what J2 defines: a rules
@@ -3761,18 +3839,19 @@ a copy is kept with J3's fold, per page.
 once for each run of the join command. It never learns the name or the
 level, and it is not told that a join was confirmed.
 
-**Needs (by the earlier phase's own name for the thing).**
+**Needs.**
 
 - J2: the five door operations and `DoorView`; `goal.join` with `farm`,
-  an optional level and a required name; the joiner's stored refusal and
-  `GoalSummary.join`; the safety check's findings and the test of when a
-  goal can be made public; the lines the status view gains; the waiting
-  requests as candidates for `resolve_member`; the sentences of texts
-  J2-2, J2-3 and J2-12, which this phase prints and does not word.
+  a level that the command line fills with auto and a required name; the
+  joiner's stored refusal and `GoalSummary.join`; the safety check's
+  findings and the test of when a goal can be made public; the lines the
+  status view gains; the waiting requests as candidates for
+  `resolve_member`; the sentences of texts J2-2, J2-3 and J2-12, which
+  this phase prints and does not word; and, as J2 has them from Phase 1,
+  `invitation.revoke` and the Host audience's sentence for a goal hosted
+  on another computer.
 - J3: the join route and the door it returns; the band and its state
   lines; `farm status`.
-- Phase 1: `invitation.revoke`, the Host audience's two refusal
-  sentences.
 - Phase 2: `cli/confirm.rs` with `--plan` and `--confirm`; the inferred
   `--agent`; `up`; the launcher's block "Your owner's commands"; `utc`
   and `expires_in`; the closing rule of the entry prompt.
@@ -3784,7 +3863,7 @@ level, and it is not told that a join was confirmed.
 - G2: the sentence for a host that is catching up. E1: the ended
   sentence.
 
-**Tests (named by the behaviour they show).**
+**Tests.** Named by the behaviour they show.
 
 - `door_open_with_no_flags_shows_the_rule_change_and_sends_one_request_after_one_yes`
 - `a_door_open_the_daemon_refuses_after_the_yes_changes_nothing`
@@ -3792,7 +3871,7 @@ level, and it is not told that a join was confirmed.
 - `a_door_open_that_would_be_refused_prints_j2s_sentence_and_no_plan`
 - `opening_an_already_public_door_shows_before_and_after_and_asks_once`
 - `an_already_open_door_starts_a_stopped_publisher_again`
-- `a_bare_door_open_after_the_date_passed_sets_a_new_date_and_says_so`
+- `a_bare_door_open_after_the_date_passed_opens_the_door_with_no_date_and_says_so`
 - `the_hosts_plan_id_is_the_same_on_a_second_run_and_never_matches_after_the_yes`
 - `a_join_between_the_hosts_plan_and_yes_keeps_the_plan`
 - `the_hosts_plan_has_no_line_on_the_agents_level_and_none_on_a_backup_host`
@@ -3866,8 +3945,9 @@ level, and it is not told that a join was confirmed.
   no rename.
 - The door line in the join plan is the service's word. Only the
   description is verified, and the host's computer decides admission.
-- A join that waits keeps asking the host's computer until the door's
-  closing date by the joiner's own clock.
+- A join that waits keeps asking the host's computer for 30 days, or
+  until the door's closing date if the host named one and it is sooner,
+  by the joiner's own clock.
 - The rules are changed inside the host's plan only for an unchanged
   built-in formation with no task opened. A host who already opened tasks
   under the default rules starts a new goal.
@@ -3897,24 +3977,23 @@ level, and it is not told that a join was confirmed.
   (crates/locust/src/cli/only_you.rs:273, 776); the default service
   (crates/locust/src/cli/farm.rs:28); an invitation already carries the
   goal's publication record (crates/locust-proto/src/invite.rs:130). No
-  join prompt exists today. Not seen: J2's texts J2-2, J2-3 and J2-12,
-  which this phase points to by id. Inferred: every text and behaviour
-  above. Nothing was built or run.
+  join prompt exists today. Inferred: every text and behaviour above.
+  Nothing was built or run.
 
 ### J5: The life of a public goal
 
-#### Works afterwards
-
-Every state a public goal passes through reads the same on the host's
-computer, on a joiner's, at the farm service and on the page. A newcomer's
-agent finds no backlog of unread history and starts a ready task without
-waiting for unrelated content. A door member leaves, is removed with nobody
-asked, and its place is free. The host ends the goal: the door closes in the
-same commit, waiting joiners read "ended by the host", and the page stays 30
-days marked ended. After a restore the door is closed with its reason, the
-page says joining is paused, and one command from the host ends the wait.
-With the host's computer off the members' work goes on and the page says when
-it was last seen.
+**Works afterwards.** Every state a public goal passes through reads the
+same on the host's computer, on a joiner's, at the farm service and on the
+page. A newcomer's agent finds no backlog of unread history and starts a
+ready task without waiting for unrelated content. A door member leaves, is
+removed by the host's computer with nobody asked, and its place is free. The
+host ends the goal: the door closes in the same commit, waiting joiners read
+"Ended by the host", and the page stays 30 days marked ended. After a
+restore the door is closed with its reason and the page says joining is
+paused, until the host's computer has caught up. After a whole-computer
+restore or a move, catching up waits for the host's `goal continue`. With
+the host's computer off the members' work goes on, and the page says that a
+join started now waits until that computer is back.
 
 This phase is about what happens over time. It adds no record, no field, no
 operation and no command. It builds two things for a newcomer, adds lines to
@@ -3925,26 +4004,27 @@ is listed under "Waiting for you". It changes nothing in J2's validator
 order.
 
 What waits in a public goal, and on whom, is the table at the top of this
-plan. This phase adds one row to it and states two more where they happen.
-The new row: an agent's work after its computer's data folder was put back,
-when no computer of the host or of an invited member holds the record that
-is missing. It waits on the person whose computer it is, for one command.
-The other two are a newcomer's first task while the goal's rules have not
-arrived, which waits on other members' computers, and the host's key after a
-restore, which waits on a computer that holds the missing record or, by
-answer 13, on the host.
+plan. This phase states three waits where they happen. Two are rows of that
+table: a newcomer's first task while the goal's rules have not arrived,
+which waits on other members' computers, and what the host's computer signs
+after a restore, which waits on a computer that holds the missing record or,
+by answer 13, on the host. The third has no row there. It falls under the
+case "A computer was restored", named above that table: an agent's work
+after its own computer's data folder was put back, when no computer of the
+host or of an invited member holds the record that is missing. It waits on a
+door member's computer that holds the record, or on the person whose
+computer it is, for one command.
 
-#### What people and agents see
+**What people and agents see.** All texts are proposed output. Nothing was
+built or run.
 
-All texts are proposed output. Nothing was built or run.
-
-**One state in every place.** J2's `door_state` is the one answer. The
+*One state in every place.* J2's `door_state` is the one answer. The
 host's status, the answer a joiner gets, the publisher's request and the
 page print it in J2's and J3's words, and this phase words none of them
 again. Its part is one test that walks a goal through the states and
 compares the readings (under Tests).
 
-**A newcomer's first read** (decision c). A newcomer's agent reads what
+*A newcomer's first read (decision c).* A newcomer's agent reads what
 every member reads: status, `pending` and the context views as roles-plan
 Phases 3 to 5 leave them. There is no new brief type and no special fetch
 order. Two things are built.
@@ -3987,14 +4067,16 @@ that names who is waited for: "The goal's rules have not arrived on this
 computer yet. Locust is fetching them from the other members' computers."
 Text J5-1 shows a newcomer's first `pending`.
 
-**Leaving** (answer 14, E2). A door member leaves with `goal leave`, which
+*Leaving (answer 14, E2).* A door member leaves with `goal leave`, which
 asks the person who typed it for a yes. Nobody else is asked. The host's
 computer removes the member by itself with E2's one record, which makes no
 new content key. So a stranger costs the host's record two records signed
 with nobody present: the admission and the removal. The place under the
 ceiling is free from the removal's position. The seat is not given back. A
-goal whose seats are all used stays closed for that reason after a leave,
-and only the host's `farm door open --seats N` changes it.
+door that closed because its seats are used up stays closed after a leave.
+Where the host named a number of seats, only the host's `farm door open`
+with a larger `--seats` opens it again. After 1,024 admissions the door is
+closed for good.
 
 The lines of `goal leave` on a public goal are text J5-2. They say: your
 name comes off the page once the host's computer has the leave; your copy
@@ -4003,8 +4085,8 @@ posted; to come back, join again from the goal's page, which uses a new
 seat. No line tells the member that the host is asked to remove it, and the
 host's status has no remove line for it. A member the host invited reads the
 same name and copy lines, and E2's line "To come back, join with a new
-invitation." The host's Door line shows one member fewer and the same number
-of seats used.
+invitation." The host's Door line shows one member fewer. Where the host
+named a number of seats, it shows the same number used.
 
 Once the host's computer holds the leave the page shows J3's "Former member"
 in place of the name, and goes on showing it after the removal. After
@@ -4022,7 +4104,7 @@ member list and signs nothing (J2's validator, test 2), and the joiner's
 Locust does not end the join on the admission it left (E2's `finish_joins`).
 A door has no ticket to use up, so the early ask costs nothing.
 
-**Removal.** `member remove` finds a door member by name, key or key prefix
+*Removal.* `member remove` finds a door member by name, key or key prefix
 through the roles plan's `resolve_member`. Where two members show one name
 it lists their key prefixes and removes nobody. The plan and the first
 result line are the roles plan's. For a door member the result adds
@@ -4041,7 +4123,7 @@ admission also brings the first agent's removal to that computer, because
 its exchanges are accepted again. Telling a removed computer is left for
 later.
 
-**Ending** (answers 22 and 23, E1). "Ended" has one meaning everywhere: the
+*Ending (answers 22 and 23, E1).* "Ended" has one meaning everywhere: the
 copy holds the host's end record (`Goal::end_held()`). J2's `door_state` and
 validator read it from their first day, so a computer that was waiting to
 join is answered `GoalEnded` at its next ask, asks no more and reads J2's
@@ -4077,13 +4159,15 @@ Until deleting a goal from one's own computer is built, a member of an ended
 public goal can neither leave it nor remove it from their computer (E1: a
 leave would have to sign). The guide says so (text J5-11).
 
-**A restore** (decision g, answer 13, G1 and G2). Admission reads
+*A restore (decision g, answer 13, G1 and G2).* Admission reads
 `Node::admission_hold` and adds nothing to it. There is no flag on the door.
 
 - An ordinary restart holds nothing. The door is as it was.
 - After the data folder alone was put back, with the marks kept, the hold
   ends by itself when the missing record returns from any computer. The door
-  is then whatever the door record of the copy says. The host types nothing.
+  is then whatever the door record of the copy says. The host types nothing,
+  unless no computer that answers holds the record. Then the goal is listed
+  for the host, who continues with one command (below).
 - After a whole-computer restore or a move, every goal the person hosts
   waits for `goal continue`. Nothing else ends that wait: no door member's
   computer is waited for, and no answer of the farm service ends a hold.
@@ -4105,7 +4189,7 @@ leave would have to sign). The guide says so (text J5-11).
   signs nothing and applies then (G2); the operation is J2's, and J2 says
   so. `goal continue --all` prints the door line in each goal's block.
 
-**When a hold is listed under "Waiting for you".** G2 lists a goal there
+*When a hold is listed under "Waiting for you".* G2 lists a goal there
 only when no computer can end the hold as far as this daemon can tell. A
 door member's computer may never return, so in a goal with door members
 that rule changes in two places. Both read `via` in the admissions of the
@@ -4140,41 +4224,45 @@ copy. Text J5-12 shows them.
    computer has answered, and none of them holds the record. On the host's
    own computer the first of these is met by itself. G1's rule for giving a
    record up does not change, so the hold still ends by itself when the
-   remaining computers answer. This wait is on the person whose computer it
-   is. It arises only after that computer's data folder was put back, and
-   only while the missing record is on no computer of the host or of an
-   invited member. It costs one command.
+   remaining computers answer. This wait is on the door members' computers
+   not heard from, or on the person whose computer it is, for one command.
+   It arises only after that computer's data folder was put back, and only
+   while the missing record is on no computer of the host or of an invited
+   member.
 
 Stated limit, and owner question 6: a copy brings back the door as it was
 when the copy was made, as it brings back levels and folders. A door the
 host closed afterwards is open again once the hold ends. A request the host
-turned down afterwards can be asked again. Seats used is counted from the
-host's record, so it is right once the record is whole. Status and the plan
-of `goal continue` show the door.
+turned down afterwards is treated as new if its computer asks again. Seats
+used is counted from the host's record, so it is right once the record is
+whole. Status and the plan of `goal continue` show the door.
 
-**The host's computer off.** Members keep working. A trusted agent on
+*The host's computer off.* Members keep working. A trusted agent on
 another computer keeps approving, so results count and door members' tasks
 become available. Nobody joins and nobody is removed: a member that leaves
-reads "left, not yet removed" and holds its place until the host's computer
-is back. The shared plan and the shared files do not advance, because the
-host's computer records them. The page stops updating, and after 120
-seconds with no check-in it shows when the host's computer was last seen. A
-join started meanwhile waits on the host's computer and is answered when it
-is back; the joiner's status says so in J2's words (text J2-3). An agent let
-in during the last second before the host's computer went off signs nothing
-until that computer is back (G1's hold for a key just admitted).
+is listed as "left, not yet removed" and holds its place until the host's
+computer is back. The shared plan and the shared files do not advance,
+because the host's computer records them. The page stops updating. After
+120 seconds with no accepted request its status card reads `Quiet` with the
+time of the last check-in, and the band adds J3's line that a join started
+now waits until the host's computer is back (text J3-1). A join started
+meanwhile waits on the host's computer and is answered when it is back; the
+joiner's status says so in J2's words (text J2-3). An agent let in during
+the last second before the host's computer went off signs nothing until
+that computer is back (G1's hold for a key just admitted).
 
-**The host's computer lost.** Nobody can ever join, be removed or end the
+*The host's computer lost.* Nobody can ever join, be removed or end the
 goal. Members' work goes on and counts through trusted agents on other
 computers. The plan and the files stay where they were. The service removes
 the page after 30 days with no accepted request. A join against it keeps
-asking until the closing date it was shown and then reads J2's sentence
-"this door closed; start again from the goal's page". No computer can know
-that a host is lost, so no status says so: it shows when the host's computer
-last synchronized. No text offers a backup host as the way back for a goal
-made now.
+asking the host's computer until it has waited 30 days, or until the door's
+closing date where the host named one and it comes sooner. Then it stops,
+and status reads J2's sentence that says to start again from the goal's
+page (text J2-3). No computer can know that a host is lost, so no status
+says so: it shows when the host's computer last synchronized. No text offers
+a backup host as the way back for a goal made now.
 
-**Halted.** The door is closed for good, and the host's status prints J2's
+*Halted.* The door is closed for good, and the host's status prints J2's
 line for a halted door (text J2-2). The page is blank, as today (`eligible`,
 crates/locust-core/src/node/farm.rs:113-117). People admitted after the
 position where the host's record split are out, although their computers
@@ -4183,14 +4271,14 @@ down with `farm off`, which J3 lets delete the page and sign nothing. No
 line is built for an agent that was let in after the split; that is a stated
 limit below.
 
-**Disconnecting the host's agent.** It closes no door: from K1 the host's
+*Disconnecting the host's agent.* It closes no door: from K1 the host's
 computer admits without that agent. On a goal whose door is open, E2's
 result of `agent revoke` gains "The door stays open." Where that agent is
 the goal's only trusted member it gains "Door members' tasks and results
 wait until Harbor is connected again." (text J5-9). `agent reconnect` ends
 that wait.
 
-#### Signed records and the rule every computer applies
+**Signed records and the rule every computer applies.**
 
 None is added and none changes. The rules this phase rests on are E1's,
 E2's, G1's and J2's and are stated there. Two rules of this phase read
@@ -4201,7 +4289,7 @@ one member's agent is shown as news. Whether a hold is listed under "Waiting
 for you" reads `via` in the admissions of the copy and the computers heard
 from since this start; it decides only what one person is shown.
 
-#### Kept on one computer
+**Kept on one computer.**
 
 Nothing new is stored on any computer. The unread count is worked out from
 the records held. `goal end` deletes J2's door record in its commit. The
@@ -4209,23 +4297,24 @@ door sentence of the restored block is printed from G1's record of a found
 restore and J2's door record, and neither gains a field. The plan id of
 `goal end` on a public goal is worked out from fewer fields.
 
-#### What the farm service does
+**What the farm service does.**
 
 Nothing is built at the service. It behaves as J3 leaves it, and this
 phase's drills watch the page and the join route at a leave, at an end,
 during a restore and with the host's computer off.
 
-#### Needs
+**Needs.**
 
-- J2: `door_state` and its reasons; the door record with its waiting and
-  denied lists; `State::door_admissions`; `via` on `MemberView` and
-  `Abilities`; the stored refusal on a join, its pacing and its status
-  sentences (text J2-3), with `Refusal::GoalEnded`; the Door lines of the
-  host's status (text J2-2), the halted one included; the one validator and
-  its answer to a key that is already a member; that `farm door close` signs
-  nothing and applies while the goal is catching up; the view rule for the
-  tasks of a member that left or was removed, as J2 states it; and that
-  records which do not count yet are left out of unread news.
+- J2: `door_state` and its reasons, and the operation `farm.door.status`
+  that answers them; the door record with its waiting and denied lists;
+  `State::door_admissions`; `via` on `MemberView` and `Abilities`; the
+  stored refusal on a join, its pacing and its status sentences (text J2-3),
+  with `Refusal::GoalEnded`; the Door lines of the host's status (text
+  J2-2), the halted one included; the one validator and its answer to a key
+  that is already a member; that `farm door close` signs nothing and applies
+  while the goal is catching up; the view rule for the tasks of a member
+  that left or was removed, as J2 states it; and that records that wait or
+  are excluded in replay are left out of unread news.
 - J3: the door in every upload and check-in, the join route, the 409 that
   carries the service's number, what the publisher may sign while its goal
   is catching up, `farm off` on a halted goal, the quiet retention, and the
@@ -4248,14 +4337,14 @@ during a restore and with the host's computer off.
   adds to.
 - J1: the backoff that slows a removed computer to one try in 15 minutes.
 
-#### Tests
+**Tests.**
 
 Named by the behaviour they show. Each replay case runs forward, reversed
 and after a reload, as the earlier phases' do. A behaviour that an earlier
 phase builds has its test there and none here: that a place is free after a
 removal and a seat is not given back (J2); what a joiner is answered and
 reads at an ended, closed, paused or unreachable door, and that a waiting
-join stops at the closing date it was shown (J2); that `farm door close`
+join stops when its description runs out (J2); that `farm door close`
 applies while the goal is catching up (J2); the page's lines for a former
 member, a paused door and an ended goal, and `farm off` on a halted goal
 (J3); that a host that is catching up signs no removal (G1 and E2).
@@ -4333,9 +4422,9 @@ The host's computer off, and its agent disconnected:
 
 - `with_the_hosts_computer_off_work_counts_through_a_trusted_agent_elsewhere_and_nobody_joins`:
   a result counts and a door member's task becomes available through
-  Maple; a join waits; a leave is followed by no removal; an approved plan
-  revision is not recorded. After the host's computer is back each of the
-  three happens once.
+  Maple; a join waits for the host's computer; a leave is followed by no
+  removal; an approved plan revision is not recorded. After the host's
+  computer is back each of the three happens once.
 - `disconnecting_the_hosts_agent_closes_no_door_and_says_what_waits`.
 
 One walk:
@@ -4346,7 +4435,7 @@ One walk:
   view, the answer a joiner gets, and the door in the publisher's next
   request agree.
 
-#### Exit criteria
+**Exit criteria.**
 
 - The three cargo commands pass, with `python3 scripts/check_formations.py`
   after its `--write` and `python3 scripts/check_docs.py`. The two steps CI
@@ -4359,28 +4448,30 @@ One walk:
   40 findings, has nothing unread and starts a listed task; Wren's person
   runs `goal leave`; within a minute Ana's `events` lists the leave and one
   removal by `host`, her status says "Nothing is waiting for you.", the Door
-  line shows one member fewer and the same seats used, and the page shows
-  "Former member".
+  line shows one member fewer, J2's operation `farm.door.status` answers the
+  same seats used, and the page shows "Former member".
 - `locust --owner goal end --goal G --plan` twice prints one plan id, also
   when a stranger joins between the two runs. After the yes the result
-  prints "Door closed.", `farm door status` answers ended, a joiner that was
+  prints "Door closed.", `farm.door.status` answers ended, a joiner that was
   waiting reads J2's sentence for an ended goal, the page reads "Ended by
   the host" with its removal date, and the join route hands out no
   description.
 - The restore drill of G1 in its two forms, on a public goal with the door
   open and a joiner asking. Data folder put back: the door line reads closed
   while catching up, the page reads paused, and both end with no command
-  once Maple's computer has answered. Data and marks both put back: the same
-  state stays after every computer has answered, status lists the goal under
-  "Waiting for you", the plan of `goal continue` shows the door, and after
-  the yes the joiner is let in. Neither run halts the goal.
+  once the missing record has come back from Maple's computer. Data and
+  marks both put back: the same state stays after every computer has
+  answered, status lists the goal under "Waiting for you", the plan of `goal
+  continue` shows the door, and after the yes the joiner is let in. Neither
+  run halts the goal.
 - The same drill with the data folder put back in a goal where nobody on
   another computer was invited: status lists nothing under "Waiting for
   you" until one door member's daemon has answered, and the hold ends with
   no command when that daemon holds the record.
 - With Ana's daemon stopped: a result by Wren's agent counts through Maple's
-  agent on both remaining computers, the page shows the last-seen line after
-  two minutes, and a join started then is let in after Ana's daemon starts.
+  agent on both remaining computers, after two minutes the page's band shows
+  J3's line that a join started now waits until the host's computer is back,
+  and a join started then is let in after Ana's daemon starts.
 - `agent revoke` for Harbor prints the door line of text J5-9 and no plan,
   and a stranger is still let in while Harbor is disconnected.
 - After a debug build, `python3 scripts/check_farm.py --output DIR` passes
@@ -4391,7 +4482,7 @@ One walk:
   off or lost means; and that a member of an ended public goal can neither
   leave it nor remove it from their computer yet.
 
-#### Risks and stated limits
+**Risks and stated limits.**
 
 - A removed computer is not told. It keeps the goal in its status, is
   refused by every other computer, and backs off to one try every 15
@@ -4420,8 +4511,9 @@ One walk:
   agent's hold names the door members' computers not heard from.
 - On a member's computer after a copy of unknown age, an agent's hold waits
   for the host's computer, as G2 has it, and is not listed. With the host's
-  computer lost it lasts until that person continues. This phase changes
-  the listing for holds with the marks kept only.
+  computer lost it lasts until every other computer has answered or that
+  person continues. This phase changes the listing for holds with the marks
+  kept only.
 - G1 holds a key that was just admitted until one exchange with the host's
   computer brings nothing new. In a busy public goal that can take several
   exchanges, and the newcomer's first start is refused `unavailable`
@@ -4448,8 +4540,9 @@ One walk:
 - The end seals nothing. Late records count, and an ended page can change
   or go blank (E1's notes). A host that ends a goal and switches its
   computer off before any member's computer has the end leaves the goal
-  open for everyone else, and joiners keep asking until the closing date
-  they were shown.
+  open for everyone else, and joiners keep asking the host's computer until
+  the description they were shown runs out, after 30 days or at the closing
+  date where the host named one.
 - No name comes off an ended page, and a member cannot leave or delete an
   ended goal.
 - A lost host is lost for good in v2. The page lasts 30 quiet days.
@@ -4457,23 +4550,22 @@ One walk:
   the host safety plan). On a public goal anyone can join and read, so a
   new key would protect nothing there.
 - While no trusted agent is in a running session, door members' tasks and
-  results wait (owner question 5). With the host's computer off and no
-  member invited, that is every task and every result.
+  results wait for one (owner question 5). With the host's computer off and
+  no member invited, that is every task and every result.
 - Every name taken from J1 to J4, from the roles plan and from K1, G1, G2,
   E1 and E2 is plan text, so this phase is read again against the tree it
   lands on.
 
 ### J6: Qualification and release
 
-#### Works afterwards
-
-The member ceiling is a measured number. A join between two computers on two
-networks is on record. One page has been watched by 300 streams. Real agents
-of different owners have joined through the door at 8 and at 16, at auto,
-with no person answering after the join, and trusted agents approved their
-tasks unprompted. The restore, end, leave and flood cases pass. The journeys
-are counted. The farm service and the site are released first, then the
-daemons, under the number the master plan gives.
+**Works afterwards.** The member ceiling is a measured number. A join
+between two computers on two networks is on record. One page has been
+watched by 300 streams. Real agents of different owners have joined through
+the door at 8 and at 16, at auto, with no person answering after the join,
+and trusted agents approved their tasks unprompted. The restore, end, leave
+and flood cases pass. The journeys are counted. The farm service and the
+site are released first, then the daemons, under the number the master plan
+gives.
 
 This phase builds no behaviour. It builds scenarios, a viewer check, a
 transcript recorder, a flood tool and a checker of invariants, makes the
@@ -4487,7 +4579,8 @@ Gates that cannot be waived:
 1. The member ceiling is measured: 16, else 8, else no release of the door.
 2. A join between two computers on two networks is on record.
 3. One page was watched by 300 streams.
-4. The restore cases pass and expect the one command.
+4. The restore cases pass, with the one command where the plans say so and
+   no command elsewhere.
 5. `door-end` and `door-leave` pass.
 6. No authority or approval invariant fails in any run of any kind.
 7. Trusted agents approve door members' tasks unprompted in the run with
@@ -4495,13 +4588,11 @@ Gates that cannot be waived:
 8. The task flood passes its threshold, or J2's signed limit is built first
    and the campaign is run again.
 
-#### What people and agents see
+**What people and agents see.** Nothing new in the product. Three things
+are put on paper: the counted journeys, the table of gates (text J6-2) and
+the record of the run with real agents (text J6-3).
 
-Nothing new in the product. Three things are put on paper: the counted
-journeys, the table of gates (text J6-2) and the record of the run with
-real agents (text J6-3).
-
-**The counted journeys.** J4 states the numbers. This phase counts them on
+*The counted journeys.* J4 states the numbers. This phase counts them on
 the built commands, the way roles-plan Phase 7 counts its two journeys:
 recipes in which every command a person types is one line through `person`,
 and a test that compares the count with this table. A recipe fails if it
@@ -4518,10 +4609,10 @@ task yet, which is when J2 lets a goal made with no flags become public.
 After the join nobody types anything, on either side. Two more counts are
 reported and not budgeted: the same joiner on a computer where Locust is not
 set up, where setup and join are two plans in the first door; and a door by
-request, where the host runs one `farm door admit` with one yes per person,
-by the host's own choice of door.
+request, where the host runs one `farm door admit` with one yes for everyone
+who waits, by the host's own choice of door.
 
-**Four kinds of evidence.** Each row of the note says which kind it is, and
+*Four kinds of evidence.* Each row of the note says which kind it is, and
 a result of one kind is never reported as another.
 
 | Kind | What it is | What it can show | What it cannot |
@@ -4531,9 +4622,8 @@ a result of one kind is never reported as another.
 | Two computers | Two people, two networks, the candidate's bytes, the deployed service | A join from the page, sleep, relay-only running | Scale |
 | Agents of different people | Real coding agents of different owners on different computers | Whether agents find work and approve with nobody prompting | Repeatable numbers |
 
-#### Signed records and the rule every computer applies
-
-None is added. Two things are fixed here.
+**Signed records and the rule every computer applies.** None is added. Two
+things are fixed here.
 
 - `MAX_JOINABLE_MEMBERS`, the ceiling that J2's validator applies. Only the
   host's computer lets people in, so only it applies the ceiling; it is no
@@ -4543,8 +4633,10 @@ None is added. Two things are fixed here.
   changes the ceiling at run time.
 - The numbers the release carries (decision h). The protocol number is 7 if
   nothing was released before the door, and 8 otherwise. The API version and
-  the store marker follow the same rule. The farm numbers are the ones J2
-  and J3 leave. This phase writes them into the release record and into
+  the store marker follow the same rule. The farm numbers are the two that
+  J2 and J3 leave: the signed policy's own version from J2, and
+  `FARM_VERSION` 2 from J3 for requests, snapshots and the service's
+  database. This phase writes them into the release record and into
   `latest.json`. Which of 7 and 8 it is stays the master plan's open
   question. The preview published on 4 October 2026 speaks API 4 and
   protocol 4 (docs/public-preview-release.md:30), and no release reads its
@@ -4581,7 +4673,7 @@ seeded runs.
 A failure of any of them, in any run of any kind, stops the release. It is
 never written down as a weak run.
 
-#### Kept on one computer
+**Kept on one computer.**
 
 Nothing in the product. What this phase leaves behind is evidence, tracked
 in the repository: one note under `research/` (proposed name
@@ -4590,7 +4682,7 @@ in the repository: one note under `research/` (proposed name
 in research/README.md and research/evidence/README.md. Every run is in the
 note with the hash of its binary, failures included.
 
-#### What the farm service does
+**What the farm service does.**
 
 It is released first. A daemon with a door cannot publish to the service
 that runs today: that service refuses an upload with a field it does not
@@ -4608,19 +4700,22 @@ the limit. It passes when each update reaches all 300 streams within 2
 seconds (95th percentile), the service closes no stream, the join route
 answers within 250 ms meanwhile, and a stream past the limit gets 429
 (crates/locust-farm/src/lib.rs:571) while a browser page in that state still
-shows the goal by polling.
+shows the goal by polling. The check runs against the service itself. J3
+leaves the limits per address of the web server in front of it at starting
+values, and they are set from this run's numbers before the deploy.
 
 In `door-end` the service runs with a short retention, so the removal of an
 ended page is seen in the run. After the deploy, `/health`, the seeded
 pages and the join route of one test page are checked by hand.
 
-#### Needs
+**Needs.**
 
 - J1 to J5, built and passing their own exit criteria.
 - J1: the counters that `doctor --json` reports, and the limits they are
   measured against: 64 connections from computers that are not members, 8
-  from one source, 10 seconds to be admitted, one write a minute when idle,
-  and the 60 second ceiling that an exchange presenting a join keeps.
+  from one source, 10 seconds to be admitted, one commit a minute when idle
+  plus two per 30 seconds on a daemon that publishes, and the 60 second
+  ceiling that an exchange presenting a join keeps.
 - J2: `MAX_JOINABLE_MEMBERS`, `MAX_DOOR_SEATS`, `APPROVE_SHOWN`, the trial
   with real agents that J2 needed before it was built, the fallback and the
   signed limit it names, and the rule's case in the formal model.
@@ -4639,9 +4734,9 @@ pages and the join route of one test page are checked by hand.
 - The master plan's Versions paragraph, with the owner's answer on whether
   anything is released before the door.
 
-#### Tests
+**Tests.**
 
-**Scenarios on daemons on one computer.** Each runs at 8 and at 16 members,
+*Scenarios on daemons on one computer.* Each runs at 8 and at 16 members,
 the host included, unless it says otherwise. The host makes the goal with
 no flags, runs `farm door open` and then builds the fixture, because J2
 refuses a goal that already has tasks under the default rules. So every run
@@ -4656,20 +4751,23 @@ scen_network.py and scen_probe.py (scripts/simulate_machines/run.py:37-41).
   record a second across the goal. It also records, for the last newcomer,
   the time from admission to its first start, directly and through a relay.
 - `door-burst`: all joiners start within 2 seconds. A second form has one
-  place free and three joiners: one is let in, two wait, and the member
-  count never passes the ceiling.
+  place free and three joiners: one is let in, two wait for a place, and the
+  member count never passes the ceiling.
 - `door-offline`: half, then three quarters of the members are stopped for
   10 minutes, one live member is restarted, then all resume. A second form
   stops the host: work counts through a trusted agent on another daemon and
-  a join waits.
+  a join waits for the host's daemon.
 - `door-flood`: a flood tool holds 200 idle and 200 hello-only connections
   to the host while one joiner joins and one member restarts. The gated form
   floods from a source address other than the joiner's. A form that floods
   from the joiner's own address is recorded only.
-- `door-waiting`: 2 seats and 10 joiners; then `farm door close`, a passed
-  date and a new `farm door open` with more seats. Then the same at a door
-  by request, with `farm door admit` and `farm door deny`, a request that
-  lapsed and asks again, and two requests under one name.
+- `door-waiting`: the host names 2 seats and a closing date, since a door
+  opened with no flags has neither, and 10 joiners come. Then `farm door
+  close`, a `farm door open` with more seats, a passed date, and a bare
+  `farm door open` that opens the door again with no date. Then the same at
+  a door by request, with `farm door admit` and `farm door deny`, a request
+  that lapsed and whose computer asks again, and two requests under one
+  name.
 - `door-restored-host`: an old copy with the door open and a joiner asking
   lets nobody in and is not halted. Five forms. (1) The data folder put
   back with an invited member reachable: the hold ends by itself. (2) Data
@@ -4690,10 +4788,11 @@ scen_network.py and scen_probe.py (scripts/simulate_machines/run.py:37-41).
   full door and at a door by request; then `goal end`. It checks what J5
   says of the end, sees the service remove the page after its retention,
   and in a second run takes the page down with `farm off`.
-- `door-leave`: a goal at its ceiling with a joiner waiting; a door member
-  leaves; it is removed within a minute with nobody asked; the joiner is let
-  in; seats used never falls; the content-key epoch is unchanged. With the
-  host stopped at the leave, the place is held until the host is back.
+- `door-leave`: a goal at its ceiling with a joiner waiting for a place; a
+  door member leaves; it is removed within a minute with nobody asked; the
+  joiner is let in at its next ask; seats used never falls; the content-key
+  epoch is unchanged. With the host stopped at the leave, the place is held
+  until the host is back.
 - `door-task-flood`: one door member opens 1,000 tasks in a goal of 16 with
   three trusted agents. A form with 15 door members and 1,000 tasks each is
   recorded only.
@@ -4710,18 +4809,19 @@ Three cases join `network_modes` in scen_network.py: a host with
 another relay address can still be joined through the description its
 daemon uploads again.
 
-**Seeded simulator runs.** Door admissions, task approvals, leaves and
+*Seeded simulator runs.* Door admissions, task approvals, leaves and
 restored machines are added to the simulator's seeded runs, under the seven
 invariants.
 
-**Thresholds for a member count.** Proposals until the owner accepts them.
+*Thresholds for a member count.* Proposals until the owner accepts them.
 (a) to (g) are the old plan's, with (b) and (f) corrected.
 
 - (a) Every joiner becomes a member. One at a time, each is a member on
   every computer within 10 seconds (95th percentile). In the burst all are
   members within 120 seconds and none ends refused.
-- (b) Idle, per daemon: J1's bound of one write a minute, 1% of one core and
-  5 KB/s, with resident memory flat within 5%.
+- (b) Idle, per daemon: J1's bound of one commit a minute, plus two per 30
+  seconds on the daemon that publishes, 1% of one core and 5 KB/s, with
+  resident memory flat within 5%.
 - (c) Under load: a record is on every online member within 5 seconds (95th
   percentile), `status` answers within 250 ms, and open exchanges do not
   grow.
@@ -4732,9 +4832,10 @@ invariants.
 - (e) Flood from another address: the join completes within 15 seconds, the
   restarted member reconnects within 30 seconds, and the host's memory grows
   by at most 64 MB.
-- (f) Waiting at an open door: at most one inbound attempt per waiting
-  joiner per 5 minutes. A door by request is left out, because its 15
-  seconds are by design.
+- (f) A join that waits at a full or closed door, or on a host that is
+  catching up: at most one inbound attempt per waiting joiner per 5
+  minutes. A door by request is left out, because its 15 seconds are by
+  design.
 - (g) No daemon above 512 MB resident.
 - (h) Task flood: with 1,000 waiting tasks from one door member, (c) and (g)
   hold on every daemon, and a trusted agent's `pending` answers within 250
@@ -4742,7 +4843,7 @@ invariants.
 - (i) Churn: after 1,024 seats, (a), (c) and (g) still hold. The size of the
   host's record and the start time of the host's daemon are recorded.
 
-**Two computers.** The candidate's bytes, default network settings, two
+*Two computers.* The candidate's bytes, default network settings, two
 people and two networks, for example home broadband and a phone's hotspot.
 A small script on each computer writes `doctor` and `goal status` once a
 second to a redacted transcript, with the redaction of check_t1.py
@@ -4753,11 +4854,10 @@ second to a redacted transcript, with the redaction of check_t1.py
 2. The host's computer sleeps for 2 minutes while the joiner writes. After
    it wakes both converge within 120 seconds.
 3. The host's computer sleeps for 70 minutes. A second join starts
-   meanwhile. After it wakes, sync resumes within 120 seconds and the
-   waiting join is let in within 90 seconds, the old plan's mark
-   (docs/joinable-farms-plan.md:1638-1640). A joiner whose host cannot be
-   reached keeps trying about once a minute, because J1 keeps the 60 second
-   ceiling for an exchange that presents a join.
+   meanwhile. After it wakes, sync resumes and the waiting join is let in,
+   each within 120 seconds. A joiner whose host cannot be reached keeps
+   trying about once a minute, because J1 keeps the 60 second ceiling for an
+   exchange that presents a join.
 4. The host runs with `LOCUST_BIND=none`: a join, and the fixture fetched
    through the relay. Throughput is recorded and not gated.
 5. The two discovery tests that are ignored by default are run by hand:
@@ -4765,7 +4865,7 @@ second to a redacted transcript, with the redaction of check_t1.py
    `mainline_finds_a_peer_by_key_without_contact_hints`
    (crates/locust-net/src/tests.rs:254-279).
 
-**Real agents of different owners.** Ana makes the goal with no flags, makes
+*Real agents of different owners.* Ana makes the goal with no flags, makes
 it public with the one command and then opens its work, so the goal is in
 progress under `public` when the first stranger joins. Harbor and Maple are
 the trusted agents, on two computers. The agents that come through the door
@@ -4792,18 +4892,18 @@ quality of reviews and duplicated tasks are recorded and not gated. The
 invariants are gated here as everywhere: the checker runs over the `events`
 that every computer exports after the run.
 
-**The acceptance matrix** (finding 13). Each row is a first-release test.
+*The acceptance matrix (finding 13).* Each row is a first-release test.
 
 | Case | It passes when | Shown by |
 | --- | --- | --- |
 | Auto on both sides | With the host's agent and the joiner's at auto, nobody starts a task that needs approval before a trusted agent approves it, an agent at auto starts it afterwards, and no person is asked on either side | J2's tests of the task rule; `door-scale`; the run with real agents |
 | Private invitations after a restart | An ordinary restart leaves a pending invitation valid and lets its holder in at once; a found restore revokes it | G1's tests; `door-restored-host` |
-| Races at the last place | One joiner is let in and the others wait; the count never passes the ceiling; a rules change between a request and its admission is caught | J2's `a_rules_change_between_a_request_and_its_admission_is_caught`; `door-burst` |
+| Races at the last place | One joiner is let in and the others wait for a place; the count never passes the ceiling; a rules change between a request and its admission is caught | J2's `a_rules_change_between_a_request_and_its_admission_is_caught`; `door-burst` |
 | The page turned off with door members present | The members stay and the guards stay | `door-page-off` |
 | Late content while catching up | A newcomer starts a ready task while unrelated objects are missing. Records signed while the host was catching up count when they arrive, and an approved change is recorded once after the hold | J5's newcomer test; Phase 10's two restore recipes run on a public goal |
 | The end with an open door and waiting joiners | What J5 says of the end holds at the ceiling | J5's tests; `door-end` |
 
-**Tests of the harness**, under scripts/tests.
+*Tests of the harness*, under scripts/tests.
 `test_list_names_every_scenario_and_needs_no_binary` and
 `test_the_quick_set_is_made_of_known_scenarios` still pass, and no door
 scenario joins the quick set. New, named by what they show: the door
@@ -4817,7 +4917,7 @@ no approval; the three door journeys stay within their budgets. `python3
 scripts/check_transport_probe.py` still passes with the flood tool as a
 second example beside transport_probe.rs.
 
-**Release order.**
+*Release order.*
 
 1. The farm service and the site are deployed from the release commit, as
    sites/locust.farm/ops/README.md describes, and checked.
@@ -4836,7 +4936,7 @@ second example beside transport_probe.rs.
 5. The bytes that were last run are published. `latest.json` is replaced
    last.
 
-#### Exit criteria
+**Exit criteria.**
 
 - The note holds one row per scenario and member count, with pass or fail
   per threshold, the measured numbers, the kind of evidence and the hash of
@@ -4871,7 +4971,7 @@ second example beside transport_probe.rs.
   preview. docs/status.md and docs/public-preview-release.md describe the
   new release, and the ops README holds the release order.
 
-#### Risks and stated limits
+**Risks and stated limits.**
 
 - Every daemon of the one-computer runs shares one source address, so
   `door-burst` runs under J1's limit of 8 connections from one source. That
