@@ -520,6 +520,7 @@ fn file_digest_matches(observation: &Observation, digest: &crate::FileDigest) ->
 }
 fn validate_final_layout(
     final_files: &BTreeMap<String, (BlobHash, bool)>,
+    final_directories: &[String],
     before: &Inventory,
 ) -> Result<(), WorkspaceError> {
     for path in final_files.keys() {
@@ -539,7 +540,39 @@ fn validate_final_layout(
             }
         }
     }
+    for path in final_directories {
+        validate_preserved_directory(path, before)?;
+        for parent in ancestors(path) {
+            if final_files.contains_key(&parent) {
+                return Err(conflict(path, "preserved directory under a final file"));
+            }
+        }
+    }
     Ok(())
+}
+
+/// Allow observed opaque Git metadata itself, never a path beneath it.
+fn validate_preserved_directory(path: &str, before: &Inventory) -> Result<(), WorkspaceError> {
+    let Some(Observation::Directory { opaque, .. }) = before.get(path) else {
+        return Err(invalid(
+            "preserved directory was not observed in the inventory",
+        ));
+    };
+    if locust_proto::manifest::is_safe_path(path) {
+        return Ok(());
+    }
+    let (parent, name) = path
+        .rsplit_once('/')
+        .map_or((None, path), |(parent, name)| (Some(parent), name));
+    if *opaque
+        && path.len() <= locust_proto::limits::MAX_PATH_BYTES
+        && (name.eq_ignore_ascii_case(".git") || name.eq_ignore_ascii_case("git~1"))
+        && parent.is_none_or(locust_proto::manifest::is_safe_path)
+    {
+        Ok(())
+    } else {
+        Err(invalid("unsafe preserved directory path"))
+    }
 }
 fn validate_plan(plan: &UpdatePlan, before: &Inventory) -> Result<(), WorkspaceError> {
     let mut resulting: BTreeMap<String, (BlobHash, bool)> = before
@@ -586,7 +619,7 @@ fn validate_plan(plan: &UpdatePlan, before: &Inventory) -> Result<(), WorkspaceE
             "update plan omits or changes preserved local files",
         ));
     }
-    validate_final_layout(&final_files, before)
+    validate_final_layout(&final_files, &plan.final_directories, before)
 }
 fn validate_durable_plan(
     plan: &DurableUpdatePlan,
@@ -633,7 +666,7 @@ fn validate_durable_plan(
             "update plan omits or changes preserved local files",
         ));
     }
-    validate_final_layout(&final_files, before)
+    validate_final_layout(&final_files, &plan.final_directories, before)
 }
 fn ancestors(path: &str) -> Vec<String> {
     path.match_indices('/')
@@ -857,7 +890,7 @@ fn prepare_update_checked(
             if update.final_files.contains_key(path) {
                 return Err(conflict(path, "preserved directory collides with a file"));
             }
-            let _directory = layout_directory(&layout, path)?;
+            let _directory = layout_directory(&layout, path, &before)?;
         }
         let plan = DurablePlan {
             version: 1,
@@ -915,10 +948,8 @@ fn layout_parent(root: &File, path: &str, create: bool) -> Result<(File, String)
     }
     Err(invalid("empty layout path"))
 }
-fn layout_directory(root: &File, path: &str) -> Result<File, WorkspaceError> {
-    if !locust_proto::manifest::is_safe_path(path) {
-        return Err(invalid("unsafe layout directory"));
-    }
+fn layout_directory(root: &File, path: &str, before: &Inventory) -> Result<File, WorkspaceError> {
+    validate_preserved_directory(path, before)?;
     let (parent, leaf) = layout_parent(root, path, true)?;
     match fs::mkdirat(&parent, &leaf, Mode::from_raw_mode(0o755)) {
         Ok(()) => parent.sync_all()?,
@@ -1826,5 +1857,168 @@ mod tests {
             std::fs::read(recovery_dir.join("outside-edit")).unwrap(),
             b"preserve"
         );
+    }
+
+    /// An in-memory object store standing in for the daemon, so unit tests can
+    /// drive the public `plan_update` -> `prepare_update` -> `execute` flow.
+    use locust_proto::manifest::{Entry, Manifest};
+    #[derive(Default)]
+    struct MemStore {
+        objects: std::collections::HashMap<BlobHash, Vec<u8>>,
+    }
+    impl crate::BlobSink for MemStore {
+        fn store(&mut self, plaintext: &[u8]) -> std::io::Result<BlobHash> {
+            let hash = content_hash(plaintext);
+            self.objects.insert(hash, plaintext.to_vec());
+            Ok(hash)
+        }
+    }
+    impl crate::BlobSource for MemStore {
+        fn fetch(&mut self, hash: &BlobHash) -> std::io::Result<Option<Vec<u8>>> {
+            Ok(self.objects.get(hash).cloned())
+        }
+    }
+    fn manifest_entry(store: &mut MemStore, path: &str, bytes: &[u8], executable: bool) -> Entry {
+        use crate::BlobSink;
+        Entry {
+            path: path.to_owned(),
+            executable,
+            size: bytes.len() as u64,
+            content: store.store(bytes).unwrap(),
+        }
+    }
+    fn stored_manifest(store: &mut MemStore, entries: Vec<Entry>) -> (BlobHash, Manifest) {
+        use crate::BlobSink;
+        let mut entries = entries;
+        entries.sort_by(|a, b| a.path.cmp(&b.path));
+        let manifest = Manifest { entries };
+        (store.store(&manifest.encode().unwrap()).unwrap(), manifest)
+    }
+
+    /// An opaque `.git` directory preserved by the planner must survive
+    /// plan/prepare/execute with its contents and identity intact, even though
+    /// the manifest path rules reject `.git`. This exercises the narrow
+    /// preserved-directory exception end to end.
+    #[test]
+    fn preserved_opaque_git_directory_survives_plan_prepare_execute() {
+        use crate::plan_update;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("checkout");
+        std::fs::create_dir(&root).unwrap();
+        let root = std::fs::canonicalize(root).unwrap();
+        std::fs::write(root.join("plain"), b"old").unwrap();
+        // Opaque Git metadata: the inventory records `.git` but never walks in.
+        std::fs::create_dir(root.join(".git")).unwrap();
+        std::fs::write(root.join(".git/config"), b"[core]\n\trepository = true\n").unwrap();
+        std::fs::set_permissions(
+            root.join(".git/config"),
+            std::fs::Permissions::from_mode(0o644),
+        )
+        .unwrap();
+        let git_identity = DirectoryIdentity::of(&std::fs::metadata(root.join(".git")).unwrap());
+        let config_bytes = std::fs::read(root.join(".git/config")).unwrap();
+        let config_mode = std::fs::metadata(root.join(".git/config"))
+            .unwrap()
+            .permissions()
+            .mode();
+
+        let mut store = MemStore::default();
+        let base_entry = manifest_entry(&mut store, "plain", b"old", false);
+        let (base_id, _) = stored_manifest(&mut store, vec![base_entry]);
+        let target_entry = manifest_entry(&mut store, "plain", b"new", false);
+        let (target_id, _) = stored_manifest(&mut store, vec![target_entry]);
+
+        let plan = plan_update(&root, base_id, target_id, &mut store).unwrap();
+        assert!(plan.final_directories.contains(&".git".to_owned()));
+        assert!(!plan.final_files.contains_key(".git"));
+        assert!(
+            !plan.final_files.keys().any(|p| p.starts_with(".git/")),
+            "nothing under .git may be a planned file"
+        );
+
+        let mut prepared = prepare_update(&root, std::slice::from_ref(&root), &plan).unwrap();
+        let descriptor = prepared.descriptor().clone();
+        prepared.execute(&descriptor).unwrap();
+
+        // The managed file advanced; the opaque Git metadata is untouched.
+        assert_eq!(std::fs::read(root.join("plain")).unwrap(), b"new");
+        assert_eq!(
+            std::fs::read(root.join(".git/config")).unwrap(),
+            config_bytes
+        );
+        assert_eq!(
+            std::fs::metadata(root.join(".git/config"))
+                .unwrap()
+                .permissions()
+                .mode(),
+            config_mode
+        );
+        assert_eq!(
+            DirectoryIdentity::of(&std::fs::metadata(root.join(".git")).unwrap()),
+            git_identity,
+            "the .git directory identity survives"
+        );
+    }
+
+    /// A preserved `.git` directory is allowed only when the inventory
+    /// observed it as opaque; an unobserved reserved path, a path underneath
+    /// `.git`, or an unsafe segment is still refused.
+    #[test]
+    fn preserved_directory_validation_refuses_unobserved_unsafe_and_nested_git() {
+        let (_temp, root, plan) = fixture();
+
+        // `.git` was never created in this fixture, so it is unobserved.
+        let mut unobserved = plan.clone();
+        unobserved.final_directories.push(".git".into());
+        assert!(prepare_update(&root, std::slice::from_ref(&root), &unobserved).is_err());
+
+        // A path underneath an opaque `.git` is never a preserved directory.
+        std::fs::create_dir(root.join(".git")).unwrap();
+        std::fs::write(root.join(".git/config"), b"x").unwrap();
+        let before_git = inventory(&safe_fs::root(&root).unwrap()).unwrap();
+        assert!(matches!(
+            validate_preserved_directory(".git/config", &before_git),
+            Err(WorkspaceError::Invalid(_))
+        ));
+        // The opaque `.git` itself is now allowed.
+        validate_preserved_directory(".git", &before_git).unwrap();
+        std::fs::remove_dir_all(root.join(".git")).unwrap();
+
+        // Unsafe segments are still refused even when the path is observed.
+        let mut unsafe_plan = plan.clone();
+        unsafe_plan.final_directories.push("a/../b".into());
+        assert!(prepare_update(&root, std::slice::from_ref(&root), &unsafe_plan).is_err());
+    }
+
+    #[test]
+    fn opaque_directory_observations_cannot_authorize_unsafe_paths() {
+        let (_temp, root, _) = fixture();
+        std::fs::create_dir(root.join(".git")).unwrap();
+        let mut before = inventory(&safe_fs::root(&root).unwrap()).unwrap();
+        let opaque = before[".git"].clone();
+        for path in ["nested/.git", "nested/git~1", "nested/.GIT"] {
+            before.insert(path.into(), opaque.clone());
+            validate_preserved_directory(path, &before).unwrap();
+        }
+        for path in [
+            "/.git",
+            "a/../b",
+            ".git/child",
+            ".git/child/.git",
+            "nested//.git",
+        ] {
+            before.insert(path.into(), opaque.clone());
+            assert!(
+                validate_preserved_directory(path, &before).is_err(),
+                "{path}"
+            );
+        }
+        let long = format!(
+            "{}.git",
+            "a/".repeat(locust_proto::limits::MAX_PATH_BYTES / 2)
+        );
+        before.insert(long.clone(), opaque);
+        assert!(validate_preserved_directory(&long, &before).is_err());
     }
 }

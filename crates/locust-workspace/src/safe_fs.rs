@@ -87,6 +87,10 @@ thread_local! {
     /// inventories reuse a single listing rather than re-listing per child.
     /// Thread-local so parallel tests do not interfere.
     pub(crate) static NAMES_CALLS: Cell<u64> = const { Cell::new(0) };
+    /// Test-only counter for durable `write_new` syncs, used to verify that
+    /// disposable layout probes take the non-durable path. Thread-local so
+    /// parallel tests do not interfere.
+    pub(crate) static SYNC_CALLS: Cell<u64> = const { Cell::new(0) };
 }
 
 pub(crate) fn names(dir: &File) -> Result<Vec<String>, WorkspaceError> {
@@ -350,6 +354,32 @@ pub(crate) fn write_new(
     bytes: &[u8],
     executable: bool,
 ) -> Result<(), WorkspaceError> {
+    let file = create_exclusive(dir, name, bytes, executable)?;
+    file.sync_all()?;
+    dir.sync_all()?;
+    #[cfg(test)]
+    SYNC_CALLS.with(|c| c.set(c.get() + 1));
+    Ok(())
+}
+
+/// Exclusive, no-follow creation without flushing, for disposable layout probes.
+/// Recovery data and actual replacements must use [`write_new`].
+pub(crate) fn probe_write_new(
+    dir: &File,
+    name: &str,
+    bytes: &[u8],
+    executable: bool,
+) -> Result<(), WorkspaceError> {
+    let _file = create_exclusive(dir, name, bytes, executable)?;
+    Ok(())
+}
+
+fn create_exclusive(
+    dir: &File,
+    name: &str,
+    bytes: &[u8],
+    executable: bool,
+) -> Result<File, WorkspaceError> {
     let fd = fs::openat(
         dir,
         name,
@@ -363,9 +393,7 @@ pub(crate) fn write_new(
     } else {
         0o644
     }))?;
-    file.sync_all()?;
-    dir.sync_all()?;
-    Ok(())
+    Ok(file)
 }
 
 pub(crate) fn rename_new(
@@ -378,4 +406,67 @@ pub(crate) fn rename_new(
     from.sync_all()?;
     to.sync_all()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `write_new` is the durable path: each call performs a hardware flush and
+    /// increments the test-only sync counter.
+    #[test]
+    fn write_new_is_durable_and_counts_syncs() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = root(temp.path()).unwrap();
+        SYNC_CALLS.with(|c| c.set(0));
+        write_new(&dir, "durable", b"bytes", false).unwrap();
+        assert_eq!(SYNC_CALLS.with(|c| c.get()), 1, "write_new must sync once");
+        assert_eq!(
+            std::fs::read(temp.path().join("durable")).unwrap(),
+            b"bytes"
+        );
+    }
+
+    /// `probe_write_new` shares exclusivity, privacy and no-follow guarantees
+    /// with `write_new` but skips the hardware flush, so the sync counter is
+    /// unchanged. This is the disposable path layout probes use.
+    #[test]
+    fn probe_write_new_skips_durable_sync() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = root(temp.path()).unwrap();
+        SYNC_CALLS.with(|c| c.set(0));
+        probe_write_new(&dir, "probe", b"bytes", true).unwrap();
+        assert_eq!(
+            SYNC_CALLS.with(|c| c.get()),
+            0,
+            "probe writes must not sync"
+        );
+        let meta = std::fs::metadata(temp.path().join("probe")).unwrap();
+        assert!(meta.is_file());
+        assert_eq!(
+            meta.permissions().mode() & 0o111,
+            0o111,
+            "executable bit preserved"
+        );
+    }
+
+    /// Collision validation is preserved on the non-durable path: a second
+    /// exclusive create of the same name fails with `AlreadyExists`, the same
+    /// error `probe_layout` maps to a layout conflict.
+    #[test]
+    fn probe_write_new_reports_collisions_like_write_new() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = root(temp.path()).unwrap();
+        probe_write_new(&dir, "shared", b"", false).unwrap();
+        let probe_err = probe_write_new(&dir, "shared", b"", false).unwrap_err();
+        assert!(
+            matches!(probe_err, WorkspaceError::Io(ref io) if io.kind() == std::io::ErrorKind::AlreadyExists),
+            "probe collision must surface as AlreadyExists, got {probe_err:?}"
+        );
+        write_new(&dir, "shared2", b"", false).unwrap();
+        let durable_err = write_new(&dir, "shared2", b"", false).unwrap_err();
+        assert!(
+            matches!(durable_err, WorkspaceError::Io(ref io) if io.kind() == std::io::ErrorKind::AlreadyExists)
+        );
+    }
 }

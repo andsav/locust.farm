@@ -730,11 +730,27 @@ fn plan_changes(
             continue;
         }
         let before = match before_digest {
-            Some(_) => {
+            Some(expected) => {
                 let file = safe_fs::read(root, path)?.ok_or_else(|| WorkspaceError::Conflict {
                     path: path.clone(),
                     reason: "local file vanished during planning".into(),
                 })?;
+                // The composition used `expected` (the inventory digest). The
+                // reread preimage must still match it byte-for-byte and by mode,
+                // or an editor save between the final inventory and this preimage
+                // capture would be adopted as the authorized preimage and then
+                // overwritten. Refuse so the caller replans against the new tree.
+                let actual = FileDigest {
+                    digest: content_hash(&file.bytes),
+                    executable: file.executable,
+                    size: file.bytes.len() as u64,
+                };
+                if &actual != expected {
+                    return Err(WorkspaceError::Conflict {
+                        path: path.clone(),
+                        reason: "local file changed during planning".into(),
+                    });
+                }
                 Some(FileValue {
                     bytes: file.bytes,
                     executable: file.executable,
@@ -809,7 +825,7 @@ fn probe_layout(
         for path in files.keys() {
             let path = path.as_str();
             let (dir, leaf) = probe_parent(&probe, path)?;
-            safe_fs::write_new(&dir, &leaf, &[], false).map_err(|error| match error {
+            safe_fs::probe_write_new(&dir, &leaf, &[], false).map_err(|error| match error {
                 WorkspaceError::Io(ref io) if io.kind() == io::ErrorKind::AlreadyExists => {
                     WorkspaceError::Conflict {
                         path: path.to_owned(),
@@ -856,4 +872,154 @@ fn remove_probe(dir: &File) -> Result<(), WorkspaceError> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn digest_of(bytes: &[u8], executable: bool) -> FileDigest {
+        FileDigest {
+            digest: content_hash(bytes),
+            executable,
+            size: bytes.len() as u64,
+        }
+    }
+
+    /// An editor save between the final inventory recheck and the preimage
+    /// reread must not be adopted as the authorized preimage. `plan_changes`
+    /// is fed the stale inventory digest (`before`) while the file on disk
+    /// already holds the edited bytes, then must refuse instead of building a
+    /// `TreeChange` whose `before` silently matches the intervening edit.
+    #[test]
+    fn plan_changes_refuses_a_preimage_that_changed_after_inventory() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("checkout");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("edit"), b"edited").unwrap();
+        let root_dir = safe_fs::root(&root).unwrap();
+
+        let local: BTreeMap<String, FileDigest> = [("edit".to_owned(), digest_of(b"old", false))]
+            .into_iter()
+            .collect();
+        let final_files: BTreeMap<String, FileDigest> =
+            [("edit".to_owned(), digest_of(b"incoming", false))]
+                .into_iter()
+                .collect();
+        let target: BTreeMap<String, FileValue> = [("edit".to_owned(), file(b"incoming", false))]
+            .into_iter()
+            .collect();
+
+        let result = plan_changes(&root_dir, &local, &final_files, &target);
+        assert!(
+            matches!(result, Err(WorkspaceError::Conflict { ref reason, .. })
+                if reason == "local file changed during planning"),
+            "stale preimage must be refused, got {result:?}"
+        );
+        // The checkout is untouched: the edit stays as the editor left it.
+        assert_eq!(std::fs::read(root.join("edit")).unwrap(), b"edited");
+    }
+
+    /// When the reread preimage still matches the inventory digest, the change
+    /// is built against the authenticated preimage and the after bytes match.
+    #[test]
+    fn plan_changes_builds_a_change_when_the_preimage_matches_inventory() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("checkout");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("edit"), b"old").unwrap();
+        let root_dir = safe_fs::root(&root).unwrap();
+
+        let local: BTreeMap<String, FileDigest> = [("edit".to_owned(), digest_of(b"old", false))]
+            .into_iter()
+            .collect();
+        let final_files: BTreeMap<String, FileDigest> =
+            [("edit".to_owned(), digest_of(b"incoming", false))]
+                .into_iter()
+                .collect();
+        let target: BTreeMap<String, FileValue> = [("edit".to_owned(), file(b"incoming", false))]
+            .into_iter()
+            .collect();
+
+        let changes = plan_changes(&root_dir, &local, &final_files, &target).unwrap();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].path, "edit");
+        assert_eq!(changes[0].before.as_ref().unwrap().bytes, b"old");
+        assert_eq!(changes[0].after.as_ref().unwrap().bytes, b"incoming");
+    }
+
+    /// A mode-only edit after inventory (same bytes, flipped executable bit)
+    /// is also a preimage mismatch: the composition used the inventory mode.
+    /// and the reread must not authorize the silent mode change.
+    #[test]
+    fn plan_changes_refuses_a_mode_change_after_inventory() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("checkout");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("edit"), b"same").unwrap();
+        std::fs::set_permissions(root.join("edit"), std::fs::Permissions::from_mode(0o755))
+            .unwrap();
+        let root_dir = safe_fs::root(&root).unwrap();
+
+        // Inventory recorded non-executable; the editor made it executable.
+        let local: BTreeMap<String, FileDigest> = [("edit".to_owned(), digest_of(b"same", false))]
+            .into_iter()
+            .collect();
+        let final_files: BTreeMap<String, FileDigest> =
+            [("edit".to_owned(), digest_of(b"incoming", true))]
+                .into_iter()
+                .collect();
+        let target: BTreeMap<String, FileValue> = [("edit".to_owned(), file(b"incoming", true))]
+            .into_iter()
+            .collect();
+
+        let result = plan_changes(&root_dir, &local, &final_files, &target);
+        assert!(
+            matches!(result, Err(WorkspaceError::Conflict { ref reason, .. })
+                if reason == "local file changed during planning"),
+            "stale mode preimage must be refused, got {result:?}"
+        );
+    }
+
+    fn file(bytes: &[u8], executable: bool) -> FileValue {
+        FileValue {
+            bytes: bytes.to_vec(),
+            executable,
+        }
+    }
+
+    /// The disposable layout skeleton probe must not take the durable flush
+    /// path. `probe_layout` creates one file per planned entry then deletes the
+    /// skeleton, so for N files it must leave `SYNC_CALLS` at zero regardless of
+    /// N. This proves the bypass without any timing threshold.
+    #[test]
+    fn layout_probe_writes_avoid_durable_sync() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("checkout");
+        std::fs::create_dir(&root).unwrap();
+        let root_dir = safe_fs::root(&root).unwrap();
+        let files: BTreeMap<String, FileDigest> = (0..200)
+            .map(|i| (format!("file{i}"), digest_of(b"x", false)))
+            .collect();
+        safe_fs::SYNC_CALLS.with(|c| c.set(0));
+        probe_layout(&root, &root_dir, &files, &[]).unwrap();
+        assert_eq!(
+            safe_fs::SYNC_CALLS.with(|c| c.get()),
+            0,
+            "disposable probe writes must not call the durable sync path"
+        );
+        // The skeleton is fully removed.
+        assert!(
+            !std::fs::read_dir(temp.path()).unwrap().any(|entry| entry
+                .as_ref()
+                .unwrap()
+                .file_name()
+                .to_str()
+                .unwrap()
+                .starts_with(".locust-apply-layout")),
+            "layout probe skeleton must be removed"
+        );
+    }
 }
