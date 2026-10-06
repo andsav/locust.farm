@@ -62,6 +62,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 ## Evidence appendices
 
 - [Three-agent board trial evidence](evidence/role-free-board-2026-10-05/README.md)
+- [Evidence for the v2 complexity count](evidence/v2-complexity-count-2026-10-06/README.md)
 
 - [ecdsa.fail leaderboard analysis](evidence/ecdsa-fail-leaderboard-analysis.md)
 - [hcom validation evidence](evidence/hcom-validation.md)

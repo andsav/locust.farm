@@ -233,18 +233,43 @@ Counted on 6 October 2026 by reading the plans against the code; nothing was
 built. The full count is in
 [how much v2 adds](../research/v2-complexity-count-2026-10-06.md).
 
-- v2 adds 14,200 to 23,900 lines of non-test Rust and removes 3,900 to
-  6,100, on 50,174 today. It adds 19,000 to 33,500 lines of tests on 50,424.
-- What a person types stays about the same size: 97 API requests before and
+- v2 adds 33,200 to 57,500 lines of Rust and removes 7,400 to 12,600, on
+  about 103,000 today. More than half of the added lines are tests. These
+  are estimates from reading; no script reproduces them.
+- The number of commands stays about the same: 97 API requests before and
   after, 137 commands before and 140 after. One agent's setting in one goal
-  goes from 128 combinations to 3 levels.
+  goes from 128 combinations to 3 levels. A person has more to understand,
+  though: catching up, ended as opposed to halted, a member who came through
+  the door, and a change recorded for the goal as opposed to the files in
+  their own folder.
 - The growth is in the states one computer can be in for one goal, in what
   the host's computer signs by itself (seven situations across the plans),
   and in the rules every computer must apply the same way.
-- About half of what is added is fixed by the decisions above, about three
-  tenths is safety work they imply, and about two tenths is the plan
-  author's choice. The count names seven cuts and deferrals worth about a
-  tenth of the added code. They are proposed, not applied.
+- The count names seven cuts and deferrals at the edges, worth about a
+  tenth of the added code. They are proposed, not applied. An independent
+  reader of the count judged that bringing the seven unattended signings
+  under one written contract matters more than removing lines.
+
+## Decisions still needed
+
+Each blocks the phases named. The detail is in the count, under "Two
+decisions the count exposes".
+
+1. **Arrival order at the host's computer.** Answer 3 forbids deciding by
+   arrival order or lowest hash. R8 and R9 have the host's computer record,
+   among several approved changes that build on the same version, the one
+   with the lowest identifier it holds at that moment. Every computer still
+   agrees, because each follows the host's one record, but the wording of
+   answer 3 is against it. Either answer 3 is narrowed to allow this, or the
+   host's computer records neither and someone must act. Blocks R8 and R9.
+2. **What a level allows for work that came through the door.** Answer 18
+   covers taking a task. It does not say whether a person is asked before a
+   door member's change is recorded for the goal, applied to a folder, or
+   run. Blocks the public preset.
+3. **Whether the key for members and rules may also sign what the host's
+   computer records by itself.** Answer 9 calls it "a key that does nothing
+   else". K1 has it sign a stage's steps, and R8 and R9 add recordings.
+   Blocks K1's wording, R8 and R9.
 
 ## Not designed yet
 
