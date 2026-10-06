@@ -1503,3 +1503,98 @@ fn stage_prerequisite_resolves_revised_upstream_round() {
     let build = goal.evaluation().desired_effects.values().next().unwrap();
     assert_eq!(build.effect.transition, "stage:build");
 }
+
+#[test]
+fn host_review_fork_retracts_later_governance_but_preserves_prefix_work() {
+    use crate::goal::{Exclusion, Halt};
+    let mut f = Fixture::new(review_formation(1));
+    let context = f.context();
+    let subject = f.publish(0, context);
+    let review = f.admin(Body::ReviewRecorded {
+        context,
+        subject,
+        verdict: ReviewVerdict::Approve,
+    });
+    let fork_seq = f.event(review).header().seq;
+    let late_members = [testkit::keypair(8).public(), testkit::keypair(9).public()];
+    let admissions: Vec<_> = late_members
+        .iter()
+        .map(|member| {
+            f.admin(Body::MemberAdmitted {
+                member: *member,
+                endpoint: EndpointId(member.0),
+            })
+        })
+        .collect();
+    let mut goal = f.goal();
+    assert_eq!(goal.standing(&review), Some(Standing::Effective));
+    for id in &admissions {
+        assert_eq!(goal.standing(id), Some(Standing::Effective));
+    }
+    let fork = f.fork(review, 1);
+    goal.apply(&[f.event(fork).clone()], &f.definitions);
+    assert!(
+        matches!(goal.evaluation().admin_halt, Some(Halt::Fork { seq, .. }) if seq == fork_seq)
+    );
+    assert_eq!(goal.state().head, Some(f.rules));
+    for id in admissions {
+        assert_eq!(
+            goal.standing(&id),
+            Some(Standing::Excluded(Exclusion::AfterHalt))
+        );
+    }
+    for member in late_members {
+        assert!(!goal.state().members.contains_key(&member));
+    }
+    assert_eq!(goal.standing(&subject), Some(Standing::Effective));
+    assert!(goal.next(&f.admin.key.public()).is_none());
+    // The halt is not a blanket exclusion of every member's future work.
+    f.anchor = f.rules;
+    let clean = f.publish(2, context);
+    goal.apply(&[f.event(clean).clone()], &f.definitions);
+    assert_eq!(goal.standing(&clean), Some(Standing::Effective));
+    assert_eq!(goal.evaluation(), f.goal().evaluation());
+}
+
+#[test]
+fn retracted_anchor_keeps_same_goal_author_descendants_pending_even_at_surviving_head() {
+    let mut f = Fixture::new(Formation::default());
+    let context = f.context();
+    let host_work = f.admin(Body::ContributionPublished {
+        context,
+        attempt: None,
+        sources: vec![],
+        artifacts: vec![],
+    });
+    let member = testkit::keypair(9).public();
+    let retracted = f.admin(Body::MemberAdmitted {
+        member,
+        endpoint: EndpointId(member.0),
+    });
+    let poisoned = f.publish(0, context);
+    let mut goal = f.goal();
+    assert_eq!(goal.standing(&poisoned), Some(Standing::Effective));
+    let fork = f.fork(host_work, 1);
+    goal.apply(&[f.event(fork).clone()], &f.definitions);
+    assert_eq!(
+        goal.standing(&poisoned),
+        Some(Standing::Pending(Waiting::Anchor))
+    );
+    assert_eq!(f.event(poisoned).header().anchor, Some(retracted));
+    f.anchor = f.rules;
+    for _ in 0..3 {
+        // next() permits signing: semantic ancestor validity is checked by the fold.
+        assert!(goal.next(&f.workers[0].key.public()).is_some());
+        let descendant = f.publish(0, context);
+        assert_eq!(f.event(descendant).header().anchor, Some(f.rules));
+        goal.apply(&[f.event(descendant).clone()], &f.definitions);
+        assert_eq!(
+            goal.standing(&descendant),
+            Some(Standing::Pending(Waiting::Anchor))
+        );
+    }
+    let clean = f.publish(1, context);
+    goal.apply(&[f.event(clean).clone()], &f.definitions);
+    assert_eq!(goal.standing(&clean), Some(Standing::Effective));
+    assert_eq!(goal.evaluation(), f.goal().evaluation());
+}

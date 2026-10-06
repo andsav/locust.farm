@@ -257,3 +257,43 @@ mod authorization;
 mod delivery;
 
 mod provenance;
+
+/// Independent stopped-store copy for rollback experiments. Copies all local
+/// spaces and goal logs, plus held content directly referenced by those logs.
+/// These fixtures have no unreferenced or partially transferred content.
+pub(super) fn snapshot(store: &MemStore) -> MemStore {
+    use locust_proto::store::{Blob, Commit, LocalWrite, Space, Store};
+    let mut commit = Commit::default();
+    for goal in store.goals().unwrap() {
+        for (_, event) in store.log(&goal, 0, usize::MAX).unwrap() {
+            for hash in event.header().blobs() {
+                if let Some(bytes) = store.blob(&hash).unwrap() {
+                    commit.blobs.push(Blob::new(bytes));
+                }
+            }
+            commit.events.push(event);
+        }
+    }
+    for space in [
+        Space::Identity,
+        Space::Agent,
+        Space::Goal,
+        Space::Peer,
+        Space::Invite,
+        Space::Claim,
+        Space::Cursor,
+        Space::Idempotency,
+        Space::Pending,
+        Space::Session,
+        Space::Blob,
+        Space::Key,
+        Space::Formation,
+    ] {
+        for (key, value) in store.scan(space, &[]).unwrap() {
+            commit.local.push(LocalWrite::Put { space, key, value });
+        }
+    }
+    let mut copy = MemStore::new();
+    copy.commit(&commit).unwrap();
+    copy
+}

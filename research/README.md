@@ -21,6 +21,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Roles and permissions implementation plan review](roles-and-permissions-plan-review-2026-10-05.md)
 - [Gas Town lessons for shared workspaces](gastown-shared-workspace-assessment.md)
 - [Organization design research](formations.md)
+- [Host-key failure characterization](host-key-failure-characterization-2026-10-05.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
 - [Iroh transport probe findings](iroh-transport-probe.md)
 - [Distributed agent collaboration landscape](landscape.md)

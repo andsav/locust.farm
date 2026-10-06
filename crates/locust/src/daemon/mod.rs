@@ -23,9 +23,9 @@ use std::path::PathBuf;
 
 use locust_core::node::Node;
 use locust_net::Endpoint;
-use locust_proto::engine::PeerInput;
 #[cfg(test)]
-use locust_proto::engine::{Engine, Entropy};
+use locust_proto::engine::Entropy;
+use locust_proto::engine::{Engine, PeerEngine, PeerInput};
 use locust_store::SqliteStore;
 use tokio::signal::unix::{SignalKind, signal};
 
@@ -46,7 +46,12 @@ mod worker;
 #[cfg(test)]
 mod durable_tests;
 #[cfg(test)]
+mod reconcile_tests;
+#[cfg(test)]
 mod tests;
+
+/// The state machine every daemon runs: the node over SQLite.
+type ProductionNode = Node<SqliteStore, system::OsEntropy>;
 
 /// What the shell hands the function that builds the engine.
 #[cfg(test)]
@@ -65,7 +70,7 @@ pub(crate) struct EngineInit {
 /// Runs the daemon on `home` in the foreground until SIGINT, SIGTERM or
 /// `daemon.stop`.
 pub fn run(home: &Path) -> Result<(), Failure> {
-    run_networked_with(home, network::bind, |socket| {
+    run_networked_with(home, std::convert::identity, network::bind, |socket| {
         log(format_args!(
             "locust: daemon {} listening on {}",
             version::daemon(),
@@ -78,9 +83,18 @@ pub fn run(home: &Path) -> Result<(), Failure> {
 }
 
 /// The production assembly, with injectable endpoint setup and shutdown for
-/// local transport tests. The database and state machine are always real.
-fn run_networked_with<B, BF, L, W>(home: &Path, bind: B, listening: L) -> Result<(), Failure>
+/// local transport tests. The database and state machine are always real;
+/// `observe` receives the node on the engine thread, so a test can watch what
+/// the shell hands it.
+fn run_networked_with<E, O, B, BF, L, W>(
+    home: &Path,
+    observe: O,
+    bind: B,
+    listening: L,
+) -> Result<(), Failure>
 where
+    E: Engine + PeerEngine + 'static,
+    O: FnOnce(ProductionNode) -> E + Send + 'static,
     B: FnOnce([u8; 32]) -> BF,
     BF: Future<Output = Result<Endpoint, Failure>>,
     L: FnOnce(&Path) -> io::Result<W>,
@@ -105,6 +119,7 @@ where
                 init_version,
                 system::now_ms(),
             )
+            .map(observe)
             .map_err(|error| Failure::from(locust_proto::api::ApiError::from(error)))
         },
         system::now_ms,

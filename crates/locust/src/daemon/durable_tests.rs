@@ -8,12 +8,13 @@ use std::time::{Duration, Instant};
 use locust_net::{Endpoint, EndpointConfig, IpTransport, Lookup, RelayConfig, TransportBudget};
 use locust_proto::api::{Caller, Credential, GoalGrants, Grants, Request, Response, SessionSecret};
 use locust_proto::client::Client;
+use locust_proto::engine::{Engine, PeerEngine};
 use locust_proto::event::{AttemptStatus, ReviewVerdict, TaskId};
 use locust_proto::id::{EventId, GoalId, IdempotencyKey, PublicKey};
 use locust_proto::invite::Invitation;
 use locust_proto::local;
 
-use super::run_networked_with;
+use super::{ProductionNode, run_networked_with};
 use crate::failure::Failure;
 use crate::testdir::short_dir;
 
@@ -39,11 +40,19 @@ pub(super) struct Running {
 }
 impl Running {
     pub(super) fn start(home: &Path) -> Self {
+        Self::start_observed(home, std::convert::identity)
+    }
+    /// The same daemon, with its node handed to `observe` on the engine thread.
+    pub(super) fn start_observed<E, O>(home: &Path, observe: O) -> Self
+    where
+        E: Engine + PeerEngine + 'static,
+        O: FnOnce(ProductionNode) -> E + Send + 'static,
+    {
         let (shutdown, stopped) = tokio::sync::oneshot::channel();
         let (ready, waiting) = mpsc::channel();
         let state = home.to_path_buf();
         let thread = thread::spawn(move || {
-            run_networked_with(&state, local_endpoint, move |_| {
+            run_networked_with(&state, observe, local_endpoint, move |_| {
                 ready.send(()).unwrap();
                 Ok(async move {
                     let _ = stopped.await;
@@ -92,7 +101,7 @@ impl Running {
         };
         agent
     }
-    fn stop(&mut self) {
+    pub(super) fn stop(&mut self) {
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
@@ -107,7 +116,7 @@ impl Drop for Running {
     }
 }
 
-fn recorded(response: Response) -> EventId {
+pub(super) fn recorded(response: Response) -> EventId {
     let Response::Recorded { event } = response else {
         panic!("{response:?}")
     };
@@ -190,7 +199,7 @@ fn eventually<T>(mut read: impl FnMut() -> Option<T>) -> T {
 /// Preserve the latest observation and the invitation phase on a watchdog
 /// failure. These reads contain membership and peer state, never a ticket.
 #[track_caller]
-fn eventually_observed<R: std::fmt::Debug, T>(
+pub(super) fn eventually_observed<R: std::fmt::Debug, T>(
     phase: &str,
     mut read: impl FnMut() -> R,
     mut ready: impl FnMut(&R) -> Option<T>,
@@ -888,4 +897,134 @@ fn newer_connection_replaces_older_ones_from_the_same_endpoint() {
             }
         });
     agent.call(Request::Status).unwrap();
+}
+
+/// Copy a stopped daemon's directory, including its identity and SQLite files.
+/// Sockets are runtime endpoints, not backup data.
+pub(super) fn copy_stopped_home(from: &Path, to: &Path) {
+    use std::os::unix::fs::FileTypeExt;
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let kind = entry.file_type().unwrap();
+        let destination = to.join(entry.file_name());
+        if kind.is_dir() {
+            copy_stopped_home(&entry.path(), &destination);
+        } else if kind.is_file() {
+            std::fs::copy(entry.path(), destination).unwrap();
+        } else {
+            assert!(
+                kind.is_socket(),
+                "unexpected backup entry: {:?}",
+                entry.path()
+            );
+        }
+    }
+}
+
+#[test]
+fn sqlite_older_directory_signs_at_used_host_position_unless_later_events_are_recovered_first() {
+    use locust_proto::event::Event;
+    use locust_proto::store::{Commit, Store};
+    use locust_store::SqliteStore;
+    for recover_first in [false, true] {
+        let original = short_dir();
+        let backup = short_dir();
+        let mut running = Running::start(original.path());
+        let principal = running.enroll(1);
+        let mut agent = running.client(Credential([1; 32]), None);
+        let goal = goal(&mut agent);
+        grant(&mut running.owner(), goal, principal);
+        drop(agent);
+        running.stop();
+        copy_stopped_home(original.path(), backup.path());
+
+        let mut running = Running::start(original.path());
+        let mut agent = running.client(Credential([1; 32]), None);
+        let TaskId::Authored(old_id) = propose(&mut agent, goal, "After backup".into()) else {
+            panic!()
+        };
+        drop(agent);
+        running.stop();
+        let held: Vec<Event> = {
+            let store = SqliteStore::open(original.path()).unwrap();
+            store
+                .log(&goal, 0, usize::MAX)
+                .unwrap()
+                .into_iter()
+                .map(|(_, e)| e)
+                .collect()
+        };
+        let old = held.iter().find(|e| e.id() == old_id).unwrap();
+        if recover_first {
+            // Peer ingestion/order is tested with Network; here replay the
+            // returned events durably before the real restored daemon signs.
+            SqliteStore::open(backup.path())
+                .unwrap()
+                .commit(&Commit {
+                    events: held.clone(),
+                    ..Default::default()
+                })
+                .unwrap();
+        }
+        let mut restored = Running::start(backup.path());
+        let mut agent = restored.client(Credential([1; 32]), None);
+        assert_eq!(agent.caller(), Caller::Agent(principal));
+        let TaskId::Authored(new_id) = propose(&mut agent, goal, "After restoring backup".into())
+        else {
+            panic!()
+        };
+        drop(agent);
+        restored.stop();
+        {
+            let mut store = SqliteStore::open(backup.path()).unwrap();
+            let new = store.event(&new_id).unwrap().unwrap();
+            assert_ne!(new_id, old_id);
+            assert_eq!(
+                new.header().seq,
+                old.header().seq + u64::from(recover_first)
+            );
+            assert_eq!(
+                new.header().prev,
+                if recover_first {
+                    Some(old_id)
+                } else {
+                    old.header().prev
+                }
+            );
+            store
+                .commit(&Commit {
+                    events: held,
+                    ..Default::default()
+                })
+                .unwrap();
+        }
+        let mut restored = Running::start(backup.path());
+        let mut agent = restored.client(Credential([1; 32]), None);
+        let Response::GoalStatus(status) = agent.call(Request::GoalStatus { goal }).unwrap() else {
+            panic!()
+        };
+        assert_eq!(status.halted.is_some(), !recover_first);
+        if recover_first {
+            propose(
+                &mut agent,
+                goal,
+                "Still extends after another restart".into(),
+            );
+        } else {
+            let result = agent.call(Request::TaskOpen {
+                goal,
+                text: "Known fork".into(),
+                task_type: None,
+                inputs: Default::default(),
+                parent: None,
+            });
+            assert!(
+                matches!(result, Err(locust_proto::client::ClientError::Api(error))
+                if error.code == locust_proto::api::ErrorCode::Unavailable)
+            );
+        }
+        drop(agent);
+        restored.stop();
+    }
 }

@@ -489,3 +489,108 @@ fn active_peers_reconcile_despite_retained_halt_proof_evidence() {
         "historical contact receives the halt proof"
     );
 }
+
+/// The daemon's shell stops reading an accepted exchange after each frame
+/// until the exchange is readable, then delivers the next frame without
+/// asking again; the in-memory loops ask before every delivery. The two
+/// agree because only an exchange's own next frame makes it stop reading:
+/// not a poll, unasked transport capacity, a goal that grew, another
+/// exchange, or the remote member's removal.
+#[test]
+fn only_its_own_next_frame_makes_a_readable_accepted_exchange_stop_reading() {
+    use super::host::TestHost;
+    use locust_proto::engine::PeerTime;
+    use locust_proto::sync::{Frontier, Refusal};
+    use locust_proto::testkit::Author;
+    let founded = Founded::new();
+    let notes = founded.notes(&mut Author::new(2), 600);
+    let held = notes.iter().map(|event| event.id()).collect();
+    let mut host = host(1, founded.replica(&notes), &[1, 2, 3]);
+    let mut driver = Driver::new();
+    let mut out = Vec::new();
+    let mut now = 0;
+    let mut handle = |driver: &mut Driver, host: &mut TestHost, input| {
+        now += 1;
+        let time = PeerTime {
+            unix_ms: now,
+            elapsed_ms: now,
+        };
+        driver.handle(host, input, time, &mut out);
+    };
+    let (exchange, other) = (ExchangeId::Accepted(1), ExchangeId::Accepted(2));
+    for (exchange, remote) in [(exchange, 2), (other, 3)] {
+        let remote = endpoint(remote);
+        handle(
+            &mut driver,
+            &mut host,
+            PeerInput::Accepted { exchange, remote },
+        );
+        let frame = SyncMessage::Hello {
+            version: locust_proto::PROTOCOL_VERSION,
+            goal: founded.goal,
+        };
+        handle(&mut driver, &mut host, PeerInput::Frame { exchange, frame });
+    }
+    let mut bystander = Author::new(3);
+    let mut drained = 0;
+    for frame in [
+        SyncMessage::Frontier(Frontier::default()),
+        SyncMessage::InventoryRequest {
+            author: Author::new(2).key.public(),
+            after: None,
+        },
+        SyncMessage::EventRequest(held),
+        SyncMessage::KeyRequest { epoch: 0 },
+        SyncMessage::Events(Vec::new()),
+    ] {
+        let note = founded.notes(&mut bystander, 1);
+        host.replica_mut(&founded.goal).insert(&note);
+        let elsewhere = if driver.readable(other) {
+            PeerInput::Frame {
+                exchange: other,
+                frame: SyncMessage::Frontier(Frontier::default()),
+            }
+        } else {
+            PeerInput::Writable(other)
+        };
+        for input in [
+            PeerInput::Poll,
+            PeerInput::Writable(exchange),
+            elsewhere,
+            PeerInput::Poll,
+        ] {
+            let described = format!("{input:?}");
+            handle(&mut driver, &mut host, input);
+            assert!(
+                driver.readable(exchange),
+                "{described} stopped an idle exchange from reading"
+            );
+        }
+        handle(&mut driver, &mut host, PeerInput::Frame { exchange, frame });
+        while !driver.readable(exchange) {
+            drained += 1;
+            handle(&mut driver, &mut host, PeerInput::Writable(exchange));
+        }
+    }
+    assert!(drained > 0, "no request was answered in several frames");
+    assert!(!driver.readable(other));
+    host.members
+        .get_mut(&founded.goal)
+        .unwrap()
+        .remove(&endpoint(2));
+    for input in [
+        PeerInput::Poll,
+        PeerInput::Writable(exchange),
+        PeerInput::Writable(exchange),
+    ] {
+        handle(&mut driver, &mut host, input);
+        assert!(
+            driver.readable(exchange),
+            "the member's removal stopped its exchange from reading"
+        );
+    }
+    assert!(out.contains(&PeerOutput::Send {
+        exchange,
+        frame: SyncMessage::Refused(Refusal::NotAMember),
+    }));
+}

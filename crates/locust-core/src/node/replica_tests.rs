@@ -142,6 +142,13 @@ fn reconcile_from(
         if !peers[i].online {
             continue;
         }
+        // The transport holds a frame while the engine still owes an answer.
+        if let PeerInput::Frame { exchange, .. } = &input
+            && !peers[i].node.peer_readable(*exchange)
+        {
+            queue.push_back((i, input));
+            continue;
+        }
         let mut outputs = vec![];
         peers[i].node.peer(
             input,
@@ -1171,5 +1178,137 @@ fn standalone(context: Context) -> Body {
         attempt: None,
         sources: Vec::new(),
         artifacts: vec![],
+    }
+}
+
+#[test]
+fn same_key_rejoin_recovers_own_log_before_signing_when_sync_finishes() {
+    same_key_rejoin(false);
+}
+
+#[test]
+fn same_key_rejoin_can_sign_at_zero_if_membership_and_content_arrive_before_own_log() {
+    same_key_rejoin(true);
+}
+
+fn same_key_rejoin(sign_during_recovery: bool) {
+    use crate::sync::Host;
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    // Reverting this snapshot loses the goal completely but retains the identity.
+    let before_join = crate::node::tests::snapshot(&peers[1].store);
+    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        title: "Rejoin ordering".into(),
+        formation_json: None,
+        roles: BTreeMap::new(),
+        inputs: BTreeMap::new(),
+    }) else {
+        panic!()
+    };
+    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        goal,
+        expires_ms: None,
+    }) else {
+        panic!()
+    };
+    peers[1].call(Request::GoalJoin {
+        ticket: ticket.clone(),
+    });
+    for now in [1000, 35000, 70000] {
+        reconcile(&mut peers, now);
+    }
+    let publish = |peer: &mut Peer, text: &str| {
+        let Response::Recorded { event } = peer.call(Request::ContributionPublish {
+            goal,
+            task: None,
+            attempt: None,
+            generation: None,
+            sources: vec![],
+            artifacts: vec![],
+            summary: text.into(),
+        }) else {
+            panic!()
+        };
+        peer.store.event(&event).unwrap().unwrap()
+    };
+    let old = publish(&mut peers[1], "before losing goal");
+    reconcile(&mut peers, 105000);
+    assert!(peers[0].store.has_event(&old.id()).unwrap());
+    assert_eq!(old.header().seq, 0);
+    let principal = peers[1].principal;
+    peers[1].store = before_join;
+    peers[1].restart();
+    assert!(!peers[1].node.goals.contains_key(&goal));
+    peers[1].call(Request::GoalJoin { ticket });
+    assert!(peers[1].node.goals[&goal].goal.next(&principal).is_none());
+    if sign_during_recovery {
+        // Controlled adapter ordering: governance and founding content are
+        // available while this principal's old event has not arrived yet.
+        let events: Vec<_> = peers[0]
+            .store
+            .log(&goal, 0, usize::MAX)
+            .unwrap()
+            .into_iter()
+            .map(|(_, e)| e)
+            .filter(|e| e.header().author != principal)
+            .collect();
+        let key = Host::replica(&mut peers[0].node, &goal)
+            .unwrap()
+            .key(0)
+            .unwrap();
+        Host::replica(&mut peers[1].node, &goal)
+            .unwrap()
+            .receive(events.iter().map(|e| e.to_wire()).collect())
+            .unwrap();
+        for event in events {
+            for hash in event.header().blobs() {
+                if let Some(bytes) = peers[0].store.blob(&hash).unwrap() {
+                    assert!(matches!(
+                        Host::replica(&mut peers[1].node, &goal).unwrap().stage(
+                            &hash,
+                            0,
+                            bytes.len() as u64,
+                            &bytes
+                        ),
+                        crate::sync::Staged::Complete
+                    ));
+                }
+            }
+        }
+        assert!(
+            Host::replica(&mut peers[1].node, &goal)
+                .unwrap()
+                .offer_key(0, key)
+        );
+        assert!(peers[1].node.goals[&goal].is_member(&principal));
+        assert!(!peers[1].store.has_event(&old.id()).unwrap());
+    } else {
+        for now in [140000, 175000, 210000] {
+            reconcile(&mut peers, now);
+        }
+        assert!(peers[1].store.has_event(&old.id()).unwrap());
+    }
+    let new = publish(&mut peers[1], "after losing goal");
+    assert_eq!(new.header().seq, if sign_during_recovery { 0 } else { 1 });
+    assert_eq!(
+        new.header().prev,
+        (!sign_during_recovery).then_some(old.id())
+    );
+    // One ordinary round carries both records to both daemons. A missing
+    // key is an answer inside an exchange, not a refusal of it.
+    use locust_proto::sync::{Refusal, SyncMessage};
+    let frames = reconcile(&mut peers, 245000);
+    assert!(!frames.iter().any(|frame| matches!(
+        frame,
+        SyncMessage::Refused(refusal) if *refusal != Refusal::KeyUnavailable
+    )));
+    for peer in &peers {
+        assert!(peer.store.has_event(&old.id()).unwrap());
+        assert!(peer.store.has_event(&new.id()).unwrap());
+        let folded = &peer.node.goals[&goal].goal;
+        assert_eq!(
+            folded.fork_point(&principal),
+            sign_during_recovery.then_some(0)
+        );
+        assert!(folded.evaluation().admin_halt.is_none());
     }
 }

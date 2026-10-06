@@ -875,3 +875,62 @@ fn workspace_checkpoint_cannot_substitute_another_goal_selection() {
     assert!(!goal.state().workspace.as_ref().unwrap().ready);
     assert_eq!(head(&goal), None);
 }
+
+fn host_integrator_competition(same_position: bool) {
+    let mut formation = workspace_formation(1);
+    formation.workspace.as_mut().unwrap().integrator = Authority::Participant {
+        key: testkit::keypair(1).public().to_string(),
+    };
+    let mut f = Fixture::new(formation);
+    let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
+    let first = proposal(&mut f, 0, context, None, vec![]);
+    let second = proposal(&mut f, 0, context, None, vec![]);
+    let first_review = f.review(1, context, first);
+    let second_review = f.review(1, context, second);
+    let decision = |subject, review| Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    };
+    let a = f.admin(decision(first, first_review));
+    assert_eq!(head(&f.goal()), Some(a));
+    let b = if same_position {
+        fork_body(&mut f, a, 1, decision(second, second_review))
+    } else {
+        f.admin(decision(second, second_review))
+    };
+    let member = testkit::keypair(9).public();
+    let admission = f.admin(Body::MemberAdmitted {
+        member,
+        endpoint: EndpointId(member.0),
+    });
+    let goal = f.goal();
+    assert_eq!(head(&goal), None);
+    if same_position {
+        assert_eq!(f.event(a).header().seq, f.event(b).header().seq);
+        assert!(goal.evaluation().admin_halt.is_some());
+        assert!(!goal.standing(&admission).unwrap().is_effective());
+        assert!(!goal.state().members.contains_key(&member));
+        assert!(goal.next(&f.admin.key.public()).is_none());
+    } else {
+        assert_eq!(f.event(b).header().seq, f.event(a).header().seq + 1);
+        assert_eq!(f.event(b).header().prev, Some(a));
+        assert_eq!(goal.standing(&a), Some(Standing::Disputed));
+        assert_eq!(goal.standing(&b), Some(Standing::Disputed));
+        assert!(goal.evaluation().admin_halt.is_none());
+        assert_eq!(goal.standing(&admission), Some(Standing::Effective));
+        assert!(goal.state().members[&member].is_active());
+    }
+    assert_workspace_replay_and_restart(&f);
+}
+
+#[test]
+fn host_integrator_acceptances_at_same_log_position_halt_governance() {
+    host_integrator_competition(true);
+}
+
+#[test]
+fn host_integrator_acceptances_at_distinct_log_positions_dispute_only_workspace() {
+    host_integrator_competition(false);
+}

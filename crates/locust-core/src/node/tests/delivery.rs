@@ -405,3 +405,277 @@ pub(super) fn failure_fixture() -> FailureFixture {
         recipient_endpoint: Network::endpoint(1),
     }
 }
+
+fn host_note(net: &mut Network, goal: GoalId, summary: &str) -> locust_proto::event::Event {
+    let a = net.nodes[0].connect(credential(1), None);
+    let owner = net.nodes[0].owner();
+    let source = net.nodes[0].node.goals[&goal]
+        .state()
+        .administrator
+        .unwrap();
+    net.nodes[0].ok(
+        owner,
+        Request::GoalGrant {
+            goal,
+            agent: source,
+            grants: GoalGrants {
+                administer: true,
+                contribute: true,
+                ..Default::default()
+            },
+        },
+    );
+    let Response::Recorded { event } = net.nodes[0].ok(
+        a,
+        Request::ContributionPublish {
+            goal,
+            task: None,
+            attempt: None,
+            generation: None,
+            sources: vec![],
+            artifacts: vec![],
+            summary: summary.into(),
+        },
+    ) else {
+        panic!()
+    };
+    net.nodes[0].store.event(&event).unwrap().unwrap()
+}
+
+fn restore_host(net: &mut Network, backup: MemStore) {
+    net.nodes[0].store = backup;
+    net.restart();
+}
+
+#[test]
+fn restored_host_signing_before_peer_recovery_forks_but_recovery_first_extends() {
+    for recover_first in [false, true] {
+        let (mut net, goal, source, _) = ready_network(false);
+        for _ in 0..2 {
+            net.poll(31_000);
+        }
+        let backup = snapshot(&net.nodes[0].store);
+        let old = host_note(&mut net, goal, "held by peer, absent from backup");
+        net.poll(31_000);
+        assert!(net.nodes[1].store.has_event(&old.id()).unwrap());
+        restore_host(&mut net, backup);
+        assert!(!net.nodes[0].store.has_event(&old.id()).unwrap());
+        if recover_first {
+            for _ in 0..2 {
+                net.poll(31_000);
+            }
+            assert!(net.nodes[0].store.has_event(&old.id()).unwrap());
+        }
+        let new = host_note(&mut net, goal, "signed after restore");
+        assert_ne!(old.id(), new.id());
+        if recover_first {
+            assert_eq!(new.header().seq, old.header().seq + 1);
+            assert_eq!(new.header().prev, Some(old.id()));
+        } else {
+            assert_eq!(new.header().seq, old.header().seq);
+            assert_eq!(new.header().prev, old.header().prev);
+        }
+        for _ in 0..3 {
+            net.poll(31_000);
+        }
+        for node in &net.nodes {
+            let folded = &node.node.goals[&goal].goal;
+            assert_eq!(
+                folded.fork_point(&source),
+                (!recover_first).then_some(old.header().seq)
+            );
+            assert_eq!(folded.evaluation().admin_halt.is_some(), !recover_first);
+        }
+        if !recover_first {
+            let a = net.nodes[0].connect(credential(1), None);
+            assert_eq!(
+                code(net.nodes[0].call(
+                    a,
+                    Request::ContributionPublish {
+                        goal,
+                        task: None,
+                        attempt: None,
+                        generation: None,
+                        sources: vec![],
+                        artifacts: vec![],
+                        summary: "known fork blocks signing".into(),
+                    }
+                )),
+                ErrorCode::Unavailable
+            );
+        }
+    }
+}
+
+#[test]
+fn restored_host_automatic_stage_replay_is_identical_unless_another_event_used_its_position() {
+    use locust_proto::event::Body;
+    for intervening_work in [false, true] {
+        let (mut net, goal, source, _) = ready_network(false);
+        for _ in 0..2 {
+            net.poll(31_000);
+        }
+        let backup = snapshot(&net.nodes[0].store);
+        let old_work =
+            intervening_work.then(|| host_note(&mut net, goal, "before automatic stage"));
+        let enable = |net: &mut Network| {
+            let owner = net.nodes[0].owner();
+            net.nodes[0].ok(
+                owner,
+                Request::GoalGrant {
+                    goal,
+                    agent: source,
+                    grants: GoalGrants {
+                        administer: true,
+                        flow: true,
+                        ..Default::default()
+                    },
+                },
+            );
+            net.nodes[0]
+                .store
+                .log(&goal, 0, usize::MAX)
+                .unwrap()
+                .into_iter()
+                .map(|(_, e)| e)
+                .find(|e| matches!(e.header().body, Body::EffectMaterialized { .. }))
+                .unwrap()
+        };
+        let old_effect = enable(&mut net);
+        for _ in 0..2 {
+            net.poll(31_000);
+        }
+        assert!(net.nodes[1].store.has_event(&old_effect.id()).unwrap());
+        restore_host(&mut net, backup);
+        let replay = enable(&mut net);
+        assert_eq!(replay.id() == old_effect.id(), !intervening_work);
+        if let Some(old_work) = old_work {
+            assert_eq!(replay.header().seq, old_work.header().seq);
+            assert_ne!(replay.id(), old_work.id());
+        }
+        for _ in 0..3 {
+            net.poll(31_000);
+        }
+        for node in &net.nodes {
+            assert_eq!(
+                node.node.goals[&goal]
+                    .goal
+                    .evaluation()
+                    .admin_halt
+                    .is_some(),
+                intervening_work
+            );
+        }
+    }
+}
+
+#[test]
+fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_used_position() {
+    use crate::sync::Host;
+    use locust_proto::invite::{Invitation, JoinRequest};
+    let (mut net, goal, source, _) = ready_network(false);
+    for _ in 0..2 {
+        net.poll(31_000);
+    }
+    let newcomer = net.nodes[1].enroll("newcomer", 3, true);
+    let a = net.nodes[0].connect(credential(1), None);
+    let Response::Invited { ticket } = net.nodes[0].ok(
+        a,
+        Request::GoalInvite {
+            goal,
+            expires_ms: None,
+        },
+    ) else {
+        panic!()
+    };
+    let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+    let backup = snapshot(&net.nodes[0].store);
+    let old = host_note(&mut net, goal, "position used after invitation backup");
+    net.poll(31_000);
+    assert!(net.nodes[1].store.has_event(&old.id()).unwrap());
+    restore_host(&mut net, backup);
+    let request = JoinRequest::sign(
+        goal,
+        Network::endpoint(1),
+        invitation.secret,
+        net.nodes[1].node.signer(&newcomer).unwrap(),
+    );
+    // The authenticated Join handler runs before any peer recovery input.
+    Host::join(
+        &mut net.nodes[0].node,
+        &Network::endpoint(1),
+        &request,
+        net.now,
+    )
+    .unwrap();
+    let admission = net.nodes[0].node.goals[&goal].state().members[&newcomer].admission;
+    let admitted = net.nodes[0].store.event(&admission).unwrap().unwrap();
+    assert_eq!(admitted.header().seq, old.header().seq);
+    assert_ne!(admitted.id(), old.id());
+    assert!(net.nodes[0].node.goals[&goal].is_member(&newcomer));
+    for _ in 0..3 {
+        net.poll(31_000);
+    }
+    for node in &net.nodes {
+        let entry = &node.node.goals[&goal];
+        assert_eq!(entry.goal.fork_point(&source), Some(old.header().seq));
+        assert!(!entry.is_member(&newcomer));
+    }
+}
+
+#[test]
+fn restored_host_known_gap_blocks_signing_until_missing_predecessor_arrives() {
+    use crate::sync::Host;
+    let (mut net, goal, source, _) = ready_network(false);
+    let backup = snapshot(&net.nodes[0].store);
+    let first = host_note(&mut net, goal, "missing predecessor");
+    let second = host_note(&mut net, goal, "arrives before predecessor");
+    restore_host(&mut net, backup);
+    Host::replica(&mut net.nodes[0].node, &goal)
+        .unwrap()
+        .receive(vec![second.to_wire()])
+        .unwrap();
+    assert!(net.nodes[0].node.goals[&goal].goal.next(&source).is_none());
+    let a = net.nodes[0].connect(credential(1), None);
+    let owner = net.nodes[0].owner();
+    net.nodes[0].ok(
+        owner,
+        Request::GoalGrant {
+            goal,
+            agent: source,
+            grants: GoalGrants {
+                contribute: true,
+                ..Default::default()
+            },
+        },
+    );
+    assert_eq!(
+        code(net.nodes[0].call(
+            a,
+            Request::ContributionPublish {
+                goal,
+                task: None,
+                attempt: None,
+                generation: None,
+                sources: vec![],
+                artifacts: vec![],
+                summary: "blocked by held gap".into(),
+            }
+        )),
+        ErrorCode::Unavailable
+    );
+    Host::replica(&mut net.nodes[0].node, &goal)
+        .unwrap()
+        .receive(vec![first.to_wire()])
+        .unwrap();
+    let new = host_note(&mut net, goal, "safe after filling gap");
+    assert_eq!(new.header().seq, second.header().seq + 1);
+    assert_eq!(new.header().prev, Some(second.id()));
+    assert!(
+        net.nodes[0].node.goals[&goal]
+            .goal
+            .evaluation()
+            .admin_halt
+            .is_none()
+    );
+}
