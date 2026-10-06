@@ -160,8 +160,8 @@ Added on 6 October 2026:
 26. "I don't want the swarm to stop to ask a human for anything." Agents
     decide among themselves. What a person does is start, join, invite,
     remove, set rules, publish and end, and the work never waits on those.
-    This answer puts three things in the plans in question; they are listed
-    under [What answer 26 changes](#what-answer-26-changes).
+    This answer changed several things in the plans; they are listed
+    under [What answers 26 and 27 changed](#what-answers-26-and-27-changed).
 27. After reading the comparison under "What v2 does, in plain words": "the
     plan seems good to me then. Minimize friction, minimize user intervention
     all of this is correct."
