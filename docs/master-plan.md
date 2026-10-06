@@ -195,7 +195,7 @@ The contract is being revised against that review and the answers above.
 | Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases written. An [independent review](../research/roles-and-permissions-plan-review-2026-10-05.md) is folded in. Each phase was checked against the code by a second reader. |
 | Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Six phases written and checked: the signing key (K1), the restore guard (G1, G2) and ending a goal (E1, E2, E3). A reader found 28 seams between them; the fixes are applied, and their consequences are written into the roles plan. E2 is being revised for answer 14. Four known gaps are listed at its top. |
 | Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | The old plan. About half its text survives. It is rewritten as nine phases, J0 to J8, once the contract is revised. |
-| Replacing a host | [research note](../research/replacing-a-host-2026-10-05.md) | The first version is decided (answers 11, 12 and 19). How a takeover works needs one more design round before it becomes phases. |
+| Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. The first version is decided (answers 11, 12 and 19). One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not yet applied. Not yet phases. |
 
 Evidence the plans rest on:
 [host-key failures](../research/host-key-failure-characterization-2026-10-05.md),
@@ -294,12 +294,15 @@ unattended signing, and the wording of answer 9 follows what that settles.
 
 ## Not designed yet
 
-- **How a takeover works.** The reviewers of the earlier design round agreed
-  on a skeleton and left competing fixes for its hardest problems: someone
-  once named backup starting from before their own removal, two takeovers
-  freezing a goal, removals the backup never received, telling the old host,
-  and issuing a fresh content key. Answer 12 settles the first. The rest need
-  a design round, an attack on its result and a formal model.
+- **How a takeover works.** One design now exists, in the
+  [design note](../research/replacing-a-host-design-2026-10-06.md): a change
+  of host is one record at the start of a new key's log, naming the last
+  host record the taker holds. Its last check found eight serious breaks
+  with named fixes; applying them, three formal models and a further check
+  remain before it becomes phases. Two findings bear on v2. The design is
+  the only way out of a forked host log, which in v2 stops membership and
+  rules for good. And its size is 4,500 to 6,400 lines of non-test Rust by
+  the designer's judgement, more than the count assumed.
 - **The public-goals phases.** The contract must be revised first; its review
   found that it contradicted answers 18 and 22 and admitted strangers one
   phase before the safety check.
