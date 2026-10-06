@@ -13,6 +13,7 @@ use locust_proto::store::Store;
 
 use super::Node;
 use super::callers::Actor;
+use super::commit::Trial;
 use super::entry::Entry;
 use crate::goal::Standing;
 
@@ -212,6 +213,20 @@ impl<S: Store, E: Entropy> Node<S, E> {
         principal: PublicKey,
         attempted: Attempted<'_>,
     ) -> Result<(), ApiError> {
+        self.allowed_keeping(actor, entry, principal, attempted)
+            .map(|_| ())
+    }
+
+    /// As [`Self::allowed`], and hands back the replayed copy of the goal so
+    /// that landing the same events need not replay them a second time.
+    pub(super) fn allowed_keeping(
+        &self,
+        actor: &Actor,
+        entry: &Entry,
+        principal: PublicKey,
+        attempted: Attempted<'_>,
+    ) -> Result<Option<Trial>, ApiError> {
+        let mut replayed = None;
         if let Attempted::Sign { event, preceding } = &attempted {
             if let Body::AttemptStarted { context, .. } | Body::WorkOffered { context, .. } =
                 &event.header().body
@@ -229,8 +244,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 ));
             }
             let mut trial = entry.goal.clone();
-            trial.apply(preceding, &entry.definitions);
-            trial.apply(&[(*event).clone()], &entry.definitions);
+            let mut events = preceding.to_vec();
+            events.push((*event).clone());
+            let changes = trial.apply(&events, &entry.definitions);
             match trial.standing(&event.id()) {
                 Some(Standing::Effective) => {}
                 Some(Standing::Excluded(exclusion)) => {
@@ -271,9 +287,20 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     ));
                 }
             }
+            replayed = Some(Trial {
+                goal: entry.id(),
+                revision: entry.local.revision,
+                events: events
+                    .iter()
+                    .filter(|event| event.header().goal == entry.id())
+                    .map(|event| event.id())
+                    .collect(),
+                replayed: trial,
+                changes,
+            });
         }
         if actor.owner_act {
-            return Ok(());
+            return Ok(replayed);
         }
         let needed = match &attempted {
             Attempted::Sign { event, .. } => match &event.header().body {
@@ -317,7 +344,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 },
             ))
         } else {
-            Ok(())
+            Ok(replayed)
         }
     }
 

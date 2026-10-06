@@ -24,6 +24,10 @@ use crate::node::content_graph::{FileState, ManifestState};
 use crate::node::entry::Entry;
 use crate::node::local;
 
+/// The folders one agent may hold in one goal. Each is a full copy of the
+/// shared files, and no request removes one.
+const MAX_AGENT_CHECKOUTS: usize = 64;
+
 fn revision_view(entry: &Entry, id: EventId) -> Result<WorkspaceRevisionView, ApiError> {
     let event = entry
         .goal
@@ -641,7 +645,27 @@ impl<S: Store, E: Entropy> Node<S, E> {
             };
         }
         Self::validate_checkout_context(entry, principal, task, attempt)?;
+        if entry
+            .local
+            .checkouts
+            .keys()
+            .filter(|(owner, _)| *owner == principal)
+            .count()
+            >= MAX_AGENT_CHECKOUTS
+        {
+            return Err(ApiError::new(
+                ErrorCode::LimitExceeded,
+                "this agent already holds the most folders one agent may register in a goal",
+            ));
+        }
         let tree = self.readable_workspace_tree(actor, goal, revision)?;
+        // Whatever can refuse the binding is checked before a file is written.
+        self.accepted_workspace_tree(
+            entry,
+            tree.revision.revision,
+            tree.revision.result_manifest,
+            &principal,
+        )?;
         let files = self.checkout_files.as_ref().ok_or_else(|| {
             ApiError::new(
                 ErrorCode::Unavailable,

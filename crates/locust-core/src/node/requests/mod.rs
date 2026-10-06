@@ -116,11 +116,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let Planned { response, mut tx } = match self.plan(&actor, frame.request, now_ms) {
             Ok(plan) => plan,
             Err(error) => {
+                // A note that cannot be written must not replace the refusal
+                // itself.
                 if error.code == ErrorCode::LevelRequired
                     && let Some(refused) = error.refused()
                     && let (Some(goal), Some(task)) = (refused.goal, refused.task)
                 {
-                    self.note_task_want(goal, task, refused.agent, now_ms)?;
+                    let _ = self.note_task_want(goal, task, refused.agent, now_ms);
                 }
                 if error.code == ErrorCode::Unavailable
                     && let Some((goal, hash)) = blob_get

@@ -109,6 +109,35 @@ fn person_joins_with_existing_principal_at_the_selected_level() {
 }
 
 #[test]
+fn joining_again_keeps_the_level_the_person_chose() {
+    let (mut daemon, _, owner, agent, goal) = setup();
+    let member = daemon.enroll("person-lowered", 2);
+    let ticket = issue(&mut daemon, agent, goal, None);
+    daemon.ok(owner, reviewed(ticket.clone(), member));
+    daemon.ok(
+        owner,
+        Request::LevelSet {
+            goal,
+            agent: member,
+            level: locust_proto::api::Level::Read,
+        },
+    );
+    // The repeated join asks for auto, the default, and changes nothing.
+    assert!(matches!(
+        daemon.ok(owner, reviewed(ticket, member)),
+        Response::Joined {
+            membership: Membership::Member,
+            level: locust_proto::api::Level::Read,
+            ..
+        }
+    ));
+    assert_eq!(
+        daemon.node.goals[&goal].local.level(&member),
+        locust_proto::api::Level::Read
+    );
+}
+
+#[test]
 fn unknown_or_revoked_agents_cannot_join() {
     let (mut daemon, _, owner, agent, goal) = setup();
     let member = daemon.enroll("recipient", 2);

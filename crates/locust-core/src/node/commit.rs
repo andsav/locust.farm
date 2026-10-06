@@ -10,13 +10,36 @@ use locust_proto::api::{ApiError, Caller, ErrorCode, Membership, Response};
 use locust_proto::codec;
 use locust_proto::crypto::content_hash;
 use locust_proto::engine::Entropy;
-use locust_proto::id::{BlobHash, GoalId, IdempotencyKey, PublicKey};
+use locust_proto::id::{BlobHash, EventId, GoalId, IdempotencyKey, PublicKey};
 use locust_proto::store::{Commit, LocalWrite, Space, Store};
 use serde::{Deserialize, Serialize};
 
 use super::feed::Feed;
 use super::{Node, local, records};
-use crate::goal::{Goal, Standing};
+use crate::goal::{Changes, Goal, Standing};
+
+/// A candidate that a request already replayed on a copy of its goal before
+/// the local level was read. While the transaction still holds exactly those
+/// events, landing adopts the copy instead of replaying them again.
+pub(super) struct Trial {
+    pub goal: GoalId,
+    /// The goal's revision when the copy was taken.
+    pub revision: u64,
+    /// The goal's events the copy applied, in order.
+    pub events: Vec<EventId>,
+    pub replayed: Goal,
+    pub changes: Changes,
+}
+
+impl std::fmt::Debug for Trial {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Trial")
+            .field("goal", &self.goal)
+            .field("revision", &self.revision)
+            .field("events", &self.events)
+            .finish_non_exhaustive()
+    }
+}
 
 /// What one request or received frame wants made durable.
 #[derive(Debug, Default)]
@@ -32,6 +55,8 @@ pub(super) struct Tx {
     pub authored: bool,
     /// The owner asked the daemon to stop.
     pub stop: bool,
+    /// The replay of this transaction's authored events, when one was made.
+    pub trial: Option<Trial>,
 }
 
 impl Tx {
@@ -291,7 +316,27 @@ impl<S: Store, E: Entropy> Node<S, E> {
             self.entry_mut(goal).definitions = updated;
         }
         let entry = self.entry_mut(goal);
-        let changes = entry.goal.apply(&tx.commit.events, &entry.definitions);
+        let trial = tx
+            .trial
+            .take_if(|trial| trial.goal == goal)
+            .filter(|trial| {
+                !definitions_changed
+                    && trial.revision == entry.local.revision
+                    && tx
+                        .commit
+                        .events
+                        .iter()
+                        .filter(|event| event.header().goal == goal)
+                        .map(|event| event.id())
+                        .eq(trial.events.iter().copied())
+            });
+        let changes = match trial {
+            Some(trial) => {
+                entry.goal = trial.replayed;
+                trial.changes
+            }
+            None => entry.goal.apply(&tx.commit.events, &entry.definitions),
+        };
         if authored
             && let Some(excluded) = tx
                 .commit

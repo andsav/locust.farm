@@ -98,8 +98,7 @@ fn decisions(value: &DecisionRules, prefix: &str, lines: &mut Vec<String>) {
 }
 pub(super) fn explain(value: &Formation) -> Explanation {
     let mut summary = vec![
-        "The goal administrator manages membership and rules separately from work permissions."
-            .into(),
+        "The goal's host manages membership and rules separately from the rules for work.".into(),
     ];
     work(&value.work, "Default rules", &mut summary);
     decisions(&value.decisions, "Default rules", &mut summary);
@@ -125,7 +124,7 @@ pub(super) fn explain(value: &Formation) -> Explanation {
         );
     }
     for (name, stage) in &value.flow {
-        summary.push(format!("Stage {name:?}: the goal administrator runs this stage: it creates the configured task and durably delivers ready work to {}.", selector(&stage.recipients)));
+        summary.push(format!("Stage {name:?}: the host's computer runs this stage: it creates the configured task and durably delivers ready work to {}.", selector(&stage.recipients)));
         let needs = if stage.requires.is_empty() {
             "no upstream evidence".into()
         } else {

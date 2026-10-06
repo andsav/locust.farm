@@ -500,7 +500,13 @@ pub(super) fn render(
             for abilities in &view.abilities {
                 lines.push(format!("{} · level {} · {}", safe(&abilities.name), tag(&abilities.level), standing_line(abilities)));
                 for wanted in &abilities.wanted_tasks {
-                    lines.push(format!("  Asked to take \"{}\": locust --owner --agent {} allow --goal {} --task {}", safe(wanted.title.as_deref().unwrap_or("this task")), abilities.agent, view.goal, wanted.task));
+                    let title = safe(wanted.title.as_deref().unwrap_or("this task"));
+                    // An allowance lowers the bar to ask, so at read only a level helps.
+                    if abilities.level == locust_proto::api::Level::Read {
+                        lines.push(format!("  Asked to take \"{}\", but at read it only reads: locust --owner --agent {} level --goal {} ask", title, abilities.agent, view.goal));
+                    } else {
+                        lines.push(format!("  Asked to take \"{}\": locust --owner --agent {} allow --goal {} --task {}", title, abilities.agent, view.goal, wanted.task));
+                    }
                 }
             }
             for stalled in &view.stalled {

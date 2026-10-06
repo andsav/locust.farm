@@ -263,17 +263,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         "the advertised publication policy is not effective in the held goal",
                     ));
                 }
-                let mut tx = Tx::none();
-                tx.local(local::level_write(&goal, &principal, &level))
-                    .touch(goal);
+                // Already a member: joining again changes nothing, so a
+                // level the person chose stays as it is.
                 return Ok(Planned {
                     response: Response::Joined {
                         goal,
                         governance: invitation.governance,
                         membership: Membership::Member,
-                        level,
+                        level: entry.local.level(&principal),
                     },
-                    tx,
+                    tx: Tx::none(),
                 });
             }
             if let Some(join) = entry.local.joins.get(&principal) {

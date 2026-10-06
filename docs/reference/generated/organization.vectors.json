@@ -16,7 +16,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -86,7 +86,7 @@
             "coordinator"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: members bound to role \"coordinator\" may offer work to goal members; the recipient must acknowledge before starting.",
             "Default rules: completion requires 1 distinct approving reviewer(s) from members bound to role \"coordinator\", including the author if eligible on the exact candidate.",
@@ -169,7 +169,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires 1 distinct approving reviewer(s) from goal members, excluding the contribution author on the exact candidate.",
@@ -239,7 +239,7 @@
             "reviewer"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires 2 distinct approving reviewer(s) from members bound to role \"reviewer\", excluding the contribution author on the exact candidate.",
@@ -316,7 +316,7 @@
             "judge"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -389,7 +389,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -400,9 +400,9 @@
             "Task type \"draft\": completion requires 1 distinct approving reviewer(s) from goal members, excluding the contribution author on the exact candidate.",
             "Task type \"draft\": qualifying contributions coexist; no single output is selected.",
             "Task type \"draft\": no one may declare it finished; an empty task list is not completion.",
-            "Stage \"draft\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"draft\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
             "Stage \"draft\" requires no upstream evidence and uses task type \"draft\".",
-            "Stage \"ship\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"ship\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
             "Stage \"ship\" requires completion from \"draft\" and uses default rules."
           ]
         },
@@ -1229,13 +1229,13 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
             "Default rules: no one may declare it finished; an empty task list is not completion.",
-            "Stage \"s\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"s\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
             "Stage \"s\" requires no upstream evidence and uses default rules."
           ]
         },
@@ -2147,7 +2147,7 @@
             "tester"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires any of [check \"ci\" attested by members bound to role \"tester\" on the exact contribution; 2 distinct approving reviewer(s) from goal members, including the author if eligible] on the exact candidate.",
@@ -2232,7 +2232,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires all of [a completion declaration by the contribution author; publication by goal members] on the exact candidate.",
@@ -2309,7 +2309,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires publication by goal members on the exact candidate.",
@@ -2378,7 +2378,7 @@
             "bb"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: members bound to role \"a\" or members bound to role \"bb\" or goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2466,7 +2466,7 @@
             "a"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; members bound to role \"a\" may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2539,7 +2539,7 @@
             "c"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: members bound to role \"c\" may offer work to goal members; the recipient must acknowledge before starting.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
@@ -2620,7 +2620,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; nobody may publish contributions without a task.",
             "Default rules: no new task attempts are permitted.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2679,7 +2679,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: participant abababababababababababababababababababababababababababababababab may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2758,7 +2758,7 @@
             "judge"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2842,7 +2842,7 @@
             "rev"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -2978,7 +2978,7 @@
           ],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3061,7 +3061,7 @@
             "r"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3072,9 +3072,9 @@
             "Task type \"t\": completion requires a completion declaration by the contribution author on the exact candidate.",
             "Task type \"t\": the single member bound to role \"r\" may select one qualifying output; approval alone does not select it.",
             "Task type \"t\": no one may declare it finished; an empty task list is not completion.",
-            "Stage \"a\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"a\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
             "Stage \"a\" requires no upstream evidence and uses task type \"t\".",
-            "Stage \"b\": the goal administrator runs this stage: it creates the configured task and durably delivers ready work to members bound to role \"r\" or goal members.",
+            "Stage \"b\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to members bound to role \"r\" or goal members.",
             "Stage \"b\" requires publication from \"a\" and eligible review from \"a\" and completion from \"a\" and selection from \"a\" and uses default rules."
           ]
         },
@@ -3217,7 +3217,7 @@
             "say \"hi\""
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: members bound to role \"ré\" or members bound to role \"say \\\"hi\\\"\" or members bound to role \"back\\\\slash\" may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3311,7 +3311,7 @@
             "c"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: members bound to role \"b\" or members bound to role \"c\" or members bound to role \"aa\" may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3401,7 +3401,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3467,7 +3467,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3533,7 +3533,7 @@
           "required_inputs": [],
           "required_roles": [],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
@@ -3617,7 +3617,7 @@
             "reviewer"
           ],
           "summary": [
-            "The goal administrator manages membership and rules separately from work permissions.",
+            "The goal's host manages membership and rules separately from the rules for work.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",

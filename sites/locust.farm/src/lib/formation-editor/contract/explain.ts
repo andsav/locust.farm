@@ -108,7 +108,7 @@ export const CONTEXTUAL_CHECKS = [
 /** Explains a normalized formation. */
 export function explain(value: Formation): Explanation {
 	const summary = [
-		'The goal administrator manages membership and rules separately from work permissions.'
+		"The goal's host manages membership and rules separately from the rules for work."
 	];
 	work(value.work, 'Default rules', summary);
 	decisions(value.decisions, 'Default rules', summary);
@@ -129,7 +129,7 @@ export function explain(value: Formation): Explanation {
 	for (const name of sortedKeys(value.flow)) {
 		const stage = value.flow[name];
 		summary.push(
-			`Stage ${rustDebug(name)}: the goal administrator runs this stage: it creates the configured task and durably delivers ready work to ${selector(stage.recipients)}.`
+			`Stage ${rustDebug(name)}: the host's computer runs this stage: it creates the configured task and durably delivers ready work to ${selector(stage.recipients)}.`
 		);
 		const needs =
 			stage.requires.length === 0

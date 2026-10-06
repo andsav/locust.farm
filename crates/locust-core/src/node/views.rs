@@ -366,54 +366,26 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     }
                 }
             }
-            // Effective reviews are indexed by their author's sequence. Keep
-            // each member's latest verdict, and (until the later replay change)
-            // every member with positive evidence, matching the current fold.
-            let mut latest: BTreeMap<EventId, BTreeMap<PublicKey, (u64, Verdict)>> =
-                BTreeMap::new();
-            let mut approvals: BTreeMap<EventId, BTreeSet<PublicKey>> = BTreeMap::new();
+            // The caller's own reviews and attestations decide what is left for
+            // it to judge. Other members' verdicts are read only for those
+            // candidates, so an idle poll does not walk the whole goal.
+            let mut own_reviewed = BTreeSet::new();
             let mut attested = BTreeSet::new();
-            for author in entry.goal.authors() {
-                for point in entry.goal.points(author) {
-                    let Some(event) = entry.goal.event(&point.id) else {
-                        continue;
-                    };
-                    if entry.goal.standing(&event.id()) != Some(Standing::Effective) {
-                        continue;
+            for point in entry.goal.points(&principal) {
+                let Some(event) = entry.goal.event(&point.id) else {
+                    continue;
+                };
+                if entry.goal.standing(&event.id()) != Some(Standing::Effective) {
+                    continue;
+                }
+                match &event.header().body {
+                    Body::ReviewRecorded { subject, .. } => {
+                        own_reviewed.insert(*subject);
                     }
-                    match &event.header().body {
-                        Body::ReviewRecorded {
-                            subject, verdict, ..
-                        } => {
-                            let approve = *verdict == ReviewVerdict::Approve;
-                            let by_member = latest.entry(*subject).or_default();
-                            if by_member
-                                .get(author)
-                                .is_none_or(|(seq, _)| *seq < point.seq)
-                            {
-                                by_member.insert(
-                                    *author,
-                                    (
-                                        point.seq,
-                                        Verdict {
-                                            member: *author,
-                                            approve,
-                                            event: event.id(),
-                                        },
-                                    ),
-                                );
-                            }
-                            if approve
-                                && entry.goal.can_review(*subject, *author, &entry.definitions)
-                            {
-                                approvals.entry(*subject).or_default().insert(*author);
-                            }
-                        }
-                        Body::CheckAttested { subject, .. } if *author == principal => {
-                            attested.insert(*subject);
-                        }
-                        _ => {}
+                    Body::CheckAttested { subject, .. } => {
+                        attested.insert(*subject);
                     }
+                    _ => {}
                 }
             }
             let reviewable = entry
@@ -442,47 +414,96 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     })
                     .map(|proposal| (proposal.id, proposal.context, proposal.approved)),
             );
-            for (subject, context, approved) in reviewable {
-                let reviewed = latest
-                    .get(&subject)
-                    .is_some_and(|members| members.contains_key(&principal));
-                let can_review = !reviewed
-                    && entry
-                        .goal
-                        .can_review(subject, principal, &entry.definitions);
-                let can_attest = !attested.contains(&subject)
-                    && entry
-                        .goal
-                        .can_attest(subject, principal, &entry.definitions);
-                let selected = entry
-                    .state()
-                    .selections
-                    .values()
-                    .any(|selection| selection.subject.id() == subject);
-                if !approved && !selected && (can_review || can_attest) {
-                    let needed = entry
-                        .goal
-                        .effective_rules(context, &entry.definitions)
-                        .and_then(|rules| first_review_count(&rules.decisions.completion))
-                        .unwrap_or(0);
-                    work.to_review.push(ReviewItem {
-                        subject,
-                        context,
-                        needed,
-                        approvals: approvals
-                            .get(&subject)
-                            .map_or(0, |members| members.len() as u32),
-                        verdicts: latest
-                            .get(&subject)
-                            .map(|members| {
-                                members
-                                    .values()
-                                    .map(|(_, verdict)| verdict.clone())
-                                    .collect()
-                            })
-                            .unwrap_or_default(),
-                    });
+            let candidates: Vec<_> = reviewable
+                .filter(|(subject, _, approved)| {
+                    let can_review = !own_reviewed.contains(subject)
+                        && entry
+                            .goal
+                            .can_review(*subject, principal, &entry.definitions);
+                    let can_attest = !attested.contains(subject)
+                        && entry
+                            .goal
+                            .can_attest(*subject, principal, &entry.definitions);
+                    let selected = entry
+                        .state()
+                        .selections
+                        .values()
+                        .any(|selection| selection.subject.id() == *subject);
+                    !approved && !selected && (can_review || can_attest)
+                })
+                .collect();
+            // Keep each member's latest verdict, and (until the later replay
+            // change) every member with positive evidence, matching the current
+            // fold.
+            let wanted: BTreeSet<EventId> =
+                candidates.iter().map(|(subject, _, _)| *subject).collect();
+            let mut latest: BTreeMap<EventId, BTreeMap<PublicKey, (u64, Verdict)>> =
+                BTreeMap::new();
+            let mut approvals: BTreeMap<EventId, BTreeSet<PublicKey>> = BTreeMap::new();
+            if !wanted.is_empty() {
+                for author in entry.goal.authors() {
+                    for point in entry.goal.points(author) {
+                        let Some(event) = entry.goal.event(&point.id) else {
+                            continue;
+                        };
+                        let Body::ReviewRecorded {
+                            subject, verdict, ..
+                        } = &event.header().body
+                        else {
+                            continue;
+                        };
+                        if !wanted.contains(subject)
+                            || entry.goal.standing(&event.id()) != Some(Standing::Effective)
+                        {
+                            continue;
+                        }
+                        let approve = *verdict == ReviewVerdict::Approve;
+                        let by_member = latest.entry(*subject).or_default();
+                        if by_member
+                            .get(author)
+                            .is_none_or(|(seq, _)| *seq < point.seq)
+                        {
+                            by_member.insert(
+                                *author,
+                                (
+                                    point.seq,
+                                    Verdict {
+                                        member: *author,
+                                        approve,
+                                        event: event.id(),
+                                    },
+                                ),
+                            );
+                        }
+                        if approve && entry.goal.can_review(*subject, *author, &entry.definitions) {
+                            approvals.entry(*subject).or_default().insert(*author);
+                        }
+                    }
                 }
+            }
+            for (subject, context, _) in candidates {
+                let needed = entry
+                    .goal
+                    .effective_rules(context, &entry.definitions)
+                    .and_then(|rules| first_review_count(&rules.decisions.completion))
+                    .unwrap_or(0);
+                work.to_review.push(ReviewItem {
+                    subject,
+                    context,
+                    needed,
+                    approvals: approvals
+                        .get(&subject)
+                        .map_or(0, |members| members.len() as u32),
+                    verdicts: latest
+                        .get(&subject)
+                        .map(|members| {
+                            members
+                                .values()
+                                .map(|(_, verdict)| verdict.clone())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                });
             }
             for ((effect, recipient), delivery) in &entry.deliveries {
                 if *recipient != principal || !delivery.received {

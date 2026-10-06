@@ -111,7 +111,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .events
             .last()
             .expect("author signed one candidate");
-        self.allowed(
+        let trial = self.allowed_keeping(
             actor,
             entry,
             *author,
@@ -120,6 +120,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 preceding: &tx.commit.events,
             },
         )?;
+        tx.trial = trial;
         tx.commit.events.append(&mut candidate.commit.events);
         tx.commit.blobs.append(&mut candidate.commit.blobs);
         tx.commit.local.append(&mut candidate.commit.local);
