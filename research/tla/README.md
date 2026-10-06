@@ -1,11 +1,12 @@
-# Locust organization TLA+ models
+# Locust TLA+ models
 
-The executable models target the organization protocol subset introduced in
+The organization, session and effect models target the protocol subset introduced in
 `c88e3bc960de79eb990b3185a653bd982e587ed6`. Start with the
 [property and evidence map](organization.md). The
 [formal verification plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/tla-verification-plan.md) identifies
 unmodeled behavior and later proof work. These are bounded exhaustive checks,
-not a deductive proof or Rust refinement proof.
+not a deductive proof or Rust refinement proof. Proposed workspace and restore
+models identify their own specification baselines in their guides.
 
 - [Organization](Organization.tla): authenticated event delivery, narrow
   governance, tenure cutoffs, pinned definitions/rules, completion review identity,
@@ -17,7 +18,10 @@ not a deductive proof or Rust refinement proof.
 - [Workspace authority](workspace.md): proposed epoch checkpoint authority,
   explicit ancestor restoration, handoff fencing, typed source-author exclusion,
   proof isolation and independent content readiness in [Workspace](Workspace.tla).
-- [Case registry](cases.json): exact finite configurations, safety properties,
+- [Restore guard](restore-guard.md): proposed G1/G2 local restore detection,
+  signing holds, temporal recovery and retained rule-removal/residual traces.
+- [Case registry](cases.json): exact finite configurations, safety and temporal
+  properties,
   requested witnesses and deliberate mutation expectations.
 
 ## Run
@@ -34,8 +38,8 @@ python3 scripts/check_tla.py --suite fast
 python3 scripts/check_tla.py --suite extended
 ```
 
-`organization`, `sessions`, and `effects` select each model's cases; `--case <id>`
-selects individual cases. `fast` includes organization safety and short directed
+`organization`, `sessions`, `effects`, `workspace`, and `restore` select each
+model's cases; `--case <id>` selects individual cases. `fast` includes organization safety and short directed
 witness/mutation checks. `extended` additionally exhausts the general local-session
 and effect action systems. Finite identities, transcripts, generation ranges and
 event counts are written in each configuration and the model map. They bound a
@@ -56,7 +60,8 @@ parser errors, unrelated violations and incomplete runs do not count.
 Checking uses one worker, breadth-first exploration, fingerprint 0 and seed 1.
 TLC fingerprint collision estimates are retained. No simulation, symmetry or
 coverage instrumentation is used. Witnesses establish specified reachability;
-they do not establish fairness or network liveness. Selected results and traces
-are tracked in [organization evidence](../evidence/tla/organization/README.md).
+they do not establish fairness or network liveness. The restore-guard model
+separately checks temporal properties under its documented fairness assumptions.
+Selected organization results and traces are tracked in [organization evidence](../evidence/tla/organization/README.md).
 The bootstrap CI configuration remains distinct from locally observed checks;
 no new remote CI outcome is asserted here.

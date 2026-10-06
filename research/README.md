@@ -62,6 +62,8 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Executable model guide](tla/README.md)
 - [Organization property and implementation map](tla/organization.md)
 - [Workspace authority model and recovery contract](tla/workspace.md)
+- [Restore guard model and recovery properties](tla/restore-guard.md)
+- [Restore guard model findings](restore-guard-model-2026-10-06.md)
 - [Evidence and reproducible helpers](evidence/README.md)
 
 ## Evidence appendices
