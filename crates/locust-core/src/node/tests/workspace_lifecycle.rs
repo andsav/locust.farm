@@ -4,7 +4,7 @@
 use super::*;
 
 use locust_proto::api::{
-    GoalGrants, WorkspaceAuthority, WorkspaceCandidate, WorkspaceContent, WorkspaceOperation,
+    WorkspaceAuthority, WorkspaceCandidate, WorkspaceContent, WorkspaceOperation,
     WorkspaceOperationKind, WorkspaceOperationState, WorkspaceView,
 };
 use locust_proto::event::{
@@ -560,15 +560,10 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
     };
     net.nodes[0].ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: integrator,
-            grants: GoalGrants {
-                contribute: true,
-                review: true,
-                select: true,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Ask,
         },
     );
     let Response::Invited { ticket } = net.nodes[0].ok(
@@ -586,6 +581,7 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
         Request::GoalJoin {
             agent: worker,
             ticket,
+            level: locust_proto::api::Level::Auto,
         },
     );
     net.poll(1);
@@ -593,14 +589,10 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
     let owner = net.nodes[1].owner();
     net.nodes[1].ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: worker,
-            grants: GoalGrants {
-                contribute: true,
-                review: true,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Ask,
         },
     );
     let rules = net.nodes[0].node.goals[&goal]

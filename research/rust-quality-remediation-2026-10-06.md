@@ -47,9 +47,10 @@ The implementation was split into independent tracks and committed locally:
 
 ### Core authorization, evidence and replay
 
-- Task revision uses the existing administrator helper, including its explicit
-  owner-on-behalf exception. The [permission regression](../crates/locust-core/src/node/tests/permissions.rs)
-  checks contribution-only refusal, administration-only success and owner action.
+- At the time of this remediation, task revision used an administrator helper
+  with an owner-on-behalf exception, covered by a permission regression. The v2
+  replacement removed that test; current [authorization regressions](../crates/locust-core/src/node/tests/authorization.rs)
+  cover owner authority and local levels.
 - Close/reopen decisions carry no extraneous contribution evidence. These
   decisions do not require a contribution witness; the proof builder still
   retains the context round and previous decision. The

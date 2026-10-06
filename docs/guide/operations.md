@@ -83,7 +83,7 @@ same values.
 The worker, or the member who offered the work, can request a stop with
 `attempt cancel --goal GOAL --attempt ATTEMPT`. The request stays open until the
 worker runs `cancel acknowledge` with `--outcome stopped`, `completed` or
-`uncertain`. Revoking a permission does not stop a running process.
+`uncertain`. Lowering a level or revoking a task allowance does not stop a running process.
 
 ## Backups
 

@@ -177,6 +177,155 @@ fn review_formation(count: u32) -> Formation {
 }
 
 #[test]
+fn replay_exposes_the_pinned_rule_behind_each_denied_action() {
+    use locust_proto::api::Rule;
+    use locust_proto::organization::StartRule;
+    let worker = Selector::Participant {
+        key: testkit::keypair(2).public().to_string(),
+    };
+    let host = Authority::Participant {
+        key: testkit::keypair(1).public().to_string(),
+    };
+    let mut formation = Formation::default();
+    formation.work.propose = worker.clone();
+    formation.work.publish = worker.clone();
+    formation.work.starts = vec![
+        StartRule::Independent { by: worker.clone() },
+        StartRule::Offered {
+            by: worker.clone(),
+            to: Selector::Members,
+        },
+    ];
+    formation.decisions.completion = CompletionRule::All {
+        rules: vec![
+            CompletionRule::Declaration { by: worker.clone() },
+            CompletionRule::Reviews {
+                by: worker.clone(),
+                count: 1,
+                exclude_author: true,
+            },
+            CompletionRule::Check {
+                name: "build".into(),
+                by: worker.clone(),
+            },
+        ],
+    };
+    formation.decisions.selection = Some(host.clone());
+    formation.decisions.finish = Some(host);
+    let mut f = Fixture::new(formation);
+    let task = f.task();
+    let goal_context = f.context();
+    let subject = f.publish(0, goal_context);
+    let attempt = f.worker(
+        0,
+        Body::AttemptStarted {
+            context: task,
+            offer: None,
+            closure: None,
+        },
+    );
+    let baseline = f.goal();
+    assert_eq!(baseline.standing(&attempt), Some(Standing::Effective));
+    let task_binding = TaskBinding {
+        rules: f.rules,
+        task_type: None,
+        inputs: BTreeMap::new(),
+        parent: None,
+        stage: None,
+    };
+    let denied = [
+        (
+            Rule::Propose,
+            Body::TaskOpened {
+                binding: task_binding,
+            },
+        ),
+        (
+            Rule::Publish,
+            Body::ContributionPublished {
+                context: goal_context,
+                attempt: None,
+                sources: vec![],
+                artifacts: vec![],
+            },
+        ),
+        (
+            Rule::Start,
+            Body::AttemptStarted {
+                context: task,
+                offer: None,
+                closure: None,
+            },
+        ),
+        (
+            Rule::Offer,
+            Body::WorkOffered {
+                context: task,
+                recipient: f.workers[0].key.public(),
+            },
+        ),
+        (
+            Rule::Declare,
+            Body::CompletionDeclared {
+                context: goal_context,
+                subject,
+            },
+        ),
+        (
+            Rule::Review,
+            Body::ReviewRecorded {
+                context: goal_context,
+                subject,
+                verdict: ReviewVerdict::Approve,
+            },
+        ),
+        (
+            Rule::Attest,
+            Body::CheckAttested {
+                context: goal_context,
+                subject,
+                name: "build".into(),
+                passed: true,
+            },
+        ),
+        (
+            Rule::Select,
+            Body::ScopeDecided {
+                context: goal_context,
+                previous: None,
+                action: DecisionAction::Select { subject },
+                evidence: vec![],
+            },
+        ),
+        (
+            Rule::Finish,
+            Body::ScopeDecided {
+                context: goal_context,
+                previous: None,
+                action: DecisionAction::Close,
+                evidence: vec![],
+            },
+        ),
+        (Rule::Cancel, Body::CancelRequested { attempt }),
+    ];
+    for (rule, body) in denied {
+        let candidate = Author::new(3).event(f.id, Some(f.anchor), body);
+        let id = candidate.id();
+        let mut trial = baseline.clone();
+        trial.apply(&[candidate], &f.definitions);
+        assert!(
+            matches!(trial.standing(&id), Some(Standing::Excluded(_))),
+            "{rule:?}"
+        );
+        let refusal = trial
+            .rule_refusal(&id)
+            .unwrap_or_else(|| panic!("missing rule metadata for {rule:?}"));
+        assert_eq!(refusal.rule, rule);
+        assert_ne!(refusal.qualifies, Selector::Nobody);
+    }
+}
+
+#[test]
 fn open_taskless_work_needs_no_host_decision() {
     let mut f = Fixture::new(Formation::default());
     let context = f.context();

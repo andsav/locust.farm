@@ -182,7 +182,7 @@ class Operations(Qualification):
         del ticket
         self.wait("three members converge", lambda: all(
             (state := self.goal_status(m, goal)) and len(state["members"]) == 3 for m in self.machines))
-        self.grant_contributions(goal)
+        self.set_ask_levels(goal)
         self.wait("workers establish their independent peer link", lambda:
                   any(p["endpoint"] == second.endpoint and p["connected"]
                       for p in self.goal_status(first, goal)["peers"]))
@@ -246,7 +246,7 @@ class Operations(Qualification):
         for machine, checkout, destination in zip((first, second), checkouts, destinations):
             offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--member", machine.agent])
             self.wait(f"worker {machine.number} receives assignment", lambda m=machine, a=offer: self.event(m, goal, a))
-            self.cli(machine, ["task", "authorize", "--goal", goal, "--task", task, "--agent", machine.agent], owner=True)
+            self.cli(machine, ["--agent", f"m{machine.number}", "allow", "--goal", goal, "--task", task], owner=True)
             session = machine.home / "sessions" / "operations.secret"
             self.cli(machine, ["session", "create", session], local=True)
             claim = variant(self.cli(machine, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer], session=session), "claimed")
@@ -350,7 +350,7 @@ class Operations(Qualification):
         task = "task:" + self.recorded(lead, ["task", "open", "--goal", goal, "Explicit cancellation acknowledgment"])
         offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--member", second.agent])
         self.wait("cancellation assignment arrives", lambda: self.event(second, goal, offer))
-        self.cli(second, ["task", "authorize", "--goal", goal, "--task", task, "--agent", second.agent], owner=True)
+        self.cli(second, ["--agent", f"m{second.number}", "allow", "--goal", goal, "--task", task], owner=True)
         session = claims[1][1]
         claim = variant(self.cli(second, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer], session=session), "claimed")
         self.stop(second)
@@ -359,7 +359,7 @@ class Operations(Qualification):
         self.wait("offline worker receives durable cancellation", lambda:
             any(item["cancel"] == cancellation for item in
                 variant(self.cli(second, ["pending", "--goal", goal], session=session), "pending")["to_acknowledge"]))
-        self.expect_error(second, ["contribution", "publish", "--goal", goal, "--task", task, "--attempt", claim["attempt"],
+        self.expect_error(second, ["contribution", "publish", "--goal", goal, "--attempt", claim["attempt"],
                           "--generation", claim["generation"], "late completion"], "conflict", session=session)
         acknowledged = self.recorded(second, ["call", "cancel.acknowledge", json.dumps({"goal": goal,
             "cancel": cancellation, "generation": claim["generation"], "outcome": "stopped"})], session=session)
@@ -392,7 +392,7 @@ class Operations(Qualification):
         del ticket
         self.wait("rotation goal admitted", lambda: all(
             (state := self.goal_status(m, goal)) and len(state["members"]) == 3 for m in self.machines))
-        self.grant_contributions(goal)
+        self.set_ask_levels(goal)
         # Stop all other holders before the member authors its offline suffix.
         self.stop(lead)
         self.stop(first)
@@ -461,7 +461,7 @@ class WorkspaceSmoke(Operations):
         self.join_goal(worker, ticket)
         del ticket
         self.wait("both members converge", lambda: all((state := self.goal_status(machine, goal)) and len(state["members"]) == 2 for machine in self.machines))
-        self.grant_contributions(goal)
+        self.set_ask_levels(goal)
         self.phase = "seed"
         root = lead.home.parent
         seed_input = root / "seed-input"

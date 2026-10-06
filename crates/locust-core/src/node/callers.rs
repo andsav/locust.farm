@@ -2,10 +2,12 @@
 //!
 //! The hello's credential fixes the [`Caller`] of a connection. Each request
 //! is then resolved to an [`Actor`]: the principal it acts as, and whether the
-//! owner's direct act stands in for that principal's grants. The rules are
+//! owner's direct act stands in for that principal's local level. The rules are
 //! those of `locust_proto::api` ("Who is asking").
 
-use locust_proto::api::{ApiError, Audience, Caller, ErrorCode, Request, RequestFrame};
+use locust_proto::api::{
+    Act, ApiError, Audience, Caller, ErrorCode, Refused, Request, RequestFrame, Why,
+};
 use locust_proto::id::{GoalId, InstanceId, PublicKey};
 
 use super::identity::Principals;
@@ -37,7 +39,7 @@ pub(super) struct Actor {
     /// directly.
     pub principal: Option<PublicKey>,
     /// True when the owner makes the request on a principal's behalf: that
-    /// act is the authorization, so grants are not consulted.
+    /// act skips the local level, while shared rules still apply.
     pub owner_act: bool,
     /// The connection's session.
     pub session: Option<InstanceId>,
@@ -68,6 +70,46 @@ impl Actor {
 
 fn denied(message: &'static str) -> ApiError {
     ApiError::new(ErrorCode::Denied, message)
+}
+
+fn only_you(
+    principals: &Principals,
+    principal: PublicKey,
+    frame: &RequestFrame,
+    host: bool,
+) -> ApiError {
+    let agent_name = principals
+        .get(&principal)
+        .map(|principal| principal.record.name.clone())
+        .unwrap_or_else(|| principal.to_string().chars().take(8).collect());
+    let act = match &frame.request {
+        Request::GoalCreate { .. } => Act::Start,
+        Request::GoalJoin { .. } => Act::Join,
+        Request::GoalLeave { .. } => Act::Leave,
+        Request::GoalInvite { .. } => Act::Invite,
+        Request::MemberRemove { .. } => Act::RemoveMember,
+        Request::RulesBind { .. } => Act::ChangeRules,
+        Request::TaskRevise { .. } => Act::Revise,
+        Request::WorkspaceConnect { .. } => Act::ConnectFolder,
+        Request::FarmOn { .. } => Act::Publish,
+        _ => Act::PersonCommand,
+    };
+    let refused = Refused {
+        agent: principal,
+        agent_name,
+        member_name: None,
+        goal: frame.request.goal(),
+        goal_title: None,
+        act,
+        task: None,
+        task_title: None,
+        why: Why::OnlyYou {
+            operation: frame.request.name().into(),
+            host,
+        },
+    };
+    denied("this request is the owner's to make")
+        .with_details(serde_json::to_value(refused).expect("refusal serializes"))
 }
 
 /// Resolves who `frame` acts as on a connection of `caller`.
@@ -128,7 +170,12 @@ pub(super) fn resolve(
                 return Err(denied("the credential was revoked"));
             }
             if matches!(operation.audience, Audience::Owner | Audience::Host) {
-                return Err(denied("this request is the owner's to make"));
+                return Err(only_you(
+                    principals,
+                    principal,
+                    frame,
+                    operation.audience == Audience::Host,
+                ));
             }
             Ok(actor(Some(principal), false))
         }

@@ -177,8 +177,14 @@ fn goal_close_is_shared_and_publicly_ended_but_does_not_stop_work_or_admission()
         expected: None,
     };
     let error = d.on_behalf(owner, member, close.clone()).unwrap_err();
-    assert_eq!(error.code, ErrorCode::Conflict);
-    assert_eq!(error.message, "principal is not the named scope authority");
+    assert_eq!(error.code, ErrorCode::NotEligible);
+    assert!(matches!(
+        error.refused().unwrap().why,
+        locust_proto::api::Why::Rules {
+            rule: locust_proto::api::Rule::Finish,
+            ..
+        }
+    ));
     d.ok(owner, on(goal));
     d.ok(owner, consent(goal, host, true));
     d.ok(owner, consent(goal, member, true));
@@ -257,8 +263,14 @@ fn default_formation_has_no_goal_finish_decider() {
             },
         )
         .unwrap_err();
-    assert_eq!(error.code, ErrorCode::Conflict);
-    assert_eq!(error.message, "principal is not the named scope authority");
+    assert_eq!(error.code, ErrorCode::NotEligible);
+    assert!(matches!(
+        error.refused().unwrap().why,
+        locust_proto::api::Why::Rules {
+            rule: locust_proto::api::Rule::Finish,
+            ..
+        }
+    ));
     assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
     assert!(
         d.node.goals[&goal]
@@ -304,8 +316,14 @@ fn goal_close_follows_finish_role_instead_of_host_identity() {
     };
     let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
     let error = d.call(agent, close.clone()).unwrap_err();
-    assert_eq!(error.code, ErrorCode::Conflict);
-    assert_eq!(error.message, "principal is not the named scope authority");
+    assert_eq!(error.code, ErrorCode::NotEligible);
+    assert!(matches!(
+        error.refused().unwrap().why,
+        locust_proto::api::Why::Rules {
+            rule: locust_proto::api::Rule::Finish,
+            ..
+        }
+    ));
     assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
     let id = event(d.on_behalf(owner, member, close).unwrap());
     assert!(

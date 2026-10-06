@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Plan, Planned, answer};
 use crate::node::Node;
-use crate::node::access::not_found;
+use crate::node::access::{Attempted, not_found};
 use crate::node::callers::Actor;
 use crate::node::commit::Tx;
 use crate::node::entry::Entry;
@@ -50,7 +50,8 @@ fn unavailable(message: &'static str) -> ApiError {
 
 impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn blob_put(&self, actor: &Actor, goal: GoalId, bytes: Vec<u8>) -> Plan {
-        let (entry, _) = self.member(actor, &goal)?;
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.allowed(actor, entry, principal, Attempted::Store)?;
         let epoch = entry.state().epoch;
         let key = entry
             .keys
@@ -168,7 +169,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     pub(super) fn blob_withdraw(&self, actor: &Actor, goal: GoalId, hash: BlobHash) -> Plan {
-        let (entry, _) = self.member(actor, &goal)?;
+        let (entry, principal) = self.member(actor, &goal)?;
+        self.allowed(actor, entry, principal, Attempted::Withdraw)?;
         if !self.names_content(entry, &hash) && blob_record(&self.store, &goal, &hash)?.is_none() {
             return Err(not_found("nothing in this goal names that content"));
         }

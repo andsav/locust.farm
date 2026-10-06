@@ -1,6 +1,6 @@
 # Locust v2 phases 1–3 build notes
 
-Status: implementation in progress, 6 October 2026. This note records the
+Status: phases 1, 2 and 3 implemented and verified, 6 October 2026. This note records the
 implementation of only phases 1, 2 and 3 of the
 [roles and permissions plan](../docs/roles-and-permissions-plan.md) and its
 [removals and checks](../docs/roles-and-permissions-plan-details.md), against
@@ -194,7 +194,103 @@ I/O. Workspace race regressions keep the reviewed revision/epoch pinned.
 
 ## Phase 3
 
-Not started.
+Implementation and final exit checks are complete. Local
+`read`, `ask` and `auto` levels and task allowances replace the grant and
+permission APIs. Creation and joining record `auto` by default, and missing
+level records also read as `auto`. Removed or departed members lose their
+local levels and allowances; membership still controls whether they can act.
+Allowances name the current task round and survive completion, closure,
+reopening and restart until revision or explicit revocation.
+
+The new pending views show other agents' unfinished attempts, result counts,
+approval counts and the latest verdict by each reviewer. Starts sort by
+attendance, then result count, then task identifier. Review opportunities
+include named checks the agent may attest. Approval counts deliberately keep
+the existing replay semantics: an effective positive review still counts if
+that reviewer later rejects. Changing the fold to latest-review semantics
+belongs to phase 4; this phase only shows that latest verdict.
+
+### Replay and local-state boundaries
+
+There is no `Goal::rules_allow` and no second rules decision table. The shared
+fold records structured rule-refusal metadata at its existing refusal sites.
+`sign_for` builds the actual candidate in a disposable transaction and applies
+it to a clone through the same `Goal::apply` path used by the durable commit.
+It reads replay's standing and refusal metadata before checking the local
+level. Only an accepted candidate enters the transaction that can be saved
+or sent. The owner skips the level check, not replay; accepted acts on an
+agent's behalf have a durable local `by_owner` marker.
+
+This differs from the draft's `Attempted::Sign(&Body)`: the trial requires the
+actual signed record and any preceding records in the same transaction. The
+cancellation acknowledgment's accompanying report is checked against that
+preceding acknowledgment before their atomic commit. Signing the disposable
+candidate does not publish or persist it.
+
+Today's replay intentionally accepts concurrent historical attempts and does
+not use current projected completion/selection to reject them. Removing the
+old `can_start` handler check therefore needed a shared current-task
+availability predicate for new local starts and offers. That state check runs
+before candidate replay and the level, and is also used by pending eligibility;
+it does not reimplement a formation rule. Historical replay semantics remain
+unchanged. Content, membership, session/claim and private-path checks keep their
+existing boundaries.
+
+The plan's direct `Selector` field in `Ability` cannot be decoded by the
+repository's postcard transport because `Selector` is a tagged JSON enum.
+The API serializes just that field as a JSON string for binary transport,
+while human JSON and the published schema retain the structured selector.
+This is covered by both binary and JSON roundtrips and real-daemon tests; it
+adds no legacy reader or signed-protocol change.
+
+The plan's eligibility-filtered `allowed_tasks` view hides allowances while a
+task is closed, finished or picked. The CLI therefore cannot use that view to
+skip a revocation or claim it changed nothing. `task.disallow` always executes
+and has a narrow `TaskDisallowed { abilities, changed, was_allowed }` response
+that reports the actual stored record. Revoking a hidden allowance prints no
+restoring `allow` command because that task cannot currently be allowed; a
+currently takeable allowance retains its runnable undo. Core and CLI
+regressions cover close, revoke, reopen, truthful change reporting and a
+repeated no-op. Other abilities responses remain unchanged.
+
+`Abilities.host` is optional because a joining goal may not hold its founding
+record yet; it uses the existing governance identity until the later host-key
+split. Future end/restore/discovery variants mentioned in the evolving plan
+are not added in this phase. The API and store marker remain 7 and the signed
+protocol remains 6.
+
+### Checks and evidence
+
+Passed: `cargo fmt --all --check`, `cargo clippy --locked --workspace
+--all-targets -- -D warnings`, `cargo test --locked --workspace` (995 passed,
+14 ignored), `python3 -m unittest discover -s scripts/tests` (297 run,
+3 skipped), `python3 scripts/check_docs.py`, `python3 scripts/check_formations.py`,
+and `python3 scripts/check_documentation.py --binary
+output/v2-phase3-final-locust --timeout 60` (all four executable recipes).
+The frozen binary is a copy of the final `target/debug/locust` build and keeps
+concurrent test builds from replacing a running recipe's executable. The
+regenerated contract has 90 operations and 57 tools: the extra checkout
+operation/tool from phase 1 remains beyond the draft's counts. No site source
+was edited in phase 3, so site lint/check/test/build were not required again.
+
+The tests cover the actual daemon codec, runnable `level`/`allow` undo
+commands, default-auto local membership, managed checkout proposals, pending
+attendance and verdicts, all four stalled-runner conditions, and automatic
+stages, review requests and admissions with every member at `read`. A task
+allowance becomes usable again after replay retracts its only approval
+without changing the round; that regression also restarts the daemon and
+starts a new attempt. Rule metadata regressions cover every `Rule` refusal
+category, including workspace integration, without a second rules evaluator.
+
+Earlier transition runs exposed obsolete fixture expectations, a missing
+adapter fixture field, an unnecessary explicit lifetime flagged by Clippy,
+the binary selector decoding failure and the missing completed-task start
+guard. Final review also caught hidden allowances being skipped on revocation.
+All were repaired; no exit check remains failing. The 14 Rust ignores and
+three Python skips are the same cases documented in phase 1. Scripts and
+executable recipes were repaired in this phase, with the deliberately chosen
+`ask` walk confined to the local-collaboration manual recipe.
+
 
 ## Verification boundary
 

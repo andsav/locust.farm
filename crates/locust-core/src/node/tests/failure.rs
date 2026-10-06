@@ -246,10 +246,9 @@ fn exhausted_revision_refuses_before_changing_the_goal_projection() {
 
 #[test]
 fn effect_and_recipient_records_commit_atomically_and_uncertain_commit_requires_reopen() {
-    use locust_proto::api::GoalGrants;
     use locust_proto::event::Body;
     for after in [false, true] {
-        let (store, goal, principal) = super::delivery::unmaterialized();
+        let (store, goal, _principal) = super::delivery::unmaterialized();
         let fail = Rc::new(Cell::new(None));
         let mut node = Node::open(
             Failing {
@@ -270,18 +269,12 @@ fn effect_and_recipient_records_commit_atomically_and_uncertain_commit_requires_
         };
         node.connect(ConnId(1), &hello, 0);
         fail.set(Some(after));
+        let expected = node.goals[&goal].state().current_rules.unwrap();
         let result = call(
             &mut node,
             ConnId(1),
             None,
-            Request::GoalGrant {
-                goal,
-                agent: principal,
-                grants: GoalGrants {
-                    flow: true,
-                    ..Default::default()
-                },
-            },
+            super::delivery::pipeline_request(goal, expected),
             None,
         );
         assert!(result.is_err());

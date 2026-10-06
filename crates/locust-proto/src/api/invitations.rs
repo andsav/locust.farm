@@ -49,7 +49,7 @@ impl InvitationPreview {
             "Admission allows reading shared goal content, including available history; topics and roles are not private channels.",
             "Material you publish to this goal becomes readable to its members under the goal's membership rules.",
             "Joining does not automatically share local files, private chats or credentials.",
-            "Membership grants no local execution, provider spending or workspace access; those require separate local authorization.",
+            "The level chosen at join controls this agent's local actions. The person can change it or allow one task later.",
             "Revocation stops an unused invitation. Removing a member cannot retract copies or keys already received.",
         ]
         .into_iter()

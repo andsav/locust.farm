@@ -13,12 +13,12 @@ mod invitations;
 mod onboarding;
 mod only_you;
 mod package;
-mod permissions;
 mod presentation;
 mod print;
 mod selectors;
 mod service;
 mod setup;
+mod watch;
 mod workspace;
 
 use crate::{daemon, failure::Failure, secret};
@@ -229,8 +229,8 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     if operation.starts_with("invitation.") {
         return invitations::run(matches, &operation, selected);
     }
-    if operation.starts_with("permission.") || matches!(operation.as_str(), "inbox" | "watch") {
-        return permissions::run(matches, &operation, selected);
+    if operation == "watch" {
+        return watch::run(matches, selected);
     }
     let named_enrollment = matches!(operation.as_str(), "agent.enroll" | "author.enroll");
     let author_enrollment = operation == "author.enroll";
@@ -643,9 +643,11 @@ fn human(response: &Response, credential_path: Option<&Path>) -> String {
             goal,
             governance,
             membership,
+            level,
         } => format!(
-            "goal {goal}\nhost {governance}\nmembership {}",
-            stable_name(membership)
+            "goal {goal}\nhost {governance}\nmembership {}\nlevel {}",
+            stable_name(membership),
+            stable_name(level)
         ),
         Response::Claimed(claim) => format!(
             "attempt {}\ngeneration {}\ninstance {}",

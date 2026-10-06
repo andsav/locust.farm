@@ -35,7 +35,7 @@ With `--json`, the output is `{"ok":true,"result":...}` or
 - 1: `internal`
 - 2: a command line usage error
 - 3: `denied`
-- 4: `authorization_required`
+- 4: `level_required`
 - 5: `not_found`
 - 6: `invalid`
 - 7: `conflict`, `claim_held`, `superseded` or `idempotency_mismatch`
@@ -44,6 +44,7 @@ With `--json`, the output is `{"ok":true,"result":...}` or
 - 10: `unsupported_version`
 - 11: `corrupted`
 - 12: `limit_exceeded`
+- 13: `not_eligible`
 - 20: `wait` saw no change before its timeout
 - 21: `wait` saw no change before its timeout and no peer of the goal is reachable
 
@@ -74,8 +75,8 @@ directory and credential paths, usually set through `LOCUST_HOME`,
 A tool name is `locust_` plus the operation name with `_` for `.`, so
 `goal.status` becomes `locust_goal_status`. The generated operation table identifies
 which operations are tools.
-Not tools: invitations, permission changes, enrollment, grants, `goal.join`,
-`goal.invite`, `task.authorize`, `blob.put`, `blob.get`, sessions, `inbox`,
+Not tools: invitations, level and allowance changes, enrollment, `goal.join`,
+`goal.invite`, `blob.put`, `blob.get`, sessions,
 `daemon.stop` and the farm commands.
 
 `tools/list` shows the tools the credential's kind can call at all: eligible

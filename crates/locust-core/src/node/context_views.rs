@@ -187,8 +187,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
 /// Filtering happens before paging and never removes an item from an all-kind read.
 pub(super) fn pending_items(work: PendingWork, kind: Option<PendingKind>) -> Vec<PendingItem> {
     let mut items = Vec::new();
-    if kind.is_none_or(|kind| kind == PendingKind::ToAuthorize) {
-        items.extend(work.to_authorize.into_iter().map(PendingItem::ToAuthorize));
+    if kind.is_none_or(|kind| kind == PendingKind::AskFirst) {
+        items.extend(work.ask_first.into_iter().map(PendingItem::AskFirst));
     }
     if kind.is_none_or(|kind| kind == PendingKind::ToStart) {
         items.extend(work.to_start.into_iter().map(PendingItem::ToStart));

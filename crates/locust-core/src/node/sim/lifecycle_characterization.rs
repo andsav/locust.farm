@@ -87,7 +87,8 @@ fn offline_removed_member_retries_refused_peers_and_fresh_ticket_returns_stale_m
             Who::Owner,
             Request::GoalJoin {
                 agent: member,
-                ticket
+                ticket,
+                level: locust_proto::api::Level::Auto,
             }
         )
         .unwrap(),

@@ -1,15 +1,17 @@
 //! What reads answer with: the API's views, rendered from a goal's state and
 //! this daemon's records about it.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::api::{
-    self, BlobState, BlobStatus, CancelItem, ContextNews, DeliveryItem, EventDetail, EventView,
-    GoalSummary, Membership, PendingWork, ReviewItem, TaskDetail, TaskView, WorkItem,
+    self, Attempting, BlobState, BlobStatus, CancelItem, ContextNews, DeliveryItem, EventDetail,
+    EventView, GoalSummary, Membership, PendingWork, ReviewItem, TaskDetail, TaskView, Verdict,
+    WorkItem,
 };
 use locust_proto::engine::Entropy;
-use locust_proto::event::{AttemptStatus, Body, Context, Event, Scope};
-use locust_proto::id::{BlobHash, PublicKey};
+use locust_proto::event::{AttemptStatus, Body, Event, ReviewVerdict, Scope};
+use locust_proto::id::{BlobHash, EventId, PublicKey};
+use locust_proto::organization::CompletionRule;
 use locust_proto::store::Store;
 
 use super::Node;
@@ -44,14 +46,6 @@ impl Entry {
             .map(|_| api::Halt::AuthorityConflict)
     }
 
-    pub fn may_start(&self, principal: &PublicKey, context: Context) -> bool {
-        self.local.grants(principal).execute
-            || self
-                .local
-                .authorized
-                .contains_key(&(context.round, *principal))
-    }
-
     /// One event as the feed lists it.
     pub fn event_view(&self, event: &Event) -> EventView {
         let id = event.id();
@@ -62,6 +56,7 @@ impl Entry {
             author: header.author,
             kind: header.body.kind().into(),
             at_ms: header.at_ms,
+            by_owner: self.local.by_owner.contains(&id),
             standing: match self.goal.standing(&id) {
                 Some(Standing::Effective) => api::Standing::Effective,
                 Some(Standing::Excluded(_)) => api::Standing::Excluded,
@@ -117,6 +112,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     member: *member,
                     membership,
                     halted: entry.halted(),
+                    abilities: self.abilities(entry, *member),
                 });
             }
         }
@@ -292,13 +288,34 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     let item = WorkItem {
                         task: task.id,
                         offer,
+                        attempting: round
+                            .attempts
+                            .iter()
+                            .filter_map(|id| entry.state().attempts.get(id))
+                            .filter(|attempt| {
+                                attempt.author != principal
+                                    && matches!(
+                                        attempt.status,
+                                        None | Some(AttemptStatus::Progress)
+                                    )
+                            })
+                            .map(|attempt| Attempting {
+                                member: attempt.author,
+                                status: attempt.status,
+                            })
+                            .collect(),
+                        results: round.contributions.len() as u32,
                     };
-                    if entry.may_start(&principal, round.context) {
+                    if entry.local.level(&principal)
+                        >= entry
+                            .local
+                            .start_level(task.id, task.current_round, principal)
+                    {
                         if actor.principal.is_some() {
                             work.to_start.push(item);
                         }
                     } else {
-                        work.to_authorize.push(item);
+                        work.ask_first.push(item);
                     }
                 }
             }
@@ -349,22 +366,56 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     }
                 }
             }
-            // Review state is already indexed by author. Collect effective
-            // subjects once instead of scanning the whole goal for each one.
-            let reviewed: BTreeSet<_> = entry
-                .goal
-                .points(&principal)
-                .iter()
-                .filter_map(|point| entry.goal.event(&point.id))
-                .filter_map(|event| match &event.header().body {
-                    Body::ReviewRecorded { subject, .. }
-                        if entry.goal.standing(&event.id()) == Some(Standing::Effective) =>
-                    {
-                        Some(*subject)
+            // Effective reviews are indexed by their author's sequence. Keep
+            // each member's latest verdict, and (until the later replay change)
+            // every member with positive evidence, matching the current fold.
+            let mut latest: BTreeMap<EventId, BTreeMap<PublicKey, (u64, Verdict)>> =
+                BTreeMap::new();
+            let mut approvals: BTreeMap<EventId, BTreeSet<PublicKey>> = BTreeMap::new();
+            let mut attested = BTreeSet::new();
+            for author in entry.goal.authors() {
+                for point in entry.goal.points(author) {
+                    let Some(event) = entry.goal.event(&point.id) else {
+                        continue;
+                    };
+                    if entry.goal.standing(&event.id()) != Some(Standing::Effective) {
+                        continue;
                     }
-                    _ => None,
-                })
-                .collect();
+                    match &event.header().body {
+                        Body::ReviewRecorded {
+                            subject, verdict, ..
+                        } => {
+                            let approve = *verdict == ReviewVerdict::Approve;
+                            let by_member = latest.entry(*subject).or_default();
+                            if by_member
+                                .get(author)
+                                .is_none_or(|(seq, _)| *seq < point.seq)
+                            {
+                                by_member.insert(
+                                    *author,
+                                    (
+                                        point.seq,
+                                        Verdict {
+                                            member: *author,
+                                            approve,
+                                            event: event.id(),
+                                        },
+                                    ),
+                                );
+                            }
+                            if approve
+                                && entry.goal.can_review(*subject, *author, &entry.definitions)
+                            {
+                                approvals.entry(*subject).or_default().insert(*author);
+                            }
+                        }
+                        Body::CheckAttested { subject, .. } if *author == principal => {
+                            attested.insert(*subject);
+                        }
+                        _ => {}
+                    }
+                }
+            }
             let reviewable = entry
                 .state()
                 .contributions
@@ -392,13 +443,45 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     .map(|proposal| (proposal.id, proposal.context, proposal.approved)),
             );
             for (subject, context, approved) in reviewable {
-                if !approved
-                    && !reviewed.contains(&subject)
+                let reviewed = latest
+                    .get(&subject)
+                    .is_some_and(|members| members.contains_key(&principal));
+                let can_review = !reviewed
                     && entry
                         .goal
-                        .can_review(subject, principal, &entry.definitions)
-                {
-                    work.to_review.push(ReviewItem { subject, context });
+                        .can_review(subject, principal, &entry.definitions);
+                let can_attest = !attested.contains(&subject)
+                    && entry
+                        .goal
+                        .can_attest(subject, principal, &entry.definitions);
+                let selected = entry
+                    .state()
+                    .selections
+                    .values()
+                    .any(|selection| selection.subject.id() == subject);
+                if !approved && !selected && (can_review || can_attest) {
+                    let needed = entry
+                        .goal
+                        .effective_rules(context, &entry.definitions)
+                        .and_then(|rules| first_review_count(&rules.decisions.completion))
+                        .unwrap_or(0);
+                    work.to_review.push(ReviewItem {
+                        subject,
+                        context,
+                        needed,
+                        approvals: approvals
+                            .get(&subject)
+                            .map_or(0, |members| members.len() as u32),
+                        verdicts: latest
+                            .get(&subject)
+                            .map(|members| {
+                                members
+                                    .values()
+                                    .map(|(_, verdict)| verdict.clone())
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                    });
                 }
             }
             for ((effect, recipient), delivery) in &entry.deliveries {
@@ -419,6 +502,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 });
             }
         }
+        work.to_start
+            .sort_by_key(|item| (item.attempting.len(), item.results, item.task));
         work
+    }
+}
+
+fn first_review_count(rule: &CompletionRule) -> Option<u32> {
+    match rule {
+        CompletionRule::Reviews { count, .. } => Some(*count),
+        CompletionRule::All { rules } | CompletionRule::Any { rules } => {
+            rules.iter().find_map(first_review_count)
+        }
+        _ => None,
     }
 }

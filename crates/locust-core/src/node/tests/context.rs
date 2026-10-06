@@ -265,10 +265,16 @@ fn task_context_joins_scoped_progress_findings_reviews_and_documents_at_one_revi
     let report = event(d.ok(agent, progress(goal, claim.attempt, claim.generation)));
     let global = event(d.ok(agent, finding(goal, "Shared constraint")));
     let mut scoped = finding(goal, "Task finding");
-    let Request::ContributionPublish { task: scope, .. } = &mut scoped else {
+    let Request::ContributionPublish {
+        attempt,
+        generation,
+        ..
+    } = &mut scoped
+    else {
         panic!()
     };
-    *scope = Some(task);
+    *attempt = Some(claim.attempt);
+    *generation = Some(claim.generation);
     let scoped = event(d.ok(agent, scoped));
     let review = event(d.ok(
         agent,
@@ -497,14 +503,31 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
 
 #[test]
 fn scoped_pages_keep_goal_wide_news() {
-    let (mut d, principal, _, agent, goal) = setup();
+    let (mut d, principal, owner, agent, goal) = setup();
     let (task, _) = offered(&mut d, agent, goal, principal);
-    let (unrelated, _) = offered(&mut d, agent, goal, principal);
-    let mut request = finding(goal, "Only the other task sees this finding");
-    let Request::ContributionPublish { task: scope, .. } = &mut request else {
+    let (unrelated, offer) = offered(&mut d, agent, goal, principal);
+    authorize(&mut d, owner, goal, unrelated, principal);
+    let Response::Claimed(claim) = d.ok(
+        agent,
+        Request::AttemptStart {
+            goal,
+            task: unrelated,
+            offer: Some(offer),
+        },
+    ) else {
         panic!()
     };
-    *scope = Some(unrelated);
+    let mut request = finding(goal, "Only the other task sees this finding");
+    let Request::ContributionPublish {
+        attempt,
+        generation,
+        ..
+    } = &mut request
+    else {
+        panic!()
+    };
+    *attempt = Some(claim.attempt);
+    *generation = Some(claim.generation);
     let excluded = event(d.ok(agent, request));
     let page = context(&mut d, agent, goal, Some(task), true);
     assert!(!contains(&page, excluded));
@@ -604,7 +627,6 @@ fn standing_changes_invalidate_receipts_and_reorder_context_after_restart() {
 
 #[test]
 fn pending_reviews_only_count_the_callers_effective_reviews() {
-    use locust_proto::api::GoalGrants;
     use locust_proto::event::Event;
     use locust_proto::organization::{CompletionRule, Formation, Selector};
 
@@ -639,13 +661,10 @@ fn pending_reviews_only_count_the_callers_effective_reviews() {
     );
     d.ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: reviewer,
-            grants: GoalGrants {
-                review: true,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Ask,
         },
     );
     let subject = event(d.ok(agent, finding(goal, "A finding awaiting review")));

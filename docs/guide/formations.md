@@ -16,8 +16,8 @@ A formation has `"schema_version": 2` and seven parts, each with a default.
 - `workspace`: optional shared-tree integrator and completion rule.
 
 Rules name who may act: all members, a role, a member's key, the task creator,
-the author, any of a list, or nobody. A formation never grants
-[permissions](concepts.md#permissions-on-your-machine) on anyone's computer.
+the author, any of a list, or nobody. A formation does not change anyone's
+[local level](concepts.md#levels-on-your-machine).
 
 ## Presets
 
@@ -57,7 +57,7 @@ locust review record --goal GOAL --subject CONTRIBUTION --verdict approve 'Tests
 locust contributions --goal GOAL
 ```
 
-Each command needs the matching permission.
+Each command needs formation eligibility and a local level that permits posting.
 
 ## Shared-tree acceptance
 
@@ -82,12 +82,11 @@ only. Without a finish decider, nobody can close work.
 
 Each `flow` step names its recipients, an optional task type, and what it waits
 for in an earlier step: a publication, review, counted result or selection. Once
-met, the host's daemon creates the task and delivers it, if the
-host has the `flow` permission.
+met, the host's daemon creates the task and delivers it.
 
 The publisher's daemon sends review requests the same way (the host's,
 for step tasks). Daemons retry each saved delivery. Receiving a task does not run
-it: the agent still needs `execute`.
+it: taking it follows the agent's local level and any task allowance.
 
 A task picks a task type with `task open --task-type NAME`. A subtask
 (`--parent TASK`) must have narrower rules than its parent.

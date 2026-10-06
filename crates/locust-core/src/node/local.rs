@@ -7,16 +7,20 @@
 //! |---|---|---|
 //! | `r` | goal | revision counter |
 //! | `t` | goal | title, cached from the genesis payload |
-//! | `g` | goal, principal | standing grants |
+//! | `l` | goal, principal | local level |
 //! | `w` | goal, principal | workspace binding |
 //! | `j` | goal, principal | join in progress |
-//! | `a` | goal, assignment | the owner's authorization of one assignment |
+//! | `a` | goal, task, principal | wanted or allowed task |
+//! | `o` | goal, event | signed at the owner's direct request |
 //! | `m` | goal, principal | the principal takes or took part; whether it left |
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use locust_proto::api::{Checkout, GoalGrants, WorkspaceOperation};
-use locust_proto::id::{CheckoutId, EndpointId, EventId, GoalId, PublicKey, WorkspaceOperationId};
+use locust_proto::api::{Checkout, Level, WorkspaceOperation};
+use locust_proto::event::TaskId;
+use locust_proto::id::{
+    CheckoutId, EffectId, EndpointId, EventId, GoalId, PublicKey, WorkspaceOperationId,
+};
 use locust_proto::invite::InviteSecret;
 use locust_proto::store::{LocalWrite, Space, StoreError};
 use serde::{Deserialize, Serialize};
@@ -25,11 +29,12 @@ use super::records;
 
 const REVISION: u8 = b'r';
 const TITLE: u8 = b't';
-const GRANTS: u8 = b'g';
+const LEVEL: u8 = b'l';
 const CHECKOUT: u8 = b'W';
 const WORKSPACE_OPERATION: u8 = b'O';
 const JOIN: u8 = b'j';
-const AUTHORIZATION: u8 = b'a';
+const ALLOWANCE: u8 = b'a';
+const BY_OWNER: u8 = b'o';
 const PART: u8 = b'm';
 
 /// A redeemed invitation whose admission has not arrived, or was refused.
@@ -47,11 +52,11 @@ pub(super) struct JoinRecord {
     pub refused: bool,
 }
 
-/// The owner's authorization of one assignment that no grant covers.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub(super) struct Authorization {
-    /// Also lets a session of the assignee take the claim over.
-    pub takeover: bool,
+/// One local request to take a task, or an allowance for its exact round.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(super) enum Allowance {
+    Wanted { since_ms: u64 },
+    Allowed { round: EventId },
 }
 
 /// One goal's local records, as loaded.
@@ -63,11 +68,12 @@ pub(super) struct Local {
     /// never zero.
     pub revision: u64,
     pub title: Option<String>,
-    pub grants: BTreeMap<PublicKey, GoalGrants>,
+    pub levels: BTreeMap<PublicKey, Level>,
     pub checkouts: BTreeMap<(PublicKey, CheckoutId), Checkout>,
     pub workspace_operations: BTreeMap<(PublicKey, WorkspaceOperationId), WorkspaceOperation>,
     pub joins: BTreeMap<PublicKey, JoinRecord>,
-    pub authorized: BTreeMap<(EventId, PublicKey), Authorization>,
+    pub allowances: BTreeMap<(TaskId, PublicKey), Allowance>,
+    pub by_owner: BTreeSet<EventId>,
     /// Local principals that are or were members here; true once the
     /// principal asked to leave.
     pub part: BTreeMap<PublicKey, bool>,
@@ -85,12 +91,12 @@ pub(super) fn title_write(goal: &GoalId, title: &str) -> LocalWrite {
     records::put(Space::Goal, key(TITLE, goal, &[]), title)
 }
 
-pub(super) fn grants_write(
-    goal: &GoalId,
-    principal: &PublicKey,
-    grants: &GoalGrants,
-) -> LocalWrite {
-    records::put(Space::Goal, key(GRANTS, goal, &principal.0), grants)
+pub(super) fn level_write(goal: &GoalId, principal: &PublicKey, level: &Level) -> LocalWrite {
+    records::put(Space::Goal, key(LEVEL, goal, &principal.0), level)
+}
+
+pub(super) fn level_delete(goal: &GoalId, principal: &PublicKey) -> LocalWrite {
+    records::delete(Space::Goal, key(LEVEL, goal, &principal.0))
 }
 
 pub(super) fn checkout_write(
@@ -128,27 +134,52 @@ pub(super) fn join_delete(goal: &GoalId, principal: &PublicKey) -> LocalWrite {
     records::delete(Space::Goal, key(JOIN, goal, &principal.0))
 }
 
-pub(super) fn authorization_write(
+pub(super) fn task_bytes(task: &TaskId) -> [u8; 33] {
+    let mut bytes = [0; 33];
+    match task {
+        TaskId::Authored(event) => bytes[1..].copy_from_slice(&event.0),
+        TaskId::Derived(effect) => {
+            bytes[0] = 1;
+            bytes[1..].copy_from_slice(&effect.0);
+        }
+    }
+    bytes
+}
+
+pub(super) fn task_from_bytes(bytes: [u8; 33]) -> Result<TaskId, StoreError> {
+    let id: [u8; 32] = bytes[1..].try_into().expect("exact task key width");
+    match bytes[0] {
+        0 => Ok(TaskId::Authored(EventId(id))),
+        1 => Ok(TaskId::Derived(EffectId(id))),
+        _ => Err(records::bad_key()),
+    }
+}
+
+pub(super) fn allowance_write(
     goal: &GoalId,
-    round: &EventId,
+    task: &TaskId,
     principal: &PublicKey,
-    authorization: &Authorization,
+    allowance: &Allowance,
 ) -> LocalWrite {
     records::put(
         Space::Goal,
-        records::key(AUTHORIZATION, &[&goal.0, &round.0, &principal.0]),
-        authorization,
+        records::key(ALLOWANCE, &[&goal.0, &task_bytes(task), &principal.0]),
+        allowance,
     )
 }
 
-pub(super) fn authorization_delete(
-    goal: &GoalId,
-    round: &EventId,
-    principal: &PublicKey,
-) -> LocalWrite {
+pub(super) fn allowance_delete(goal: &GoalId, task: &TaskId, principal: &PublicKey) -> LocalWrite {
     records::delete(
         Space::Goal,
-        records::key(AUTHORIZATION, &[&goal.0, &round.0, &principal.0]),
+        records::key(ALLOWANCE, &[&goal.0, &task_bytes(task), &principal.0]),
+    )
+}
+
+pub(super) fn by_owner_write(goal: &GoalId, event: &EventId) -> LocalWrite {
+    records::put(
+        Space::Goal,
+        records::key(BY_OWNER, &[&goal.0, &event.0]),
+        &(),
     )
 }
 
@@ -180,9 +211,12 @@ impl Local {
             }
             (REVISION, Some(value)) => self.revision = records::read(value)?,
             (TITLE, Some(value)) => self.title = Some(records::read(value)?),
-            (GRANTS, Some(value)) => {
-                self.grants
+            (LEVEL, Some(value)) => {
+                self.levels
                     .insert(PublicKey(subject()?), records::read(value)?);
+            }
+            (LEVEL, None) => {
+                self.levels.remove(&PublicKey(subject()?));
             }
             (CHECKOUT, Some(value)) => {
                 let id = CheckoutId(records::part(key, REST + 32).ok_or_else(records::bad_key)?);
@@ -203,33 +237,44 @@ impl Local {
             (JOIN, None) => {
                 self.joins.remove(&PublicKey(subject()?));
             }
-            (AUTHORIZATION, Some(value)) => {
-                self.authorized.insert(
-                    (
-                        EventId(subject()?),
-                        PublicKey(records::part(key, REST + 32).ok_or_else(records::bad_key)?),
-                    ),
-                    records::read(value)?,
-                );
+            (ALLOWANCE, value) => {
+                let task = task_from_bytes(records::part(key, REST).ok_or_else(records::bad_key)?)?;
+                let principal =
+                    PublicKey(records::part(key, REST + 33).ok_or_else(records::bad_key)?);
+                if let Some(value) = value {
+                    self.allowances
+                        .insert((task, principal), records::read(value)?);
+                } else {
+                    self.allowances.remove(&(task, principal));
+                }
             }
-            (AUTHORIZATION, None) => {
-                self.authorized.remove(&(
-                    EventId(subject()?),
-                    PublicKey(records::part(key, REST + 32).ok_or_else(records::bad_key)?),
-                ));
+            (BY_OWNER, Some(_)) => {
+                self.by_owner.insert(EventId(subject()?));
+            }
+            (BY_OWNER, None) => {
+                self.by_owner.remove(&EventId(subject()?));
             }
             (PART, Some(value)) => {
                 self.part
                     .insert(PublicKey(subject()?), records::read(value)?);
             }
-            (REVISION | TITLE | GRANTS | PART, None) => {}
+            (REVISION | TITLE | PART, None) => {}
             _ => return Err(records::bad_key()),
         }
         Ok(())
     }
 
-    /// The standing grants of `principal`; none unless the owner set them.
-    pub fn grants(&self, principal: &PublicKey) -> GoalGrants {
-        self.grants.get(principal).copied().unwrap_or_default()
+    /// Missing local record defaults an admitted agent to auto.
+    pub fn level(&self, principal: &PublicKey) -> Level {
+        self.levels.get(principal).copied().unwrap_or(Level::Auto)
+    }
+
+    /// A current-round allowance lowers the start/resume threshold to ask.
+    pub fn start_level(&self, task: TaskId, round: EventId, principal: PublicKey) -> Level {
+        if self.allowances.get(&(task, principal)) == Some(&Allowance::Allowed { round }) {
+            Level::Ask
+        } else {
+            Level::Auto
+        }
     }
 }

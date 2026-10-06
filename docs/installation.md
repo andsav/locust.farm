@@ -186,7 +186,7 @@ Records under `PREFIX/setup/` let an interrupted write resume. Removal restores
 the original file if nothing else changed it; otherwise it removes only the
 locust.farm entry. An edited locust.farm entry, skill or script is kept and reported.
 
-Setup never grants permissions, changes approval settings or copies provider
+Setup never adds an agent to a goal, changes approval settings or copies provider
 credentials. It reports `reload_required`: the agent sees the change after a
 restart or in a new chat.
 
@@ -217,7 +217,7 @@ restart or in a new chat.
 Defaults: `--home` falls back to `LOCUST_HOME`, then `~/.locust`.
 `--profile-home` and `--service-profile-home` default to `HOME`, `--workspace`
 to the current folder and `--log-dir` to `DATA/logs`. Without `--name`, names
-look like `codex-maple-1a2b3c4d`. Enrolled agents get no goal permissions and
+look like `codex-maple-1a2b3c4d`. Enrolled agents are in no goal and
 cannot create goals.
 
 The journal is `DATA/onboarding/HASH/state.json`, with the `credential` and

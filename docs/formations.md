@@ -95,8 +95,8 @@ names at most one member who may close and reopen a task. Each is a `role` or a
 singly bound role; its `completion` pins the evidence required for a tree
 proposal. Enabling or changing active workspace authority requires an explicit
 workspace epoch with a typed checkpoint. Ordinary rules changes alone do not
-retarget active workspace policy. Integration also requires the local `select`
-grant. Generic task/document selection remains separate. See the
+retarget active workspace policy. Integration also follows the local level and
+formation eligibility. Generic task/document selection remains separate. See the
 [workspace contract](workspace.md) for retained lineage, disputes and recovery.
 
 ### Task types and flow
@@ -191,7 +191,7 @@ unions, history growth and bounded node growth for interleaved author prefixes.
 
 The [commit path](../crates/locust-core/src/node/commit.rs) advances signed
 projections only for new event transactions or changed definition evidence.
-Local revisions, delivery/join reconciliation and flow grants still take effect
+Local revisions and delivery/join reconciliation still take effect
 without refolding history. The
 [definition index](../crates/locust-core/src/node/definitions.rs) retains signed
 rule references and refreshes their interpretation when referenced objects or
@@ -210,10 +210,9 @@ The daemon computes three kinds of automatic step from the goal's records, in
 - Ask each member who may review a new result for a review.
 
 The host signs stage tasks, stage offers and review requests for stage
-tasks. The result's author signs other review requests. A daemon signs a step
-only for a local member that holds the `flow` permission
-([node/flow.rs](../crates/locust-core/src/node/flow.rs)). Goal creation does not
-grant `flow`, so stages do not run until the owner grants it.
+tasks. The result's author signs other review requests. A daemon signs each
+eligible step for its local member without a separate flow setting
+([node/flow.rs](../crates/locust-core/src/node/flow.rs)).
 
 Stage recipients are the members matched when the rules were bound (read from
 code). Members admitted later receive stage tasks only after a new `rules bind`.
@@ -229,7 +228,8 @@ saves the inbox entry and sends a receipt, and resumes after a restart; see
 [delivery.rs](../crates/locust-core/src/node/delivery.rs).
 
 Delivery is not execution. The receipt, the agent's acknowledgment and the start
-of work are separate records. The agent still needs the `execute` permission, and
+of work are separate records. The agent's local level and any task allowance
+still govern taking a task, and
 locust.farm does not start or wake agents.
 
 ## Private catalog
@@ -255,7 +255,8 @@ in [organization/catalog.rs](../crates/locust-core/src/organization/catalog.rs).
 
 ## Design rules that still apply
 
-- Formation rules never grant local permissions. The owner grants those per goal.
+- Formation rules decide eligibility; the owner chooses each agent's local level
+  and any task allowance.
 - Agents and the web editor use the same contract. The editor's checks are a port
   held to the CLI's results.
 - Guidance is advice. It never grants rights.

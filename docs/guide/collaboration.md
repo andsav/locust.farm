@@ -12,24 +12,21 @@ locust --owner --agent demo-codex goal create --title demo --formation peer-revi
 locust --owner --agent demo-codex goal create --title demo --formation peer-review --confirm PLAN_ID
 locust --owner goal add --goal demo --agent demo-claude --plan
 locust --owner goal add --goal demo --agent demo-claude --confirm PLAN_ID
-locust --owner permission allow --goal demo --agent demo-codex contribute
-locust --owner permission allow --goal demo --agent demo-claude contribute review
 locust --owner --agent demo-codex task open --goal demo 'Make the change'
-locust --owner permission allow --goal demo --agent demo-codex --task 'Make the change' execute
 ```
 
 `demo-codex` becomes the host's agent. With `peer-review`, a result counts once
-another member approves it. The permissions let both agents publish,
-`demo-claude` review, and `demo-codex` work on that one task.
+another member approves it. Both agents start at `auto`; the formation decides
+who may publish and review.
 
 Ask Claude Code to publish a finding. Ask Codex to read it, change a
 [ordinary checkout](apply.md#work-in-an-ordinary-directory) and publish a
 workspace proposal. Claude Code reviews its exact tree. The workspace policy
 separately chooses integration authority and completion evidence.
 
-`locust --owner status`, `inbox`, `board`, `pending` and `watch` show progress
+`locust --owner status`, `board`, `pending` and `watch` show progress
 without marking anything as read. Then [integrate and update](apply.md#review-compose-and-integrate) under the
-workspace policy and local selection grant.
+workspace policy.
 
 ## Finish or cancel an attempt
 
@@ -51,7 +48,7 @@ that has already ended is not listed as pending work and needs no answer.
 
 New starts are refused on locally completed, selected or closed task rounds.
 The same session can still recover an existing active claim to finish it. A new
-task revision has its own eligibility and local authorization. Pending starts
+task revision has its own eligibility and allowance. Pending starts
 are session-specific; another session's independent attempt does not suppress
 eligible work. An already-consumed offer remains consumed.
 
@@ -98,27 +95,26 @@ until owner status >"$demo/status.json" 2>/dev/null; do
   kill -0 "$daemon_pid" || { cat "$demo/daemon.log"; exit 1; }
   sleep 0.1
 done
-alice_id=$(owner agent enroll alice | pick agent_enrolled.agent)
-bob_id=$(owner agent enroll bob | pick agent_enrolled.agent)
+owner agent enroll alice >/dev/null
+owner agent enroll bob >/dev/null
 "$LOCUST_BIN" session create "$demo/alice.session" >/dev/null
 "$LOCUST_BIN" session create "$demo/bob.session" >/dev/null
 alice() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/alice.credential" --session "$demo/alice.session" --json "$@"; }
 bob() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/bob.credential" --session "$demo/bob.session" --json "$@"; }
 goal=$(person --agent alice goal create --title 'Local research' | pick goal_created.goal)
 person goal add --goal "$goal" --agent bob >"$demo/join.json"
-for person in "$alice_id" "$bob_id"; do
-  owner goal grant --goal "$goal" --agent "$person" --grants \
-    '{"contribute":true,"execute":false,"review":true,"select":false,"flow":false,"takeover":false}' >/dev/null
-done
+# Exercise the ask walk deliberately; ordinary joins default to auto.
+owner --agent alice level --goal "$goal" ask >/dev/null
+owner --agent bob level --goal "$goal" ask >/dev/null
 # An Open finding needs no task, offer, or selected output.
 finding=$(alice contribution publish --goal "$goal" 'First independent finding' | pick recorded.event)
 alice completion declare --goal "$goal" --subject "$finding" >/dev/null
 # Two sessions may independently attempt the same task.
 task_event=$(alice task open --goal "$goal" 'Compare two approaches' | pick recorded.event)
 task="task:$task_event"
-for person in "$alice_id" "$bob_id"; do
-  owner task authorize --goal "$goal" --task "$task" --agent "$person" >/dev/null
-done
+alice pending --goal "$goal" | python3 -c 'import json,sys; pending=json.load(sys.stdin)["result"]["pending"]; assert any(item["task"] == sys.argv[1] for item in pending["ask_first"])' "$task"
+owner --agent alice allow --goal "$goal" --task "$task" >/dev/null
+owner --agent bob allow --goal "$goal" --task "$task" >/dev/null
 alice attempt start --goal "$goal" --task "$task" >"$demo/alice-claim.json"
 bob attempt start --goal "$goal" --task "$task" >"$demo/bob-claim.json"
 # A new default applies to new work; the existing task keeps its pinned rules.
@@ -188,7 +184,7 @@ locust --owner --agent NAME goal join --ticket-file ticket.txt --confirm PLAN_ID
 ```
 
 `status` shows `joining` until the host's daemon admits you, or `refused`.
-Joining grants no permissions. Use `--ticket -` to read the ticket from
+Joining records the chosen level; the default is `auto`. Use `--ticket -` to read the ticket from
 standard input in place of `--ticket-file`.
 
 Inspecting also shows the goal's [farm page](farm-publication.md) policy;

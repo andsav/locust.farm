@@ -149,7 +149,7 @@ def prepare_work(profile, daemon):
                        "Fix add(a,b) in calculator.py so the supplied five tests pass. Change only calculator.py; inspect received files before executing tests."])["recorded"]["event"]
     offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
                              "--member", daemon.principal])["recorded"]["event"]
-    daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
+    daemon.call(["--agent", "qualification", "allow", "--goal", daemon.goal, "--task", task], owner=True)
     baseline = check_tests(profile, source)
     if baseline["exit_code"] == 0:
         raise ProductionError("Synthetic baseline unexpectedly passes")
@@ -168,7 +168,7 @@ Use this exact scoped CLI prefix for filesystem commands: {shlex.join(prefix)}
 The API credential and session paths are capabilities: pass them to Locust only. Never read, print, upload or copy their bytes.
 Never inspect process environments (including ps eww or /proc), print environment variables, or search for credentials. If a named path is unavailable, stop and report it.
 Do not access owner credentials, other user profiles, or files outside the installed skill, assigned synthetic workspace, the folder returned by your checkout request, and named Locust CLI paths.
-The harness initialized the explicit synthetic tree, accepted its seed, opened/offered the task and authorized execution.
+The harness initialized the explicit synthetic tree, accepted its seed, opened/offered the task and allowed this task for the ask-level worker.
 The user authorizes inspection, running the supplied tiny tests, this scoped edit, sharing its exact workspace proposal, review, integration and local update.
 Issue actual native tool calls and individual Locust CLI commands. Do not merely describe commands, and do not create a driver script to run the workflow.
 These workspaces are ordinary directories with no Git repository. Preserve tests and unrelated local work.
@@ -182,7 +182,7 @@ def worker_prompt(daemon, role, work, binary):
 3. Call locust_checkout_register with goal {work['goal']}, a fresh random 32-character lowercase hex checkout ID, revision {work['seed_revision']}, task {work['task']} and your returned attempt. The daemon makes your own new folder. Retain its returned checkout ID and root, then bind your session with CLI workspace bind --goal GOAL --checkout RETURNED_CHECKOUT_ID.
 4. Read calculator.py and test_calculator.py before executing them. Diagnose the bug, run the supplied tests, correct only calculator.py, and run {shlex.quote(sys.executable)} -B -m unittest discover -s . -v until all five tests pass.
 5. Freeze exactly calculator.py with CLI workspace propose --goal GOAL --checkout RETURNED_CHECKOUT_ID --only --path calculator.py. Inspect its returned preview, then workspace publish --goal GOAL --operation OPERATION_ID without recapturing.
-6. Read the exact published proposal with CLI workspace review --goal GOAL --proposal PROPOSAL_EVENT. Publish a task report through locust_contribution_publish using the claim attempt/generation, task, summary, sources=[PROPOSAL_EVENT], artifacts=[]. The report is advisory provenance; it does not integrate files.
+6. Read the exact published proposal with CLI workspace review --goal GOAL --proposal PROPOSAL_EVENT. Publish a task report through locust_contribution_publish using the claim attempt/generation, summary, sources=[PROPOSAL_EVENT], artifacts=[]. The daemon derives its task from the attempt. The report is advisory provenance; it does not integrate files.
 7. Stop after publication and reporting. Do not approve, integrate or update the coordinator directory. Report proposal, task report, checkout and test outcome without capability bytes.
 '''
 

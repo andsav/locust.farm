@@ -16,8 +16,11 @@ use locust_proto::seal;
 use locust_proto::store::{Blob, Store};
 
 use super::Node;
+use super::access::Attempted;
+use super::callers::Actor;
 use super::commit::Tx;
 use super::entry::Entry;
+use super::local;
 
 /// Where an event sits: its place in its author's log and the decision it
 /// anchors to.
@@ -88,6 +91,46 @@ pub(super) fn sign_at(
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
+    /// Build the actual signed candidate in memory, ask replay and the local
+    /// level in that order, then move only an accepted candidate into `tx`.
+    #[allow(clippy::too_many_arguments)] // Carries the signed event's typed fields and the acting principal.
+    pub(super) fn sign_for(
+        &self,
+        actor: &Actor,
+        entry: &Entry,
+        author: &PublicKey,
+        body: Body,
+        text: Option<&str>,
+        now_ms: u64,
+        tx: &mut Tx,
+    ) -> Result<EventId, ApiError> {
+        let mut candidate = Tx::none();
+        let id = self.author(entry, author, body, text, now_ms, &mut candidate)?;
+        let event = candidate
+            .commit
+            .events
+            .last()
+            .expect("author signed one candidate");
+        self.allowed(
+            actor,
+            entry,
+            *author,
+            Attempted::Sign {
+                event,
+                preceding: &tx.commit.events,
+            },
+        )?;
+        tx.commit.events.append(&mut candidate.commit.events);
+        tx.commit.blobs.append(&mut candidate.commit.blobs);
+        tx.commit.local.append(&mut candidate.commit.local);
+        tx.authored = true;
+        tx.touch(entry.id());
+        if actor.owner_act {
+            tx.local(local::by_owner_write(&entry.id(), &id));
+        }
+        Ok(id)
+    }
+
     /// Signs `author`'s next event in a goal, sealing `text` under the key
     /// of the event's epoch, and adds both to `tx`.
     pub(super) fn author(

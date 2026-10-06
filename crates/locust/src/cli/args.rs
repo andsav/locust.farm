@@ -203,7 +203,9 @@ pub(super) fn command() -> Command {
                 .global(true)
                 .help("Caller-owned 16-byte retry key in hex"),
         )
-        .subcommands(super::permissions::commands())
+        .subcommand(super::watch::command())
+        .subcommand(super::only_you::level_command())
+        .subcommand(super::only_you::allow_command())
         .subcommand(super::invitations::command())
         .subcommands(super::workspace::commands())
         .subcommand(super::client::commands())
@@ -244,11 +246,10 @@ pub(super) fn command() -> Command {
     for api in OPERATIONS {
         // Offline authoring owns these names; authenticated inspection is available through call/MCP.
         if super::only_you::owns(api.name)
+            || matches!(api.name, "level.set" | "task.allow" | "task.disallow")
             || api.name.starts_with("invitation.")
-            || api.name.starts_with("permission.")
             || api.name.starts_with("farm.")
             || api.name.starts_with("workspace.")
-            || api.name == "inbox"
             || matches!(
                 api.name,
                 "formation.validate" | "formation.explain" | "agent.enroll" | "author.enroll"

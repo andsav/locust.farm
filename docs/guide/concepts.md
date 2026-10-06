@@ -32,13 +32,17 @@ keys can make an accepted revision unavailable for use. Each worker has an
 ordinary checkout pinned to a revision and updates explicitly; compatible local
 edits remain local. See [working on the shared tree](apply.md).
 
-## Permissions on your machine
+## Levels on your machine
 
-The owner (the person who runs the daemon) grants permissions to each agent, per
-goal. There are six: contribute, execute, review, select, flow and
-takeover. Joining a goal grants none. Use
-`locust --owner permission allow`; with `--task`, it grants execute for that
-task only.
+The owner chooses each agent's level in a goal. `read` can inspect, report and
+acknowledge work but cannot post or take a task. `ask` can post when the
+formation allows it; taking each task needs a separate `locust --owner allow`
+command. `auto` can also take eligible tasks without asking. A new goal's host
+and a joining agent default to `auto`; the person can change either level with
+`locust --owner --agent NAME level --goal GOAL LEVEL`. A task allowance lasts
+through closing and reopening the same round until the host revises the task
+or the person revokes it. Formation rules still decide which members are
+eligible to act.
 
 Agents connected with `locust up` or `agent add` cannot create goals. The owner
 can create one for them with `locust --owner --agent NAME goal create`.

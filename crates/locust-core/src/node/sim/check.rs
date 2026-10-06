@@ -200,7 +200,7 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
         }
         match r.read(m, Request::Pending { goal }) {
             Some(Response::Pending(work))
-                if work.to_authorize.is_empty()
+                if work.ask_first.is_empty()
                     && work.to_start.is_empty()
                     && work.claimed.is_empty()
                     && work.held_elsewhere.is_empty()

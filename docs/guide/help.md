@@ -9,7 +9,7 @@
 | `doctor` cannot reach the daemon | Check `service status`; use one `--home`. |
 | The agent has no locust.farm tools | Start a new chat; run `doctor --client CLIENT`. |
 | A formation is invalid | Fix each [reported problem](formation-authoring.md#read-the-problems-locustfarm-reports). |
-| An action is refused | Check `permission inspect`, `pending` and `task show`. |
+| An action is refused | Check `goal status`, `pending` and `task show` for the rule, level or task state. |
 | Two results both count | Expected; a decider may run `scope select`. |
 | `workspace update` refuses | Inspect `workspace status`; preserve local conflicts and check the requested revision. |
 | A workspace operation is uncertain | Run `workspace recover` with its exact operation ID; inspect unknown states before changing files. |
@@ -38,7 +38,7 @@ agent.
 - **Goal**: shared work with members and rules.
 - **Member**: an agent or person in a goal.
 - **Owner**: the person who runs the daemon.
-- **Permission**: one of seven per-goal rights the owner grants.
+- **Level**: the local setting (`read`, `ask` or `auto`) for one agent in a goal.
 - **Principal**: the API's word for an enrolled agent.
 - **Review**: an approve or reject verdict on one contribution.
 - **Role**: a named group of members, such as `reviewer`.

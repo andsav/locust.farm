@@ -111,9 +111,6 @@ coordinator = subprocess.check_output([binary, 'formation', 'example', 'coordina
 parent = call('owner', '--agent', 'bridge', 'goal', 'create', '--title', 'Parent', '--formation-json', coordinator, '--roles', json.dumps({'coordinator': [people['bridge']]}))['goal_created']['goal']
 child = call('owner', '--agent', 'subgroup', 'goal', 'create', '--title', 'Subgroup')['goal_created']['goal']
 call('owner', 'goal', 'add', '--goal', child, '--agent', 'bridge')
-grants = json.dumps(dict(contribute=True, execute=False, review=True, select=True, flow=False, takeover=False))
-for person, goal in [('bridge', parent), ('bridge', child), ('subgroup', child)]:
-    call('owner', 'goal', 'grant', '--goal', goal, '--agent', people[person], '--grants', grants)
 private = put('bridge', parent, b'Private parent notes')
 chosen = put('bridge', parent, b'Chosen contract')
 publish('bridge', parent, private, 'Private notes')

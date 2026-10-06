@@ -1,8 +1,10 @@
 //! Explicit authority, missing-proof and scope-conflict outcomes.
 use std::collections::{BTreeMap, BTreeSet};
 
+use locust_proto::api::Rule;
 use locust_proto::event::{Effect, ScopeKey};
 use locust_proto::id::{BlobHash, DefinitionHash, EffectId, EventId, PublicKey};
+use locust_proto::organization::Selector;
 
 use super::state::State;
 
@@ -33,6 +35,16 @@ pub enum Exclusion {
     InvalidDefinition,
     Precondition(&'static str),
     AfterHalt,
+}
+
+/// The shared rule that excluded a candidate, recorded by the replay verifier.
+/// This metadata accompanies the existing standing; it is not another rules
+/// evaluator or a local authorization decision.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleRefusal {
+    pub rule: Rule,
+    pub qualifies: Selector,
+    pub except_author: bool,
 }
 
 impl Exclusion {
@@ -104,6 +116,7 @@ pub struct DesiredEffect {
 pub struct Evaluation {
     pub state: State,
     pub standings: BTreeMap<EventId, Standing>,
+    pub rule_refusals: BTreeMap<EventId, RuleRefusal>,
     pub host_halt: Option<Halt>,
     pub scope_halts: BTreeMap<ScopeKey, Halt>,
     pub missing: BTreeSet<Dependency>,

@@ -236,7 +236,7 @@ fn pending_pages_are_complete_match_full_and_filter_each_category() {
     let Response::Pending(full) = d.ok(agent, Request::Pending { goal }) else {
         panic!()
     };
-    assert!(!full.to_authorize.is_empty());
+    assert!(!full.ask_first.is_empty());
     assert!(!full.to_start.is_empty());
     assert!(!full.claimed.is_empty());
     assert!(!full.held_elsewhere.is_empty());
@@ -260,7 +260,7 @@ fn pending_pages_are_complete_match_full_and_filter_each_category() {
     assert_eq!(all, expected);
     assert_eq!(
         all.len(),
-        full.to_authorize.len()
+        full.ask_first.len()
             + full.to_start.len()
             + full.claimed.len()
             + full.held_elsewhere.len()
@@ -270,7 +270,7 @@ fn pending_pages_are_complete_match_full_and_filter_each_category() {
     );
     assert_eq!(d.store.scan(Space::Cursor, &[]).unwrap(), before);
     for kind in [
-        PendingKind::ToAuthorize,
+        PendingKind::AskFirst,
         PendingKind::ToStart,
         PendingKind::Claimed,
         PendingKind::HeldElsewhere,
@@ -280,7 +280,7 @@ fn pending_pages_are_complete_match_full_and_filter_each_category() {
     ] {
         let page = pending(&mut d, agent, goal, Some(kind), None, u32::MAX);
         let count = match kind {
-            PendingKind::ToAuthorize => full.to_authorize.len(),
+            PendingKind::AskFirst => full.ask_first.len(),
             PendingKind::ToStart => full.to_start.len(),
             PendingKind::Claimed => full.claimed.len(),
             PendingKind::HeldElsewhere => full.held_elsewhere.len(),
@@ -291,7 +291,7 @@ fn pending_pages_are_complete_match_full_and_filter_each_category() {
         assert_eq!(page.items.len(), count);
         assert!(page.items.iter().all(|item| matches!(
             (kind, item),
-            (PendingKind::ToAuthorize, PendingItem::ToAuthorize(_))
+            (PendingKind::AskFirst, PendingItem::AskFirst(_))
                 | (PendingKind::ToStart, PendingItem::ToStart(_))
                 | (PendingKind::Claimed, PendingItem::Claimed(_))
                 | (PendingKind::HeldElsewhere, PendingItem::HeldElsewhere(_))
@@ -316,7 +316,7 @@ fn pending_continuations_fence_query_sessions_revisions_and_local_authority() {
     let other = d.connect(credential(1), Some(session(2)));
     for (conn, kind, limit) in [
         (other, None, 1),
-        (agent, Some(PendingKind::ToAuthorize), 1),
+        (agent, Some(PendingKind::AskFirst), 1),
         (agent, None, 2),
     ] {
         assert_eq!(
@@ -496,5 +496,575 @@ fn compact_seen_context_size_does_not_repeat_review_obligations() {
         .items
         .len(),
         192
+    );
+}
+
+fn collaboration_view_setup(
+    completion: locust_proto::organization::CompletionRule,
+) -> (Daemon, GoalId, [PublicKey; 3], [ConnId; 3]) {
+    let (mut d, host, owner, agent, goal) = setup();
+    let (second, _) = super::authorization::join_local(&mut d, agent, goal, 2);
+    let (third, _) = super::authorization::join_local(&mut d, agent, goal, 3);
+    let second_conn = d.connect(credential(2), Some(session(2)));
+    let third_conn = d.connect(credential(3), Some(session(3)));
+    let members = [host, second, third];
+    for member in members {
+        d.ok(
+            owner,
+            Request::LevelSet {
+                goal,
+                agent: member,
+                level: locust_proto::api::Level::Auto,
+            },
+        );
+    }
+    let mut formation = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "open")
+        .unwrap()
+        .formation;
+    formation.decisions.completion = completion;
+    let expected = d.node.goals[&goal].state().current_rules.unwrap();
+    d.ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            roles: Default::default(),
+            inputs: Default::default(),
+        },
+    );
+    (d, goal, members, [agent, second_conn, third_conn])
+}
+
+fn work_view(d: &mut Daemon, agent: ConnId, goal: GoalId) -> locust_proto::api::PendingWork {
+    let Response::Pending(work) = d.ok(agent, Request::Pending { goal }) else {
+        panic!()
+    };
+    work
+}
+
+#[test]
+fn to_start_shows_other_attempts_results_and_sorts_least_attended_first() {
+    use locust_proto::event::{AttemptStatus, TaskId};
+    let (mut d, goal, members, agents) = collaboration_view_setup(Default::default());
+    let tasks: Vec<_> = (0..3)
+        .map(|index| {
+            TaskId::Authored(event(d.ok(
+                agents[0],
+                Request::TaskOpen {
+                    goal,
+                    text: format!("Work {index}"),
+                    task_type: None,
+                    inputs: Default::default(),
+                    parent: None,
+                },
+            )))
+        })
+        .collect();
+    let mut claims = Vec::new();
+    for task in &tasks[1..] {
+        let Response::Claimed(claim) = d.ok(
+            agents[1],
+            Request::AttemptStart {
+                goal,
+                task: *task,
+                offer: None,
+            },
+        ) else {
+            panic!()
+        };
+        claims.push(claim);
+    }
+    d.ok(
+        agents[1],
+        Request::AttemptReport {
+            goal,
+            attempt: claims[0].attempt,
+            generation: claims[0].generation,
+            status: AttemptStatus::Progress,
+            text: "Working".into(),
+        },
+    );
+    d.ok(
+        agents[1],
+        Request::ContributionPublish {
+            goal,
+            attempt: Some(claims[1].attempt),
+            generation: Some(claims[1].generation),
+            summary: "One result".into(),
+            sources: vec![],
+            artifacts: vec![],
+        },
+    );
+    let work = work_view(&mut d, agents[2], goal);
+    assert_eq!(
+        work.to_start
+            .iter()
+            .map(|item| item.task)
+            .collect::<Vec<_>>(),
+        tasks
+    );
+    assert!(work.to_start[0].attempting.is_empty());
+    assert_eq!(
+        work.to_start[1].attempting,
+        vec![locust_proto::api::Attempting {
+            member: members[1],
+            status: Some(AttemptStatus::Progress)
+        }]
+    );
+    assert_eq!(work.to_start[1].results, 0);
+    assert_eq!(
+        work.to_start[2].attempting,
+        vec![locust_proto::api::Attempting {
+            member: members[1],
+            status: None
+        }]
+    );
+    assert_eq!(work.to_start[2].results, 1);
+    d.ok(
+        agents[1],
+        Request::AttemptReport {
+            goal,
+            attempt: claims[0].attempt,
+            generation: claims[0].generation,
+            status: AttemptStatus::Failed,
+            text: "Stopped".into(),
+        },
+    );
+    let work = work_view(&mut d, agents[2], goal);
+    assert!(
+        work.to_start
+            .iter()
+            .find(|item| item.task == tasks[1])
+            .unwrap()
+            .attempting
+            .is_empty()
+    );
+    assert_eq!(work.to_start.last().unwrap().task, tasks[2]);
+}
+
+#[test]
+fn to_review_counts_approvals_and_shows_each_members_latest_verdict() {
+    use locust_proto::organization::{CompletionRule, Selector};
+    let (mut d, goal, members, agents) = collaboration_view_setup(CompletionRule::Reviews {
+        by: Selector::Members,
+        count: 2,
+        exclude_author: true,
+    });
+    let subject = event(d.ok(agents[0], finding(goal, "Review this evidence")));
+    let review = |verdict| Request::ReviewRecord {
+        goal,
+        subject,
+        verdict,
+        text: "Evidence checked".into(),
+    };
+    d.ok(agents[1], review(ReviewVerdict::Approve));
+    d.ok(agents[1], review(ReviewVerdict::Approve));
+    let rejected = event(d.ok(agents[1], review(ReviewVerdict::Reject)));
+    let work = work_view(&mut d, agents[2], goal);
+    let item = work
+        .to_review
+        .iter()
+        .find(|item| item.subject == subject)
+        .unwrap();
+    assert_eq!(item.needed, 2);
+    // Phase 3 preserves replay's existing any-positive approval semantics.
+    assert_eq!(item.approvals, 1);
+    assert_eq!(
+        item.verdicts,
+        vec![locust_proto::api::Verdict {
+            member: members[1],
+            approve: false,
+            event: rejected
+        }]
+    );
+    assert!(
+        !work_view(&mut d, agents[1], goal)
+            .to_review
+            .iter()
+            .any(|item| item.subject == subject)
+    );
+    d.ok(agents[2], review(ReviewVerdict::Approve));
+    assert!(
+        !work_view(&mut d, agents[2], goal)
+            .to_review
+            .iter()
+            .any(|item| item.subject == subject)
+    );
+}
+
+#[test]
+fn to_review_lists_a_result_the_agent_may_attest() {
+    use locust_proto::organization::{CompletionRule, Selector};
+    let (mut d, goal, _, agents) = collaboration_view_setup(CompletionRule::Check {
+        name: "build".into(),
+        by: Selector::Members,
+    });
+    let subject = event(d.ok(agents[0], finding(goal, "Candidate needing a build")));
+    let work = work_view(&mut d, agents[1], goal);
+    let item = work
+        .to_review
+        .iter()
+        .find(|item| item.subject == subject)
+        .unwrap();
+    assert_eq!(item.needed, 0);
+    assert_eq!(item.approvals, 0);
+    assert!(item.verdicts.is_empty());
+    d.ok(
+        agents[1],
+        Request::CheckAttest {
+            goal,
+            subject,
+            name: "build".into(),
+            passed: false,
+            text: "Build failed".into(),
+        },
+    );
+    assert!(
+        !work_view(&mut d, agents[1], goal)
+            .to_review
+            .iter()
+            .any(|item| item.subject == subject)
+    );
+    assert!(
+        work_view(&mut d, agents[2], goal)
+            .to_review
+            .iter()
+            .any(|item| item.subject == subject)
+    );
+}
+
+#[test]
+fn finished_task_allowance_survives_retracted_approval_and_restart_on_same_round() {
+    use locust_proto::api::Level;
+    use locust_proto::event::{AttemptStatus, Event, TaskId};
+    use locust_proto::organization::{CompletionRule, Selector};
+    let (mut d, goal, members, agents) = collaboration_view_setup(CompletionRule::Reviews {
+        by: Selector::Members,
+        count: 1,
+        exclude_author: true,
+    });
+    let owner = d.owner();
+    d.ok(
+        owner,
+        Request::LevelSet {
+            goal,
+            agent: members[0],
+            level: Level::Ask,
+        },
+    );
+    let task = TaskId::Authored(event(d.ok(
+        agents[0],
+        Request::TaskOpen {
+            goal,
+            text: "Reopened work".into(),
+            task_type: None,
+            inputs: Default::default(),
+            parent: None,
+        },
+    )));
+    let round = d.node.goals[&goal].state().tasks[&task].current_round;
+    d.ok(
+        owner,
+        Request::TaskAllow {
+            goal,
+            agent: members[0],
+            task,
+        },
+    );
+    let Response::Claimed(claim) = d.ok(
+        agents[0],
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: None,
+        },
+    ) else {
+        panic!()
+    };
+    let subject = event(d.ok(
+        agents[0],
+        Request::ContributionPublish {
+            goal,
+            attempt: Some(claim.attempt),
+            generation: Some(claim.generation),
+            summary: "Completed candidate".into(),
+            sources: vec![],
+            artifacts: vec![],
+        },
+    ));
+    d.ok(
+        agents[0],
+        Request::AttemptReport {
+            goal,
+            attempt: claim.attempt,
+            generation: claim.generation,
+            status: AttemptStatus::Completed,
+            text: "Posted".into(),
+        },
+    );
+    let approval = event(d.ok(
+        agents[1],
+        Request::ReviewRecord {
+            goal,
+            subject,
+            verdict: ReviewVerdict::Approve,
+            text: "Approved".into(),
+        },
+    ));
+    assert!(d.node.goals[&goal].state().tasks[&task].rounds[&round].completed);
+    let Response::GoalStatus(status) = d.ok(owner, Request::GoalStatus { goal }) else {
+        panic!()
+    };
+    assert!(
+        status
+            .abilities
+            .iter()
+            .find(|view| view.agent == members[0])
+            .unwrap()
+            .allowed_tasks
+            .is_empty()
+    );
+    assert_eq!(
+        d.node.goals[&goal]
+            .local
+            .start_level(task, round, members[0]),
+        Level::Ask
+    );
+    let error = d
+        .call(
+            agents[0],
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: None,
+            },
+        )
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    let mut header = d.node.goals[&goal]
+        .goal
+        .event(&approval)
+        .unwrap()
+        .header()
+        .clone();
+    header.at_ms += 1;
+    let fork = Event::sign(header, d.node.signer(&members[1]).unwrap()).unwrap();
+    let mut tx = crate::node::commit::Tx::none();
+    tx.commit.events.push(fork);
+    d.node.land(tx).unwrap();
+    assert!(!d.node.goals[&goal].state().tasks[&task].rounds[&round].completed);
+    assert_eq!(
+        d.node.goals[&goal].state().tasks[&task].current_round,
+        round
+    );
+    d.restart();
+    let agent = d.connect(credential(1), Some(session(1)));
+    let work = work_view(&mut d, agent, goal);
+    assert!(work.to_start.iter().any(|item| item.task == task));
+    assert!(matches!(
+        d.ok(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: None
+            }
+        ),
+        Response::Claimed(_)
+    ));
+}
+
+#[test]
+fn goal_status_reports_each_stalled_runner_condition() {
+    use crate::node::{
+        authoring::sign_at, callers::Actor, commit::Tx, identity::Principals, local,
+    };
+    use locust_proto::api::{Caller, Stall};
+    use locust_proto::event::{Body, Scope};
+    use locust_proto::id::EventId;
+    use locust_proto::organization::{CompletionRule, Selector};
+    for reason in [
+        Stall::RunnerRevoked,
+        Stall::RunnerLeft,
+        Stall::RunnerNotMember,
+        Stall::Halted,
+    ] {
+        let (mut d, goal, members, _) = collaboration_view_setup(CompletionRule::Reviews {
+            by: Selector::Members,
+            count: 1,
+            exclude_author: true,
+        });
+        let owner = d.owner();
+        let runner = members[1];
+        let entry = &d.node.goals[&goal];
+        let context = entry.goal.current_context(Scope::Goal).unwrap();
+        let mut tx = Tx::none();
+        d.node
+            .sign_for(
+                &Actor {
+                    caller: Caller::Agent(runner),
+                    principal: Some(runner),
+                    owner_act: false,
+                    session: None,
+                },
+                entry,
+                &runner,
+                Body::ContributionPublished {
+                    context,
+                    attempt: None,
+                    sources: vec![],
+                    artifacts: vec![],
+                },
+                Some("Review trigger"),
+                1000,
+                &mut tx,
+            )
+            .unwrap();
+        // Pause at the durable trigger commit, before drive_flow signs its effects.
+        d.node.land_once(tx).unwrap();
+        assert!(
+            !d.node.goals[&goal]
+                .goal
+                .evaluation()
+                .desired_effects
+                .is_empty()
+        );
+        match reason {
+            Stall::RunnerRevoked => {
+                let mut record = d.node.principals.get(&runner).unwrap().record.clone();
+                record.revoked = true;
+                let mut tx = Tx::none();
+                tx.local(Principals::principal_write(&runner, &record));
+                d.node.land_once(tx).unwrap();
+            }
+            Stall::RunnerLeft => {
+                let mut tx = Tx::none();
+                tx.local(local::part_write(&goal, &runner, true));
+                d.node.land_once(tx).unwrap();
+            }
+            Stall::RunnerNotMember => {
+                d.ok(
+                    owner,
+                    Request::MemberRemove {
+                        goal,
+                        member: runner,
+                    },
+                );
+            }
+            Stall::Halted => {
+                let mut place = d.node.next_place(&d.node.goals[&goal], &runner).unwrap();
+                place.seq += 1;
+                place.prev = Some(EventId([99; 32]));
+                let mut tx = Tx::none();
+                sign_at(
+                    goal,
+                    d.node.signer(&runner).unwrap(),
+                    place,
+                    Body::ContributionPublished {
+                        context,
+                        attempt: None,
+                        sources: vec![],
+                        artifacts: vec![],
+                    },
+                    None,
+                    1001,
+                    &mut tx,
+                )
+                .unwrap();
+                // A replica can receive a later record before its predecessor.
+                tx.authored = false;
+                d.node.land_once(tx).unwrap();
+                assert!(d.node.goals[&goal].goal.next(&runner).is_none());
+            }
+        }
+        let Response::GoalStatus(status) = d.ok(owner, Request::GoalStatus { goal }) else {
+            panic!()
+        };
+        assert!(!status.stalled.is_empty(), "{reason:?}");
+        assert!(
+            status
+                .stalled
+                .iter()
+                .all(|item| item.runner == runner && item.reason == reason),
+            "{reason:?}: {:?}",
+            status.stalled
+        );
+        let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+        d.node.drive_flow(goal).unwrap();
+        assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
+    }
+}
+
+#[test]
+fn stages_review_requests_and_admissions_need_no_local_work_setting() {
+    use locust_proto::api::{Level, Membership};
+    use locust_proto::event::{EffectAction, TaskId};
+    use locust_proto::organization::{CompletionRule, Selector};
+    let (mut d, goal, members, _) = collaboration_view_setup(CompletionRule::Reviews {
+        by: Selector::Members,
+        count: 1,
+        exclude_author: true,
+    });
+    let owner = d.owner();
+    for agent in members {
+        d.ok(
+            owner,
+            Request::LevelSet {
+                goal,
+                agent,
+                level: Level::Read,
+            },
+        );
+    }
+    let subject = event(
+        d.on_behalf(owner, members[1], finding(goal, "Owner-posted candidate"))
+            .unwrap(),
+    );
+    assert!(d.node.goals[&goal].state().effects.values().any(|effect| {
+        matches!(effect.effect.action, EffectAction::RequestReview { subject: candidate, .. } if candidate == subject)
+    }));
+    let current = d.node.goals[&goal].state().current_rules.unwrap();
+    d.ok(owner, super::delivery::pipeline_request(goal, current));
+    assert!(
+        d.node.goals[&goal]
+            .state()
+            .tasks
+            .keys()
+            .any(|task| matches!(task, TaskId::Derived(_)))
+    );
+    let member = d.enroll("read-joiner", 42);
+    let Response::Invited { ticket } = d.ok(
+        owner,
+        Request::GoalInvite {
+            goal,
+            expires_ms: 604_801_000,
+        },
+    ) else {
+        panic!()
+    };
+    let joined = d.ok(
+        owner,
+        Request::GoalJoin {
+            agent: member,
+            ticket,
+            level: Level::Read,
+        },
+    );
+    assert!(matches!(
+        joined,
+        Response::Joined {
+            membership: Membership::Member,
+            level: Level::Read,
+            ..
+        }
+    ));
+    assert!(
+        members
+            .iter()
+            .chain([&member])
+            .all(|agent| d.node.goals[&goal].local.level(agent) == Level::Read)
     );
 }

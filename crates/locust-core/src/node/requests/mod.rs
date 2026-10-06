@@ -8,7 +8,7 @@ mod daemon;
 mod documents;
 mod goals;
 pub(super) mod invitations;
-mod permissions;
+mod levels;
 mod reading;
 mod sessions;
 mod tasks;
@@ -116,6 +116,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let Planned { response, mut tx } = match self.plan(&actor, frame.request, now_ms) {
             Ok(plan) => plan,
             Err(error) => {
+                if error.code == ErrorCode::LevelRequired
+                    && let Some(refused) = error.refused()
+                    && let (Some(goal), Some(task)) = (refused.goal, refused.task)
+                {
+                    self.note_task_want(goal, task, refused.agent, now_ms)?;
+                }
                 if error.code == ErrorCode::Unavailable
                     && let Some((goal, hash)) = blob_get
                 {
@@ -165,27 +171,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::InvitationRevoke { goal, invitation } => {
                 self.invitation_revoke(actor, goal, invitation, now)
             }
-            Request::Permissions { goal, agent } => self.permissions(actor, goal, agent),
-            Request::PermissionAllow {
-                goal,
-                agent,
-                permissions,
-            } => self.permission_change(actor, goal, agent, permissions, true),
-            Request::PermissionRevoke {
-                goal,
-                agent,
-                permissions,
-            } => self.permission_change(actor, goal, agent, permissions, false),
-            Request::PermissionTaskAllow {
-                goal,
-                agent,
-                task,
-                takeover,
-            } => self.permission_task_allow(actor, goal, agent, task, takeover),
-            Request::PermissionTaskRevoke { goal, agent, task } => {
-                self.permission_task_revoke(actor, goal, agent, task)
+            Request::LevelSet { goal, agent, level } => self.level_set(actor, goal, agent, level),
+            Request::TaskAllow { goal, agent, task } => self.task_allow(actor, goal, agent, task),
+            Request::TaskDisallow { goal, agent, task } => {
+                self.task_disallow(actor, goal, agent, task)
             }
-            Request::Inbox => self.inbox(actor),
             Request::AgentRevoke { agent } => self.agent_revoke(agent),
             Request::AuthorEnroll { name, credential } => self.author_enroll(name, credential),
             Request::SessionReport { record } => self.session_report(actor, record, now),
@@ -194,7 +184,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::SessionDrop { instance } => self.session_drop(actor, instance),
             Request::GoalLeave { goal, agent } => self.goal_leave(actor, goal, agent, now),
             Request::MemberRemove { goal, member } => self.member_remove(actor, goal, member, now),
-            Request::GoalJoin { agent, ticket } => self.goal_join(actor, agent, ticket, now),
+            Request::GoalJoin {
+                agent,
+                ticket,
+                level,
+            } => self.goal_join(actor, agent, ticket, level, now),
             Request::GoalInvite { goal, expires_ms } => {
                 self.goal_invite(actor, goal, expires_ms, now)
             }
@@ -222,11 +216,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 },
                 now,
             ),
-            Request::GoalGrant {
-                goal,
-                agent,
-                grants,
-            } => self.goal_grant(actor, goal, agent, grants),
             Request::GoalStatus { goal } => self.goal_status(actor, goal),
             Request::RulesBind {
                 goal,
@@ -311,12 +300,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 task,
                 recipient,
             } => self.work_offer(actor, goal, task, recipient, now),
-            Request::TaskAuthorize {
-                goal,
-                task,
-                agent,
-                takeover,
-            } => self.task_authorize(actor, goal, task, agent, takeover),
             Request::AttemptStart { goal, task, offer } => {
                 self.attempt_start(actor, goal, task, offer, now)
             }
@@ -336,14 +319,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
             } => self.attempt_report(actor, goal, attempt, generation, status, text, now),
             Request::ContributionPublish {
                 goal,
-                task,
                 attempt,
                 generation,
                 summary,
                 sources,
                 artifacts,
             } => self.contribution_publish(
-                actor, goal, task, attempt, generation, summary, sources, artifacts, now,
+                actor, goal, attempt, generation, summary, sources, artifacts, now,
             ),
             Request::Contributions { goal, task } => self.contributions(actor, goal, task),
             Request::ContributionInspect { goal, contribution } => {

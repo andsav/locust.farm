@@ -286,7 +286,7 @@ mod tests {
         assert!(rendered.contains("Joining does not consent"));
         assert!(rendered.contains("does not verify a human identity"));
         assert!(rendered.contains("including available history"));
-        assert!(rendered.contains("grants no local execution"));
+        assert!(rendered.contains("The level chosen at join controls this agent's local actions"));
         assert!(rendered.contains("A shared goal\\u{a}forged terminal line"));
         assert!(!rendered.contains(&"03".repeat(32)));
         assert!(!rendered.contains("locust-invite-"));

@@ -121,20 +121,6 @@ fn agent_gets_a_daemon_created_folder_and_publishes_without_owner_folder_action(
         .as_str()
         .unwrap()
         .to_owned();
-    daemon.run(
-        true,
-        &[
-            "call",
-            "goal.grant",
-            &json!({
-                "goal": goal, "agent": agent, "grants": {
-                    "contribute": true, "execute": false, "review": true,
-                    "select": true, "flow": false, "takeover": false,
-                },
-            })
-            .to_string(),
-        ],
-    );
     let seed = tempfile::tempdir().unwrap();
     fs::write(seed.path().join("seed.txt"), b"shared seed\n").unwrap();
     let capture = daemon.approved(&[

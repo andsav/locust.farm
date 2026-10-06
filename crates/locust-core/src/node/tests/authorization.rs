@@ -1,7 +1,7 @@
 //! Principal isolation and invitation/lifecycle regressions through the API.
 use super::lifecycle::{event, setup};
 use super::*;
-use locust_proto::api::{BlobState, GoalGrants, Membership};
+use locust_proto::api::{BlobState, Membership};
 use locust_proto::id::GoalId;
 use locust_proto::invite::{Invitation, InviteSecret};
 use locust_proto::store::Store;
@@ -61,7 +61,10 @@ fn goal_create_is_the_owners_act_and_names_the_host_agent() {
         panic!()
     };
     assert_eq!(d.node.goals[&goal].state().governance, Some(host));
-    assert!(d.node.goals[&goal].local.grants.is_empty());
+    assert_eq!(
+        d.node.goals[&goal].local.level(&host),
+        locust_proto::api::Level::Auto
+    );
     let first = d.store.log(&goal, 0, 1).unwrap().remove(0).1;
     assert_eq!(first.header().author, host);
 }
@@ -75,6 +78,7 @@ fn join_and_leave_are_the_owners_acts_for_a_named_agent() {
     let request = Request::GoalJoin {
         agent: member,
         ticket,
+        level: locust_proto::api::Level::Auto,
     };
     assert_eq!(
         code(d.call(member_conn, request.clone())),
@@ -120,7 +124,7 @@ fn join_and_leave_are_the_owners_acts_for_a_named_agent() {
 }
 
 #[test]
-fn host_operations_need_no_grant_and_sign_as_the_host_agent() {
+fn host_operations_work_at_read_and_sign_as_the_host_agent() {
     use locust_proto::event::{TaskId, WorkspaceCheckpoint};
     let (mut d, host, owner, agent, goal) = setup();
     let (member, _) = join_local(&mut d, agent, goal, 12);
@@ -140,10 +144,10 @@ fn host_operations_need_no_grant_and_sign_as_the_host_agent() {
     ));
     d.ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: host,
-            grants: GoalGrants::default(),
+            level: locust_proto::api::Level::Read,
         },
     );
     let expected = d.node.goals[&goal].state().current_rules.unwrap();
@@ -221,7 +225,8 @@ pub(super) fn join_local(
             owner,
             Request::GoalJoin {
                 agent: member,
-                ticket
+                ticket,
+                level: locust_proto::api::Level::Auto,
             }
         ),
         Response::Joined {
@@ -231,13 +236,10 @@ pub(super) fn join_local(
     ));
     daemon.ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: member,
-            grants: GoalGrants {
-                contribute: true,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Ask,
         },
     );
     (member, conn)
@@ -280,7 +282,8 @@ fn fabricated_join_intent_never_grants_read_access_on_a_shared_daemon() {
             owner,
             Request::GoalJoin {
                 agent: intruder,
-                ticket: forged.to_ticket().unwrap()
+                ticket: forged.to_ticket().unwrap(),
+                level: locust_proto::api::Level::Auto,
             }
         )),
         ErrorCode::Denied
@@ -351,7 +354,6 @@ fn removed_principal_cannot_read_new_epoch_but_readmission_restores_history() {
         agent,
         Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             summary: "old".into(),
@@ -364,7 +366,6 @@ fn removed_principal_cannot_read_new_epoch_but_readmission_restores_history() {
         agent,
         Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             summary: "new".into(),
@@ -421,6 +422,7 @@ fn removed_principal_cannot_read_new_epoch_but_readmission_restores_history() {
         Request::GoalJoin {
             agent: member,
             ticket,
+            level: locust_proto::api::Level::Auto,
         },
     );
     assert_eq!(
@@ -442,7 +444,8 @@ fn admission_stops_when_the_host_agent_is_revoked() {
             owner,
             Request::GoalJoin {
                 agent: joiner,
-                ticket
+                ticket,
+                level: locust_proto::api::Level::Auto,
             }
         )),
         ErrorCode::Denied
@@ -492,7 +495,8 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
             owner,
             Request::GoalJoin {
                 agent: principal,
-                ticket: invitation.to_ticket().unwrap()
+                ticket: invitation.to_ticket().unwrap(),
+                level: locust_proto::api::Level::Auto,
             }
         )),
         ErrorCode::Conflict
@@ -506,6 +510,7 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
         Request::GoalJoin {
             agent: principal,
             ticket: invitation.to_ticket().unwrap(),
+            level: locust_proto::api::Level::Auto,
         },
     );
     assert_eq!(daemon.node.joins().len(), 1);
@@ -532,7 +537,8 @@ fn leaving_member_cannot_clear_local_departure_with_a_spare_ticket() {
             owner,
             Request::GoalJoin {
                 agent: principal,
-                ticket: spare
+                ticket: spare,
+                level: locust_proto::api::Level::Auto,
             }
         )),
         ErrorCode::Conflict
@@ -545,7 +551,6 @@ fn leaving_member_cannot_clear_local_departure_with_a_spare_ticket() {
         agent,
         Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             summary: "still left".into(),

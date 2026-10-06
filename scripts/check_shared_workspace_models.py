@@ -233,7 +233,7 @@ Credential/session paths in the wrapper are capabilities to pass to Locust only.
 Never inspect process environments, owner credentials, other profiles, real projects or secrets. No external research is needed.
 The person authorizes this synthetic fix, exact publication, independent review, integration and explicit local update.
 Use native calls and individual Locust commands, not a driver script. Preserve supplied tests and unrelated local work.
-Do not create Git repositories, commit, push, change permissions or broaden authority. Report actual failures.
+Do not create Git repositories, commit, push, change levels or allowances or broaden authority. Report actual failures.
 Task {work['task']}; offer {work['offer']}; accepted seed revision {work['seed_revision']}.
 Use {sys.executable} -B -m unittest discover -s . -v for the supplied five tests, after reading the files.
 '''
@@ -246,7 +246,7 @@ def worker_prompt(role, daemon, work):
 3. Call locust_checkout_register with goal {daemon.goal}, a fresh random 32-character lowercase hex checkout ID, revision {work['seed_revision']}, task {work['task']} and your returned attempt. The daemon makes your own new folder. Bind your session with workspace bind --goal {daemon.goal} --checkout RETURNED_CHECKOUT_ID.
 4. Read calculator.py, test_calculator.py and notes.md in that checkout. Run baseline tests, repair only calculator.py with the smallest change, then run all five tests there.
 5. Freeze only calculator.py with workspace propose --goal {daemon.goal} --checkout RETURNED_CHECKOUT_ID --only --path calculator.py. Inspect the returned frozen preview; workspace publish --goal {daemon.goal} --operation OPERATION_ID without recapturing. Read that exact proposal using workspace review.
-6. Publish a task report with locust_contribution_publish using your task/attempt/generation and sources=[EXACT_PROPOSAL_EVENT], artifacts=[]. The report is advisory and does not integrate files.
+6. Publish a task report with locust_contribution_publish using your attempt/generation and sources=[EXACT_PROPOSAL_EVENT], artifacts=[]. The daemon derives its task from the attempt. The report is advisory and does not integrate files.
 STOP after publication and reporting. Do not approve, integrate or update coordinator files. Report exact proposal and task report IDs.
 '''
 
@@ -361,7 +361,7 @@ def prepare(daemon, coordinator, worker, setup, output):
     task = 'task:' + daemon.call(['task', 'open', '--goal', daemon.goal, '--inputs', json.dumps({'snapshot': seed['result_manifest']}),
         'Fix add(a,b) in calculator.py so the supplied five tests pass. Change only calculator.py.'])['recorded']['event']
     offer = daemon.call(['work', 'offer', '--goal', daemon.goal, '--task', task, '--member', worker['principal']])['recorded']['event']
-    daemon.call(['task', 'authorize', '--goal', daemon.goal, '--task', task, '--agent', worker['principal']], owner=True)
+    daemon.call(['--agent', worker['name'], 'allow', '--goal', daemon.goal, '--task', task], owner=True)
     baseline = tests(coordinator['profile'], source)
     require(baseline['exit_code'] != 0, 'Synthetic baseline unexpectedly passes')
     return {'goal': daemon.goal, 'task': task, 'offer': offer, 'seed_revision': seed['revision'],
@@ -531,7 +531,7 @@ def main(argv=None):
             coordinator = {'name': 'coordinator', 'profile': cp, 'principal': daemon.principal,
                 'credential': daemon.credential, 'session': daemon.session, 'instance': daemon.instance,
                 'client': 'codex', 'binary': args.codex}
-            worker = enroll(daemon, wp, 'worker', permissions=('contribute',))
+            worker = enroll(daemon, wp, 'worker', level='ask')
             worker.update(client='claude-code', binary=args.claude)
             report['work'] = prepare(daemon, coordinator, worker, setup, args.output)
             report['principals'] = {role['name']: {'principal': role['principal'], 'instance': role['instance'],

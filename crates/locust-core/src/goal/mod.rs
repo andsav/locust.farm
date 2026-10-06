@@ -17,6 +17,7 @@ mod workspace;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use locust_proto::api::{Ability, Level, Rule};
 use locust_proto::event::{AuthorPoint, Body, Context, Event, Scope, TaskId};
 use locust_proto::id::{DefinitionHash, EventId, GoalId, PublicKey};
 use locust_proto::organization::{Formation, Selector, StartRule};
@@ -25,7 +26,8 @@ use locust_proto::sync::{AuthorFrontier, Frontier};
 
 pub use rules::EffectiveRules;
 pub use standing::{
-    Changes, Dependency, DesiredEffect, Evaluation, Exclusion, Halt, Next, Standing, Waiting,
+    Changes, Dependency, DesiredEffect, Evaluation, Exclusion, Halt, Next, RuleRefusal, Standing,
+    Waiting,
 };
 pub use state::*;
 
@@ -157,6 +159,9 @@ impl Goal {
     }
     pub fn evaluation(&self) -> &Evaluation {
         &self.evaluation
+    }
+    pub fn rule_refusal(&self, event: &EventId) -> Option<&RuleRefusal> {
+        self.evaluation.rule_refusals.get(event)
     }
     pub fn state(&self) -> &State {
         &self.evaluation.state
@@ -363,12 +368,7 @@ impl Goal {
         offer: Option<EventId>,
         definitions: &D,
     ) -> bool {
-        if !self.state().is_member(&principal)
-            || self
-                .state()
-                .task_round(context)
-                .is_none_or(|round| round.closed || round.completed || round.selected.is_some())
-        {
+        if !self.state().is_member(&principal) || !self.task_available(context) {
             return false;
         }
         let Some(rules) = self.effective_rules(context, definitions) else {
@@ -378,6 +378,13 @@ impl Goal {
             None=>rules.work.starts.iter().any(|rule|matches!(rule,StartRule::Independent{by} if rules::matches(by,principal,&rules,None))),
             Some(id)=>self.state().offers.get(&id).is_some_and(|offer|offer.context==context&&offer.recipient==principal&&offer.attempts.is_empty()&&offer.declined.is_empty()),
         }
+    }
+    /// Current local state permits another offer or attempt on this round.
+    /// Replay still decides whether the particular signed event is eligible.
+    pub fn task_available(&self, context: Context) -> bool {
+        self.state()
+            .task_round(context)
+            .is_some_and(|round| !round.closed && !round.completed && round.selected.is_none())
     }
     pub fn can_review<D: DefinitionLookup + ?Sized>(
         &self,
@@ -422,6 +429,142 @@ impl Goal {
                 author,
                 &authors,
             )
+    }
+
+    pub fn can_attest<D: DefinitionLookup + ?Sized>(
+        &self,
+        subject: EventId,
+        principal: PublicKey,
+        definitions: &D,
+    ) -> bool {
+        let candidate = self
+            .state()
+            .contributions
+            .get(&subject)
+            .map(|c| (c.context, c.author))
+            .or_else(|| {
+                self.state()
+                    .revisions
+                    .get(&subject)
+                    .map(|c| (c.context, c.author))
+            })
+            .or_else(|| {
+                self.state()
+                    .workspace_proposals
+                    .get(&subject)
+                    .map(|c| (c.context, c.author))
+            });
+        let Some((context, author)) = candidate else {
+            return false;
+        };
+        let Some(rules) = self.effective_rules(context, definitions) else {
+            return false;
+        };
+        self.state().is_member(&principal)
+            && rules::may_attest_any(&rules.decisions.completion, principal, &rules, author)
+    }
+
+    /// Informational goal-scope opportunities. Replay remains the authority
+    /// for any concrete event and may reject an opportunity for state reasons.
+    pub fn abilities<D: DefinitionLookup + ?Sized>(
+        &self,
+        author: PublicKey,
+        level: Level,
+        definitions: &D,
+    ) -> Vec<Ability> {
+        let Some(context) = self.current_context(Scope::Goal) else {
+            return Vec::new();
+        };
+        let Some(effective) = self.effective_rules(context, definitions) else {
+            return Vec::new();
+        };
+        let mut rows = Vec::new();
+        let mut add = |rule: Rule, qualifies: Selector, except_author: bool, eligible: bool| {
+            let needs = if rule == Rule::Start {
+                Level::Auto
+            } else {
+                Level::Ask
+            };
+            rows.push(Ability {
+                rule,
+                qualifies,
+                except_author,
+                eligible,
+                needs,
+                allowed: eligible && level >= needs,
+            });
+        };
+        let propose = effective.work.propose.clone();
+        add(
+            Rule::Propose,
+            propose.clone(),
+            false,
+            rules::matches(&propose, author, &effective, None),
+        );
+        let publish = effective.work.publish.clone();
+        add(
+            Rule::Publish,
+            publish.clone(),
+            false,
+            rules::matches(&publish, author, &effective, Some(author)),
+        );
+        for start in &effective.work.starts {
+            match start {
+                StartRule::Independent { by } => add(
+                    Rule::Start,
+                    by.clone(),
+                    false,
+                    rules::matches(by, author, &effective, None),
+                ),
+                StartRule::Offered { by, .. } => add(
+                    Rule::Offer,
+                    by.clone(),
+                    false,
+                    rules::matches(by, author, &effective, None),
+                ),
+            }
+        }
+        for rule in [Rule::Declare, Rule::Review, Rule::Attest] {
+            let (qualifies, except_author) =
+                rules::completion_qualifies(&effective.decisions.completion, rule, None);
+            if qualifies != Selector::Nobody {
+                // No concrete result is selected yet. Declaration and named
+                // checks can concern this author's own future result; reviews
+                // excluding that author require a different candidate.
+                let subject = (rule != Rule::Review || !except_author).then_some(author);
+                let eligible = rules::matches(&qualifies, author, &effective, subject);
+                add(rule, qualifies, except_author, eligible);
+            }
+        }
+        if let Some(authority) = &effective.decisions.selection {
+            add(
+                Rule::Select,
+                rules::qualifies(authority),
+                false,
+                rules::authority(authority, &effective) == Some(author),
+            );
+        }
+        if let Some(authority) = &effective.decisions.finish {
+            add(
+                Rule::Finish,
+                rules::qualifies(authority),
+                false,
+                rules::authority(authority, &effective) == Some(author),
+            );
+        }
+        if let Some(workspace) = self
+            .current_context(Scope::Workspace)
+            .and_then(|context| self.effective_rules(context, definitions))
+            && let Some(authority) = &workspace.decisions.selection
+        {
+            add(
+                Rule::Integrate,
+                rules::qualifies(authority),
+                false,
+                rules::authority(authority, &workspace) == Some(author),
+            );
+        }
+        rows
     }
 }
 

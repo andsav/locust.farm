@@ -249,7 +249,7 @@ def prepare_work(profile, daemon, client):
                        "Update only code.txt in the synthetic qualification workspace"])["recorded"]["event"]
     offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
                              "--member", daemon.principal])["recorded"]["event"]
-    daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
+    daemon.call(["--agent", "qualification", "allow", "--goal", daemon.goal, "--task", task], owner=True)
     return {"source": str(source),
             **shared, "task": task, "offer": offer, "goal": daemon.goal,
             "expected": "after-" + client + "\n", "principal": daemon.principal}
@@ -290,7 +290,7 @@ assert len(frozen['preview'])==1 and '+after-' in frozen['preview'][0]['unified_
 published=call('workspace','publish','--goal',goal,'--operation',frozen['operation']['id'])
 proposal=published['workspace_operation']['state']['recorded']['event']
 review=call('workspace','review','--goal',goal,'--proposal',proposal)
-submitted=call('contribution','publish','--goal',goal,'--task',w['task'],'--attempt',claim['attempt'],
+submitted=call('contribution','publish','--goal',goal,'--attempt',claim['attempt'],
                '--generation',str(claim['generation']),'--sources',json.dumps([proposal]),'Verified synthetic workspace proposal')
 rid=submitted['recorded']['event']
 for subject in (proposal,rid):

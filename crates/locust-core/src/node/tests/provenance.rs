@@ -272,7 +272,6 @@ fn inspection_traces_the_exact_attempt_and_task_round() {
     };
     let mut request = sourced(goal, vec![offer]);
     let Request::ContributionPublish {
-        task: task_field,
         attempt,
         generation,
         ..
@@ -280,7 +279,6 @@ fn inspection_traces_the_exact_attempt_and_task_round() {
     else {
         unreachable!()
     };
-    *task_field = Some(task);
     *attempt = Some(claim.attempt);
     *generation = Some(claim.generation);
     let result = event(d.ok(agent, request));

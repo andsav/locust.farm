@@ -19,6 +19,37 @@ fn workspace_formation(reviews: u32) -> Formation {
     }
 }
 
+#[test]
+fn replay_names_integration_authority_when_another_member_selects() {
+    let mut f = Fixture::new(workspace_formation(1));
+    let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
+    let subject = proposal(&mut f, 0, context, None, vec![]);
+    let denied = f.worker(
+        1,
+        Body::ScopeDecided {
+            context,
+            previous: None,
+            action: DecisionAction::Select { subject },
+            evidence: vec![],
+        },
+    );
+    let goal = f.goal();
+    assert!(matches!(
+        goal.standing(&denied),
+        Some(Standing::Excluded(_))
+    ));
+    let refusal = goal
+        .rule_refusal(&denied)
+        .expect("integration refusal records the pinned authority");
+    assert_eq!(refusal.rule, locust_proto::api::Rule::Integrate);
+    assert_eq!(
+        refusal.qualifies,
+        Selector::Participant {
+            key: testkit::keypair(4).public().to_string()
+        }
+    );
+}
+
 fn epoch(f: &mut Fixture, expected: Option<EventId>, checkpoint: WorkspaceCheckpoint) -> Context {
     let id = f.admin(Body::WorkspaceEpoch {
         expected_epoch: expected,

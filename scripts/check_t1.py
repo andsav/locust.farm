@@ -365,11 +365,9 @@ class Qualification:
         finally:
             ticket_file.unlink(missing_ok=True)
 
-    def grant_contributions(self, goal):
+    def set_ask_levels(self, goal):
         for machine in self.machines:
-            self.cli(machine, ["goal", "grant", "--goal", goal, "--agent", machine.agent,
-                "--grants", json.dumps({"contribute": True,
-                    "review": True, "select": True, "execute": False, "flow": True, "takeover": False})], owner=True)
+            self.cli(machine, ["--agent", f"m{machine.number}", "level", "--goal", goal, "ask"], owner=True)
 
     def board_selected(self, machine, goal, task, result_id):
         result = self.cli(machine, ["board", "--goal", goal])
@@ -436,7 +434,7 @@ class Qualification:
                        and {member["member"] for member in state["members"]} == expected_members
                        for state in states)
         self.wait("all three replicas admit all three principals and decrypt title", admitted)
-        self.grant_contributions(goal)
+        self.set_ask_levels(goal)
         self.wait("all three daemons report a selected peer path", lambda: all(
             any(fact["machine"] == machine.number and any(path["selected"]
                                                         for path in fact["paths"]) for fact in self.routes)
@@ -450,7 +448,7 @@ class Qualification:
         self.summary["events"].update(task=task, offer=offer)
         self.wait("M2 receives offer", lambda: any(item.get("task") == task
             for item in variant(self.cli(m2, ["board", "--goal", goal]), "board")))
-        self.cli(m2, ["task", "authorize", "--goal", goal, "--task", task, "--agent", m2.agent], owner=True)
+        self.cli(m2, ["--agent", "m2", "allow", "--goal", goal, "--task", task], owner=True)
         session_path = m2.home / "sessions" / "qualification.secret"
         session = self.cli(m2, ["session", "create", session_path], local=True)
         if session_path.stat().st_mode & 0o7777 != 0o600:
@@ -459,7 +457,7 @@ class Qualification:
         claim = variant(self.cli(m2, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer], session=session_path), "claimed")
         if claim.get("task") != task or claim.get("instance") != session.get("instance"):
             raise CheckFailure("claim did not bind the requested task/session")
-        result_id = self.recorded(m2, ["contribution", "publish", "--goal", goal, "--task", task, "--attempt", claim["attempt"],
+        result_id = self.recorded(m2, ["contribution", "publish", "--goal", goal, "--attempt", claim["attempt"],
                                       "--generation", claim["generation"], summary], session=session_path)
         self.summary["events"]["result"] = result_id
         def result_held(machine):

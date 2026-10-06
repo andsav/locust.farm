@@ -10,7 +10,7 @@ accepts it; updating copies that accepted result into a local checkout. These ar
 separate operations. No Git repository is required.
 
 To run an agent's work commands yourself, add `--owner --agent NAME`. Use
-`--owner` alone for `workspace init`. The goal's formation and local grants
+`--owner` alone for `workspace init`. The goal's formation and local level
 determine who can publish, review and integrate.
 
 ## Start and inspect a tree
@@ -90,7 +90,7 @@ Composition creates a new preview from the sources in the stated order. Conflict
 refuse composition. Publish the preview, then supply completion or review evidence
 for that exact combined proposal before integration. An approval of an earlier
 source does not approve new combined bytes. Integration checks the expected head
-and workspace epoch, formation eligibility, evidence and local selection grant.
+and workspace epoch, formation eligibility, evidence and the local level.
 
 For an accepted tree whose parent content is unavailable, a complete replacement
 can be captured with `propose --replace --parent REVISION --checkout CHECKOUT`
@@ -158,12 +158,10 @@ until owner status >"$demo/status.json" 2>/dev/null; do
   kill -0 "$daemon_pid" || { cat "$demo/daemon.log"; exit 1; }
   sleep 0.1
 done
-principal=$(owner agent enroll alice | pick agent_enrolled.agent)
+owner agent enroll alice >/dev/null
 "$LOCUST_BIN" session create "$demo/alice.session" >/dev/null
 alice() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/alice.credential" --session "$demo/alice.session" --json "$@"; }
 goal=$(person --agent alice goal create --title 'Shared tree example' | pick goal_created.goal)
-owner goal grant --goal "$goal" --agent "$principal" --grants \
-  '{"contribute":true,"execute":false,"review":true,"select":true,"flow":false,"takeover":false}' >/dev/null
 mkdir "$demo/source"
 printf 'base\n' >"$demo/source/app.txt"
 printf 'original\n' >"$demo/source/local.txt"

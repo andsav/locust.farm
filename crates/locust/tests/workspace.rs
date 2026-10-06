@@ -54,6 +54,22 @@ struct State {
     session_active: bool,
 }
 impl State {
+    fn abilities() -> Abilities {
+        Abilities {
+            goal: GOAL,
+            agent: PRINCIPAL,
+            name: "worker".into(),
+            membership: Some(Membership::Member),
+            level: Level::Auto,
+            host: Some(PRINCIPAL),
+            hosted_here: true,
+            roles: vec![],
+            rules: vec![],
+            allowed_tasks: vec![],
+            wanted_tasks: vec![],
+            claims: vec![],
+        }
+    }
     fn new() -> Self {
         let source = serde_json::to_vec(&Formation::default()).unwrap();
         let hash = content_hash(&source);
@@ -145,19 +161,19 @@ impl State {
         match frame.request {
             Request::Status => Ok(Response::Status(DaemonStatus { daemon_version:"fixture".into(), endpoint:None,
                 agents:vec![AgentView { agent:PRINCIPAL,name:"worker".into(),author_only:false,revoked:false }],
-                goals:vec![GoalSummary { goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,halted:None }] })),
+                goals:vec![GoalSummary { goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,halted:None,abilities:Self::abilities() }] })),
             Request::GoalStatus { goal } => Ok(Response::GoalStatus(serde_json::from_value(json!({
                 "goal":goal,"title":"workspace","host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
-                "scope_halts":[],"members":[{"member":PRINCIPAL,"endpoint":locust_proto::id::EndpointId([0x40;32]),"local":true}],"halted":null,"grants":GoalGrants::default(),"peers":[]
+                "scope_halts":[],"members":[{"member":PRINCIPAL,"endpoint":locust_proto::id::EndpointId([0x40;32]),"local":true}],"halted":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
             })).unwrap())),
             Request::BlobPut { goal, bytes } => { assert_eq!(goal, GOAL); let hash = content_hash(&bytes); self.objects.insert(hash,bytes); Ok(Response::BlobStored {hash}) }
             Request::BlobGet { hash, .. } => self.objects.get(&hash).cloned().map(|bytes| Response::Blob {bytes}).ok_or_else(|| ApiError::new(ErrorCode::Unavailable,"fixture object unavailable")),
             Request::Event { event, .. } => {
                 if Some(event)==self.epoch {
-                    return Ok(Response::Event(Box::new(EventDetail {view:EventView{position:Some(1),event,author:PRINCIPAL,kind:"workspace_epoch".into(),at_ms:1,standing:Standing::Effective},anchor:None,body:Body::WorkspaceEpoch{expected_epoch:None,rules:self.epoch_rules.unwrap(),checkpoint:WorkspaceCheckpoint::Unseeded},payload:None,text:None,task:None,content:vec![]})));
+                    return Ok(Response::Event(Box::new(EventDetail {view:EventView{position:Some(1),event,author:PRINCIPAL,kind:"workspace_epoch".into(),at_ms:1,standing:Standing::Effective,by_owner:false},anchor:None,body:Body::WorkspaceEpoch{expected_epoch:None,rules:self.epoch_rules.unwrap(),checkpoint:WorkspaceCheckpoint::Unseeded},payload:None,text:None,task:None,content:vec![]})));
                 }
                 let binding = self.rules_bindings.get(&event).ok_or_else(|| ApiError::new(ErrorCode::NotFound,"fixture event not found"))?.clone();
-                Ok(Response::Event(Box::new(EventDetail { view:EventView { position:Some(1),event,author:PRINCIPAL,kind:"rules_bound".into(),at_ms:1,standing:Standing::Effective },
+                Ok(Response::Event(Box::new(EventDetail { view:EventView { position:Some(1),event,author:PRINCIPAL,kind:"rules_bound".into(),at_ms:1,standing:Standing::Effective,by_owner:false },
                     anchor:None,body:Body::RulesBound {expected:None,binding},payload:None,text:None,task:None,content:vec![] })))
             }
             Request::RulesBind { expected, formation_json, roles, inputs, .. } => {

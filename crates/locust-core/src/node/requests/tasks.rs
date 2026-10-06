@@ -1,11 +1,11 @@
 //! Task bindings, work offers, and scoped decisions. Eligibility is evaluated
 //! by the same goal evaluator used for replicated events.
 use super::{Plan, Planned};
+use crate::node::Node;
 use crate::node::access::{conflict, not_found};
 use crate::node::callers::Actor;
 use crate::node::commit::Tx;
 use crate::node::entry::Entry;
-use crate::node::{Node, local};
 use locust_proto::api::{ApiError, Response};
 use locust_proto::engine::Entropy;
 use locust_proto::event::{
@@ -63,7 +63,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
         let parent = parent.map(|task| task_context(entry, task)).transpose()?;
         let rules = if let Some(context) = parent {
             entry
@@ -86,7 +85,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             stage: None,
         };
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::TaskOpened { binding },
@@ -149,10 +149,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).flow)?;
         let context = task_context(entry, task)?;
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::WorkOffered { context, recipient },
@@ -161,32 +161,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
             &mut tx,
         )?;
         recorded(event, tx)
-    }
-    pub(super) fn task_authorize(
-        &self,
-        actor: &Actor,
-        goal: GoalId,
-        task: TaskId,
-        agent: PublicKey,
-        takeover: bool,
-    ) -> Plan {
-        let entry = self.readable(actor, &goal)?;
-        let context = task_context(entry, task)?;
-        if !entry.is_member(&agent) || self.principals.active(&agent).is_none() {
-            return Err(not_found("no active local member has that key"));
-        }
-        let mut tx = Tx::none();
-        tx.local(local::authorization_write(
-            &goal,
-            &context.round,
-            &agent,
-            &local::Authorization { takeover },
-        ))
-        .touch(goal);
-        Ok(Planned {
-            response: Response::Done,
-            tx,
-        })
     }
     pub(super) fn work_decline(
         &self,
@@ -197,7 +171,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::WorkDeclined { offer },
@@ -215,9 +190,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).flow)?;
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::CancelRequested { attempt },
@@ -235,10 +210,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
         let context = subject_context(entry, subject)?;
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::CompletionDeclared { context, subject },
@@ -258,10 +233,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).review)?;
         let context = subject_context(entry, subject)?;
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::ReviewRecorded {
@@ -287,10 +262,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).review)?;
         let context = subject_context(entry, subject)?;
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::CheckAttested {
@@ -386,11 +361,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).select)?;
         evidence.sort();
         evidence.dedup();
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::ScopeDecided {
@@ -414,7 +389,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::DeliveryAcknowledged { effect },

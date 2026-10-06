@@ -1,8 +1,6 @@
 //! Public Engine transcripts: independent evidence, local claims and replay.
 use super::*;
-use locust_proto::api::{
-    GoalGrants, PendingWork, SessionCapabilities, SessionRecord, SessionState,
-};
+use locust_proto::api::{PendingWork, SessionCapabilities, SessionRecord, SessionState};
 use locust_proto::engine::{PeerEngine, PeerInput};
 use locust_proto::event::{AttemptStatus, CancelOutcome, Doc, ReviewVerdict, TaskId};
 use locust_proto::id::{EndpointId, EventId, GoalId};
@@ -50,16 +48,10 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
     };
     daemon.ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: principal,
-            grants: GoalGrants {
-                contribute: true,
-                review: true,
-                select: true,
-                flow: true,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Ask,
         },
     );
     (daemon, principal, owner, agent, goal)
@@ -73,7 +65,6 @@ pub(super) fn event(response: Response) -> EventId {
 pub(super) fn finding(goal: GoalId, text: &str) -> Request {
     Request::ContributionPublish {
         goal,
-        task: None,
         attempt: None,
         generation: None,
         summary: text.into(),
@@ -120,15 +111,7 @@ pub(super) fn authorize(
     task: TaskId,
     agent: PublicKey,
 ) {
-    daemon.ok(
-        owner,
-        Request::TaskAuthorize {
-            goal,
-            task,
-            agent,
-            takeover: true,
-        },
-    );
+    daemon.ok(owner, Request::TaskAllow { goal, task, agent });
 }
 pub(super) fn progress(goal: GoalId, attempt: EventId, generation: u32) -> Request {
     Request::AttemptReport {
@@ -139,10 +122,9 @@ pub(super) fn progress(goal: GoalId, attempt: EventId, generation: u32) -> Reque
         text: "still working".into(),
     }
 }
-fn publish(goal: GoalId, task: TaskId, attempt: EventId, generation: u32) -> Request {
+fn publish(goal: GoalId, attempt: EventId, generation: u32) -> Request {
     Request::ContributionPublish {
         goal,
-        task: Some(task),
         attempt: Some(attempt),
         generation: Some(generation),
         summary: "Completed with evidence".into(),
@@ -155,10 +137,7 @@ fn publish(goal: GoalId, task: TaskId, attempt: EventId, generation: u32) -> Req
 fn complete_transcript_keeps_contribution_review_and_selection_separate_after_restart() {
     let (mut d, p, owner, a, goal) = setup();
     let (task, offer) = offered(&mut d, a, goal, p);
-    assert_eq!(
-        pending(&mut d, owner, goal).to_authorize[0].offer,
-        Some(offer)
-    );
+    assert_eq!(pending(&mut d, owner, goal).ask_first[0].offer, Some(offer));
     assert_eq!(
         code(d.call(
             a,
@@ -168,7 +147,7 @@ fn complete_transcript_keeps_contribution_review_and_selection_separate_after_re
                 offer: Some(offer)
             }
         )),
-        ErrorCode::AuthorizationRequired
+        ErrorCode::LevelRequired
     );
     authorize(&mut d, owner, goal, task, p);
     let Response::Claimed(claim) = d.ok(
@@ -183,7 +162,7 @@ fn complete_transcript_keeps_contribution_review_and_selection_separate_after_re
     };
     assert_eq!(pending(&mut d, a, goal).claimed, vec![claim]);
     d.ok(a, progress(goal, claim.attempt, 1));
-    let contribution = event(d.ok(a, publish(goal, task, claim.attempt, 1)));
+    let contribution = event(d.ok(a, publish(goal, claim.attempt, 1)));
     assert!(
         pending(&mut d, a, goal)
             .to_review
@@ -283,7 +262,7 @@ fn takeover_a_b_a_fences_old_generation_even_when_secret_returns() {
     };
     assert_eq!(back.generation, 3);
     assert_eq!(
-        code(d.call(b, publish(goal, task, attempt, 2))),
+        code(d.call(b, publish(goal, attempt, 2))),
         ErrorCode::Superseded
     );
     d.restart();
@@ -317,7 +296,7 @@ fn cancellation_requires_holder_generation_and_is_not_completion_evidence() {
     ) else {
         panic!()
     };
-    let subject = event(d.ok(a, publish(goal, task, claim.attempt, 1)));
+    let subject = event(d.ok(a, publish(goal, claim.attempt, 1)));
     let cancel = event(d.ok(
         a,
         Request::AttemptCancel {
@@ -597,7 +576,7 @@ fn declining_one_offer_does_not_impose_an_attempt_budget() {
                 offer: Some(first)
             }
         )),
-        ErrorCode::Denied
+        ErrorCode::Conflict
     );
     let second = event(d.ok(
         a,
@@ -673,8 +652,8 @@ fn completion_requires_an_attempt_result_but_not_review_or_integration() {
     let count = d.store.log(&goal, 0, 1000).unwrap().len();
     assert_eq!(code(d.call(a, complete.clone())), ErrorCode::Conflict);
     assert_eq!(d.store.log(&goal, 0, 1000).unwrap().len(), count);
-    // A task-level note is not a result associated with this attempt.
-    let mut note = publish(goal, task, claim.attempt, 1);
+    // A goal-scope finding is not a result associated with this attempt.
+    let mut note = publish(goal, claim.attempt, 1);
     if let Request::ContributionPublish {
         attempt,
         generation,
@@ -686,7 +665,7 @@ fn completion_requires_an_attempt_result_but_not_review_or_integration() {
     }
     d.ok(a, note);
     assert_eq!(code(d.call(a, complete.clone())), ErrorCode::Conflict);
-    let result = event(d.ok(a, publish(goal, task, claim.attempt, 1)));
+    let result = event(d.ok(a, publish(goal, claim.attempt, 1)));
     d.ok(a, complete);
     assert!(pending(&mut d, a, goal).claimed.is_empty());
     let Response::Task(detail) = d.ok(a, Request::Task { goal, task }) else {
@@ -822,7 +801,7 @@ fn uncertain_cancellation_fences_work_but_allows_ending_and_completed_needs_resu
         ErrorCode::Conflict
     );
     assert_eq!(
-        code(d.call(a, publish(goal, task, claim.attempt, 1))),
+        code(d.call(a, publish(goal, claim.attempt, 1))),
         ErrorCode::Conflict
     );
     d.ok(a, end);
@@ -832,19 +811,38 @@ fn uncertain_cancellation_fences_work_but_allows_ending_and_completed_needs_resu
 #[test]
 fn completed_round_is_not_startable_and_revision_restores_eligibility() {
     let (mut d, p, owner, a, goal) = setup();
-    let (task, _) = offered(&mut d, a, goal, p);
+    let (task, offer) = offered(&mut d, a, goal, p);
     authorize(&mut d, owner, goal, task, p);
-    let mut result = publish(goal, task, EventId([0; 32]), 1);
-    if let Request::ContributionPublish {
-        attempt,
-        generation,
-        ..
-    } = &mut result
-    {
-        *attempt = None;
-        *generation = None;
-    }
-    let result = event(d.ok(a, result));
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    let result = event(d.ok(a, publish(goal, claim.attempt, claim.generation)));
+    d.ok(
+        a,
+        Request::AttemptReport {
+            goal,
+            attempt: claim.attempt,
+            generation: claim.generation,
+            status: AttemptStatus::Completed,
+            text: "Result posted".into(),
+        },
+    );
+    // This still-unanswered offer was made before the result finished the round.
+    let offer = event(d.ok(
+        a,
+        Request::WorkOffer {
+            goal,
+            task,
+            recipient: p,
+        },
+    ));
     d.ok(
         a,
         Request::ReviewRecord {
@@ -854,14 +852,6 @@ fn completed_round_is_not_startable_and_revision_restores_eligibility() {
             text: "checked".into(),
         },
     );
-    let offer = event(d.ok(
-        a,
-        Request::WorkOffer {
-            goal,
-            task,
-            recipient: p,
-        },
-    ));
     assert!(
         !pending(&mut d, a, goal)
             .to_start
@@ -870,7 +860,7 @@ fn completed_round_is_not_startable_and_revision_restores_eligibility() {
     );
     assert!(
         !pending(&mut d, owner, goal)
-            .to_authorize
+            .ask_first
             .iter()
             .any(|item| item.task == task)
     );
@@ -883,9 +873,9 @@ fn completed_round_is_not_startable_and_revision_restores_eligibility() {
                 offer: Some(offer)
             }
         )),
-        ErrorCode::Denied
+        ErrorCode::Conflict
     );
-    // Revising the task creates a fresh round with separate authorization.
+    // Revising the task creates a fresh round with a new allowance.
     let round = d.node.goals[&goal].state().tasks[&task].current_round;
     d.ok(
         owner,
@@ -1050,16 +1040,10 @@ fn closing_a_task_with_many_approved_contributions_stays_within_the_header_cap()
     };
     d.ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: principal,
-            grants: GoalGrants {
-                contribute: true,
-                review: true,
-                select: true,
-                flow: true,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Ask,
         },
     );
     let task = TaskId::Authored(event(d.ok(
@@ -1076,14 +1060,24 @@ fn closing_a_task_with_many_approved_contributions_stays_within_the_header_cap()
     // each approved contribution added its own id (32 bytes) under the old
     // code, so 600 of them alone occupy ~18.8 KiB before any header overhead.
     const APPROVED: usize = 600;
+    authorize(&mut d, owner, goal, task, principal);
+    let Response::Claimed(claim) = d.ok(
+        agent,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: None,
+        },
+    ) else {
+        panic!()
+    };
     for index in 0..APPROVED {
         let contribution = event(d.ok(
             agent,
             Request::ContributionPublish {
                 goal,
-                task: Some(task),
-                attempt: None,
-                generation: None,
+                attempt: Some(claim.attempt),
+                generation: Some(claim.generation),
                 summary: format!("result {index}"),
                 sources: Vec::new(),
                 artifacts: vec![],

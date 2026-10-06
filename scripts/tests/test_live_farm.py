@@ -60,7 +60,7 @@ class LiveFarmTests(unittest.TestCase):
                            "started", "Observed native process")
         first, second = call.call_args_list
         self.assertEqual(first.args[1][:2], ["call", "session.report"])
-        self.assertEqual(second.args[1][:2], ["farm", "consent"])
+        self.assertEqual(second.args[1][:4], ["--agent", "principal", "farm", "consent"])
         self.assertIn("Codex / Luna", second.args[1])
         self.assertTrue(second.kwargs["owner"])
 

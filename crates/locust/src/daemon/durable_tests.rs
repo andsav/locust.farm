@@ -6,7 +6,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use locust_net::{Endpoint, EndpointConfig, IpTransport, Lookup, RelayConfig, TransportBudget};
-use locust_proto::api::{Caller, Credential, GoalGrants, Request, Response, SessionSecret};
+use locust_proto::api::{Caller, Credential, Level, Request, Response, SessionSecret};
 use locust_proto::client::Client;
 use locust_proto::engine::{Engine, PeerEngine};
 use locust_proto::event::{AttemptStatus, ReviewVerdict, TaskId};
@@ -158,22 +158,6 @@ fn propose(client: &mut LocalClient, goal: GoalId, text: String) -> TaskId {
             .unwrap(),
     ))
 }
-fn grant(owner: &mut LocalClient, goal: GoalId, agent: PublicKey) {
-    owner
-        .call(Request::GoalGrant {
-            goal,
-            agent,
-            grants: GoalGrants {
-                contribute: true,
-                execute: true,
-                review: true,
-                select: true,
-                flow: true,
-                takeover: true,
-            },
-        })
-        .unwrap();
-}
 fn eventually<T>(mut read: impl FnMut() -> Option<T>) -> T {
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
@@ -220,7 +204,6 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
     let mut agent = running.client(Credential([1; 32]), Some(SessionSecret([1; 32])));
     let mut owner = running.owner();
     let goal = goal(&mut owner, principal);
-    grant(&mut owner, goal, principal);
     let task = propose(&mut agent, goal, "Complete after a restart".into());
     let assignment = recorded(
         agent
@@ -232,11 +215,10 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
             .unwrap(),
     );
     owner
-        .call(Request::TaskAuthorize {
+        .call(Request::TaskAllow {
             goal,
             task,
             agent: principal,
-            takeover: true,
         })
         .unwrap();
     let Response::Claimed(claim) = agent
@@ -252,7 +234,6 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
     assert_eq!(claim.generation, 1);
     let note_request = Request::ContributionPublish {
         goal,
-        task: None,
         attempt: None,
         generation: None,
         sources: Vec::new(),
@@ -291,7 +272,6 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
         agent
             .call(Request::ContributionPublish {
                 goal,
-                task: Some(task),
                 attempt: Some(claim.attempt),
                 generation: Some(1),
                 summary: "Restarted work is complete".into(),
@@ -332,7 +312,7 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
 }
 
 #[test]
-fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
+fn reviewed_invitation_joins_two_real_daemons_at_read_level() {
     use locust_proto::api::{ErrorCode, InvitationState, Membership};
     let first = short_dir();
     let second = short_dir();
@@ -369,6 +349,7 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
     let refused_join = Request::GoalJoin {
         agent: principal,
         ticket: revoked,
+        level: Level::Read,
     };
     assert!(matches!(
         owner.call(refused_join.clone()).unwrap(),
@@ -419,6 +400,7 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
     let join = Request::GoalJoin {
         agent: principal,
         ticket,
+        level: Level::Read,
     };
     assert!(matches!(
         owner.call(join.clone()).unwrap(),
@@ -435,7 +417,7 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
             Ok(Response::GoalStatus(status))
                 if status.members.iter().any(|entry| entry.member == principal) =>
             {
-                assert_eq!(status.grants, GoalGrants::default());
+                assert_eq!(status.abilities[0].level, Level::Read);
                 let workspace = status.workspace.as_ref().unwrap();
                 assert!(!workspace.enabled);
                 assert!(workspace.head.is_none());
@@ -491,7 +473,7 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
     else {
         panic!()
     };
-    assert_eq!(status.grants, GoalGrants::default());
+    assert_eq!(status.abilities[0].level, Level::Read);
     let workspace = status.workspace.as_ref().unwrap();
     assert!(!workspace.enabled);
     assert!(workspace.head.is_none());
@@ -512,7 +494,6 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let mut c = coordinator.client(Credential([1; 32]), None);
     let mut w = worker.client(Credential([2; 32]), Some(SessionSecret([2; 32])));
     let goal = goal(&mut coordinator.owner(), coordinator_key);
-    grant(&mut coordinator.owner(), goal, coordinator_key);
     let Response::Invited { ticket } = coordinator
         .owner()
         .call(Request::GoalInvite {
@@ -528,6 +509,7 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
         .call(Request::GoalJoin {
             agent: worker_key,
             ticket,
+            level: Level::Auto,
         })
         .unwrap();
     eventually(|| match w.call(Request::GoalStatus { goal }) {
@@ -560,13 +542,11 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
         _ => None,
     });
     let mut owner = worker.owner();
-    grant(&mut owner, goal, worker_key);
     owner
-        .call(Request::TaskAuthorize {
+        .call(Request::TaskAllow {
             goal,
             task,
             agent: worker_key,
-            takeover: false,
         })
         .unwrap();
     // Task text and the later work offer replicate independently. Seeing the
@@ -608,7 +588,6 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let result = recorded(
         w.call(Request::ContributionPublish {
             goal,
-            task: Some(task),
             attempt: Some(claim.attempt),
             generation: Some(1),
             summary: summary.clone(),
@@ -777,6 +756,7 @@ fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
                 .call(Request::GoalJoin {
                     agent: principal,
                     ticket,
+                    level: Level::Read,
                 })
                 .unwrap();
             let within = |seconds| Duration::from_secs(seconds);
@@ -928,7 +908,6 @@ fn sqlite_older_directory_signs_at_used_host_position_unless_later_events_are_re
         let principal = running.enroll(1);
         let agent = running.client(Credential([1; 32]), None);
         let goal = goal(&mut running.owner(), principal);
-        grant(&mut running.owner(), goal, principal);
         drop(agent);
         running.stop();
         copy_stopped_home(original.path(), backup.path());

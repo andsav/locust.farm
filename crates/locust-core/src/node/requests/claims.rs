@@ -2,11 +2,12 @@
 use super::tasks::{recorded, task_context};
 use super::{Plan, Planned, answer};
 use crate::node::Node;
-use crate::node::access::{authorization_required, conflict, denied, not_found};
+use crate::node::access::{Attempted, conflict, denied, not_found};
 use crate::node::authoring::{Place, sign_at};
 use crate::node::callers::Actor;
 use crate::node::commit::Tx;
 use crate::node::entry::Entry;
+use crate::node::local;
 use crate::node::sessions::{ClaimRecord, claim_write};
 use locust_proto::api::{ApiError, ErrorCode, Response};
 use locust_proto::engine::Entropy;
@@ -107,17 +108,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 return answer(Response::Claimed(claim.view(goal, *attempt)));
             }
         }
-        if !entry
-            .goal
-            .can_start(context, principal, offer, &entry.definitions)
-        {
-            return Err(denied("the pinned rules do not permit this attempt"));
-        }
-        if !actor.owner_act && !entry.may_start(&principal, context) {
-            return Err(authorization_required(
-                "the owner must authorize local execution",
-            ));
-        }
         let mut tx = Tx::none();
         tx.commit
             .local
@@ -131,7 +121,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             })
             .and_then(|decisions| decisions.last())
             .map(|decision| decision.id);
-        let attempt = self.author(
+        let attempt = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::AttemptStarted {
@@ -166,15 +157,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if claim.instance == instance {
             return answer(Response::Claimed(claim.view(goal, attempt)));
         }
-        let granted = entry.local.grants(&principal).takeover
-            || entry
-                .local
-                .authorized
-                .get(&(found.context.round, principal))
-                .is_some_and(|authorization| authorization.takeover);
-        if !actor.owner_act && !granted {
-            return Err(authorization_required("the owner must authorize takeover"));
-        }
+        let Scope::Task(task) = found.context.scope else {
+            return Err(conflict("the attempt has no task"));
+        };
+        self.allowed(actor, entry, principal, Attempted::Resume { task })?;
         let taken = ClaimRecord {
             instance,
             generation: claim
@@ -231,7 +217,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             require_result(entry, attempt)?;
         }
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::AttemptReported { attempt, status },
@@ -246,7 +233,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         &self,
         actor: &Actor,
         goal: GoalId,
-        task: Option<TaskId>,
         attempt: Option<EventId>,
         generation: Option<u32>,
         summary: String,
@@ -255,9 +241,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
-        let context = if let Some(task) = task {
-            task_context(entry, task)?
+        let context = if let Some(attempt) = attempt {
+            entry
+                .state()
+                .attempts
+                .get(&attempt)
+                .ok_or_else(|| not_found("no such attempt"))?
+                .context
         } else {
             entry
                 .goal
@@ -290,7 +280,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             }
         }
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::ContributionPublished {
@@ -355,7 +346,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             require_result(entry, found.attempt)?;
         }
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::CancelAcknowledged { cancel, outcome },
@@ -374,7 +366,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             let place = self.next_place(entry, &principal)?;
             // Both records commit together. The report extends the acknowledgment,
             // rather than signing a second successor of the old author head.
-            sign_at(
+            let report = sign_at(
                 goal,
                 self.signer(&principal)?,
                 Place {
@@ -393,6 +385,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 now,
                 &mut tx,
             )?;
+            self.allowed(
+                actor,
+                entry,
+                principal,
+                Attempted::Sign {
+                    event: &report,
+                    preceding: &tx.commit.events[..tx.commit.events.len() - 1],
+                },
+            )?;
+            if actor.owner_act {
+                tx.local(local::by_owner_write(&goal, &report.id()));
+            }
         }
         recorded(event, tx)
     }

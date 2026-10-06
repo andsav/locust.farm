@@ -224,6 +224,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         actor: &Actor,
         agent: PublicKey,
         ticket: Ticket,
+        level: locust_proto::api::Level,
         now_ms: u64,
     ) -> Plan {
         let principal = self.local_agent(actor, agent)?.principal()?;
@@ -262,10 +263,17 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         "the advertised publication policy is not effective in the held goal",
                     ));
                 }
-                return answer(Response::Joined {
-                    goal,
-                    governance: invitation.governance,
-                    membership: Membership::Member,
+                let mut tx = Tx::none();
+                tx.local(local::level_write(&goal, &principal, &level))
+                    .touch(goal);
+                return Ok(Planned {
+                    response: Response::Joined {
+                        goal,
+                        governance: invitation.governance,
+                        membership: Membership::Member,
+                        level,
+                    },
+                    tx,
                 });
             }
             if let Some(join) = entry.local.joins.get(&principal) {
@@ -278,10 +286,17 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     ));
                 }
                 if same {
-                    return answer(Response::Joined {
-                        goal,
-                        governance: invitation.governance,
-                        membership: Membership::Joining,
+                    let mut tx = Tx::none();
+                    tx.local(local::level_write(&goal, &principal, &level))
+                        .touch(goal);
+                    return Ok(Planned {
+                        response: Response::Joined {
+                            goal,
+                            governance: invitation.governance,
+                            membership: Membership::Joining,
+                            level,
+                        },
+                        tx,
                     });
                 }
                 if !join.refused {
@@ -317,12 +332,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .plan_join(&own, &request, now_ms)
                 .map_err(|_| denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the governance"))?;
             tx.local(local::part_write(&goal, &principal, false))
+                .local(local::level_write(&goal, &principal, &level))
                 .touch(goal);
             return Ok(Planned {
                 response: Response::Joined {
                     goal,
                     governance: invitation.governance,
                     membership: Membership::Member,
+                    level,
                 },
                 tx,
             });
@@ -341,6 +358,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             },
         ))
         .local(local::part_write(&goal, &principal, false))
+        .local(local::level_write(&goal, &principal, &level))
         .local(records::put(
             Space::Peer,
             invitation.endpoint.0.to_vec(),
@@ -352,6 +370,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 goal,
                 governance: invitation.governance,
                 membership: Membership::Joining,
+                level,
             },
             tx,
         })

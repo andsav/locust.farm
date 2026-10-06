@@ -4,19 +4,20 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
+use locust_proto::api::Rule;
 use locust_proto::event::{
     Body, Context, DecisionAction, DecisionPurpose, EffectAction, Event, ReviewVerdict, Scope,
     ScopeKey, TaskBinding, TaskId,
 };
 use locust_proto::id::{EventId, PublicKey};
-use locust_proto::organization::{CompletionRule, StartRule};
+use locust_proto::organization::{CompletionRule, Selector, StartRule};
 
 use super::DefinitionLookup;
 use super::chain::Chain;
 use super::commitments::{self, Proof};
 use super::history::History;
 use super::rules::{self, Resolved, invalid};
-use super::standing::{Dependency, Evaluation, Halt, Standing, Waiting};
+use super::standing::{Dependency, Evaluation, Halt, RuleRefusal, Standing, Waiting};
 
 type CacheKey = (EventId, Option<EventId>);
 type DecisionPredecessor = (PublicKey, ScopeKey, Option<EventId>);
@@ -32,6 +33,7 @@ pub(super) struct Verifier<'a, D: DefinitionLookup + ?Sized> {
     pub checkpoint_lineages: RefCell<BTreeMap<EventId, Result<BTreeSet<EventId>, Standing>>>,
     pub missing: RefCell<BTreeSet<Dependency>>,
     pub scope_halts: RefCell<BTreeMap<ScopeKey, Halt>>,
+    pub rule_refusals: RefCell<BTreeMap<EventId, RuleRefusal>>,
     witnesses: BTreeMap<EventId, Vec<EventId>>,
     // Candidates only: authorization and conflicts are still checked each fold.
     decision_successors: BTreeMap<DecisionPredecessor, Vec<EventId>>,
@@ -86,7 +88,26 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             checkpoint_lineages: RefCell::new(BTreeMap::new()),
             missing: RefCell::new(chain.missing.clone()),
             scope_halts: RefCell::new(BTreeMap::new()),
+            rule_refusals: RefCell::new(BTreeMap::new()),
         }
+    }
+    fn rule_invalid(
+        &self,
+        event: EventId,
+        rule: Rule,
+        qualifies: Selector,
+        except_author: bool,
+        reason: &'static str,
+    ) -> Standing {
+        self.rule_refusals.borrow_mut().insert(
+            event,
+            RuleRefusal {
+                rule,
+                qualifies,
+                except_author,
+            },
+        );
+        invalid(reason)
     }
     pub fn resolve(&self, context: Context) -> Result<Resolved, Standing> {
         if let Some(result) = self.resolved.borrow().get(&context).cloned() {
@@ -249,7 +270,13 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                         &parent.effective,
                         None,
                     ) {
-                        return Err(invalid("principal may not propose under the parent task"));
+                        return Err(self.rule_invalid(
+                            id,
+                            Rule::Propose,
+                            parent.effective.work.propose.clone(),
+                            false,
+                            "principal may not propose under the parent task",
+                        ));
                     }
                 }
                 if !matches!(
@@ -274,7 +301,13 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     &resolved.effective,
                     None,
                 ) {
-                    return Err(invalid("principal may not propose this task"));
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Propose,
+                        resolved.effective.work.propose.clone(),
+                        false,
+                        "principal may not propose this task",
+                    ));
                 }
             }
             Body::TaskRevised {
@@ -295,7 +328,37 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 if !matches!(context.scope, Scope::Task(_)) {
                     return Err(invalid("work offers require a task"));
                 }
-                if !self.member_at(*recipient,h.anchor.unwrap())||!resolved.effective.work.starts.iter().any(|rule|matches!(rule,StartRule::Offered{by,to} if rules::matches(by,h.author,&resolved.effective,None)&&rules::matches(to,*recipient,&resolved.effective,None))){return Err(invalid("work offer is not authorized by the pinned rules"));}
+                if !self.member_at(*recipient, h.anchor.unwrap()) {
+                    return Err(invalid("work offer recipient is not a member"));
+                }
+                let offer_rules: Vec<_> = resolved
+                    .effective
+                    .work
+                    .starts
+                    .iter()
+                    .filter_map(|rule| match rule {
+                        StartRule::Offered { by, to }
+                            if rules::matches(to, *recipient, &resolved.effective, None) =>
+                        {
+                            Some(by.clone())
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                if !offer_rules
+                    .iter()
+                    .any(|by| rules::matches(by, h.author, &resolved.effective, None))
+                {
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Offer,
+                        Selector::Any {
+                            selectors: offer_rules,
+                        },
+                        false,
+                        "work offer is not authorized by the pinned rules",
+                    ));
+                }
             }
             Body::AttemptStarted {
                 context,
@@ -308,11 +371,38 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     return Err(invalid("attempt requires a task"));
                 }
                 let resolved = self.resolve(*context)?;
-                if let Some(offer)=offer{
-                    let (offered,recipient)=self.offer(*offer)?;
-                    if offered!=*context||recipient!=h.author{return Err(invalid("attempt does not accept this recipient's offer"));}
-                    self.no_prior_offer_answer(*offer,event,proof)?;
-                }else if !resolved.effective.work.starts.iter().any(|rule|matches!(rule,StartRule::Independent{by} if rules::matches(by,h.author,&resolved.effective,None))){return Err(invalid("independent start is not authorized"));}
+                if let Some(offer) = offer {
+                    let (offered, recipient) = self.offer(*offer)?;
+                    if offered != *context || recipient != h.author {
+                        return Err(invalid("attempt does not accept this recipient's offer"));
+                    }
+                    self.no_prior_offer_answer(*offer, event, proof)?;
+                } else {
+                    let start_rules: Vec<_> = resolved
+                        .effective
+                        .work
+                        .starts
+                        .iter()
+                        .filter_map(|rule| match rule {
+                            StartRule::Independent { by } => Some(by.clone()),
+                            _ => None,
+                        })
+                        .collect();
+                    if !start_rules
+                        .iter()
+                        .any(|by| rules::matches(by, h.author, &resolved.effective, None))
+                    {
+                        return Err(self.rule_invalid(
+                            id,
+                            Rule::Start,
+                            Selector::Any {
+                                selectors: start_rules,
+                            },
+                            false,
+                            "independent start is not authorized",
+                        ));
+                    }
+                }
             }
             Body::AttemptReported { attempt, .. } => {
                 let target = self.event(*attempt)?;
@@ -338,7 +428,19 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     .and_then(|id| self.history.get(&id))
                     .map(|event| event.header().author);
                 if target.header().author != h.author && offerer != Some(h.author) {
-                    return Err(invalid(
+                    let mut selectors = vec![Selector::Participant {
+                        key: target.header().author.to_string(),
+                    }];
+                    if let Some(offerer) = offerer {
+                        selectors.push(Selector::Participant {
+                            key: offerer.to_string(),
+                        });
+                    }
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Cancel,
+                        Selector::Any { selectors },
+                        false,
                         "only the worker or its offerer may request cancellation",
                     ));
                 }
@@ -367,7 +469,13 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     &resolved.effective,
                     Some(h.author),
                 ) {
-                    return Err(invalid("principal may not publish under this rule"));
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Publish,
+                        resolved.effective.work.publish.clone(),
+                        false,
+                        "principal may not publish under this rule",
+                    ));
                 }
                 if let Some(attempt) = attempt {
                     let target = self.event(*attempt)?;
@@ -400,7 +508,13 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     &resolved.effective,
                     Some(h.author),
                 ) {
-                    return Err(invalid("principal may not publish workspace proposals"));
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Publish,
+                        resolved.effective.work.publish.clone(),
+                        false,
+                        "principal may not publish workspace proposals",
+                    ));
                 }
                 self.workspace_parent(*context, *parent, proof)?;
                 let mut distinct = BTreeSet::new();
@@ -418,7 +532,18 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     &resolved.effective,
                     author,
                 ) {
-                    return Err(invalid("principal may not declare this candidate complete"));
+                    let (qualifies, except_author) = rules::completion_qualifies(
+                        &resolved.effective.decisions.completion,
+                        Rule::Declare,
+                        None,
+                    );
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Declare,
+                        qualifies,
+                        except_author,
+                        "principal may not declare this candidate complete",
+                    ));
                 }
             }
             Body::ReviewRecorded {
@@ -433,7 +558,18 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     author,
                     &self.source_authors(*subject)?,
                 ) {
-                    return Err(invalid("reviewer is not eligible for this exact candidate"));
+                    let (qualifies, except_author) = rules::completion_qualifies(
+                        &resolved.effective.decisions.completion,
+                        Rule::Review,
+                        None,
+                    );
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Review,
+                        qualifies,
+                        except_author,
+                        "reviewer is not eligible for this exact candidate",
+                    ));
                 }
             }
             Body::CheckAttested {
@@ -451,7 +587,18 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     &resolved.effective,
                     author,
                 ) {
-                    return Err(invalid("attestor or check name is not authorized"));
+                    let (qualifies, except_author) = rules::completion_qualifies(
+                        &resolved.effective.decisions.completion,
+                        Rule::Attest,
+                        Some(name),
+                    );
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Attest,
+                        qualifies,
+                        except_author,
+                        "attestor or check name is not authorized",
+                    ));
                 }
             }
             Body::DocumentRevised { context, doc, base } => {
@@ -466,7 +613,13 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     &resolved.effective,
                     Some(h.author),
                 ) {
-                    return Err(invalid("principal may not publish document revisions"));
+                    return Err(self.rule_invalid(
+                        id,
+                        Rule::Publish,
+                        resolved.effective.work.publish.clone(),
+                        false,
+                        "principal may not publish document revisions",
+                    ));
                 }
                 if let Some(base) = base
                     && !matches!(self.event(*base)?.header().body,Body::DocumentRevised{doc:prior,..} if prior==*doc)
@@ -704,13 +857,28 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 ));
             }
         }
-        let authority = match action.purpose() {
+        let nominated = match action.purpose() {
             DecisionPurpose::Selection => resolved.effective.decisions.selection.as_ref(),
             DecisionPurpose::Closure => resolved.effective.decisions.finish.as_ref(),
-        }
-        .and_then(|authority| rules::authority(authority, &resolved.effective));
+        };
+        let authority =
+            nominated.and_then(|authority| rules::authority(authority, &resolved.effective));
         if authority != Some(event.header().author) {
-            return Err(invalid("principal is not the named scope authority"));
+            let rule = if context.scope == Scope::Workspace {
+                Rule::Integrate
+            } else if action.purpose() == DecisionPurpose::Selection {
+                Rule::Select
+            } else {
+                Rule::Finish
+            };
+            let qualifies = nominated.map(rules::qualifies).unwrap_or(Selector::Nobody);
+            return Err(self.rule_invalid(
+                event.id(),
+                rule,
+                qualifies,
+                false,
+                "principal is not the named scope authority",
+            ));
         }
         let successors: Vec<_> = self
             .decision_successors
@@ -949,6 +1117,7 @@ pub(super) fn evaluate<D: DefinitionLookup + ?Sized>(
     }
     super::projection::project(&verifier, &mut evaluation);
     evaluation.desired_effects = verifier.desired_effects();
+    evaluation.rule_refusals = verifier.rule_refusals.into_inner();
     evaluation.scope_halts = verifier.scope_halts.into_inner();
     evaluation.missing = verifier.missing.into_inner();
     evaluation.retained.extend(chain.order.iter().copied());

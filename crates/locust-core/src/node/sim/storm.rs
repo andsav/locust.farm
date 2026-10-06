@@ -55,7 +55,6 @@ pub fn storm(r: &mut Run) -> Result<(), Fail> {
             let text = format!("storm finding {round} from m{}", m + 1);
             let request = Request::ContributionPublish {
                 goal,
-                task: None,
                 attempt: None,
                 generation: None,
                 summary: text.clone(),

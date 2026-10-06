@@ -1050,7 +1050,11 @@ mod tests {
         let start = std::time::Instant::now();
         joiner
             .owner()
-            .call(Request::GoalJoin { agent: key, ticket })
+            .call(Request::GoalJoin {
+                agent: key,
+                ticket,
+                level: locust_proto::api::Level::Auto,
+            })
             .unwrap();
         while start.elapsed() < limit {
             if let Ok(Response::GoalStatus(status)) = client.call(Request::GoalStatus { goal })
@@ -1098,18 +1102,14 @@ mod tests {
         for goal in goals {
             inviter
                 .owner()
-                .call(Request::GoalGrant {
+                .call(Request::LevelSet {
                     goal,
                     agent: principal,
-                    grants: locust_proto::api::GoalGrants {
-                        contribute: true,
-                        ..Default::default()
-                    },
+                    level: locust_proto::api::Level::Ask,
                 })
                 .unwrap();
             c.call(Request::ContributionPublish {
                 goal,
-                task: None,
                 attempt: None,
                 generation: None,
                 sources: Vec::new(),

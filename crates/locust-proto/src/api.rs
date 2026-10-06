@@ -28,8 +28,7 @@
 //! The owner authors no events. Directly it may make the owner-only requests,
 //! every read-only request and `session.drop`. Any other request acts as a
 //! principal, so the owner names one in [`RequestFrame::on_behalf`]; that
-//! direct act is the authorization, and the principal's grants are not
-//! consulted.
+//! direct act skips the local level, but shared goal rules still apply.
 //!
 //! # Sessions and claims
 //!
@@ -47,13 +46,10 @@
 //! A takeover raises it, which fences the earlier holder: its delayed writes
 //! fail with [`ErrorCode::Superseded`] instead of landing.
 //!
-//! # Authorization
+//! # Levels
 //!
-//! [`Grants`] are daemon-wide and [`GoalGrants`] are per goal; together they
-//! are what the local participant lets a principal do without asking again.
-//! A request that is the caller's to make but that no grant covers fails with
-//! [`ErrorCode::AuthorizationRequired`] and waits for the owner. A request
-//! that is not the caller's to make at all is [`ErrorCode::Denied`].
+//! Each local agent has one [`Level`] in a goal. Shared rules are checked
+//! before the level; [`Refused`] names which side declined an action.
 //!
 //! # Pending work and waiting
 //!
@@ -79,11 +75,11 @@
 
 pub mod context;
 pub mod invitations;
-pub mod permissions;
+pub mod level;
 mod schema;
 pub use context::*;
 pub use invitations::*;
-pub use permissions::*;
+pub use level::*;
 
 use crate::organization::catalog::{Draft, Presentation, Publication};
 use schemars::{JsonSchema, schema_for};
@@ -277,10 +273,10 @@ impl ClientHello {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Caller {
-    /// The local participant: enrolls principals, sets their grants and
-    /// authorizes what no grant covers. Authors no events itself.
+    /// The local participant: enrolls principals, sets their levels and may
+    /// act on their behalf. Authors no events itself.
     Owner,
-    /// An enrolled principal acting within its grants.
+    /// An enrolled principal acting within the goal rules and its local level.
     Agent(PublicKey),
     /// Authoring-only credential: no goal access, sessions or on-behalf authority.
     Author(PublicKey),
@@ -319,17 +315,6 @@ pub enum ServerHello {
     },
 }
 
-/// Explicit local authorization; shared formation eligibility never grants it.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct GoalGrants {
-    pub contribute: bool,
-    pub execute: bool,
-    pub review: bool,
-    pub select: bool,
-    pub flow: bool,
-    pub takeover: bool,
-}
-
 /// One request as it crosses the socket.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -342,8 +327,8 @@ pub struct RequestFrame {
     /// a different request fails with [`ErrorCode::IdempotencyMismatch`].
     pub idempotency: Option<IdempotencyKey>,
     /// Owner only: perform the request as this enrolled principal. The
-    /// owner's direct act is the authorization, so the principal's grants are
-    /// not consulted. From any other caller this is `Denied`; an unknown or
+    /// owner's direct act skips the local level, not shared rules.
+    /// From any other caller this is `Denied`; an unknown or
     /// revoked principal is `NotFound`; on an owner-only request it is
     /// `Invalid`.
     pub on_behalf: Option<PublicKey>,
@@ -360,7 +345,7 @@ pub struct ResponseFrame {
     pub result: Result<Response, ApiError>,
 }
 
-/// Current greenfield API. Formation rules and local grants are separate.
+/// Current greenfield API. Shared formation rules and local levels are separate.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub enum Request {
@@ -417,16 +402,32 @@ pub enum Request {
         inputs: BTreeMap<String, BlobHash>,
     },
     #[serde(rename = "goal.join")]
-    GoalJoin { agent: PublicKey, ticket: Ticket },
+    GoalJoin {
+        agent: PublicKey,
+        ticket: Ticket,
+        level: Level,
+    },
     #[serde(rename = "goal.invite")]
     GoalInvite { goal: GoalId, expires_ms: u64 },
     #[serde(rename = "goal.leave")]
     GoalLeave { goal: GoalId, agent: PublicKey },
-    #[serde(rename = "goal.grant")]
-    GoalGrant {
+    #[serde(rename = "level.set")]
+    LevelSet {
         goal: GoalId,
         agent: PublicKey,
-        grants: GoalGrants,
+        level: Level,
+    },
+    #[serde(rename = "task.allow")]
+    TaskAllow {
+        goal: GoalId,
+        agent: PublicKey,
+        task: TaskId,
+    },
+    #[serde(rename = "task.disallow")]
+    TaskDisallow {
+        goal: GoalId,
+        agent: PublicKey,
+        task: TaskId,
     },
     #[serde(rename = "goal.status")]
     GoalStatus { goal: GoalId },
@@ -543,13 +544,6 @@ pub enum Request {
         task: TaskId,
         recipient: PublicKey,
     },
-    #[serde(rename = "task.authorize")]
-    TaskAuthorize {
-        goal: GoalId,
-        task: TaskId,
-        agent: PublicKey,
-        takeover: bool,
-    },
     #[serde(rename = "attempt.start")]
     AttemptStart {
         goal: GoalId,
@@ -573,7 +567,6 @@ pub enum Request {
     #[serde(rename = "contribution.publish")]
     ContributionPublish {
         goal: GoalId,
-        task: Option<TaskId>,
         attempt: Option<EventId>,
         generation: Option<u32>,
         summary: String,
@@ -738,41 +731,12 @@ pub enum Request {
         goal: GoalId,
         invitation: Option<String>,
     },
-    #[serde(rename = "permission.inspect")]
-    Permissions { goal: GoalId, agent: PublicKey },
-    #[serde(rename = "permission.allow")]
-    PermissionAllow {
-        goal: GoalId,
-        agent: PublicKey,
-        permissions: Vec<GoalPermission>,
-    },
-    #[serde(rename = "permission.task.allow")]
-    PermissionTaskAllow {
-        goal: GoalId,
-        agent: PublicKey,
-        task: TaskId,
-        takeover: bool,
-    },
-    #[serde(rename = "permission.task.revoke")]
-    PermissionTaskRevoke {
-        goal: GoalId,
-        agent: PublicKey,
-        task: TaskId,
-    },
-    #[serde(rename = "permission.revoke")]
-    PermissionRevoke {
-        goal: GoalId,
-        agent: PublicKey,
-        permissions: Vec<GoalPermission>,
-    },
-    #[serde(rename = "inbox")]
-    Inbox,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Audience {
     /// The owner credential only, never on behalf of a principal.
     Owner,
-    /// Any enrolled principal within its grants, or the owner (on behalf of a
+    /// Any enrolled principal within its local level, or the owner (on behalf of a
     /// principal unless the request is read-only).
     Agent,
     /// The owner credential on a goal this daemon hosts.
@@ -871,7 +835,9 @@ operations! {
     GoalJoin { .. } => ("goal.join", false, false, Owner, false, "goal join"),
     GoalInvite { .. } => ("goal.invite", false, true, Host, false, "goal invite"),
     GoalLeave { .. } => ("goal.leave", false, true, Owner, false, "goal leave"),
-    GoalGrant { .. } => ("goal.grant", false, true, Owner, false, "goal grant"),
+    LevelSet { .. } => ("level.set", false, true, Owner, false, "Set this agent's local level in a goal"),
+    TaskAllow { .. } => ("task.allow", false, true, Owner, false, "Allow this agent to take one task in its current round"),
+    TaskDisallow { .. } => ("task.disallow", false, true, Owner, false, "Remove this agent's task allowance or request"),
     GoalStatus { .. } => ("goal.status", true, true, Agent, true, "goal status"),
     MemberRemove { .. } => ("member.remove", false, true, Host, false, "member remove"),
     RulesBind { .. } => ("rules.bind", false, true, Host, false, "rules bind"),
@@ -899,7 +865,6 @@ operations! {
     TaskOpen { .. } => ("task.open", false, true, Agent, true, "task open"),
     TaskRevise { .. } => ("task.revise", false, true, Host, false, "task revise"),
     WorkOffer { .. } => ("work.offer", false, true, Agent, true, "work offer"),
-    TaskAuthorize { .. } => ("task.authorize", false, true, Owner, false, "task authorize"),
     AttemptStart { .. } => ("attempt.start", false, true, Agent, true, "Start eligible unfinished work or recover this session's active claim for the same task and offer"),
     AttemptTakeover { .. } => ("attempt.takeover", false, true, Agent, true, "attempt takeover"),
     WorkDecline { .. } => ("work.decline", false, true, Agent, true, "work decline"),
@@ -942,12 +907,6 @@ operations! {
     InvitationInspect { .. } => ("invitation.inspect", true, false, Agent, false, "Verify a signed invitation and preview its issuer, goal and sharing boundary without joining"),
     GoalInvitations { .. } => ("invitation.list", true, true, Host, false, "List issued invitations and their current redemption, expiry or revocation state without revealing ticket secrets"),
     InvitationRevoke { .. } => ("invitation.revoke", false, true, Host, false, "Revoke an issued invitation; existing membership remains a separate decision"),
-    Permissions { .. } => ("permission.inspect", true, true, Agent, true, "Inspect your own local permissions and task authorizations; only the owner can inspect another principal"),
-    PermissionAllow { .. } => ("permission.allow", false, true, Owner, false, "Allow only the selected local goal permissions for an enrolled principal"),
-    PermissionTaskAllow { .. } => ("permission.task.allow", false, true, Owner, false, "Allow local execution for this task, preserving existing takeover permission"),
-    PermissionTaskRevoke { .. } => ("permission.task.revoke", false, true, Owner, false, "Remove every local execution authorization for this agent and task; running processes are not terminated"),
-    PermissionRevoke { .. } => ("permission.revoke", false, true, Owner, false, "Revoke only the selected local goal permissions; this does not terminate a running process"),
-    Inbox => ("inbox", true, false, Owner, false, "Show local participants and work needing permission, action or review across goals without acknowledging it"),
 }
 impl Request {
     pub fn name(&self) -> &'static str {
@@ -976,7 +935,9 @@ impl Request {
             Self::GoalJoin { .. } => None,
             Self::GoalInvite { goal, .. } => Some(*goal),
             Self::GoalLeave { goal, .. } => Some(*goal),
-            Self::GoalGrant { goal, .. } => Some(*goal),
+            Self::LevelSet { goal, .. }
+            | Self::TaskAllow { goal, .. }
+            | Self::TaskDisallow { goal, .. } => Some(*goal),
             Self::GoalStatus { goal, .. } => Some(*goal),
             Self::MemberRemove { goal, .. } => Some(*goal),
             Self::RulesBind { goal, .. } => Some(*goal),
@@ -1004,7 +965,6 @@ impl Request {
             Self::TaskOpen { goal, .. } => Some(*goal),
             Self::TaskRevise { goal, .. } => Some(*goal),
             Self::WorkOffer { goal, .. } => Some(*goal),
-            Self::TaskAuthorize { goal, .. } => Some(*goal),
             Self::AttemptStart { goal, .. } => Some(*goal),
             Self::AttemptTakeover { goal, .. } => Some(*goal),
             Self::WorkDecline { goal, .. } => Some(*goal),
@@ -1045,13 +1005,8 @@ impl Request {
             Self::Context { goal, .. }
             | Self::ContextAcknowledge { goal, .. }
             | Self::GoalInvitations { goal }
-            | Self::InvitationRevoke { goal, .. }
-            | Self::Permissions { goal, .. }
-            | Self::PermissionAllow { goal, .. }
-            | Self::PermissionRevoke { goal, .. }
-            | Self::PermissionTaskRevoke { goal, .. }
-            | Self::PermissionTaskAllow { goal, .. } => Some(*goal),
-            Self::InvitationInspect { .. } | Self::Inbox => None,
+            | Self::InvitationRevoke { goal, .. } => Some(*goal),
+            Self::InvitationInspect { .. } => None,
         }
     }
     pub fn check(&self) -> Result<(), ApiError> {
@@ -1101,12 +1056,10 @@ impl Request {
                 response,
                 Response::InvitationRevoked { .. } | Response::InvitationsRevoked { .. }
             ),
-            Self::Permissions { .. }
-            | Self::PermissionAllow { .. }
-            | Self::PermissionRevoke { .. }
-            | Self::PermissionTaskRevoke { .. }
-            | Self::PermissionTaskAllow { .. } => matches!(response, Response::Permissions(_)),
-            Self::Inbox => matches!(response, Response::Inbox(_)),
+            Self::LevelSet { .. } | Self::TaskAllow { .. } => {
+                matches!(response, Response::Abilities(_))
+            }
+            Self::TaskDisallow { .. } => matches!(response, Response::TaskDisallowed { .. }),
 
             Self::Shutdown => matches!(response, Response::Done),
             Self::AgentEnroll { .. } => matches!(response, Response::AgentEnrolled { .. }),
@@ -1120,7 +1073,6 @@ impl Request {
             Self::GoalJoin { .. } => matches!(response, Response::Joined { .. }),
             Self::GoalInvite { .. } => matches!(response, Response::Invited { .. }),
             Self::GoalLeave { .. } => matches!(response, Response::Recorded { .. }),
-            Self::GoalGrant { .. } => matches!(response, Response::Done),
             Self::GoalStatus { .. } => matches!(response, Response::GoalStatus(_)),
             Self::MemberRemove { .. } => matches!(response, Response::Recorded { .. }),
             Self::RulesBind { .. } => matches!(response, Response::Recorded { .. }),
@@ -1153,7 +1105,6 @@ impl Request {
             Self::TaskOpen { .. } => matches!(response, Response::Recorded { .. }),
             Self::TaskRevise { .. } => matches!(response, Response::Recorded { .. }),
             Self::WorkOffer { .. } => matches!(response, Response::Recorded { .. }),
-            Self::TaskAuthorize { .. } => matches!(response, Response::Done),
             Self::AttemptStart { .. } => matches!(response, Response::Claimed(_)),
             Self::AttemptTakeover { .. } => matches!(response, Response::Claimed(_)),
             Self::WorkDecline { .. } => matches!(response, Response::Recorded { .. }),
@@ -1286,6 +1237,8 @@ pub enum Response {
         governance: PublicKey,
         /// `Joining` or `Member`.
         membership: Membership,
+        /// The local level recorded for the joining agent.
+        level: Level,
     },
     /// Answers `goal.status`.
     GoalStatus(GoalStatus),
@@ -1360,8 +1313,14 @@ pub enum Response {
     InvitationsRevoked {
         count: u32,
     },
-    Permissions(GoalPermissions),
-    Inbox(Vec<AttentionEntry>),
+    Abilities(Abilities),
+    /// The local allowance or request removed by `task.disallow`, including
+    /// records hidden from the current abilities view by a closed task.
+    TaskDisallowed {
+        abilities: Abilities,
+        changed: bool,
+        was_allowed: bool,
+    },
 }
 
 /// What `status` shows: the daemon, and as much of its principals and goals
@@ -1425,6 +1384,7 @@ pub struct GoalSummary {
     pub membership: Membership,
     /// Set while the goal's decisions cannot advance here.
     pub halted: Option<Halt>,
+    pub abilities: Abilities,
 }
 
 /// Why a goal's decisions cannot advance on this daemon.
@@ -1457,7 +1417,8 @@ pub struct GoalStatus {
     pub members: Vec<MemberView>,
     pub halted: Option<Halt>,
     pub workspace: Option<WorkspaceView>,
-    pub grants: GoalGrants,
+    pub abilities: Vec<Abilities>,
+    pub stalled: Vec<Stalled>,
     pub peers: Vec<PeerView>,
 }
 /// One current member of a goal.
@@ -1516,6 +1477,8 @@ pub struct Claim {
 pub struct WorkItem {
     pub task: TaskId,
     pub offer: Option<EventId>,
+    pub attempting: Vec<Attempting>,
+    pub results: u32,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct CancelItem {
@@ -1528,6 +1491,9 @@ pub struct CancelItem {
 pub struct ReviewItem {
     pub subject: EventId,
     pub context: Context,
+    pub approvals: u32,
+    pub needed: u32,
+    pub verdicts: Vec<Verdict>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DeliveryItem {
@@ -1546,7 +1512,7 @@ pub struct PendingWork {
     pub revision: u64,
     /// Shared content not yet acknowledged by this execution session.
     pub context_news: Option<ContextNews>,
-    pub to_authorize: Vec<WorkItem>,
+    pub ask_first: Vec<WorkItem>,
     pub to_start: Vec<WorkItem>,
     pub claimed: Vec<Claim>,
     pub held_elsewhere: Vec<Claim>,
@@ -1625,6 +1591,8 @@ pub struct EventView {
     pub at_ms: u64,
     /// How the event stands in the goal's replicated state.
     pub standing: Standing,
+    /// The participant directly asked the daemon to sign for this agent.
+    pub by_owner: bool,
 }
 
 /// Whether the daemon can serve a content object of a goal.
@@ -1839,11 +1807,10 @@ pub enum ErrorCode {
     /// The daemon failed: storage, or a fault of its own. Not the caller's
     /// doing, and retrying the same request may succeed.
     Internal,
-    /// The request is the caller's to make and will be allowed once the
-    /// local participant authorizes it: a claim, takeover or decision that no
-    /// goal grant covers. The owner answers with `task.authorize`, with
-    /// `goal.grant`, or by making the request on the principal's behalf.
-    AuthorizationRequired,
+    /// The action needs a higher local level or a task allowance.
+    LevelRequired,
+    /// The shared goal rules do not qualify this principal for the action.
+    NotEligible,
     /// This daemon's signer for the goal is in restore recovery and signs
     /// nothing; see [`Halt::SignerRecovery`]. Reads still work.
     ReadOnly,
@@ -1866,7 +1833,8 @@ impl ErrorCode {
             Self::UnsupportedVersion => "unsupported_version",
             Self::Corrupted => "corrupted",
             Self::Internal => "internal",
-            Self::AuthorizationRequired => "authorization_required",
+            Self::LevelRequired => "level_required",
+            Self::NotEligible => "not_eligible",
             Self::ReadOnly => "read_only",
         }
     }
@@ -1899,6 +1867,11 @@ impl ApiError {
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details_json = Some(details.to_string());
         self
+    }
+
+    /// The structured first refusal, when this error is an action refusal.
+    pub fn refused(&self) -> Option<Refused> {
+        serde_json::from_str(self.details_json.as_deref()?).ok()
     }
 }
 
@@ -2063,7 +2036,6 @@ mod tests {
     fn claim_bound_publish_requires_matching_generation_shape() {
         let mut request = Request::ContributionPublish {
             goal: GoalId([1; 32]),
-            task: None,
             attempt: Some(EventId([2; 32])),
             generation: None,
             summary: "finding".into(),
@@ -2097,17 +2069,6 @@ mod tests {
                 serde_json::json!({"goal.status":{"goal":GoalId([1;32]),"invented":true}})
             )
             .is_err()
-        );
-        assert_eq!(
-            GoalGrants::default(),
-            GoalGrants {
-                contribute: false,
-                execute: false,
-                review: false,
-                select: false,
-                flow: false,
-                takeover: false
-            }
         );
     }
 }

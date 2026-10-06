@@ -121,7 +121,7 @@ class WorkspaceHarnessTests(unittest.TestCase):
                     '--formation-json', json.dumps(formation)], owner=True)['goal_created']['goal']
                 researcher = enroll(daemon, researcher_profile, 'researcher')
                 builder = enroll(daemon, builder_profile, 'builder')
-                integrator = enroll(daemon, integration_profile, 'integrator', permissions=('contribute',))
+                integrator = enroll(daemon, integration_profile, 'integrator', level='ask')
                 seed = seed_workspace(daemon, builder_profile.workspace, fixture['builder_files'],
                     completion=formation['decisions']['completion'], reviewer=researcher)
                 worker = checkout_role(builder, daemon, seed['revision'])
@@ -185,21 +185,22 @@ class AcceptanceEvidenceTests(unittest.TestCase):
                                'artifacts': []}}}
         self.events = {}
         self.runs = []
-        for index, phase in enumerate(('permission', 'initial', 'research', 'revision', 'review')):
+        for index, phase in enumerate(('ask', 'initial', 'research', 'revision', 'review')):
             stdout = self.root / (phase + '.stdout')
             stdout.write_text(json.dumps({'type': 'thread.started', 'thread_id': 'same-thread'}) + '\n' +
                               json.dumps({'type': 'turn.completed', 'usage': {'input_tokens': 10,
                                           'cached_input_tokens': 4, 'output_tokens': 2}}) + '\n')
             self.events[phase] = []
-            self.runs.append({'phase': phase, 'client': 'codex' if phase in ('permission', 'initial', 'revision') else 'merak',
+            self.runs.append({'phase': phase, 'client': 'codex' if phase in ('ask', 'initial', 'revision') else 'merak',
                 'stdout': str(stdout), 'mcp_events': str(self.root / (phase + '.mcp.jsonl')),
                 'native_calls': [], 'started_sequence': index * 2 + 1, 'completed_sequence': index * 2 + 2,
                 'exit_code': 0, 'natural_cleanup': True, 'cleanup_verified': True,
                 'accounting': {'output_tokens': 2}})
-        self.call('permission', 'locust_attempt_start', {'goal': 'goal', 'task': 'task:task-id'},
-                  {'ok': False, 'error': {'code': 'authorization_required'}}, error=True)
-        self.call('permission', 'locust_permission_inspect', {'goal': 'goal', 'agent': 'builder'},
-                  {'ok': True, 'result': {'permissions': {'goal': 'goal', 'agent': 'builder', 'grants': {'execute': False}}}})
+        self.call('ask', 'locust_attempt_start', {'goal': 'goal', 'task': 'task:task-id'},
+                  {'ok': False, 'error': {'code': 'level_required'}}, error=True)
+        self.call('ask', 'locust_goal_status', {'goal': 'goal'},
+                  {'ok': True, 'result': {'goal_status': {'goal': 'goal',
+                    'abilities': [{'goal': 'goal', 'agent': 'builder', 'level': 'ask', 'allowed_tasks': []}]}}})
         self.call('initial', 'locust_attempt_start', {'goal': 'goal', 'task': 'task:task-id'},
                   {'ok': True, 'result': {'claimed': {'instance': 'instance-b', 'attempt': 'attempt'}}})
         self.call('revision', 'locust_context_read', {'goal': 'goal', 'view': 'compact'},
@@ -214,12 +215,15 @@ class AcceptanceEvidenceTests(unittest.TestCase):
         self.runs[-1]['transcript'] = str(transcript)
         diff = ''.join(difflib.unified_diff(pilot.STARTER.splitlines(True), REVISED.splitlines(True),
                                           fromfile='a/safe_member.py', tofile='b/safe_member.py'))
-        self.report = {'runs': self.runs, 'goal': 'goal', 'base': 'base', 'base_revision': 'base-revision',
+        self.report = {'runs': self.runs, 'goal': 'goal', 'task': 'task:task-id',
+            'base': 'base', 'base_revision': 'base-revision',
             'principals': {'builder': {'principal': 'builder', 'instance': 'instance-b'},
                            'researcher': {'principal': 'researcher', 'instance': 'instance-r'}},
-            'permission_grant': {'actor': 'person-harness', 'principal': 'builder', 'instance': 'instance-b',
-                'result': {'permissions': {'goal': 'goal', 'agent': 'builder', 'grants': {'execute': True}}}},
-            'permission_artifact_unchanged': True,
+            'task_allowance': {'actor': 'person-harness', 'principal': 'builder', 'instance': 'instance-b',
+                'task': 'task:task-id',
+                'result': {'goal': 'goal', 'agent': 'builder', 'task': 'task:task-id',
+                    'allowed': True, 'changed': True}},
+            'ask_artifact_unchanged': True,
             'initial_context_has_research_finding': False,
             'research_findings': [copy.deepcopy(self.finding)], 'final_contribution': {'event': self.final},
             'source_inspection': {'contribution_inspected': {'contribution': copy.deepcopy(self.final),
@@ -292,25 +296,25 @@ class AcceptanceEvidenceTests(unittest.TestCase):
         self.events['revision'][2]['arguments']['receipt'] = 'different-reference'
         self.assertFalse(self.evaluate()['attributed_finding_read_and_acknowledged'])
 
-    def test_permission_recovery_requires_same_native_thread_and_locust_instance(self):
+    def test_task_allowance_recovery_requires_same_native_thread_and_locust_instance(self):
         self.events['initial'][1]['result']['result']['claimed']['instance'] = 'other-instance'
-        self.assertFalse(self.evaluate()['missing_permission_stop_then_same_agent_recovery'])
+        self.assertFalse(self.evaluate()['ask_level_stop_then_same_agent_recovery'])
         self.events['initial'][1]['result']['result']['claimed']['instance'] = 'instance-b'
         Path(self.runs[1]['stdout']).write_text(json.dumps({'type': 'thread.started', 'thread_id': 'new-thread'}))
-        self.assertFalse(self.evaluate()['missing_permission_stop_then_same_agent_recovery'])
+        self.assertFalse(self.evaluate()['ask_level_stop_then_same_agent_recovery'])
 
     def test_owner_credential_substitution_cannot_qualify(self):
         self.runs[1]['native_calls'] = [{'arguments': {'command': './locust-scoped --owner attempt start'},
                                         'success': True}]
-        self.assertFalse(self.evaluate()['missing_permission_stop_then_same_agent_recovery'])
+        self.assertFalse(self.evaluate()['ask_level_stop_then_same_agent_recovery'])
 
     def test_missing_authority_for_another_agent_does_not_qualify(self):
-        self.events['permission'][3]['result']['result']['permissions']['agent'] = 'another-agent'
-        self.assertFalse(self.evaluate()['missing_permission_stop_then_same_agent_recovery'])
+        self.events['ask'][3]['result']['result']['goal_status']['abilities'][0]['agent'] = 'another-agent'
+        self.assertFalse(self.evaluate()['ask_level_stop_then_same_agent_recovery'])
 
-    def test_a_person_grant_to_another_agent_does_not_qualify_recovery(self):
-        self.report['permission_grant']['result']['permissions']['agent'] = 'another-agent'
-        self.assertFalse(self.evaluate()['missing_permission_stop_then_same_agent_recovery'])
+    def test_a_person_allowance_for_another_agent_does_not_qualify_recovery(self):
+        self.report['task_allowance']['result']['agent'] = 'another-agent'
+        self.assertFalse(self.evaluate()['ask_level_stop_then_same_agent_recovery'])
 
     def test_anticipated_private_requirement_does_not_prove_revision(self):
         Path(self.report['initial_artifact']).write_text(REVISED)

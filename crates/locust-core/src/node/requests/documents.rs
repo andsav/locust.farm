@@ -38,13 +38,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
         let context = entry
             .goal
             .current_context(Scope::Document(doc))
             .ok_or_else(|| conflict("no current rules binding"))?;
         let mut tx = Tx::none();
-        let event = self.author(
+        let event = self.sign_for(
+            actor,
             entry,
             &principal,
             Body::DocumentRevised { context, doc, base },

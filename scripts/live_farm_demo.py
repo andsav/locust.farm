@@ -240,10 +240,6 @@ class Demo:
         for role in ROLES:
             if self.data["agents"][role] not in members:
                 self.call(["goal", "add", "--goal", goal, "--agent", role], owner=True)
-            grants = {"contribute": True, "review": True,
-                      "select": role == "coordinator", "execute": False, "flow": True, "takeover": False}
-            self.call(["goal", "grant", "--goal", goal, "--agent", self.data["agents"][role],
-                       "--grants", json.dumps(grants)], owner=True)
         if not self.data.get("rules_bound"):
             self.call(["rules", "bind", "--goal", goal,
                        "--formation-json", formation, "--roles", json.dumps(roles)], owner=True)
@@ -261,7 +257,7 @@ class Demo:
             self.data["farm_id"] = on["status"]["farm_id"]
             self.save()
         for role, (_, name) in ROLES.items():
-            self.call(["farm", "consent", "--goal", goal, "--agent", role, "--accept",
+            self.call(["--agent", role, "farm", "consent", "--goal", goal, "--accept",
                        "--name", name, "--group-label", "Local demo Mac"], owner=True)
         preview = self.call(["farm", "show", "--goal", goal], owner=True)["farm_preview"]
         self.data["farm_id"] = preview["status"]["farm_id"]
@@ -373,8 +369,6 @@ class Demo:
         claim = None
         if stage:
             task = self.task(stage)["task"]
-            self.call(["task", "authorize", "--goal", goal, "--task", task,
-                       "--agent", self.data["agents"][role]], owner=True)
             claim = self.call(["attempt", "start", "--goal", goal, "--task", task], role=role)["claimed"]
         client, _ = ROLES[role]
         wrapper = self.root / "tools" / role / "locust-demo"
@@ -390,7 +384,7 @@ Read full task context and acknowledge it, then use compact context at checkpoin
 Use real progress reports when work changes; do not generate artificial activity.
 """
         if claim:
-            instructions += "\nThe local controller already authorized and started your exact attempt:\n" + json.dumps(claim) + "\n"
+            instructions += "\nThe local controller already started your exact attempt:\n" + json.dumps(claim) + "\n"
             checkout = self.data["checkouts"][role]
             instructions += f"""Use this attempt and generation. Your registered checkout is {checkout}.
 Read `workspace status --goal {goal} --checkout {checkout}`. If you need accepted revision {revision or self.data['seed_revision']},
@@ -399,7 +393,7 @@ Before a completed report, freeze actual managed changes plus explicitly selecte
 `{wrapper} workspace propose --goal {goal} --checkout {checkout} --path NEW_FILE` (repeat --path only for new files; no directory recursion).
 Read the returned frozen preview, then `{wrapper} workspace publish --goal {goal} --operation OPERATION_ID` without recapturing.
 Read `workspace review --goal {goal} --proposal PROPOSAL_EVENT` for the exact published snapshot.
-Publish a separate `contribution publish --goal {goal} --task {claim['task']} --attempt {claim['attempt']} --generation {claim['generation']}
+Publish a separate `contribution publish --goal {goal} --attempt {claim['attempt']} --generation {claim['generation']}
 --sources '["PROPOSAL_EVENT"]' --artifacts '[]' --summary 'actual checks and result'`.
 For a read-only verification with no changes, cite the accepted proposal you actually checked instead of manufacturing a changed snapshot.
 Only then report the attempt completed through Locust. Task reports cite proposal events; they do not integrate files.

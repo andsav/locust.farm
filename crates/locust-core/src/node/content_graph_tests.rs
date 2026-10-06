@@ -342,6 +342,7 @@ fn removed_principal_needs_an_older_path_even_for_an_old_file() {
         Request::GoalJoin {
             agent: current,
             ticket,
+            level: locust_proto::api::Level::Auto,
         },
     );
     rounds(&mut peers);

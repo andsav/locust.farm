@@ -41,6 +41,22 @@ struct State {
     race_observed: bool,
 }
 impl State {
+    fn abilities() -> Abilities {
+        Abilities {
+            goal: GOAL,
+            agent: KEY,
+            name: "worker".into(),
+            membership: Some(Membership::Member),
+            level: Level::Auto,
+            host: Some(KEY),
+            hosted_here: true,
+            roles: vec![],
+            rules: vec![],
+            allowed_tasks: vec![],
+            wanted_tasks: vec![],
+            claims: vec![],
+        }
+    }
     fn answer(&mut self, request: Request) -> Result<Response, ApiError> {
         self.requests.push(request.clone());
         match request {
@@ -59,6 +75,7 @@ impl State {
                     member: KEY,
                     membership: Membership::Member,
                     halted: None,
+                    abilities: Self::abilities(),
                 }],
             })),
             Request::Session { instance } => {

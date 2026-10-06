@@ -214,7 +214,7 @@ impl Engine for MinimalEngine {
 
 #[cfg(test)]
 mod tests {
-    use locust_proto::api::{Credential, GoalGrants};
+    use locust_proto::api::{Credential, Level};
 
     use super::*;
 
@@ -380,10 +380,10 @@ mod tests {
                 seen: 0,
                 timeout_ms: 1000,
             },
-            Request::GoalGrant {
+            Request::LevelSet {
                 goal,
                 agent: PublicKey([2; 32]),
-                grants: GoalGrants::default(),
+                level: Level::Read,
             },
         ] {
             let name = request.name();

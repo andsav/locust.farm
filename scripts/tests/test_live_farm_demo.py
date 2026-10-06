@@ -265,7 +265,7 @@ class LiveDemoTests(unittest.TestCase):
                     stdout.write(json.dumps({"ok":True,"result":{"exit_code":0}}))
                     stdout.flush()
                     return Mock(pid=123, wait=Mock(return_value=0))
-                replies = [{}, {"claimed":claim}, {"workspace_proposals":[{"proposal":"proposal","result_manifest":"manifest"}]}]
+                replies = [{"claimed":claim}, {"workspace_proposals":[{"proposal":"proposal","result_manifest":"manifest"}]}]
                 with patch.object(demo,"start"), patch.object(demo,"task",return_value={"task":"task"}), \
                         patch.object(demo,"call",side_effect=replies), patch.object(demo,"contributions",return_value=[report]), \
                         patch.object(runner.subprocess,"check_output",return_value="fixture-version"), \

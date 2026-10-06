@@ -377,7 +377,6 @@ fn wait(timeout_ms: u32) -> Request {
 fn note(goal: GoalId, text: &str) -> Request {
     Request::ContributionPublish {
         goal,
-        task: None,
         attempt: None,
         generation: None,
         sources: Vec::new(),

@@ -1,6 +1,6 @@
-//! Goals and membership: founding, status, grants and the workspace binding.
+//! Goals and membership: founding, status, levels and the workspace binding.
 
-use locust_proto::api::{ApiError, ErrorCode, GoalGrants, GoalStatus, MemberView, Response};
+use locust_proto::api::{ApiError, ErrorCode, GoalStatus, Level, MemberView, Response};
 use locust_proto::crypto::ContentKey;
 use locust_proto::engine::Entropy;
 use locust_proto::event::{Body, DefinitionRef, Genesis, RulesBinding};
@@ -117,7 +117,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
         )?;
         tx.local(key_write(&goal, 0, &key))
             .local(local::title_write(&goal, &title))
-            .local(local::part_write(&goal, &creator, false));
+            .local(local::part_write(&goal, &creator, false))
+            .local(local::level_write(&goal, &creator, &Level::Auto));
         Ok(Planned {
             response: Response::GoalCreated { goal },
             tx,
@@ -218,10 +219,22 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .collect(),
             halted: entry.halted(),
             workspace: Some(self.workspace_view(entry, actor)?),
-            grants: actor
-                .principal
-                .map(|principal| entry.local.grants(&principal))
-                .unwrap_or_default(),
+            abilities: actor.principal.map_or_else(
+                || {
+                    entry
+                        .local
+                        .part
+                        .keys()
+                        .chain(entry.local.joins.keys())
+                        .copied()
+                        .collect::<std::collections::BTreeSet<_>>()
+                        .into_iter()
+                        .map(|agent| self.abilities(entry, agent))
+                        .collect()
+                },
+                |agent| vec![self.abilities(entry, agent)],
+            ),
+            stalled: self.stalled(entry),
             peers: state
                 .members
                 .values()
@@ -233,28 +246,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .map(|endpoint| self.peer_view(endpoint))
                 .collect(),
         }))
-    }
-
-    /// `goal.grant`: the owner replaces one local principal's standing
-    /// grants in a goal.
-    pub(super) fn goal_grant(
-        &self,
-        actor: &Actor,
-        goal: GoalId,
-        agent: PublicKey,
-        grants: GoalGrants,
-    ) -> Plan {
-        self.readable(actor, &goal)?;
-        if self.principals.get(&agent).is_none() {
-            return Err(not_found("no enrolled principal has that key"));
-        }
-        let mut tx = Tx::none();
-        tx.local(local::grants_write(&goal, &agent, &grants))
-            .touch(goal);
-        Ok(Planned {
-            response: Response::Done,
-            tx,
-        })
     }
 }
 
@@ -284,7 +275,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
             now,
             &mut tx,
         )?;
-        tx.local(local::part_write(&goal, &principal, true));
+        tx.local(local::part_write(&goal, &principal, true))
+            .local(local::level_delete(&goal, &principal));
+        for (task, agent) in entry.local.allowances.keys() {
+            if *agent == principal {
+                tx.local(local::allowance_delete(&goal, task, agent));
+            }
+        }
         super::tasks::recorded(event, tx)
     }
 

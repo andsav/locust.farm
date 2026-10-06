@@ -19,7 +19,8 @@ pub fn exit_status(code: ErrorCode) -> u8 {
     match code {
         ErrorCode::Internal => 1,
         ErrorCode::Denied => 3,
-        ErrorCode::AuthorizationRequired => 4,
+        ErrorCode::LevelRequired => 4,
+        ErrorCode::NotEligible => 13,
         ErrorCode::NotFound => 5,
         ErrorCode::Invalid => 6,
         ErrorCode::Conflict
@@ -122,7 +123,8 @@ mod tests {
         let table = [
             (ErrorCode::Internal, 1),
             (ErrorCode::Denied, 3),
-            (ErrorCode::AuthorizationRequired, 4),
+            (ErrorCode::LevelRequired, 4),
+            (ErrorCode::NotEligible, 13),
             (ErrorCode::NotFound, 5),
             (ErrorCode::Invalid, 6),
             (ErrorCode::Conflict, 7),

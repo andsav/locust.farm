@@ -121,11 +121,6 @@ def data_fingerprint(root):
 
 
 class InstallationCheck:
-    def contribution_grant(self, goal, principal):
-        self.cli(["goal", "grant", "--goal", goal, "--agent", principal, "--grants",
-            json.dumps({"contribute": True, "execute": False, "review": False,
-                "select": False, "flow": False, "takeover": False})], installed=True, owner=True)
-
     def __init__(self, bootstrap, bundle, output, timeout=60, sample_interval=1, samples=3, baseline_bundle=None):
         self.input_bootstrap, self.input_bundle = Path(bootstrap), Path(bundle)
         self.input_baseline = Path(baseline_bundle) if baseline_bundle is not None else None
@@ -518,7 +513,6 @@ class InstallationCheck:
             self.start_daemon()
             principal = variant(self.cli(["agent", "enroll", "qualification"], installed=True, owner=True), "agent_enrolled")["agent"]
             goal = variant(self.cli(["--agent", "qualification", "goal", "create", "--title", "Cross-commit upgrade"], installed=True, owner=True), "goal_created")["goal"]
-            self.contribution_grant(goal, principal)
             note = variant(self.cli(["contribution", "publish", "--goal", goal, "created by baseline release"], installed=True, agent=True), "recorded")["event"]
             before = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]
             self.stop_daemon()
@@ -647,7 +641,6 @@ class InstallationCheck:
         idle = self.sample_idle()
         principal = variant(self.cli(["agent", "enroll", "qualification"], installed=True, owner=True), "agent_enrolled")["agent"]
         goal = variant(self.cli(["--agent", "qualification", "goal", "create", "--title", "Installed synthetic goal"], installed=True, owner=True), "goal_created")["goal"]
-        self.contribution_grant(goal, principal)
         note = variant(self.cli(["contribution", "publish", "--goal", goal, "persist across installed daemon restart"], installed=True, agent=True), "recorded")["event"]
         endpoint = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]
         self.stop_daemon()

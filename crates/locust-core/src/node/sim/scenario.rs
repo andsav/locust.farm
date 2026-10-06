@@ -56,7 +56,7 @@ fn identity(r: &mut Run, m: usize) -> Result<(), Fail> {
 pub fn finding(r: &mut Run, m: usize, text: &str) -> Result<EventId, Fail> {
     let request = Request::ContributionPublish {
         goal: r.goal(),
-        task: None,
+
         attempt: None,
         generation: None,
         summary: text.into(),
@@ -122,6 +122,7 @@ pub fn join(r: &mut Run, m: usize, expect: usize) -> Result<(), Fail> {
         Request::GoalJoin {
             agent: r.principals[m],
             ticket,
+            level: locust_proto::api::Level::Auto,
         },
     )? {
         Response::Joined {
@@ -134,7 +135,7 @@ pub fn join(r: &mut Run, m: usize, expect: usize) -> Result<(), Fail> {
     r.wait("every member to list every principal and the title", |r| {
         (0..expect).all(|m| r.members(m) == Some(expect))
     })?;
-    grant(r, m)
+    set_ask(r, m)
 }
 
 fn task_state(r: &mut Run, m: usize) -> Option<(bool, Vec<EventId>, Option<EventId>)> {
@@ -144,21 +145,14 @@ fn task_state(r: &mut Run, m: usize) -> Option<(bool, Vec<EventId>, Option<Event
     Some((view.completed, view.attempts.clone(), view.selected))
 }
 
-fn grant(r: &mut Run, m: usize) -> Result<(), Fail> {
+fn set_ask(r: &mut Run, m: usize) -> Result<(), Fail> {
     r.op(
         m,
         Who::Owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal: r.goal(),
             agent: r.principals[m],
-            grants: locust_proto::api::GoalGrants {
-                contribute: true,
-                execute: false,
-                review: true,
-                select: true,
-                flow: true,
-                takeover: true,
-            },
+            level: locust_proto::api::Level::Ask,
         },
     )?;
     Ok(())
@@ -192,17 +186,16 @@ fn task(r: &mut Run) -> Result<(), Fail> {
     r.step = "authorize and start";
     r.wait("m2 to show the offered work", |r| {
         matches!(r.read(M2, Request::Pending {goal}), Some(Response::Pending(work))
-            if work.to_authorize.iter().any(|item| item.task == task))
+            if work.ask_first.iter().any(|item| item.task == task))
     })?;
     let takeover = r.rng.chance(1, 3);
     r.op(
         M2,
         Who::Owner,
-        Request::TaskAuthorize {
+        Request::TaskAllow {
             goal,
             task,
             agent: r.principals[M2],
-            takeover,
         },
     )?;
     let claim = Request::AttemptStart {
@@ -256,13 +249,13 @@ fn task(r: &mut Run) -> Result<(), Fail> {
         }
         // The fenced session's write and its claim are refused, and leave
         // nothing behind (checked on every error by `World::call`).
-        let stale = submit(goal, task, attempt, generation, artifacts.clone());
+        let stale = submit(goal, attempt, generation, artifacts.clone());
         match r.ask(M2, Who::Session(0), stale)? {
             Err(error) if error.code == ErrorCode::Superseded => {}
             other => return r.fail(format!("a fenced submit answered {other:?}")),
         }
         match r.ask(M2, Who::Session(0), claim)? {
-            Err(error) if matches!(error.code, ErrorCode::ClaimHeld | ErrorCode::Denied) => {}
+            Err(error) if matches!(error.code, ErrorCode::ClaimHeld | ErrorCode::Conflict) => {}
             other => return r.fail(format!("a fenced claim answered {other:?}")),
         }
         holder = 1;
@@ -270,7 +263,7 @@ fn task(r: &mut Run) -> Result<(), Fail> {
     }
 
     r.step = "submit";
-    let request = submit(goal, task, attempt, generation, artifacts);
+    let request = submit(goal, attempt, generation, artifacts);
     let result = r.record(M2, Who::Session(holder), "result", request)?;
     r.result = Some(result);
     r.generation = Some(generation);
@@ -323,16 +316,9 @@ fn task(r: &mut Run) -> Result<(), Fail> {
     )
 }
 
-fn submit(
-    goal: GoalId,
-    task: TaskId,
-    attempt: EventId,
-    generation: u32,
-    artifacts: Vec<BlobHash>,
-) -> Request {
+fn submit(goal: GoalId, attempt: EventId, generation: u32, artifacts: Vec<BlobHash>) -> Request {
     Request::ContributionPublish {
         goal,
-        task: Some(task),
         attempt: Some(attempt),
         generation: Some(generation),
         summary: RESULT_TEXT.into(),
@@ -363,7 +349,7 @@ pub fn create(r: &mut Run) -> Result<(), Fail> {
         return r.fail("create: unexpected answer");
     };
     r.goal = Some(goal);
-    grant(r, M1)
+    set_ask(r, M1)
 }
 
 /// The whole guide. Faults, when enabled, land between and during steps.

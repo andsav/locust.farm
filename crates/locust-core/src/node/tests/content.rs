@@ -276,7 +276,6 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
         agent,
         Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             summary: text.clone(),
@@ -409,6 +408,7 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
         Request::GoalJoin {
             agent: principal,
             ticket,
+            level: locust_proto::api::Level::Auto,
         },
     ) else {
         panic!()
@@ -448,6 +448,7 @@ fn pending_join_cannot_relabel_the_host() {
         Request::GoalJoin {
             agent: joiner,
             ticket: ticket.clone(),
+            level: locust_proto::api::Level::Auto,
         },
     );
     let mut altered = Invitation::from_ticket(ticket.as_str()).unwrap();
@@ -460,6 +461,7 @@ fn pending_join_cannot_relabel_the_host() {
             Request::GoalJoin {
                 agent: joiner,
                 ticket: altered.to_ticket().unwrap(),
+                level: locust_proto::api::Level::Auto,
             }
         )),
         ErrorCode::Conflict
@@ -469,13 +471,15 @@ fn pending_join_cannot_relabel_the_host() {
             actor,
             Request::GoalJoin {
                 agent: joiner,
-                ticket
+                ticket,
+                level: locust_proto::api::Level::Auto,
             }
         ),
         Response::Joined {
             goal,
             governance,
             membership: Membership::Joining,
+            level: locust_proto::api::Level::Auto,
         }
     );
 }
@@ -760,13 +764,40 @@ fn selected_contribution_stays_readable_in_its_scope_after_author_fork() {
             parent: None,
         },
     )));
+    let member_conn = daemon.connect(credential(2), Some(session(2)));
+    let owner = daemon.owner();
+    daemon.ok(
+        owner,
+        Request::TaskAllow {
+            goal,
+            agent: member,
+            task,
+        },
+    );
+    let offer = super::lifecycle::event(daemon.ok(
+        agent,
+        Request::WorkOffer {
+            goal,
+            task,
+            recipient: member,
+        },
+    ));
+    let Response::Claimed(claim) = daemon.ok(
+        member_conn,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
     let subject = super::lifecycle::event(daemon.ok(
         member_conn,
         Request::ContributionPublish {
             goal,
-            task: Some(task),
-            attempt: None,
-            generation: None,
+            attempt: Some(claim.attempt),
+            generation: Some(claim.generation),
             summary: "retained exact result".into(),
             sources: Vec::new(),
             artifacts: vec![],

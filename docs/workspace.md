@@ -25,7 +25,7 @@ authorship alone does not make a person an author of a new proposal.
 
 The [goal evaluator](../crates/locust-core/src/goal/workspace.rs) implements replay
 and authority. The [signed request handlers](../crates/locust-core/src/node/requests/workspace.rs)
-enforce local grants, identity, expected epoch/head and exact revision/manifest
+enforce the local level, identity, expected epoch/head and exact revision/manifest
 pairs. The [protocol types](../crates/locust-proto/src/event.rs) define the signed
 contract. Generic task contributions retain text and opaque artifacts; they do
 not carry serialized workspace patches.

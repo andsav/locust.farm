@@ -1,9 +1,9 @@
 //! Binary CLI contracts exercised against a typed local Unix server.
 use locust_proto::API_VERSION;
 use locust_proto::api::{
-    AgentView, ApiError, Caller, ClientHello, Credential, DaemonStatus, ErrorCode, GoalSummary,
-    Membership, Request, RequestFrame, Response, ResponseFrame, ServerHello, SessionSecret,
-    WaitOutcome,
+    Abilities, AgentView, ApiError, Caller, ClientHello, Credential, DaemonStatus, ErrorCode,
+    GoalSummary, Level, Membership, Request, RequestFrame, Response, ResponseFrame, ServerHello,
+    SessionSecret, WaitOutcome,
 };
 use locust_proto::codec;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
@@ -84,6 +84,22 @@ fn status(goals: Vec<GoalSummary>) -> Response {
         goals,
     })
 }
+fn abilities(goal: GoalId, agent: PublicKey) -> Abilities {
+    Abilities {
+        goal,
+        agent,
+        name: agent.to_string(),
+        membership: Some(Membership::Member),
+        level: Level::Auto,
+        host: Some(agent),
+        hosted_here: true,
+        roles: vec![],
+        rules: vec![],
+        allowed_tasks: vec![],
+        wanted_tasks: vec![],
+        claims: vec![],
+    }
+}
 fn status_agents(agents: Vec<AgentView>) -> Response {
     Response::Status(DaemonStatus {
         daemon_version: "stub".into(),
@@ -91,6 +107,297 @@ fn status_agents(agents: Vec<AgentView>) -> Response {
         agents,
         goals: vec![],
     })
+}
+
+fn task_fixture(
+    agent: PublicKey,
+    task: locust_proto::event::TaskId,
+) -> locust_proto::api::TaskDetail {
+    use locust_proto::event::{Context, Scope};
+    use locust_proto::id::EventId;
+    let round = match task {
+        locust_proto::event::TaskId::Authored(id) => id,
+        _ => EventId([0; 32]),
+    };
+    locust_proto::api::TaskDetail {
+        view: locust_proto::api::TaskView {
+            task,
+            context: Context {
+                scope: Scope::Task(task),
+                round,
+            },
+            creator: agent,
+            title: Some("Task title".into()),
+            attempts: vec![],
+            contributions: vec![],
+            completed: false,
+            selected: None,
+            closed: false,
+        },
+        text: None,
+        inputs: Default::default(),
+        parent: None,
+        task_type: None,
+        effective_rules_json: "{}".into(),
+    }
+}
+
+#[test]
+fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
+    use locust_proto::api::{GoalStatus, MemberView};
+    use locust_proto::event::TaskId;
+    use locust_proto::id::{EndpointId, EventId};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([0xab; 32]);
+    let agent = PublicKey([2; 32]);
+    let task = TaskId::Authored(EventId([0xcd; 32]));
+    let detail = task_fixture(agent, task);
+    let closed = Arc::new(AtomicBool::new(false));
+    let closed_on_server = Arc::clone(&closed);
+    let mut level = Level::Read;
+    let mut allowed = false;
+    let handle = server(home.path(), 11, move |frame| {
+        // One typed connection is opened per command; the closure retains the local record.
+        let current = |level, allowed| {
+            let mut a = abilities(goal, agent);
+            a.name = "worker".into();
+            a.level = level;
+            if allowed && !closed_on_server.load(Ordering::SeqCst) {
+                a.allowed_tasks.push(task);
+            }
+            a
+        };
+        match frame.request {
+            Request::Status => Ok(Response::Status(DaemonStatus {
+                daemon_version: "stub".into(),
+                endpoint: None,
+                agents: vec![AgentView {
+                    agent,
+                    name: "worker".into(),
+                    author_only: false,
+                    revoked: false,
+                }],
+                goals: vec![GoalSummary {
+                    goal,
+                    title: Some("Goal title".into()),
+                    member: agent,
+                    membership: Membership::Member,
+                    halted: None,
+                    abilities: current(level, allowed),
+                }],
+            })),
+            Request::GoalStatus { goal: selected } => {
+                assert_eq!(selected, goal);
+                Ok(Response::GoalStatus(GoalStatus {
+                    goal,
+                    title: Some("Goal title".into()),
+                    host: agent,
+                    governance_head: None,
+                    current_rules: None,
+                    scope_halts: vec![],
+                    members: vec![MemberView {
+                        member: agent,
+                        endpoint: EndpointId([3; 32]),
+                        local: true,
+                    }],
+                    halted: None,
+                    workspace: None,
+                    abilities: vec![current(level, allowed)],
+                    stalled: vec![],
+                    peers: vec![],
+                }))
+            }
+            Request::Board { goal: selected } => {
+                assert_eq!(selected, goal);
+                Ok(Response::Board(vec![detail.view.clone()]))
+            }
+            Request::Task {
+                goal: selected,
+                task: selected_task,
+            } => {
+                assert_eq!((selected, selected_task), (goal, task));
+                let mut detail = detail.clone();
+                detail.view.closed = closed_on_server.load(Ordering::SeqCst);
+                Ok(Response::Task(detail))
+            }
+            Request::LevelSet {
+                goal: selected,
+                agent: selected_agent,
+                level: new_level,
+            } => {
+                assert_eq!((selected, selected_agent), (goal, agent));
+                level = new_level;
+                Ok(Response::Abilities(current(level, allowed)))
+            }
+            Request::TaskAllow {
+                goal: selected,
+                agent: selected_agent,
+                task: selected_task,
+            } => {
+                assert_eq!(
+                    (selected, selected_agent, selected_task),
+                    (goal, agent, task)
+                );
+                allowed = true;
+                Ok(Response::Abilities(current(level, allowed)))
+            }
+            Request::TaskDisallow {
+                goal: selected,
+                agent: selected_agent,
+                task: selected_task,
+            } => {
+                assert_eq!(
+                    (selected, selected_agent, selected_task),
+                    (goal, agent, task)
+                );
+                let changed = allowed;
+                allowed = false;
+                Ok(Response::TaskDisallowed {
+                    abilities: current(level, allowed),
+                    changed,
+                    was_allowed: changed,
+                })
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+    });
+    let run = |parts: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_locust"))
+            .arg("--home")
+            .arg(home.path())
+            .args(parts)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let run_undo = |printed: &str| {
+        let line = printed
+            .lines()
+            .find_map(|line| line.strip_prefix("Undo: "))
+            .expect("undo line");
+        assert!(line.contains("--agent worker"));
+        assert!(line.contains("--goal abababab"));
+        let binary_dir = std::path::Path::new(env!("CARGO_BIN_EXE_locust"))
+            .parent()
+            .unwrap();
+        let path = format!(
+            "{}:{}",
+            binary_dir.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(line)
+            .env("PATH", path)
+            .env("LOCUST_HOME", home.path())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    };
+    let changed = run(&["--owner", "level", "--goal", &goal.to_string(), "auto"]);
+    assert!(changed.contains("worker in \"Goal title\": auto."));
+    run_undo(&changed);
+    let unchanged = run(&["--owner", "level", "--goal", &goal.to_string(), "read"]);
+    assert!(!unchanged.contains("Undo:"));
+    let changed = run(&[
+        "--owner",
+        "allow",
+        "--goal",
+        &goal.to_string(),
+        "--task",
+        &task.to_string(),
+    ]);
+    assert!(
+        changed.contains(
+            "worker may take \"Task title\" in \"Goal title\" until the host revises it."
+        )
+    );
+    assert!(changed.contains("--task task:cdcdcdcd --revoke"));
+    run_undo(&changed);
+    let unchanged = run(&[
+        "--owner",
+        "allow",
+        "--revoke",
+        "--goal",
+        &goal.to_string(),
+        "--task",
+        &task.to_string(),
+    ]);
+    assert!(!unchanged.contains("Undo:"));
+    run(&[
+        "--owner",
+        "allow",
+        "--goal",
+        &goal.to_string(),
+        "--task",
+        &task.to_string(),
+    ]);
+    closed.store(true, Ordering::SeqCst);
+    let revoked = cli(home.path())
+        .args([
+            "--owner",
+            "allow",
+            "--revoke",
+            "--goal",
+            &goal.to_string(),
+            "--task",
+            &task.to_string(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        envelope(&revoked, 0)["result"]["changed"],
+        true,
+        "a hidden stored allowance must still be revoked"
+    );
+    closed.store(false, Ordering::SeqCst);
+    let unchanged = run(&[
+        "--owner",
+        "allow",
+        "--revoke",
+        "--goal",
+        &goal.to_string(),
+        "--task",
+        &task.to_string(),
+    ]);
+    assert!(!unchanged.contains("Undo:"));
+    run(&[
+        "--owner",
+        "allow",
+        "--goal",
+        &goal.to_string(),
+        "--task",
+        &task.to_string(),
+    ]);
+    closed.store(true, Ordering::SeqCst);
+    let hidden_revocation = run(&[
+        "--owner",
+        "allow",
+        "--revoke",
+        "--goal",
+        &goal.to_string(),
+        "--task",
+        &task.to_string(),
+    ]);
+    assert!(
+        !hidden_revocation.contains("Undo:"),
+        "restoring allow while closed would be refused"
+    );
+    handle.join().unwrap();
 }
 fn server(
     home: &std::path::Path,
@@ -392,7 +699,6 @@ fn stdin_text_and_idempotency_are_forwarded_without_changing_text() {
             frame.request,
             Request::ContributionPublish {
                 goal,
-                task: None,
                 attempt: None,
                 generation: None,
                 summary: "first\nsecond\n".into(),
@@ -442,6 +748,7 @@ fn goal_prefixes_are_resolved_uniquely_and_duplicate_memberships_are_one_goal() 
         member: PublicKey([2; 32]),
         membership: Membership::Member,
         halted: None,
+        abilities: abilities(goal, PublicKey([2; 32])),
     };
     let handle = server(home.path(), 1, move |frame| match frame.request {
         Request::Status => Ok(status(vec![summary.clone(), summary.clone()])),
@@ -475,6 +782,7 @@ fn ambiguous_goal_prefix_is_invalid_and_does_not_send_the_operation() {
                     member: PublicKey([2; 32]),
                     membership: Membership::Member,
                     halted: None,
+                    abilities: abilities(goal, PublicKey([2; 32])),
                 })
                 .collect(),
         ))
@@ -665,11 +973,14 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
     let handle = server(home.path(), 2, move |frame| {
         if let Request::GoalStatus { goal: selected } = frame.request {
             assert_eq!(selected, goal);
-            return Ok(Response::GoalStatus(serde_json::from_value(json!({
-                "goal":goal,"title":"Demo","host":PublicKey([2;32]),
-                "governance_head":null,"current_rules":null,"scope_halts":[],
-                "members":[],"halted":null,"grants":locust_proto::api::GoalGrants::default(),"peers":[]
-            })).unwrap()));
+            return Ok(Response::GoalStatus(
+                serde_json::from_value(json!({
+                    "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                    "governance_head":null,"current_rules":null,"scope_halts":[],
+                    "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
+                }))
+                .unwrap(),
+            ));
         }
         if matches!(frame.request, Request::GoalInvitations { .. }) {
             return Ok(Response::Invitations {
@@ -756,7 +1067,7 @@ fn changed_goal_title_refuses_an_invitation_confirm_without_issuing_a_ticket() {
                     "goal":goal,"title":if reads < 3 {"Demo"} else {"Renamed"},
                     "host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
                     "scope_halts":[],"members":[],"halted":null,
-                    "grants":locust_proto::api::GoalGrants::default(),"peers":[]
+                    "abilities":[],"stalled":[],"peers":[]
                 }))
                 .unwrap(),
             ))
@@ -854,7 +1165,7 @@ fn member_selector_resolves_local_name_and_visible_key_prefix() {
                     "goal":goal,"title":"Demo","host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[{"member":worker,"endpoint":EndpointId([3;32]),"local":true}],
-                    "halted":null,"grants":locust_proto::api::GoalGrants::default(),"peers":[]
+                    "halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
                 .unwrap(),
             ))
@@ -902,11 +1213,14 @@ fn subtask_revision_plan_names_parent_rules() {
     let handle = server(home.path(), 1, move |frame| match frame.request {
         Request::GoalStatus { goal: selected } => {
             assert_eq!(selected, goal);
-            Ok(Response::GoalStatus(serde_json::from_value(json!({
-                "goal":goal,"title":"Demo","host":PublicKey([2;32]),
-                "governance_head":null,"current_rules":null,"scope_halts":[],
-                "members":[],"halted":null,"grants":locust_proto::api::GoalGrants::default(),"peers":[]
-            })).unwrap()))
+            Ok(Response::GoalStatus(
+                serde_json::from_value(json!({
+                    "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                    "governance_head":null,"current_rules":null,"scope_halts":[],
+                    "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
+                }))
+                .unwrap(),
+            ))
         }
         Request::Task {
             goal: selected,
@@ -1001,11 +1315,14 @@ fn invitation_revoke_all_runs_immediately_and_reports_count() {
     let handle = server(home.path(), 1, move |frame| match frame.request {
         Request::GoalStatus { goal: selected } => {
             assert_eq!(selected, goal);
-            Ok(Response::GoalStatus(serde_json::from_value(json!({
-                "goal":goal,"title":"Demo","host":PublicKey([2;32]),
-                "governance_head":null,"current_rules":null,"scope_halts":[],
-                "members":[],"halted":null,"grants":locust_proto::api::GoalGrants::default(),"peers":[]
-            })).unwrap()))
+            Ok(Response::GoalStatus(
+                serde_json::from_value(json!({
+                    "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                    "governance_head":null,"current_rules":null,"scope_halts":[],
+                    "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
+                }))
+                .unwrap(),
+            ))
         }
         Request::GoalInvitations { goal: selected } => {
             assert_eq!(selected, goal);
@@ -1048,12 +1365,9 @@ fn generic_call_and_wait_use_stable_error_and_timeout_statuses() {
             "claim_held",
         ),
         (
-            Err(ApiError::new(
-                ErrorCode::AuthorizationRequired,
-                "grant needed",
-            )),
+            Err(ApiError::new(ErrorCode::LevelRequired, "level needed")),
             4,
-            "authorization_required",
+            "level_required",
         ),
         (Ok(Response::Waited(WaitOutcome::NoEvent)), 20, ""),
         (Ok(Response::Waited(WaitOutcome::Disconnected)), 21, ""),
@@ -1380,13 +1694,15 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
             frame.request,
             Request::GoalJoin {
                 agent: PublicKey([2; 32]),
-                ticket: expected.clone()
+                ticket: expected.clone(),
+                level: locust_proto::api::Level::Auto,
             }
         );
         Ok(Response::Joined {
             goal: invitation.goal,
             governance: invitation.governance,
             membership: Membership::Joining,
+            level: locust_proto::api::Level::Auto,
         })
     });
     let run = |extra: &[&str]| {
@@ -1432,6 +1748,7 @@ fn human_status_names_membership_and_halt_with_stable_tags() {
                 title: Some("a goal".into()),
                 membership: Membership::Refused,
                 halted: Some(locust_proto::api::Halt::AuthorityConflict),
+                abilities: abilities(GoalId([3; 32]), PublicKey([4; 32])),
             },
             GoalSummary {
                 goal: GoalId([5; 32]),
@@ -1439,6 +1756,7 @@ fn human_status_names_membership_and_halt_with_stable_tags() {
                 title: None,
                 membership: Membership::Joining,
                 halted: None,
+                abilities: abilities(GoalId([5; 32]), PublicKey([4; 32])),
             },
         ]))
     });
@@ -1647,6 +1965,7 @@ fn human_goal_and_task_titles_resolve_to_exact_authorized_write() {
             member: agent,
             membership: Membership::Member,
             halted: None,
+            abilities: abilities(goal, agent),
         }])),
         Request::Board { goal: g } => {
             assert_eq!(g, goal);
@@ -1712,6 +2031,7 @@ fn duplicate_goal_titles_refuse_writes_instead_of_guessing() {
                     member: PublicKey([3; 32]),
                     membership: Membership::Member,
                     halted: None,
+                    abilities: abilities(GoalId([n; 32]), PublicKey([3; 32])),
                 })
                 .collect(),
         ))
@@ -1774,6 +2094,7 @@ fn review_subject_prefix_checks_later_feed_pages_before_writing() {
                             kind: "contribution_published".into(),
                             at_ms: 0,
                             standing: Standing::Effective,
+                            by_owner: false,
                         })
                         .collect(),
                 ))

@@ -138,23 +138,6 @@ impl Harness {
         };
         goal
     }
-    fn grant(&mut self, goal: GoalId, flow: bool) {
-        self.ok(
-            self.owner,
-            Request::GoalGrant {
-                goal,
-                agent: self.principal,
-                grants: GoalGrants {
-                    contribute: true,
-                    execute: true,
-                    review: true,
-                    select: true,
-                    flow,
-                    takeover: true,
-                },
-            },
-        );
-    }
     fn task(&mut self, goal: GoalId) -> TaskId {
         TaskId::Authored(recorded(self.ok(
             self.agent,
@@ -168,13 +151,25 @@ impl Harness {
         )))
     }
     fn publish(&mut self, goal: GoalId, task: Option<TaskId>) -> EventId {
+        let claim = task.map(|task| {
+            let Response::Claimed(claim) = self.ok(
+                self.agent,
+                Request::AttemptStart {
+                    goal,
+                    task,
+                    offer: None,
+                },
+            ) else {
+                panic!()
+            };
+            claim
+        });
         recorded(self.ok(
             self.agent,
             Request::ContributionPublish {
                 goal,
-                task,
-                attempt: None,
-                generation: None,
+                attempt: claim.map(|claim| claim.attempt),
+                generation: claim.map(|claim| claim.generation),
                 summary: "Evidence".into(),
                 sources: Vec::new(),
                 artifacts: vec![],
@@ -211,7 +206,6 @@ fn recorded(response: Response) -> EventId {
 fn open_findings_need_no_task_and_completion_does_not_create_a_selection() {
     let mut h = Harness::new();
     let goal = h.goal("open");
-    h.grant(goal, false);
     let finding = h.publish(goal, None);
     h.ok(
         h.agent,
@@ -240,11 +234,7 @@ fn open_findings_need_no_task_and_completion_does_not_create_a_selection() {
         )
         .unwrap_err()
         .code,
-        ErrorCode::Conflict
-    );
-    assert_eq!(
-        h.ok(h.agent, Request::Board { goal }),
-        Response::Board(vec![])
+        ErrorCode::NotEligible
     );
     h.restart();
     assert_eq!(
@@ -257,7 +247,6 @@ fn open_findings_need_no_task_and_completion_does_not_create_a_selection() {
 fn independent_attempts_and_local_aba_takeover_remain_distinct() {
     let mut h = Harness::new();
     let goal = h.goal("open");
-    h.grant(goal, false);
     let task = h.task(goal);
     let Response::Claimed(a) = h.ok(
         h.agent,
@@ -329,7 +318,6 @@ fn independent_attempts_and_local_aba_takeover_remain_distinct() {
         h.agent,
         Request::ContributionPublish {
             goal,
-            task: Some(task),
             attempt: Some(a.attempt),
             generation: Some(3),
             summary: "Finished independent work; awaiting declaration".into(),
@@ -355,18 +343,13 @@ fn independent_attempts_and_local_aba_takeover_remain_distinct() {
 }
 
 #[test]
-fn pipeline_materializes_on_grant_and_completion_without_agent_polling() {
+fn pipeline_materializes_without_any_setting() {
     let mut h = Harness::new();
     // One member drives both stages alone, so the draft uses the default rules.
     let mut formation = preset_formation("pipeline");
     formation.flow.get_mut("draft").unwrap().task_type = None;
     formation.task_types.clear();
     let goal = h.goal_from(formation);
-    assert_eq!(
-        h.ok(h.agent, Request::Board { goal }),
-        Response::Board(vec![])
-    );
-    h.grant(goal, true);
     let Response::Board(board) = h.ok(h.agent, Request::Board { goal }) else {
         panic!()
     };
@@ -412,7 +395,6 @@ fn pipeline_materializes_on_grant_and_completion_without_agent_polling() {
 fn scoped_selection_requires_completed_exact_contribution_and_cas() {
     let mut h = Harness::new();
     let goal = h.goal("independent-attempts");
-    h.grant(goal, false);
     let task = h.task(goal);
     let first = h.publish(goal, Some(task));
     let second = h.publish(goal, Some(task));
@@ -570,7 +552,6 @@ fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
     ) else {
         panic!()
     };
-    h.grant(goal, false);
     let task = h.task(goal);
     let closed = recorded(h.ok(
         h.agent,
@@ -591,7 +572,7 @@ fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
         )
         .unwrap_err()
         .code,
-        ErrorCode::Denied
+        ErrorCode::Conflict
     );
     let reopened = recorded(h.ok(
         h.agent,
@@ -634,7 +615,6 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
     use locust_proto::event::Body;
     let mut h = Harness::new();
     let goal = h.goal("open");
-    h.grant(goal, false);
     let parent = h.task(goal);
     let old_rules = h
         .store

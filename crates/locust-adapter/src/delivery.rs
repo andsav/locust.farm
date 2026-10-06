@@ -418,6 +418,8 @@ mod tests {
             pending.to_start.push(locust_proto::api::WorkItem {
                 task: locust_proto::event::TaskId::Authored(EventId([8; 32])),
                 offer: Some(EventId([9; 32])),
+                attempting: Vec::new(),
+                results: 0,
             });
         }
         let large = prepare(binding, &session, pending, None).unwrap();

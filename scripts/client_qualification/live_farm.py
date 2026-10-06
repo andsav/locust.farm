@@ -65,7 +65,7 @@ def report_session(daemon, role, state, summary):
     if state == "started" and hasattr(daemon, "public_farm"):
         # Consent freezes the reported harness. Refresh only after observing
         # this actual client, preserving the owner's exact public labels.
-        _call(daemon, ["farm", "consent", "--goal", daemon.goal, "--agent", role["principal"],
+        _call(daemon, ["--agent", role["principal"], "farm", "consent", "--goal", daemon.goal,
             "--accept", "--name", daemon.public_farm["labels"][role["principal"]],
             "--group-label", "One local Mac"], owner=True)
     return result

@@ -107,7 +107,8 @@ class ProductionTests(unittest.TestCase):
                 self.assertIn("Persistent private qualification note", json.dumps(notes))
                 status = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
                 self.assertEqual(status["host"], daemon.principal)
-                self.assertFalse(status["grants"]["execute"])
+                self.assertEqual(next(item["level"] for item in status["abilities"]
+                                      if item["agent"] == daemon.principal), "ask")
                 secrets = daemon._secrets()
             self.assertIsNone(daemon._process)
             evidence = daemon.events.read_text()

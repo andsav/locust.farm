@@ -224,7 +224,11 @@ fn found(peers: &mut [Peer]) -> GoalId {
             panic!("invite");
         };
         let agent = peers[index].principal;
-        peers[index].call(Request::GoalJoin { agent, ticket });
+        peers[index].call(Request::GoalJoin {
+            agent,
+            ticket,
+            level: locust_proto::api::Level::Auto,
+        });
     }
     reconcile(peers, 1000);
     reconcile(peers, 2000);
@@ -321,7 +325,6 @@ fn actual_nodes_join_converge_read_sealed_content_and_reopen() {
     peers[0].online = false;
     peers[1].call(Request::ContributionPublish {
         goal,
-        task: None,
         attempt: None,
         generation: None,
         sources: Vec::new(),
@@ -513,7 +516,6 @@ fn removal_distributes_a_verified_new_epoch_only_to_remaining_members() {
     });
     peers[0].call(Request::ContributionPublish {
         goal,
-        task: None,
         attempt: None,
         generation: None,
         sources: Vec::new(),
@@ -591,6 +593,7 @@ fn refused_join_does_not_poison_another_local_principals_invitation() {
         Request::GoalJoin {
             agent: first,
             ticket: expired,
+            level: locust_proto::api::Level::Auto,
         },
     );
     request(
@@ -599,6 +602,7 @@ fn refused_join_does_not_poison_another_local_principals_invitation() {
         Request::GoalJoin {
             agent: second,
             ticket: valid,
+            level: locust_proto::api::Level::Auto,
         },
     );
     reconcile(&mut peers, 1000);
@@ -668,7 +672,11 @@ fn pending_join_has_exactly_one_status_entry_per_local_principal() {
         panic!("invite");
     };
     let agent = peers[1].principal;
-    peers[1].call(Request::GoalJoin { agent, ticket });
+    peers[1].call(Request::GoalJoin {
+        agent,
+        ticket,
+        level: locust_proto::api::Level::Auto,
+    });
     let Response::Status(status) = peers[1].call(Request::Status) else {
         panic!("status");
     };
@@ -1021,7 +1029,6 @@ fn wanted_cursor_is_sorted_and_updates_after_commits_completion_and_reopen() {
     for n in 0..100 {
         peers[0].call(Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             sources: Vec::new(),
@@ -1151,7 +1158,6 @@ fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
     for index in 0..40 {
         peers[0].call(Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             sources: Vec::new(),
@@ -1176,7 +1182,11 @@ fn joining_fetches_founding_text_and_key_before_bulk_history_content() {
         panic!("invite")
     };
     let agent = peers[1].principal;
-    peers[1].call(Request::GoalJoin { agent, ticket });
+    peers[1].call(Request::GoalJoin {
+        agent,
+        ticket,
+        level: locust_proto::api::Level::Auto,
+    });
     let sent = reconcile_from(&mut peers, 1000, &[1]);
     let requests: Vec<_> = sent
         .iter()
@@ -1211,7 +1221,6 @@ fn an_offline_removed_endpoint_is_refused_after_restart_without_learning_new_his
     });
     peers[0].call(Request::ContributionPublish {
         goal,
-        task: None,
         attempt: None,
         generation: None,
         sources: Vec::new(),
@@ -1300,6 +1309,7 @@ fn same_key_rejoin(sign_during_recovery: bool) {
     peers[1].call(Request::GoalJoin {
         agent,
         ticket: ticket.clone(),
+        level: locust_proto::api::Level::Auto,
     });
     for now in [1000, 35000, 70000] {
         reconcile(&mut peers, now);
@@ -1307,7 +1317,6 @@ fn same_key_rejoin(sign_during_recovery: bool) {
     let publish = |peer: &mut Peer, text: &str| {
         let Response::Recorded { event } = peer.call(Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             sources: vec![],
@@ -1327,7 +1336,11 @@ fn same_key_rejoin(sign_during_recovery: bool) {
     peers[1].restart();
     assert!(!peers[1].node.goals.contains_key(&goal));
     let agent = peers[1].principal;
-    peers[1].call(Request::GoalJoin { agent, ticket });
+    peers[1].call(Request::GoalJoin {
+        agent,
+        ticket,
+        level: locust_proto::api::Level::Auto,
+    });
     assert!(peers[1].node.goals[&goal].goal.next(&principal).is_none());
     if sign_during_recovery {
         // Controlled adapter ordering: governance and founding content are

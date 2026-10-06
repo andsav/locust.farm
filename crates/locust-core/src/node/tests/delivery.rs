@@ -1,6 +1,5 @@
 //! Real Node + Driver delivery across encoded transport frames, with a lost receipt.
 use super::*;
-use locust_proto::api::GoalGrants;
 use locust_proto::engine::{ExchangeId, PeerEngine, PeerInput, PeerOutput, PeerTime};
 use locust_proto::id::{EffectId, EndpointId, GoalId};
 use locust_proto::store::{Space, Store};
@@ -138,7 +137,7 @@ impl Network {
     }
 }
 
-fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
+fn unbound_network() -> (Network, GoalId, PublicKey, PublicKey) {
     let mut net = Network::new();
     let source = net.nodes[0].enroll("source", 1);
     let target = net.nodes[1].enroll("target", 2);
@@ -157,13 +156,10 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
     };
     net.nodes[0].ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: source,
-            grants: GoalGrants {
-                flow,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Read,
         },
     );
     let Response::Invited { ticket } = net.nodes[0].ok(
@@ -181,39 +177,50 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
         Request::GoalJoin {
             agent: target,
             ticket,
+            level: locust_proto::api::Level::Auto,
         },
     );
     net.poll(1);
     assert!(net.nodes[0].node.goals[&goal].is_member(&target));
+    (net, goal, source, target)
+}
+
+pub(super) fn pipeline_request(goal: GoalId, expected: locust_proto::id::EventId) -> Request {
     let mut formation = locust_proto::organization::presets()
         .into_iter()
         .find(|preset| preset.name == "pipeline")
         .unwrap()
         .formation;
     formation.flow.remove("ship");
-    // One member drives the draft alone, so it uses the default rules.
     formation.flow.get_mut("draft").unwrap().task_type = None;
     formation.task_types.clear();
+    Request::RulesBind {
+        goal,
+        expected,
+        formation_json: serde_json::to_string(&formation).unwrap(),
+        roles: BTreeMap::new(),
+        inputs: BTreeMap::new(),
+    }
+}
+
+fn bind_stages(net: &mut Network, goal: GoalId) {
     let expected = net.nodes[0].node.goals[&goal]
         .state()
         .current_rules
         .unwrap();
-    net.nodes[0].ok(
-        owner,
-        Request::RulesBind {
-            goal,
-            expected,
-            formation_json: serde_json::to_string(&formation).unwrap(),
-            roles: BTreeMap::new(),
-            inputs: BTreeMap::new(),
-        },
-    );
+    let owner = net.nodes[0].owner();
+    net.nodes[0].ok(owner, pipeline_request(goal, expected));
+}
+
+fn ready_network() -> (Network, GoalId, PublicKey, PublicKey) {
+    let (mut net, goal, source, target) = unbound_network();
+    bind_stages(&mut net, goal);
     (net, goal, source, target)
 }
 
 #[test]
 fn lost_receipt_and_both_restarts_retry_one_durable_inbox_without_acknowledging_work() {
-    let (mut net, goal, source, target) = ready_network(true);
+    let (mut net, goal, source, target) = ready_network();
     let effect = *net.nodes[0].node.goals[&goal]
         .state()
         .effects
@@ -267,7 +274,7 @@ fn lost_receipt_and_both_restarts_retry_one_durable_inbox_without_acknowledging_
 #[test]
 fn fork_retracts_undelivered_work_and_preserves_received_inbox_status_after_restart() {
     use crate::sync::Host;
-    let (mut net, goal, source, target) = ready_network(true);
+    let (mut net, goal, source, target) = ready_network();
     for _ in 0..2 {
         net.poll(31_000);
     }
@@ -329,7 +336,7 @@ fn fork_retracts_undelivered_work_and_preserves_received_inbox_status_after_rest
 #[test]
 fn foreign_endpoint_or_recipient_cannot_supply_a_delivery_receipt() {
     use crate::sync::Host;
-    let (mut net, goal, _, target) = ready_network(true);
+    let (mut net, goal, _, target) = ready_network();
     let effect = *net.nodes[0].node.goals[&goal]
         .state()
         .effects
@@ -351,7 +358,7 @@ fn foreign_endpoint_or_recipient_cannot_supply_a_delivery_receipt() {
 }
 
 pub(super) fn unmaterialized() -> (MemStore, GoalId, PublicKey) {
-    let (net, goal, source, _) = ready_network(false);
+    let (net, goal, source, _) = unbound_network();
     assert!(net.nodes[0].node.goals[&goal].state().effects.is_empty());
     (net.nodes[0].store.reopen(), goal, source)
 }
@@ -367,23 +374,35 @@ pub(super) struct FailureFixture {
 }
 
 pub(super) fn failure_fixture() -> FailureFixture {
-    let (mut net, goal, source, target) = ready_network(false);
+    let (mut net, goal, _, target) = unbound_network();
     // Deliver the definition and membership before injecting the effect commit.
     for _ in 0..2 {
         net.poll(31_000);
     }
-    let owner = net.nodes[0].owner();
-    net.nodes[0].ok(
-        owner,
-        Request::GoalGrant {
-            goal,
-            agent: source,
-            grants: GoalGrants {
-                flow: true,
-                ..Default::default()
-            },
-        },
-    );
+    bind_stages(&mut net, goal);
+    // Prime the recipient with the rule binding and its content, then inject
+    // only the materialized effect into the failing commit below.
+    let mut prelude = crate::node::commit::Tx::none();
+    for (_, event) in net.nodes[0].store.log(&goal, 0, usize::MAX).unwrap() {
+        if net.nodes[1].store.has_event(&event.id()).unwrap()
+            || matches!(
+                event.header().body,
+                locust_proto::event::Body::EffectMaterialized { .. }
+            )
+        {
+            continue;
+        }
+        for hash in event.header().blobs() {
+            if let Some(blob) = net.nodes[0].store.blob(&hash).unwrap() {
+                prelude
+                    .commit
+                    .blobs
+                    .push(locust_proto::store::Blob::new(blob));
+            }
+        }
+        prelude.commit.events.push(event);
+    }
+    net.nodes[1].node.land(prelude).unwrap();
     let effect = *net.nodes[0].node.goals[&goal]
         .state()
         .effects
@@ -416,20 +435,16 @@ fn host_note(net: &mut Network, goal: GoalId, summary: &str) -> locust_proto::ev
     let source = net.nodes[0].node.goals[&goal].state().governance.unwrap();
     net.nodes[0].ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: source,
-            grants: GoalGrants {
-                contribute: true,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Ask,
         },
     );
     let Response::Recorded { event } = net.nodes[0].ok(
         a,
         Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             sources: vec![],
@@ -450,7 +465,7 @@ fn restore_host(net: &mut Network, backup: MemStore) {
 #[test]
 fn restored_host_signing_before_peer_recovery_forks_but_recovery_first_extends() {
     for recover_first in [false, true] {
-        let (mut net, goal, source, _) = ready_network(false);
+        let (mut net, goal, source, _) = unbound_network();
         for _ in 0..2 {
             net.poll(31_000);
         }
@@ -493,7 +508,6 @@ fn restored_host_signing_before_peer_recovery_forks_but_recovery_first_extends()
                     a,
                     Request::ContributionPublish {
                         goal,
-                        task: None,
                         attempt: None,
                         generation: None,
                         sources: vec![],
@@ -511,7 +525,7 @@ fn restored_host_signing_before_peer_recovery_forks_but_recovery_first_extends()
 fn restored_host_automatic_stage_replay_is_identical_unless_another_event_used_its_position() {
     use locust_proto::event::Body;
     for intervening_work in [false, true] {
-        let (mut net, goal, source, _) = ready_network(false);
+        let (mut net, goal, _, _) = unbound_network();
         for _ in 0..2 {
             net.poll(31_000);
         }
@@ -519,18 +533,7 @@ fn restored_host_automatic_stage_replay_is_identical_unless_another_event_used_i
         let old_work =
             intervening_work.then(|| host_note(&mut net, goal, "before automatic stage"));
         let enable = |net: &mut Network| {
-            let owner = net.nodes[0].owner();
-            net.nodes[0].ok(
-                owner,
-                Request::GoalGrant {
-                    goal,
-                    agent: source,
-                    grants: GoalGrants {
-                        flow: true,
-                        ..Default::default()
-                    },
-                },
-            );
+            bind_stages(net, goal);
             net.nodes[0]
                 .store
                 .log(&goal, 0, usize::MAX)
@@ -549,7 +552,7 @@ fn restored_host_automatic_stage_replay_is_identical_unless_another_event_used_i
         let replay = enable(&mut net);
         assert_eq!(replay.id() == old_effect.id(), !intervening_work);
         if let Some(old_work) = old_work {
-            assert_eq!(replay.header().seq, old_work.header().seq);
+            assert_eq!(replay.header().seq, old_work.header().seq + 1);
             assert_ne!(replay.id(), old_work.id());
         }
         for _ in 0..3 {
@@ -568,7 +571,7 @@ fn restored_host_automatic_stage_replay_is_identical_unless_another_event_used_i
 fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_used_position() {
     use crate::sync::Host;
     use locust_proto::invite::{Invitation, JoinRequest};
-    let (mut net, goal, source, _) = ready_network(false);
+    let (mut net, goal, source, _) = unbound_network();
     for _ in 0..2 {
         net.poll(31_000);
     }
@@ -621,7 +624,7 @@ fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_us
 #[test]
 fn restored_host_known_gap_blocks_signing_until_missing_predecessor_arrives() {
     use crate::sync::Host;
-    let (mut net, goal, source, _) = ready_network(false);
+    let (mut net, goal, source, _) = unbound_network();
     let backup = snapshot(&net.nodes[0].store);
     let first = host_note(&mut net, goal, "missing predecessor");
     let second = host_note(&mut net, goal, "arrives before predecessor");
@@ -635,13 +638,10 @@ fn restored_host_known_gap_blocks_signing_until_missing_predecessor_arrives() {
     let owner = net.nodes[0].owner();
     net.nodes[0].ok(
         owner,
-        Request::GoalGrant {
+        Request::LevelSet {
             goal,
             agent: source,
-            grants: GoalGrants {
-                contribute: true,
-                ..Default::default()
-            },
+            level: locust_proto::api::Level::Ask,
         },
     );
     assert_eq!(
@@ -649,7 +649,6 @@ fn restored_host_known_gap_blocks_signing_until_missing_predecessor_arrives() {
             a,
             Request::ContributionPublish {
                 goal,
-                task: None,
                 attempt: None,
                 generation: None,
                 sources: vec![],

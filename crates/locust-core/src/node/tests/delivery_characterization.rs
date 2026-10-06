@@ -11,7 +11,7 @@ fn missing_key() -> (
     PublicKey,
     locust_proto::event::Event,
 ) {
-    let (mut net, goal, host, survivor) = ready_network(false);
+    let (mut net, goal, host, survivor) = unbound_network();
     let a = net.nodes[0].connect(credential(1), None);
     let (removed, _) = crate::node::tests::authorization::join_local(&mut net.nodes[0], a, goal, 3);
     net.poll(60_000);

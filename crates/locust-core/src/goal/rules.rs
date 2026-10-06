@@ -231,6 +231,51 @@ pub(super) fn authority(authority: &Authority, rules: &EffectiveRules) -> Option
     }
 }
 
+/// Show the authority named by a decision without reinterpreting it.
+pub(super) fn qualifies(authority: &Authority) -> Selector {
+    match authority {
+        Authority::Participant { key } => Selector::Participant { key: key.clone() },
+        Authority::Role { name } => Selector::Role { name: name.clone() },
+    }
+}
+
+pub(super) fn completion_qualifies(
+    rule: &CompletionRule,
+    kind: locust_proto::api::Rule,
+    name: Option<&str>,
+) -> (Selector, bool) {
+    use locust_proto::api::Rule;
+    match rule {
+        CompletionRule::Declaration { by } if kind == Rule::Declare => (by.clone(), false),
+        CompletionRule::Reviews {
+            by, exclude_author, ..
+        } if kind == Rule::Review => (by.clone(), *exclude_author),
+        CompletionRule::Check { name: check, by }
+            if kind == Rule::Attest && name.is_none_or(|name| name == check) =>
+        {
+            (by.clone(), false)
+        }
+        CompletionRule::All { rules } | CompletionRule::Any { rules } => {
+            let selectors: Vec<_> = rules
+                .iter()
+                .map(|rule| completion_qualifies(rule, kind, name))
+                .filter(|(selector, _)| *selector != Selector::Nobody)
+                .collect();
+            let except_author = selectors.iter().any(|(_, except)| *except);
+            let selectors: Vec<_> = selectors
+                .into_iter()
+                .map(|(selector, _)| selector)
+                .collect();
+            if selectors.is_empty() {
+                (Selector::Nobody, false)
+            } else {
+                (Selector::Any { selectors }, except_author)
+            }
+        }
+        _ => (Selector::Nobody, false),
+    }
+}
+
 pub(super) fn may_review(
     rule: &CompletionRule,
     principal: PublicKey,
@@ -290,6 +335,21 @@ pub(super) fn may_attest(
         CompletionRule::All { rules: items } | CompletionRule::Any { rules: items } => items
             .iter()
             .any(|rule| may_attest(rule, name, principal, rules, subject)),
+        _ => false,
+    }
+}
+
+pub(super) fn may_attest_any(
+    rule: &CompletionRule,
+    principal: PublicKey,
+    rules: &EffectiveRules,
+    subject: PublicKey,
+) -> bool {
+    match rule {
+        CompletionRule::Check { name, .. } => may_attest(rule, name, principal, rules, subject),
+        CompletionRule::All { rules: items } | CompletionRule::Any { rules: items } => items
+            .iter()
+            .any(|item| may_attest_any(item, principal, rules, subject)),
         _ => false,
     }
 }

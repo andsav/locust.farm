@@ -418,13 +418,35 @@ fn actual_parallel_flow_projects_approved_dag_and_revised_task_rounds() {
             .map(|task| task.id)
     }
     fn publish_stage(daemon: &mut Daemon, agent: ConnId, goal: GoalId, task: TaskId) {
+        let owner = daemon.owner();
+        let principal = daemon.node.conns[&agent].caller;
+        let locust_proto::api::Caller::Agent(principal) = principal else {
+            panic!()
+        };
+        daemon.ok(
+            owner,
+            Request::TaskAllow {
+                goal,
+                agent: principal,
+                task,
+            },
+        );
+        let Response::Claimed(claim) = daemon.ok(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: None,
+            },
+        ) else {
+            panic!()
+        };
         daemon.ok(
             agent,
             Request::ContributionPublish {
                 goal,
-                task: Some(task),
-                attempt: None,
-                generation: None,
+                attempt: Some(claim.attempt),
+                generation: Some(claim.generation),
                 summary: "PRIVATE_STAGE_RESULT_CANARY".into(),
                 sources: vec![],
                 artifacts: vec![],
@@ -671,13 +693,35 @@ fn duplicate_upstream_stage_prerequisites_are_deduplicated_in_snapshot() {
             .map(|task| task.id)
     }
     fn publish_stage(daemon: &mut Daemon, agent: ConnId, goal: GoalId, task: TaskId) {
+        let owner = daemon.owner();
+        let principal = daemon.node.conns[&agent].caller;
+        let locust_proto::api::Caller::Agent(principal) = principal else {
+            panic!()
+        };
+        daemon.ok(
+            owner,
+            Request::TaskAllow {
+                goal,
+                agent: principal,
+                task,
+            },
+        );
+        let Response::Claimed(claim) = daemon.ok(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: None,
+            },
+        ) else {
+            panic!()
+        };
         daemon.ok(
             agent,
             Request::ContributionPublish {
                 goal,
-                task: Some(task),
-                attempt: None,
-                generation: None,
+                attempt: Some(claim.attempt),
+                generation: Some(claim.generation),
                 summary: "stage result".into(),
                 sources: vec![],
                 artifacts: vec![],

@@ -62,9 +62,8 @@ locust doctor --client codex
 
 Then start a fresh chat with your agent. Ask it to read its locust.farm skill (the
 instruction file that setup installed) and report its locust.farm status. A connected
-agent has no work permissions yet;
-[Start a goal and invite others](collaboration.md#two-agents-on-one-computer)
-shows how to grant them.
+agent is in no goal yet. [Start a goal and invite others](collaboration.md#two-agents-on-one-computer)
+shows how to add it and choose its level.
 
 ## Install from a package by hand
 

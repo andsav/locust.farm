@@ -6,7 +6,7 @@
 //! writes. A failed commit returns the store's error and leaves memory as it
 //! was.
 
-use locust_proto::api::{ApiError, Caller, ErrorCode, Response};
+use locust_proto::api::{ApiError, Caller, ErrorCode, Membership, Response};
 use locust_proto::codec;
 use locust_proto::crypto::content_hash;
 use locust_proto::engine::Entropy;
@@ -213,6 +213,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         for goal in &goals {
             self.finish_joins(*goal, &mut tx);
+            self.clear_removed(*goal, &mut tx);
             self.project_deliveries(*goal, &mut tx);
         }
         tx.commit.local.extend(revisions);
@@ -338,6 +339,42 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 tx.commit
                     .local
                     .push(local::part_write(&goal, principal, false));
+            }
+        }
+    }
+
+    /// A removal and its local level cleanup land in one store commit. A
+    /// later admission therefore starts with only the newly chosen level.
+    fn clear_removed(&self, goal: GoalId, tx: &mut Tx) {
+        let Some(entry) = self.goals.get(&goal) else {
+            return;
+        };
+        for principal in entry
+            .local
+            .levels
+            .keys()
+            .chain(
+                entry
+                    .local
+                    .allowances
+                    .keys()
+                    .map(|(_, principal)| principal),
+            )
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+        {
+            if entry.membership(&principal) != Some(Membership::Removed)
+                || !self.principals.holds(&principal)
+            {
+                continue;
+            }
+            if entry.local.levels.contains_key(&principal) {
+                tx.local(local::level_delete(&goal, &principal));
+            }
+            for (task, agent) in entry.local.allowances.keys() {
+                if *agent == principal {
+                    tx.local(local::allowance_delete(&goal, task, &principal));
+                }
             }
         }
     }

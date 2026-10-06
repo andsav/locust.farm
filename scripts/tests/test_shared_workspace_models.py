@@ -204,15 +204,17 @@ class FixtureTests(unittest.TestCase):
             with ProductionDaemon(setup, binary, 20) as daemon:
                 coordinator = {'name': 'coordinator', 'profile': cp, 'principal': daemon.principal,
                     'credential': daemon.credential, 'session': daemon.session, 'instance': daemon.instance}
-                worker = enroll(daemon, wp, 'worker', permissions=('contribute',))
+                worker = enroll(daemon, wp, 'worker', level='ask')
                 work = prepare(daemon, coordinator, worker, setup, output)
                 self.assertNotEqual(coordinator['principal'], worker['principal'])
                 self.assertTrue(coordinator_files(work['source'], BASE_CODE.encode()))
                 self.assertNotEqual(work['baseline_tests']['exit_code'], 0)
                 self.assertEqual(daemon.call(['workspace', 'head', '--goal', daemon.goal])['head']['revision'], work['seed_revision'])
-                permissions = daemon.call(['permission', 'inspect', '--goal', daemon.goal, '--agent', worker['principal']], owner=True)['permissions']
-                self.assertFalse(permissions['grants']['select'])
-                self.assertFalse(permissions['grants']['review'])
+                status = daemon.call(['goal', 'status', '--goal', daemon.goal], owner=True)['goal_status']
+                abilities = next(item for item in status['abilities'] if item['agent'] == worker['principal'])
+                self.assertEqual(abilities['level'], 'ask')
+                self.assertFalse(any(item['eligible'] for item in abilities['rules']
+                                     if item['rule'] in ('review', 'select')))
 
 
 if __name__ == '__main__':

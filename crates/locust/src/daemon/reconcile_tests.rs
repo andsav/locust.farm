@@ -9,7 +9,7 @@ use std::thread;
 use std::time::Duration;
 
 use locust_proto::api::{
-    ApiError, ClientHello, Credential, ErrorCode, GoalGrants, Request, RequestFrame, Response,
+    ApiError, ClientHello, Credential, ErrorCode, Level, Request, RequestFrame, Response,
     ServerHello, Standing,
 };
 use locust_proto::client::{Client, ClientError};
@@ -319,7 +319,6 @@ fn publish(
     client
         .call(Request::ContributionPublish {
             goal,
-            task: None,
             attempt: None,
             generation: None,
             sources: Vec::new(),
@@ -379,6 +378,7 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
         .call(Request::GoalJoin {
             agent: author,
             ticket,
+            level: Level::Auto,
         })
         .unwrap();
     eventually_observed(
@@ -394,17 +394,6 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
             _ => None,
         },
     );
-    member
-        .owner()
-        .call(Request::GoalGrant {
-            goal,
-            agent: author,
-            grants: GoalGrants {
-                contribute: true,
-                ..Default::default()
-            },
-        })
-        .unwrap();
     drop(agent);
     member.stop();
     // The copy holds the goal and the member's key, and nothing the member wrote.

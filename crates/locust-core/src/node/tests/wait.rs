@@ -122,6 +122,7 @@ fn the_revision_never_falls_across_restart_leaving_removal_and_rejoining() {
         Request::GoalJoin {
             agent: member,
             ticket,
+            level: locust_proto::api::Level::Auto,
         },
     );
     observe(&mut d, m);

@@ -1,8 +1,8 @@
 //! Human views of authoritative API responses. Labels never act as identity.
 
 use locust_proto::api::{
-    AgentView, AttentionEntry, GoalGrants, GoalPermissions, Halt, Membership, PendingWork,
-    Response, SessionState, SessionView, TaskView, WaitOutcome,
+    Abilities, AgentView, Halt, Level, Membership, PendingWork, Response, Rule, SessionState,
+    SessionView, TaskView, WaitOutcome,
 };
 use locust_proto::event::{Body, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
@@ -181,35 +181,34 @@ fn membership_action(membership: Membership) -> Option<&'static str> {
     }
 }
 
-fn grant_rows(grants: GoalGrants) -> Vec<String> {
-    [
-        (
-            "contribute",
-            grants.contribute,
-            "publish contributions and task discussion",
-        ),
-        (
-            "execute",
-            grants.execute,
-            "start eligible work in this goal",
-        ),
-        ("review", grants.review, "record eligible reviews"),
-        ("select", grants.select, "select eligible contributions"),
-        ("flow", grants.flow, "open and change eligible work flow"),
-        (
-            "takeover",
-            grants.takeover,
-            "take over a claim from another session",
-        ),
-    ]
-    .into_iter()
-    .map(|(name, allowed, description)| {
-        format!(
-            "  {name:<11} {:<11} {description}",
-            if allowed { "allowed" } else { "not allowed" }
-        )
-    })
-    .collect()
+pub(super) fn standing_line(abilities: &Abilities) -> String {
+    if abilities.level == Level::Read {
+        return "reads only; reports on or drops what it holds".into();
+    }
+    let mut actions = vec!["posts"];
+    if abilities
+        .rules
+        .iter()
+        .any(|rule| rule.rule == Rule::Review && rule.eligible)
+    {
+        actions.push("reviews");
+    }
+    if abilities
+        .rules
+        .iter()
+        .any(|rule| matches!(rule.rule, Rule::Select | Rule::Finish) && rule.eligible)
+    {
+        actions.push("decides");
+    }
+    format!(
+        "{}; {}",
+        actions.join(", "),
+        if abilities.level == Level::Ask {
+            "asks before each task"
+        } else {
+            "takes tasks on its own"
+        }
+    )
 }
 
 fn task_state(task: &TaskView) -> String {
@@ -254,19 +253,50 @@ fn pending(
 ) -> Vec<String> {
     let mut lines = vec![format!("Observed revision {}", work.revision)];
     let context = command_context(goal);
-    for item in &work.to_authorize {
+    for item in &work.ask_first {
+        lines.push(format!("Ask first: {}", task_label(item.task, tasks)));
         lines.push(format!(
-            "Permission needed: {}",
-            task_label(item.task, tasks)
+            "  {} attempting · {} results",
+            item.attempting.len(),
+            item.results
         ));
+        for attempt in &item.attempting {
+            lines.push(format!(
+                "  Attempting: {} · {}",
+                attempt.member,
+                attempt
+                    .status
+                    .as_ref()
+                    .map(tag)
+                    .unwrap_or_else(|| "no report".into())
+            ));
+        }
         lines.push(match principal {
-            Some(agent) => format!("  Allow this task: locust --owner permission allow --goal {goal} --agent {agent} --task {} execute", item.task),
-            // The owner's own view merges its participants without naming them.
-            None => "  The inbox names the participant and prints the command to allow this task: locust --owner inbox".into(),
+            Some(agent) => format!(
+                "  Allow this task: locust --owner --agent {agent} allow --goal {goal} --task {}",
+                item.task
+            ),
+            None => "  Select an agent with --agent to see its task allowance command.".into(),
         });
     }
     for item in &work.to_start {
         lines.push(format!("Ready to start: {}", task_label(item.task, tasks)));
+        lines.push(format!(
+            "  {} attempting · {} results",
+            item.attempting.len(),
+            item.results
+        ));
+        for attempt in &item.attempting {
+            lines.push(format!(
+                "  Attempting: {} · {}",
+                attempt.member,
+                attempt
+                    .status
+                    .as_ref()
+                    .map(tag)
+                    .unwrap_or_else(|| "no report".into())
+            ));
+        }
         lines.push(format!(
             "  Participant action (requires its --session file): {} --task {}{}",
             context.replace("{operation}", "attempt start"),
@@ -292,7 +322,7 @@ fn pending(
             claim.attempt,
             claim.generation
         ));
-        lines.push("  Resume that session, or explicitly authorize takeover after checking its work. A held claim does not prove a process is running.".into());
+        lines.push("  Resume that session, or take over after checking its work. A held claim does not prove a process is running.".into());
     }
     for item in &work.to_acknowledge {
         lines.push(format!(
@@ -305,10 +335,20 @@ fn pending(
     }
     for item in &work.to_review {
         lines.push(format!(
-            "Review needed: {} · {}",
+            "Review needed: {} · {} · {} of {} approvals",
             item.subject,
-            scope(item.context.scope)
+            scope(item.context.scope),
+            item.approvals,
+            item.needed
         ));
+        for verdict in &item.verdicts {
+            lines.push(format!(
+                "  {}: {} ({})",
+                verdict.member,
+                if verdict.approve { "approve" } else { "reject" },
+                verdict.event
+            ));
+        }
         lines.push(format!(
             "  Read the exact submission: {} --event {}",
             context.replace("{operation}", "event show"),
@@ -357,54 +397,6 @@ fn pending(
             "Participant commands use that participant's credential and execution session.".into(),
         );
     }
-    lines
-}
-
-fn permission_view(view: &GoalPermissions) -> Vec<String> {
-    let mut lines = vec![
-        format!("Permissions for {} ({})", safe(&view.name), view.agent),
-        format!("Goal {}", view.goal),
-        format!(
-            "Membership: {}",
-            view.membership
-                .as_ref()
-                .map(tag)
-                .unwrap_or_else(|| "not a member".into())
-        ),
-        format!(
-            "Credential: {}",
-            if view.revoked { "revoked" } else { "active" }
-        ),
-    ];
-    lines.extend(grant_rows(view.grants));
-    if let Some(action) = view.membership.and_then(membership_action) {
-        lines.push(action.into());
-    }
-    for authorization in &view.task_authorizations {
-        lines.push(format!(
-            "Task permission: {} · round {} · execute{} · {}",
-            authorization
-                .task
-                .map(|task| task.to_string())
-                .unwrap_or_else(|| "task history unavailable".into()),
-            authorization.round,
-            if authorization.takeover {
-                " and takeover"
-            } else {
-                ""
-            },
-            if authorization.current {
-                "current round"
-            } else {
-                "inactive round"
-            }
-        ));
-        if let Some(task) = authorization.task {
-            lines.push(format!("  Revoke this task permission: locust --owner permission revoke --goal {} --agent {} --task {task}", view.goal, view.agent));
-        }
-    }
-    lines.push("Membership, organization eligibility, client tool approval, and local permissions are separate.".into());
-    lines.push("Permission changes affect future authorization checks. They do not stop a client process or cancel an existing attempt.".into());
     lines
 }
 
@@ -472,36 +464,6 @@ fn session(view: &SessionView, names: &[AgentView]) -> Vec<String> {
     lines
 }
 
-fn inbox(entries: &[AttentionEntry]) -> Vec<String> {
-    if entries.is_empty() {
-        return vec!["No pending work or goal-wide halt in the local participant inbox.".into()];
-    }
-    let mut lines = vec!["Local participant attention".into()];
-    for entry in entries {
-        lines.push(format!(
-            "\n{} ({}) · {} ({})",
-            safe(entry.title.as_deref().unwrap_or("Title unavailable")),
-            entry.goal,
-            safe(&entry.name),
-            entry.agent
-        ));
-        if let Some(reason) = entry.halted {
-            lines.push(halt(reason).into());
-        }
-        if !entry.grants.review && !entry.pending.to_review.is_empty() {
-            lines.push(format!("Review permission is missing. Allow it if intended: locust --owner permission allow --goal {} --agent {} review", entry.goal, entry.agent));
-        }
-        lines.extend(pending(
-            &entry.pending,
-            entry.goal,
-            Some(entry.agent),
-            &entry.tasks,
-        ));
-    }
-    lines.push("Observation only: no work or context was acknowledged.".into());
-    lines
-}
-
 pub(super) fn render(
     response: &Response,
     names: &[AgentView],
@@ -517,6 +479,7 @@ pub(super) fn render(
             }
             for goal in &status.goals {
                 lines.push(format!("Goal {} ({}) · {} · {}", safe(goal.title.as_deref().unwrap_or("Title unavailable")), goal.goal, label(goal.member, &status.agents), tag(&goal.membership)));
+                lines.push(format!("  Level: {} · {}", tag(&goal.abilities.level), standing_line(&goal.abilities)));
                 if let Some(action) = membership_action(goal.membership) { lines.push(action.into()); }
                 if let Some(reason) = goal.halted { lines.push(halt(reason).into()); }
             }
@@ -534,13 +497,14 @@ pub(super) fn render(
                 lines.push(format!("Shared workspace: {}", tag(&workspace.authority)));
                 if let Some(head) = &workspace.head { lines.push(format!("Shared revision: {}", head.revision)); }
             }
-            if principal.is_some() {
-                lines.push("This participant's local standing permissions:".into());
-                lines.extend(grant_rows(view.grants));
-            } else {
-                for member in view.members.iter().filter(|member| member.local) {
-                    lines.push(format!("Inspect local permissions of {}: locust --owner permission inspect --goal {} --agent {}", label(member.member, names), view.goal, member.member));
+            for abilities in &view.abilities {
+                lines.push(format!("{} · level {} · {}", safe(&abilities.name), tag(&abilities.level), standing_line(abilities)));
+                for wanted in &abilities.wanted_tasks {
+                    lines.push(format!("  Asked to take \"{}\": locust --owner --agent {} allow --goal {} --task {}", safe(wanted.title.as_deref().unwrap_or("this task")), abilities.agent, view.goal, wanted.task));
                 }
+            }
+            for stalled in &view.stalled {
+                lines.push(format!("Step {} stalled for {}: {}", stalled.effect, label(stalled.runner, names), tag(&stalled.reason)));
             }
             for peer in &view.peers {
                 lines.push(format!("Peer {}: {} · last successful sync {}", peer.endpoint, if peer.connected { "connected" } else { "disconnected" }, peer.last_sync_ms.map(|at| format!("{at} ms since Unix epoch")).unwrap_or_else(|| "not observed".into())));
@@ -555,7 +519,7 @@ pub(super) fn render(
                     lines.push(format!("{} · {}", task_label(task.task, tasks), task_state(task)));
                     lines.push(format!("  By {} · {} attempts · {} contributions", label(task.creator, names), task.attempts.len(), task.contributions.len()));
                 }
-                lines.push("Use pending for permission, start, review and acknowledgment actions.".into());
+                lines.push("Use pending for start, review and acknowledgment actions.".into());
                 lines
             }
         }
@@ -590,6 +554,7 @@ pub(super) fn render(
         Response::ContributionInspected(inspected) => {
             let event = &inspected.contribution;
             let mut lines = vec![format!("Contribution {} · {}", event.view.event, tag(&event.view.standing)), format!("Author: {}", label(event.view.author, names))];
+            if event.view.by_owner { lines.push(if principal.is_some() { "by your owner" } else { "by you" }.into()); }
             if let Some(text) = &event.text { lines.push(format!("Summary: {}", safe(text))); }
             else if event.payload.is_some() { lines.push("Summary text is not held locally.".into()); }
             if let Some(task) = event.task { lines.push(format!("Task: {task}")); }
@@ -618,6 +583,7 @@ pub(super) fn render(
         }
         Response::Event(event) => {
             let mut lines = vec![format!("Event {} · {} · {}", event.view.event, safe(&event.view.kind), tag(&event.view.standing)), format!("Author: {}", label(event.view.author, names))];
+            if event.view.by_owner { lines.push(if principal.is_some() { "by your owner" } else { "by you" }.into()); }
             match &event.body {
                 Body::ReviewRecorded { subject, verdict, .. } => lines.push(format!("Review of {subject}: {}", tag(verdict))),
                 Body::AttemptReported { attempt, status } => lines.push(format!("Attempt {attempt}: {}", tag(status))),
@@ -631,12 +597,10 @@ pub(super) fn render(
             lines
         }
         Response::Events(events) => {
-            let mut lines = events.iter().map(|event| format!("{} · {} · {} · {}", event.event, safe(&event.kind), label(event.author, names), tag(&event.standing))).collect::<Vec<_>>();
+            let mut lines = events.iter().map(|event| format!("{} · {} · {} · {}{}", event.event, safe(&event.kind), label(event.author, names), tag(&event.standing), if event.by_owner { if principal.is_some() { " · by your owner" } else { " · by you" } } else { "" })).collect::<Vec<_>>();
             if lines.is_empty() { lines.push("No events in this page.".into()); }
             lines
         }
-        Response::Permissions(view) => permission_view(view),
-        Response::Inbox(entries) => inbox(entries),
         _ => return None,
     };
     Some(lines.join("\n"))
@@ -645,7 +609,84 @@ pub(super) fn render(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use locust_proto::api::AgentView;
+    use locust_proto::api::{Ability, AgentView};
+
+    #[test]
+    fn standing_line_follows_the_level_and_eligible_rows() {
+        let mut abilities = Abilities {
+            goal: GoalId([1; 32]),
+            agent: PublicKey([2; 32]),
+            name: "worker".into(),
+            membership: Some(Membership::Member),
+            level: Level::Read,
+            host: Some(PublicKey([2; 32])),
+            hosted_here: true,
+            roles: vec![],
+            rules: vec![],
+            allowed_tasks: vec![],
+            wanted_tasks: vec![],
+            claims: vec![],
+        };
+        assert_eq!(
+            standing_line(&abilities),
+            "reads only; reports on or drops what it holds"
+        );
+        abilities.level = Level::Ask;
+        assert_eq!(standing_line(&abilities), "posts; asks before each task");
+        abilities.rules.push(Ability {
+            rule: Rule::Review,
+            qualifies: Selector::Members,
+            except_author: false,
+            eligible: true,
+            needs: Level::Ask,
+            allowed: true,
+        });
+        abilities.rules.push(Ability {
+            rule: Rule::Select,
+            qualifies: Selector::Nobody,
+            except_author: false,
+            eligible: false,
+            needs: Level::Ask,
+            allowed: false,
+        });
+        assert_eq!(
+            standing_line(&abilities),
+            "posts, reviews; asks before each task"
+        );
+        abilities.level = Level::Auto;
+        abilities.rules[1].eligible = true;
+        assert_eq!(
+            standing_line(&abilities),
+            "posts, reviews, decides; takes tasks on its own"
+        );
+    }
+
+    #[test]
+    fn an_event_the_person_signed_reads_by_you_or_by_your_owner() {
+        use locust_proto::api::{EventView, Standing};
+        use locust_proto::id::EventId;
+        let agent = PublicKey([2; 32]);
+        let view = EventView {
+            position: Some(1),
+            event: EventId([3; 32]),
+            author: agent,
+            kind: "task_opened".into(),
+            at_ms: 1,
+            standing: Standing::Effective,
+            by_owner: true,
+        };
+        let response = Response::Events(vec![view]);
+        assert!(
+            render(&response, &[], None, None)
+                .unwrap()
+                .contains("by you")
+        );
+        assert!(
+            render(&response, &[], None, Some(agent))
+                .unwrap()
+                .contains("by your owner")
+        );
+    }
 
     #[test]
     fn dates_expiry_and_completion_words_are_specific() {
@@ -687,33 +728,6 @@ mod tests {
         assert_eq!(label(key, &names), format!("worker ({key})"));
     }
 
-    #[test]
-    fn permissions_keep_independent_rights_and_task_overrides_visible() {
-        let view = GoalPermissions {
-            goal: GoalId([1; 32]),
-            agent: PublicKey([2; 32]),
-            name: "worker".into(),
-            revoked: false,
-            membership: Some(locust_proto::api::Membership::Member),
-            grants: GoalGrants {
-                review: true,
-                ..Default::default()
-            },
-            task_authorizations: vec![locust_proto::api::TaskAuthorization {
-                task: Some(TaskId::Authored(locust_proto::id::EventId([3; 32]))),
-                round: locust_proto::id::EventId([3; 32]),
-                current: true,
-                takeover: false,
-            }],
-        };
-        let rendered = permission_view(&view).join("\n");
-        assert!(rendered.contains("execute     not allowed"));
-        assert!(rendered.contains("review      allowed"));
-        assert!(rendered.contains("Task permission:"));
-        assert!(rendered.contains("permission revoke"));
-        assert!(rendered.contains("do not stop a client process"));
-    }
-
     /// One of everything a view can ask its reader to do next.
     fn work() -> PendingWork {
         use locust_proto::api::{
@@ -740,12 +754,24 @@ mod tests {
                 unacknowledged: 2,
                 unavailable: 0,
             }),
-            to_authorize: vec![WorkItem { task, offer: None }],
+            ask_first: vec![WorkItem {
+                task,
+                offer: None,
+                attempting: vec![],
+                results: 0,
+            }],
             to_start: vec![
-                WorkItem { task, offer: None },
+                WorkItem {
+                    task,
+                    offer: None,
+                    attempting: vec![],
+                    results: 0,
+                },
                 WorkItem {
                     task: TaskId::Derived(EffectId([6; 32])),
                     offer: Some(event),
+                    attempting: vec![],
+                    results: 0,
                 },
             ],
             claimed: vec![claim],
@@ -759,6 +785,9 @@ mod tests {
             to_review: vec![ReviewItem {
                 subject: event,
                 context,
+                approvals: 0,
+                needed: 1,
+                verdicts: vec![],
             }],
             deliveries: vec![DeliveryItem {
                 effect: EffectId([6; 32]),
@@ -774,19 +803,23 @@ mod tests {
     #[test]
     fn every_printed_command_parses_as_printed() {
         use super::super::args;
-        use locust_proto::api::{GoalStatus, MemberView, TaskAuthorization};
-        use locust_proto::id::{EndpointId, EventId};
+        use locust_proto::api::{GoalStatus, MemberView};
+        use locust_proto::id::EndpointId;
         let goal = GoalId([1; 32]);
         let agent = PublicKey([2; 32]);
-        let entry = AttentionEntry {
+        let abilities = Abilities {
             goal,
-            title: Some("Research".into()),
             agent,
             name: "worker".into(),
-            halted: None,
-            grants: GoalGrants::default(),
-            pending: work(),
-            tasks: vec![],
+            membership: Some(Membership::Member),
+            level: Level::Ask,
+            host: Some(agent),
+            hosted_here: true,
+            roles: vec![],
+            rules: vec![],
+            allowed_tasks: vec![],
+            wanted_tasks: vec![],
+            claims: vec![],
         };
         let status = GoalStatus {
             goal,
@@ -802,25 +835,12 @@ mod tests {
             }],
             halted: None,
             workspace: None,
-            grants: GoalGrants::default(),
+            abilities: vec![abilities],
+            stalled: vec![],
             peers: vec![],
         };
-        let permissions = GoalPermissions {
-            goal,
-            agent,
-            name: "worker".into(),
-            revoked: false,
-            membership: Some(Membership::Member),
-            grants: GoalGrants::default(),
-            task_authorizations: vec![TaskAuthorization {
-                task: Some(TaskId::Authored(EventId([4; 32]))),
-                round: EventId([4; 32]),
-                current: true,
-                takeover: false,
-            }],
-        };
         // A participant's view, the owner's merged view, a wait that found
-        // work, and the owner's inbox, goal status and permission views.
+        // work, and the goal status view.
         let views = [
             (Response::Pending(work()), Some(agent)),
             (Response::Pending(work()), None),
@@ -828,9 +848,7 @@ mod tests {
                 Response::Waited(WaitOutcome::Work(Box::new(work()))),
                 Some(agent),
             ),
-            (Response::Inbox(vec![entry]), None),
             (Response::GoalStatus(status), None),
-            (Response::Permissions(permissions), None),
         ];
         let mut operations = std::collections::BTreeSet::new();
         for (response, principal) in views {
@@ -851,14 +869,11 @@ mod tests {
         assert_eq!(
             operations.iter().map(String::as_str).collect::<Vec<_>>(),
             [
+                "allow",
                 "attempt.start",
                 "context.read",
                 "delivery.acknowledge",
                 "event.show",
-                "inbox",
-                "permission.allow",
-                "permission.inspect",
-                "permission.revoke",
             ]
         );
     }

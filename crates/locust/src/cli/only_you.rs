@@ -7,7 +7,8 @@ use super::{
 use crate::failure::Failure;
 use clap::{Arg, ArgMatches, Command};
 use locust_proto::api::{
-    Caller, DaemonStatus, ErrorCode, GoalStatus, InvitationState, Membership, Request, Response,
+    Abilities, Caller, DaemonStatus, ErrorCode, GoalStatus, InvitationState, Level, Membership,
+    Request, Response,
 };
 use locust_proto::event::TaskId;
 use locust_proto::id::{BlobHash, EventId, GoalId, IdempotencyKey, PublicKey};
@@ -61,11 +62,11 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
         ),
         (
             "goal",
-            confirm::flags(Command::new("add").arg(goal_option())),
+            confirm::flags(Command::new("add").arg(goal_option()).arg(level_arg(false))),
         ),
         (
             "goal",
-            confirm::flags(invitations::ticket_input(Command::new("join"))),
+            confirm::flags(invitations::ticket_input(Command::new("join")).arg(level_arg(false))),
         ),
         (
             "goal",
@@ -107,10 +108,39 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
     ]
 }
 
+fn level_arg(required: bool) -> Arg {
+    Arg::new("level")
+        .long("level")
+        .value_parser(["read", "ask", "auto"])
+        .required(required)
+        .help("Local level for this agent in the goal")
+}
+
+pub(super) fn level_command() -> Command {
+    Command::new("level").arg(goal_option()).arg(
+        Arg::new("level")
+            .required(true)
+            .value_parser(["read", "ask", "auto"]),
+    )
+}
+
+pub(super) fn allow_command() -> Command {
+    Command::new("allow")
+        .arg(goal_option())
+        .arg(option("task", "Task title or typed identifier"))
+        .arg(
+            Arg::new("revoke")
+                .long("revoke")
+                .action(clap::ArgAction::SetTrue),
+        )
+}
+
 pub(super) fn owns(operation: &str) -> bool {
     matches!(
         operation,
-        "goal.create"
+        "level"
+            | "allow"
+            | "goal.create"
             | "goal.add"
             | "goal.join"
             | "goal.leave"
@@ -151,6 +181,178 @@ fn observed(client: &mut LocalClient, socket: &Path, goal: GoalId) -> Result<Goa
         unreachable!("typed client checks response kind")
     };
     Ok(observed)
+}
+
+fn selected_level(args: &ArgMatches) -> Level {
+    match args
+        .get_one::<String>("level")
+        .map(String::as_str)
+        .unwrap_or("auto")
+    {
+        "read" => Level::Read,
+        "ask" => Level::Ask,
+        "auto" => Level::Auto,
+        _ => unreachable!("clap validates level"),
+    }
+}
+
+fn level_word(level: Level) -> &'static str {
+    match level {
+        Level::Read => "read",
+        Level::Ask => "ask",
+        Level::Auto => "auto",
+    }
+}
+
+fn agent_abilities(status: &GoalStatus, agent: PublicKey) -> Result<&Abilities, Failure> {
+    status
+        .abilities
+        .iter()
+        .find(|abilities| abilities.agent == agent)
+        .ok_or_else(|| {
+            Failure::new(
+                ErrorCode::NotFound,
+                "this agent has no local standing in this goal",
+            )
+        })
+}
+
+fn short_task(task: TaskId) -> String {
+    let full = task.to_string();
+    let (kind, id) = full.split_once(':').expect("typed task id");
+    format!("{kind}:{}", &id[..8])
+}
+
+fn undo_agent(name: &str) -> String {
+    // Local names can contain spaces; use single-quote shell syntax for a runnable line.
+    if name
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
+    {
+        name.to_owned()
+    } else {
+        format!("'{}'", name.replace('\'', "'\\''"))
+    }
+}
+
+fn level_set(
+    matches: &ArgMatches,
+    args: &ArgMatches,
+    client: &mut LocalClient,
+    socket: &Path,
+) -> Result<Output, Failure> {
+    let goal = resolve_goal(client, socket, value(args, "goal"), None)?;
+    let agent = acting_agent(client, socket, matches, Some(goal))?;
+    let before = observed(client, socket, goal)?;
+    let prior = agent_abilities(&before, agent)?;
+    let level = selected_level(args);
+    let old = prior.level;
+    let changed = old != level;
+    let after = if changed {
+        let Response::Abilities(after) = call(
+            client,
+            socket,
+            Request::LevelSet { goal, agent, level },
+            idempotency(matches)?,
+        )?
+        else {
+            unreachable!("typed response")
+        };
+        after
+    } else {
+        prior.clone()
+    };
+    let title = presentation::safe(before.title.as_deref().unwrap_or("this goal"));
+    let name = presentation::safe(&after.name);
+    let mut human = format!(
+        "{name} in \"{title}\": {}.\n{}",
+        level_word(after.level),
+        presentation::standing_line(&after)
+    );
+    if after.level == Level::Auto && !after.hosted_here {
+        human.push_str(", so tasks other members wrote run here unasked");
+    }
+    if changed {
+        human.push_str(&format!(
+            "\nUndo: locust --owner --agent {} level --goal {} {}",
+            undo_agent(&after.name),
+            short_goal(goal),
+            level_word(old)
+        ));
+    }
+    Ok(Output::success(
+        json!({"goal":goal,"agent":agent,"level":after.level,"abilities":after,"changed":changed}),
+        human,
+    ))
+}
+
+fn task_allow(
+    matches: &ArgMatches,
+    args: &ArgMatches,
+    client: &mut LocalClient,
+    socket: &Path,
+) -> Result<Output, Failure> {
+    let goal = resolve_goal(client, socket, value(args, "goal"), None)?;
+    let agent = acting_agent(client, socket, matches, Some(goal))?;
+    let task = selectors::resolve_task(client, socket, goal, value(args, "task"), None)?;
+    let detail = task_detail(client, socket, goal, task)?;
+    let before = observed(client, socket, goal)?;
+    let prior = agent_abilities(&before, agent)?;
+    let visibly_allowed = prior.allowed_tasks.contains(&task);
+    let revoke = args.get_flag("revoke");
+    // A closed or finished task hides its stored allowance from Abilities.
+    // Revocation must reach the daemon even when no allowance is visible here.
+    let (after, changed, was_allowed) = if revoke {
+        let Response::TaskDisallowed {
+            abilities,
+            changed,
+            was_allowed,
+        } = call(
+            client,
+            socket,
+            Request::TaskDisallow { goal, agent, task },
+            idempotency(matches)?,
+        )?
+        else {
+            unreachable!("typed response")
+        };
+        (abilities, changed, was_allowed)
+    } else if !visibly_allowed {
+        let Response::Abilities(abilities) = call(
+            client,
+            socket,
+            Request::TaskAllow { goal, agent, task },
+            idempotency(matches)?,
+        )?
+        else {
+            unreachable!("typed response")
+        };
+        (abilities, true, false)
+    } else {
+        (prior.clone(), false, false)
+    };
+    let task_title = presentation::safe(detail.view.title.as_deref().unwrap_or("this task"));
+    let goal_title = presentation::safe(before.title.as_deref().unwrap_or("this goal"));
+    let name = presentation::safe(&after.name);
+    let mut human = if revoke {
+        format!("{name} may no longer take \"{task_title}\". A running attempt is not stopped.")
+    } else {
+        format!("{name} may take \"{task_title}\" in \"{goal_title}\" until the host revises it.")
+    };
+    let takeable = !detail.view.closed && !detail.view.completed && detail.view.selected.is_none();
+    if changed && (!revoke || (was_allowed && visibly_allowed && takeable)) {
+        let reversal = if revoke { "" } else { " --revoke" };
+        human.push_str(&format!(
+            "\nUndo: locust --owner --agent {} allow --goal {} --task {}{reversal}",
+            undo_agent(&after.name),
+            short_goal(goal),
+            short_task(task)
+        ));
+    }
+    Ok(Output::success(
+        json!({"goal":goal,"agent":agent,"task":task,"allowed":!revoke,"abilities":after,"changed":changed}),
+        human,
+    ))
 }
 
 fn idempotency(matches: &ArgMatches) -> Result<Option<IdempotencyKey>, Failure> {
@@ -223,6 +425,8 @@ pub(super) fn run(
     let owner = client.caller() == Caller::Owner;
     match operation {
         "goal.create" => goal_create(matches, args, &mut client, &socket, owner),
+        "level" => level_set(matches, args, &mut client, &socket),
+        "allow" => task_allow(matches, args, &mut client, &socket),
         "goal.add" => goal_add(matches, args, &mut client, &socket),
         "goal.join" => goal_join(matches, args, &mut client, &socket, owner),
         "goal.leave" => goal_leave(matches, args, &mut client, &socket, owner),
@@ -372,6 +576,7 @@ fn add_plan(
     socket: &Path,
     goal: GoalId,
     agent: PublicKey,
+    level: Level,
 ) -> Result<confirm::Plan, Failure> {
     let known = status(client, socket, None)?;
     let selected = known
@@ -402,6 +607,11 @@ fn add_plan(
         .find(|entry| entry.goal == goal && entry.member == agent)
         .map(|entry| entry.membership);
     let joined = standing == Some(Membership::Member);
+    let current_level = goal_status
+        .abilities
+        .iter()
+        .find(|abilities| abilities.agent == agent)
+        .map(|abilities| abilities.level);
     if goal_status
         .members
         .iter()
@@ -417,12 +627,13 @@ fn add_plan(
     Ok(confirm::Plan {
         command: "goal add",
         review: json!({"goal":goal,"title":goal_status.title,"host":goal_status.host,
-            "agent":agent,"name":selected.name,"already_member":joined}),
+            "agent":agent,"name":selected.name,"already_member":joined,"level":level,"current_level":current_level}),
         human: format!(
-            "Add {} to \"{}\" ({}). This shares the whole goal's history and content. Local files and private chats stay here.",
+            "Add {} to \"{}\" ({}). This shares the whole goal's history and content. Local files and private chats stay here. Level: read (reads and reports), ask (posts and asks before tasks), auto (takes tasks on its own) [selected: {}].",
             presentation::safe(&selected.name),
             presentation::safe(title),
-            short_goal(goal)
+            short_goal(goal),
+            level_word(level)
         ),
         warning: None,
         again: String::new(),
@@ -454,21 +665,24 @@ fn goal_add(
 ) -> Result<Output, Failure> {
     let goal = resolve_goal(client, socket, value(args, "goal"), None)?;
     let agent = acting_agent(client, socket, matches, None)?;
-    let plan = add_plan(client, socket, goal, agent)?;
+    let level = selected_level(args);
+    let plan = add_plan(client, socket, goal, agent, level)?;
     if let Some(output) = reviewed(matches, args, &plan, || {
-        add_plan(client, socket, goal, agent)
+        add_plan(client, socket, goal, agent, level)
     })? {
         return Ok(output);
     }
     let name = plan.review["name"].as_str().unwrap_or("agent");
     let title = plan.review["title"].as_str().unwrap_or("this goal");
     if plan.review["already_member"] == true {
+        let current_level = plan.review["current_level"].as_str().unwrap_or("read");
         return Ok(Output::success(
-            json!({"goal":goal,"agent":agent,"membership":"member","changed":false}),
+            json!({"goal":goal,"agent":agent,"membership":"member","level":current_level,"changed":false}),
             format!(
-                "{} is already a member of \"{}\".",
+                "{} is already a member of \"{}\" · {}.",
                 presentation::safe(name),
-                presentation::safe(title)
+                presentation::safe(title),
+                current_level
             ),
         ));
     }
@@ -504,8 +718,18 @@ fn goal_add(
     let Response::Joined {
         goal: joined_goal,
         membership,
+        level: joined_level,
         ..
-    } = call(client, socket, Request::GoalJoin { agent, ticket }, None)?
+    } = call(
+        client,
+        socket,
+        Request::GoalJoin {
+            agent,
+            ticket,
+            level,
+        },
+        None,
+    )?
     else {
         unreachable!("typed response")
     };
@@ -521,11 +745,12 @@ fn goal_add(
         ));
     }
     Ok(Output::success(
-        json!({"goal":goal,"agent":agent,"membership":"member","changed":true}),
+        json!({"goal":goal,"agent":agent,"membership":"member","level":joined_level,"changed":true}),
         format!(
-            "{} joined \"{}\".",
+            "{} joined \"{}\" · {}.",
             presentation::safe(name),
-            presentation::safe(title)
+            presentation::safe(title),
+            level_word(joined_level)
         ),
     ))
 }
@@ -535,6 +760,7 @@ fn join_plan(
     socket: &Path,
     preview: &locust_proto::api::InvitationPreview,
     agent: PublicKey,
+    level: Level,
 ) -> Result<confirm::Plan, Failure> {
     let known = status(client, socket, None)?;
     let standing = known
@@ -545,13 +771,14 @@ fn join_plan(
     Ok(confirm::Plan {
         command: "goal join",
         review: json!({"invitation_review":preview.review,"goal":preview.goal,
-            "title":preview.goal_title,"agent":agent,"standing":standing}),
+            "title":preview.goal_title,"agent":agent,"standing":standing,"level":level}),
         human: format!(
-            "Join \"{}\" ({}) as {}. This shares what this agent posts with the goal's members. {}",
+            "Join \"{}\" ({}) as {}. This shares what this agent posts with the goal's members. {} Level: read (reads and reports), ask (posts and asks before tasks), auto (takes tasks on its own, so tasks other members wrote run here unasked) [selected: {}]. What a level allows also depends on the goal's rules, which arrive after admission.",
             presentation::safe(preview.goal_title.as_deref().unwrap_or("this goal")),
             short_goal(preview.goal),
             name_for(&known, agent),
-            preview.sharing_facts.join(" ")
+            preview.sharing_facts.join(" "),
+            level_word(level)
         ),
         warning: None,
         again: String::new(),
@@ -578,8 +805,9 @@ fn goal_join(
     } else {
         current_agent(client)?
     };
+    let level = selected_level(args);
     if owner {
-        let plan = join_plan(client, socket, &preview, agent)?;
+        let plan = join_plan(client, socket, &preview, agent, level)?;
         if args
             .get_one::<String>("ticket")
             .is_some_and(|source| source == "-")
@@ -588,7 +816,7 @@ fn goal_join(
             return Ok(plan.shown());
         }
         if let Some(output) = reviewed(matches, args, &plan, || {
-            join_plan(client, socket, &preview, agent)
+            join_plan(client, socket, &preview, agent, level)
         })? {
             return Ok(output);
         }
@@ -596,11 +824,20 @@ fn goal_join(
     let response = call(
         client,
         socket,
-        Request::GoalJoin { agent, ticket },
+        Request::GoalJoin {
+            agent,
+            ticket,
+            level,
+        },
         idempotency(matches)?,
     )?;
     let result = json!(response);
-    let Response::Joined { membership, .. } = response else {
+    let Response::Joined {
+        membership,
+        level: joined_level,
+        ..
+    } = response
+    else {
         unreachable!("typed response")
     };
     let name = if owner {
@@ -610,10 +847,11 @@ fn goal_join(
     };
     let title = presentation::safe(preview.goal_title.as_deref().unwrap_or("this goal"));
     let human = if membership == Membership::Member {
-        format!("{name} joined \"{title}\".")
+        format!("{name} joined \"{title}\" · {}.", level_word(joined_level))
     } else {
         format!(
-            "Joining \"{title}\" as {name}. Admission comes from the host's computer; locust --owner status shows it."
+            "Joining \"{title}\" as {name} ({}). Admission comes from the host's computer; locust --owner status shows it.",
+            level_word(joined_level)
         )
     };
     Ok(Output::success(result, human))

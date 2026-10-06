@@ -38,7 +38,7 @@ SECRET_FIELDS = {"credential", "session_secret", "secret", "secret_key", "ticket
 TICKET = re.compile(r"locust-invite-[A-Za-z0-9_-]+")
 ERROR_CODES = {"denied", "not_found", "invalid", "conflict", "claim_held", "superseded",
                "idempotency_mismatch", "limit_exceeded", "unavailable", "halted",
-               "unsupported_version", "corrupted", "internal", "authorization_required", "read_only"}
+               "unsupported_version", "corrupted", "internal", "level_required", "not_eligible", "read_only"}
 PUBLIC_ID = re.compile(r"[0-9a-f]{64}\Z")
 
 
@@ -285,10 +285,9 @@ class ProductionDaemon:
             self.goal = created.get("goal_created", {}).get("goal")
             if not isinstance(self.goal, str) or not PUBLIC_ID.fullmatch(self.goal):
                 raise ProductionError("production goal creation did not return a goal")
-            self.call(["goal", "grant", "--goal", self.goal, "--agent", self.principal,
-                "--grants", json.dumps({"contribute": True, "review": True, "select": True, "execute": False, "flow": True, "takeover": False})], owner=True)
+            self.call(["--agent", "qualification", "level", "--goal", self.goal, "ask"], owner=True)
             self._record("fixture_ready", principal=self.principal, goal=self.goal,
-                         role="same_principal_worker_and_host_agent", execute_granted=False)
+                         role="same_principal_worker_and_host_agent", level="ask")
             return self
         except BaseException:
             try:

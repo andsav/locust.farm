@@ -157,7 +157,7 @@ pub struct ContextSnapshot {
 /// Counts describe all obligations, even when a page filters one category.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PendingCounts {
-    pub to_authorize: u64,
+    pub ask_first: u64,
     pub to_start: u64,
     pub claimed: u64,
     pub held_elsewhere: u64,
@@ -169,7 +169,7 @@ pub struct PendingCounts {
 impl From<&PendingWork> for PendingCounts {
     fn from(work: &PendingWork) -> Self {
         Self {
-            to_authorize: work.to_authorize.len() as u64,
+            ask_first: work.ask_first.len() as u64,
             to_start: work.to_start.len() as u64,
             claimed: work.claimed.len() as u64,
             held_elsewhere: work.held_elsewhere.len() as u64,
@@ -183,7 +183,7 @@ impl From<&PendingWork> for PendingCounts {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PendingKind {
-    ToAuthorize,
+    AskFirst,
     ToStart,
     Claimed,
     HeldElsewhere,
@@ -195,7 +195,7 @@ pub enum PendingKind {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PendingItem {
-    ToAuthorize(WorkItem),
+    AskFirst(WorkItem),
     ToStart(WorkItem),
     Claimed(Claim),
     HeldElsewhere(Claim),

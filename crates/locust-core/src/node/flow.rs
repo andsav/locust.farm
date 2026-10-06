@@ -20,7 +20,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .values()
                 .find(|desired| {
                     !entry.state().effects.contains_key(&desired.id)
-                        && entry.local.grants(&desired.runner).flow
                         && entry.local.part.get(&desired.runner) != Some(&true)
                         && entry.is_member(&desired.runner)
                         && self.principals.active(&desired.runner).is_some()

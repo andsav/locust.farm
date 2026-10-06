@@ -51,14 +51,14 @@ regression. The formal model deliberately has no equivalent indexing optimizatio
 
 [AttemptSessions.tla](AttemptSessions.tla) models local claims per attempt. It
 never asserts one global worker or one attempt per task. Shared eligibility and
-local permission are separate inputs. The independent-attempt witness starts
+local admission are separate inputs. The independent-attempt witness starts
 two attempts under two sessions of the same principal.
 
 | Property | Model check | Current implementation evidence |
 | --- | --- | --- |
 | Principal/session binding | `ClaimHolderBound`, `NoCrossPrincipalEvents`; a session bound to another principal cannot start. | [Sessions](../../crates/locust-core/src/node/sessions.rs), [claim requests](../../crates/locust-core/src/node/requests/claims.rs); `sessions_survive_restart_drop_requires_finished_claim_and_binding_is_permanent` in [lifecycle tests](../../crates/locust-core/src/node/tests/lifecycle.rs). |
 | Generation fencing survives A–B–A takeover | `GenerationsNeverDecrease`, `StaleWritesCannotAuthor`; delayed A1 cannot write through A3. Disabling the generation check must produce a stale signed event. | `takeover_a_b_a_fences_old_generation_even_when_secret_returns` in [lifecycle tests](../../crates/locust-core/src/node/tests/lifecycle.rs); [formal trace regression](../../crates/locust-core/src/node/tests/formal.rs). |
-| Permission and current attempt gate authoring | `OnlyAuthorizedWrites`; permission/shared-eligibility witness checks both refusals; cancellation fences a queued report. | [Attempt authoring](../../crates/locust-core/src/node/requests/claims.rs), `cancellation_requires_holder_generation_and_is_not_completion_evidence`; [independent attempts API regression](../../crates/locust-core/tests/organizations.rs). |
+| Local admission and current attempt gate authoring | `OnlyAuthorizedWrites`; local-admission/shared-eligibility witness checks both refusals; cancellation fences a queued report. | [Attempt authoring](../../crates/locust-core/src/node/requests/claims.rs), `cancellation_requires_holder_generation_and_is_not_completion_evidence`; [independent attempts API regression](../../crates/locust-core/tests/organizations.rs). |
 | Stopped cancellation ends the local attempt durably | `AcknowledgeStopped` abstracts the atomic terminal transition; the cancellation witness rejects a queued report, acknowledges stopped, then reopens with the attempt ended. | `stopped_cancellation_commits_a_terminal_report_and_retries_without_new_events` in [lifecycle tests](../../crates/locust-core/src/node/tests/lifecycle.rs) checks both signed records and reverse replay; `cancellation_acknowledgment_and_terminal_report_commit_together` in [failure tests](../../crates/locust-core/src/node/tests/failure.rs) checks failure-before and failure-after recovery. |
 | Keyed retry cannot sign twice | `IdempotentRequestsAuthorOnce`, `IdempotencyMatchesEvent`; request digest varies by attempt and generation, excludes connection/session; stored replay precedes current-claim checks. | [Commit/idempotency](../../crates/locust-core/src/node/commit.rs); [formal trace regression](../../crates/locust-core/src/node/tests/formal.rs). |
 | Unknown commit outcome fences later signing | `UncertainCommitFencesSigning`, `HealthyMemoryMatchesStore`; failure-before retries once after reopen, failure-after replays once. | [Node commit](../../crates/locust-core/src/node/commit.rs); `failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outcome` in [failure tests](../../crates/locust-core/src/node/tests/failure.rs). |
@@ -70,8 +70,9 @@ attempts, generation 1 and at most two authored events. It isolates concurrent
 attempt starts from takeover state expansion. Directed witnesses allow three
 generations and three events and use the same actions as safety checking.
 
-One principal is shared-eligible. Start/takeover permission is aggregated into
-one Boolean; all separate grants/selectors are not enumerated. Membership,
+One principal is shared-eligible. The model aggregates local level and task
+allowance admission into one Boolean; it does not enumerate those settings or
+formation selectors. Membership,
 current-round, end and cancellation transitions are supplied as validated external
 facts. The model does not re-prove organization authority or model transport,
 managed adapters, all attempt statuses, completed/uncertain cancellation outcomes or physical
@@ -99,9 +100,9 @@ that witness choice does not change identity while target/round changes do.
 | Property | Model check | Current implementation evidence |
 | --- | --- | --- |
 | One logical task from duplicate signatures | `LogicalTaskDeduplication`; duplicate witness reaches three signatures and two tasks; disabling deduplication must fail. | [Effect resolver](../../crates/locust-core/src/goal/flow.rs), [projection](../../crates/locust-core/src/goal/projection.rs); `daemon_effects_advance_configured_stages_and_deduplicate_logical_work`. |
-| Evidence triggers daemon materialization | `Drive` materializes from verified evidence without a poll or start action; the acknowledgment witness includes this path. | [Daemon effects](../../crates/locust-core/src/node/flow.rs); `pipeline_materializes_on_grant_and_completion_without_agent_polling` in [public-engine tests](../../crates/locust-core/tests/organizations.rs). |
+| Evidence triggers daemon materialization | `Drive` materializes from verified evidence without a poll or start action; the acknowledgment witness includes this path. | [Daemon effects](../../crates/locust-core/src/node/flow.rs); `pipeline_materializes_without_any_setting` in [public-engine tests](../../crates/locust-core/tests/organizations.rs). |
 | Durable materialization reconstructs outbox | `OutboxHasDurableSource`, `HealthyMemoryMatchesStore`; failure-before and failure-after witnesses recover one task/outbox identity. | [Daemon effects](../../crates/locust-core/src/node/flow.rs), [atomic commit](../../crates/locust-core/src/node/commit.rs). |
-| Delivery, acknowledgment and start are distinct | `OnlyPermittedStarts`, `AcknowledgmentHasMaterialization`; delivery plus acknowledgment does not start without local permission; a mutation that makes acknowledgment start fails. | `only_delivery_recipients_can_acknowledge_and_ack_does_not_start_work` in [goal tests](../../crates/locust-core/src/goal/tests.rs), [local attempt claims](../../crates/locust-core/src/node/requests/claims.rs). |
+| Delivery, acknowledgment and start are distinct | `OnlyPermittedStarts`, `AcknowledgmentHasMaterialization`; delivery plus acknowledgment does not start without local admission; a mutation that makes acknowledgment start fails. | `only_delivery_recipients_can_acknowledge_and_ack_does_not_start_work` in [goal tests](../../crates/locust-core/src/goal/tests.rs), [local attempt claims](../../crates/locust-core/src/node/requests/claims.rs). |
 | Retracted evidence stops outstanding effect authority | Retraction witness keeps immutable signature, empties active outbox and starts no attempt. | `effect_cannot_change_recipients_and_fork_retraction_removes_outbox_projection` in [goal tests](../../crates/locust-core/src/goal/tests.rs). |
 
 Configured signer/action/recipient validity is assumed in this effects subset;

@@ -73,7 +73,7 @@ class FarmQualification(Qualification):
         return variant(self.cli(machine, ["farm", "show", "--goal", goal], owner=True), "farm_preview")
 
     def consent(self, machine, goal, accept=True):
-        args = ["farm", "consent", "--goal", goal, "--agent", machine.agent,
+        args = ["--agent", f"m{machine.number}", "farm", "consent", "--goal", goal,
             "--accept" if accept else "--decline"]
         if accept:
             args += ["--name", "Coordinator" if machine.number == 1 else "Worker", "--group-label", f"Daemon {machine.number}"]
@@ -138,7 +138,7 @@ class FarmQualification(Qualification):
         del ticket
         self.wait("both daemons know both members", lambda: all(
             (s := self.goal_status(m, goal)) and len(s["members"]) == 2 for m in self.machines))
-        self.grant_contributions(goal)
+        self.set_ask_levels(goal)
         self.cli(m1, ["farm", "on", "--goal", goal, "--service", self.origin,
             "--formation", "Reviewed collaboration", "--title", "Farm integration check", "--listed"], owner=True)
         initial = self.preview(m1, goal)
@@ -161,11 +161,11 @@ class FarmQualification(Qualification):
         task = "task:" + self.recorded(m1, ["task", "open", "--goal", goal, "PRIVATE TASK BODY MUST NOT BE EXPORTED"])
         offer = self.recorded(m1, ["work", "offer", "--goal", goal, "--task", task, "--member", m2.agent])
         self.wait("worker receives the task", lambda: any(t["task"] == task for t in variant(self.cli(m2, ["board", "--goal", goal]), "board")))
-        self.cli(m2, ["task", "authorize", "--goal", goal, "--task", task, "--agent", m2.agent], owner=True)
+        self.cli(m2, ["--agent", "m2", "allow", "--goal", goal, "--task", task], owner=True)
         session = m2.home / "sessions" / "farm.secret"
         self.cli(m2, ["session", "create", session], local=True)
         claim = variant(self.cli(m2, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer], session=session), "claimed")
-        result = self.recorded(m2, ["contribution", "publish", "--goal", goal, "--task", task,
+        result = self.recorded(m2, ["contribution", "publish", "--goal", goal,
             "--attempt", claim["attempt"], "--generation", claim["generation"], "PRIVATE RESULT MUST NOT BE EXPORTED"], session=session)
         self.wait("creator receives worker contribution", lambda: any(c["contribution"] == result for c in variant(self.cli(m1, ["contributions", "--goal", goal]), "contributions")))
         self.recorded(m1, ["review", "record", "--goal", goal, "--subject", result, "--verdict", "approve", "PRIVATE REVIEW"])

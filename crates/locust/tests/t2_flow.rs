@@ -126,6 +126,24 @@ impl Participant {
         self.cli(authority, &confirmed_args)
     }
 
+    fn human(&self, args: &[&str]) -> String {
+        let out = self.command().args(args).output().unwrap();
+        assert!(
+            out.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8(out.stdout).unwrap()
+    }
+    fn undo(&self, output: &str) -> String {
+        let command = output
+            .lines()
+            .find_map(|line| line.strip_prefix("Undo: locust "))
+            .unwrap();
+        self.human(&command.split_whitespace().collect::<Vec<_>>())
+    }
+
     fn cli(&self, authority: &[&str], args: &[&str]) -> Value {
         let out = self
             .command()
@@ -260,8 +278,6 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
         ],
     );
     let goal = created["goal_created"]["goal"].as_str().unwrap();
-    let grants = json!({"goal":goal,"agent":agent,"grants":{"contribute":true,"execute":true,"review":false,"select":true,"flow":false,"takeover":false}}).to_string();
-    p.cli(&["--owner"], &["call", "goal.grant", &grants]);
     let root = tempfile::tempdir().unwrap();
     fs::write(root.path().join("code.txt"), "before\n").unwrap();
     let seed = p.approved_cli(
@@ -304,8 +320,6 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
         json!({"goal":goal,"text":"change code.txt","task_type":null,"inputs":{},"parent":null}),
     );
     let task = format!("task:{}", opened["recorded"]["event"].as_str().unwrap());
-    let authorize = json!({"goal":goal,"task":task,"agent":agent,"takeover":false}).to_string();
-    p.cli(&["--owner"], &["call", "task.authorize", &authorize]);
     let claim = mcp.tool(
         "locust_attempt_start",
         json!({"goal":goal,"task":task,"offer":null}),
@@ -404,7 +418,7 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
     let submitted = mcp.tool(
         "locust_contribution_publish",
         json!({
-            "goal":goal,"task":task,"attempt":attempt,"generation":generation,
+            "goal":goal,"attempt":attempt,"generation":generation,
             "summary":"Verified code change; workspace candidate is separately published.",
             "sources":[proposal],"artifacts":[manifest],
         }),
@@ -504,7 +518,7 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
 }
 
 #[test]
-fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
+fn human_levels_allowances_and_mcp_shared_findings_form_one_workflow() {
     let participant = Participant::new();
     let enrollment = participant.cli(&["--owner"], &["agent", "enroll", "reader"]);
     let principal = enrollment["agent_enrolled"]["agent"].as_str().unwrap();
@@ -519,56 +533,23 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
         &["goal", "create", "--title", "Shared decisions"],
     );
     let goal = created["goal_created"]["goal"].as_str().unwrap();
-    let permission_args = [
-        "permission",
-        "allow",
-        "--goal",
-        goal,
-        "--agent",
-        "reader",
-        "contribute",
-        "review",
-    ];
-    let grants = participant.cli(&["--owner"], &permission_args);
-    assert_eq!(grants["permissions"]["grants"]["contribute"], true);
-    assert_eq!(grants["permissions"]["grants"]["review"], true);
-    assert_eq!(grants["permissions"]["grants"]["execute"], false);
-    let human = participant
-        .command()
-        .args([
-            "--owner",
-            "permission",
-            "inspect",
-            "--goal",
-            goal,
-            "--agent",
-            "reader",
-        ])
-        .output()
-        .unwrap();
-    assert!(
-        human.status.success(),
-        "{}",
-        String::from_utf8_lossy(&human.stderr)
-    );
-    let human = String::from_utf8(human.stdout).unwrap();
-    assert!(human.contains(&format!("Permissions for reader ({principal})")));
-    assert!(human.contains("not allowed"));
-    assert!(!human.trim_start().starts_with('{'));
-    let revoked = participant.cli(
+    let human = participant.human(&[
+        "--owner", "--agent", "reader", "level", "--goal", goal, "ask",
+    ]);
+    assert!(human.contains("reader in \"Shared decisions\": ask."));
+    participant.undo(&human);
+    let status = participant.cli(&["--owner"], &["goal", "status", "--goal", goal]);
+    assert_eq!(status["goal_status"]["abilities"][0]["level"], "auto");
+    let setting = participant.cli(
         &["--owner"],
-        &[
-            "permission",
-            "revoke",
-            "--goal",
-            goal,
-            "--agent",
-            "reader",
-            "review",
-        ],
+        &["level", "--goal", goal, "--agent", "reader", "ask"],
     );
-    assert_eq!(revoked["permissions"]["grants"]["review"], false);
-    assert_eq!(revoked["permissions"]["grants"]["contribute"], true);
+    assert_eq!(setting["level"], "ask");
+    assert_eq!(setting["changed"], true);
+    let unchanged = participant.human(&[
+        "--owner", "--agent", "reader", "level", "--goal", goal, "ask",
+    ]);
+    assert!(!unchanged.contains("Undo:"));
 
     let authority = ["--credential", credential, "--session", first_session];
     let pending_before = participant.cli(&authority, &["pending", "--goal", goal]);
@@ -577,7 +558,7 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
         &["pending", "page", "--goal", goal, "--limit", "1"],
     );
     for category in [
-        "to_authorize",
+        "ask_first",
         "to_start",
         "claimed",
         "held_elsewhere",
@@ -619,13 +600,49 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     assert!(!watched_human.contains("--owner --agent"));
 
     let mut mcp = Mcp::new(&participant, credential, first_session);
-    let own_permissions = mcp.tool(
-        "locust_permission_inspect",
-        json!({"goal":goal,"agent":principal}),
+    let status = mcp.tool("locust_goal_status", json!({"goal":goal}));
+    assert_eq!(status["goal_status"]["abilities"][0]["agent"], principal);
+    assert_eq!(status["goal_status"]["abilities"][0]["level"], "ask");
+    let opened = mcp.tool(
+        "locust_task_open",
+        json!({"goal":goal,"text":"Check the source","task_type":null,"inputs":{},"parent":null}),
     );
-    assert_eq!(own_permissions["permissions"]["grants"]["contribute"], true);
-    assert_eq!(own_permissions["permissions"]["grants"]["review"], false);
-    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"task":null,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","artifacts":[],"sources":[]}));
+    let task = format!("task:{}", opened["recorded"]["event"].as_str().unwrap());
+    let refused = mcp.request(
+        "tools/call",
+        json!({"name":"locust_attempt_start","arguments":{"goal":goal,"task":task,"offer":null}}),
+    );
+    assert_eq!(refused["isError"], true);
+    assert_eq!(
+        refused["structuredContent"]["error"]["code"],
+        "level_required"
+    );
+    let allowed = participant.human(&[
+        "--owner", "--agent", "reader", "allow", "--goal", goal, "--task", &task,
+    ]);
+    assert!(allowed.contains(
+        "reader may take \"Check the source\" in \"Shared decisions\" until the host revises it."
+    ));
+    let revoked = participant.undo(&allowed);
+    assert!(revoked.contains("A running attempt is not stopped."));
+    let restored = participant.undo(&revoked);
+    assert!(restored.contains("until the host revises it."));
+    let claim = mcp.tool(
+        "locust_attempt_start",
+        json!({"goal":goal,"task":task,"offer":null}),
+    );
+    assert!(claim["claimed"]["attempt"].is_string());
+    let revoked = participant.human(&[
+        "--owner", "--agent", "reader", "allow", "--goal", goal, "--task", &task, "--revoke",
+    ]);
+    assert!(revoked.contains("Undo:"));
+    let pending = mcp.tool("locust_pending", json!({"goal":goal}));
+    assert_eq!(pending["pending"]["claimed"].as_array().unwrap().len(), 1);
+    let unchanged = participant.human(&[
+        "--owner", "--agent", "reader", "allow", "--goal", goal, "--task", &task, "--revoke",
+    ]);
+    assert!(!unchanged.contains("Undo:"));
+    let finding = mcp.tool("locust_contribution_publish", json!({"goal":goal,"attempt":null,"generation":null,"summary":"Use exact source hashes; the previous cache is stale.","artifacts":[],"sources":[]}));
     let event = finding["recorded"]["event"].as_str().unwrap();
     let query = json!({"goal":goal,"view":"compact","task":null,"after":null,"limit":2,"preview_chars":null,"unread_only":true});
     let cli_page = participant.cli(
@@ -723,7 +740,7 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
 }
 
 #[test]
-fn reviewed_local_membership_uses_names_without_tickets_or_hidden_work_grants() {
+fn reviewed_local_membership_uses_names_and_defaults_to_auto_without_tickets() {
     let participant = Participant::new();
     let alice = participant.cli(&["--owner"], &["agent", "enroll", "alice"]);
     let bob = participant.cli(&["--owner"], &["agent", "enroll", "bob"]);
@@ -811,25 +828,16 @@ fn reviewed_local_membership_uses_names_without_tickets_or_hidden_work_grants() 
         inventory["invitations"]["invitations"][0]["state"],
         "redeemed"
     );
-    let permissions = participant.cli(
-        &["--owner"],
-        &[
-            "permission",
-            "inspect",
-            "--goal",
-            "Demo work",
-            "--agent",
-            "bob",
-        ],
-    );
-    assert!(
-        permissions["permissions"]["grants"]
-            .as_object()
-            .unwrap()
-            .values()
-            .all(|value| value == false)
-    );
-    assert_eq!(permissions["permissions"]["membership"], "member");
+    assert_eq!(joined["level"], "auto");
+    let status = participant.cli(&["--owner"], &["goal", "status", "--goal", "Demo work"]);
+    let abilities = status["goal_status"]["abilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|view| view["agent"] == bob_key)
+        .unwrap();
+    assert_eq!(abilities["level"], "auto");
+    assert_eq!(abilities["membership"], "member");
     let owner_status = participant.cli(&["--owner"], &["status"]);
     assert!(
         owner_status["status"]["agents"]

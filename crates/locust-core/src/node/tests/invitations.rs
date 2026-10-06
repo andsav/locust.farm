@@ -2,7 +2,7 @@
 
 use super::lifecycle::setup;
 use super::*;
-use locust_proto::api::{GoalGrants, InvitationState, InvitationSummary, Membership};
+use locust_proto::api::{InvitationState, InvitationSummary, Membership};
 use locust_proto::id::{EndpointId, GoalId};
 use locust_proto::invite::{Invitation, JoinRequest, Ticket};
 use locust_proto::store::{Space, Store};
@@ -31,7 +31,11 @@ fn inventory(daemon: &mut Daemon, owner: ConnId, goal: GoalId) -> Vec<Invitation
 }
 
 fn reviewed(ticket: Ticket, agent: PublicKey) -> Request {
-    Request::GoalJoin { agent, ticket }
+    Request::GoalJoin {
+        agent,
+        ticket,
+        level: locust_proto::api::Level::Auto,
+    }
 }
 
 #[test]
@@ -69,7 +73,7 @@ fn inspect_is_signed_capability_free_and_does_not_join_or_change_state() {
 }
 
 #[test]
-fn person_joins_with_existing_principal_without_granting_execution() {
+fn person_joins_with_existing_principal_at_the_selected_level() {
     let (mut daemon, _, owner, agent, goal) = setup();
     let member = daemon.enroll("person-selected", 2);
     let ticket = issue(&mut daemon, agent, goal, None);
@@ -85,8 +89,8 @@ fn person_joins_with_existing_principal_without_granting_execution() {
     ));
     assert_eq!(daemon.ok(owner, request.clone()), result);
     assert_eq!(
-        daemon.node.goals[&goal].local.grants(&member),
-        GoalGrants::default()
+        daemon.node.goals[&goal].local.level(&member),
+        locust_proto::api::Level::Auto
     );
     assert!(
         !daemon.node.goals[&goal]
@@ -99,8 +103,8 @@ fn person_joins_with_existing_principal_without_granting_execution() {
     let owner = daemon.owner();
     assert_eq!(daemon.ok(owner, request), result);
     assert_eq!(
-        daemon.node.goals[&goal].local.grants(&member),
-        GoalGrants::default()
+        daemon.node.goals[&goal].local.level(&member),
+        locust_proto::api::Level::Auto
     );
 }
 
@@ -320,6 +324,7 @@ fn expired_preview_is_readable_but_join_is_refused_without_side_effects() {
     let frame = daemon.frame(Request::GoalJoin {
         agent: member,
         ticket,
+        level: locust_proto::api::Level::Auto,
     });
     let Step::Reply(reply) = daemon.step(owner, frame, 2_000) else {
         panic!()

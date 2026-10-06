@@ -510,7 +510,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         let body = match &operation.kind {
             WorkspaceOperationKind::Capture { candidate } => {
-                self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
                 if candidate.context != context {
                     return Err(conflict("captured workspace epoch is superseded"));
                 }
@@ -535,7 +534,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 expected_head,
                 proposal,
             } => {
-                self.require_grant(actor, entry, entry.local.grants(&principal).select)?;
                 if workspace.epoch != *expected_epoch || workspace.head != *expected_head {
                     return Err(conflict("workspace epoch or head changed").with_details(
                         serde_json::json!({"epoch":workspace.epoch,"head":workspace.head}),
@@ -583,7 +581,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             WorkspaceOperationKind::Update { .. } => unreachable!(),
         };
         let mut tx = Tx::none();
-        let event = self.author(entry, &principal, body, None, now, &mut tx)?;
+        let event = self.sign_for(actor, entry, &principal, body, None, now, &mut tx)?;
         operation.state = WorkspaceOperationState::Recorded { event };
         tx.local(local::workspace_operation_write(
             &goal, &principal, &operation,

@@ -1,20 +1,20 @@
-//! Grants and authorization: which goal a caller may read, write to or
-//! decide for.
+//! Shared replay authority followed by this person's local level.
 //!
 //! A principal sees only the goals it takes or took part in; any other goal
 //! does not exist for it (`NotFound`). A request that is not the caller's to
-//! make is `Denied`; one that is the caller's but that no grant covers is
-//! `AuthorizationRequired`. The owner acting on a principal's behalf is the
-//! authorization, so grants are not consulted then.
+//! make is `Denied`. The owner acting on a principal's behalf skips only
+//! the local level, never the shared rule.
 
-use locust_proto::api::{ApiError, ErrorCode, Membership};
+use locust_proto::api::{Act, ApiError, ErrorCode, Level, Membership, Refused, Why};
 use locust_proto::engine::Entropy;
+use locust_proto::event::{Body, DecisionAction, Event, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
 use locust_proto::store::Store;
 
 use super::Node;
 use super::callers::Actor;
 use super::entry::Entry;
+use crate::goal::Standing;
 
 pub(super) fn not_found(message: &'static str) -> ApiError {
     ApiError::new(ErrorCode::NotFound, message)
@@ -28,8 +28,44 @@ pub(super) fn conflict(message: &'static str) -> ApiError {
     ApiError::new(ErrorCode::Conflict, message)
 }
 
-pub(super) fn authorization_required(message: &'static str) -> ApiError {
-    ApiError::new(ErrorCode::AuthorizationRequired, message)
+/// A candidate already signed in memory, or a local content/claim action.
+pub(super) enum Attempted<'a> {
+    Sign {
+        event: &'a Event,
+        preceding: &'a [Event],
+    },
+    Store,
+    Withdraw,
+    Resume {
+        task: TaskId,
+    },
+}
+
+fn act(body: &Body) -> Act {
+    match body {
+        Body::TaskOpened { .. } => Act::OpenTask,
+        Body::WorkOffered { .. } => Act::HandOut,
+        Body::AttemptStarted { .. } => Act::TakeTask,
+        Body::ContributionPublished { .. } | Body::DocumentRevised { .. } => Act::Post,
+        Body::WorkspaceProposed { .. } => Act::ProposeFiles,
+        Body::CompletionDeclared { .. } => Act::DeclareDone,
+        Body::ReviewRecorded { .. } => Act::Approve,
+        Body::CheckAttested { .. } => Act::Attest,
+        Body::ScopeDecided {
+            context, action, ..
+        } => match action {
+            DecisionAction::Select { .. } if context.scope == Scope::Workspace => Act::MergeFiles,
+            DecisionAction::Select { .. } => Act::Pick,
+            DecisionAction::Close => Act::Close,
+            DecisionAction::Reopen => Act::Reopen,
+        },
+        Body::CancelRequested { .. } => Act::Cancel,
+        Body::TaskRevised { .. } => Act::Revise,
+        Body::RulesBound { .. } => Act::ChangeRules,
+        Body::LeaveRequested { .. } => Act::Leave,
+        Body::PublicationSet(_) => Act::Publish,
+        _ => Act::PersonCommand,
+    }
 }
 
 const NO_GOAL: &str = "no such goal";
@@ -107,19 +143,181 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok((entry, principal))
     }
 
-    pub(super) fn require_grant(
+    pub(super) fn refused_error(
+        &self,
+        entry: &Entry,
+        agent: PublicKey,
+        attempted: &Attempted<'_>,
+        why: Why,
+    ) -> ApiError {
+        let agent_name = self
+            .principals
+            .get(&agent)
+            .map(|p| p.record.name.clone())
+            .unwrap_or_else(|| agent.to_string().chars().take(8).collect());
+        let (act, task) = match attempted {
+            Attempted::Sign { event, .. } => (
+                act(&event.header().body),
+                match &event.header().body {
+                    Body::AttemptStarted { context, .. } => match context.scope {
+                        Scope::Task(task) => Some(task),
+                        _ => None,
+                    },
+                    _ => None,
+                },
+            ),
+            Attempted::Resume { task } => (Act::Resume, Some(*task)),
+            Attempted::Store => (Act::Post, None),
+            Attempted::Withdraw => (Act::Withdraw, None),
+        };
+        let task_title = task
+            .and_then(|task| entry.state().tasks.get(&task))
+            .and_then(|task| entry.goal.event(&task.created))
+            .and_then(|event| entry.text(&self.store, event, None));
+        let code = match &why {
+            Why::YourSetting { .. } => ErrorCode::LevelRequired,
+            Why::Rules { .. } => ErrorCode::NotEligible,
+            Why::State { .. } => ErrorCode::Conflict,
+            Why::OnlyYou { .. } => ErrorCode::Denied,
+        };
+        let message = match &why {
+            Why::YourSetting { .. } => {
+                format!("{agent_name} needs a higher local level for this action")
+            }
+            Why::Rules { .. } => format!("{agent_name} is not eligible under this goal's rules"),
+            Why::State { .. } => format!("{agent_name} cannot act in this goal's current state"),
+            Why::OnlyYou { .. } => format!("this is {agent_name}'s owner's command"),
+        };
+        let refused = Refused {
+            agent,
+            agent_name,
+            member_name: None,
+            goal: Some(entry.id()),
+            goal_title: entry.local.title.clone(),
+            act,
+            task,
+            task_title,
+            why,
+        };
+        ApiError::new(code, message)
+            .with_details(serde_json::to_value(refused).expect("refusal serializes"))
+    }
+
+    /// Replay the exact signed candidate before the local level, using the
+    /// same projection that will later be committed. Nothing refused is stored.
+    pub(super) fn allowed(
         &self,
         actor: &Actor,
         entry: &Entry,
-        allowed: bool,
+        principal: PublicKey,
+        attempted: Attempted<'_>,
     ) -> Result<(), ApiError> {
-        let _ = entry;
-        if actor.owner_act || allowed {
-            Ok(())
-        } else {
-            Err(authorization_required(
-                "this operation requires a local grant",
+        if let Attempted::Sign { event, preceding } = &attempted {
+            if let Body::AttemptStarted { context, .. } | Body::WorkOffered { context, .. } =
+                &event.header().body
+                && matches!(context.scope, Scope::Task(_))
+                && entry.state().task_round(*context).is_some()
+                && !entry.goal.task_available(*context)
+            {
+                return Err(self.refused_error(
+                    entry,
+                    principal,
+                    &attempted,
+                    Why::State {
+                        reason: "this task is closed, finished or picked".into(),
+                    },
+                ));
+            }
+            let mut trial = entry.goal.clone();
+            trial.apply(preceding, &entry.definitions);
+            trial.apply(&[(*event).clone()], &entry.definitions);
+            match trial.standing(&event.id()) {
+                Some(Standing::Effective) => {}
+                Some(Standing::Excluded(exclusion)) => {
+                    if let Some(rule) = trial.rule_refusal(&event.id()) {
+                        return Err(self.refused_error(
+                            entry,
+                            principal,
+                            &attempted,
+                            Why::Rules {
+                                rule: rule.rule,
+                                qualifies: rule.qualifies.clone(),
+                                except_author: rule.except_author,
+                                host: entry.state().governance.unwrap_or(principal),
+                                host_name: None,
+                            },
+                        ));
+                    }
+                    return Err(self.refused_error(
+                        entry,
+                        principal,
+                        &attempted,
+                        Why::State {
+                            reason: exclusion
+                                .reason()
+                                .unwrap_or_else(|| exclusion.name())
+                                .into(),
+                        },
+                    ));
+                }
+                _ => {
+                    return Err(self.refused_error(
+                        entry,
+                        principal,
+                        &attempted,
+                        Why::State {
+                            reason: "the candidate cannot be applied yet".into(),
+                        },
+                    ));
+                }
+            }
+        }
+        if actor.owner_act {
+            return Ok(());
+        }
+        let needed = match &attempted {
+            Attempted::Sign { event, .. } => match &event.header().body {
+                Body::AttemptStarted { context, .. } => match context.scope {
+                    Scope::Task(task) => entry.local.start_level(task, context.round, principal),
+                    _ => Level::Auto,
+                },
+                Body::TaskOpened { .. }
+                | Body::WorkOffered { .. }
+                | Body::ContributionPublished { .. }
+                | Body::DocumentRevised { .. }
+                | Body::WorkspaceProposed { .. }
+                | Body::CompletionDeclared { .. }
+                | Body::ReviewRecorded { .. }
+                | Body::CheckAttested { .. }
+                | Body::ScopeDecided { .. }
+                | Body::CancelRequested { .. } => Level::Ask,
+                _ => Level::Read,
+            },
+            Attempted::Resume { task } => entry
+                .state()
+                .tasks
+                .get(task)
+                .map(|task_state| {
+                    entry
+                        .local
+                        .start_level(*task, task_state.current_round, principal)
+                })
+                .unwrap_or(Level::Auto),
+            Attempted::Store | Attempted::Withdraw => Level::Ask,
+        };
+        let level = entry.local.level(&principal);
+        if level < needed {
+            Err(self.refused_error(
+                entry,
+                principal,
+                &attempted,
+                Why::YourSetting {
+                    level,
+                    needs: needed,
+                },
             ))
+        } else {
+            Ok(())
         }
     }
 

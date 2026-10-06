@@ -1,6 +1,5 @@
 """Reusable steps of the T1 guide, driven only through the CLI of each daemon."""
 
-import json
 import re
 import time
 
@@ -33,15 +32,13 @@ def boot(cluster, machines):
          "endpoint": m.endpoint, "env": m.env} for m in cluster.machines]
 
 
-def grant(cluster, machine, goal):
-    cluster.cli(machine, ["goal", "grant", "--goal", goal, "--agent", machine.agent,
-        "--grants", json.dumps({"contribute": True, "review": True,
-            "select": True, "flow": True, "execute": False, "takeover": False})], owner=True)
+def set_ask_level(cluster, machine, goal):
+    cluster.cli(machine, ["--agent", f"m{machine.number}", "level", "--goal", goal, "ask"], owner=True)
 
 
 def found(cluster, coordinator, title):
     goal = cluster.create_goal(coordinator, title)
-    grant(cluster, coordinator, goal)
+    set_ask_level(cluster, coordinator, goal)
     cluster.summary["goal"] = goal
     return goal
 
@@ -71,7 +68,7 @@ def invite_join(cluster, coordinator, joiner, goal, title, everyone, timeout=Non
     cluster.wait(f"M{joiner.number} join admitted on all of {[m.number for m in everyone]}",
                  lambda: members_ok(cluster, everyone, goal, title, expected), timeout)
     for machine in everyone:
-        grant(cluster, machine, goal)
+        set_ask_level(cluster, machine, goal)
     seconds = round(time.monotonic() - sent, 2)
     cluster.summary.setdefault("join_seconds", {})[f"M{joiner.number}"] = seconds
     return seconds
@@ -93,26 +90,26 @@ def pending_has(cluster, machine, goal, bucket, task):
 
 
 def complete_task(cluster, coordinator, worker, goal, observers, timeout=None, label="T1"):
-    """Open, offer, authorize, start, publish, review and select across replicas."""
+    """Open, offer, allow, start, publish, review and select across replicas."""
     task_text = f"Return the text: {label} task completed."
     summary = f"{label} task completed."
     task = "task:" + cluster.recorded(coordinator, ["task", "open", "--goal", goal, task_text])
     offer = cluster.recorded(coordinator, ["work", "offer", "--goal", goal, "--task", task,
                                                 "--member", worker.agent])
     cluster.wait(f"M{worker.number} receives offer {label}", lambda: pending_has(
-        cluster, worker, goal, "to_authorize", task), timeout)
-    cluster.cli(worker, ["task", "authorize", "--goal", goal, "--task", task, "--agent", worker.agent], owner=True)
+        cluster, worker, goal, "ask_first", task), timeout)
+    cluster.cli(worker, ["--agent", f"m{worker.number}", "allow", "--goal", goal, "--task", task], owner=True)
     session_path = worker.home / "sessions" / f"{label.lower()}.secret"
     session = cluster.cli(worker, ["session", "create", session_path], local=True)
     if session_path.stat().st_mode & 0o7777 != 0o600:
         raise CheckFailure("execution session file was not mode 0600")
     if not pending_has(cluster, worker, goal, "to_start", task):
-        raise CheckFailure("authorized task is not listed to_start")
+        raise CheckFailure("allowed task is not listed to_start")
     claim = variant(cluster.cli(worker, ["attempt", "start", "--goal", goal, "--task", task, "--offer", offer],
                                 session=session_path), "claimed")
     if claim.get("task") != task or claim.get("instance") != session.get("instance"):
         raise CheckFailure("claim did not bind the requested task/session")
-    result_id = cluster.recorded(worker, ["contribution", "publish", "--goal", goal, "--task", task, "--attempt", claim["attempt"],
+    result_id = cluster.recorded(worker, ["contribution", "publish", "--goal", goal, "--attempt", claim["attempt"],
                                           "--generation", claim["generation"], summary], session=session_path)
     cluster.wait(f"M{coordinator.number} reads the submitted result {label}",
                  lambda: result_held(cluster, coordinator, goal, result_id, summary), timeout)

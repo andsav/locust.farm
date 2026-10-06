@@ -124,25 +124,7 @@ impl Harness {
         ) else {
             panic!()
         };
-        self.grant(goal, creator);
         goal
-    }
-    fn grant(&mut self, goal: GoalId, agent: PublicKey) {
-        self.ok(
-            ConnId(1),
-            Request::GoalGrant {
-                goal,
-                agent,
-                grants: GoalGrants {
-                    contribute: true,
-                    execute: true,
-                    review: true,
-                    select: true,
-                    flow: false,
-                    takeover: false,
-                },
-            },
-        );
     }
     fn join(&mut self, goal: GoalId, principal: PublicKey) {
         let Response::Invited { ticket } = self.ok(
@@ -159,7 +141,8 @@ impl Harness {
                 ConnId(1),
                 Request::GoalJoin {
                     agent: principal,
-                    ticket
+                    ticket,
+                    level: locust_proto::api::Level::Auto,
                 }
             ),
             Response::Joined {
@@ -167,7 +150,6 @@ impl Harness {
                 ..
             }
         ));
-        self.grant(goal, principal);
     }
     fn put(&mut self, conn: ConnId, goal: GoalId, bytes: &[u8]) -> BlobHash {
         let Response::BlobStored { hash } = self.ok(
@@ -198,7 +180,6 @@ impl Harness {
             conn,
             Request::ContributionPublish {
                 goal,
-                task: None,
                 attempt: None,
                 generation: None,
                 summary: summary.into(),

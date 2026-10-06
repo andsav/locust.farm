@@ -174,7 +174,7 @@ def qualify(client, binary, args):
             task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "Managed synthetic task"])["recorded"]["event"]
             offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
                 "--member", daemon.principal])["recorded"]["event"]
-            daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
+            daemon.call(["--agent", "qualification", "allow", "--goal", daemon.goal, "--task", task], owner=True)
             claim = daemon.call(["attempt", "start", "--goal", daemon.goal, "--task", task, "--offer", offer])["claimed"]
             attempt = claim["attempt"]
             result["binding"] = {"goal": daemon.goal, "task": task, "attempt": attempt,
