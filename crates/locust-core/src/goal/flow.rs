@@ -58,16 +58,17 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             .chain
             .snapshot(&anchor)
             .ok_or(Standing::Pending(Waiting::Anchor))?;
-        let effective = rules::resolve_binding(
+        let mut effective = rules::resolve_binding(
             self.history,
             self.definitions,
             rules,
             Some(binding.clone()),
             Some(runner),
-            &snapshot.roles,
-            (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap()),
         )?
         .effective;
+        effective.roles = snapshot.roles.clone();
+        effective.only_member =
+            (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap());
         let recipients = rules::selected(
             &stage.recipients,
             snapshot.members.keys().copied(),

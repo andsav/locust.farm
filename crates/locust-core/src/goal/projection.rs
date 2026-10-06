@@ -413,7 +413,15 @@ pub(super) fn project<D: DefinitionLookup + ?Sized>(v: &Verifier<'_, D>, out: &m
                 _ => unreachable!("selection requires a contribution or revision"),
             };
             let task = v
-                .resolve(key.context, v.chain.state.head.unwrap())
+                .resolve(
+                    key.context,
+                    v.history
+                        .get(&last.id)
+                        .expect("decision exists")
+                        .header()
+                        .anchor
+                        .unwrap(),
+                )
                 .expect("effective context resolves")
                 .task
                 .map(|binding| TaskRound {

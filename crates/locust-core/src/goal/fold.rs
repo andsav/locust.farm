@@ -20,6 +20,7 @@ use super::rules::{self, Resolved, invalid};
 use super::standing::{Dependency, Evaluation, Halt, RuleRefusal, Standing, Waiting};
 
 type CacheKey = (EventId, Option<EventId>);
+type LatestReviews = BTreeMap<(EventId, Option<String>), BTreeMap<PublicKey, EventId>>;
 type DecisionPredecessor = (PublicKey, ScopeKey, Option<EventId>);
 
 pub(super) struct Verifier<'a, D: DefinitionLookup + ?Sized> {
@@ -29,12 +30,17 @@ pub(super) struct Verifier<'a, D: DefinitionLookup + ?Sized> {
     memo: RefCell<BTreeMap<CacheKey, Standing>>,
     visiting: RefCell<BTreeSet<CacheKey>>,
     proofs: RefCell<BTreeMap<EventId, Result<Rc<Proof>, Standing>>>,
-    resolved: RefCell<BTreeMap<(Context, EventId), Result<Resolved, Standing>>>,
+    resolved: RefCell<BTreeMap<Context, Result<Resolved, Standing>>>,
     pub checkpoint_lineages: RefCell<BTreeMap<EventId, Result<BTreeSet<EventId>, Standing>>>,
     pub missing: RefCell<BTreeSet<Dependency>>,
     pub scope_halts: RefCell<BTreeMap<ScopeKey, Halt>>,
     pub rule_refusals: RefCell<BTreeMap<EventId, RuleRefusal>>,
     witnesses: BTreeMap<EventId, Vec<EventId>>,
+    latest_reviews: RefCell<LatestReviews>,
+    #[cfg(test)]
+    pub(super) latest_review_scans: std::cell::Cell<usize>,
+    #[cfg(test)]
+    pub(super) rule_resolutions: std::cell::Cell<usize>,
     // Candidates only: authorization and conflicts are still checked each fold.
     decision_successors: BTreeMap<DecisionPredecessor, Vec<EventId>>,
     closure_index: RefCell<commitments::Index>,
@@ -76,6 +82,11 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         }
         Self {
             witnesses,
+            latest_reviews: RefCell::new(BTreeMap::new()),
+            #[cfg(test)]
+            latest_review_scans: std::cell::Cell::new(0),
+            #[cfg(test)]
+            rule_resolutions: std::cell::Cell::new(0),
             decision_successors,
             closure_index: RefCell::new(closure_index),
             history,
@@ -110,26 +121,24 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         invalid(reason)
     }
     pub fn resolve(&self, context: Context, anchor: EventId) -> Result<Resolved, Standing> {
-        if let Some(result) = self.resolved.borrow().get(&(context, anchor)).cloned() {
-            return result;
-        }
         let snapshot = self
             .chain
             .snapshot(&anchor)
             .ok_or(Standing::Pending(Waiting::Anchor))?;
-        let only_member =
-            (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap());
-        let result = rules::resolve(
-            self.history,
-            self.definitions,
-            context,
-            &snapshot.roles,
-            only_member,
-        );
-        self.resolved
-            .borrow_mut()
-            .insert((context, anchor), result.clone());
-        result
+        let cached = self.resolved.borrow().get(&context).cloned();
+        let result = cached.unwrap_or_else(|| {
+            #[cfg(test)]
+            self.rule_resolutions.set(self.rule_resolutions.get() + 1);
+            let result = rules::resolve(self.history, self.definitions, context);
+            self.resolved.borrow_mut().insert(context, result.clone());
+            result
+        });
+        result.map(|mut resolved| {
+            resolved.effective.roles = snapshot.roles.clone();
+            resolved.effective.only_member =
+                (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap());
+            resolved
+        })
     }
     pub fn event(&self, id: EventId) -> Result<&Event, Standing> {
         self.history.get(&id).ok_or_else(|| {
@@ -718,15 +727,16 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             .chain
             .snapshot(&anchor)
             .ok_or(Standing::Pending(Waiting::Anchor))?;
-        let resolved = rules::resolve_binding(
+        let mut resolved = rules::resolve_binding(
             self.history,
             self.definitions,
             binding.rules,
             Some(binding.clone()),
             Some(creator),
-            &snapshot.roles,
-            (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap()),
         )?;
+        resolved.effective.roles = snapshot.roles.clone();
+        resolved.effective.only_member =
+            (snapshot.members.len() == 1).then(|| *snapshot.members.keys().next().unwrap());
         if let Some(parent) = binding.parent {
             self.require(parent.round, proof)?;
             let parent_context = parent;
@@ -1049,22 +1059,45 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         member: PublicKey,
         check: Option<&str>,
     ) -> Option<EventId> {
-        self.witnesses
-            .get(&subject)
-            .into_iter()
-            .flatten()
-            .filter_map(|id| self.history.get(id))
-            .filter(|event| {
-                event.header().author == member
-                    && match (&event.header().body, check) {
-                        (Body::ReviewRecorded { .. }, None) => true,
-                        (Body::CheckAttested { name, .. }, Some(check)) => name == check,
-                        _ => false,
-                    }
-            })
-            .filter(|event| self.status(event.id(), None) == Standing::Effective)
-            .max_by_key(|event| (event.header().seq, event.id()))
-            .map(Event::id)
+        let key = (subject, check.map(str::to_owned));
+        if !self.latest_reviews.borrow().contains_key(&key) {
+            #[cfg(test)]
+            self.latest_review_scans
+                .set(self.latest_review_scans.get() + 1);
+            let mut latest = BTreeMap::new();
+            for event in self
+                .witnesses
+                .get(&subject)
+                .into_iter()
+                .flatten()
+                .filter_map(|id| self.history.get(id))
+            {
+                let matches = match (&event.header().body, check) {
+                    (Body::ReviewRecorded { .. }, None) => true,
+                    (Body::CheckAttested { name, .. }, Some(check)) => name == check,
+                    _ => false,
+                };
+                if matches && self.status(event.id(), None) == Standing::Effective {
+                    let candidate = (event.header().seq, event.id());
+                    latest
+                        .entry(event.header().author)
+                        .and_modify(|held| *held = candidate.max(*held))
+                        .or_insert(candidate);
+                }
+            }
+            self.latest_reviews.borrow_mut().insert(
+                key.clone(),
+                latest
+                    .into_iter()
+                    .map(|(author, (_, id))| (author, id))
+                    .collect(),
+            );
+        }
+        self.latest_reviews
+            .borrow()
+            .get(&key)
+            .and_then(|latest| latest.get(&member))
+            .copied()
     }
     fn predicate(
         &self,

@@ -31,8 +31,6 @@ pub(super) fn resolve<D: DefinitionLookup + ?Sized>(
     history: &History,
     definitions: &D,
     context: Context,
-    roles: &BTreeMap<String, Vec<PublicKey>>,
-    only_member: Option<PublicKey>,
 ) -> Result<Resolved, Standing> {
     let event = history
         .get(&context.round)
@@ -79,15 +77,7 @@ pub(super) fn resolve<D: DefinitionLookup + ?Sized>(
             _ => return Err(invalid("context round belongs to another task")),
         },
     };
-    let mut resolved = resolve_binding(
-        history,
-        definitions,
-        rules,
-        task,
-        creator,
-        roles,
-        only_member,
-    )?;
+    let mut resolved = resolve_binding(history, definitions, rules, task, creator)?;
     if context.scope == Scope::Workspace {
         let definition = definitions
             .definition(&resolved.effective.definition)
@@ -116,8 +106,6 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
     rules: EventId,
     task: Option<TaskBinding>,
     creator: Option<PublicKey>,
-    roles: &BTreeMap<String, Vec<PublicKey>>,
-    only_member: Option<PublicKey>,
 ) -> Result<Resolved, Standing> {
     let event = history
         .get(&rules)
@@ -135,7 +123,7 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
         .as_ref()
         .and_then(|task| task.parent)
         .filter(|context| matches!(context.scope, Scope::Task(_)))
-        .map(|context| resolve(history, definitions, context, roles, only_member))
+        .map(|context| resolve(history, definitions, context))
         .transpose()?;
     let (mut work, mut decisions) = if let Some(parent) = &inherited {
         super::delegation::inherit(&parent.effective)
@@ -158,8 +146,8 @@ pub(super) fn resolve_binding<D: DefinitionLookup + ?Sized>(
         effective: EffectiveRules {
             work,
             decisions,
-            roles: roles.clone(),
-            only_member,
+            roles: BTreeMap::new(),
+            only_member: None,
             creator,
             rules,
             definition: binding.definition.semantic,

@@ -3685,3 +3685,96 @@ fn neither_of_two_lead_holders_can_pick() {
         assert_eq!(goal.state().task_round(context).unwrap().selected, None);
     }
 }
+
+#[test]
+fn latest_review_scans_each_subject_and_check_once_per_fold() {
+    let mut formation = review_formation(1);
+    formation.decisions.completion = CompletionRule::All {
+        rules: vec![
+            formation.decisions.completion,
+            CompletionRule::Check {
+                name: "build".into(),
+                by: Selector::Members,
+            },
+        ],
+    };
+    let mut f = Fixture::new(formation);
+    let context = f.context();
+    let subject = f.publish(0, context);
+    let mut latest = [subject; 2];
+    for _ in 0..32 {
+        latest[0] = f.worker(
+            1,
+            Body::ReviewRecorded {
+                context,
+                subject,
+                verdict: ReviewVerdict::Reject,
+            },
+        );
+        latest[1] = f.worker(
+            1,
+            Body::CheckAttested {
+                context,
+                subject,
+                name: "build".into(),
+                passed: false,
+            },
+        );
+    }
+    let goal = f.goal();
+    let verifier = super::fold::Verifier::new(
+        &goal.history,
+        &goal.chain,
+        &f.definitions,
+        Default::default(),
+    );
+    for event in &f.events {
+        verifier.status(event.id(), None);
+    }
+    for _ in 0..32 {
+        for (check, expected) in [(None, latest[0]), (Some("build"), latest[1])] {
+            assert_eq!(
+                verifier.latest_review(subject, f.workers[1].key.public(), check),
+                Some(expected)
+            );
+            assert_eq!(
+                verifier.latest_review(subject, f.workers[2].key.public(), check),
+                None
+            );
+        }
+    }
+    assert_eq!(verifier.latest_review_scans.get(), 2);
+    assert!(!goal.state().contributions[&subject].approved);
+}
+
+#[test]
+fn rules_resolve_once_per_context_with_members_and_roles_from_each_anchor() {
+    let mut f = alone(preset_formation("directed"));
+    let context = f.context();
+    let first = f.anchor;
+    admit_worker(&mut f, 0, None);
+    f.host(Body::RoleHolders {
+        role: "lead".into(),
+        holders: vec![f.workers[0].key.public()],
+    });
+    let goal = f.goal();
+    let verifier = super::fold::Verifier::new(
+        &goal.history,
+        &goal.chain,
+        &f.definitions,
+        Default::default(),
+    );
+    for _ in 0..3 {
+        let earlier = verifier.resolve(context, first).unwrap().effective;
+        assert_eq!(earlier.roles["lead"], vec![f.admin.key.public()]);
+        assert_eq!(earlier.only_member, Some(f.admin.key.public()));
+        let later = verifier.resolve(context, f.anchor).unwrap().effective;
+        assert_eq!(later.roles["lead"], vec![f.workers[0].key.public()]);
+        assert_eq!(later.only_member, None);
+    }
+    assert!(matches!(
+        verifier.resolve(context, EventId([99; 32])),
+        Err(Standing::Pending(Waiting::Anchor))
+    ));
+    assert_eq!(verifier.rule_resolutions.get(), 1);
+}

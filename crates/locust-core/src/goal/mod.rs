@@ -221,15 +221,13 @@ impl Goal {
             context,
             purpose: locust_proto::event::DecisionPurpose::Selection,
         })?;
-        rules::resolve(
-            &self.history,
-            definitions,
-            context,
-            &self.state().roles,
-            self.only_member(),
-        )
-        .ok()
-        .map(|resolved| resolved.effective)
+        rules::resolve(&self.history, definitions, context)
+            .ok()
+            .map(|mut resolved| {
+                resolved.effective.roles = self.state().roles.clone();
+                resolved.effective.only_member = self.only_member();
+                resolved.effective
+            })
     }
     pub fn event(&self, id: &EventId) -> Option<&Event> {
         self.history.get(id)
@@ -378,15 +376,13 @@ impl Goal {
         if self.standing(&context.round) != Some(Standing::Effective) {
             return None;
         }
-        rules::resolve(
-            &self.history,
-            definitions,
-            context,
-            &self.state().roles,
-            self.only_member(),
-        )
-        .ok()
-        .map(|resolved| resolved.effective)
+        rules::resolve(&self.history, definitions, context)
+            .ok()
+            .map(|mut resolved| {
+                resolved.effective.roles = self.state().roles.clone();
+                resolved.effective.only_member = self.only_member();
+                resolved.effective
+            })
     }
     pub fn eligible<D: DefinitionLookup + ?Sized>(
         &self,
