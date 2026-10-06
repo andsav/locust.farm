@@ -112,8 +112,15 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
         ),
         ("role", roles::command("give")),
         ("role", roles::command("take")),
-        ("agent", Command::new("revoke")),
-        ("agent", Command::new("reconnect")),
+        (
+            "agent",
+            Command::new("revoke").about("Disconnect an agent; reconnect keeps its name and work"),
+        ),
+        (
+            "agent",
+            Command::new("reconnect")
+                .about("Connect a disconnected agent again with its existing name and key"),
+        ),
     ]
 }
 
@@ -513,6 +520,26 @@ fn json_map<T: serde::de::DeserializeOwned>(args: &ArgMatches, name: &str) -> Re
     .map_err(|error| Failure::usage(format!("--{}: {error}", name.replace('_', "-"))))
 }
 
+fn checked_formation(source: &str) -> Result<Formation, Failure> {
+    let inspection = locust_core::organization::inspect(source);
+    if !inspection.valid {
+        return Err(Failure::invalid(
+            inspection
+                .diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    format!(
+                        "{}: {} {}",
+                        diagnostic.code, diagnostic.message, diagnostic.correction
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
+        ));
+    }
+    Ok(inspection.normalized.expect("valid formation"))
+}
+
 fn chosen_formation(args: &ArgMatches) -> Result<(String, Option<String>, Formation), Failure> {
     if let Some(name) = args.get_one::<String>("formation") {
         let preset = locust_proto::organization::presets()
@@ -526,8 +553,7 @@ fn chosen_formation(args: &ArgMatches) -> Result<(String, Option<String>, Format
         return Ok((name.clone(), Some(source), preset.formation));
     }
     if let Some(source) = args.get_one::<String>("formation-json") {
-        let parsed: Formation = serde_json::from_str(source)
-            .map_err(|error| Failure::usage(format!("--formation-json: {error}")))?;
+        let parsed = checked_formation(source)?;
         return Ok(("custom".into(), Some(source.clone()), parsed));
     }
     let preset = locust_proto::organization::presets()
@@ -659,10 +685,13 @@ fn add_plan(
     let selected = known
         .agents
         .iter()
-        .find(|candidate| candidate.agent == agent && !candidate.revoked && !candidate.author_only)
+        .find(|candidate| candidate.agent == agent && !candidate.author_only)
         .ok_or_else(|| {
             Failure::new(ErrorCode::NotFound, "select an active enrolled local agent")
         })?;
+    if selected.revoked {
+        return Err(Failure::usage(super::disconnected_agent(selected)));
+    }
     let goal_status = observed(client, socket, goal)?;
     if !goal_status.hosted_here {
         return Err(Failure::new(
@@ -1318,6 +1347,7 @@ fn rules_plan(
     }
     let source =
         serde_json::to_string(&formation).map_err(|error| Failure::internal(error.to_string()))?;
+    checked_formation(&source)?;
     Ok(confirm::Plan {
         command: "rules bind",
         review: json!({"goal":goal,"title":observed.title,"host":observed.host,

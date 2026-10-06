@@ -350,10 +350,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
 
     /// Resolve an owner-named agent for a person's goal request.
     pub(super) fn local_agent(&self, actor: &Actor, agent: PublicKey) -> Result<Actor, ApiError> {
-        let principal = self
-            .principals
-            .active(&agent)
-            .ok_or_else(|| not_found("no active enrolled principal has that key"))?;
+        let principal = self.principals.active(&agent).ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::NotFound,
+                self.principals.inactive_message(&agent),
+            )
+        })?;
         if principal.record.author_only {
             return Err(denied("an authoring principal cannot act in goals"));
         }

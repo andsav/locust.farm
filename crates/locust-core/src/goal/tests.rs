@@ -1995,12 +1995,16 @@ fn a_fork_in_the_governance_log_retracts_later_governance_and_preserves_prefix_w
         );
         assert_eq!(goal.standing(&subject), Some(Standing::Effective));
         assert!(goal.next(&f.governance.key.public()).is_none());
-        // The halt is not a blanket exclusion of every member's future work.
+        // Members whose own log has no record anchored in the cut suffix can
+        // still work. A member with such a record stays pending forever (see
+        // retracted_anchor_keeps_same_goal_author_descendants_pending_even_at_surviving_head).
         f.anchor = f.rules;
         let clean = f.publish(2, context);
         goal.apply(&[f.event(clean).clone()], &f.definitions);
         assert_eq!(goal.standing(&clean), Some(Standing::Effective));
-        assert_eq!(goal.evaluation(), f.goal().evaluation());
+        for replay in f.replays() {
+            assert_eq!(goal.evaluation(), replay.evaluation());
+        }
     }
 }
 
@@ -2046,7 +2050,9 @@ fn a_review_fork_by_the_hosts_agent_costs_what_a_members_fork_costs() {
     assert!(goal.standing(&fork).unwrap().is_pending());
     assert!(goal.standing(&later).unwrap().is_pending());
     assert_eq!(goal.standing(&subject), Some(Standing::Effective));
-    assert_eq!(goal.evaluation(), f.goal().evaluation());
+    for replay in f.replays() {
+        assert_eq!(goal.evaluation(), replay.evaluation());
+    }
 }
 
 #[test]
@@ -2103,26 +2109,27 @@ fn a_stage_task_names_the_governance_key_as_its_creator() {
         let opened = f.host(Body::EffectMaterialized {
             effect: stage.effect.clone(),
         });
-        let goal = f.goal();
-        let context = Context {
-            scope: Scope::Task(TaskId::Derived(stage.id)),
-            round: opened,
-        };
-        assert_eq!(
-            goal.effective_rules(context, &f.definitions)
-                .unwrap()
-                .creator,
-            Some(governance),
-            "{by:?}"
-        );
-        let offered: Vec<_> = goal
-            .evaluation()
-            .desired_effects
-            .values()
-            .filter(|desired| matches!(desired.effect.action, EffectAction::Offer { .. }))
-            .collect();
-        assert_eq!(offered.len(), offers, "{by:?}");
-        assert!(offered.iter().all(|desired| desired.runner == governance));
+        for goal in f.replays() {
+            let context = Context {
+                scope: Scope::Task(TaskId::Derived(stage.id)),
+                round: opened,
+            };
+            assert_eq!(
+                goal.effective_rules(context, &f.definitions)
+                    .unwrap()
+                    .creator,
+                Some(governance),
+                "{by:?}"
+            );
+            let offered: Vec<_> = goal
+                .evaluation()
+                .desired_effects
+                .values()
+                .filter(|desired| matches!(desired.effect.action, EffectAction::Offer { .. }))
+                .collect();
+            assert_eq!(offered.len(), offers, "{by:?}");
+            assert!(offered.iter().all(|desired| desired.runner == governance));
+        }
     }
 }
 
@@ -3162,5 +3169,200 @@ fn an_opinion_never_opens_a_stage_that_requires_a_counting_review() {
                 .values()
                 .any(|e| e.effect.transition == "stage:ship")
         );
+    }
+}
+
+#[test]
+fn a_signed_automatic_offer_and_its_acceptance_follow_each_stage_round() {
+    use locust_proto::organization::StartRule;
+    let mut formation = Formation::default();
+    formation.work.starts = vec![StartRule::Offered {
+        by: Selector::TaskCreator,
+        to: Selector::Members,
+    }];
+    formation.flow.insert(
+        "draft".into(),
+        Stage {
+            task_type: None,
+            requires: vec![],
+            recipients: Selector::Members,
+        },
+    );
+    let mut f = Fixture::new(formation);
+    let step = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    let opened = f.host(Body::EffectMaterialized {
+        effect: step.effect,
+    });
+    let task = TaskId::Derived(step.id);
+    let mut round = opened;
+    for revise in [false, true] {
+        if revise {
+            let binding = f.goal().state().tasks[&task].rounds[&round].binding.clone();
+            round = f.host(Body::TaskRevised {
+                task,
+                expected_round: round,
+                binding,
+            });
+        }
+        let member = f.workers[0].key.public();
+        let offer = f.goal().evaluation().desired_effects.values()
+            .find(|step| matches!(step.effect.action, EffectAction::Offer { context, recipient } if context.round == round && recipient == member)).unwrap().clone();
+        let offered = f.host(Body::EffectMaterialized {
+            effect: offer.effect,
+        });
+        let accepted = f.worker(
+            0,
+            Body::AttemptStarted {
+                context: Context {
+                    scope: Scope::Task(task),
+                    round,
+                },
+                offer: Some(offered),
+                closure: None,
+            },
+        );
+        for goal in f.replays() {
+            assert_eq!(goal.standing(&offered), Some(Standing::Effective));
+            assert_eq!(goal.standing(&accepted), Some(Standing::Effective));
+            assert_eq!(goal.state().tasks[&task].current_round, round);
+            assert_eq!(
+                goal.state().effects[&offer.id].runner,
+                f.governance.key.public()
+            );
+        }
+    }
+}
+
+#[test]
+fn stage_revisions_reject_task_creator_work_and_completion_rules_in_replay() {
+    use locust_proto::organization::{DecisionRules, StartRule, TaskType, WorkRules};
+    for (work, completion) in [
+        (
+            Some(WorkRules {
+                starts: vec![StartRule::Independent {
+                    by: Selector::TaskCreator,
+                }],
+                ..Default::default()
+            }),
+            None,
+        ),
+        (
+            Some(WorkRules {
+                starts: vec![StartRule::Offered {
+                    by: Selector::Members,
+                    to: Selector::TaskCreator,
+                }],
+                ..Default::default()
+            }),
+            None,
+        ),
+        (
+            None,
+            Some(CompletionRule::All {
+                rules: vec![CompletionRule::Declaration {
+                    by: Selector::TaskCreator,
+                }],
+            }),
+        ),
+    ] {
+        let mut formation = Formation::default();
+        formation.task_types.insert(
+            "unusable".into(),
+            TaskType {
+                work,
+                decisions: completion.map(|completion| DecisionRules {
+                    completion,
+                    ..Default::default()
+                }),
+            },
+        );
+        formation.flow.insert(
+            "draft".into(),
+            Stage {
+                task_type: None,
+                requires: vec![],
+                recipients: Selector::Members,
+            },
+        );
+        let mut f = Fixture::new(formation);
+        let step = f
+            .goal()
+            .evaluation()
+            .desired_effects
+            .values()
+            .next()
+            .unwrap()
+            .clone();
+        let opened = f.host(Body::EffectMaterialized {
+            effect: step.effect,
+        });
+        let task = TaskId::Derived(step.id);
+        let mut binding = f.goal().state().tasks[&task].rounds[&opened]
+            .binding
+            .clone();
+        binding.task_type = Some("unusable".into());
+        let revised = f.host(Body::TaskRevised {
+            task,
+            expected_round: opened,
+            binding,
+        });
+        for goal in f.replays() {
+            assert!(matches!(
+                goal.standing(&revised),
+                Some(Standing::Excluded(_))
+            ));
+            assert_eq!(goal.state().tasks[&task].current_round, opened);
+        }
+    }
+}
+
+#[test]
+fn a_fork_between_two_stage_steps_retracts_them_in_every_replay_order() {
+    let mut formation = Formation::default();
+    for name in ["first", "second"] {
+        formation.flow.insert(
+            name.into(),
+            Stage {
+                task_type: None,
+                requires: vec![],
+                recipients: Selector::Members,
+            },
+        );
+    }
+    let mut f = Fixture::new(formation);
+    let steps: Vec<_> = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .cloned()
+        .collect();
+    let first = f.host(Body::EffectMaterialized {
+        effect: steps[0].effect.clone(),
+    });
+    let mut header = f.event(first).header().clone();
+    header.body = Body::EffectMaterialized {
+        effect: steps[1].effect.clone(),
+    };
+    let second = Event::sign(header, &f.governance.key).unwrap();
+    let second_id = second.id();
+    f.events.push(second);
+    for goal in f.replays() {
+        assert!(goal.evaluation().host_halt.is_some());
+        assert_eq!(goal.state().head, Some(f.rules));
+        assert!(goal.state().effects.is_empty());
+        for id in [first, second_id] {
+            assert_eq!(
+                goal.standing(&id),
+                Some(Standing::Pending(Waiting::ForkProof))
+            );
+        }
     }
 }

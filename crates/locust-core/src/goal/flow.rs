@@ -43,7 +43,8 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             .ok_or(invalid("unknown configured flow stage"))?;
         // The host's computer runs every stage with the goal's governance key.
         let runner = self
-            .history
+            .chain
+            .state
             .governance
             .ok_or(invalid("goal has no governance"))?;
         let binding = TaskBinding {
@@ -245,7 +246,8 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                 if !definition.flow.contains_key(stage) {
                     return Err(invalid("task names an unknown stage"));
                 }
-                self.history
+                self.chain
+                    .state
                     .governance
                     .ok_or(invalid("goal has no governance"))?
             } else {
@@ -296,9 +298,11 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
         let EffectAction::OpenTask { recipients, .. } = template.action else {
             unreachable!()
         };
-        let (task, round) = self.stage_instance(rules, name, proof)?;
+        let (task, _) = self.stage_instance(rules, name, proof)?;
+        let task = TaskId::Derived(task);
+        let round = self.current_round(task, anchor, proof)?;
         let context = Context {
-            scope: Scope::Task(TaskId::Derived(task)),
+            scope: Scope::Task(task),
             round,
         };
         let resolved = self.resolve(context, anchor)?;

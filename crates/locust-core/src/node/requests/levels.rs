@@ -96,7 +96,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// Desired steps this daemon should sign and cannot. The governance key
-    /// is no agent and no member: its one stall here is a halt.
+    /// is no agent and no member: only signing or materialization can stall it.
     pub(in crate::node) fn stalled(&self, entry: &Entry) -> Vec<Stalled> {
         let governance = entry.state().governance;
         entry
@@ -115,6 +115,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     }
                     if entry.goal.next(runner).is_none() {
                         Stall::Halted
+                    } else if entry.failed_effects.contains(&desired.id) {
+                        Stall::CannotMaterialize
                     } else {
                         return None;
                     }
@@ -128,6 +130,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     Stall::RunnerNotMember
                 } else if entry.goal.next(runner).is_none() {
                     Stall::Halted
+                } else if entry.failed_effects.contains(&desired.id) {
+                    Stall::CannotMaterialize
                 } else {
                     return None;
                 };

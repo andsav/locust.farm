@@ -74,6 +74,9 @@ function sentence(diagnostic: Diagnostic, where: Place | null): string {
 		case 'invalid_participant':
 			return `A specific member's key${inStage} is not valid. Keys are 64 hexadecimal characters; a role is usually better.`;
 		case 'selector_scope':
+			if (diagnostic.message.includes("host's computer")) {
+				return "A step's task is added by the host's computer. Name members, a role or a specific member in the rules for doing and completing its work.";
+			}
 			return diagnostic.message.includes('task creator')
 				? `"The member who added the task" can only be used for working on or closing tasks, not here.`
 				: `"The author of the result" can only be used in a "when does a result count" rule.`;

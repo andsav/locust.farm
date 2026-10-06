@@ -112,8 +112,8 @@ pub struct Invitation {
     /// Presentation supplied and signed by the governance key. A title does
     /// not authenticate a human identity or establish the genesis record.
     pub goal_title: Option<String>,
-    /// The goal's governance key, which signs this ticket and the admission. Shown
-    /// to the joiner as a fingerprint and checked against the genesis record
+    /// The goal's signing key, which signs this ticket and the admission. Kept
+    /// in JSON, never printed; checked against the genesis record
     /// once it arrives.
     pub governance: PublicKey,
     pub host_name: String,

@@ -36,6 +36,9 @@ struct Participant {
 }
 impl Participant {
     fn new() -> Self {
+        Self::prepared(|_| {})
+    }
+    fn prepared(prepare: impl FnOnce(&mut Node<MemStore, Counting>)) -> Self {
         let home = tempfile::Builder::new()
             .prefix("lc-t2-")
             .tempdir_in("/tmp")
@@ -66,6 +69,7 @@ impl Participant {
             },
             &mut vec![],
         );
+        prepare(&mut node);
         let listener = UnixListener::bind(home.path().join("daemon.sock")).unwrap();
         let stopped = Arc::new(AtomicBool::new(false));
         let done = stopped.clone();
@@ -899,5 +903,211 @@ fn reviewed_local_membership_uses_names_and_defaults_to_auto_without_tickets() {
     assert_ne!(
         alice["agent_enrolled"]["agent"],
         bob["agent_enrolled"]["agent"]
+    );
+}
+
+#[test]
+fn a_real_member_daemon_reports_that_the_host_is_on_another_computer() {
+    use locust_core::sync::{Host, Staged};
+    use locust_proto::api::{Level, Request, Response, ServerHello};
+    use locust_proto::id::EndpointId;
+    use locust_proto::store::Store;
+    fn call(node: &mut Node<MemStore, Counting>, request: Request) -> Response {
+        let conn = ConnId(9000);
+        assert!(matches!(
+            node.connect(
+                conn,
+                &ClientHello {
+                    api_version: locust_proto::API_VERSION,
+                    credential: Credential([1; 32]),
+                    session: None
+                },
+                1000
+            ),
+            ServerHello::Welcome { .. }
+        ));
+        let Step::Reply(reply) = node.request(
+            conn,
+            RequestFrame {
+                id: 1,
+                idempotency: None,
+                on_behalf: None,
+                request,
+            },
+            1000,
+        ) else {
+            panic!()
+        };
+        node.disconnect(conn);
+        reply.result.unwrap()
+    }
+    let mut selected_goal = None;
+    let participant = Participant::prepared(|member| {
+        let store = MemStore::new();
+        let mut host = Node::open(
+            store.reopen(),
+            Counting(1000),
+            Credential([1; 32]).digest(),
+            "host".into(),
+            0,
+        )
+        .unwrap();
+        host.peer(
+            PeerInput::Endpoint {
+                endpoint: EndpointId([22; 32]),
+                hints: vec![],
+            },
+            locust_proto::engine::PeerTime {
+                unix_ms: 0,
+                elapsed_ms: 0,
+            },
+            &mut vec![],
+        );
+        let Response::AgentEnrolled { agent } = call(
+            &mut host,
+            Request::AgentEnroll {
+                name: "maple".into(),
+                credential: Credential([2; 32]).digest(),
+            },
+        ) else {
+            panic!()
+        };
+        let Response::GoalCreated { goal } = call(
+            &mut host,
+            Request::GoalCreate {
+                name: "Maple".into(),
+                agent,
+                title: "Remote host".into(),
+                formation_json: None,
+                inputs: Default::default(),
+            },
+        ) else {
+            panic!()
+        };
+        let Response::GoalStatus(status) = call(&mut host, Request::GoalStatus { goal }) else {
+            panic!()
+        };
+        assert!(status.hosted_here);
+        let Response::Invited { ticket } = call(
+            &mut host,
+            Request::GoalInvite {
+                goal,
+                role: None,
+                expires_ms: 604_801_000,
+            },
+        ) else {
+            panic!()
+        };
+        let Response::AgentEnrolled { agent } = call(
+            member,
+            Request::AgentEnroll {
+                name: "juniper".into(),
+                credential: Credential([3; 32]).digest(),
+            },
+        ) else {
+            panic!()
+        };
+        call(
+            member,
+            Request::GoalJoin {
+                name: "Juniper".into(),
+                agent,
+                ticket,
+                level: Level::Auto,
+            },
+        );
+        let joining = Host::joins(member).pop().unwrap();
+        Host::join(&mut host, &EndpointId([21; 32]), &joining.request, 1000).unwrap();
+        let events: Vec<_> = store
+            .log(&goal, 0, usize::MAX)
+            .unwrap()
+            .into_iter()
+            .map(|(_, event)| event)
+            .collect();
+        let key = Host::replica(&mut host, &goal).unwrap().key(0).unwrap();
+        Host::replica(member, &goal)
+            .unwrap()
+            .receive(events.iter().map(|event| event.to_wire()).collect())
+            .unwrap();
+        for event in &events {
+            for hash in event.header().blobs() {
+                let bytes = store.blob(&hash).unwrap().unwrap();
+                assert_eq!(
+                    Host::replica(member, &goal).unwrap().stage(
+                        &hash,
+                        0,
+                        bytes.len() as u64,
+                        &bytes
+                    ),
+                    Staged::Complete
+                );
+            }
+        }
+        assert!(Host::replica(member, &goal).unwrap().offer_key(0, key));
+        let Response::GoalStatus(status) = call(member, Request::GoalStatus { goal }) else {
+            panic!()
+        };
+        assert!(!status.hosted_here);
+        assert_eq!(status.members.len(), 2);
+        selected_goal = Some(goal);
+    });
+    let text = participant.human(&[
+        "--owner",
+        "goal",
+        "status",
+        "--goal",
+        &selected_goal.unwrap().to_string(),
+    ]);
+    assert!(text.contains("Host: on another computer · Maple"), "{text}");
+    assert!(!text.contains("Host: you"), "{text}");
+}
+
+#[test]
+fn an_agents_cli_names_its_owner_and_refuses_workspace_init_without_a_false_disconnect() {
+    let participant = Participant::new();
+    participant.cli(&["--owner"], &["agent", "enroll", "maple"]);
+    let enrollment = participant.cli(&["--owner"], &["agent", "enroll", "juniper"]);
+    let credential = enrollment["agent_enrolled"]["credential_path"]
+        .as_str()
+        .unwrap();
+    let created = participant.approved_cli(
+        &["--owner", "--agent", "maple"],
+        &["goal", "create", "--title", "Hosted here"],
+    );
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    participant.approved_cli(
+        &["--owner", "--agent", "juniper"],
+        &["goal", "add", "--goal", goal],
+    );
+    let text = participant.human(&["--credential", credential, "goal", "status", "--goal", goal]);
+    assert!(text.contains("Host: your owner"), "{text}");
+    let output = participant
+        .command()
+        .args([
+            "--credential",
+            credential,
+            "--json",
+            "workspace",
+            "init",
+            "--goal",
+            goal,
+            "--empty",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result["error"]["code"], "denied");
+    assert_eq!(
+        result["error"]["message"],
+        "workspace init is your owner's command; use locust --owner workspace init"
+    );
+    let status = participant.cli(&["--owner"], &["status"]);
+    assert!(
+        status["status"]["agents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|agent| agent["revoked"] == false)
     );
 }

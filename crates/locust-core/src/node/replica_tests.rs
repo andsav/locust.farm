@@ -246,6 +246,23 @@ fn host_operations_refuse_a_daemon_that_does_not_hold_the_host_key() {
 
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
+    for (index, peer) in peers.iter_mut().enumerate() {
+        let Response::GoalStatus(status) = peer.call(Request::GoalStatus { goal }) else {
+            panic!()
+        };
+        assert_eq!(status.hosted_here, index == 0);
+        assert_eq!(
+            status.host,
+            Some(
+                status
+                    .members
+                    .iter()
+                    .find(|member| member.name == "host")
+                    .unwrap()
+                    .member
+            )
+        );
+    }
     let member = peers[1].principal;
     let requests = [
         Request::GoalInvite {
@@ -1445,5 +1462,97 @@ fn same_key_rejoin(sign_during_recovery: bool) {
             sign_during_recovery.then_some(0)
         );
         assert!(folded.evaluation().host_halt.is_none());
+    }
+}
+
+#[test]
+fn held_invalid_rules_are_excluded_through_the_daemons_definition_lookup() {
+    use crate::goal::{Exclusion, Standing, Waiting};
+    use crate::node::authoring::{seal_text, sign_at};
+    use crate::node::commit::Tx;
+    use crate::sync::{Host, Staged};
+    use locust_proto::crypto::Keypair;
+    use locust_proto::event::{DefinitionRef, RulesBinding};
+    use locust_proto::organization::{CompletionRule, Formation, Selector, Stage, semantic_hash};
+    for invalid_key in [false, true] {
+        let mut peers = [Peer::new(1), Peer::new(2)];
+        let goal = found(&mut peers);
+        let entry = &peers[0].node.goals[&goal];
+        let previous = entry.state().current_rules.unwrap();
+        let mut formation = Formation::default();
+        if invalid_key {
+            formation.work.publish = Selector::Participant {
+                key: "invalid-key".into(),
+            };
+        } else {
+            formation.decisions.completion = CompletionRule::Declaration {
+                by: Selector::TaskCreator,
+            };
+            formation.flow.insert(
+                "research".into(),
+                Stage {
+                    task_type: None,
+                    requires: vec![],
+                    recipients: Selector::Members,
+                },
+            );
+        }
+        let source = serde_json::to_string(&formation).unwrap();
+        assert!(!crate::organization::inspect(&source).valid);
+        let (object, blob) = seal_text(&goal, 0, &entry.keys[&0], source.as_bytes()).unwrap();
+        let key = Keypair::from_seed(entry.local.governance.as_ref().unwrap().seed());
+        let mut tx = Tx::none();
+        let invalid = sign_at(
+            goal,
+            &key,
+            peers[0].node.next_place(entry, &key.public()).unwrap(),
+            Body::RulesBound {
+                expected: Some(previous),
+                binding: RulesBinding {
+                    definition: DefinitionRef {
+                        semantic: semantic_hash(&formation).parse().unwrap(),
+                        object,
+                    },
+                    inputs: BTreeMap::new(),
+                },
+            },
+            None,
+            100,
+            &mut tx,
+        )
+        .unwrap();
+        for peer in &mut peers {
+            assert_eq!(
+                Host::replica(&mut peer.node, &goal)
+                    .unwrap()
+                    .receive(vec![invalid.to_wire()]),
+                Ok(1)
+            );
+            assert_eq!(
+                peer.node.goals[&goal].goal.standing(&invalid.id()),
+                Some(Standing::Pending(Waiting::Definition))
+            );
+            assert_eq!(
+                Host::replica(&mut peer.node, &goal).unwrap().stage(
+                    &blob.hash(),
+                    0,
+                    blob.bytes().len() as u64,
+                    blob.bytes()
+                ),
+                Staged::Complete
+            );
+            let entry = &peer.node.goals[&goal];
+            assert_eq!(
+                entry.goal.standing(&invalid.id()),
+                Some(Standing::Excluded(Exclusion::InvalidDefinition))
+            );
+            assert_eq!(entry.state().current_rules, Some(previous));
+            peer.restart();
+            assert_eq!(
+                peer.node.goals[&goal].goal.standing(&invalid.id()),
+                Some(Standing::Excluded(Exclusion::InvalidDefinition))
+            );
+            assert_eq!(peer.node.goals[&goal].state().current_rules, Some(previous));
+        }
     }
 }

@@ -31,6 +31,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Replacing a host: a design for the first version, and what its check found](replacing-a-host-design-2026-10-06.md)
 - [Checking the v2 plan review: every finding, tried for refutation](v2-plan-review-verification-2026-10-06.md)
 - [Review of phase K1 as built, and of three parallel experiments](v2-phase-k1-review-2026-10-06.md)
+- [Locust v2 phase K1 review fixes and verification](v2-phase-k1-fixes-2026-10-06.md)
 - [Restore file identity: how copies and restores look to the operating system](restore-file-identity-2026-10-06.md)
 - [Independent v2 plan review: soundness, phase order, cuts and the first public door](v2-plan-review-2026-10-06.md)
 - [Independent public-goals plan review: safety, waits, journeys and evidence comparison](public-goals-plan-review-2026-10-06.md)

@@ -115,7 +115,20 @@ A subtask must have narrower rules than its parent task; see
 
 A flow stage names its `recipients`, an optional `task_type` and what it
 `requires`: a `publication`, `review`, `completion` or `selection` in another
-stage. A stage runs once for each rules binding, not once per task.
+stage. A stage runs once for each rules binding, not once per task. Automatic
+stage offers name the task's current round, including after `task revise`.
+A revision without `--task-type` keeps the current type; replay refuses a stage
+revision whose start or completion rules require `task_creator` to
+act. See [flow.rs](../crates/locust-core/src/goal/flow.rs) and
+[fold.rs](../crates/locust-core/src/goal/fold.rs).
+
+A step that cannot be signed or materialized is listed as `cannot_materialize`
+in the goal's stalled steps. The daemon skips it for that pass and continues
+other work; the next goal change or startup retries it. A store failure still
+stops the daemon. Reconnecting an agent both receives waiting deliveries and
+runs any step that waited for its signature. These paths are covered in the
+[delivery](../crates/locust-core/src/node/tests/delivery.rs) and
+[authorization](../crates/locust-core/src/node/tests/authorization.rs) tests.
 
 ## Presets
 

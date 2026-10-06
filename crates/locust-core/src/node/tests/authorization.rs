@@ -196,6 +196,15 @@ fn join_and_leave_are_the_owners_acts_for_a_named_agent() {
 
 #[test]
 fn host_operations_need_no_grant_and_sign_with_the_governance_key() {
+    check_host_operations(false);
+}
+
+#[test]
+fn disconnecting_the_hosts_agent_stops_no_host_command() {
+    check_host_operations(true);
+}
+
+fn check_host_operations(disconnected: bool) {
     use locust_proto::event::{TaskId, WorkspaceCheckpoint};
     let (mut d, host, owner, agent, goal) = setup();
     let governance = governance_key(&d, goal).public();
@@ -222,6 +231,9 @@ fn host_operations_need_no_grant_and_sign_with_the_governance_key() {
             level: locust_proto::api::Level::Read,
         },
     );
+    if disconnected {
+        d.ok(owner, Request::AgentRevoke { agent: host });
+    }
     let expected = d.node.goals[&goal].state().current_rules.unwrap();
     let formation = locust_proto::organization::Formation {
         workspace: Some(locust_proto::organization::WorkspacePolicy {
@@ -278,6 +290,31 @@ fn host_operations_need_no_grant_and_sign_with_the_governance_key() {
         Invitation::from_ticket(ticket.as_str()).unwrap().governance,
         governance
     );
+    d.ok(
+        owner,
+        Request::InvitationRevoke {
+            goal,
+            invitation: None,
+        },
+    );
+    d.ok(
+        owner,
+        Request::FarmOn {
+            goal,
+            base_url: "https://example.test".into(),
+            listed: false,
+            title: None,
+            formation: "open".into(),
+            stage_labels: Default::default(),
+            role_labels: Default::default(),
+            recent_changes: 5,
+        },
+    );
+    let on = d.node.goals[&goal].state().publication.as_ref().unwrap().0;
+    d.ok(owner, Request::FarmOff { goal });
+    let off = d.node.goals[&goal].state().publication.as_ref().unwrap().0;
+    assert_eq!(author_of(&d, &on), governance);
+    assert_eq!(author_of(&d, &off), governance);
     // The host's agent kept its read level: no grant was needed, because
     // none of these records is the agent's.
     assert_eq!(
@@ -974,5 +1011,159 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
             .halt_proofs()
             .iter()
             .any(|(_, endpoint, _)| *endpoint == remote)
+    );
+}
+
+#[test]
+fn reconnect_receives_waiting_deliveries_without_signing_another_step() {
+    let (mut d, host, owner, agent, goal) = setup();
+    let (member, _) = join_local(&mut d, agent, goal, 2);
+    d.ok(owner, Request::AgentRevoke { agent: member });
+    let expected = d.node.goals[&goal].state().current_rules.unwrap();
+    d.ok(owner, super::delivery::pipeline_request(goal, expected));
+    let effect = *d.node.goals[&goal].state().effects.keys().next().unwrap();
+    assert!(!d.node.goals[&goal].deliveries[&(effect, member)].received);
+    assert!(d.node.goals[&goal].deliveries[&(effect, host)].received);
+    let records = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    d.ok(owner, Request::AgentReconnect { agent: member });
+    assert!(d.node.goals[&goal].deliveries[&(effect, member)].received);
+    assert!(d.node.goals[&goal].deliveries[&(effect, member)].delivered);
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), records);
+    d.restart();
+    assert!(d.node.goals[&goal].deliveries[&(effect, member)].received);
+}
+
+#[test]
+fn reconnect_signs_the_step_that_waited_for_the_agent() {
+    use crate::node::commit::Tx;
+    use locust_proto::api::Stall;
+    use locust_proto::event::Scope;
+    let (mut d, _, owner, agent, goal) = setup();
+    let (member, _) = join_local(&mut d, agent, goal, 2);
+    let entry = &d.node.goals[&goal];
+    let context = entry.goal.current_context(Scope::Goal).unwrap();
+    let mut tx = Tx::none();
+    d.node
+        .author_alone(
+            entry,
+            &member,
+            Body::ContributionPublished {
+                context,
+                attempt: None,
+                sources: vec![],
+                artifacts: vec![],
+            },
+            &mut tx,
+        )
+        .unwrap();
+    d.ok(owner, Request::AgentRevoke { agent: member });
+    d.node.land(tx).unwrap();
+    let entry = &d.node.goals[&goal];
+    let waiting = d.node.stalled(entry);
+    assert!(!waiting.is_empty());
+    assert!(
+        waiting
+            .iter()
+            .all(|step| step.runner == member && step.reason == Stall::RunnerRevoked)
+    );
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    d.ok(owner, Request::AgentReconnect { agent: member });
+    assert_eq!(
+        d.store.log(&goal, 0, usize::MAX).unwrap().len(),
+        before + waiting.len()
+    );
+    for step in waiting {
+        let effect = &d.node.goals[&goal].state().effects[&step.effect];
+        assert_eq!(effect.runner, member);
+        assert!(effect.events.iter().all(|id| author_of(&d, id) == member));
+    }
+    assert!(d.node.stalled(&d.node.goals[&goal]).is_empty());
+}
+
+#[test]
+fn revising_a_stage_keeps_its_type_and_refuses_unusable_creator_rules() {
+    use locust_proto::event::TaskId;
+    use locust_proto::organization::{
+        CompletionRule, DecisionRules, Formation, Selector, Stage, TaskType,
+    };
+    let (mut d, _, owner, _, goal) = setup();
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Declaration {
+        by: Selector::TaskCreator,
+    };
+    formation.task_types.insert(
+        "safe".into(),
+        TaskType {
+            work: None,
+            decisions: Some(DecisionRules {
+                completion: CompletionRule::Declaration {
+                    by: Selector::Members,
+                },
+                ..Default::default()
+            }),
+        },
+    );
+    formation.task_types.insert(
+        "unusable".into(),
+        TaskType {
+            work: None,
+            decisions: None,
+        },
+    );
+    formation.flow.insert(
+        "draft".into(),
+        Stage {
+            task_type: Some("safe".into()),
+            requires: vec![],
+            recipients: Selector::Members,
+        },
+    );
+    let expected = d.node.goals[&goal].state().current_rules.unwrap();
+    d.ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            inputs: Default::default(),
+        },
+    );
+    let task = *d.node.goals[&goal].state().tasks.keys().next().unwrap();
+    assert!(matches!(task, TaskId::Derived(_)));
+    let round = d.node.goals[&goal].state().tasks[&task].current_round;
+    let revised = event(d.ok(
+        owner,
+        Request::TaskRevise {
+            goal,
+            task,
+            expected_round: round,
+            task_type: None,
+        },
+    ));
+    let entry = &d.node.goals[&goal];
+    assert_eq!(
+        entry.state().tasks[&task].rounds[&revised]
+            .binding
+            .task_type
+            .as_deref(),
+        Some("safe")
+    );
+    let records = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    let refused = d
+        .call(
+            owner,
+            Request::TaskRevise {
+                goal,
+                task,
+                expected_round: revised,
+                task_type: Some("unusable".into()),
+            },
+        )
+        .unwrap_err();
+    assert_eq!(refused.code, ErrorCode::Conflict);
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), records);
+    assert_eq!(
+        d.node.goals[&goal].state().tasks[&task].current_round,
+        revised
     );
 }

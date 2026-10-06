@@ -171,6 +171,12 @@ pub(super) fn run(
         on_behalf,
     };
     if operation == "workspace.init" {
+        if !matches.get_flag("owner") {
+            return Err(Failure::new(
+                ErrorCode::Denied,
+                "workspace init is your owner's command; use locust --owner workspace init",
+            ));
+        }
         api.on_behalf = Some(hosts_agent(&mut api)?);
     }
     let caller_key = matches
@@ -230,23 +236,7 @@ pub(super) fn run(
     match operation {
         "workspace.head" => output(api.head()?),
         "workspace.pending" => response_output(api.call(Request::WorkspaceProposals { goal })?),
-        "workspace.init" => {
-            if !matches.get_flag("owner") {
-                let head = api.head()?;
-                let status = api.status()?;
-                return response_output(
-                    api.call(Request::WorkspaceEpochSet {
-                        goal,
-                        expected_epoch: head.epoch,
-                        rules: status
-                            .current_rules
-                            .ok_or_else(|| conflict("current rules unavailable"))?,
-                        checkpoint: WorkspaceCheckpoint::Unseeded,
-                    })?,
-                );
-            }
-            review_init(matches, &mut api, args, caller_key)
-        }
+        "workspace.init" => review_init(matches, &mut api, args, caller_key),
         "workspace.propose" => propose(&mut api, args, caller_key),
         "workspace.publish" => {
             let operation = parse(value(args, "operation"), "operation")?;

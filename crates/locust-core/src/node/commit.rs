@@ -171,6 +171,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .collect();
         self.land_once(tx)?;
         for goal in goals {
+            // Local identity changes are absorbed after the first projection.
+            // Reconnecting must receive waiting deliveries even if no effect
+            // is signed by drive_flow below.
+            let mut deliveries = Tx::none();
+            self.project_deliveries(goal, &mut deliveries);
+            self.land_once(deliveries)?;
             self.drive_flow(goal)?;
         }
         Ok(())

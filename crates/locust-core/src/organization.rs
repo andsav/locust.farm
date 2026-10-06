@@ -12,6 +12,16 @@ pub use roles::{RoleDuty, is_authority_role, role_duties};
 mod normalize;
 mod strict_json;
 mod validation;
+pub(crate) use validation::stage_task_creator_paths;
+
+/// Decode held evidence without treating semantic invalidity as missing data.
+/// Replay validates it after its normalized hash matches the signed reference.
+pub(crate) fn held_definition(source: &str) -> Option<Formation> {
+    let value = strict_json::parse(source).ok()?;
+    let mut formation = serde_json::from_value(value).ok()?;
+    normalize::normalize(&mut formation);
+    Some(formation)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Diagnostic {

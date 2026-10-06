@@ -137,7 +137,7 @@ pub(super) fn resolve(
                 if principals.active(&principal).is_none() {
                     return Err(ApiError::new(
                         ErrorCode::NotFound,
-                        "no enrolled principal has that key",
+                        principals.inactive_message(&principal),
                     ));
                 }
                 if principals
@@ -167,7 +167,10 @@ pub(super) fn resolve(
                 return Err(denied("only the owner acts on behalf of a principal"));
             }
             if principals.active(&principal).is_none() {
-                return Err(denied("the credential was revoked"));
+                return Err(ApiError::new(
+                    ErrorCode::Denied,
+                    principals.inactive_message(&principal),
+                ));
             }
             if matches!(operation.audience, Audience::Owner | Audience::Host) {
                 return Err(only_you(
@@ -189,7 +192,10 @@ pub(super) fn resolve(
                 ));
             }
             if principals.active(&principal).is_none() {
-                return Err(denied("the credential was revoked"));
+                return Err(ApiError::new(
+                    ErrorCode::Denied,
+                    principals.inactive_message(&principal),
+                ));
             }
             Ok(actor(Some(principal), false))
         }

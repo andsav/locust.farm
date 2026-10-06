@@ -334,7 +334,20 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     return Err(invalid("task round compare-and-swap failed"));
                 }
                 let creator = rules::task_creator(self.history, *task, *expected_round)?;
-                self.task_binding(binding, creator, proof, h.anchor.unwrap())?;
+                let resolved = self.task_binding(binding, creator, proof, h.anchor.unwrap())?;
+                if Some(creator) == self.chain.state.governance
+                    && !crate::organization::stage_task_creator_paths(
+                        &resolved.effective.work,
+                        &resolved.effective.decisions,
+                        "/work",
+                        "/decisions",
+                    )
+                    .is_empty()
+                {
+                    return Err(invalid(
+                        "a stage's task is opened by the host's computer; name members, a role or a participant instead of task_creator",
+                    ));
+                }
             }
             Body::WorkOffered { context, recipient } => {
                 self.active_context(*context, event, proof)?;

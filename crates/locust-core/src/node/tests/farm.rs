@@ -411,6 +411,24 @@ fn publication_needs_no_consent_from_the_governance_key() {
     use crate::goal::{Exclusion, Standing};
     use locust_proto::event::{Body, Event, Header};
     let (mut daemon, principal, owner, _, goal) = setup();
+    let expected = daemon.node.goals[&goal].state().current_rules.unwrap();
+    daemon.ok(owner, super::delivery::pipeline_request(goal, expected));
+    let entry = &daemon.node.goals[&goal];
+    let step = entry
+        .state()
+        .effects
+        .values()
+        .next()
+        .expect("signed stage step");
+    assert_eq!(
+        entry
+            .goal
+            .event(step.events.first().unwrap())
+            .unwrap()
+            .header()
+            .author,
+        entry.state().governance.unwrap()
+    );
     let initial = activate(&mut daemon, owner, goal, principal);
     acknowledge(&mut daemon, &initial, 2000);
     let entry = &daemon.node.goals[&goal];

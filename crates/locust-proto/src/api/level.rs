@@ -153,6 +153,7 @@ pub enum Stall {
     RunnerLeft,
     RunnerNotMember,
     Halted,
+    CannotMaterialize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

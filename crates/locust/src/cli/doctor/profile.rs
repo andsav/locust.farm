@@ -181,7 +181,7 @@ pub(super) fn inspect(args: &ArgMatches, daemon_home: &Path, checks: &mut Vec<Va
                 "saved credential and session authenticate as the enrolled, active agent".into()
             })
             .map_err(Clone::clone),
-        "Inspect the saved enrollment and restore its original protected credential/session if changed. For a revoked agent, review owner enrollment; do not generate replacement secrets in this profile.",
+        "Inspect the saved enrollment and restore its original protected credential/session if changed. For a disconnected agent, run locust --owner agent reconnect --agent NAME; do not generate replacement secrets in this profile.",
     );
     let state = setup::status(&selected.binding);
     let preserve = "Inspect the selected profile's Locust files and preserve any user edits; restore the owned files or review the same locust up selections to resume an interrupted setup.";

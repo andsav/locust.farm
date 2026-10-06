@@ -3,7 +3,7 @@
 //!
 //! `Space::Key` holds the content key of each epoch, keyed by goal and epoch.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use locust_proto::crypto::ContentKey;
 use locust_proto::event::Event;
@@ -31,6 +31,9 @@ pub(super) struct Entry {
     pub feed: Feed,
     pub context: super::context::Acknowledgments,
     pub deliveries: BTreeMap<(locust_proto::id::EffectId, PublicKey), super::delivery::Delivery>,
+    /// Effects that could not be materialized in the latest pass; retried on
+    /// the next change or startup, never persisted as replicated state.
+    pub failed_effects: BTreeSet<locust_proto::id::EffectId>,
     /// Every content object a held event names.
     named: HashSet<BlobHash>,
 }
@@ -62,6 +65,7 @@ impl Entry {
             feed: Feed::default(),
             context: super::context::Acknowledgments::default(),
             deliveries: BTreeMap::new(),
+            failed_effects: BTreeSet::new(),
             named: HashSet::new(),
         }
     }

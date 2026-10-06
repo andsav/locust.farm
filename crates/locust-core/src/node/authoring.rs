@@ -190,7 +190,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
         self.principals
             .active(author)
             .map(|principal| &principal.key)
-            .ok_or_else(|| ApiError::new(ErrorCode::NotFound, "no enrolled principal has that key"))
+            .ok_or_else(|| {
+                ApiError::new(
+                    ErrorCode::NotFound,
+                    self.principals.inactive_message(author),
+                )
+            })
     }
 
     /// Where `author`'s next event in the goal goes, after the checks every
@@ -198,6 +203,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// The governance key is no member and has not left; it skips both tests.
     pub(super) fn next_place(&self, entry: &Entry, author: &PublicKey) -> Result<Place, ApiError> {
         let governance = entry.state().governance.as_ref() == Some(author);
+        if governance && entry.goal.evaluation().host_halt.is_some() {
+            return Err(ApiError::new(
+                ErrorCode::Halted,
+                "the goal's authority is halted",
+            ));
+        }
         if !governance && (!entry.is_member(author) || entry.local.part.get(author) == Some(&true))
         {
             return Err(ApiError::new(

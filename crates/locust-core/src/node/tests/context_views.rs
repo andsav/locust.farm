@@ -934,6 +934,9 @@ fn goal_status_reports_each_stalled_runner_condition() {
                 .is_empty()
         );
         match reason {
+            Stall::CannotMaterialize => {
+                unreachable!("tested with an unsignable stage in delivery tests")
+            }
             Stall::RunnerRevoked => {
                 let mut record = d.node.principals.get(&runner).unwrap().record.clone();
                 record.revoked = true;

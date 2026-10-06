@@ -181,19 +181,24 @@ fn signer(by_host: bool, key: PublicKey, names: &[AgentView]) -> String {
 
 /// The `Host:` line of a goal: this computer, the host's agent, or nothing
 /// yet before the first record is held.
-fn host_line(view: &GoalStatus, _names: &[AgentView]) -> String {
+fn host_line(view: &GoalStatus, principal: Option<PublicKey>) -> String {
     let host = view
         .host
         .map(|key| member_label(key, &view.members))
         .or_else(|| view.host_name.as_ref().map(|name| safe(name)));
     if view.hosted_here {
         format!(
-            "Host: you{}",
+            "Host: {}{}",
+            if principal.is_some() {
+                "your owner"
+            } else {
+                "you"
+            },
             host.map(|name| format!(" · {name}")).unwrap_or_default()
         )
     } else {
         format!(
-            "Host: {} · another computer",
+            "Host: on another computer · {}",
             host.unwrap_or_else(|| "name has not arrived".into())
         )
     }
@@ -537,6 +542,7 @@ pub(super) fn goal_status(
     view: &GoalStatus,
     names: &[AgentView],
     formation: Option<&Formation>,
+    principal: Option<PublicKey>,
 ) -> String {
     let mut lines = vec![
         format!(
@@ -544,7 +550,7 @@ pub(super) fn goal_status(
             safe(view.title.as_deref().unwrap_or("Title unavailable")),
             view.goal
         ),
-        host_line(view, names),
+        host_line(view, principal),
     ];
     if let Some(reason) = view.halted {
         lines.push(halt(reason).into());
@@ -691,7 +697,8 @@ pub(super) fn render(
             let mut lines = vec![format!("Daemon {}", safe(&status.daemon_version))];
             if let Some(endpoint) = status.endpoint { lines.push(format!("Endpoint {endpoint}")); }
             for agent in &status.agents {
-                lines.push(format!("Participant {} · credential {}", label(agent.agent, &status.agents), if agent.revoked { "revoked" } else { "active" }));
+                if agent.revoked { lines.push(super::disconnected_agent(agent)); }
+                lines.push(format!("Participant {} · credential {}", label(agent.agent, &status.agents), if agent.revoked { "disconnected" } else { "active" }));
             }
             for goal in &status.goals {
                 lines.push(format!("Goal {} ({}) · {} · {}", safe(goal.title.as_deref().unwrap_or("Title unavailable")), goal.goal, label(goal.member, &status.agents), tag(&goal.membership)));
@@ -701,7 +708,7 @@ pub(super) fn render(
             }
             lines
         }
-        Response::GoalStatus(view) => return Some(goal_status(view, names, None)),
+        Response::GoalStatus(view) => return Some(goal_status(view, names, None, principal)),
         Response::Board(tasks) => {
             if tasks.is_empty() { vec!["No tasks in this goal.".into()] } else {
                 let mut lines = vec![format!("{} tasks", tasks.len())];
@@ -721,7 +728,12 @@ pub(super) fn render(
             for attempt in &task.view.attempts { lines.push(format!("Attempt: {attempt}")); }
             for contribution in &task.view.contributions { lines.push(format!("Contribution: {contribution}")); }
             if let Some(selected) = task.view.selected { lines.push(format!("Selected: {selected}")); }
-            lines.push(format!("Effective rules: {}", safe(&task.effective_rules_json)));
+            let mut rules: serde_json::Value = serde_json::from_str(&task.effective_rules_json).expect("effective rules JSON");
+            if let Some(rules) = rules.as_object_mut() {
+                // The creator is already shown above with its human label.
+                rules.remove("creator");
+            }
+            lines.push(format!("Effective rules: {}", safe(&rules.to_string())));
             lines
         }
         Response::Pending(work) => pending(work, goal?, principal, &[]),
@@ -775,6 +787,7 @@ pub(super) fn render(
             let mut lines = vec![format!("Event {} · {} · {}", event.view.event, safe(&event.view.kind), tag(&event.view.standing)), format!("Author: {}", signer(event.view.by_host, event.view.author, names))];
             if event.view.by_owner { lines.push(if principal.is_some() { "by your owner" } else { "by you" }.into()); }
             match &event.body {
+                Body::Genesis(genesis) => lines.push(format!("Goal created. Host's agent: {}. Definition: {}", label(genesis.host, names), genesis.definition)),
                 Body::ReviewRecorded { subject, verdict, .. } => lines.push(format!("Review of {subject}: {}", tag(verdict))),
                 Body::AttemptReported { attempt, status } => lines.push(format!("Attempt {attempt}: {}", tag(status))),
                 Body::CheckAttested { subject, name, passed, .. } => lines.push(format!("Check {} for {subject}: {}", safe(name), if *passed { "passed" } else { "failed" })),
@@ -976,7 +989,9 @@ mod tests {
                 inputs: Default::default(),
                 parent: None,
                 task_type: None,
-                effective_rules_json: "{}".into(),
+                effective_rules_json:
+                    serde_json::json!({"creator": governance, "work": {}, "decisions": {}})
+                        .to_string(),
             }),
             Response::GoalStatus(status),
         ]
@@ -1013,7 +1028,10 @@ mod tests {
             None,
         )
         .unwrap();
-        assert!(elsewhere.contains("Host: maple (02020202)"), "{elsewhere}");
+        assert!(
+            elsewhere.contains("Host: on another computer · maple (02020202)"),
+            "{elsewhere}"
+        );
     }
 
     #[test]
@@ -1024,8 +1042,30 @@ mod tests {
                 let text = render(&response, &[], Some(GoalId([1; 32])), None).unwrap();
                 assert!(!text.contains(&governance.to_string()), "{text}");
                 assert!(!text.to_lowercase().contains("governance key"), "{text}");
+                if let Response::Event(mut detail) = response {
+                    detail.body = Body::Genesis(locust_proto::event::Genesis {
+                        governance,
+                        host: PublicKey([2; 32]),
+                        definition: locust_proto::id::DefinitionHash([4; 32]),
+                        salt: [5; 16],
+                    });
+                    let text =
+                        render(&Response::Event(detail), &[], Some(GoalId([1; 32])), None).unwrap();
+                    assert!(!text.contains(&governance.to_string()), "{text}");
+                    assert!(text.contains("Goal created."), "{text}");
+                }
             }
         }
+        let response = hosted(governance, true).pop().unwrap();
+        let text = render(
+            &response,
+            &[],
+            Some(GoalId([1; 32])),
+            Some(PublicKey([2; 32])),
+        )
+        .unwrap();
+        assert!(text.contains("Host: your owner"), "{text}");
+        assert!(!text.contains("Host: you ·"), "{text}");
     }
 
     #[test]
@@ -1074,9 +1114,9 @@ mod tests {
             .find(|preset| preset.name == "review-panel")
             .unwrap()
             .formation;
-        let text = goal_status(&view, &[], Some(&panel));
+        let text = goal_status(&view, &[], Some(&panel), None);
         assert!(
-            text.contains("Host: Harbor (02020202) · another computer"),
+            text.contains("Host: on another computer · Harbor (02020202)"),
             "{text}"
         );
         assert!(
@@ -1096,7 +1136,7 @@ mod tests {
             .unwrap()
             .formation;
         view.roles.clear();
-        let text = goal_status(&view, &[], Some(&peer));
+        let text = goal_status(&view, &[], Some(&peer), None);
         assert!(!text.contains("Roles:"), "{text}");
         assert!(!text.contains("more reviewers"), "{text}");
         assert_eq!(

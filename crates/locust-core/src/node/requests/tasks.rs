@@ -124,7 +124,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .current_rules
                 .ok_or_else(|| conflict("no current rules binding"))?;
         }
-        binding.task_type = task_type;
+        binding.task_type = task_type.or(binding.task_type);
         let mut tx = Tx::none();
         let event = self.author(
             entry,

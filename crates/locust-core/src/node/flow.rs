@@ -9,6 +9,9 @@ use locust_proto::id::GoalId;
 use locust_proto::store::Store;
 impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn drive_flow(&mut self, goal: GoalId) -> Result<(), ApiError> {
+        if let Some(entry) = self.goals.get_mut(&goal) {
+            entry.failed_effects.clear();
+        }
         loop {
             let Some(entry) = self.goals.get(&goal) else {
                 return Ok(());
@@ -29,6 +32,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                             && self.principals.active(runner).is_some()
                     };
                     !entry.state().effects.contains_key(&desired.id)
+                        && !entry.failed_effects.contains(&desired.id)
                         && can_sign_here
                         && entry.goal.next(runner).is_some()
                 })
@@ -39,15 +43,24 @@ impl<S: Store, E: Entropy> Node<S, E> {
             let mut tx = Tx::none();
             // Derived actions carry no scheduling clock. Their identity and
             // authority depend on the authenticated trigger and pinned rules.
-            self.author_alone(
-                entry,
-                &desired.runner,
-                Body::EffectMaterialized {
-                    effect: desired.effect,
-                },
-                &mut tx,
-            )?;
-            self.land_once(tx)?;
+            let result = self
+                .author_alone(
+                    entry,
+                    &desired.runner,
+                    Body::EffectMaterialized {
+                        effect: desired.effect,
+                    },
+                    &mut tx,
+                )
+                .and_then(|_| self.land_once(tx));
+            if let Err(error) = result {
+                // A failed store still stops the node. An impossible effect
+                // must not prevent unrelated work, joining or startup.
+                if self.failed {
+                    return Err(error);
+                }
+                self.entry_mut(goal).failed_effects.insert(desired.id);
+            }
         }
     }
 }

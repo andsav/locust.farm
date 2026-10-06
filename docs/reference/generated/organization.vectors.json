@@ -3829,6 +3829,111 @@
         "valid": false
       },
       "source": "{\"schema_version\": 2, \"workspace\": {\"integrator\": {\"kind\": \"participant\", \"key\": \"abababababababababababababababababababababababababababababababab\"}, \"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"task_creator\"}}}}"
+    },
+    {
+      "id": "rules/selector_scope-stage-own-rules",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Name members, a role or a participant in the rules this stage's task uses.",
+            "message": "Stage \"s\" opens its task from the host's computer, which is no member, so task_creator at /work/starts/0/by can be met by nobody",
+            "path": "/flow/s",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {}}, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"task_creator\"}}]}}"
+    },
+    {
+      "id": "rules/selector_scope-stage-offered-to",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Name members, a role or a participant in the rules this stage's task uses.",
+            "message": "Stage \"s\" opens its task from the host's computer, which is no member, so task_creator at /work/starts/0/to can be met by nobody",
+            "path": "/flow/s",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {}}, \"work\": {\"starts\": [{\"kind\": \"offered\", \"by\": {\"kind\": \"members\"}, \"to\": {\"kind\": \"task_creator\"}}]}}"
+    },
+    {
+      "id": "rules/selector_scope-stage-nested-all",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Name members, a role or a participant in the rules this stage's task uses.",
+            "message": "Stage \"s\" opens its task from the host's computer, which is no member, so task_creator at /decisions/completion/rules/1/rules/0/by can be met by nobody",
+            "path": "/flow/s",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {}}, \"decisions\": {\"completion\": {\"kind\": \"all\", \"rules\": [{\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}, {\"kind\": \"any\", \"rules\": [{\"kind\": \"declaration\", \"by\": {\"kind\": \"task_creator\"}}]}]}}}"
+    },
+    {
+      "id": "rules/selector_scope-stage-decisions-only",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Name members, a role or a participant in the rules this stage's task uses.",
+            "message": "Stage \"s\" opens its task from the host's computer, which is no member, so task_creator at /work/starts/0/by can be met by nobody",
+            "path": "/flow/s",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {\"task_type\": \"t\"}}, \"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"task_creator\"}}]}, \"task_types\": {\"t\": {\"decisions\": {\"completion\": {\"kind\": \"contribution\", \"by\": {\"kind\": \"members\"}}}}}}"
+    },
+    {
+      "id": "rules/selector_scope-stage-work-only",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Name members, a role or a participant in the rules this stage's task uses.",
+            "message": "Stage \"s\" opens its task from the host's computer, which is no member, so task_creator at /decisions/completion/by can be met by nobody",
+            "path": "/flow/s",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"flow\": {\"s\": {\"task_type\": \"t\"}}, \"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"task_creator\"}}}, \"task_types\": {\"t\": {\"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"members\"}}]}}}}"
     }
   ],
   "generated_by": "scripts/check_formations.py"

@@ -547,7 +547,17 @@ fn checked_definition(source: &str) -> Result<(DefinitionHash, String, Formation
     if !inspection.valid {
         return Err(ApiError::new(
             ErrorCode::Invalid,
-            "the formation is invalid; validate it for diagnostics",
+            inspection
+                .diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    format!(
+                        "{}: {} {}",
+                        diagnostic.code, diagnostic.message, diagnostic.correction
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
         ));
     }
     let hash = inspection

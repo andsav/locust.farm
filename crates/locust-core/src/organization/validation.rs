@@ -193,24 +193,7 @@ impl Validator<'_> {
             ),
             _ => (&self.formation.decisions, "/decisions".to_owned()),
         };
-        let mut found = Vec::new();
-        for (index, start) in work.starts.iter().enumerate() {
-            match start {
-                StartRule::Independent { by } if names_task_creator(by) => {
-                    found.push(format!("{work_path}/starts/{index}/by"));
-                }
-                StartRule::Offered { to, .. } if names_task_creator(to) => {
-                    found.push(format!("{work_path}/starts/{index}/to"));
-                }
-                _ => {}
-            }
-        }
-        completion_task_creator(
-            &decisions.completion,
-            &format!("{decisions_path}/completion"),
-            &mut found,
-        );
-        for rule in found {
+        for rule in stage_task_creator_paths(work, decisions, &work_path, &decisions_path) {
             self.error(
                 "selector_scope",
                 path,
@@ -309,6 +292,32 @@ impl Validator<'_> {
             }
         }
     }
+}
+
+pub(crate) fn stage_task_creator_paths(
+    work: &WorkRules,
+    decisions: &DecisionRules,
+    work_path: &str,
+    decisions_path: &str,
+) -> Vec<String> {
+    let mut found = Vec::new();
+    for (index, start) in work.starts.iter().enumerate() {
+        match start {
+            StartRule::Independent { by } if names_task_creator(by) => {
+                found.push(format!("{work_path}/starts/{index}/by"));
+            }
+            StartRule::Offered { to, .. } if names_task_creator(to) => {
+                found.push(format!("{work_path}/starts/{index}/to"));
+            }
+            _ => {}
+        }
+    }
+    completion_task_creator(
+        &decisions.completion,
+        &format!("{decisions_path}/completion"),
+        &mut found,
+    );
+    found
 }
 
 fn names_task_creator(selector: &Selector) -> bool {

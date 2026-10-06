@@ -157,10 +157,9 @@ impl Definitions {
         let Ok(source) = std::str::from_utf8(&bytes) else {
             return Ok(None);
         };
-        let inspected = crate::organization::inspect(source);
-        if let (Some(definition), Some(hash)) = (inspected.normalized, inspected.semantic_hash)
-            && inspected.valid
-            && hash == reference.semantic.to_string()
+        if let Some(definition) = crate::organization::held_definition(source)
+            && locust_proto::organization::semantic_hash(&definition)
+                == reference.semantic.to_string()
         {
             return Ok(Some(definition));
         }

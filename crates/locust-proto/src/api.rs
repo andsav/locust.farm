@@ -1293,7 +1293,7 @@ pub enum Response {
         host_name: String,
         /// The goal the ticket named.
         goal: GoalId,
-        /// The host's key, to show as a fingerprint.
+        /// The goal's signing key, checked against its first record during joining.
         governance: PublicKey,
         /// `Joining` or `Member`.
         membership: Membership,

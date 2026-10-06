@@ -2698,13 +2698,13 @@
             "arguments": [],
             "commands": [],
             "name": "revoke",
-            "summary": null
+            "summary": "Disconnect an agent; reconnect keeps its name and work"
           },
           {
             "arguments": [],
             "commands": [],
             "name": "reconnect",
-            "summary": null
+            "summary": "Connect a disconnected agent again with its existing name and key"
           },
           {
             "arguments": [
@@ -15495,7 +15495,8 @@
           "runner_revoked",
           "runner_left",
           "runner_not_member",
-          "halted"
+          "halted",
+          "cannot_materialize"
         ],
         "type": "string"
       },
@@ -16874,7 +16875,7 @@
               },
               "governance": {
                 "$ref": "#/$defs/PublicKey",
-                "description": "The host's key, to show as a fingerprint."
+                "description": "The goal's signing key, checked against its first record during joining."
               },
               "host_name": {
                 "type": "string"

@@ -1346,7 +1346,7 @@ fn agent_revoke_applies_at_once_and_prints_the_command_that_undoes_it() {
         Arc::clone(&revokes),
         Arc::clone(&reconnects),
     );
-    let handle = server(home.path(), 4, move |frame| match frame.request {
+    let handle = server(home.path(), 5, move |frame| match frame.request {
         Request::Status => Ok(Response::Status(DaemonStatus {
             daemon_version: "stub".into(),
             endpoint: None,
@@ -1460,6 +1460,11 @@ fn agent_revoke_applies_at_once_and_prints_the_command_that_undoes_it() {
     assert_eq!(reconnects.load(Ordering::SeqCst), 2);
     assert_eq!(revokes.load(Ordering::SeqCst), 2);
     assert!(!revoked.load(Ordering::SeqCst));
+    assert_eq!(
+        human(&["--owner", "agent", "reconnect", "--agent", "worker"]),
+        "worker is not disconnected. Nothing changed.\n"
+    );
+    assert_eq!(reconnects.load(Ordering::SeqCst), 2);
     handle.join().unwrap();
 }
 
@@ -3045,5 +3050,115 @@ fn rules_bind_moves_the_shared_files_to_the_new_rules_and_says_so() {
         .find_map(|line| line.strip_prefix("Plan id: "))
         .unwrap();
     assert!(run(&["--confirm", id]).status.success());
+    handle.join().unwrap();
+}
+
+#[test]
+fn invalid_stage_rules_are_explained_before_create_or_bind_has_a_plan() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let handle = server(home.path(), 2, |frame| {
+        panic!(
+            "invalid formation should need no daemon request: {:?}",
+            frame.request
+        )
+    });
+    let source = r#"{"schema_version":2,"flow":{"draft":{}},"decisions":{"completion":{"kind":"declaration","by":{"kind":"task_creator"}}}}"#;
+    for args in [
+        vec!["goal", "create", "--title", "Invalid stage"],
+        vec!["rules", "bind", "--goal", &goal.to_string()],
+    ] {
+        let output = cli(home.path())
+            .arg("--owner")
+            .args(args)
+            .args(["--formation-json", source, "--plan"])
+            .output()
+            .unwrap();
+        let result = envelope(&output, 6);
+        let message = result["error"]["message"].as_str().unwrap();
+        assert!(message.contains("selector_scope"), "{message}");
+        assert!(message.contains("task_creator"), "{message}");
+        assert!(
+            message.contains("Name members, a role or a participant"),
+            "{message}"
+        );
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("review_required"));
+    }
+    handle.join().unwrap();
+}
+
+#[test]
+fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let agent = PublicKey([2; 32]);
+    let handle = server(home.path(), 4, move |frame| match frame.request {
+        Request::Status => Ok(Response::Status(DaemonStatus {
+            daemon_version: "stub".into(),
+            endpoint: None,
+            agents: vec![AgentView {
+                agent,
+                name: "worker".into(),
+                revoked: true,
+                author_only: false,
+            }],
+            goals: vec![GoalSummary {
+                goal,
+                title: Some("Demo".into()),
+                member: agent,
+                membership: Membership::Member,
+                halted: None,
+                abilities: abilities(goal, agent),
+            }],
+        })),
+        other => panic!("disconnected agent must not act: {other:?}"),
+    });
+    for selector in [vec![], vec!["--agent", "worker"]] {
+        let output = cli(home.path())
+            .arg("--owner")
+            .args(selector)
+            .args(["level", "--goal", &goal.to_string(), "ask"])
+            .output()
+            .unwrap();
+        let result = envelope(&output, 2);
+        let message = result["error"]["message"].as_str().unwrap();
+        assert!(message.contains("worker is disconnected"), "{message}");
+        assert!(
+            message.contains(&format!("agent reconnect --agent {agent}")),
+            "{message}"
+        );
+        assert!(!message.contains("none of your agents"), "{message}");
+    }
+    let output = cli(home.path())
+        .args([
+            "--owner",
+            "--agent",
+            "worker",
+            "goal",
+            "add",
+            "--goal",
+            &goal.to_string(),
+            "--plan",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        envelope(&output, 2)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("agent reconnect")
+    );
+    let output = plain()
+        .arg("--home")
+        .arg(home.path())
+        .args(["--owner", "status"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("credential disconnected"), "{text}");
+    assert!(text.contains("agent reconnect --agent"), "{text}");
     handle.join().unwrap();
 }

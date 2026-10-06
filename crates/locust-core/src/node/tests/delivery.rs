@@ -317,6 +317,24 @@ fn fork_retracts_undelivered_work_and_preserves_received_inbox_status_after_rest
             .receive(vec![fork.to_wire()])
             .unwrap();
     }
+    for (index, daemon) in net.nodes.iter_mut().enumerate() {
+        let owner = daemon.owner();
+        let Response::GoalStatus(status) = daemon.ok(owner, Request::GoalStatus { goal }) else {
+            panic!()
+        };
+        if index == 0 {
+            assert!(!status.stalled.is_empty());
+            assert!(
+                status
+                    .stalled
+                    .iter()
+                    .all(|step| step.runner == status.governance
+                        && step.reason == locust_proto::api::Stall::Halted)
+            );
+        } else {
+            assert!(status.stalled.is_empty());
+        }
+    }
     assert!(
         net.nodes[0]
             .node
@@ -738,7 +756,7 @@ fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_us
                 member: target
             }
         )),
-        ErrorCode::Unavailable
+        ErrorCode::Halted
     );
 }
 
@@ -805,3 +823,135 @@ fn restored_host_known_gap_blocks_signing_until_missing_predecessor_arrives() {
 
 #[path = "delivery_characterization.rs"]
 mod lifecycle_characterization;
+
+#[test]
+fn an_unsignable_step_stalls_without_failing_open_join_or_receive() {
+    use crate::sync::Host;
+    use locust_proto::api::Stall;
+    use locust_proto::event::{Body, Event};
+    use locust_proto::invite::{Invitation, JoinRequest};
+    use locust_proto::organization::{Formation, Selector, Stage};
+    let (mut net, goal, _, target) = unbound_network();
+    let owner = net.nodes[0].owner();
+    let expected = net.nodes[0].node.goals[&goal]
+        .state()
+        .current_rules
+        .unwrap();
+    let mut formation = Formation::default();
+    // A valid formation whose repeated stage name makes its effect header
+    // exceed the wire limit. No enormous member fixture is needed.
+    for name in [
+        "x".repeat(locust_proto::limits::MAX_HEADER_BYTES),
+        "small".into(),
+    ] {
+        formation.flow.insert(
+            name,
+            Stage {
+                task_type: None,
+                requires: vec![],
+                recipients: Selector::Members,
+            },
+        );
+    }
+    net.nodes[0].ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            inputs: BTreeMap::new(),
+        },
+    );
+    let entry = &net.nodes[0].node.goals[&goal];
+    assert_eq!(entry.state().effects.len(), 1, "the other stage still runs");
+    let stalled = net.nodes[0].node.stalled(entry);
+    assert_eq!(stalled.len(), 1);
+    assert_eq!(stalled[0].reason, Stall::CannotMaterialize);
+    assert_eq!(Some(stalled[0].runner), entry.state().governance);
+    let desired = &entry.goal.evaluation().desired_effects[&stalled[0].effect];
+    let mut tx = crate::node::commit::Tx::none();
+    assert_eq!(
+        net.nodes[0]
+            .node
+            .author_alone(
+                entry,
+                &desired.runner,
+                Body::EffectMaterialized {
+                    effect: desired.effect.clone()
+                },
+                &mut tx
+            )
+            .unwrap_err()
+            .code,
+        ErrorCode::Invalid
+    );
+    net.restart(); // Node::open drives the same unsignable step.
+    let owner = net.nodes[0].owner();
+    let Response::Invited { ticket } = net.nodes[0].ok(
+        owner,
+        Request::GoalInvite {
+            goal,
+            role: None,
+            expires_ms: 604_801_000,
+        },
+    ) else {
+        panic!()
+    };
+    let newcomer = net.nodes[1].enroll("newcomer", 3);
+    let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+    let request = JoinRequest::sign(
+        goal,
+        Network::endpoint(1),
+        "newcomer".into(),
+        invitation.secret,
+        net.nodes[1].node.signer(&newcomer).unwrap(),
+    );
+    Host::join(
+        &mut net.nodes[0].node,
+        &Network::endpoint(1),
+        &request,
+        net.now,
+    )
+    .unwrap();
+    assert!(net.nodes[0].node.goals[&goal].is_member(&newcomer));
+    // A real authenticated member record arrives at the host while the step
+    // remains unsignable. Replica::receive must still acknowledge the batch.
+    let entry = &net.nodes[0].node.goals[&goal];
+    let next = entry.goal.next(&target).unwrap();
+    let header = locust_proto::event::Header {
+        version: locust_proto::PROTOCOL_VERSION,
+        goal,
+        author: target,
+        seq: next.seq,
+        prev: next.prev,
+        anchor: Some(next.anchor),
+        parents: vec![],
+        at_ms: 1,
+        payload: None,
+        body: Body::ContributionPublished {
+            context: entry
+                .goal
+                .current_context(locust_proto::event::Scope::Goal)
+                .unwrap(),
+            attempt: None,
+            sources: vec![],
+            artifacts: vec![],
+        },
+    };
+    let incoming = Event::sign(header, net.nodes[1].node.signer(&target).unwrap()).unwrap();
+    assert_eq!(
+        Host::replica(&mut net.nodes[0].node, &goal)
+            .unwrap()
+            .receive(vec![incoming.to_wire()]),
+        Ok(1)
+    );
+    assert_eq!(
+        net.nodes[0].node.goals[&goal].goal.standing(&incoming.id()),
+        Some(crate::goal::Standing::Effective)
+    );
+    assert_eq!(
+        net.nodes[0].node.stalled(&net.nodes[0].node.goals[&goal])[0].reason,
+        Stall::CannotMaterialize
+    );
+    assert!(!net.nodes[0].node.failed);
+}

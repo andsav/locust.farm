@@ -116,7 +116,11 @@ fn replay_refusal_precedes_local_level_and_owner_act_persists() {
     assert_eq!(error.code, ErrorCode::NotEligible);
     let refused: locust_proto::api::Refused =
         serde_json::from_str(error.details_json.as_deref().unwrap()).unwrap();
-    assert!(matches!(refused.why, Why::Rules { .. }));
+    let Why::Rules { host, .. } = refused.why else {
+        panic!()
+    };
+    assert_eq!(Some(host), d.node.goals[&goal].state().host);
+    assert_ne!(Some(host), d.node.goals[&goal].state().governance);
     assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
     assert!(
         !d.node.goals[&goal]

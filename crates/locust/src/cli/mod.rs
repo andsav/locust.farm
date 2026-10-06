@@ -471,7 +471,7 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         let formation = roles::current_formation(&mut client, &socket, view)
             .ok()
             .flatten();
-        presentation::goal_status(view, &names, formation.as_ref())
+        presentation::goal_status(view, &names, formation.as_ref(), response_principal)
     } else if matches!(response, Response::Context(_)) && !generic_call {
         serde_json::to_string_pretty(&result).expect("response encodes")
     } else {
@@ -551,8 +551,13 @@ pub(super) fn acting_agent(
         .get_one::<String>("agent")
         .and_then(|named| named.parse::<PublicKey>().ok())
     {
+        // An exact key needs no lookup. The daemon returns the reconnect
+        // instruction if this principal is disconnected.
         return Ok(key);
     }
+    let managing_connection = matches.subcommand().is_some_and(|(command, args)| {
+        command == "agent" && matches!(args.subcommand_name(), Some("revoke" | "reconnect"))
+    });
     let known = status(client, socket, None)?;
     if let Some(named) = matches.get_one::<String>("agent") {
         let key = named.parse::<PublicKey>().ok();
@@ -560,7 +565,14 @@ pub(super) fn acting_agent(
             .agents
             .iter()
             .find(|agent| agent.name == *named || key == Some(agent.agent))
-            .map(|agent| agent.agent)
+            .map(|agent| {
+                if agent.revoked && !managing_connection {
+                    Err(Failure::usage(disconnected_agent(agent)))
+                } else {
+                    Ok(agent.agent)
+                }
+            })
+            .transpose()?
             .ok_or_else(|| {
                 Failure::new(
                     ErrorCode::NotFound,
@@ -585,6 +597,24 @@ pub(super) fn acting_agent(
     match eligible.as_slice() {
         [agent] => Ok(agent.agent),
         [] => {
+            let disconnected: Vec<_> = known
+                .agents
+                .iter()
+                .filter(|agent| agent.revoked && !agent.author_only)
+                .filter(|agent| {
+                    goal.is_none_or(|goal| {
+                        known.goals.iter().any(|entry| {
+                            entry.goal == goal
+                                && entry.member == agent.agent
+                                && entry.membership == Membership::Member
+                        })
+                    })
+                })
+                .map(disconnected_agent)
+                .collect();
+            if !disconnected.is_empty() {
+                return Err(Failure::usage(disconnected.join("\n")));
+            }
             if let Some(goal) = goal {
                 let title = known
                     .goals
@@ -608,6 +638,13 @@ pub(super) fn acting_agent(
             many[0].name, many[1].name
         ))),
     }
+}
+pub(super) fn disconnected_agent(agent: &locust_proto::api::AgentView) -> String {
+    format!(
+        "{} is disconnected. Connect it again: locust --owner agent reconnect --agent {}",
+        presentation::safe(&agent.name),
+        agent.agent
+    )
 }
 fn create_session(path: &str) -> Result<Output, Failure> {
     let path = local::session_path(Some(std::ffi::OsStr::new(path)))
@@ -669,7 +706,7 @@ fn human(response: &Response, credential_path: Option<&Path>) -> String {
                     "agent {} {}{}",
                     agent.name,
                     agent.agent,
-                    if agent.revoked { " revoked" } else { "" }
+                    if agent.revoked { " disconnected" } else { "" }
                 )
             }));
             lines.extend(status.goals.iter().map(|goal| {

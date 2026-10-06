@@ -290,7 +290,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .or_insert_with(|| Entry::new(Goal::new(goal)))
     }
 
-    fn refuse(&self, code: ErrorCode, message: &'static str) -> ServerHello {
+    fn refuse(&self, code: ErrorCode, message: impl Into<String>) -> ServerHello {
         ServerHello::Refused {
             error: ApiError::new(code, message),
             api_version: API_VERSION,
@@ -328,7 +328,10 @@ impl<S: Store, E: Entropy> Engine for Node<S, E> {
                 {
                     caller
                 }
-                _ => return self.refuse(ErrorCode::Denied, "the credential is unknown or revoked"),
+                Some(Caller::Agent(key) | Caller::Author(key)) => {
+                    return self.refuse(ErrorCode::Denied, self.principals.inactive_message(&key));
+                }
+                _ => return self.refuse(ErrorCode::Denied, "the credential is unknown"),
             }
         };
         if matches!(caller, Caller::Author(_)) && hello.session.is_some() {

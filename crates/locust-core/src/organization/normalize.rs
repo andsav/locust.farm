@@ -11,7 +11,9 @@ fn set<T: Serialize + PartialEq>(values: &mut Vec<T>) {
 fn selector(value: &mut Selector) {
     match value {
         Selector::Participant { key } => {
-            *key = key.parse::<PublicKey>().expect("validated key").to_string()
+            if let Ok(parsed) = key.parse::<PublicKey>() {
+                *key = parsed.to_string();
+            }
         }
         Selector::Any { selectors } => {
             for value in selectors.iter_mut() {
@@ -36,8 +38,10 @@ fn selector(value: &mut Selector) {
     }
 }
 fn authority(value: &mut Authority) {
-    if let Authority::Participant { key } = value {
-        *key = key.parse::<PublicKey>().expect("validated key").to_string();
+    if let Authority::Participant { key } = value
+        && let Ok(parsed) = key.parse::<PublicKey>()
+    {
+        *key = parsed.to_string();
     }
 }
 fn work(value: &mut WorkRules) {

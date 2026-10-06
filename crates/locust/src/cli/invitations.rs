@@ -230,7 +230,7 @@ fn render_preview(preview: &InvitationPreview, now_ms: u64) -> String {
         },
     );
     let mut text = format!(
-        "Goal: {title}\nGoal identifier: {}\nIssuer endpoint: {}\nSignature: verified against the goal's key, which the identifier commits to.\nTitle: host-signed presentation. A signing key does not verify a human identity.\nGoal authority and admission are confirmed during joining. Inspection does not contact the issuer.\nExpires: {expires}{}\nSharing: whole goal.\n",
+        "Goal: {title}\nGoal identifier: {}\nIssuer endpoint: {}\nSignature: verified.\nTitle: host-signed presentation. A signing key does not verify a human identity.\nGoal authority and admission are confirmed during joining. Inspection does not contact the issuer.\nExpires: {expires}{}\nSharing: whole goal.\n",
         preview.goal,
         preview.endpoint,
         if preview.expired {

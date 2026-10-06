@@ -154,6 +154,19 @@ impl Principals {
         self.by_key.get(key).filter(|found| !found.record.revoked)
     }
 
+    pub fn inactive_message(&self, key: &PublicKey) -> String {
+        if self
+            .get(key)
+            .is_some_and(|principal| principal.record.revoked)
+        {
+            format!(
+                "the agent is disconnected. Connect it again: locust --owner agent reconnect --agent {key}"
+            )
+        } else {
+            "no enrolled principal has that key".into()
+        }
+    }
+
     pub fn by_name(&self, name: &str) -> Option<&Principal> {
         self.by_name.get(name).and_then(|key| self.by_key.get(key))
     }

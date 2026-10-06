@@ -447,7 +447,7 @@ fn apply_with(
                 .any(|a| Some(&a.name) == s.name.as_ref())
             {
                 return Err(conflict(
-                    "the onboarding name belongs to a different or revoked credential; preserve the journal and identity",
+                    "the onboarding name is already enrolled; preserve the journal and identity. If disconnected, run locust --owner agent reconnect --agent NAME, then retry",
                 ));
             }
             owner
