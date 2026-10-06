@@ -1,0 +1,1604 @@
+[
+  {
+    "anchor": null,
+    "body": {
+      "genesis": {
+        "administrator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+        "definition": "1797e1bccec65f6c296d8fe716636c68a11465f7cbcc480a9770a165f25de18a",
+        "salt": [
+          75,
+          163,
+          44,
+          58,
+          21,
+          243,
+          13,
+          237,
+          111,
+          103,
+          8,
+          44,
+          4,
+          145,
+          50,
+          218
+        ]
+      }
+    },
+    "content": [
+      {
+        "hash": "07e33c598447eba373e7506860ce668d6f53a988bb438b62a8a73704075266fa",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "07e33c598447eba373e7506860ce668d6f53a988bb438b62a8a73704075266fa",
+      "key_epoch": 0,
+      "len": 72
+    },
+    "task": null,
+    "text": "Unassigned utilities / open",
+    "view": {
+      "at_ms": 1791256902483,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "4aaeb0b264542c046ca31a29aa102c76519413ca6a940a975e8d63e3d86a3a78",
+      "kind": "genesis",
+      "position": 1,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "c28d52cd18fd6e951f3a75bab85eb091776c2a1fd61989d710da81d992cef61c",
+    "body": {
+      "rules_bound": {
+        "binding": {
+          "definition": {
+            "object": {
+              "hash": "ca61c4c374bb421987561471985d6b85248976f1b3b0331a8d262572540a019a",
+              "key_epoch": 0,
+              "len": 399
+            },
+            "semantic": "1797e1bccec65f6c296d8fe716636c68a11465f7cbcc480a9770a165f25de18a"
+          },
+          "inputs": {},
+          "roles": {}
+        },
+        "expected": null
+      }
+    },
+    "content": [
+      {
+        "hash": "ca61c4c374bb421987561471985d6b85248976f1b3b0331a8d262572540a019a",
+        "state": "held"
+      }
+    ],
+    "payload": null,
+    "task": null,
+    "text": null,
+    "view": {
+      "at_ms": 1791256902483,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+      "kind": "rules_bound",
+      "position": 2,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "4aaeb0b264542c046ca31a29aa102c76519413ca6a940a975e8d63e3d86a3a78",
+    "body": {
+      "member_admitted": {
+        "endpoint": "f2afb31fd9310876b95c209fd3813c7ebc80b69f7fbdfa62c9ee09764475a302",
+        "member": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": null,
+    "text": null,
+    "view": {
+      "at_ms": 1791256902483,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "c28d52cd18fd6e951f3a75bab85eb091776c2a1fd61989d710da81d992cef61c",
+      "kind": "member_admitted",
+      "position": 3,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+    "body": {
+      "member_admitted": {
+        "endpoint": "f2afb31fd9310876b95c209fd3813c7ebc80b69f7fbdfa62c9ee09764475a302",
+        "member": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": null,
+    "text": null,
+    "view": {
+      "at_ms": 1791256902523,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "7042afbfb69b332830bc3e2f61f935d65e4cba5e8eb59128eb7c552a49fb8d50",
+      "kind": "member_admitted",
+      "position": 4,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "7042afbfb69b332830bc3e2f61f935d65e4cba5e8eb59128eb7c552a49fb8d50",
+    "body": {
+      "member_admitted": {
+        "endpoint": "f2afb31fd9310876b95c209fd3813c7ebc80b69f7fbdfa62c9ee09764475a302",
+        "member": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": null,
+    "text": null,
+    "view": {
+      "at_ms": 1791256902560,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+      "kind": "member_admitted",
+      "position": 5,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "stage": null,
+          "task_type": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "c986e5af2d449b8441d1b720582861bff50acc4a77d85986cc62da9b5f7c7ed0",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "c986e5af2d449b8441d1b720582861bff50acc4a77d85986cc62da9b5f7c7ed0",
+      "key_epoch": 0,
+      "len": 471
+    },
+    "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+    "text": "slug: Implement slug.py and test_slug.py. slugify(text): lowercase ASCII letters/digits; replace every run of other characters with one hyphen; strip leading/trailing hyphens. Unicode non-ASCII is a separator. Empty input returns empty string. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one.",
+    "view": {
+      "at_ms": 1791256902592,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+      "kind": "task_opened",
+      "position": 6,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "stage": null,
+          "task_type": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "a023af2e34a72e23b988e61208a2e3cebbd274740b997f698c3bdf24195019e5",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "a023af2e34a72e23b988e61208a2e3cebbd274740b997f698c3bdf24195019e5",
+      "key_epoch": 0,
+      "len": 487
+    },
+    "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+    "text": "intervals: Implement intervals.py and test_intervals.py. merge_intervals(items): merge overlapping or touching [start,end] numeric pairs into sorted non-overlapping pairs. Do not mutate input. Reject reversed endpoints with ValueError. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one.",
+    "view": {
+      "at_ms": 1791256902657,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+      "kind": "task_opened",
+      "position": 7,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "stage": null,
+          "task_type": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "9f4579aab7ca5119c33f661823cf3e764dc7ae96350cd2b141091518d07e8248",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "9f4579aab7ca5119c33f661823cf3e764dc7ae96350cd2b141091518d07e8248",
+      "key_epoch": 0,
+      "len": 493
+    },
+    "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+    "text": "chunks: Implement chunks.py and test_chunks.py. chunks(items, size): return a list of consecutive lists, preserving order, including a shorter last chunk. Positive integer size only; bool, non-integer and non-positive sizes raise ValueError. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one.",
+    "view": {
+      "at_ms": 1791256902720,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+      "kind": "task_opened",
+      "position": 8,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "stage": null,
+          "task_type": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "8689244ec172016fd59a41f19d3bfa93d03def377cb63c0665e18d2fc729bd74",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "8689244ec172016fd59a41f19d3bfa93d03def377cb63c0665e18d2fc729bd74",
+      "key_epoch": 0,
+      "len": 435
+    },
+    "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+    "text": "counts: Implement counts.py and test_counts.py. word_counts(text): count case-insensitive ASCII word tokens matching [a-z]+, returning a dict. Apostrophes and numbers separate tokens. Empty input returns {}. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one.",
+    "view": {
+      "at_ms": 1791256902783,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+      "kind": "task_opened",
+      "position": 9,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "stage": null,
+          "task_type": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "476e2290bb3f455af50088c4e8b0a5bcc661b70b4ea76121fe49014afcc7482f",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "476e2290bb3f455af50088c4e8b0a5bcc661b70b4ea76121fe49014afcc7482f",
+      "key_epoch": 0,
+      "len": 582
+    },
+    "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+    "text": "duration: Implement duration.py and test_duration.py. parse_duration(text): parse one or more nonnegative integer-unit pairs with units h,m,s in any order, each at most once, optional whitespace between pairs. Return total seconds. Accept 0s and 1h30m. Reject empty input, unknown units, signs, decimals, repeated units and trailing junk with ValueError. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one.",
+    "view": {
+      "at_ms": 1791256902850,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+      "kind": "task_opened",
+      "position": 10,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "stage": null,
+          "task_type": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "2cc386da691579cece1c8d3acbd01bceaf208b555dc241df5036be914e0b3f1d",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "2cc386da691579cece1c8d3acbd01bceaf208b555dc241df5036be914e0b3f1d",
+      "key_epoch": 0,
+      "len": 431
+    },
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": "unique: Implement unique.py and test_unique.py. stable_unique(items): return first occurrences preserving order, supporting unhashable items through equality. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one.",
+    "view": {
+      "at_ms": 1791256902914,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+      "kind": "task_opened",
+      "position": 11,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "stage": null,
+          "task_type": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "5f2011a8520fb8e90f7bcf2ec7c69e60e4c8edf9426f44bf04c60fff1d34d61e",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "5f2011a8520fb8e90f7bcf2ec7c69e60e4c8edf9426f44bf04c60fff1d34d61e",
+      "key_epoch": 0,
+      "len": 438
+    },
+    "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+    "text": "rotate: Implement rotate.py and test_rotate.py. rotate(items, steps): return a new list rotated right by integer steps, negative steps rotate left, large steps wrap. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one.",
+    "view": {
+      "at_ms": 1791256902980,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+      "kind": "task_opened",
+      "position": 12,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "task_opened": {
+        "binding": {
+          "inputs": {},
+          "parent": null,
+          "rules": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "stage": null,
+          "task_type": null
+        }
+      }
+    },
+    "content": [
+      {
+        "hash": "7c455456ba5c957beb56cadb347cdbcc7a7acfdb57e7965628941d31f2c9110d",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "7c455456ba5c957beb56cadb347cdbcc7a7acfdb57e7965628941d31f2c9110d",
+      "key_epoch": 0,
+      "len": 483
+    },
+    "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+    "text": "flatten: Implement flatten.py and test_flatten.py. flatten(items): recursively flatten nested lists only into a new list, preserving order. Tuples, strings, dicts and other non-list objects remain single items. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one.",
+    "view": {
+      "at_ms": 1791256903049,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+      "kind": "task_opened",
+      "position": 13,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+          "scope": {
+            "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+    "text": null,
+    "view": {
+      "at_ms": 1791256944904,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "461ac66536db17f3be7718928d921e4590d85a0fdf9670662e27daad3f93e48d",
+      "kind": "attempt_started",
+      "position": 14,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+          "scope": {
+            "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+    "text": null,
+    "view": {
+      "at_ms": 1791256947139,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "c16503151c368d64764584bdb3543f81e65af6e3ac61e1cf24615ea32922e68f",
+      "kind": "attempt_started",
+      "position": 15,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+          "scope": {
+            "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+    "text": null,
+    "view": {
+      "at_ms": 1791256957617,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "d1502f0f4464b2905bae0a5511b7cd655404419bc15523dea96ee672f81122bc",
+      "kind": "attempt_started",
+      "position": 16,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "c52c9be467cb708450d28d0676754d342c56d9ca824c65b65af39228919ff382"
+        ],
+        "attempt": "c16503151c368d64764584bdb3543f81e65af6e3ac61e1cf24615ea32922e68f",
+        "context": {
+          "round": "c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+          "scope": {
+            "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "ae0108569ed3aa30088e45fdd482feeb327c16c4ec04f756020b356fa42ee317",
+        "state": "held"
+      },
+      {
+        "hash": "c52c9be467cb708450d28d0676754d342c56d9ca824c65b65af39228919ff382",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "ae0108569ed3aa30088e45fdd482feeb327c16c4ec04f756020b356fa42ee317",
+      "key_epoch": 0,
+      "len": 437
+    },
+    "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+    "text": "intervals: merge_intervals sorts copies of pairs, merges overlapping/touching (start <= prev end), returns new [start,end] lists, raises ValueError on reversed endpoints or non-pair items, never mutates input. python3 -m unittest test_intervals: 13 tests OK (empty, single, overlap, touching, disjoint, unsorted, contained, points, floats/negatives, tuples, reversed, no-mutation, new lists).",
+    "view": {
+      "at_ms": 1791256964252,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "755ffd7d30e59057f9d521929aa65e2b1e48df3019e01eb62995255ffd34c71b",
+      "kind": "contribution_published",
+      "position": 17,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "c16503151c368d64764584bdb3543f81e65af6e3ac61e1cf24615ea32922e68f",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "d58995720724f05825a6ee2903e18039501076fb78000cee774a0e9cd21f60d4",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "d58995720724f05825a6ee2903e18039501076fb78000cee774a0e9cd21f60d4",
+      "key_epoch": 0,
+      "len": 138
+    },
+    "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+    "text": "intervals implemented; 13 unittest cases pass; contribution 755ffd7d30e5 with bundle c52c9be4",
+    "view": {
+      "at_ms": 1791256969549,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "0b50467ff0146bb65eada1cd84f6537b1497707df908a01c61d548b697ff1477",
+      "kind": "attempt_reported",
+      "position": 18,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+          "scope": {
+            "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a"
+          }
+        },
+        "subject": "755ffd7d30e59057f9d521929aa65e2b1e48df3019e01eb62995255ffd34c71b"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+    "text": null,
+    "view": {
+      "at_ms": 1791256969721,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "9065f8c0babe1a860c490e770420403311326dd73b7d2d9342016bd6adbc6686",
+      "kind": "completion_declared",
+      "position": 19,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "80605bf0dcc61c9a45606bae8dc507692d35030500e6d3aad5a7fc774f8560ae"
+        ],
+        "attempt": "461ac66536db17f3be7718928d921e4590d85a0fdf9670662e27daad3f93e48d",
+        "context": {
+          "round": "2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+          "scope": {
+            "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "1d0f5310c48e6271d55aaeeea1bf80f49d38f60f72f0ea275203ae7ef3046ebd",
+        "state": "held"
+      },
+      {
+        "hash": "80605bf0dcc61c9a45606bae8dc507692d35030500e6d3aad5a7fc774f8560ae",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "1d0f5310c48e6271d55aaeeea1bf80f49d38f60f72f0ea275203ae7ef3046ebd",
+      "key_epoch": 0,
+      "len": 409
+    },
+    "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+    "text": "Implemented slug.py with ASCII-only letter/digit retention, ASCII lowercasing, and collapsed/trimmed separators including non-ASCII characters. Added six unittest cases spanning normal text, digits, separator runs, edge trimming, Unicode, and empty/all-separator input. python3 -m unittest -v test_slug.py: 6 tests passed. Bundle contains slug.py and test_slug.py.",
+    "view": {
+      "at_ms": 1791256970539,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "dc37b0d34b3e3c14ccdfdcf0a8cb8dd4de10461bb043c17d66b973d3820c580b",
+      "kind": "contribution_published",
+      "position": 20,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "461ac66536db17f3be7718928d921e4590d85a0fdf9670662e27daad3f93e48d",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "c7ebf7d52d4fad1ff31105845d0dfcbe04419bd7c0706d351b4135aa4a3a59a1",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "c7ebf7d52d4fad1ff31105845d0dfcbe04419bd7c0706d351b4135aa4a3a59a1",
+      "key_epoch": 0,
+      "len": 195
+    },
+    "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+    "text": "Completed slug utility and test suite; published contribution dc37b0d34b3e3c14ccdfdcf0a8cb8dd4de10461bb043c17d66b973d3820c580b. Six unit tests passed.",
+    "view": {
+      "at_ms": 1791256975017,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "556e8c5df02e5ff35f9ae25bdadc0798e92ffb859836a40ba8556bb3ca4c9137",
+      "kind": "attempt_reported",
+      "position": 21,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+          "scope": {
+            "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772"
+          }
+        },
+        "subject": "dc37b0d34b3e3c14ccdfdcf0a8cb8dd4de10461bb043c17d66b973d3820c580b"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+    "text": null,
+    "view": {
+      "at_ms": 1791256975151,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "1ccd1e0e5e38e5eb047696b4bfcd1d48b604cc76a48d47712091d379585f3f2b",
+      "kind": "completion_declared",
+      "position": 22,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+          "scope": {
+            "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+    "text": null,
+    "view": {
+      "at_ms": 1791256984462,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "74fd1d829b17190f22f8e45b7bdd7dddb66629495bbd76fed83674bbde35a8a0",
+      "kind": "attempt_started",
+      "position": 23,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "24ceb8ab3fbe04e61c537a72bf1dc35703e9c8dcf78406e6228673f35e84fd01"
+        ],
+        "attempt": "d1502f0f4464b2905bae0a5511b7cd655404419bc15523dea96ee672f81122bc",
+        "context": {
+          "round": "b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+          "scope": {
+            "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "24ceb8ab3fbe04e61c537a72bf1dc35703e9c8dcf78406e6228673f35e84fd01",
+        "state": "held"
+      },
+      {
+        "hash": "2aecd40e7b5fa68b0ac4a951ea91ae730ebac5e3f9071667ce6176fd54f553b1",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "2aecd40e7b5fa68b0ac4a951ea91ae730ebac5e3f9071667ce6176fd54f553b1",
+      "key_epoch": 0,
+      "len": 452
+    },
+    "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+    "text": "Implemented duration.py and test_duration.py. Anchored ASCII integer-unit parsing accepts h/m/s in arbitrary order, whitespace between pairs, zero and large counts; rejects empty, invalid syntax, repeated units, signs, decimals, Unicode digits and trailing junk with ValueError. python3 -m unittest -v test_duration: all 8 tests passed, including subtests for every permutation and invalid-input categories.",
+    "view": {
+      "at_ms": 1791256986042,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "1bb25179c4dd2dbbdcdb107474035b3c0ba811d846c2f53a609fb6586fa66ab1",
+      "kind": "contribution_published",
+      "position": 24,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "d1502f0f4464b2905bae0a5511b7cd655404419bc15523dea96ee672f81122bc",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "7cb07f3de955160bd02182457d235a249abfa1e1dff806f61bdc1099c45bad3a",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "7cb07f3de955160bd02182457d235a249abfa1e1dff806f61bdc1099c45bad3a",
+      "key_epoch": 0,
+      "len": 189
+    },
+    "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+    "text": "Duration utility complete; 8 unittest tests passed; immutable bundle 24ceb8ab3fbe04e61c537a72bf1dc35703e9c8dcf78406e6228673f35e84fd01 published.",
+    "view": {
+      "at_ms": 1791256986083,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "ca6327f02937c365cf03c523b9e282ec8878c93f26e13f470db0b5e27f11f900",
+      "kind": "attempt_reported",
+      "position": 25,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+          "scope": {
+            "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+    "text": null,
+    "view": {
+      "at_ms": 1791256987429,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "2f97f043a006d0a5db1a68476198527f25908edf2fb2c14bbc521cba56e6c6d2",
+      "kind": "attempt_started",
+      "position": 26,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "73029b3cbf22fdb5ffb580deab1206a8346d85b71a2951bd87e4d392d702ca62"
+        ],
+        "attempt": "74fd1d829b17190f22f8e45b7bdd7dddb66629495bbd76fed83674bbde35a8a0",
+        "context": {
+          "round": "bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+          "scope": {
+            "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "73029b3cbf22fdb5ffb580deab1206a8346d85b71a2951bd87e4d392d702ca62",
+        "state": "held"
+      },
+      {
+        "hash": "892cf48b6920853c68f100e3ad9c5a24b93a4947c95f528d8c8c68c2577c9804",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "892cf48b6920853c68f100e3ad9c5a24b93a4947c95f528d8c8c68c2577c9804",
+      "key_epoch": 0,
+      "len": 296
+    },
+    "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+    "text": "flatten: iterative stack-based flatten expanding only list instances; tuples/strings/dicts/sets/bytes/None kept whole; returns new list; input unmutated; handles 5000-deep nesting without recursion error. python3 -m unittest test_flatten: 10 tests OK.",
+    "view": {
+      "at_ms": 1791256990413,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "ecd22c47035444e01c35ad95b90f1606c42d7bf2bc60dd3a5be0669dabd041da",
+      "kind": "contribution_published",
+      "position": 27,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "74fd1d829b17190f22f8e45b7bdd7dddb66629495bbd76fed83674bbde35a8a0",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "270e1b57c3b43a2bf0106ecd54a7c2792ba53c45c316f01d896350cb21f06e27",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "270e1b57c3b43a2bf0106ecd54a7c2792ba53c45c316f01d896350cb21f06e27",
+      "key_epoch": 0,
+      "len": 158
+    },
+    "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+    "text": "flatten implemented; 10 tests pass; contribution ecd22c47035444e01c35ad95b90f1606c42d7bf2bc60dd3a5be0669dabd041da",
+    "view": {
+      "at_ms": 1791256990470,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "0776914151d7911fde39eb59bd9767a94d77d63084f5ddb4cd79a9a64e672ea4",
+      "kind": "attempt_reported",
+      "position": 28,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+          "scope": {
+            "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263"
+          }
+        },
+        "subject": "ecd22c47035444e01c35ad95b90f1606c42d7bf2bc60dd3a5be0669dabd041da"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+    "text": null,
+    "view": {
+      "at_ms": 1791256990509,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "7c5519945d991ec12d82a0970abe52cacdd2bec8bcc413e9df9f96c8aed0a773",
+      "kind": "completion_declared",
+      "position": 29,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+          "scope": {
+            "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed"
+          }
+        },
+        "subject": "1bb25179c4dd2dbbdcdb107474035b3c0ba811d846c2f53a609fb6586fa66ab1"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+    "text": null,
+    "view": {
+      "at_ms": 1791256992689,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "a9cded6765ee5bb57cf28e564f58ba19f6e341de69facc7d4793a56914f30e58",
+      "kind": "completion_declared",
+      "position": 30,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "49ab162f2672cd66e8e53fba6ceb79734f79a0a61f04367835d049fb702c3f6b"
+        ],
+        "attempt": "2f97f043a006d0a5db1a68476198527f25908edf2fb2c14bbc521cba56e6c6d2",
+        "context": {
+          "round": "3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+          "scope": {
+            "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "04f0e6a211758b38a4b3b86aa846062cd8135d954e0fd1f35c9969105f01a386",
+        "state": "held"
+      },
+      {
+        "hash": "49ab162f2672cd66e8e53fba6ceb79734f79a0a61f04367835d049fb702c3f6b",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "04f0e6a211758b38a4b3b86aa846062cd8135d954e0fd1f35c9969105f01a386",
+      "key_epoch": 0,
+      "len": 375
+    },
+    "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+    "text": "Implemented rotate.py returning a new list with right rotation, negative left rotation and modulo wrapping; input is not mutated. Added six unittest cases for direction, large offsets, zero/empty/singleton and copy semantics. python3 -m unittest -v test_rotate.py: all 6 tests passed. Bundle contains rotate.py and test_rotate.py.",
+    "view": {
+      "at_ms": 1791257005467,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "25475535f42f74b949ed987bed819f119dd120073aebb29199270781ff9e4410",
+      "kind": "contribution_published",
+      "position": 31,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+          "scope": {
+            "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+    "text": null,
+    "view": {
+      "at_ms": 1791257008174,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "8298b75cf04ca8a90af1627965084967ba7b4b5c5d85cec29380bc8881127c1a",
+      "kind": "attempt_started",
+      "position": 32,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "2f97f043a006d0a5db1a68476198527f25908edf2fb2c14bbc521cba56e6c6d2",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "43daac4366a2f2b1882523e69ae778e8b08e3389678fcb437b2b35b50eca2ad0",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "43daac4366a2f2b1882523e69ae778e8b08e3389678fcb437b2b35b50eca2ad0",
+      "key_epoch": 0,
+      "len": 201
+    },
+    "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+    "text": "Completed rotate utility and tests; contribution 25475535f42f74b949ed987bed819f119dd120073aebb29199270781ff9e4410 cites the artifact. Six unit tests passed.",
+    "view": {
+      "at_ms": 1791257008871,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "1da2050bb597380eff7c8b6f808351a1bd5fb9c9701a49cfa52144258969718a",
+      "kind": "attempt_reported",
+      "position": 33,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+          "scope": {
+            "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece"
+          }
+        },
+        "subject": "25475535f42f74b949ed987bed819f119dd120073aebb29199270781ff9e4410"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+    "text": null,
+    "view": {
+      "at_ms": 1791257008920,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "bf6f21aedd8492256a9fd532f542d5a549ba396371587940a158ca4c92ebc9a0",
+      "kind": "completion_declared",
+      "position": 34,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+          "scope": {
+            "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+    "text": null,
+    "view": {
+      "at_ms": 1791257009110,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "6a4feef8e5c564219a3f26550e238ba7902af4413a3c1d1a5e17d9d7b95e501b",
+      "kind": "attempt_started",
+      "position": 35,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "1667c29ad7ae0a5da8a251939a46386010d4396c743cbcd4a0851951ef246966"
+        ],
+        "attempt": "6a4feef8e5c564219a3f26550e238ba7902af4413a3c1d1a5e17d9d7b95e501b",
+        "context": {
+          "round": "b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+          "scope": {
+            "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "1667c29ad7ae0a5da8a251939a46386010d4396c743cbcd4a0851951ef246966",
+        "state": "held"
+      },
+      {
+        "hash": "c4982c3daf2a2a8dd8a871482e6e56ef5ce067a7cca6428cba5e28ce5213c8fe",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "c4982c3daf2a2a8dd8a871482e6e56ef5ce067a7cca6428cba5e28ce5213c8fe",
+      "key_epoch": 0,
+      "len": 287
+    },
+    "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+    "text": "chunks: validates size (rejects bool, non-int incl. 1.0/str/None, and <=0 with ValueError, even for empty input), returns list of list slices preserving order with shorter last chunk; empty -> []. python3 -m unittest test_chunks: 11 tests OK.",
+    "view": {
+      "at_ms": 1791257016087,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "7a66749f6bf73900852545a24df4c88055d91e15e359d5e496d298a4524f286f",
+      "kind": "contribution_published",
+      "position": 36,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "6a4feef8e5c564219a3f26550e238ba7902af4413a3c1d1a5e17d9d7b95e501b",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "51e84b327d50f605dbe0814767008cc6957ee545275ebb90097bf8314566adfe",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "51e84b327d50f605dbe0814767008cc6957ee545275ebb90097bf8314566adfe",
+      "key_epoch": 0,
+      "len": 157
+    },
+    "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+    "text": "chunks implemented; 11 tests pass; contribution 7a66749f6bf73900852545a24df4c88055d91e15e359d5e496d298a4524f286f",
+    "view": {
+      "at_ms": 1791257016144,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "045bfb7e02836d4c3794842de7016aeb459080fe4891fecc29600451c3847030",
+      "kind": "attempt_reported",
+      "position": 37,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+          "scope": {
+            "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3"
+          }
+        },
+        "subject": "7a66749f6bf73900852545a24df4c88055d91e15e359d5e496d298a4524f286f"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+    "text": null,
+    "view": {
+      "at_ms": 1791257016182,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "8fb153615670be72af701ed4ff1b743972d6ec066f173bd6a90edf027f74c43a",
+      "kind": "completion_declared",
+      "position": 38,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "239d4e1aa580a0a78f53fc3a3d11fb02441133f5996f7507878aeee31340ac77"
+        ],
+        "attempt": "8298b75cf04ca8a90af1627965084967ba7b4b5c5d85cec29380bc8881127c1a",
+        "context": {
+          "round": "b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+          "scope": {
+            "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "239d4e1aa580a0a78f53fc3a3d11fb02441133f5996f7507878aeee31340ac77",
+        "state": "held"
+      },
+      {
+        "hash": "e11e85cee316028a3328a92aea2f010d22edb0229ce01979c8382f4ca49425c4",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "e11e85cee316028a3328a92aea2f010d22edb0229ce01979c8382f4ca49425c4",
+      "key_epoch": 0,
+      "len": 371
+    },
+    "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+    "text": "Implemented counts.py and test_counts.py: tokenize original text with [A-Za-z]+ then lowercase ASCII tokens, avoiding Unicode case-folding leaks. Apostrophes, digits and all non-ASCII separate words. python3 -m unittest -v test_counts: all 8 tests passed, including Unicode dotted-I, long-s, Kelvin-sign and dict independence.",
+    "view": {
+      "at_ms": 1791257017505,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "8377d89543a762d850be82bd25e6344377a24a1adc0547f0d17f2f78f1b6e617",
+      "kind": "contribution_published",
+      "position": 39,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "8298b75cf04ca8a90af1627965084967ba7b4b5c5d85cec29380bc8881127c1a",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "70d29db776728e68db51264e4f4abee048dba7cfa6e8036357b419facb392a4d",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "70d29db776728e68db51264e4f4abee048dba7cfa6e8036357b419facb392a4d",
+      "key_epoch": 0,
+      "len": 126
+    },
+    "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+    "text": "Word-count utility complete; 8 tests passed; immutable two-file bundle published.",
+    "view": {
+      "at_ms": 1791257017548,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "6d4a8938159092460472f37917e6d8f775fa7273ad798abb9cad613e1ec410de",
+      "kind": "attempt_reported",
+      "position": 40,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+          "scope": {
+            "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded"
+          }
+        },
+        "subject": "8377d89543a762d850be82bd25e6344377a24a1adc0547f0d17f2f78f1b6e617"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+    "text": null,
+    "view": {
+      "at_ms": 1791257017660,
+      "author": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "event": "61fbb338c9bca99b072b28320afa5337bfae7d7db1df2762803646c1fb603911",
+      "kind": "completion_declared",
+      "position": 41,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+          "scope": {
+            "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": null,
+    "view": {
+      "at_ms": 1791257023138,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "ee1b494a89e660073688af4e2fd13eb847e7732f225744fc72fdc19fd22b9f0d",
+      "kind": "attempt_started",
+      "position": 42,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_started": {
+        "closure": null,
+        "context": {
+          "round": "42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+          "scope": {
+            "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd"
+          }
+        },
+        "offer": null
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": null,
+    "view": {
+      "at_ms": 1791257029934,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "058c49c312cb6c4135426ca1d4597f9b0329f0f4795b38b7b9d74cb897a148b7",
+      "kind": "attempt_started",
+      "position": 43,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "f0c634079512c678ecbfd1d16b9519ca8cf0b2a32fd11a2a8a545b23776808ee"
+        ],
+        "attempt": "058c49c312cb6c4135426ca1d4597f9b0329f0f4795b38b7b9d74cb897a148b7",
+        "context": {
+          "round": "42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+          "scope": {
+            "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "f0c634079512c678ecbfd1d16b9519ca8cf0b2a32fd11a2a8a545b23776808ee",
+        "state": "held"
+      },
+      {
+        "hash": "fed29d2e6764cb07a189a96f459b98ac7a25b4da75a1fd5a4ae95dd94d43cb27",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "fed29d2e6764cb07a189a96f459b98ac7a25b4da75a1fd5a4ae95dd94d43cb27",
+      "key_epoch": 0,
+      "len": 433
+    },
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": "unique: stable_unique keeps first occurrences in order; hashable items tracked via set, unhashable (lists/dicts) via equality scan; cross-group equality also checked; returns new list, input unmutated, accepts any iterable. python3 -m unittest test_unique: 13 tests OK (empty, ints, strings, lists, dicts, mixed, 1/1.0/True, identity of first kept, iterator, new list, no-mutation, None).",
+    "view": {
+      "at_ms": 1791257036988,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "eb8a631f2f3478916d7dfd9ea7e86d5714b90e3e91c59c23516044f0c977adf1",
+      "kind": "contribution_published",
+      "position": 44,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "058c49c312cb6c4135426ca1d4597f9b0329f0f4795b38b7b9d74cb897a148b7",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "fb0171d44e7b0d0f010483faa6f20608ccbfa2f112f9b89f3db348784ad6a7e2",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "fb0171d44e7b0d0f010483faa6f20608ccbfa2f112f9b89f3db348784ad6a7e2",
+      "key_epoch": 0,
+      "len": 157
+    },
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": "unique implemented; 13 tests pass; contribution eb8a631f2f3478916d7dfd9ea7e86d5714b90e3e91c59c23516044f0c977adf1",
+    "view": {
+      "at_ms": 1791257037045,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "ced45591cb6d90160c92779cb2d0f247db17de9ac45e64cffeb65f93c0249ba9",
+      "kind": "attempt_reported",
+      "position": 45,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+          "scope": {
+            "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd"
+          }
+        },
+        "subject": "eb8a631f2f3478916d7dfd9ea7e86d5714b90e3e91c59c23516044f0c977adf1"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": null,
+    "view": {
+      "at_ms": 1791257037084,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "8c9c908b03d906cae005b63b479783d9d8bdf08c78848d8cf5531a2c8e2d8feb",
+      "kind": "completion_declared",
+      "position": 46,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [
+          "c92322f8ad8217bf106c17b2ff73077db7efea5084ce1a65256840ce612a99e9"
+        ],
+        "attempt": "ee1b494a89e660073688af4e2fd13eb847e7732f225744fc72fdc19fd22b9f0d",
+        "context": {
+          "round": "42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+          "scope": {
+            "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd"
+          }
+        },
+        "sources": []
+      }
+    },
+    "content": [
+      {
+        "hash": "717789275c433e9b730b592e03c363efe4fd137989515379e8eb2bd2b1322498",
+        "state": "held"
+      },
+      {
+        "hash": "c92322f8ad8217bf106c17b2ff73077db7efea5084ce1a65256840ce612a99e9",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "717789275c433e9b730b592e03c363efe4fd137989515379e8eb2bd2b1322498",
+      "key_epoch": 0,
+      "len": 430
+    },
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": "Implemented stable_unique using equality-based ordered scanning, supporting unhashable values and leaving input untouched. Added six unittest cases covering stable first occurrence ordering, unhashable lists and dictionaries, mixed values, empty/singleton input, and non-mutation. python3 -m unittest -v test_unique.py: all 6 tests passed. Bundle contains unique.py and test_unique.py.",
+    "view": {
+      "at_ms": 1791257048634,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "e34147f00e4d8935c8e0c22d0a9a83e9145dfabb777f7702bfb1576ec1c339c5",
+      "kind": "contribution_published",
+      "position": 47,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "attempt_reported": {
+        "attempt": "ee1b494a89e660073688af4e2fd13eb847e7732f225744fc72fdc19fd22b9f0d",
+        "status": "completed"
+      }
+    },
+    "content": [
+      {
+        "hash": "a4b57ae545ddac3b608c38b0248e8a9307d027d33ebf4a4b14e66c64d5a81023",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "a4b57ae545ddac3b608c38b0248e8a9307d027d33ebf4a4b14e66c64d5a81023",
+      "key_epoch": 0,
+      "len": 206
+    },
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": "Completed duplicate stable_unique implementation with six passing tests; contribution e34147f00e4d8935c8e0c22d0a9a83e9145dfabb777f7702bfb1576ec1c339c5 published.",
+    "view": {
+      "at_ms": 1791257052742,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "383be44162c387abfb6aa42fd2b955aea4b877fa93a7ec03e1d6ae00c8f7543c",
+      "kind": "attempt_reported",
+      "position": 48,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "completion_declared": {
+        "context": {
+          "round": "42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+          "scope": {
+            "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd"
+          }
+        },
+        "subject": "e34147f00e4d8935c8e0c22d0a9a83e9145dfabb777f7702bfb1576ec1c339c5"
+      }
+    },
+    "content": [],
+    "payload": null,
+    "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+    "text": null,
+    "view": {
+      "at_ms": 1791257052785,
+      "author": "2afd595777df13bf842e6c3c7a49b09149b3d49186c6a878b87678a9126bbcdc",
+      "event": "cfbfe633807b3ac7807a2a229e59e4ec87977c2180b0ee47e00ad9e5047da50b",
+      "kind": "completion_declared",
+      "position": 49,
+      "standing": "effective"
+    }
+  },
+  {
+    "anchor": "3bd90c9e3e77e955653c810ef0ca78aad7fa5f42b1af779f2f50f8b71e9d7370",
+    "body": {
+      "contribution_published": {
+        "artifacts": [],
+        "attempt": null,
+        "context": {
+          "round": "4ebab7ddcbe83af2988ff7f6517327eda832d4dcead7750c4a4e2ed89903b0a2",
+          "scope": "goal"
+        },
+        "sources": [
+          "dc37b0d34b3e3c14ccdfdcf0a8cb8dd4de10461bb043c17d66b973d3820c580b",
+          "25475535f42f74b949ed987bed819f119dd120073aebb29199270781ff9e4410",
+          "8377d89543a762d850be82bd25e6344377a24a1adc0547f0d17f2f78f1b6e617",
+          "1bb25179c4dd2dbbdcdb107474035b3c0ba811d846c2f53a609fb6586fa66ab1"
+        ]
+      }
+    },
+    "content": [
+      {
+        "hash": "f86ef6d1fe8ab189c4dc4d367addf442e3809dfbf92f93c9f2b9da528bf7eaee",
+        "state": "held"
+      }
+    ],
+    "payload": {
+      "hash": "f86ef6d1fe8ab189c4dc4d367addf442e3809dfbf92f93c9f2b9da528bf7eaee",
+      "key_epoch": 0,
+      "len": 600
+    },
+    "task": null,
+    "text": "Independent check (claude) of slug, rotate, counts, duration bundles: each fetched via artifact.py get, unpacked in fresh review dir; bundled unittest suites pass (6/6/8/8). Extra edge probes (Unicode separators, \u0130/Kelvin/\u00df leaks, wrap/negative rotation, non-mutation, duration accept/reject incl. signs, decimals, repeats, junk, non-ASCII digits) all behaved per spec. review record was refused for all four: \"reviewer is not eligible for this exact candidate\" (open formation has no review decision); not bypassed. All 8 tasks show completed on board.",
+    "view": {
+      "at_ms": 1791257096047,
+      "author": "62e7281654dffc86a85ce83f5e244423e1a799e07fa36f4024b9b09ff914425e",
+      "event": "2c0aa7372ecb86eb82549a6ed01db53c57047357ec0d50d48d04e89468f13e6c",
+      "kind": "contribution_published",
+      "position": 50,
+      "standing": "effective"
+    }
+  }
+]

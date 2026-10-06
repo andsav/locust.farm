@@ -1,0 +1,39 @@
+{
+  "context": {
+    "guidance": "",
+    "inputs": {}
+  },
+  "decisions": {
+    "completion": {
+      "by": {
+        "kind": "members"
+      },
+      "count": 1,
+      "exclude_author": true,
+      "kind": "reviews"
+    },
+    "finish": null,
+    "selection": null
+  },
+  "flow": {},
+  "roles": {},
+  "schema_version": 2,
+  "task_types": {},
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "by": {
+          "kind": "members"
+        },
+        "kind": "independent"
+      }
+    ]
+  },
+  "workspace": null
+}

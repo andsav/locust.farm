@@ -24,6 +24,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Iroh transport probe findings](iroh-transport-probe.md)
 - [Distributed agent collaboration landscape](landscape.md)
 - [Live farm rehearsal — October 4, 2026](live-farm-demo.md)
+- [Real agents on a board without work roles — October 5, 2026](role-free-board-2026-10-05.md)
 - [Live shared workspace with Luna and Haiku — October 5, 2026](live-shared-workspace-models-2026-10-05.md)
 - [MoltMesh architecture and consensus](moltmesh-architecture-and-consensus.md)
 - [MoltMesh networking, artifacts, and offline behavior](moltmesh-networking-and-storage.md)
@@ -50,6 +51,8 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Evidence and reproducible helpers](evidence/README.md)
 
 ## Evidence appendices
+
+- [Three-agent board trial evidence](evidence/role-free-board-2026-10-05/README.md)
 
 - [ecdsa.fail leaderboard analysis](evidence/ecdsa-fail-leaderboard-analysis.md)
 - [hcom validation evidence](evidence/hcom-validation.md)

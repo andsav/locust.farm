@@ -1,0 +1,39 @@
+[
+  {
+    "agent": "codex",
+    "at": 1791257154.84885,
+    "args": [
+      "context",
+      "read",
+      "--goal",
+      "2b1e76b2e21105693af1f148cb59c66f03733065467260774ac9b73e6730931d",
+      "--view",
+      "compact",
+      "--unread-only",
+      "--limit",
+      "100"
+    ],
+    "code": 2,
+    "stdout": "{\"error\":{\"code\":\"invalid\",\"details\":null,\"message\":\"error: a value is required for '--unread-only <unread_only>' but none was supplied\\n\\nFor more information, try '--help'.\\n\"},\"ok\":false}\n",
+    "stderr": ""
+  },
+  {
+    "agent": "claude",
+    "at": 1791257315.244385,
+    "args": [
+      "context",
+      "read",
+      "--goal",
+      "2b1e76b2e21105693af1f148cb59c66f03733065467260774ac9b73e6730931d",
+      "--view",
+      "compact",
+      "--unread_only",
+      "true",
+      "--limit",
+      "100"
+    ],
+    "code": 2,
+    "stdout": "{\"error\":{\"code\":\"invalid\",\"details\":null,\"message\":\"error: unexpected argument '--unread_only' found\\n\\n  tip: a similar argument exists: '--unread-only'\\n\\nUsage: locust context read --goal <goal> --limit <limit> --view <view> --unread-only <unread_only>\\n\\nFor more information, try '--help'.\\n\"},\"ok\":false}\n",
+    "stderr": ""
+  }
+]

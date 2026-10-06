@@ -1,0 +1,166 @@
+{
+  "board": [
+    {
+      "attempts": [
+        "461ac66536db17f3be7718928d921e4590d85a0fdf9670662e27daad3f93e48d"
+      ],
+      "closed": false,
+      "completed": true,
+      "context": {
+        "round": "2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+        "scope": {
+          "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772"
+        }
+      },
+      "contributions": [
+        "dc37b0d34b3e3c14ccdfdcf0a8cb8dd4de10461bb043c17d66b973d3820c580b"
+      ],
+      "creator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "selected": null,
+      "task": "task:2436ecade163f56045d27ee3c8de7933efeda7a426ef81d61b87ee4de16dd772",
+      "title": "slug: Implement slug.py and test_slug.py. slugify(text): lowercase ASCII letters/digits; replace every run of other characters with one hyphen; strip leading/trailing hyphens. Unicode non-ASCII is a separator. Empty input returns empty string. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [
+        "2f97f043a006d0a5db1a68476198527f25908edf2fb2c14bbc521cba56e6c6d2"
+      ],
+      "closed": false,
+      "completed": true,
+      "context": {
+        "round": "3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+        "scope": {
+          "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece"
+        }
+      },
+      "contributions": [
+        "25475535f42f74b949ed987bed819f119dd120073aebb29199270781ff9e4410"
+      ],
+      "creator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "selected": null,
+      "task": "task:3b6342a3b7ba9334ba4f154ab095d210483a84e8fb797e127eea1664f3fc9ece",
+      "title": "rotate: Implement rotate.py and test_rotate.py. rotate(items, steps): return a new list rotated right by integer steps, negative steps rotate left, large steps wrap. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [
+        "058c49c312cb6c4135426ca1d4597f9b0329f0f4795b38b7b9d74cb897a148b7",
+        "ee1b494a89e660073688af4e2fd13eb847e7732f225744fc72fdc19fd22b9f0d"
+      ],
+      "closed": false,
+      "completed": true,
+      "context": {
+        "round": "42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+        "scope": {
+          "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd"
+        }
+      },
+      "contributions": [
+        "e34147f00e4d8935c8e0c22d0a9a83e9145dfabb777f7702bfb1576ec1c339c5",
+        "eb8a631f2f3478916d7dfd9ea7e86d5714b90e3e91c59c23516044f0c977adf1"
+      ],
+      "creator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "selected": null,
+      "task": "task:42a1b76ae5adfddd6c3945028d349814620f04b02b2f8ec61d9a19066935ddbd",
+      "title": "unique: Implement unique.py and test_unique.py. stable_unique(items): return first occurrences preserving order, supporting unhashable items through equality. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [
+        "8298b75cf04ca8a90af1627965084967ba7b4b5c5d85cec29380bc8881127c1a"
+      ],
+      "closed": false,
+      "completed": true,
+      "context": {
+        "round": "b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+        "scope": {
+          "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded"
+        }
+      },
+      "contributions": [
+        "8377d89543a762d850be82bd25e6344377a24a1adc0547f0d17f2f78f1b6e617"
+      ],
+      "creator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "selected": null,
+      "task": "task:b322d45b4fb5b45d9ff10f7ef130c4d159a248d80966d0deab99e291256d4ded",
+      "title": "counts: Implement counts.py and test_counts.py. word_counts(text): count case-insensitive ASCII word tokens matching [a-z]+, returning a dict. Apostrophes and numbers separate tokens. Empty input returns {}. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [
+        "d1502f0f4464b2905bae0a5511b7cd655404419bc15523dea96ee672f81122bc"
+      ],
+      "closed": false,
+      "completed": true,
+      "context": {
+        "round": "b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+        "scope": {
+          "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed"
+        }
+      },
+      "contributions": [
+        "1bb25179c4dd2dbbdcdb107474035b3c0ba811d846c2f53a609fb6586fa66ab1"
+      ],
+      "creator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "selected": null,
+      "task": "task:b9cda4bd20d8f51a07a6055b6d2d583f5ea1c12482e03945d1137c0b03bce0ed",
+      "title": "duration: Implement duration.py and test_duration.py. parse_duration(text): parse one or more nonnegative integer-unit pairs with units h,m,s in any order, each at most once, optional whitespace between pairs. Return total seconds. Accept 0s and 1h30m. Reject empty input, unknown units, signs, decimals, repeated units and trailing junk with ValueError. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [
+        "6a4feef8e5c564219a3f26550e238ba7902af4413a3c1d1a5e17d9d7b95e501b"
+      ],
+      "closed": false,
+      "completed": true,
+      "context": {
+        "round": "b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+        "scope": {
+          "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3"
+        }
+      },
+      "contributions": [
+        "7a66749f6bf73900852545a24df4c88055d91e15e359d5e496d298a4524f286f"
+      ],
+      "creator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "selected": null,
+      "task": "task:b9ce920ad705d48abfceaff64e37e671350fd7510b959f9cd8a7c94f5d6efce3",
+      "title": "chunks: Implement chunks.py and test_chunks.py. chunks(items, size): return a list of consecutive lists, preserving order, including a shorter last chunk. Positive integer size only; bool, non-integer and non-positive sizes raise ValueError. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [
+        "74fd1d829b17190f22f8e45b7bdd7dddb66629495bbd76fed83674bbde35a8a0"
+      ],
+      "closed": false,
+      "completed": true,
+      "context": {
+        "round": "bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+        "scope": {
+          "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263"
+        }
+      },
+      "contributions": [
+        "ecd22c47035444e01c35ad95b90f1606c42d7bf2bc60dd3a5be0669dabd041da"
+      ],
+      "creator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "selected": null,
+      "task": "task:bb08c3bbb986aa41666563d2d367d4e9ce380fda3d8614cff36e9529ce10f263",
+      "title": "flatten: Implement flatten.py and test_flatten.py. flatten(items): recursively flatten nested lists only into a new list, preserving order. Tuples, strings, dicts and other non-list objects remain single items. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [
+        "c16503151c368d64764584bdb3543f81e65af6e3ac61e1cf24615ea32922e68f"
+      ],
+      "closed": false,
+      "completed": true,
+      "context": {
+        "round": "c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+        "scope": {
+          "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a"
+        }
+      },
+      "contributions": [
+        "755ffd7d30e59057f9d521929aa65e2b1e48df3019e01eb62995255ffd34c71b"
+      ],
+      "creator": "16cd9d789db68a1c1f7dafe712a32dcbc2243191ff66b889abd517fc417f6ba9",
+      "selected": null,
+      "task": "task:c85fa628933f710f835d1057b5f501a4434c21ff52cd0a7e5744eaa631254d2a",
+      "title": "intervals: Implement intervals.py and test_intervals.py. merge_intervals(items): merge overlapping or touching [start,end] numeric pairs into sorted non-overlapping pairs. Do not mutate input. Reject reversed endpoints with ValueError. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    }
+  ]
+}

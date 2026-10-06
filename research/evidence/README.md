@@ -9,6 +9,8 @@ it. Sanitization does not imply rerunning a check or qualifying a newer artifact
 
 ## Experiment records
 
+- [Agents without work roles](role-free-board-2026-10-05/README.md): two real three-client trials, signed task choices, automatic review requests, duplicate work and permission friction; [findings](../role-free-board-2026-10-05.md).
+
 - [Agent lifecycle model checks](agent-lifecycle-2026-10-05.json): all 11 bounded session-model cases matched expectations after adding durable stopped acknowledgment; [implementation scope](../agent-ergonomics-2026-10-05.md).
 - [Published terminal preview](public-preview-release-2026-10-04.json): exact API-4 package/download identity; [release record](../../docs/public-preview-release.md).
 - [Paired performance](performance-cost-2026-10-04.json): workload, candidate and response/evaluation fingerprints; [method](../performance-cost-pass.md).

@@ -1,0 +1,132 @@
+{
+  "board": [
+    {
+      "attempts": [],
+      "closed": false,
+      "completed": false,
+      "context": {
+        "round": "37cb9813427c2ac7c192cfd340a79ea826b91c14583f4dfa972cd3aa76e52217",
+        "scope": {
+          "task": "task:37cb9813427c2ac7c192cfd340a79ea826b91c14583f4dfa972cd3aa76e52217"
+        }
+      },
+      "contributions": [],
+      "creator": "fcec9df31f140034b863f8d61bb3a1cbbec00915886b7f9ca9a5b0f588841bb0",
+      "selected": null,
+      "task": "task:37cb9813427c2ac7c192cfd340a79ea826b91c14583f4dfa972cd3aa76e52217",
+      "title": "unique: Implement unique.py and test_unique.py. stable_unique(items): return first occurrences preserving order, supporting unhashable items through equality. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [],
+      "closed": false,
+      "completed": false,
+      "context": {
+        "round": "77b3dfa4a59c59a8d312486fe63d1bf23b4a1b57ea57b6734036e989d2a8d03f",
+        "scope": {
+          "task": "task:77b3dfa4a59c59a8d312486fe63d1bf23b4a1b57ea57b6734036e989d2a8d03f"
+        }
+      },
+      "contributions": [],
+      "creator": "fcec9df31f140034b863f8d61bb3a1cbbec00915886b7f9ca9a5b0f588841bb0",
+      "selected": null,
+      "task": "task:77b3dfa4a59c59a8d312486fe63d1bf23b4a1b57ea57b6734036e989d2a8d03f",
+      "title": "rotate: Implement rotate.py and test_rotate.py. rotate(items, steps): return a new list rotated right by integer steps, negative steps rotate left, large steps wrap. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [],
+      "closed": false,
+      "completed": false,
+      "context": {
+        "round": "cea4261420b5d63da5b3b684cb90d5e62b3f04ae030c6d95f920c5ac3124817f",
+        "scope": {
+          "task": "task:cea4261420b5d63da5b3b684cb90d5e62b3f04ae030c6d95f920c5ac3124817f"
+        }
+      },
+      "contributions": [],
+      "creator": "fcec9df31f140034b863f8d61bb3a1cbbec00915886b7f9ca9a5b0f588841bb0",
+      "selected": null,
+      "task": "task:cea4261420b5d63da5b3b684cb90d5e62b3f04ae030c6d95f920c5ac3124817f",
+      "title": "slug: Implement slug.py and test_slug.py. slugify(text): lowercase ASCII letters/digits; replace every run of other characters with one hyphen; strip leading/trailing hyphens. Unicode non-ASCII is a separator. Empty input returns empty string. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [],
+      "closed": false,
+      "completed": false,
+      "context": {
+        "round": "d0dc6348d70abed5bed4104faa8514e3241dc8a8cfdb065d7d990475060285b9",
+        "scope": {
+          "task": "task:d0dc6348d70abed5bed4104faa8514e3241dc8a8cfdb065d7d990475060285b9"
+        }
+      },
+      "contributions": [],
+      "creator": "fcec9df31f140034b863f8d61bb3a1cbbec00915886b7f9ca9a5b0f588841bb0",
+      "selected": null,
+      "task": "task:d0dc6348d70abed5bed4104faa8514e3241dc8a8cfdb065d7d990475060285b9",
+      "title": "intervals: Implement intervals.py and test_intervals.py. merge_intervals(items): merge overlapping or touching [start,end] numeric pairs into sorted non-overlapping pairs. Do not mutate input. Reject reversed endpoints with ValueError. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [],
+      "closed": false,
+      "completed": false,
+      "context": {
+        "round": "d622c7ca167087b3bda9ac002a8c2fa37700a485d2de8b84d56621acafa70bda",
+        "scope": {
+          "task": "task:d622c7ca167087b3bda9ac002a8c2fa37700a485d2de8b84d56621acafa70bda"
+        }
+      },
+      "contributions": [],
+      "creator": "fcec9df31f140034b863f8d61bb3a1cbbec00915886b7f9ca9a5b0f588841bb0",
+      "selected": null,
+      "task": "task:d622c7ca167087b3bda9ac002a8c2fa37700a485d2de8b84d56621acafa70bda",
+      "title": "duration: Implement duration.py and test_duration.py. parse_duration(text): parse one or more nonnegative integer-unit pairs with units h,m,s in any order, each at most once, optional whitespace between pairs. Return total seconds. Accept 0s and 1h30m. Reject empty input, unknown units, signs, decimals, repeated units and trailing junk with ValueError. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [],
+      "closed": false,
+      "completed": false,
+      "context": {
+        "round": "d825ca0cc6b713b00c85d3f3ffd2f16788fb3e89c5cac4c033202d056301599d",
+        "scope": {
+          "task": "task:d825ca0cc6b713b00c85d3f3ffd2f16788fb3e89c5cac4c033202d056301599d"
+        }
+      },
+      "contributions": [],
+      "creator": "fcec9df31f140034b863f8d61bb3a1cbbec00915886b7f9ca9a5b0f588841bb0",
+      "selected": null,
+      "task": "task:d825ca0cc6b713b00c85d3f3ffd2f16788fb3e89c5cac4c033202d056301599d",
+      "title": "chunks: Implement chunks.py and test_chunks.py. chunks(items, size): return a list of consecutive lists, preserving order, including a shorter last chunk. Positive integer size only; bool, non-integer and non-positive sizes raise ValueError. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [],
+      "closed": false,
+      "completed": false,
+      "context": {
+        "round": "f2f352f1dfe018df86b21abafd736a849d2a9c9a2cbcecb0f694e26b8876e857",
+        "scope": {
+          "task": "task:f2f352f1dfe018df86b21abafd736a849d2a9c9a2cbcecb0f694e26b8876e857"
+        }
+      },
+      "contributions": [],
+      "creator": "fcec9df31f140034b863f8d61bb3a1cbbec00915886b7f9ca9a5b0f588841bb0",
+      "selected": null,
+      "task": "task:f2f352f1dfe018df86b21abafd736a849d2a9c9a2cbcecb0f694e26b8876e857",
+      "title": "flatten: Implement flatten.py and test_flatten.py. flatten(items): recursively flatten nested lists only into a new list, preserving order. Tuples, strings, dicts and other non-list objects remain single items. Do not mutate input. Empty input returns []. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    },
+    {
+      "attempts": [],
+      "closed": false,
+      "completed": false,
+      "context": {
+        "round": "f8e113a10ac401439e1d7ed1d1eef3fd608ec546558832c1ddd1874e3c7f2485",
+        "scope": {
+          "task": "task:f8e113a10ac401439e1d7ed1d1eef3fd608ec546558832c1ddd1874e3c7f2485"
+        }
+      },
+      "contributions": [],
+      "creator": "fcec9df31f140034b863f8d61bb3a1cbbec00915886b7f9ca9a5b0f588841bb0",
+      "selected": null,
+      "task": "task:f8e113a10ac401439e1d7ed1d1eef3fd608ec546558832c1ddd1874e3c7f2485",
+      "title": "counts: Implement counts.py and test_counts.py. word_counts(text): count case-insensitive ASCII word tokens matching [a-z]+, returning a dict. Apostrophes and numbers separate tokens. Empty input returns {}. Add unittest cases covering normal and edge cases. Publish a JSON artifact bundle of those two files and cite it in an attempt-backed contribution. No other task depends on this one."
+    }
+  ]
+}

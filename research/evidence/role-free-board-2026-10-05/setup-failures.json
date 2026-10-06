@@ -1,0 +1,15 @@
+{
+  "failed_task_response_assumption": "runner expected task_opened; actual task.open response is recorded.event. Corrected before agent launch. Failed preparation retained at setup-failed-before-agents.",
+  "aborted_three_client_launch": {
+    "duration_seconds": 46.801851749420166,
+    "kimi_error": "{\"role\":\"meta\",\"type\":\"system.version\",\"version\":\"0.42.0\"}\nerror: failed to run prompt: provider managed:kimi-code has no credential configured\nSee log: /Users/andrei/.locust-demos/role-free-board-20261005/open/profiles/kimi/.kimi-code/logs/kimi-code.log\n",
+    "signed_attempts": 2,
+    "signed_results": 0,
+    "outcome": "Controller stopped Codex and Claude after Kimi authentication failed. Not counted as either completed trial."
+  },
+  "collection_corrections": [
+    "Live SQLite uses exclusive locking; export canonical bytes after graceful daemon stop.",
+    "API feed/replay positions differ from SQLite insertion positions; compare immutable event IDs and verified headers, not position equality."
+  ],
+  "client_warning": "Peer-review Codex warned that terminal native rollout flush could not find its thread; native exit was 0 and all signed receipts were retained."
+}

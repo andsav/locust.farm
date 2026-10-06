@@ -1,0 +1,67 @@
+{
+  "experiment_date_local": "2026-10-05",
+  "timezone": "America/Los_Angeles",
+  "source_commit": "8a6b0dbd13c139f83c8299441b41d20bc0e8f94f",
+  "binary_version": "locust 0.1.0 (8a6b0dbd13c1-dirty) api 6 protocol 6",
+  "binary_sha256": "3d758d9f5e83128fddaa53262e44d0862c259e9838782232e8351f18f6f2a7b0",
+  "private_runtime": "/Users/andrei/.locust-demos/role-free-board-20261005",
+  "clients": {
+    "codex": "codex-cli 0.153.4 / gpt-6.1-sol",
+    "claude": "Claude Code 2.1.280 / claude-opus-5-5",
+    "pi": "Pi 1.0.1 / gpt-6-luna"
+  },
+  "setup_notes": {
+    "setup_failure": "runner expected task_opened instead of recorded response; fixed before agent launch",
+    "aborted_launch": "Kimi credential file empty; controller stopped Codex and Claude after 46.8 seconds; preserved signed attempts, artifact and native logs; peer-review only prepared, not launched",
+    "replacement": "Pi 1.0.1 executable from retained earlier demo"
+  },
+  "permission_setup_per_trial": {
+    "enrollment_manage_goals_grants": 3,
+    "execution_sessions": 3,
+    "local_member_additions": 2,
+    "goal_grant_writes": 3,
+    "task_authorization_writes": 24,
+    "task_authorizations_redundant_with_execute_true": true,
+    "goal_grants": {
+      "administer": false,
+      "contribute": true,
+      "review": true,
+      "select": false,
+      "execute": true,
+      "flow": true,
+      "takeover": false
+    }
+  },
+  "private_file_sha256": {
+    "open/demo.json": "9cc1c286f75d46a612e50319a41dd0a9032fb8457109bcfff1d31b4b94aaa129",
+    "open/logs/claude-native.jsonl": "b028d8cd5de4140a52d20a6166ed9dfde105275c63b67b2461380e4f996a5501",
+    "open/logs/codex-native.jsonl": "d03ac69691ed2dd5f6bbb1e983a174e9d1c549acbbca4d76de6a98900ef2146b",
+    "open/logs/pi-native.jsonl": "bf8d121ae2324237ab7ddbc364268ae7f6fab753ffc8ad510f91d79ffeb27d6f",
+    "open/logs/claude-cli.jsonl": "a67386825f5cc0bff76f060fbd65fcbf01e87b585c44c43a34e3df762065b0e0",
+    "open/logs/codex-cli.jsonl": "51504494ccefa2207b5fd21ef7420137fdf51eaf1327a3c7f40de9d80c35563f",
+    "open/logs/pi-cli.jsonl": "5313baf2d2cb5dcf9bee80b493ac9a88eefca7b6310dd6ff9a24e798d818cfe4",
+    "open/logs/claude-result.json": "ab20ffe5e05d6571c358cd8b5e279f65091dcddec4ef2d85f95f2f68fb37a7b9",
+    "open/logs/codex-result.json": "adad3284c547592b79535ac35c76ab8223b8d61fa0cc9c65f5c3ed1f2a82efea",
+    "open/logs/pi-result.json": "4ef1e70bf15875737d8194acc73b05de6a94c5996ae7d8ce46ff280afb82087f",
+    "open/prompts/claude.txt": "2b6f1a03fbf8bb21495c130716e2b6575ef34e743ef0d46d66f6dae32faed2c8",
+    "open/prompts/codex.txt": "d8cfddc998703521d43ec43b13e9e5232b8a99461e408891b07072f8353dece8",
+    "open/prompts/pi.txt": "de0a3e508022891a1b941386af61755c7c210203dc6de8d971856132de4c87d9",
+    "peer-review/demo.json": "b58268d620d43d23ff646e791965f5383341f79043c23b5a1cb61cda73276ae0",
+    "peer-review/logs/claude-native.jsonl": "4484b8285430810823cdc9f90c1ba8e149f7977048a8f00954cdeb2892242ba2",
+    "peer-review/logs/codex-native.jsonl": "e2aa7f9905ca42641a42d4e085980b97db2543d11e5fe6f77f09f7954bd00deb",
+    "peer-review/logs/pi-native.jsonl": "90b7dbf22babf23edb06dc1da928b52cd5260ac7cac1cf5f4c86d2e7c871dc5a",
+    "peer-review/logs/claude-cli.jsonl": "b7b4515394d66398acabafe5fefa5d4f9f08a7a0324e51a993023a71d59c8fcf",
+    "peer-review/logs/codex-cli.jsonl": "9a3e6c57c9783a245e124a17cf5d6a78a3eaf55f0c7cd2b22491a139cb355807",
+    "peer-review/logs/pi-cli.jsonl": "98b7d736d5feb928eb27f15c0303fab33f19abdc9bb2633c6ae8545dc2627ff0",
+    "peer-review/logs/claude-result.json": "ef6857707d68ca7117f73ca0a4fa745e6f2c0454136caaacde3be256ea39d572",
+    "peer-review/logs/codex-result.json": "70ebe574623c8cc87921886b6491e773119119c07d0b5513dd8732b9890507ce",
+    "peer-review/logs/pi-result.json": "c55afe378d682bfaf6f12fa562b08fcc3b2cc7094642b82853700fc32c6691a5",
+    "peer-review/prompts/claude.txt": "849f5e15f3c55ef8f14d2604ef0a0227a0b8f7586fea4f9261f672622e61c816",
+    "peer-review/prompts/codex.txt": "574d4357e3d919d60d5cdc475c793140edff52c32f9d9973bacec1ab7200dc37",
+    "peer-review/prompts/pi.txt": "3b58d440d58abf83b298e5d9be4d47d6b9489c2b25f870cc511b4c7131b014af",
+    "locust": "3d758d9f5e83128fddaa53262e44d0862c259e9838782232e8351f18f6f2a7b0",
+    "source-status.txt": "be50971f9d57831f975b19942a583542a369e0e8153501af776d00d3c927f958",
+    "source.diff": "46f953ab32570b2892d3721d9c2faa1f0418385d06a2a4bfc471e577832b75d5",
+    "setup-notes.json": "140fea94bcb6f842e7044852db5a7a02fadbe2890b16685d6ad58517dc6a9059"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "signature_hex": {
+    "refused": true,
+    "exit_code": 101
+  },
+  "header_hex": {
+    "refused": true,
+    "exit_code": 101
+  },
+  "id": {
+    "refused": true,
+    "exit_code": 101
+  }
+}

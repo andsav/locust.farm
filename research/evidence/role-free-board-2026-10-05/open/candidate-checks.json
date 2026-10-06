@@ -1,0 +1,173 @@
+[
+  {
+    "contribution": "755ffd7d30e59057f9d521929aa65e2b1e48df3019e01eb62995255ffd34c71b",
+    "task": "intervals",
+    "agent": "claude",
+    "artifact": "c52c9be467cb708450d28d0676754d342c56d9ca824c65b65af39228919ff382",
+    "bundle_sha256": "67efa418a3bcdb730063b0bc14a7d354aef6b4c21f556bb9674135530e88507b",
+    "source_lines": 26,
+    "test_lines": 57,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_contained (test_intervals.MergeIntervalsTest.test_contained) ... ok\ntest_disjoint_stay_separate (test_intervals.MergeIntervalsTest.test_disjoint_stay_separate) ... ok\ntest_does_not_mutate (test_intervals.MergeIntervalsTest.test_does_not_mutate) ... ok\ntest_empty (test_intervals.MergeIntervalsTest.test_empty) ... ok\ntest_floats_and_negatives (test_intervals.MergeIntervalsTest.test_floats_and_negatives) ... ok\ntest_overlapping (test_intervals.MergeIntervalsTest.test_overlapping) ... ok\ntest_point_intervals (test_intervals.MergeIntervalsTest.test_point_intervals) ... ok\ntest_result_is_new_lists (test_intervals.MergeIntervalsTest.test_result_is_new_lists) ... ok\ntest_reversed_raises (test_intervals.MergeIntervalsTest.test_reversed_raises) ... ok\ntest_single (test_intervals.MergeIntervalsTest.test_single) ... ok\ntest_touching_merge (test_intervals.MergeIntervalsTest.test_touching_merge) ... ok\ntest_tuples_accepted (test_intervals.MergeIntervalsTest.test_tuples_accepted) ... ok\ntest_unsorted_input_sorted_output (test_intervals.MergeIntervalsTest.test_unsorted_input_sorted_output) ... ok\n\n----------------------------------------------------------------------\nRan 13 tests in 0.000s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: intervals\n",
+      "stderr": ""
+    }
+  },
+  {
+    "contribution": "dc37b0d34b3e3c14ccdfdcf0a8cb8dd4de10461bb043c17d66b973d3820c580b",
+    "task": "slug",
+    "agent": "pi",
+    "artifact": "80605bf0dcc61c9a45606bae8dc507692d35030500e6d3aad5a7fc774f8560ae",
+    "bundle_sha256": "129caaac4af89071fc21d98477e77bf394408c6f0c1becfd3be9f10a74d0cd69",
+    "source_lines": 27,
+    "test_lines": 28,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_ascii_boundary_characters (test_slug.SlugifyTests.test_ascii_boundary_characters) ... ok\ntest_collapses_runs_of_separators (test_slug.SlugifyTests.test_collapses_runs_of_separators) ... ok\ntest_lowercases_and_preserves_ascii_letters_and_digits (test_slug.SlugifyTests.test_lowercases_and_preserves_ascii_letters_and_digits) ... ok\ntest_non_ascii_characters_are_separators (test_slug.SlugifyTests.test_non_ascii_characters_are_separators) ... ok\ntest_only_separators_and_empty_input_return_empty (test_slug.SlugifyTests.test_only_separators_and_empty_input_return_empty) ... ok\ntest_strips_leading_and_trailing_separators (test_slug.SlugifyTests.test_strips_leading_and_trailing_separators) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: slug\n",
+      "stderr": ""
+    }
+  },
+  {
+    "contribution": "1bb25179c4dd2dbbdcdb107474035b3c0ba811d846c2f53a609fb6586fa66ab1",
+    "task": "duration",
+    "agent": "codex",
+    "artifact": "24ceb8ab3fbe04e61c537a72bf1dc35703e9c8dcf78406e6228673f35e84fd01",
+    "bundle_sha256": "98c2c675f5c63c4929fe0868251bcb4e3745fc4ef9cd905a254aa23522402b62",
+    "source_lines": 22,
+    "test_lines": 54,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_adjacent_pairs_and_all_orders (test_duration.ParseDurationTests.test_adjacent_pairs_and_all_orders) ... ok\ntest_empty_and_unknown_units (test_duration.ParseDurationTests.test_empty_and_unknown_units) ... ok\ntest_junk_and_whitespace_within_pairs (test_duration.ParseDurationTests.test_junk_and_whitespace_within_pairs) ... ok\ntest_repeated_units (test_duration.ParseDurationTests.test_repeated_units) ... ok\ntest_signs_decimals_and_non_ascii_digits (test_duration.ParseDurationTests.test_signs_decimals_and_non_ascii_digits) ... ok\ntest_single_units (test_duration.ParseDurationTests.test_single_units) ... ok\ntest_whitespace (test_duration.ParseDurationTests.test_whitespace) ... ok\ntest_zero_leading_zero_and_large_values (test_duration.ParseDurationTests.test_zero_leading_zero_and_large_values) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: duration\n",
+      "stderr": ""
+    }
+  },
+  {
+    "contribution": "ecd22c47035444e01c35ad95b90f1606c42d7bf2bc60dd3a5be0669dabd041da",
+    "task": "flatten",
+    "agent": "claude",
+    "artifact": "73029b3cbf22fdb5ffb580deab1206a8346d85b71a2951bd87e4d392d702ca62",
+    "bundle_sha256": "2e14afc4fbd5a0de688fc8b9f701b0037891680d67ee6da5c155d7eeb088410d",
+    "source_lines": 22,
+    "test_lines": 52,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_already_flat (test_flatten.FlattenTest.test_already_flat) ... ok\ntest_deep_nesting (test_flatten.FlattenTest.test_deep_nesting) ... ok\ntest_does_not_mutate (test_flatten.FlattenTest.test_does_not_mutate) ... ok\ntest_empty (test_flatten.FlattenTest.test_empty) ... ok\ntest_empty_nested_lists (test_flatten.FlattenTest.test_empty_nested_lists) ... ok\ntest_nested (test_flatten.FlattenTest.test_nested) ... ok\ntest_non_lists_kept (test_flatten.FlattenTest.test_non_lists_kept) ... ok\ntest_order_preserved (test_flatten.FlattenTest.test_order_preserved) ... ok\ntest_returns_new_list (test_flatten.FlattenTest.test_returns_new_list) ... ok\ntest_tuple_containing_list_not_expanded (test_flatten.FlattenTest.test_tuple_containing_list_not_expanded) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.002s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: flatten\n",
+      "stderr": ""
+    }
+  },
+  {
+    "contribution": "25475535f42f74b949ed987bed819f119dd120073aebb29199270781ff9e4410",
+    "task": "rotate",
+    "agent": "pi",
+    "artifact": "49ab162f2672cd66e8e53fba6ceb79734f79a0a61f04367835d049fb702c3f6b",
+    "bundle_sha256": "f2498925619e0af4280150811ab98fee1fa96fb836951fc0f6ea2677939e4ed6",
+    "source_lines": 16,
+    "test_lines": 36,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_does_not_mutate_input_and_returns_new_list (test_rotate.RotateTests.test_does_not_mutate_input_and_returns_new_list) ... ok\ntest_large_offsets_wrap (test_rotate.RotateTests.test_large_offsets_wrap) ... ok\ntest_negative_steps_rotate_left (test_rotate.RotateTests.test_negative_steps_rotate_left) ... ok\ntest_rotates_right (test_rotate.RotateTests.test_rotates_right) ... ok\ntest_single_item (test_rotate.RotateTests.test_single_item) ... ok\ntest_zero_multiple_and_empty (test_rotate.RotateTests.test_zero_multiple_and_empty) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: rotate\n",
+      "stderr": ""
+    }
+  },
+  {
+    "contribution": "7a66749f6bf73900852545a24df4c88055d91e15e359d5e496d298a4524f286f",
+    "task": "chunks",
+    "agent": "claude",
+    "artifact": "1667c29ad7ae0a5da8a251939a46386010d4396c743cbcd4a0851951ef246966",
+    "bundle_sha256": "32ee8ff9ff5caf5b900294059a529c38c64e0518961a072dd330edd36032787f",
+    "source_lines": 14,
+    "test_lines": 50,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_chunks_are_lists (test_chunks.ChunksTest.test_chunks_are_lists) ... ok\ntest_does_not_mutate (test_chunks.ChunksTest.test_does_not_mutate) ... ok\ntest_empty (test_chunks.ChunksTest.test_empty) ... ok\ntest_even_split (test_chunks.ChunksTest.test_even_split) ... ok\ntest_invalid_size_with_empty_input (test_chunks.ChunksTest.test_invalid_size_with_empty_input) ... ok\ntest_invalid_sizes (test_chunks.ChunksTest.test_invalid_sizes) ... ok\ntest_shorter_last_chunk (test_chunks.ChunksTest.test_shorter_last_chunk) ... ok\ntest_size_equal_to_input (test_chunks.ChunksTest.test_size_equal_to_input) ... ok\ntest_size_larger_than_input (test_chunks.ChunksTest.test_size_larger_than_input) ... ok\ntest_size_one (test_chunks.ChunksTest.test_size_one) ... ok\ntest_tuple_and_iterable_input (test_chunks.ChunksTest.test_tuple_and_iterable_input) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 0.000s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: chunks\n",
+      "stderr": ""
+    }
+  },
+  {
+    "contribution": "8377d89543a762d850be82bd25e6344377a24a1adc0547f0d17f2f78f1b6e617",
+    "task": "counts",
+    "agent": "codex",
+    "artifact": "239d4e1aa580a0a78f53fc3a3d11fb02441133f5996f7507878aeee31340ac77",
+    "bundle_sha256": "70dc3bb37a8b9544234c78018709ac5a9be67529441786fc93675b720ea7094c",
+    "source_lines": 9,
+    "test_lines": 44,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_all_ascii_letters (test_counts.WordCountsTests.test_all_ascii_letters) ... ok\ntest_apostrophes_and_numbers_separate_tokens (test_counts.WordCountsTests.test_apostrophes_and_numbers_separate_tokens) ... ok\ntest_case_insensitive (test_counts.WordCountsTests.test_case_insensitive) ... ok\ntest_empty_and_no_words (test_counts.WordCountsTests.test_empty_and_no_words) ... ok\ntest_new_dict_each_call (test_counts.WordCountsTests.test_new_dict_each_call) ... ok\ntest_normal_sentence (test_counts.WordCountsTests.test_normal_sentence) ... ok\ntest_punctuation_underscores_and_whitespace (test_counts.WordCountsTests.test_punctuation_underscores_and_whitespace) ... ok\ntest_unicode_is_not_ascii (test_counts.WordCountsTests.test_unicode_is_not_ascii) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: counts\n",
+      "stderr": ""
+    }
+  },
+  {
+    "contribution": "eb8a631f2f3478916d7dfd9ea7e86d5714b90e3e91c59c23516044f0c977adf1",
+    "task": "unique",
+    "agent": "claude",
+    "artifact": "f0c634079512c678ecbfd1d16b9519ca8cf0b2a32fd11a2a8a545b23776808ee",
+    "bundle_sha256": "0e55d934a67f8f7bb675965ca2fba67ad67fbc0642cf92e13681930dc3bbc56d",
+    "source_lines": 39,
+    "test_lines": 62,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_does_not_mutate (test_unique.StableUniqueTest.test_does_not_mutate) ... ok\ntest_empty (test_unique.StableUniqueTest.test_empty) ... ok\ntest_equality_across_types (test_unique.StableUniqueTest.test_equality_across_types) ... ok\ntest_first_occurrence_identity_kept (test_unique.StableUniqueTest.test_first_occurrence_identity_kept) ... ok\ntest_hashable (test_unique.StableUniqueTest.test_hashable) ... ok\ntest_iterable_input (test_unique.StableUniqueTest.test_iterable_input) ... ok\ntest_mixed (test_unique.StableUniqueTest.test_mixed) ... ok\ntest_no_duplicates (test_unique.StableUniqueTest.test_no_duplicates) ... ok\ntest_none_values (test_unique.StableUniqueTest.test_none_values) ... ok\ntest_returns_new_list (test_unique.StableUniqueTest.test_returns_new_list) ... ok\ntest_strings (test_unique.StableUniqueTest.test_strings) ... ok\ntest_unhashable_dicts (test_unique.StableUniqueTest.test_unhashable_dicts) ... ok\ntest_unhashable_lists (test_unique.StableUniqueTest.test_unhashable_lists) ... ok\n\n----------------------------------------------------------------------\nRan 13 tests in 0.000s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: unique\n",
+      "stderr": ""
+    }
+  },
+  {
+    "contribution": "e34147f00e4d8935c8e0c22d0a9a83e9145dfabb777f7702bfb1576ec1c339c5",
+    "task": "unique",
+    "agent": "pi",
+    "artifact": "c92322f8ad8217bf106c17b2ff73077db7efea5084ce1a65256840ce612a99e9",
+    "bundle_sha256": "17be45bfc1a5f24653b087c9057e52839ade4f523817d6c3c896ea5a65d1c8af",
+    "source_lines": 14,
+    "test_lines": 33,
+    "unit": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_does_not_mutate_input_or_reuse_it_as_result (test_unique.StableUniqueTests.test_does_not_mutate_input_or_reuse_it_as_result) ... ok\ntest_empty_input (test_unique.StableUniqueTests.test_empty_input) ... ok\ntest_mixed_values (test_unique.StableUniqueTests.test_mixed_values) ... ok\ntest_preserves_order_and_first_occurrences (test_unique.StableUniqueTests.test_preserves_order_and_first_occurrences) ... ok\ntest_single_item (test_unique.StableUniqueTests.test_single_item) ... ok\ntest_supports_unhashable_lists_and_dicts (test_unique.StableUniqueTests.test_supports_unhashable_lists_and_dicts) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n"
+    },
+    "oracle": {
+      "exit_code": 0,
+      "stdout": "oracle passed: unique\n",
+      "stderr": ""
+    }
+  }
+]

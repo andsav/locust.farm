@@ -1,0 +1,37 @@
+{
+  "context": {
+    "guidance": "",
+    "inputs": {}
+  },
+  "decisions": {
+    "completion": {
+      "by": {
+        "kind": "contribution_author"
+      },
+      "kind": "declaration"
+    },
+    "finish": null,
+    "selection": null
+  },
+  "flow": {},
+  "roles": {},
+  "schema_version": 2,
+  "task_types": {},
+  "work": {
+    "propose": {
+      "kind": "members"
+    },
+    "publish": {
+      "kind": "members"
+    },
+    "starts": [
+      {
+        "by": {
+          "kind": "members"
+        },
+        "kind": "independent"
+      }
+    ]
+  },
+  "workspace": null
+}
