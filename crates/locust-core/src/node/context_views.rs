@@ -42,24 +42,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .or_else(|| entry.goal.current_context(scope));
         let pending = self.pending_work_with_news(entry, actor, news);
         if view == ContextViewMode::Compact {
-            let governance = entry
-                .state()
-                .governance
-                .or_else(|| {
-                    entry
-                        .local
-                        .joins
-                        .values()
-                        .next()
-                        .map(|join| join.governance)
-                })
-                .ok_or_else(|| not_found("no such goal"))?;
             return Ok(ContextSummary::Compact(Box::new(ContextBrief {
                 workspace: self.workspace_view(entry, actor)?,
                 checkout: self.bound_checkout(entry, actor),
                 goal: entry.id(),
                 title: self.title(entry, actor.principal.as_ref()),
-                host: governance,
+                host: entry.state().host,
                 governance_head: entry.state().head,
                 current_rules: entry.state().current_rules,
                 halted: entry.halted(),

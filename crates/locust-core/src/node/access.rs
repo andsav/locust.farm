@@ -113,35 +113,31 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
     }
 
-    /// Whether this daemon holds the key that signs goal governance.
+    /// Whether this daemon holds the goal's governance key: the one its
+    /// first record names.
     pub(super) fn hosts(&self, entry: &Entry) -> bool {
         entry
-            .state()
+            .local
             .governance
-            .is_some_and(|key| self.principals.holds(&key))
+            .as_ref()
+            .is_some_and(|key| entry.state().governance == Some(key.public()))
     }
 
-    /// The hosted goal and its governance signer.
+    /// The hosted goal and its governance key. No agent is involved: the
+    /// key signs whether or not the host's agent is connected.
     pub(super) fn host(
         &self,
         actor: &Actor,
         goal: &GoalId,
     ) -> Result<(&Entry, PublicKey), ApiError> {
         let entry = self.readable(actor, goal)?;
-        let principal = entry.state().governance.ok_or_else(|| not_found(NO_GOAL))?;
+        let governance = entry.state().governance.ok_or_else(|| not_found(NO_GOAL))?;
         if !self.hosts(entry) {
             return Err(denied(
                 "this goal is hosted on another computer; its host decides",
             ));
         }
-        if self.principals.active(&principal).is_none()
-            || entry.local.part.get(&principal) == Some(&true)
-        {
-            return Err(denied(
-                "the host agent is disconnected; nothing can sign for this goal",
-            ));
-        }
-        Ok((entry, principal))
+        Ok((entry, governance))
     }
 
     pub(super) fn refused_error(

@@ -1161,3 +1161,51 @@ fn closing_a_task_with_many_approved_contributions_stays_within_the_header_cap()
     assert_eq!(contributions.len(), APPROVED);
     assert!(contributions.iter().all(|view| view.approved));
 }
+
+#[test]
+fn the_governance_key_is_stored_with_the_goal_and_signs_after_a_restart() {
+    use super::authorization::{author_of, governance_key, join_local};
+    let (mut d, host, owner, agent, goal) = setup();
+    let governance = governance_key(&d, goal);
+    assert_eq!(
+        d.node.goals[&goal].state().governance,
+        Some(governance.public())
+    );
+    assert_ne!(governance.public(), host);
+    let records = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    let Response::GoalStatus(status) = d.ok(owner, Request::GoalStatus { goal }) else {
+        panic!()
+    };
+    assert!(status.hosted_here);
+    d.restart();
+    let reloaded = governance_key(&d, goal);
+    assert_eq!(reloaded.seed(), governance.seed());
+    assert_eq!(reloaded.public(), governance.public());
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), records);
+    let owner = d.owner();
+    let Response::GoalStatus(status) = d.ok(owner, Request::GoalStatus { goal }) else {
+        panic!()
+    };
+    assert!(status.hosted_here);
+    assert_eq!(status.governance, governance.public());
+    assert_eq!(status.host, Some(host));
+    // The restarted daemon signs admissions and rules with the same key.
+    let (member, _) = join_local(&mut d, agent, goal, 2);
+    let admission = d.node.goals[&goal].state().members[&member].admission;
+    assert_eq!(author_of(&d, &admission), governance.public());
+    let expected = d.node.goals[&goal].state().current_rules.unwrap();
+    let rules = event(d.ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: "{\"schema_version\":2}".into(),
+            roles: Default::default(),
+            inputs: Default::default(),
+        },
+    ));
+    let record = d.store.event(&rules).unwrap().unwrap();
+    assert_eq!(record.header().author, governance.public());
+    assert!(locust_proto::event::Event::from_wire(&record.to_wire()).is_ok());
+    assert_eq!(d.node.goals[&goal].state().current_rules, Some(rules));
+}

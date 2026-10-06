@@ -392,7 +392,10 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
     };
     let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     assert_eq!(invitation.goal, goal);
-    assert_eq!(invitation.governance, principal);
+    let governance = daemon.node.goals[&goal].state().governance.unwrap();
+    assert_eq!(invitation.governance, governance);
+    assert_ne!(governance, principal);
+    assert_eq!(daemon.node.goals[&goal].state().host, Some(principal));
     let rows = daemon.store.scan(Space::Invite, &[]).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].0, invitation.secret.digest());
@@ -419,7 +422,9 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
 
 #[test]
 fn pending_join_cannot_relabel_the_host() {
-    let (mut issuer, governance, owner, _agent, goal) = setup();
+    let (mut issuer, host, owner, _agent, goal) = setup();
+    let governance = issuer.node.goals[&goal].state().governance.unwrap();
+    assert_ne!(governance, host);
     let Response::Invited { ticket } = issuer.ok(
         owner,
         Request::GoalInvite {

@@ -6,10 +6,27 @@ use locust_proto::id::{BlobHash, EventId, PublicKey};
 use locust_proto::limits::{
     BLOB_CHUNK_BYTES, MAX_EVENTS_PER_BATCH, MAX_INVENTORY_POINTS, MAX_PEER_FRAME_BYTES,
 };
-use locust_proto::sync::{Frontier, SyncMessage};
+use locust_proto::sync::{AuthorFrontier, Frontier, SyncMessage};
 
 use super::Replica;
 use super::batch::encoded_len;
+
+/// The authors of `frontier` in the order their events are sent: the
+/// governance key's first, because a receiver screens every other author by
+/// the admissions in that log, then the rest ascending.
+pub(super) fn governance_first(
+    replica: &dyn Replica,
+    frontier: &Frontier,
+) -> VecDeque<AuthorFrontier> {
+    let mut authors: VecDeque<_> = frontier.authors.iter().copied().collect();
+    if let Some(governance) = replica.first_author()
+        && let Some(index) = authors.iter().position(|entry| entry.author == governance)
+        && let Some(entry) = authors.remove(index)
+    {
+        authors.push_front(entry);
+    }
+    authors
+}
 
 #[derive(Debug)]
 pub(super) enum Work {
@@ -23,7 +40,8 @@ pub(super) enum Work {
     Frontier {
         theirs: Frontier,
         mine: Frontier,
-        next: usize,
+        /// The authors of `mine` still to expand, see [`governance_first`].
+        queue: VecDeque<AuthorFrontier>,
     },
     Events {
         author: PublicKey,
@@ -98,12 +116,15 @@ impl Outbox {
             return;
         }
         while let Some(work) = self.work.front_mut() {
-            if let Work::Frontier { theirs, mine, next } = work {
-                if let Some(entry) = mine.authors.get(*next) {
-                    let author = entry.author;
-                    let ours = *entry;
+            if let Work::Frontier {
+                theirs,
+                mine,
+                queue,
+            } = work
+            {
+                if let Some(ours) = queue.pop_front() {
+                    let author = ours.author;
                     let theirs = theirs.get(&author);
-                    *next += 1;
                     let points = replica.points(&author);
                     let following = if replica.extends(&theirs) {
                         points

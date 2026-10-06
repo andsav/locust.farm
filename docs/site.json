@@ -5,7 +5,7 @@
   "versions": {
     "software": "unreleased",
     "api": 7,
-    "protocol": 6,
+    "protocol": 7,
     "formationSchema": 2
   },
   "pages": [

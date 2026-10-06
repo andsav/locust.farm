@@ -68,25 +68,29 @@ impl Author {
             prev: None,
         }
     }
-    pub fn genesis(&mut self) -> Event {
-        self.genesis_with(&Formation::default())
+    /// The first record of a goal this author's key governs, naming `host`
+    /// as the host's agent.
+    pub fn genesis(&mut self, host: PublicKey) -> Event {
+        self.genesis_with(host, &Formation::default())
     }
-    pub fn genesis_with(&mut self, definition: &Formation) -> Event {
+    pub fn genesis_with(&mut self, host: PublicKey, definition: &Formation) -> Event {
         let genesis = Genesis {
             governance: self.key.public(),
+            host,
             definition: definition_hash(definition),
             salt: [0; 16],
         };
         self.event(genesis.goal_id(), None, Body::Genesis(genesis))
     }
-    /// Initial governance prefix. Bind rules explicitly before authoring work.
-    pub fn found_goal(&mut self, endpoint: EndpointId) -> (Event, Event) {
-        let genesis = self.genesis();
+    /// Initial governance prefix: the first record and the admission of the
+    /// host's agent. Bind rules explicitly before authoring work.
+    pub fn found_goal(&mut self, host: PublicKey, endpoint: EndpointId) -> (Event, Event) {
+        let genesis = self.genesis(host);
         let admission = self.event(
             genesis.header().goal,
             Some(genesis.id()),
             Body::MemberAdmitted {
-                member: self.key.public(),
+                member: host,
                 endpoint,
             },
         );
@@ -189,6 +193,7 @@ pub fn every_body() -> Vec<Body> {
         }),
         Body::Genesis(Genesis {
             governance: key,
+            host: keypair(2).public(),
             definition: binding.definition.semantic,
             salt: [0; 16],
         }),

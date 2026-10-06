@@ -230,9 +230,8 @@ fn render_preview(preview: &InvitationPreview, now_ms: u64) -> String {
         },
     );
     let mut text = format!(
-        "Goal: {title}\nGoal identifier: {}\nHost fingerprint: {}\nIssuer endpoint: {}\nSignature: verified against the host key.\nTitle: host-signed presentation. A signing key does not verify a human identity.\nGoal authority and admission are confirmed during joining. Inspection does not contact the issuer.\nExpires: {expires}{}\nSharing: whole goal.\n",
+        "Goal: {title}\nGoal identifier: {}\nIssuer endpoint: {}\nSignature: verified against the goal's key, which the identifier commits to.\nTitle: host-signed presentation. A signing key does not verify a human identity.\nGoal authority and admission are confirmed during joining. Inspection does not contact the issuer.\nExpires: {expires}{}\nSharing: whole goal.\n",
         preview.goal,
-        preview.governance,
         preview.endpoint,
         if preview.expired {
             " (expired; request a fresh invitation)"
@@ -290,6 +289,7 @@ mod tests {
         assert!(rendered.contains("A shared goal\\u{a}forged terminal line"));
         assert!(!rendered.contains(&"03".repeat(32)));
         assert!(!rendered.contains("locust-invite-"));
+        assert!(!rendered.contains(&preview.governance.to_string()));
     }
 
     #[test]

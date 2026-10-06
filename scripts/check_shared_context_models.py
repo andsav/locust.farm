@@ -301,8 +301,8 @@ def main():
     contract = json.loads(subprocess.check_output([args.locust, '--json', 'contract'], text=True))['result']
     report['api_version'] = contract['api_version']
     report['protocol_version'] = contract['protocol_version']
-    if (report['api_version'], report['protocol_version']) != (7, 6):
-        parser.error('This experiment requires API 7 / protocol 6')
+    if (report['api_version'], report['protocol_version']) != (7, 7):
+        parser.error('This experiment requires API 7 / protocol 7')
     profiles = [Profile(args.output, name) for name in ('setup','researcher','builder')]
     setup, rp, bp = profiles
     try:

@@ -85,8 +85,8 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
                 if let Some(halt) = status.halted {
                     bad.push(format!("{name} reports the goal halted: {halt:?}"));
                 }
-                if status.host != r.principals[0] {
-                    bad.push(format!("{name} names another coordinator"));
+                if status.host != Some(r.principals[0]) {
+                    bad.push(format!("{name} names another host"));
                 }
                 heads.push(status.governance_head);
             }

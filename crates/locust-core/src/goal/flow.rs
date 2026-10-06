@@ -36,7 +36,7 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             .flow
             .get(name)
             .ok_or(invalid("unknown configured flow stage"))?;
-        // The goal's governance runs every stage.
+        // The host's computer runs every stage with the goal's governance key.
         let runner = self
             .history
             .governance

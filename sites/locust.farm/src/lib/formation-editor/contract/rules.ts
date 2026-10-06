@@ -9,6 +9,7 @@ import type {
 	DecisionRules,
 	Diagnostic,
 	Selector,
+	Stage,
 	WorkRules
 } from './types.ts';
 
@@ -193,6 +194,46 @@ class Validator {
 		if (decisions.finish) this.authority(decisions.finish, `${path}/finish`);
 	}
 
+	/**
+	 * A stage's task is opened by the host's computer under the goal's signing
+	 * key, which is no member, so a rule that lets only task_creator act in it
+	 * can be met by nobody. The by of an offered start is not checked: the
+	 * host's computer makes those offers itself.
+	 */
+	stageTaskCreator(stageName: string, stage: Stage, path: string) {
+		const value = this.formation;
+		const typeName =
+			stage.task_type !== null && Object.hasOwn(value.task_types, stage.task_type)
+				? stage.task_type
+				: null;
+		const taskType = typeName === null ? undefined : value.task_types[typeName];
+		const [work, workPath] =
+			taskType?.work && typeName !== null
+				? [taskType.work, `/task_types/${escapePointer(typeName)}/work`]
+				: [value.work, '/work'];
+		const [decisions, decisionsPath] =
+			taskType?.decisions && typeName !== null
+				? [taskType.decisions, `/task_types/${escapePointer(typeName)}/decisions`]
+				: [value.decisions, '/decisions'];
+		const found: string[] = [];
+		work.starts.forEach((start, index) => {
+			if (start.kind === 'independent' && namesTaskCreator(start.by)) {
+				found.push(`${workPath}/starts/${index}/by`);
+			} else if (start.kind === 'offered' && namesTaskCreator(start.to)) {
+				found.push(`${workPath}/starts/${index}/to`);
+			}
+		});
+		completionTaskCreator(decisions.completion, `${decisionsPath}/completion`, found);
+		for (const rule of found) {
+			this.error(
+				'selector_scope',
+				path,
+				`Stage ${rustDebug(stageName)} opens its task from the host's computer, which is no member, so task_creator at ${rule} can be met by nobody`,
+				"Name members, a role or a participant in the rules this stage's task uses."
+			);
+		}
+	}
+
 	run() {
 		const value = this.formation;
 		for (const name of sortedKeys(value.roles)) this.name(name, `/roles/${escapePointer(name)}`);
@@ -226,6 +267,7 @@ class Validator {
 					'Declare the task type or remove the reference to inherit the default rules.'
 				);
 			}
+			this.stageTaskCreator(name, stage, path);
 			const required = new Set<string>();
 			stage.requires.forEach((requirement, index) => {
 				const requirementPath = `${path}/requires/${index}`;
@@ -274,6 +316,27 @@ class Validator {
 			for (const needs of dependencies.values()) for (const name of ready) needs.delete(name);
 		}
 	}
+}
+
+function namesTaskCreator(selector: Selector): boolean {
+	switch (selector.kind) {
+		case 'task_creator':
+			return true;
+		case 'any':
+			return selector.selectors.some(namesTaskCreator);
+		default:
+			return false;
+	}
+}
+
+function completionTaskCreator(rule: CompletionRule, path: string, found: string[]) {
+	if (rule.kind === 'all' || rule.kind === 'any') {
+		rule.rules.forEach((item, index) =>
+			completionTaskCreator(item, `${path}/rules/${index}`, found)
+		);
+		return;
+	}
+	if (namesTaskCreator(rule.by)) found.push(`${path}/by`);
 }
 
 /** The identities a selector can name for certain, or null when it depends on membership. */

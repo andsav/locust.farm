@@ -10,15 +10,16 @@ use locust_proto::{
 use std::{collections::BTreeMap, hint::black_box, time::Instant};
 
 fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, Formation>) {
+    let mut governance = Author::new(10);
     let mut admin = Author::new(1);
     let mut worker = Author::new(2);
     let mut formation = Formation::default();
     formation.decisions.selection = Some(Authority::Participant {
         key: admin.key.public().to_string(),
     });
-    let genesis = admin.genesis_with(&formation);
+    let genesis = governance.genesis_with(admin.key.public(), &formation);
     let goal = genesis.header().goal;
-    let self_admission = admin.event(
+    let self_admission = governance.event(
         goal,
         Some(genesis.id()),
         Body::MemberAdmitted {
@@ -26,7 +27,7 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
             endpoint: EndpointId([1; 32]),
         },
     );
-    let admission = admin.event(
+    let admission = governance.event(
         goal,
         Some(self_admission.id()),
         Body::MemberAdmitted {
@@ -35,7 +36,7 @@ fn history(tasks: usize, forked: bool) -> (Vec<Event>, BTreeMap<DefinitionHash, 
         },
     );
     let (binding, _) = testkit::rules_binding(&goal, 0, &formation, BTreeMap::new());
-    let bound = admin.event(
+    let bound = governance.event(
         goal,
         Some(admission.id()),
         Body::RulesBound {

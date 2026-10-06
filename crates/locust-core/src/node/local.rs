@@ -13,10 +13,12 @@
 //! | `a` | goal, task, principal | wanted or allowed task |
 //! | `o` | goal, event | signed at the owner's direct request |
 //! | `m` | goal, principal | the principal takes or took part; whether it left |
+//! | `K` | goal | the seed of the goal's governance key, held by its host |
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::api::{Checkout, Level, WorkspaceOperation};
+use locust_proto::crypto::Keypair;
 use locust_proto::event::TaskId;
 use locust_proto::id::{
     CheckoutId, EffectId, EndpointId, EventId, GoalId, PublicKey, WorkspaceOperationId,
@@ -36,6 +38,7 @@ const JOIN: u8 = b'j';
 const ALLOWANCE: u8 = b'a';
 const BY_OWNER: u8 = b'o';
 const PART: u8 = b'm';
+const GOVERNANCE: u8 = b'K';
 
 /// A redeemed invitation whose admission has not arrived, or was refused.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -77,6 +80,8 @@ pub(super) struct Local {
     /// Local principals that are or were members here; true once the
     /// principal asked to leave.
     pub part: BTreeMap<PublicKey, bool>,
+    /// The goal's governance key, on the computer that hosts the goal.
+    pub governance: Option<Keypair>,
 }
 
 fn key(tag: u8, goal: &GoalId, rest: &[u8]) -> Vec<u8> {
@@ -188,6 +193,12 @@ pub(super) fn part_write(goal: &GoalId, principal: &PublicKey, left: bool) -> Lo
     records::put(Space::Goal, key(PART, goal, &principal.0), &left)
 }
 
+/// Stores the seed of the goal's governance key. Written once, by
+/// `goal_create`, in the commit that founds the goal.
+pub(super) fn governance_write(goal: &GoalId, seed: &[u8; 32]) -> LocalWrite {
+    records::put(Space::Goal, key(GOVERNANCE, goal, &[]), seed)
+}
+
 /// The goal a `Space::Goal` key is about.
 pub(super) fn goal_of(key: &[u8]) -> Result<GoalId, StoreError> {
     records::part(key, 1)
@@ -258,7 +269,11 @@ impl Local {
                 self.part
                     .insert(PublicKey(subject()?), records::read(value)?);
             }
-            (REVISION | TITLE | PART, None) => {}
+            (GOVERNANCE, Some(value)) => {
+                let seed: [u8; 32] = records::read(value)?;
+                self.governance = Some(Keypair::from_seed(seed));
+            }
+            (REVISION | TITLE | PART | GOVERNANCE, None) => {}
             _ => return Err(records::bad_key()),
         }
         Ok(())

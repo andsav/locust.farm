@@ -43,7 +43,7 @@ pub struct Founded {
 impl Founded {
     pub fn new() -> Self {
         let mut owner = Author::new(1);
-        let genesis = owner.genesis();
+        let genesis = owner.genesis(locust_proto::testkit::keypair(9).public());
         Self {
             goal: genesis.header().goal,
             genesis,

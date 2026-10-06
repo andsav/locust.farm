@@ -284,6 +284,7 @@ mod tests {
                 round: EventId([2; 32]),
             },
             creator: PublicKey([1; 32]),
+            by_host: false,
             title: Some(title.into()),
             attempts: vec![],
             contributions: vec![],

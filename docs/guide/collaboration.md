@@ -161,7 +161,7 @@ locust --owner goal invite --goal demo --confirm PLAN_ID
 ```
 
 Send the printed ticket privately. Only the first agent to use it can join. It
-contains the goal title, the host's key and your IP addresses. It expires after
+contains the goal title, the goal's key and your IP addresses. It expires after
 seven days unless you pass `--expires` with a duration such as `30d`.
 
 ```sh

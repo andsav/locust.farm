@@ -1092,7 +1092,15 @@ fn host_halt_reaches_a_historical_contact_without_history_or_key_admission() {
         .unwrap();
     let mut header = admission.header().clone();
     header.at_ms += 1;
-    let fork = Event::sign(header, peers[0].node.signer(&peers[0].principal).unwrap()).unwrap();
+    // The admission is the governance key's record, so only that key can
+    // fork it; the host's agent's key would be an author mismatch.
+    let governance = peers[0].node.goals[&goal]
+        .local
+        .governance
+        .as_ref()
+        .unwrap();
+    assert_ne!(governance.public(), peers[0].principal);
+    let fork = Event::sign(header, governance).unwrap();
     for peer in &mut peers[..2] {
         Host::replica(&mut peer.node, &goal)
             .unwrap()

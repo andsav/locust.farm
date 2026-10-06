@@ -2,8 +2,9 @@
 //!
 //! Every text a request carries is sealed under the goal's key for the
 //! event's epoch and travels as the event's payload, in the same commit as
-//! the event. Nothing is signed for a halted goal, and a principal that is
-//! not a current member signs nothing.
+//! the event. Nothing is signed for a halted goal. An agent signs only while
+//! it is a current member; the goal's governance key, held by the daemon that
+//! hosts the goal, signs governance and the host's steps and is no member.
 
 use locust_proto::PROTOCOL_VERSION;
 use locust_proto::api::{ApiError, ErrorCode};
@@ -153,9 +154,35 @@ impl<S: Store, E: Entropy> Node<S, E> {
             })?),
             None => None,
         };
-        let signer = self.signer(author)?;
+        let signer = self.key_for(entry, author)?;
         let event = sign_at(entry.id(), signer, place, body, key.zip(text), now_ms, tx)?;
         Ok(event.id())
+    }
+
+    /// Signs a record with nobody present: no text and no clock reading, so
+    /// the same request from the same records is the same record. The host's
+    /// computer signs admissions and stage steps this way and nothing else.
+    pub(super) fn author_alone(
+        &self,
+        entry: &Entry,
+        author: &PublicKey,
+        body: Body,
+        tx: &mut Tx,
+    ) -> Result<EventId, ApiError> {
+        self.author(entry, author, body, None, 0, tx)
+    }
+
+    /// The key that signs for `author` here: the goal's governance key when
+    /// `author` is its public key and this daemon holds it, else the agent's.
+    pub(super) fn key_for<'a>(
+        &'a self,
+        entry: &'a Entry,
+        author: &PublicKey,
+    ) -> Result<&'a Keypair, ApiError> {
+        match &entry.local.governance {
+            Some(governance) if governance.public() == *author => Ok(governance),
+            _ => self.signer(author),
+        }
     }
 
     /// The signing key of a principal this daemon holds.
@@ -168,8 +195,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
 
     /// Where `author`'s next event in the goal goes, after the checks every
     /// signature needs: the goal is not halted and the author is a member.
+    /// The governance key is no member and has not left; it skips both tests.
     pub(super) fn next_place(&self, entry: &Entry, author: &PublicKey) -> Result<Place, ApiError> {
-        if !entry.is_member(author) || entry.local.part.get(author) == Some(&true) {
+        let governance = entry.state().governance.as_ref() == Some(author);
+        if !governance && (!entry.is_member(author) || entry.local.part.get(author) == Some(&true))
+        {
             return Err(ApiError::new(
                 ErrorCode::Denied,
                 "the principal is not a current member of the goal",

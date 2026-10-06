@@ -2704,28 +2704,15 @@
         "arguments": [],
         "commands": [
           {
-            "arguments": [
-              {
-                "action": "SetTrue",
-                "help": "Show the exact action and its plan identifier without acting",
-                "long": "plan",
-                "name": "plan",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Proceed only if this plan identifier still matches",
-                "long": "confirm",
-                "name": "confirm",
-                "positional": false,
-                "required": false,
-                "short": null
-              }
-            ],
+            "arguments": [],
             "commands": [],
             "name": "revoke",
+            "summary": null
+          },
+          {
+            "arguments": [],
+            "commands": [],
+            "name": "reconnect",
             "summary": null
           },
           {
@@ -5307,7 +5294,12 @@
             "$ref": "#/$defs/DefinitionHash"
           },
           "governance": {
-            "$ref": "#/$defs/PublicKey"
+            "$ref": "#/$defs/PublicKey",
+            "description": "The goal's signing key. It signs this record and every governance\nrecord after it, and is never a member."
+          },
+          "host": {
+            "$ref": "#/$defs/PublicKey",
+            "description": "The host's agent: the member whose owner hosts the goal. Never equal to\n`governance`."
           },
           "salt": {
             "items": {
@@ -5323,6 +5315,7 @@
         },
         "required": [
           "governance",
+          "host",
           "definition",
           "salt"
         ],
@@ -6853,6 +6846,14 @@
       "summary": "agent revoke"
     },
     {
+      "audience": "owner",
+      "goal_scoped": false,
+      "mcp_tool": null,
+      "name": "agent.reconnect",
+      "read_only": false,
+      "summary": "agent reconnect"
+    },
+    {
       "audience": "agent",
       "goal_scoped": false,
       "mcp_tool": null,
@@ -7493,7 +7494,7 @@
       "summary": "Revoke an issued invitation; existing membership remains a separate decision"
     }
   ],
-  "protocol_version": 6,
+  "protocol_version": 7,
   "request_schema": {
     "$defs": {
       "AttemptStatus": {
@@ -8604,6 +8605,27 @@
         },
         "required": [
           "agent.revoke"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "agent.reconnect": {
+            "additionalProperties": false,
+            "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              }
+            },
+            "required": [
+              "agent"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "agent.reconnect"
         ],
         "type": "object"
       },
@@ -12049,7 +12071,15 @@
             ]
           },
           "host": {
-            "$ref": "#/$defs/PublicKey"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The host's agent; absent until the first record is held."
           },
           "pending": {
             "$ref": "#/$defs/PendingCounts"
@@ -12067,7 +12097,6 @@
         "required": [
           "workspace",
           "goal",
-          "host",
           "documents",
           "pending"
         ],
@@ -13076,6 +13105,10 @@
             "$ref": "#/$defs/PublicKey",
             "description": "The principal whose key signed it."
           },
+          "by_host": {
+            "description": "The goal's signing key signed it: governance or a host's step.",
+            "type": "boolean"
+          },
           "by_owner": {
             "description": "The participant directly asked the daemon to sign for this agent.",
             "type": "boolean"
@@ -13108,7 +13141,8 @@
           "kind",
           "at_ms",
           "standing",
-          "by_owner"
+          "by_owner",
+          "by_host"
         ],
         "type": "object"
       },
@@ -13691,7 +13725,12 @@
             "$ref": "#/$defs/DefinitionHash"
           },
           "governance": {
-            "$ref": "#/$defs/PublicKey"
+            "$ref": "#/$defs/PublicKey",
+            "description": "The goal's signing key. It signs this record and every governance\nrecord after it, and is never a member."
+          },
+          "host": {
+            "$ref": "#/$defs/PublicKey",
+            "description": "The host's agent: the member whose owner hosts the goal. Never equal to\n`governance`."
           },
           "salt": {
             "items": {
@@ -13707,6 +13746,7 @@
         },
         "required": [
           "governance",
+          "host",
           "definition",
           "salt"
         ],
@@ -13737,6 +13777,10 @@
           "goal": {
             "$ref": "#/$defs/GoalId"
           },
+          "governance": {
+            "$ref": "#/$defs/PublicKey",
+            "description": "The goal's signing key, from the first record or, before it is held,\nfrom the ticket. It is never a member."
+          },
           "governance_head": {
             "anyOf": [
               {
@@ -13758,7 +13802,19 @@
             ]
           },
           "host": {
-            "$ref": "#/$defs/PublicKey"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The host's agent, named by the first record; absent until it is held."
+          },
+          "hosted_here": {
+            "description": "True on the computer that holds the goal's signing key.",
+            "type": "boolean"
           },
           "members": {
             "items": {
@@ -13803,7 +13859,8 @@
         },
         "required": [
           "goal",
-          "host",
+          "governance",
+          "hosted_here",
           "scope_halts",
           "members",
           "abilities",
@@ -15273,6 +15330,10 @@
             },
             "type": "array"
           },
+          "by_host": {
+            "description": "True when the goal's signing key opened the task: a stage's task.",
+            "type": "boolean"
+          },
           "closed": {
             "type": "boolean"
           },
@@ -15315,6 +15376,7 @@
           "task",
           "context",
           "creator",
+          "by_host",
           "attempts",
           "contributions",
           "completed",

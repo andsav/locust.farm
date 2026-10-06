@@ -51,7 +51,7 @@ fn replay_names_integration_authority_when_another_member_selects() {
 }
 
 fn epoch(f: &mut Fixture, expected: Option<EventId>, checkpoint: WorkspaceCheckpoint) -> Context {
-    let id = f.admin(Body::WorkspaceEpoch {
+    let id = f.host(Body::WorkspaceEpoch {
         expected_epoch: expected,
         rules: f.rules,
         checkpoint,
@@ -178,7 +178,7 @@ fn workspace_has_no_implicit_host_integrator() {
     let mut f = Fixture::new(Formation::default());
     let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
     let candidate = proposal(&mut f, 0, context, None, Vec::new());
-    let decision = f.admin(Body::ScopeDecided {
+    let decision = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject: candidate },
@@ -197,7 +197,7 @@ fn workspace_wrong_integrator_and_stale_parent_do_not_advance() {
     let candidate = proposal(&mut f, 0, context, None, Vec::new());
     let stale = proposal(&mut f, 0, context, None, Vec::new());
     let review = f.review(1, context, candidate);
-    let wrong = f.admin(Body::ScopeDecided {
+    let wrong = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject: candidate },
@@ -239,7 +239,7 @@ fn workspace_nested_source_authors_are_ineligible_but_independent_review_counts(
         assert!(!before.standing(&review).unwrap().is_effective());
     }
     assert!(!before.state().workspace_proposals[&candidate].approved);
-    let independent = f.admin(Body::ReviewRecorded {
+    let independent = f.host(Body::ReviewRecorded {
         context,
         subject: candidate,
         verdict: ReviewVerdict::Approve,
@@ -285,7 +285,7 @@ fn workspace_missing_source_waits_then_counts_full_source_author_set() {
     let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
     let source = proposal(&mut f, 1, context, None, Vec::new());
     let candidate = proposal(&mut f, 0, context, None, vec![source]);
-    let review = f.admin(Body::ReviewRecorded {
+    let review = f.host(Body::ReviewRecorded {
         context,
         subject: candidate,
         verdict: ReviewVerdict::Approve,
@@ -316,7 +316,7 @@ fn workspace_sources_require_workspace_proposals_not_advisory_task_citations() {
     let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
     let source = f.publish(1, f.context());
     let candidate = proposal(&mut f, 0, context, None, vec![source]);
-    let review = f.admin(Body::ReviewRecorded {
+    let review = f.host(Body::ReviewRecorded {
         context,
         subject: candidate,
         verdict: ReviewVerdict::Approve,
@@ -508,7 +508,7 @@ fn workspace_missing_or_wrong_kind_checkpoint_fences_prior_epoch_but_not_members
             Some(old.round),
             WorkspaceCheckpoint::Revision(checkpoint),
         );
-        f.admin(Body::MemberRemoved {
+        f.host(Body::MemberRemoved {
             member: f.workers[1].key.public(),
             admission: f.admissions[2],
             last_accepted: None,
@@ -799,7 +799,7 @@ fn workspace_pinned_epoch_survives_unrelated_rules_rebinding_then_explicitly_dis
     let hash = testkit::definition_hash(&replacement);
     f.definitions.insert(hash, replacement.clone());
     let (binding, _) = testkit::rules_binding(&f.id, 0, &replacement, BTreeMap::new());
-    let rebound = f.admin(Body::RulesBound {
+    let rebound = f.host(Body::RulesBound {
         expected: Some(f.rules),
         binding,
     });
@@ -839,7 +839,7 @@ fn workspace_membership_cutoff_preserves_exact_earlier_review_but_rejects_later_
         seq: f.event(retained_review).header().seq,
         id: retained_review,
     };
-    f.admin(Body::MemberRemoved {
+    f.host(Body::MemberRemoved {
         member: f.workers[1].key.public(),
         admission: f.admissions[2],
         last_accepted: Some(cutoff),
@@ -867,7 +867,7 @@ fn workspace_host_epoch_fork_retracts_the_governance_suffix() {
     let mut f = Fixture::new(workspace_formation(1));
     let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
     seed(&mut f, context);
-    f.fork(context.round, 1);
+    f.fork(context.round, GOVERNANCE);
     let goal = f.goal();
     assert!(goal.evaluation().host_halt.is_some());
     assert!(goal.state().workspace.is_none());
@@ -907,7 +907,10 @@ fn workspace_checkpoint_cannot_substitute_another_goal_selection() {
     assert_eq!(head(&goal), None);
 }
 
-fn host_integrator_competition(same_position: bool) {
+/// The host's agent is the integrator. Its acceptances are a member's
+/// records: a fork or a dispute among them costs the files their head and
+/// nothing of governance, which the goal's own key signs.
+fn hosts_agent_integrator_competition(same_position: bool) {
     let mut formation = workspace_formation(1);
     formation.workspace.as_mut().unwrap().integrator = Authority::Participant {
         key: testkit::keypair(1).public().to_string(),
@@ -924,15 +927,15 @@ fn host_integrator_competition(same_position: bool) {
         action: DecisionAction::Select { subject },
         evidence: vec![review],
     };
-    let a = f.admin(decision(first, first_review));
+    let a = f.host(decision(first, first_review));
     assert_eq!(head(&f.goal()), Some(a));
     let b = if same_position {
         fork_body(&mut f, a, 1, decision(second, second_review))
     } else {
-        f.admin(decision(second, second_review))
+        f.host(decision(second, second_review))
     };
     let member = testkit::keypair(9).public();
-    let admission = f.admin(Body::MemberAdmitted {
+    let admission = f.host(Body::MemberAdmitted {
         member,
         endpoint: EndpointId(member.0),
     });
@@ -940,28 +943,27 @@ fn host_integrator_competition(same_position: bool) {
     assert_eq!(head(&goal), None);
     if same_position {
         assert_eq!(f.event(a).header().seq, f.event(b).header().seq);
-        assert!(goal.evaluation().host_halt.is_some());
-        assert!(!goal.standing(&admission).unwrap().is_effective());
-        assert!(!goal.state().members.contains_key(&member));
         assert!(goal.next(&f.admin.key.public()).is_none());
     } else {
         assert_eq!(f.event(b).header().seq, f.event(a).header().seq + 1);
         assert_eq!(f.event(b).header().prev, Some(a));
-        assert_eq!(goal.standing(&a), Some(Standing::Disputed));
-        assert_eq!(goal.standing(&b), Some(Standing::Disputed));
-        assert!(goal.evaluation().host_halt.is_none());
-        assert_eq!(goal.standing(&admission), Some(Standing::Effective));
-        assert!(goal.state().members[&member].is_active());
+        assert!(goal.next(&f.admin.key.public()).is_some());
     }
+    assert_eq!(goal.standing(&a), Some(Standing::Disputed));
+    assert_eq!(goal.standing(&b), Some(Standing::Disputed));
+    assert!(goal.evaluation().host_halt.is_none());
+    assert_eq!(goal.standing(&admission), Some(Standing::Effective));
+    assert!(goal.state().members[&member].is_active());
+    assert!(goal.next(&f.governance.key.public()).is_some());
     assert_workspace_replay_and_restart(&f);
 }
 
 #[test]
-fn host_integrator_acceptances_at_same_log_position_halt_governance() {
-    host_integrator_competition(true);
+fn acceptances_by_the_hosts_agent_at_one_log_position_dispute_only_the_files() {
+    hosts_agent_integrator_competition(true);
 }
 
 #[test]
-fn host_integrator_acceptances_at_distinct_log_positions_dispute_only_workspace() {
-    host_integrator_competition(false);
+fn acceptances_by_the_hosts_agent_at_distinct_log_positions_dispute_only_the_files() {
+    hosts_agent_integrator_competition(false);
 }

@@ -33,7 +33,7 @@ fn main() {
     let mut store = SqliteStore::open(dir.path()).unwrap();
 
     let mut owner = Author::new(1);
-    let genesis = owner.genesis();
+    let genesis = owner.genesis(locust_proto::testkit::keypair(9).public());
     let goal = genesis.header().goal;
     let round = genesis.id();
     let anchor = Some(round);

@@ -1,7 +1,7 @@
 //! Goals and membership: founding, status, levels and the workspace binding.
 
 use locust_proto::api::{ApiError, ErrorCode, GoalStatus, Level, MemberView, Response};
-use locust_proto::crypto::ContentKey;
+use locust_proto::crypto::{ContentKey, Keypair};
 use locust_proto::engine::Entropy;
 use locust_proto::event::{Body, DefinitionRef, Genesis, RulesBinding};
 use locust_proto::id::{BlobHash, DefinitionHash, EventId, GoalId, PublicKey};
@@ -36,7 +36,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
         })
     }
 
-    /// Founding and the initial rules binding become durable together.
+    /// Founding, the admission of the host's agent and the initial rules
+    /// binding become durable together, signed by a governance key drawn for
+    /// this goal and stored beside it. The named agent is an ordinary member.
     pub(super) fn goal_create(&self, actor: &Actor, input: GoalCreateInput, now_ms: u64) -> Plan {
         let GoalCreateInput {
             agent,
@@ -45,13 +47,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
             roles,
             inputs,
         } = input;
-        let creator = self.local_agent(actor, agent)?.principal()?;
+        let host = self.local_agent(actor, agent)?.principal()?;
         let endpoint = self.own_endpoint()?.endpoint;
-        let signer = self.signer(&creator)?;
+        let seed: [u8; 32] = self.random();
+        let governance = Keypair::from_seed(seed);
+        let signer = &governance;
         let source = formation_json.unwrap_or_else(|| "{\"schema_version\":2}".into());
         let (definition, normalized) = checked_definition(&source)?;
         let genesis = Genesis {
-            governance: creator,
+            governance: governance.public(),
+            host,
             definition,
             salt: self.random(),
         };
@@ -82,7 +87,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 epoch: 0,
             },
             Body::MemberAdmitted {
-                member: creator,
+                member: host,
                 endpoint,
             },
             None,
@@ -116,9 +121,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
             &mut tx,
         )?;
         tx.local(key_write(&goal, 0, &key))
+            .local(local::governance_write(&goal, &seed))
             .local(local::title_write(&goal, &title))
-            .local(local::part_write(&goal, &creator, false))
-            .local(local::level_write(&goal, &creator, &Level::Auto));
+            .local(local::part_write(&goal, &host, false))
+            .local(local::level_write(&goal, &host, &Level::Auto));
         Ok(Planned {
             response: Response::GoalCreated { goal },
             tx,
@@ -194,7 +200,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
         answer(Response::GoalStatus(GoalStatus {
             goal,
             title: self.title(entry, actor.principal.as_ref()),
-            host: governance,
+            governance,
+            hosted_here: self.hosts(entry),
+            host: state.host,
             governance_head: state.head,
             current_rules: state.current_rules,
             scope_halts: entry
@@ -259,7 +267,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
     ) -> Plan {
         let local_actor = self.local_agent(actor, agent)?;
         let (entry, principal) = self.member(&local_actor, &goal)?;
-        if entry.state().governance == Some(principal) {
+        if entry.state().host == Some(principal) {
             return Err(crate::node::access::conflict(
                 "the host's agent cannot leave its own goal",
             ));
@@ -293,7 +301,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         let (entry, governance) = self.host(actor, &goal)?;
-        if member == governance {
+        if entry.state().host == Some(member) {
             return Err(crate::node::access::conflict(
                 "the host's agent cannot be removed from its own goal",
             ));
@@ -324,7 +332,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let mut tx = Tx::none();
         let event = sign_at(
             goal,
-            self.signer(&governance)?,
+            self.key_for(entry, &governance)?,
             place,
             Body::MemberRemoved {
                 member,

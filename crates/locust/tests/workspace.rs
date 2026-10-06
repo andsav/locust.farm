@@ -27,6 +27,8 @@ use std::thread;
 
 const GOAL: GoalId = GoalId([0x31; 32]);
 const PRINCIPAL: PublicKey = PublicKey([0x42; 32]);
+/// The goal's own signing key; never a member and never an enrolled agent.
+const GOVERNANCE: PublicKey = PublicKey([0x99; 32]);
 const FIRST_RULES: EventId = EventId([0x53; 32]);
 
 struct State {
@@ -52,6 +54,10 @@ struct State {
     reject_recovery_parent: bool,
     caller_session: Option<InstanceId>,
     session_active: bool,
+    /// True while the host's agent is disconnected (`agent revoke`).
+    agent_revoked: bool,
+    /// False when the goal's first record came from another computer.
+    hosted_here: bool,
 }
 impl State {
     fn abilities() -> Abilities {
@@ -110,6 +116,8 @@ impl State {
             reject_recovery_parent: false,
             caller_session: None,
             session_active: true,
+            agent_revoked: false,
+            hosted_here: true,
         }
     }
     fn event(&mut self) -> EventId {
@@ -160,20 +168,22 @@ impl State {
         }
         match frame.request {
             Request::Status => Ok(Response::Status(DaemonStatus { daemon_version:"fixture".into(), endpoint:None,
-                agents:vec![AgentView { agent:PRINCIPAL,name:"worker".into(),author_only:false,revoked:false }],
+                agents:vec![AgentView { agent:PRINCIPAL,name:"worker".into(),author_only:false,revoked:self.agent_revoked }],
                 goals:vec![GoalSummary { goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,halted:None,abilities:Self::abilities() }] })),
             Request::GoalStatus { goal } => Ok(Response::GoalStatus(serde_json::from_value(json!({
-                "goal":goal,"title":"workspace","host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
-                "scope_halts":[],"members":[{"member":PRINCIPAL,"endpoint":locust_proto::id::EndpointId([0x40;32]),"local":true}],"halted":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
+                "goal":goal,"title":"workspace","governance":GOVERNANCE,"hosted_here":self.hosted_here,"host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
+                "scope_halts":[],"members":[{"member":PRINCIPAL,"endpoint":locust_proto::id::EndpointId([0x40;32]),"local":self.hosted_here}],"halted":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
             })).unwrap())),
+            Request::AgentRevoke { agent } => { assert_eq!(agent, PRINCIPAL); self.agent_revoked = true; Ok(Response::Done) }
+            Request::AgentReconnect { agent } => { assert_eq!(agent, PRINCIPAL); self.agent_revoked = false; Ok(Response::Done) }
             Request::BlobPut { goal, bytes } => { assert_eq!(goal, GOAL); let hash = content_hash(&bytes); self.objects.insert(hash,bytes); Ok(Response::BlobStored {hash}) }
             Request::BlobGet { hash, .. } => self.objects.get(&hash).cloned().map(|bytes| Response::Blob {bytes}).ok_or_else(|| ApiError::new(ErrorCode::Unavailable,"fixture object unavailable")),
             Request::Event { event, .. } => {
                 if Some(event)==self.epoch {
-                    return Ok(Response::Event(Box::new(EventDetail {view:EventView{position:Some(1),event,author:PRINCIPAL,kind:"workspace_epoch".into(),at_ms:1,standing:Standing::Effective,by_owner:false},anchor:None,body:Body::WorkspaceEpoch{expected_epoch:None,rules:self.epoch_rules.unwrap(),checkpoint:WorkspaceCheckpoint::Unseeded},payload:None,text:None,task:None,content:vec![]})));
+                    return Ok(Response::Event(Box::new(EventDetail {view:EventView{position:Some(1),event,author:GOVERNANCE,kind:"workspace_epoch".into(),at_ms:1,standing:Standing::Effective,by_owner:false,by_host:true},anchor:None,body:Body::WorkspaceEpoch{expected_epoch:None,rules:self.epoch_rules.unwrap(),checkpoint:WorkspaceCheckpoint::Unseeded},payload:None,text:None,task:None,content:vec![]})));
                 }
                 let binding = self.rules_bindings.get(&event).ok_or_else(|| ApiError::new(ErrorCode::NotFound,"fixture event not found"))?.clone();
-                Ok(Response::Event(Box::new(EventDetail { view:EventView { position:Some(1),event,author:PRINCIPAL,kind:"rules_bound".into(),at_ms:1,standing:Standing::Effective,by_owner:false },
+                Ok(Response::Event(Box::new(EventDetail { view:EventView { position:Some(1),event,author:GOVERNANCE,kind:"rules_bound".into(),at_ms:1,standing:Standing::Effective,by_owner:false,by_host:true },
                     anchor:None,body:Body::RulesBound {expected:None,binding},payload:None,text:None,task:None,content:vec![] })))
             }
             Request::RulesBind { expected, formation_json, roles, inputs, .. } => {
@@ -567,6 +577,78 @@ fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
         0,
     );
     assert_eq!(preview["result"]["candidate"]["captured_paths"], json!([]));
+}
+
+#[test]
+fn init_refuses_while_the_hosts_agent_is_disconnected() {
+    let fixture = Fixture::new();
+    let args = ["workspace", "init", "--goal", &GOAL.to_string(), "--empty"];
+    let mut revoke = fixture.cli_host();
+    revoke.args(["agent", "revoke", "--agent", "worker"]);
+    assert_eq!(output(revoke, 0)["result"]["connected"], false);
+    assert!(fixture.state.lock().unwrap().agent_revoked);
+    let mut plan = fixture.cli_host();
+    plan.args(args).arg("--plan");
+    let refused = output(plan, 7);
+    assert_eq!(refused["error"]["code"], "conflict");
+    assert!(refused.get("result").is_none(), "{refused}");
+    let message = refused["error"]["message"].as_str().unwrap();
+    assert_eq!(
+        message.lines().collect::<Vec<_>>(),
+        [
+            "worker is disconnected; only worker can share this goal's first files",
+            "  Connect it again: locust --owner agent reconnect --agent worker",
+        ]
+    );
+    {
+        let state = fixture.state.lock().unwrap();
+        assert!(
+            !state.requests.iter().any(|frame| matches!(
+                frame.request,
+                Request::RulesBind { .. } | Request::WorkspaceEpochSet { .. }
+            )),
+            "a refused init must leave the rules and epoch alone"
+        );
+        assert_eq!(state.rules, FIRST_RULES);
+        assert!(state.epoch.is_none());
+    }
+    let mut reconnect = fixture.cli_host();
+    reconnect.args(["agent", "reconnect", "--agent", "worker"]);
+    assert_eq!(output(reconnect, 0)["result"]["changed"], true);
+    assert!(!fixture.state.lock().unwrap().agent_revoked);
+    let mut plan = fixture.cli_host();
+    plan.args(args).arg("--plan");
+    let shown = output(plan, 0);
+    assert_eq!(shown["result"]["action"], "review_required");
+    assert_eq!(shown["result"]["plan"]["empty"], true);
+}
+
+#[test]
+fn init_refuses_before_any_plan_when_another_computer_hosts_the_goal() {
+    let fixture = Fixture::new();
+    fixture.state.lock().unwrap().hosted_here = false;
+    for flags in [&[][..], &["--plan"][..]] {
+        let mut init = fixture.cli_host();
+        init.args(["workspace", "init", "--goal", &GOAL.to_string(), "--empty"])
+            .args(flags);
+        let refused = output(init, 3);
+        assert_eq!(refused["error"]["code"], "denied");
+        assert_eq!(
+            refused["error"]["message"],
+            "this goal is hosted on another computer; its host decides"
+        );
+        assert!(refused.get("result").is_none(), "{refused}");
+    }
+    let state = fixture.state.lock().unwrap();
+    assert!(
+        state
+            .requests
+            .iter()
+            .all(|frame| matches!(frame.request, Request::Status | Request::GoalStatus { .. })),
+        "a goal hosted elsewhere is only read"
+    );
+    assert_eq!(state.rules, FIRST_RULES);
+    assert!(state.epoch.is_none());
 }
 
 #[test]

@@ -170,6 +170,57 @@ impl Validator<'_> {
             self.authority(authority, &format!("{path}/finish"));
         }
     }
+    /// A stage's task is opened by the host's computer under the goal's
+    /// signing key, which is no member, so a rule that lets only
+    /// `task_creator` act in it can be met by nobody. The `by` of an offered
+    /// start is not checked: the host's computer makes those offers itself.
+    fn stage_task_creator(&mut self, stage_name: &str, stage: &Stage, path: &str) {
+        let task_type = stage
+            .task_type
+            .as_ref()
+            .and_then(|name| self.formation.task_types.get(name).map(|t| (name, t)));
+        let (work, work_path) = match task_type {
+            Some((name, task_type)) if task_type.work.is_some() => (
+                task_type.work.as_ref().unwrap(),
+                format!("/task_types/{}/work", escape(name)),
+            ),
+            _ => (&self.formation.work, "/work".to_owned()),
+        };
+        let (decisions, decisions_path) = match task_type {
+            Some((name, task_type)) if task_type.decisions.is_some() => (
+                task_type.decisions.as_ref().unwrap(),
+                format!("/task_types/{}/decisions", escape(name)),
+            ),
+            _ => (&self.formation.decisions, "/decisions".to_owned()),
+        };
+        let mut found = Vec::new();
+        for (index, start) in work.starts.iter().enumerate() {
+            match start {
+                StartRule::Independent { by } if names_task_creator(by) => {
+                    found.push(format!("{work_path}/starts/{index}/by"));
+                }
+                StartRule::Offered { to, .. } if names_task_creator(to) => {
+                    found.push(format!("{work_path}/starts/{index}/to"));
+                }
+                _ => {}
+            }
+        }
+        completion_task_creator(
+            &decisions.completion,
+            &format!("{decisions_path}/completion"),
+            &mut found,
+        );
+        for rule in found {
+            self.error(
+                "selector_scope",
+                path,
+                format!(
+                    "Stage {stage_name:?} opens its task from the host's computer, which is no member, so task_creator at {rule} can be met by nobody"
+                ),
+                "Name members, a role or a participant in the rules this stage's task uses.",
+            );
+        }
+    }
     fn run(&mut self) {
         for name in self.formation.roles.keys() {
             self.name(name, &format!("/roles/{}", escape(name)));
@@ -213,6 +264,7 @@ impl Validator<'_> {
                     "Declare the task type or remove the reference to inherit the default rules.",
                 );
             }
+            self.stage_task_creator(name, stage, &path);
             let mut required = BTreeSet::new();
             for (index, requirement) in stage.requires.iter().enumerate() {
                 let requirement_path = format!("{path}/requires/{index}");
@@ -254,6 +306,32 @@ impl Validator<'_> {
             dependencies.retain(|name, _| !ready.contains(name));
             for requirements in dependencies.values_mut() {
                 requirements.retain(|name| !ready.contains(name));
+            }
+        }
+    }
+}
+
+fn names_task_creator(selector: &Selector) -> bool {
+    match selector {
+        Selector::TaskCreator => true,
+        Selector::Any { selectors } => selectors.iter().any(names_task_creator),
+        _ => false,
+    }
+}
+
+fn completion_task_creator(rule: &CompletionRule, path: &str, found: &mut Vec<String>) {
+    match rule {
+        CompletionRule::Contribution { by }
+        | CompletionRule::Declaration { by }
+        | CompletionRule::Check { by, .. }
+        | CompletionRule::Reviews { by, .. } => {
+            if names_task_creator(by) {
+                found.push(format!("{path}/by"));
+            }
+        }
+        CompletionRule::All { rules } | CompletionRule::Any { rules } => {
+            for (index, rule) in rules.iter().enumerate() {
+                completion_task_creator(rule, &format!("{path}/rules/{index}"), found);
             }
         }
     }

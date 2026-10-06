@@ -110,8 +110,8 @@ def main():
                                      for name in ('merak', 'codex', 'locust')}
         contract = json.loads(subprocess.check_output([args.locust, '--json', 'contract'], text=True))['result']
         report['api_version'], report['protocol_version'] = contract['api_version'], contract['protocol_version']
-        if (report['api_version'], report['protocol_version']) != (7, 6):
-            raise RuntimeError('Acceptance workflow requires API 7 / protocol 6')
+        if (report['api_version'], report['protocol_version']) != (7, 7):
+            raise RuntimeError('Acceptance workflow requires API 7 / protocol 7')
         report['model_available'] = args.model in provider_model_ids('openai', args.rpc_timeout)
         if not report['model_available']:
             raise RuntimeError('Selected model is absent from provider metadata')

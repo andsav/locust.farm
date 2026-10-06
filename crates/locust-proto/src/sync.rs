@@ -594,7 +594,7 @@ mod tests {
     fn frontiers_built_from_a_store_count_consecutive_events_per_author() {
         let mut owner = Author::new(1);
         let mut member = Author::new(2);
-        let genesis = owner.genesis();
+        let genesis = owner.genesis(testkit::keypair(9).public());
         let goal = genesis.header().goal;
         let anchor = Some(genesis.id());
         let owner_first = owner.event(goal, anchor, contribution());
@@ -669,8 +669,8 @@ mod tests {
     fn equal_length_divergent_histories_are_detected_and_reconciled() {
         let mut owner = Author::new(1);
         let mut twin = Author::new(1);
-        let root = owner.genesis();
-        assert_eq!(twin.genesis(), root);
+        let root = owner.genesis(testkit::keypair(9).public());
+        assert_eq!(twin.genesis(testkit::keypair(9).public()), root);
         let goal = root.header().goal;
         let author = root.header().author;
         let admit = |signer: &mut Author, endpoint: u8| {
@@ -720,7 +720,7 @@ mod tests {
     #[test]
     fn a_peer_that_is_simply_behind_is_recognized_by_the_prefix_digest() {
         let mut writer = Author::new(1);
-        let root = writer.genesis();
+        let root = writer.genesis(testkit::keypair(9).public());
         let goal = root.header().goal;
         let author = writer.key.public();
         let mut events = vec![root.clone()];
@@ -755,7 +755,7 @@ mod tests {
 
         // A fork below the peer's length is divergence, not a prefix.
         let mut twin = Author::new(1);
-        twin.genesis();
+        twin.genesis(testkit::keypair(9).public());
         let sibling = twin.event(
             goal,
             Some(root.id()),

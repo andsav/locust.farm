@@ -385,6 +385,8 @@ pub enum Request {
     AuthorEnroll { name: String, credential: [u8; 32] },
     #[serde(rename = "agent.revoke")]
     AgentRevoke { agent: PublicKey },
+    #[serde(rename = "agent.reconnect")]
+    AgentReconnect { agent: PublicKey },
     #[serde(rename = "session.report")]
     SessionReport { record: SessionRecord },
     #[serde(rename = "session.show")]
@@ -827,6 +829,7 @@ operations! {
     AgentEnroll { .. } => ("agent.enroll", false, false, Owner, false, "agent enroll"),
     AuthorEnroll { .. } => ("author.enroll", false, false, Owner, false, "author enroll"),
     AgentRevoke { .. } => ("agent.revoke", false, false, Owner, false, "agent revoke"),
+    AgentReconnect { .. } => ("agent.reconnect", false, false, Owner, false, "agent reconnect"),
     SessionReport { .. } => ("session.report", false, false, Agent, false, "session report"),
     Session { .. } => ("session.show", true, false, Agent, false, "session show"),
     Sessions => ("sessions", true, false, Agent, false, "sessions"),
@@ -927,6 +930,7 @@ impl Request {
             Self::AgentEnroll { .. } => None,
             Self::AuthorEnroll { .. } => None,
             Self::AgentRevoke { .. } => None,
+            Self::AgentReconnect { .. } => None,
             Self::SessionReport { .. } => None,
             Self::Session { .. } => None,
             Self::Sessions => None,
@@ -1065,6 +1069,7 @@ impl Request {
             Self::AgentEnroll { .. } => matches!(response, Response::AgentEnrolled { .. }),
             Self::AuthorEnroll { .. } => matches!(response, Response::AuthorEnrolled { .. }),
             Self::AgentRevoke { .. } => matches!(response, Response::Done),
+            Self::AgentReconnect { .. } => matches!(response, Response::Done),
             Self::SessionReport { .. } => matches!(response, Response::Done),
             Self::Session { .. } => matches!(response, Response::Session(_)),
             Self::Sessions => matches!(response, Response::Sessions(_)),
@@ -1410,7 +1415,13 @@ pub struct ScopeHalt {
 pub struct GoalStatus {
     pub goal: GoalId,
     pub title: Option<String>,
-    pub host: PublicKey,
+    /// The goal's signing key, from the first record or, before it is held,
+    /// from the ticket. It is never a member.
+    pub governance: PublicKey,
+    /// True on the computer that holds the goal's signing key.
+    pub hosted_here: bool,
+    /// The host's agent, named by the first record; absent until it is held.
+    pub host: Option<PublicKey>,
     pub governance_head: Option<EventId>,
     pub current_rules: Option<EventId>,
     pub scope_halts: Vec<ScopeHalt>,
@@ -1449,6 +1460,8 @@ pub struct TaskView {
     pub task: TaskId,
     pub context: Context,
     pub creator: PublicKey,
+    /// True when the goal's signing key opened the task: a stage's task.
+    pub by_host: bool,
     pub title: Option<String>,
     pub attempts: Vec<EventId>,
     pub contributions: Vec<EventId>,
@@ -1593,6 +1606,8 @@ pub struct EventView {
     pub standing: Standing,
     /// The participant directly asked the daemon to sign for this agent.
     pub by_owner: bool,
+    /// The goal's signing key signed it: governance or a host's step.
+    pub by_host: bool,
 }
 
 /// Whether the daemon can serve a content object of a goal.

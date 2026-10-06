@@ -1,8 +1,12 @@
 //! Review confirmation, durable inventory and invitation lifecycle boundaries.
 
+use super::authorization::{author_of, governance_key};
 use super::lifecycle::setup;
 use super::*;
+use crate::sync::Host;
 use locust_proto::api::{InvitationState, InvitationSummary, Membership};
+use locust_proto::crypto::Keypair;
+use locust_proto::engine::{PeerEngine, PeerInput};
 use locust_proto::id::{EndpointId, GoalId};
 use locust_proto::invite::{Invitation, JoinRequest, Ticket};
 use locust_proto::store::{Space, Store};
@@ -40,7 +44,8 @@ fn reviewed(ticket: Ticket, agent: PublicKey) -> Request {
 
 #[test]
 fn inspect_is_signed_capability_free_and_does_not_join_or_change_state() {
-    let (mut daemon, governance, owner, agent, goal) = setup();
+    let (mut daemon, host, owner, agent, goal) = setup();
+    let governance = governance_key(&daemon, goal).public();
     let ticket = issue(&mut daemon, agent, goal, None);
     let before = daemon.store.scan(Space::Goal, &[]).unwrap();
     let Response::InvitationInspected { preview } = daemon.ok(
@@ -54,6 +59,7 @@ fn inspect_is_signed_capability_free_and_does_not_join_or_change_state() {
     assert_eq!(preview.goal, goal);
     assert_eq!(preview.goal_title.as_deref(), Some("A test goal"));
     assert_eq!(preview.governance, governance);
+    assert_ne!(preview.governance, host);
     assert!(preview.signature_verified);
     assert_eq!(before, daemon.store.scan(Space::Goal, &[]).unwrap());
     let encoded = serde_json::to_string(&preview).unwrap();
@@ -382,18 +388,183 @@ fn expired_preview_is_readable_but_join_is_refused_without_side_effects() {
 }
 
 #[test]
-fn admission_stops_when_the_host_agent_is_revoked() {
-    let (mut daemon, governance, owner, agent, goal) = setup();
+fn admission_continues_when_the_hosts_agent_is_revoked() {
+    let (mut daemon, host, owner, agent, goal) = setup();
+    let governance = governance_key(&daemon, goal).public();
     let member = daemon.enroll("joining", 2);
     let ticket = issue(&mut daemon, agent, goal, None);
-    daemon.ok(owner, Request::AgentRevoke { agent: governance });
+    let before = daemon.store.log(&goal, 0, usize::MAX).unwrap().len();
+    daemon.ok(owner, Request::AgentRevoke { agent: host });
     assert_eq!(
-        code(daemon.call(owner, reviewed(ticket, member))),
-        ErrorCode::Denied
+        daemon.store.log(&goal, 0, usize::MAX).unwrap().len(),
+        before
     );
+    assert!(matches!(
+        daemon.ok(owner, reviewed(ticket, member)),
+        Response::Joined {
+            membership: Membership::Member,
+            ..
+        }
+    ));
+    assert!(daemon.node.goals[&goal].is_member(&member));
+    let admission = daemon.node.goals[&goal].state().members[&member].admission;
+    assert_eq!(author_of(&daemon, &admission), governance);
+    assert_eq!(
+        inventory(&mut daemon, owner, goal)[0].state,
+        InvitationState::Redeemed
+    );
+    assert!(daemon.node.goals[&goal].halted().is_none());
+    // A ticket issued while the host's agent is disconnected admits too.
+    let later = daemon.enroll("later", 3);
+    let ticket = issue(&mut daemon, agent, goal, None);
+    daemon.ok(owner, reviewed(ticket, later));
+    assert!(daemon.node.goals[&goal].is_member(&later));
+}
+
+#[test]
+fn an_admission_signed_twice_for_one_request_is_one_record() {
+    let (mut daemon, _, _, agent, goal) = setup();
+    let first = Invitation::from_ticket(issue(&mut daemon, agent, goal, None).as_str()).unwrap();
+    let second = Invitation::from_ticket(issue(&mut daemon, agent, goal, None).as_str()).unwrap();
+    let remote = EndpointId([44; 32]);
+    let joiner = Keypair::from_seed([44; 32]);
+    let request = JoinRequest::sign(goal, remote, first.secret, &joiner);
+    let before = daemon.store.log(&goal, 0, usize::MAX).unwrap();
+    let copy = snapshot(&daemon.store);
+    daemon.node.join(&remote, &request, 1_000).unwrap();
+    let admitted = daemon.node.goals[&goal].state().members[&joiner.public()].admission;
+    // The same request reaches the other copy of the store later, from a
+    // daemon with a different clock and different random draws.
+    daemon.store = copy;
+    daemon.restart();
+    assert_eq!(daemon.store.log(&goal, 0, usize::MAX).unwrap(), before);
+    daemon.node.join(&remote, &request, 987_654).unwrap();
+    assert_eq!(
+        daemon.node.goals[&goal].state().members[&joiner.public()].admission,
+        admitted
+    );
+    let other = Keypair::from_seed([45; 32]);
+    let different = JoinRequest::sign(goal, remote, second.secret, &other);
+    daemon.node.join(&remote, &different, 987_654).unwrap();
+    assert_ne!(
+        daemon.node.goals[&goal].state().members[&other.public()].admission,
+        admitted
+    );
+}
+
+/// A daemon on another computer that holds no goal yet.
+fn joining_daemon(seed: u8) -> Daemon {
+    let mut joining = Daemon::new(seed);
+    joining.node.peer(
+        PeerInput::Endpoint {
+            endpoint: EndpointId([seed; 32]),
+            hints: vec![],
+        },
+        locust_proto::engine::PeerTime {
+            unix_ms: 0,
+            elapsed_ms: 0,
+        },
+        &mut Vec::new(),
+    );
+    joining
+}
+
+#[test]
+fn a_ticket_names_the_governance_key_and_the_first_record_must_agree() {
+    let (mut daemon, host, owner, agent, goal) = setup();
+    let governance = governance_key(&daemon, goal).public();
+    let ticket = issue(&mut daemon, agent, goal, None);
+    let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+    assert_eq!(invitation.governance, governance);
+    assert_ne!(invitation.governance, host);
+    assert!(daemon.node.principals.get(&governance).is_none());
+    assert!(!daemon.node.goals[&goal].is_member(&governance));
+    let Response::Invitations { invitations } = daemon.ok(owner, Request::GoalInvitations { goal })
+    else {
+        panic!()
+    };
+    assert_eq!(invitations[0].governance, governance);
+    let genesis = daemon.store.log(&goal, 0, 1).unwrap().remove(0).1;
+    assert_eq!(genesis.header().author, governance);
+    // A ticket that names another key as the goal's, signed by that key,
+    // is redeemed in good faith elsewhere, until the first record arrives.
+    let other = Keypair::from_seed([99; 32]);
+    let mut forged = invitation.clone();
+    forged.governance = other.public();
+    forged.sign(&other).unwrap();
+    let mut joining = joining_daemon(22);
+    let joiner = joining.enroll("joining", 2);
+    let actor = joining.owner();
+    assert_eq!(
+        joining.ok(actor, reviewed(forged.to_ticket().unwrap(), joiner)),
+        Response::Joined {
+            goal,
+            governance: other.public(),
+            membership: Membership::Joining,
+            level: locust_proto::api::Level::Auto,
+        }
+    );
+    assert_eq!(
+        Host::replica(&mut joining.node, &goal)
+            .unwrap()
+            .receive(vec![genesis.to_wire()]),
+        Err(Refusal::InvitationRefused)
+    );
+    assert_eq!(joining.node.goals[&goal].state().governance, None);
+    let mut honest = joining_daemon(23);
+    let joiner = honest.enroll("joining", 2);
+    let actor = honest.owner();
+    honest.ok(actor, reviewed(ticket, joiner));
+    assert_eq!(
+        Host::replica(&mut honest.node, &goal)
+            .unwrap()
+            .receive(vec![genesis.to_wire()]),
+        Ok(1)
+    );
+    assert_eq!(
+        honest.node.goals[&goal].state().governance,
+        Some(governance)
+    );
+    assert_eq!(honest.node.goals[&goal].state().host, Some(host));
+}
+
+#[test]
+fn a_tickets_endpoint_is_checked_against_the_hosts_agents_admission() {
+    let (mut daemon, host, owner, agent, goal) = setup();
+    let governance = governance_key(&daemon, goal);
+    let ticket = issue(&mut daemon, agent, goal, None);
+    let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+    let admitted_at = daemon.node.goals[&goal].state().members[&host].endpoint;
+    assert_eq!(invitation.endpoint, admitted_at);
+    assert_eq!(admitted_at, EndpointId([21; 32]));
+    let member = daemon.enroll("recipient", 2);
+    let mut elsewhere = invitation.clone();
+    elsewhere.endpoint = EndpointId([88; 32]);
+    // The host's agent's key does not issue tickets: it is not the key a
+    // ticket names, so it cannot sign one.
+    assert_eq!(
+        elsewhere.sign(daemon.node.signer(&host).unwrap()),
+        Err(locust_proto::invite::InviteError::InvalidSignature)
+    );
+    elsewhere.sign(&governance).unwrap();
+    let error = daemon
+        .call(owner, reviewed(elsewhere.to_ticket().unwrap(), member))
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert!(error.message.contains("endpoint"), "{}", error.message);
     assert!(!daemon.node.goals[&goal].is_member(&member));
+    assert!(daemon.node.goals[&goal].local.joins.is_empty());
     assert_eq!(
         inventory(&mut daemon, owner, goal)[0].state,
         InvitationState::Pending
     );
+    let admission = daemon.node.goals[&goal].state().members[&host].admission;
+    assert_eq!(author_of(&daemon, &admission), governance.public());
+    assert!(matches!(
+        daemon.ok(owner, reviewed(ticket, member)),
+        Response::Joined {
+            membership: Membership::Member,
+            ..
+        }
+    ));
 }

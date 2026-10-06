@@ -1,10 +1,44 @@
 //! Principal isolation and invitation/lifecycle regressions through the API.
-use super::lifecycle::{event, setup};
+use super::lifecycle::{event, finding, setup};
 use super::*;
-use locust_proto::api::{BlobState, Membership};
-use locust_proto::id::GoalId;
+use locust_proto::api::{BlobState, EventView, Membership};
+use locust_proto::crypto::Keypair;
+use locust_proto::event::Body;
+use locust_proto::id::{EventId, GoalId};
 use locust_proto::invite::{Invitation, InviteSecret};
 use locust_proto::store::Store;
+
+/// A copy of the governance key the daemon holds for `goal`.
+pub(super) fn governance_key(daemon: &Daemon, goal: GoalId) -> Keypair {
+    Keypair::from_seed(
+        daemon.node.goals[&goal]
+            .local
+            .governance
+            .as_ref()
+            .expect("this daemon hosts the goal")
+            .seed(),
+    )
+}
+
+/// The signer of a stored record.
+pub(super) fn author_of(daemon: &Daemon, id: &EventId) -> PublicKey {
+    daemon.store.event(id).unwrap().unwrap().header().author
+}
+
+/// Every record of the goal as the owner lists it.
+fn events(daemon: &mut Daemon, owner: ConnId, goal: GoalId) -> Vec<EventView> {
+    let Response::Events(events) = daemon.ok(
+        owner,
+        Request::Events {
+            goal,
+            after: None,
+            limit: 1_000,
+        },
+    ) else {
+        panic!()
+    };
+    events
+}
 
 fn invite(daemon: &mut Daemon, _agent: ConnId, goal: GoalId) -> locust_proto::invite::Ticket {
     let owner = daemon.owner();
@@ -60,13 +94,47 @@ fn goal_create_is_the_owners_act_and_names_the_host_agent() {
     let Response::GoalCreated { goal } = d.ok(owner, creation(host)) else {
         panic!()
     };
-    assert_eq!(d.node.goals[&goal].state().governance, Some(host));
-    assert_eq!(
-        d.node.goals[&goal].local.level(&host),
-        locust_proto::api::Level::Auto
-    );
-    let first = d.store.log(&goal, 0, 1).unwrap().remove(0).1;
-    assert_eq!(first.header().author, host);
+    let entry = &d.node.goals[&goal];
+    let governance = entry.state().governance.unwrap();
+    assert_eq!(entry.state().host, Some(host));
+    assert_eq!(entry.local.level(&host), locust_proto::api::Level::Auto);
+    assert!(entry.is_member(&host));
+    // The goal's key is stored with the goal and is no agent and no member.
+    assert_ne!(governance, host);
+    assert_eq!(governance_key(&d, goal).public(), governance);
+    assert!(d.node.principals.get(&governance).is_none());
+    assert_eq!(code(d.node.signer(&governance)), ErrorCode::NotFound);
+    assert!(entry.membership(&governance).is_none());
+    let records = d.store.log(&goal, 0, 4).unwrap();
+    assert_eq!(records.len(), 3);
+    let kinds: Vec<_> = records
+        .iter()
+        .map(|(_, record)| record.header().body.kind())
+        .collect();
+    assert_eq!(kinds, ["genesis", "member_admitted", "rules_bound"]);
+    for (_, record) in &records {
+        assert_eq!(record.header().author, governance);
+    }
+    let Body::Genesis(genesis) = &records[0].1.header().body else {
+        panic!()
+    };
+    assert_eq!((genesis.governance, genesis.host), (governance, host));
+    assert!(matches!(
+        records[1].1.header().body,
+        Body::MemberAdmitted { member, .. } if member == host
+    ));
+    let Response::GoalStatus(status) = d.ok(owner, Request::GoalStatus { goal }) else {
+        panic!()
+    };
+    assert_eq!(status.governance, governance);
+    assert!(status.hosted_here);
+    assert_eq!(status.host, Some(host));
+    assert_eq!(status.members.len(), 1);
+    assert_eq!(status.members[0].member, host);
+    let Response::Status(daemon) = d.ok(owner, Request::Status) else {
+        panic!()
+    };
+    assert!(daemon.agents.iter().all(|view| view.agent != governance));
 }
 
 #[test]
@@ -124,9 +192,10 @@ fn join_and_leave_are_the_owners_acts_for_a_named_agent() {
 }
 
 #[test]
-fn host_operations_work_at_read_and_sign_as_the_host_agent() {
+fn host_operations_need_no_grant_and_sign_with_the_governance_key() {
     use locust_proto::event::{TaskId, WorkspaceCheckpoint};
     let (mut d, host, owner, agent, goal) = setup();
+    let governance = governance_key(&d, goal).public();
     let (member, _) = join_local(&mut d, agent, goal, 12);
     let task = TaskId::Authored(event(
         d.on_behalf(
@@ -203,11 +272,32 @@ fn host_operations_work_at_read_and_sign_as_the_host_agent() {
     };
     assert_eq!(
         Invitation::from_ticket(ticket.as_str()).unwrap().governance,
-        host
+        governance
     );
-    for id in [rules, revised, removed, epoch] {
-        assert_eq!(d.store.event(&id).unwrap().unwrap().header().author, host);
-    }
+    // The host's agent kept its read level: no grant was needed, because
+    // none of these records is the agent's.
+    assert_eq!(
+        d.node.goals[&goal].local.level(&host),
+        locust_proto::api::Level::Read
+    );
+    let signed: Vec<_> = [rules, revised, removed, epoch]
+        .into_iter()
+        .map(|id| author_of(&d, &id))
+        .collect();
+    assert_eq!(signed, vec![governance; 4]);
+    let TaskId::Authored(opened) = task else {
+        panic!()
+    };
+    assert_eq!(author_of(&d, &opened), host);
+    let views = events(&mut d, owner, goal);
+    let by_host = |id: EventId| views.iter().find(|view| view.event == id).unwrap().by_host;
+    assert!([rules, revised, removed, epoch].into_iter().all(by_host));
+    assert!(!by_host(opened));
+    let Response::Task(detail) = d.ok(owner, Request::Task { goal, task }) else {
+        panic!()
+    };
+    assert!(!detail.view.by_host);
+    assert_eq!(detail.view.creator, host);
 }
 
 pub(super) fn join_local(
@@ -434,23 +524,250 @@ fn removed_principal_cannot_read_new_epoch_but_readmission_restores_history() {
 }
 
 #[test]
-fn admission_stops_when_the_host_agent_is_revoked() {
-    let (mut daemon, principal, owner, agent, goal) = setup();
-    let ticket = invite(&mut daemon, agent, goal);
-    let joiner = daemon.enroll("joining", 2);
-    daemon.ok(owner, Request::AgentRevoke { agent: principal });
+fn no_credential_and_no_on_behalf_reaches_the_governance_key() {
+    use locust_proto::api::{Audience, OPERATIONS};
+    use locust_proto::event::{TaskId, WorkspaceCheckpoint};
+    use std::collections::BTreeSet;
+    let (mut d, host, owner, agent, goal) = setup();
+    let governance = governance_key(&d, goal).public();
+    let rules = d.node.goals[&goal].state().current_rules.unwrap();
+    let host_requests = vec![
+        Request::FarmOn {
+            goal,
+            base_url: "http://127.0.0.1:3001".into(),
+            listed: true,
+            title: None,
+            formation: "Collaborative build".into(),
+            stage_labels: Default::default(),
+            role_labels: Default::default(),
+            recent_changes: 50,
+        },
+        Request::FarmOff { goal },
+        Request::GoalInvite {
+            goal,
+            expires_ms: 2_000,
+        },
+        Request::MemberRemove { goal, member: host },
+        Request::RulesBind {
+            goal,
+            expected: rules,
+            formation_json: "{\"schema_version\":2}".into(),
+            roles: Default::default(),
+            inputs: Default::default(),
+        },
+        Request::WorkspaceEpochSet {
+            goal,
+            expected_epoch: None,
+            rules,
+            checkpoint: WorkspaceCheckpoint::Unseeded,
+        },
+        Request::TaskRevise {
+            goal,
+            task: TaskId::Authored(rules),
+            expected_round: rules,
+            task_type: None,
+        },
+        Request::GoalInvitations { goal },
+        Request::InvitationRevoke {
+            goal,
+            invitation: None,
+        },
+    ];
+    // Every host operation is covered, so a new one fails here until it is.
+    let covered: BTreeSet<_> = host_requests.iter().map(|request| request.name()).collect();
+    let host_only: BTreeSet<_> = OPERATIONS
+        .iter()
+        .filter(|operation| operation.audience == Audience::Host)
+        .map(|operation| operation.name)
+        .collect();
+    assert_eq!(covered, host_only);
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    for request in host_requests {
+        let name = request.name();
+        assert_eq!(
+            code(d.call(agent, request.clone())),
+            ErrorCode::Denied,
+            "{name}"
+        );
+        let mut frame = d.frame(request.clone());
+        frame.on_behalf = Some(governance);
+        assert_eq!(code(d.send(agent, frame)), ErrorCode::Denied, "{name}");
+        assert_eq!(
+            code(d.on_behalf(owner, governance, request)),
+            ErrorCode::Invalid,
+            "{name}"
+        );
+    }
+    // The governance key is no principal: nothing acts on its behalf.
+    for request in [
+        Request::GoalStatus { goal },
+        Request::Board { goal },
+        finding(goal, "not the key's work"),
+        Request::TaskOpen {
+            goal,
+            text: "not the key's task".into(),
+            task_type: None,
+            inputs: Default::default(),
+            parent: None,
+        },
+    ] {
+        let name = request.name();
+        assert_eq!(
+            code(d.on_behalf(owner, governance, request)),
+            ErrorCode::NotFound,
+            "{name}"
+        );
+    }
+    // The owner's commands that name an agent find none under that key.
+    for request in [
+        Request::GoalLeave {
+            goal,
+            agent: governance,
+        },
+        Request::LevelSet {
+            goal,
+            agent: governance,
+            level: locust_proto::api::Level::Auto,
+        },
+        Request::AgentRevoke { agent: governance },
+        Request::AgentReconnect { agent: governance },
+    ] {
+        let name = request.name();
+        assert_eq!(code(d.call(owner, request)), ErrorCode::NotFound, "{name}");
+    }
+    assert_eq!(code(d.node.signer(&governance)), ErrorCode::NotFound);
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
+}
+
+#[test]
+fn the_hosts_agent_cannot_leave_or_be_removed_and_can_be_disconnected() {
+    let (mut d, host, owner, agent, goal) = setup();
+    let (member, _) = join_local(&mut d, agent, goal, 2);
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
     assert_eq!(
-        code(daemon.call(
-            owner,
-            Request::GoalJoin {
-                agent: joiner,
-                ticket,
-                level: locust_proto::api::Level::Auto,
-            }
-        )),
+        code(d.call(owner, Request::GoalLeave { goal, agent: host })),
+        ErrorCode::Conflict
+    );
+    assert_eq!(
+        code(d.call(owner, Request::MemberRemove { goal, member: host })),
+        ErrorCode::Conflict
+    );
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
+    assert_eq!(
+        d.node.goals[&goal].membership(&host),
+        Some(Membership::Member)
+    );
+    assert_eq!(
+        d.ok(owner, Request::AgentRevoke { agent: host }),
+        Response::Done
+    );
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
+    assert!(d.node.goals[&goal].halted().is_none());
+    assert_eq!(
+        d.node.goals[&goal].membership(&host),
+        Some(Membership::Member)
+    );
+    assert_eq!(
+        code(d.call(agent, finding(goal, "after"))),
         ErrorCode::Denied
     );
-    assert_eq!(daemon.node.goals[&goal].state().members.len(), 1);
+    assert_eq!(
+        code(d.on_behalf(owner, host, finding(goal, "after"))),
+        ErrorCode::NotFound
+    );
+    let Response::Status(status) = d.ok(owner, Request::Status) else {
+        panic!()
+    };
+    let view = status
+        .agents
+        .iter()
+        .find(|view| view.agent == host)
+        .unwrap();
+    assert!(view.revoked);
+    // Membership and the goal's records are untouched; the other member
+    // still works and its removal is still the host's to decide.
+    let removed = event(d.ok(owner, Request::MemberRemove { goal, member }));
+    assert_eq!(author_of(&d, &removed), governance_key(&d, goal).public());
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before + 1);
+}
+
+#[test]
+fn a_disconnected_agent_is_connected_again_with_its_name_and_key() {
+    use locust_proto::store::Space;
+    let (mut d, host, owner, agent, goal) = setup();
+    let (member, member_conn) = join_local(&mut d, agent, goal, 2);
+    let unknown = PublicKey([77; 32]);
+    assert_eq!(
+        code(d.call(agent, Request::AgentReconnect { agent: member })),
+        ErrorCode::Denied
+    );
+    assert_eq!(
+        code(d.call(owner, Request::AgentReconnect { agent: unknown })),
+        ErrorCode::NotFound
+    );
+    // Reconnecting a connected agent writes nothing.
+    let agents = d.store.scan(Space::Agent, &[]).unwrap();
+    let revision = d.node.goals[&goal].revision();
+    assert_eq!(
+        d.ok(owner, Request::AgentReconnect { agent: member }),
+        Response::Done
+    );
+    assert_eq!(d.store.scan(Space::Agent, &[]).unwrap(), agents);
+    assert_eq!(d.node.goals[&goal].revision(), revision);
+    let records = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    d.ok(owner, Request::AgentRevoke { agent: member });
+    assert_eq!(
+        code(d.call(member_conn, finding(goal, "while disconnected"))),
+        ErrorCode::Denied
+    );
+    d.restart();
+    let (_, refused) = d.hello(credential(2), None);
+    assert!(matches!(refused, ServerHello::Refused { .. }));
+    let owner = d.owner();
+    assert_eq!(
+        code(d.on_behalf(owner, member, finding(goal, "while disconnected"))),
+        ErrorCode::NotFound
+    );
+    assert_eq!(
+        d.ok(owner, Request::AgentReconnect { agent: member }),
+        Response::Done
+    );
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), records);
+    let Response::Status(status) = d.ok(owner, Request::Status) else {
+        panic!()
+    };
+    let view = status
+        .agents
+        .iter()
+        .find(|view| view.agent == member)
+        .unwrap();
+    assert_eq!(view.name, "member-2");
+    assert!(!view.revoked);
+    let member_conn = d.connect(credential(2), None);
+    let posted = event(d.ok(member_conn, finding(goal, "connected again")));
+    assert_eq!(author_of(&d, &posted), member);
+    // The host's agent is disconnected and connected again the same way;
+    // in between the host's commands work and the goal's records are
+    // untouched.
+    let agent = d.connect(credential(1), Some(session(1)));
+    let records = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    d.ok(owner, Request::AgentRevoke { agent: host });
+    assert_eq!(
+        code(d.call(agent, finding(goal, "host"))),
+        ErrorCode::Denied
+    );
+    let ticket = invite(&mut d, agent, goal);
+    assert_eq!(
+        Invitation::from_ticket(ticket.as_str()).unwrap().governance,
+        governance_key(&d, goal).public()
+    );
+    assert_eq!(
+        d.ok(owner, Request::AgentReconnect { agent: host }),
+        Response::Done
+    );
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), records);
+    let posted = event(d.ok(agent, finding(goal, "host connected again")));
+    assert_eq!(author_of(&d, &posted), host);
 }
 
 #[test]
@@ -484,11 +801,11 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
     use locust_proto::id::EndpointId;
     let (mut daemon, _, owner, agent, goal) = setup();
     let ticket = invite(&mut daemon, agent, goal);
+    let governance = governance_key(&daemon, goal);
     let mut invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+    assert_eq!(invitation.governance, governance.public());
     invitation.endpoint = EndpointId([88; 32]);
-    invitation
-        .sign(daemon.node.signer(&invitation.governance).unwrap())
-        .unwrap();
+    invitation.sign(&governance).unwrap();
     let principal = daemon.enroll("joiner", 4);
     assert_eq!(
         code(daemon.call(
@@ -502,9 +819,7 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
         ErrorCode::Conflict
     );
     invitation.goal = GoalId([77; 32]);
-    invitation
-        .sign(daemon.node.signer(&invitation.governance).unwrap())
-        .unwrap();
+    invitation.sign(&governance).unwrap();
     daemon.ok(
         owner,
         Request::GoalJoin {
@@ -567,11 +882,10 @@ fn leaving_member_cannot_clear_local_departure_with_a_spare_ticket() {
 #[test]
 fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
     use crate::sync::Host;
-    use locust_proto::crypto::Keypair;
     use locust_proto::event::Event;
     use locust_proto::id::EndpointId;
     use locust_proto::invite::JoinRequest;
-    let (mut daemon, governance, _, agent, goal) = setup();
+    let (mut daemon, host, _, agent, goal) = setup();
     let ticket = invite(&mut daemon, agent, goal);
     let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     let remote = EndpointId([44; 32]);
@@ -580,9 +894,19 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
     daemon.node.join(&remote, &request, 1000).unwrap();
     let events = daemon.store.log(&goal, 0, 20).unwrap();
     let own = &events[1].1;
+    assert!(matches!(
+        own.header().body,
+        Body::MemberAdmitted { member, .. } if member == host
+    ));
     let mut header = own.header().clone();
     header.at_ms += 44;
-    let fork = Event::sign(header, daemon.node.signer(&governance).unwrap()).unwrap();
+    // Only the governance key can fork its own log; the host's agent's key
+    // signs nothing the governance key signed.
+    assert_eq!(
+        Event::sign(header.clone(), daemon.node.signer(&host).unwrap()).unwrap_err(),
+        locust_proto::event::EventError::AuthorMismatch
+    );
+    let fork = Event::sign(header, &governance_key(&daemon, goal)).unwrap();
     let proof = [own.to_wire(), fork.to_wire()];
     assert!(
         daemon

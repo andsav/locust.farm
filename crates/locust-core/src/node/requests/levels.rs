@@ -91,7 +91,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             name,
             membership,
             level,
-            host: entry.state().governance,
+            host: entry.state().host,
             hosted_here: self.hosts(entry),
             roles,
             rules,
@@ -101,25 +101,38 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
     }
 
+    /// Desired steps this daemon should sign and cannot. The governance key
+    /// is no agent and no member: its one stall here is a halt.
     pub(in crate::node) fn stalled(&self, entry: &Entry) -> Vec<Stalled> {
+        let governance = entry.state().governance;
         entry
             .goal
             .evaluation()
             .desired_effects
             .values()
             .filter_map(|desired| {
-                if entry.state().effects.contains_key(&desired.id)
-                    || !self.principals.holds(&desired.runner)
-                {
+                if entry.state().effects.contains_key(&desired.id) {
                     return None;
                 }
-                let reason = if self.principals.active(&desired.runner).is_none() {
+                let runner = &desired.runner;
+                let reason = if governance.as_ref() == Some(runner) {
+                    if !self.hosts(entry) {
+                        return None;
+                    }
+                    if entry.goal.next(runner).is_none() {
+                        Stall::Halted
+                    } else {
+                        return None;
+                    }
+                } else if !self.principals.holds(runner) {
+                    return None;
+                } else if self.principals.active(runner).is_none() {
                     Stall::RunnerRevoked
-                } else if entry.local.part.get(&desired.runner) == Some(&true) {
+                } else if entry.local.part.get(runner) == Some(&true) {
                     Stall::RunnerLeft
-                } else if !entry.is_member(&desired.runner) {
+                } else if !entry.is_member(runner) {
                     Stall::RunnerNotMember
-                } else if entry.goal.next(&desired.runner).is_none() {
+                } else if entry.goal.next(runner).is_none() {
                     Stall::Halted
                 } else {
                     return None;

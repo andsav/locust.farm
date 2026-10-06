@@ -9,7 +9,7 @@ use locust_proto::invite::JoinRequest;
 use locust_proto::limits::MAX_EVENTS_PER_BATCH;
 use locust_proto::sync::{Frontier, Refusal, SyncMessage};
 
-use super::outbox::Outbox;
+use super::outbox::{Outbox, governance_first};
 use super::{Ended, Replica, Staged};
 
 /// Runs one exchange this daemon opened about one goal: `Hello` (and `Join`
@@ -365,7 +365,7 @@ impl Initiator {
         if !self.outbound_authorized {
             return;
         }
-        for mine in replica.frontier().authors {
+        for mine in governance_first(replica, &replica.frontier()) {
             if self.inventoried.contains(&mine.author) {
                 continue;
             }

@@ -335,24 +335,22 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 Err(refused)
             };
         }
-        if self.principals.active(&invite.governance).is_none()
-            || entry.local.part.get(&invite.governance) == Some(&true)
+        if !self.hosts(entry)
             || invite.expires_ms.is_some_and(|expires| now_ms >= expires)
             || entry.state().governance != Some(invite.governance)
+            || request.member == invite.governance
             || entry.is_member(&request.member)
         {
             return Err(refused);
         }
         let mut tx = Tx::none();
-        self.author(
+        self.author_alone(
             entry,
             &invite.governance,
             Body::MemberAdmitted {
                 member: request.member,
                 endpoint: *remote,
             },
-            None,
-            now_ms,
             &mut tx,
         )
         .map_err(|_| refused)?;

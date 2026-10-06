@@ -26,6 +26,8 @@ pub struct TestReplica {
     pub revision: u64,
     /// Events received from peers that were new.
     pub received: usize,
+    /// The author whose events are sent before every other author's.
+    pub first_author: Option<PublicKey>,
 }
 
 impl TestReplica {
@@ -41,6 +43,7 @@ impl TestReplica {
             corrupt: HashSet::new(),
             revision: 0,
             received: 0,
+            first_author: None,
         };
         let held: Vec<Event> = replica
             .store
@@ -134,6 +137,10 @@ impl Replica for TestReplica {
                 .map(|(author, points)| AuthorFrontier::from_points(*author, points))
                 .collect(),
         }
+    }
+
+    fn first_author(&self) -> Option<PublicKey> {
+        self.first_author
     }
 
     fn extends(&self, theirs: &AuthorFrontier) -> bool {

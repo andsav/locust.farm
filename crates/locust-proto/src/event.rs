@@ -1,6 +1,7 @@
 //! Current signed organization protocol. Exact canonical header bytes are hashed
-//! and signed; replay never reinterprets an earlier protocol. Governance has one
-//! governance chain; work and scope-specific decisions are separate facts.
+//! and signed; replay never reinterprets an earlier protocol. Governance is one
+//! chain signed by the goal's governance key, which is never a member; work and
+//! scope-specific decisions are separate facts signed by members.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -69,7 +70,12 @@ pub struct AuthorPoint {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Genesis {
+    /// The goal's signing key. It signs this record and every governance
+    /// record after it, and is never a member.
     pub governance: PublicKey,
+    /// The host's agent: the member whose owner hosts the goal. Never equal to
+    /// `governance`.
+    pub host: PublicKey,
     pub definition: DefinitionHash,
     pub salt: [u8; 16],
 }
@@ -78,6 +84,7 @@ impl Genesis {
     pub fn goal_id(&self) -> GoalId {
         let mut hasher = crypto::domain_hasher(domain::GOAL_ID);
         hasher.update(&self.governance.0);
+        hasher.update(&self.host.0);
         hasher.update(&self.definition.0);
         hasher.update(&self.salt);
         GoalId(*hasher.finalize().as_bytes())
@@ -512,6 +519,12 @@ impl Body {
         )
     }
 
+    /// The one list of kinds the goal's governance key signs: governance and
+    /// the host's steps. Anything else it signs is excluded as a non-member's.
+    pub fn host_may_sign(&self) -> bool {
+        self.is_governance() || matches!(self, Self::EffectMaterialized { .. })
+    }
+
     pub fn kind(&self) -> &'static str {
         match self {
             Self::PublicationSet(_) => "publication_set",
@@ -775,6 +788,7 @@ impl Header {
                     || self.anchor.is_some()
                     || !self.parents.is_empty()
                     || self.author != genesis.governance
+                    || genesis.host == genesis.governance
                     || self.goal != genesis.goal_id()
                 {
                     return Err(EventError::BadAnchor);
@@ -966,5 +980,74 @@ fn check_size_and_version(bytes: &[u8]) -> Result<(), EventError> {
         Some(&PROTOCOL_VERSION) => Ok(()),
         Some(&version) => Err(EventError::UnsupportedVersion(version)),
         None => Err(EventError::Malformed),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::organization::Formation;
+    use crate::testkit;
+
+    fn genesis(governance: PublicKey, host: PublicKey) -> Genesis {
+        Genesis {
+            governance,
+            host,
+            definition: testkit::definition_hash(&Formation::default()),
+            salt: [7; 16],
+        }
+    }
+
+    fn first_record(signer: &Keypair, genesis: Genesis) -> Result<Event, EventError> {
+        Event::sign(
+            Header {
+                version: PROTOCOL_VERSION,
+                goal: genesis.goal_id(),
+                author: signer.public(),
+                seq: 0,
+                prev: None,
+                anchor: None,
+                parents: Vec::new(),
+                at_ms: 1,
+                payload: None,
+                body: Body::Genesis(genesis),
+            },
+            signer,
+        )
+    }
+
+    #[test]
+    fn a_first_record_is_signed_by_the_governance_key_and_names_another_key_as_the_hosts_agent() {
+        let governance = testkit::keypair(1);
+        let agent = testkit::keypair(2);
+        let founded = first_record(&governance, genesis(governance.public(), agent.public()))
+            .expect("the governance key founds a goal that names the host's agent");
+        assert_eq!(founded.header().author, governance.public());
+        // The host's agent cannot sign the first record of a goal whose
+        // signing key is another.
+        assert_eq!(
+            first_record(&agent, genesis(governance.public(), agent.public())),
+            Err(EventError::BadAnchor)
+        );
+        // Nor can any key found a goal whose host's agent is the key itself.
+        assert_eq!(
+            first_record(
+                &governance,
+                genesis(governance.public(), governance.public())
+            ),
+            Err(EventError::BadAnchor)
+        );
+    }
+
+    #[test]
+    fn the_goal_identifier_commits_to_both_keys() {
+        let governance = testkit::keypair(1).public();
+        let agent = testkit::keypair(2).public();
+        let other = testkit::keypair(3).public();
+        let id = genesis(governance, agent).goal_id();
+        assert_ne!(id, genesis(other, agent).goal_id());
+        assert_ne!(id, genesis(governance, other).goal_id());
+        assert_ne!(id, genesis(agent, governance).goal_id());
+        assert_eq!(id, genesis(governance, agent).goal_id());
     }
 }

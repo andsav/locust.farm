@@ -146,8 +146,8 @@ pub fn ids(events: &[Event]) -> BTreeSet<EventId> {
 fn equal_length_divergent_histories_converge_with_both_events_on_both_sides() {
     let mut owner = Author::new(1);
     let mut twin = Author::new(1);
-    let genesis = owner.genesis();
-    assert_eq!(twin.genesis(), genesis);
+    let genesis = owner.genesis(testkit::keypair(9).public());
+    assert_eq!(twin.genesis(testkit::keypair(9).public()), genesis);
     let goal = genesis.header().goal;
     let admit = |signer: &mut Author, endpoint: u8| {
         signer.event(

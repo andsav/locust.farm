@@ -172,7 +172,7 @@ pub(super) fn run(
         on_behalf,
     };
     if operation == "workspace.init" {
-        api.on_behalf = Some(api.status()?.host);
+        api.on_behalf = Some(hosts_agent(&mut api)?);
     }
     let caller_key = matches
         .get_one::<String>("idempotency-key")
@@ -279,6 +279,37 @@ pub(super) fn run(
         }
         _ => unreachable!("workspace dispatch"),
     }
+}
+
+/// The agent the first files are captured for: the goal's host's agent. Only
+/// the computer that hosts the goal can start an epoch, and there the agent
+/// must be connected, because only its change counts as the first files and
+/// nothing acts for a disconnected agent.
+fn hosts_agent(api: &mut Objects<'_>) -> Result<PublicKey, Failure> {
+    let status = api.status()?;
+    let host = match status.host {
+        Some(host) if status.hosted_here => host,
+        _ => {
+            return Err(Failure::new(
+                ErrorCode::Denied,
+                "this goal is hosted on another computer; its host decides",
+            ));
+        }
+    };
+    let known = super::status(api.client, api.socket, None)?;
+    let agent = known.agents.iter().find(|agent| agent.agent == host);
+    if agent.is_none_or(|agent| agent.revoked) {
+        let name = agent
+            .map(|agent| super::presentation::safe(&agent.name))
+            .unwrap_or_else(|| host.to_string());
+        return Err(Failure::new(
+            ErrorCode::Conflict,
+            format!(
+                "{name} is disconnected; only {name} can share this goal's first files\n  Connect it again: locust --owner agent reconnect --agent {name}"
+            ),
+        ));
+    }
+    Ok(host)
 }
 
 fn init_plan(
@@ -516,11 +547,15 @@ fn initial_epoch(api: &mut Objects<'_>, args: &ArgMatches) -> Result<EventId, Fa
     let explicit = args.get_one::<String>("integrator").is_some()
         || args.get_one::<String>("completion").is_some();
     let rules = if formation.workspace.is_none() || explicit {
-        let integrator = args
-            .get_one::<String>("integrator")
-            .map(|name| super::selectors::resolve_member(api.client, api.socket, api.goal, name))
-            .transpose()?
-            .unwrap_or(status.host);
+        let integrator = match args.get_one::<String>("integrator") {
+            Some(name) => super::selectors::resolve_member(api.client, api.socket, api.goal, name)?,
+            None => status.host.ok_or_else(|| {
+                Failure::new(
+                    ErrorCode::Denied,
+                    "this goal is hosted on another computer; its host decides",
+                )
+            })?,
+        };
         let completion = args
             .get_one::<String>("completion")
             .map(|source| {

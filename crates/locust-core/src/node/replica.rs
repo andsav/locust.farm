@@ -170,6 +170,9 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
     fn frontier(&self) -> Frontier {
         self.goals[&self.replica_id()].goal.frontier()
     }
+    fn first_author(&self) -> Option<PublicKey> {
+        self.goals[&self.replica_id()].state().governance
+    }
     fn extends(&self, theirs: &AuthorFrontier) -> bool {
         self.goals[&self.replica_id()].goal.extends(theirs)
     }

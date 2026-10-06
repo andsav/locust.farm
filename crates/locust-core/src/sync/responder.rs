@@ -5,7 +5,7 @@ use locust_proto::id::{BlobHash, EndpointId, GoalId};
 use locust_proto::invite::JoinRequest;
 use locust_proto::sync::{Refusal, SyncMessage};
 
-use super::outbox::{Outbox, Work};
+use super::outbox::{Outbox, Work, governance_first};
 use super::{Ended, Host, Replica};
 
 /// Serves one accepted exchange. Fed each received frame in order, it
@@ -197,11 +197,15 @@ impl Responder {
                     received,
                 });
             }
-            SyncMessage::Frontier(theirs) => self.outbox.task(Work::Frontier {
-                theirs,
-                mine: replica.frontier(),
-                next: 0,
-            }),
+            SyncMessage::Frontier(theirs) => {
+                let mine = replica.frontier();
+                let queue = governance_first(replica, &mine);
+                self.outbox.task(Work::Frontier {
+                    theirs,
+                    mine,
+                    queue,
+                });
+            }
             SyncMessage::Events(events) => {
                 self.received |= replica.receive(events)? > 0;
             }

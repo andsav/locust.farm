@@ -57,6 +57,7 @@ impl Entry {
             kind: header.body.kind().into(),
             at_ms: header.at_ms,
             by_owner: self.local.by_owner.contains(&id),
+            by_host: self.state().governance == Some(header.author),
             standing: match self.goal.standing(&id) {
                 Some(Standing::Effective) => api::Standing::Effective,
                 Some(Standing::Excluded(_)) => api::Standing::Excluded,
@@ -147,6 +148,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             task: task.id,
             context: round.context,
             creator: task.creator,
+            by_host: entry.state().governance == Some(task.creator),
             title,
             attempts: round.attempts.iter().copied().collect(),
             contributions: round.contributions.iter().copied().collect(),

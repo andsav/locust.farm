@@ -2,7 +2,7 @@
 
 use locust_proto::PROTOCOL_VERSION;
 use locust_proto::codec;
-use locust_proto::event::WireEvent;
+use locust_proto::event::{Event, WireEvent};
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey, Signature};
 use locust_proto::limits::{
     BLOB_CHUNK_BYTES, MAX_EVENTS_PER_BATCH, MAX_HEADER_BYTES, MAX_PEER_FRAME_BYTES,
@@ -211,6 +211,52 @@ fn a_frontier_is_answered_with_full_batches_in_ascending_order_then_the_frontier
         })
         .collect();
     assert_eq!(sent, held);
+}
+
+/// A receiver without the governance log screens every other author's
+/// events out, so a peer that holds nothing is given that log first,
+/// whatever the keys' order; the other authors follow ascending.
+#[test]
+fn a_frontier_answer_starts_with_the_governance_keys_log() {
+    let founded = Founded::new();
+    let governance = founded.owner.key.public();
+    let mut lower = (2..=40)
+        .map(Author::new)
+        .find(|author| author.key.public() < governance)
+        .expect("some key sorts below the governance key");
+    let mut higher = (2..=40)
+        .map(Author::new)
+        .find(|author| author.key.public() > governance)
+        .expect("some key sorts above the governance key");
+    let mut notes = founded.notes(&mut lower, 3);
+    notes.extend(founded.notes(&mut higher, 2));
+    let mut replica = founded.replica(&notes);
+    replica.first_author = Some(governance);
+    let mut host = host(1, replica, &[1, 2]);
+    let (_, out) = respond(
+        &mut host,
+        2,
+        vec![
+            hello(founded.goal),
+            SyncMessage::Frontier(Frontier::default()),
+        ],
+    );
+    let authors: Vec<PublicKey> = out
+        .iter()
+        .filter_map(|frame| match frame {
+            SyncMessage::Events(events) => {
+                Some(Event::from_wire(&events[0]).unwrap().header().author)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        authors,
+        [governance, lower.key.public(), higher.key.public()]
+    );
+    let frontier = host.replica_mut(&founded.goal).frontier();
+    assert!(frontier.authors.is_sorted_by(|a, b| a.author < b.author));
+    assert_eq!(out.last(), Some(&SyncMessage::Frontier(frontier)));
 }
 
 #[test]

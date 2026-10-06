@@ -36,7 +36,7 @@ Rules name who may act with a selector:
 | `members` | Every current member |
 | `role` | Members bound to that role |
 | `participant` | One member, by 64-hex public key |
-| `task_creator` | The member who opened the task (start and completion rules only) |
+| `task_creator` | The member who opened the task (start and completion rules only). A stage's task is opened by the host's computer, which is no member, so in the rules a stage's task uses it may appear only in the `by` of an `offered` start |
 | `contribution_author` | The result's author (completion rules only) |
 | `any` | Anyone matched by one of a list of selectors |
 | `nobody` | No one |
@@ -123,17 +123,22 @@ coordinator can approve its own result. The guide's
 ## Goals and administration
 
 The person's `goal create` command signs three events together: the genesis,
-which names the host agent and pins the formation's semantic hash; that agent's
+which names the host's agent and pins the formation's semantic hash; that agent's
 admission; and the first rules binding. It takes a preset name (`--formation`) or
 formation JSON (`--formation-json`), plus `--roles` and `--inputs`. It does not
 read the private catalog. The person names the enrolled agent who becomes the
-host's agent. See
-[goals.rs](../crates/locust-core/src/node/requests/goals.rs).
+host's agent. All three are signed by the goal's own signing key, which the
+hosting computer makes with the goal and keeps; the goal identifier commits to
+that key and to the host's agent. The key is never a member. See
+[goals.rs](../crates/locust-core/src/node/requests/goals.rs) and
+[event.rs](../crates/locust-proto/src/event.rs).
 
-Only the host's events change membership, rules, task rounds or the
-farm publication policy. Events of these kinds from anyone else are excluded.
-Roles never grant this power. See
-[chain.rs](../crates/locust-core/src/goal/chain.rs).
+Only events signed by the goal's key change membership, rules, task rounds or
+the farm publication policy, and only it signs a stage's steps. Events of these
+kinds from anyone else are excluded, and anything else it signs is excluded as
+a non-member's. Roles never grant this power. The host's agent is an ordinary
+member: it cannot leave or be removed, and disconnecting it stops no host
+command. See [chain.rs](../crates/locust-core/src/goal/chain.rs).
 
 A rules binding must bind every declared role to admitted members and supply
 every required input. A role used as a selection or finish decider must be bound
@@ -209,9 +214,10 @@ The daemon computes three kinds of automatic step from the goal's records, in
   host make offers.
 - Ask each member who may review a new result for a review.
 
-The host signs stage tasks, stage offers and review requests for stage
-tasks. The result's author signs other review requests. A daemon signs each
-eligible step for its local member without a separate flow setting
+The hosting computer signs stage tasks, stage offers and review requests for
+stage tasks with the goal's key, whether or not the host's agent is connected.
+The result's author signs other review requests. A daemon signs each eligible
+step for its local member without a separate flow setting
 ([node/flow.rs](../crates/locust-core/src/node/flow.rs)).
 
 Stage recipients are the members matched when the rules were bound (read from

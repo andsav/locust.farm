@@ -641,11 +641,11 @@ fn human(response: &Response, credential_path: Option<&Path>) -> String {
         Response::Invited { ticket } => ticket.as_str().to_owned(),
         Response::Joined {
             goal,
-            governance,
             membership,
             level,
+            ..
         } => format!(
-            "goal {goal}\nhost {governance}\nmembership {}\nlevel {}",
+            "goal {goal}\nmembership {}\nlevel {}",
             stable_name(membership),
             stable_name(level)
         ),

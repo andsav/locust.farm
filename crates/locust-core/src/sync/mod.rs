@@ -98,6 +98,14 @@ pub trait Replica {
     /// [`MAX_FRONTIER_AUTHORS`](locust_proto::limits::MAX_FRONTIER_AUTHORS).
     fn frontier(&self) -> Frontier;
 
+    /// The author whose events are sent before any other author's: the
+    /// goal's governance key, once a first record is held. A receiver
+    /// screens every other author by the admissions in that key's log. The
+    /// frontier frame itself keeps its ascending order.
+    fn first_author(&self) -> Option<PublicKey> {
+        None
+    }
+
     /// [`AuthorFrontier::is_prefix_of`] applied to this replica's points of
     /// `theirs.author`, answered by lookup of the running digest.
     fn extends(&self, theirs: &AuthorFrontier) -> bool;

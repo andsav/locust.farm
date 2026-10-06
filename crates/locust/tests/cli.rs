@@ -127,6 +127,7 @@ fn task_fixture(
                 round,
             },
             creator: agent,
+            by_host: false,
             title: Some("Task title".into()),
             attempts: vec![],
             contributions: vec![],
@@ -196,7 +197,9 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
                 Ok(Response::GoalStatus(GoalStatus {
                     goal,
                     title: Some("Goal title".into()),
-                    host: agent,
+                    governance: PublicKey([9; 32]),
+                    hosted_here: true,
+                    host: Some(agent),
                     governance_head: None,
                     current_rules: None,
                     scope_halts: vec![],
@@ -975,7 +978,7 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
             assert_eq!(selected, goal);
             return Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1065,7 +1068,7 @@ fn changed_goal_title_refuses_an_invitation_confirm_without_issuing_a_ticket() {
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
                     "goal":goal,"title":if reads < 3 {"Demo"} else {"Renamed"},
-                    "host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
+                    "governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
                     "scope_halts":[],"members":[],"halted":null,
                     "abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1162,7 +1165,7 @@ fn member_selector_resolves_local_name_and_visible_key_prefix() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[{"member":worker,"endpoint":EndpointId([3;32]),"local":true}],
                     "halted":null,"abilities":[],"stalled":[],"peers":[]
@@ -1200,6 +1203,320 @@ fn member_selector_resolves_local_name_and_visible_key_prefix() {
     handle.join().unwrap();
 }
 
+/// A goal whose host's agent is `host_agent` and whose other local agent is
+/// `worker`; the host's agent is disconnected, which stops no host command.
+fn hosted_goal_status(
+    goal: GoalId,
+    host_agent: PublicKey,
+    hosted_here: bool,
+) -> locust_proto::api::GoalStatus {
+    use locust_proto::api::{GoalStatus, MemberView};
+    use locust_proto::id::EndpointId;
+    GoalStatus {
+        goal,
+        title: Some("Demo".into()),
+        governance: PublicKey([9; 32]),
+        hosted_here,
+        host: Some(host_agent),
+        governance_head: None,
+        current_rules: None,
+        scope_halts: vec![],
+        members: vec![MemberView {
+            member: host_agent,
+            endpoint: EndpointId([3; 32]),
+            local: hosted_here,
+        }],
+        halted: None,
+        workspace: None,
+        abilities: vec![],
+        stalled: vec![],
+        peers: vec![],
+    }
+}
+
+#[test]
+fn goal_add_needs_this_computer_to_host_the_goal() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let host_agent = PublicKey([2; 32]);
+    let worker = PublicKey([3; 32]);
+    let hosted_here = Arc::new(AtomicBool::new(true));
+    let hosted_on_server = Arc::clone(&hosted_here);
+    let handle = server(home.path(), 2, move |frame| match frame.request {
+        Request::Status => Ok(status_agents(vec![
+            AgentView {
+                agent: host_agent,
+                name: "maple".into(),
+                author_only: false,
+                revoked: true,
+            },
+            AgentView {
+                agent: worker,
+                name: "worker".into(),
+                author_only: false,
+                revoked: false,
+            },
+        ])),
+        Request::GoalStatus { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::GoalStatus(hosted_goal_status(
+                goal,
+                host_agent,
+                hosted_on_server.load(Ordering::SeqCst),
+            )))
+        }
+        other => panic!("goal add wrote {other:?}"),
+    });
+    let run = || {
+        cli(home.path())
+            .args([
+                "--owner",
+                "--agent",
+                "worker",
+                "goal",
+                "add",
+                "--goal",
+                &goal.to_string(),
+                "--plan",
+            ])
+            .output()
+            .unwrap()
+    };
+    // The host's agent is disconnected; the goal's own key still admits.
+    let shown = envelope(&run(), 0);
+    assert_eq!(shown["result"]["action"], "review_required");
+    assert_eq!(shown["result"]["plan"]["agent"], worker.to_string());
+    hosted_here.store(false, Ordering::SeqCst);
+    let refused = envelope(&run(), 3);
+    assert_eq!(refused["error"]["code"], "denied");
+    assert_eq!(
+        refused["error"]["message"],
+        "this goal is hosted on another computer; request an invitation from its host"
+    );
+    assert!(refused.get("result").is_none(), "{refused}");
+    handle.join().unwrap();
+}
+
+#[test]
+fn agent_revoke_applies_at_once_and_prints_the_command_that_undoes_it() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+    };
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let agent = PublicKey([2; 32]);
+    let revoked = Arc::new(AtomicBool::new(false));
+    let revokes = Arc::new(AtomicUsize::new(0));
+    let reconnects = Arc::new(AtomicUsize::new(0));
+    let (revoked_on_server, revokes_on_server, reconnects_on_server) = (
+        Arc::clone(&revoked),
+        Arc::clone(&revokes),
+        Arc::clone(&reconnects),
+    );
+    let handle = server(home.path(), 4, move |frame| match frame.request {
+        Request::Status => Ok(Response::Status(DaemonStatus {
+            daemon_version: "stub".into(),
+            endpoint: None,
+            agents: vec![AgentView {
+                agent,
+                name: "worker".into(),
+                author_only: false,
+                revoked: revoked_on_server.load(Ordering::SeqCst),
+            }],
+            goals: vec![GoalSummary {
+                goal,
+                title: Some("Demo".into()),
+                member: agent,
+                membership: Membership::Member,
+                halted: None,
+                abilities: abilities(goal, agent),
+            }],
+        })),
+        Request::GoalStatus { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::GoalStatus(hosted_goal_status(goal, agent, true)))
+        }
+        Request::AgentRevoke { agent: selected } => {
+            assert_eq!(selected, agent);
+            revokes_on_server.fetch_add(1, Ordering::SeqCst);
+            revoked_on_server.store(true, Ordering::SeqCst);
+            Ok(Response::Done)
+        }
+        Request::AgentReconnect { agent: selected } => {
+            assert_eq!(selected, agent);
+            reconnects_on_server.fetch_add(1, Ordering::SeqCst);
+            revoked_on_server.store(false, Ordering::SeqCst);
+            Ok(Response::Done)
+        }
+        other => panic!("unexpected {other:?}"),
+    });
+    // Nothing to plan or confirm: the flags do not exist and no connection is made.
+    for flag in [&["--plan"][..], &["--confirm", "x"][..]] {
+        let output = plain()
+            .arg("--home")
+            .arg(home.path())
+            .args(["--owner", "agent", "revoke", "--agent", "worker"])
+            .args(flag)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "{flag:?}");
+    }
+    let output = cli(home.path())
+        .args(["--owner", "agent", "revoke", "--agent", "worker"])
+        .output()
+        .unwrap();
+    let result = envelope(&output, 0);
+    assert_eq!(
+        result["result"],
+        json!({
+            "agent": agent,
+            "name": "worker",
+            "connected": false,
+            "changed": true,
+            "hosted_goals": [{"goal": goal, "title": "Demo"}],
+        })
+    );
+    assert_eq!(revokes.load(Ordering::SeqCst), 1);
+    let human = |parts: &[&str]| {
+        let output = plain()
+            .arg("--home")
+            .arg(home.path())
+            .args(parts)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let reconnected = human(&["--owner", "agent", "reconnect", "--agent", "worker"]);
+    assert!(
+        reconnected.starts_with("worker is connected again.\n"),
+        "{reconnected}"
+    );
+    assert_eq!(
+        reconnected.lines().last(),
+        Some("Undo: locust --owner agent revoke --agent worker")
+    );
+    assert_eq!(reconnects.load(Ordering::SeqCst), 1);
+    let disconnected = human(&["--owner", "agent", "revoke", "--agent", "worker"]);
+    assert!(
+        disconnected.starts_with("worker is disconnected. The name stays taken.\n"),
+        "{disconnected}"
+    );
+    let undo = disconnected.lines().last().unwrap();
+    assert_eq!(undo, "Undo: locust --owner agent reconnect --agent worker");
+    assert_eq!(revokes.load(Ordering::SeqCst), 2);
+    let printed: Vec<&str> = undo
+        .strip_prefix("Undo: locust ")
+        .unwrap()
+        .split(' ')
+        .collect();
+    let output = plain()
+        .env("LOCUST_HOME", home.path())
+        .args(&printed)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(reconnects.load(Ordering::SeqCst), 2);
+    assert_eq!(revokes.load(Ordering::SeqCst), 2);
+    assert!(!revoked.load(Ordering::SeqCst));
+    handle.join().unwrap();
+}
+
+#[test]
+fn member_remove_naming_the_hosts_agent_refuses_before_any_plan() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let host_agent = PublicKey([2; 32]);
+    let handle = server(home.path(), 2, move |frame| match frame.request {
+        Request::GoalStatus { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::GoalStatus(hosted_goal_status(
+                goal, host_agent, true,
+            )))
+        }
+        other => panic!("member remove wrote {other:?}"),
+    });
+    for flags in [&[][..], &["--plan"][..]] {
+        let output = cli(home.path())
+            .args([
+                "--owner",
+                "member",
+                "remove",
+                "--goal",
+                &goal.to_string(),
+                "--member",
+                &host_agent.to_string(),
+            ])
+            .args(flags)
+            .output()
+            .unwrap();
+        let refused = envelope(&output, 7);
+        assert_eq!(refused["error"]["code"], "conflict");
+        assert_eq!(
+            refused["error"]["message"],
+            "the host's agent cannot be removed from its own goal"
+        );
+        assert!(refused.get("result").is_none(), "{refused}");
+    }
+    handle.join().unwrap();
+}
+
+#[test]
+fn goal_leave_naming_the_hosts_agent_refuses_before_any_plan() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let host_agent = PublicKey([2; 32]);
+    let handle = server(home.path(), 2, move |frame| match frame.request {
+        Request::GoalStatus { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::GoalStatus(hosted_goal_status(
+                goal, host_agent, true,
+            )))
+        }
+        other => panic!("goal leave wrote {other:?}"),
+    });
+    for flags in [&[][..], &["--plan"][..]] {
+        let output = cli(home.path())
+            .args([
+                "--owner",
+                "goal",
+                "leave",
+                "--goal",
+                &goal.to_string(),
+                "--agent",
+                &host_agent.to_string(),
+            ])
+            .args(flags)
+            .output()
+            .unwrap();
+        let refused = envelope(&output, 7);
+        assert_eq!(refused["error"]["code"], "conflict");
+        assert_eq!(
+            refused["error"]["message"],
+            "the host's agent cannot leave its own goal"
+        );
+        assert!(refused.get("result").is_none(), "{refused}");
+    }
+    handle.join().unwrap();
+}
+
 #[test]
 fn subtask_revision_plan_names_parent_rules() {
     use locust_proto::api::{TaskDetail, TaskView};
@@ -1215,7 +1532,7 @@ fn subtask_revision_plan_names_parent_rules() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1235,6 +1552,7 @@ fn subtask_revision_plan_names_parent_rules() {
                         round: EventId([7; 32]),
                     },
                     creator: PublicKey([2; 32]),
+                    by_host: false,
                     title: Some("Child task".into()),
                     attempts: vec![],
                     contributions: vec![],
@@ -1317,7 +1635,7 @@ fn invitation_revoke_all_runs_immediately_and_reports_count() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1976,6 +2294,7 @@ fn human_goal_and_task_titles_resolve_to_exact_authorized_write() {
                     round: EventId([0x41; 32]),
                 },
                 creator: agent,
+                by_host: false,
                 title: Some("Fix greeting".into()),
                 attempts: vec![],
                 contributions: vec![],
@@ -2095,6 +2414,7 @@ fn review_subject_prefix_checks_later_feed_pages_before_writing() {
                             at_ms: 0,
                             standing: Standing::Effective,
                             by_owner: false,
+                            by_host: false,
                         })
                         .collect(),
                 ))

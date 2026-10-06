@@ -13,17 +13,24 @@ impl<S: Store, E: Entropy> Node<S, E> {
             let Some(entry) = self.goals.get(&goal) else {
                 return Ok(());
             };
+            let governance = entry.state().governance;
             let next = entry
                 .goal
                 .evaluation()
                 .desired_effects
                 .values()
                 .find(|desired| {
+                    let runner = &desired.runner;
+                    let can_sign_here = if governance.as_ref() == Some(runner) {
+                        self.hosts(entry)
+                    } else {
+                        entry.local.part.get(runner) != Some(&true)
+                            && entry.is_member(runner)
+                            && self.principals.active(runner).is_some()
+                    };
                     !entry.state().effects.contains_key(&desired.id)
-                        && entry.local.part.get(&desired.runner) != Some(&true)
-                        && entry.is_member(&desired.runner)
-                        && self.principals.active(&desired.runner).is_some()
-                        && entry.goal.next(&desired.runner).is_some()
+                        && can_sign_here
+                        && entry.goal.next(runner).is_some()
                 })
                 .cloned();
             let Some(desired) = next else {
@@ -32,14 +39,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
             let mut tx = Tx::none();
             // Derived actions carry no scheduling clock. Their identity and
             // authority depend on the authenticated trigger and pinned rules.
-            self.author(
+            self.author_alone(
                 entry,
                 &desired.runner,
                 Body::EffectMaterialized {
                     effect: desired.effect,
                 },
-                None,
-                0,
                 &mut tx,
             )?;
             self.land_once(tx)?;

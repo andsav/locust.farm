@@ -896,10 +896,60 @@ pub(super) fn copy_stopped_home(from: &Path, to: &Path) {
     }
 }
 
-#[test]
-fn sqlite_older_directory_signs_at_used_host_position_unless_later_events_are_recovered_first() {
-    use locust_proto::event::Event;
+/// The goal's events held by a stopped daemon's store.
+fn held_events(home: &Path, goal: GoalId) -> Vec<locust_proto::event::Event> {
+    use locust_proto::store::Store;
+    locust_store::SqliteStore::open(home)
+        .unwrap()
+        .log(&goal, 0, usize::MAX)
+        .unwrap()
+        .into_iter()
+        .map(|(_, event)| event)
+        .collect()
+}
+
+/// Replay events durably into a stopped daemon's store. Peer ingestion and
+/// its order are tested with Network.
+fn replay(home: &Path, events: Vec<locust_proto::event::Event>) {
     use locust_proto::store::{Commit, Store};
+    locust_store::SqliteStore::open(home)
+        .unwrap()
+        .commit(&Commit {
+            events,
+            ..Default::default()
+        })
+        .unwrap();
+}
+
+/// The current rules, rebound unchanged: a record only the goal's own key
+/// signs, on the governance log rather than any member's.
+fn rebind_rules(owner: &mut LocalClient, goal: GoalId, agent: PublicKey) -> EventId {
+    let Response::GoalStatus(status) = owner.call(Request::GoalStatus { goal }).unwrap() else {
+        panic!()
+    };
+    recorded(
+        owner
+            .call(Request::RulesBind {
+                goal,
+                expected: status.current_rules.unwrap(),
+                formation_json: serde_json::to_string(
+                    &locust_proto::organization::presets()
+                        .into_iter()
+                        .find(|p| p.name == "coordinator")
+                        .unwrap()
+                        .formation,
+                )
+                .unwrap(),
+                roles: [("coordinator".into(), vec![agent])].into(),
+                inputs: Default::default(),
+            })
+            .unwrap(),
+    )
+}
+
+#[test]
+fn sqlite_older_directory_forks_only_the_hosts_agent_when_its_own_work_was_lost() {
+    use locust_proto::store::Store;
     use locust_store::SqliteStore;
     for recover_first in [false, true] {
         let original = short_dir();
@@ -919,26 +969,10 @@ fn sqlite_older_directory_signs_at_used_host_position_unless_later_events_are_re
         };
         drop(agent);
         running.stop();
-        let held: Vec<Event> = {
-            let store = SqliteStore::open(original.path()).unwrap();
-            store
-                .log(&goal, 0, usize::MAX)
-                .unwrap()
-                .into_iter()
-                .map(|(_, e)| e)
-                .collect()
-        };
+        let held = held_events(original.path(), goal);
         let old = held.iter().find(|e| e.id() == old_id).unwrap();
         if recover_first {
-            // Peer ingestion/order is tested with Network; here replay the
-            // returned events durably before the real restored daemon signs.
-            SqliteStore::open(backup.path())
-                .unwrap()
-                .commit(&Commit {
-                    events: held.clone(),
-                    ..Default::default()
-                })
-                .unwrap();
+            replay(backup.path(), held.clone());
         }
         let mut restored = Running::start(backup.path());
         let mut agent = restored.client(Credential([1; 32]), None);
@@ -950,7 +984,7 @@ fn sqlite_older_directory_signs_at_used_host_position_unless_later_events_are_re
         drop(agent);
         restored.stop();
         {
-            let mut store = SqliteStore::open(backup.path()).unwrap();
+            let store = SqliteStore::open(backup.path()).unwrap();
             let new = store.event(&new_id).unwrap().unwrap();
             assert_ne!(new_id, old_id);
             assert_eq!(
@@ -965,19 +999,25 @@ fn sqlite_older_directory_signs_at_used_host_position_unless_later_events_are_re
                     old.header().prev
                 }
             );
-            store
-                .commit(&Commit {
-                    events: held,
-                    ..Default::default()
-                })
-                .unwrap();
         }
+        replay(backup.path(), held);
         let mut restored = Running::start(backup.path());
         let mut agent = restored.client(Credential([1; 32]), None);
         let Response::GoalStatus(status) = agent.call(Request::GoalStatus { goal }).unwrap() else {
             panic!()
         };
-        assert_eq!(status.halted.is_some(), !recover_first);
+        // The agent's own log forked, not the goal's: governance goes on.
+        assert_eq!(status.halted, None, "{status:?}");
+        let Response::Invited { .. } = restored
+            .owner()
+            .call(Request::GoalInvite {
+                goal,
+                expires_ms: u64::MAX,
+            })
+            .unwrap()
+        else {
+            panic!()
+        };
         if recover_first {
             propose(
                 &mut agent,
@@ -993,11 +1033,52 @@ fn sqlite_older_directory_signs_at_used_host_position_unless_later_events_are_re
                 parent: None,
             });
             assert!(
-                matches!(result, Err(locust_proto::client::ClientError::Api(error))
-                if error.code == locust_proto::api::ErrorCode::Unavailable)
+                matches!(&result, Err(locust_proto::client::ClientError::Api(error))
+                if error.code == locust_proto::api::ErrorCode::Unavailable),
+                "{result:?}"
             );
         }
         drop(agent);
         restored.stop();
     }
+}
+
+#[test]
+fn sqlite_older_directory_halts_governance_when_a_governance_record_was_lost() {
+    use locust_proto::store::Store;
+    use locust_store::SqliteStore;
+    let original = short_dir();
+    let backup = short_dir();
+    let mut running = Running::start(original.path());
+    let principal = running.enroll(1);
+    let goal = goal(&mut running.owner(), principal);
+    running.stop();
+    copy_stopped_home(original.path(), backup.path());
+
+    let mut running = Running::start(original.path());
+    let old_id = rebind_rules(&mut running.owner(), goal, principal);
+    running.stop();
+    let held = held_events(original.path(), goal);
+    let old = held.iter().find(|e| e.id() == old_id).unwrap();
+
+    let mut restored = Running::start(backup.path());
+    let new_id = rebind_rules(&mut restored.owner(), goal, principal);
+    restored.stop();
+    {
+        let store = SqliteStore::open(backup.path()).unwrap();
+        let new = store.event(&new_id).unwrap().unwrap();
+        assert_ne!(new_id, old_id);
+        assert_eq!(new.header().author, old.header().author);
+        assert_eq!(new.header().seq, old.header().seq);
+        assert_eq!(new.header().prev, old.header().prev);
+    }
+    replay(backup.path(), held);
+    let mut restored = Running::start(backup.path());
+    let mut agent = restored.client(Credential([1; 32]), None);
+    let Response::GoalStatus(status) = agent.call(Request::GoalStatus { goal }).unwrap() else {
+        panic!()
+    };
+    assert!(status.halted.is_some(), "{status:?}");
+    drop(agent);
+    restored.stop();
 }

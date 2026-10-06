@@ -250,19 +250,20 @@ fn default_formation_has_no_goal_finish_decider() {
         panic!()
     };
     let owner = d.owner();
-    let principal = d.node.goals[&goal].state().governance.unwrap();
+    let governance = d.node.goals[&goal].state().governance.unwrap();
+    assert_ne!(governance, host);
     let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
-    let error = d
-        .on_behalf(
-            owner,
-            principal,
-            Request::ScopeClose {
-                goal,
-                scope: Scope::Goal,
-                expected: None,
-            },
-        )
-        .unwrap_err();
+    let close = Request::ScopeClose {
+        goal,
+        scope: Scope::Goal,
+        expected: None,
+    };
+    // The governance key is no principal, so nothing acts on its behalf.
+    assert_eq!(
+        code(d.on_behalf(owner, governance, close.clone())),
+        ErrorCode::NotFound
+    );
+    let error = d.on_behalf(owner, host, close).unwrap_err();
     assert_eq!(error.code, ErrorCode::NotEligible);
     assert!(matches!(
         error.refused().unwrap().why,

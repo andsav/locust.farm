@@ -39,7 +39,7 @@ struct History {
 impl History {
     fn new() -> Self {
         let mut author = Author::new(1);
-        let genesis = author.genesis();
+        let genesis = author.genesis(locust_proto::testkit::keypair(9).public());
         Self {
             author,
             events: vec![genesis],

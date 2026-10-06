@@ -143,8 +143,10 @@ pub(super) struct History {
     pub events: Vec<Event>,
     index: IdMap<Slot>,
     pub logs: BTreeMap<PublicKey, AuthorLog>,
-    /// The author of a held genesis event.
+    /// The goal's governance key: the author of a held first record.
     pub governance: Option<PublicKey>,
+    /// The host's agent the held first record names.
+    pub host: Option<PublicKey>,
 }
 
 impl History {
@@ -171,6 +173,7 @@ impl History {
         let header = event.header();
         if let Body::Genesis(genesis) = &header.body {
             self.governance = Some(genesis.governance);
+            self.host = Some(genesis.host);
         }
         let point = AuthorPoint {
             seq: header.seq,

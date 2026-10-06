@@ -122,7 +122,8 @@ pub struct ContextBrief {
     pub checkout: Option<super::Checkout>,
     pub goal: GoalId,
     pub title: Option<String>,
-    pub host: PublicKey,
+    /// The host's agent; absent until the first record is held.
+    pub host: Option<PublicKey>,
     pub governance_head: Option<EventId>,
     pub current_rules: Option<EventId>,
     pub halted: Option<Halt>,

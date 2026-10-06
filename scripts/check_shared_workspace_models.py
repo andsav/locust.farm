@@ -527,7 +527,7 @@ def main(argv=None):
         with daemon_class(setup, args.locust, args.rpc_timeout) as daemon:
             contract = daemon.call(['contract'])
             report['api_version'], report['protocol_version'] = contract['api_version'], contract['protocol_version']
-            require((report['api_version'], report['protocol_version']) == (7, 6), 'Requires API 7 and protocol 6')
+            require((report['api_version'], report['protocol_version']) == (7, 7), 'Requires API 7 and protocol 7')
             coordinator = {'name': 'coordinator', 'profile': cp, 'principal': daemon.principal,
                 'credential': daemon.credential, 'session': daemon.session, 'instance': daemon.instance,
                 'client': 'codex', 'binary': args.codex}

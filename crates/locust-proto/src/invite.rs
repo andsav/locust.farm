@@ -6,8 +6,9 @@
 //! retrying with the same key recovers the result, any other key is refused.
 //! Holding an invitation shares nothing and enrolls nothing by itself.
 //!
-//! In the current protocol only a goal's governance issues invitations, so the daemon
-//! that redeems one is the daemon that signs the admission.
+//! An invitation is signed by the goal's governance key, which only the
+//! host's daemon holds, so the daemon that redeems one is the daemon that
+//! signs the admission.
 
 use std::fmt;
 use std::net::SocketAddr;
@@ -108,10 +109,10 @@ pub struct Invitation {
     pub version: u8,
     /// The goal the holder is invited to.
     pub goal: GoalId,
-    /// Presentation supplied and signed by the governance. A title does
+    /// Presentation supplied and signed by the governance key. A title does
     /// not authenticate a human identity or establish the genesis record.
     pub goal_title: Option<String>,
-    /// The goal's governance, which in the current protocol is also the issuer. Shown
+    /// The goal's governance key, which signs this ticket and the admission. Shown
     /// to the joiner as a fingerprint and checked against the genesis record
     /// once it arrives.
     pub governance: PublicKey,
@@ -149,7 +150,7 @@ pub enum InviteError {
     /// Too many contact hints, or one that is empty, too long or carries a
     /// control character.
     BadHints,
-    /// The governance did not sign these exact invitation fields.
+    /// The governance key did not sign these exact invitation fields.
     InvalidSignature,
 }
 
@@ -164,7 +165,7 @@ impl fmt::Display for InviteError {
             }
             Self::BadHints => f.write_str("invitation carries unusable contact hints"),
             Self::InvalidSignature => f.write_str(
-                "invitation signature is invalid; request a fresh invitation from the governance",
+                "invitation signature is invalid; request a fresh invitation from the host",
             ),
         }
     }
@@ -230,8 +231,8 @@ impl Invitation {
         Ok(invitation)
     }
 
-    /// Re-signs governance-owned fields. A different key cannot attest
-    /// to the named governance.
+    /// Re-signs the fields the governance key owns. A different key cannot
+    /// attest to the named governance key.
     pub fn sign(&mut self, governance: &Keypair) -> Result<(), InviteError> {
         if governance.public() != self.governance {
             return Err(InviteError::InvalidSignature);

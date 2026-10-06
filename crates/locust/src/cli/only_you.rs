@@ -104,7 +104,8 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
                     .arg(Arg::new("task-type").long("task-type")),
             ),
         ),
-        ("agent", confirm::flags(Command::new("revoke"))),
+        ("agent", Command::new("revoke")),
+        ("agent", Command::new("reconnect")),
     ]
 }
 
@@ -150,6 +151,7 @@ pub(super) fn owns(operation: &str) -> bool {
             | "task.revise"
             | "invitation.revoke"
             | "agent.revoke"
+            | "agent.reconnect"
     )
 }
 
@@ -402,7 +404,7 @@ pub(super) fn run(
     operation: &str,
     args: &ArgMatches,
 ) -> Result<Output, Failure> {
-    if matches!(operation, "goal.add" | "agent.revoke")
+    if matches!(operation, "goal.add" | "agent.revoke" | "agent.reconnect")
         && (!matches.get_flag("owner") || matches.get_one::<String>("agent").is_none())
     {
         return Err(Failure::usage(format!(
@@ -435,7 +437,8 @@ pub(super) fn run(
         "rules.bind" => rules_bind(matches, args, &mut client, &socket, owner),
         "task.revise" => task_revise(matches, args, &mut client, &socket, owner),
         "invitation.revoke" => invitation_revoke(matches, args, &mut client, &socket, owner),
-        "agent.revoke" => agent_revoke(matches, args, &mut client, &socket),
+        "agent.revoke" => agent_revoke(matches, &mut client, &socket),
+        "agent.reconnect" => agent_reconnect(matches, &mut client, &socket),
         _ => Err(Failure::usage("unknown person command")),
     }
 }
@@ -587,18 +590,10 @@ fn add_plan(
             Failure::new(ErrorCode::NotFound, "select an active enrolled local agent")
         })?;
     let goal_status = observed(client, socket, goal)?;
-    let host_here = known
-        .agents
-        .iter()
-        .any(|candidate| candidate.agent == goal_status.host && !candidate.revoked)
-        && goal_status
-            .members
-            .iter()
-            .any(|member| member.member == goal_status.host && member.local);
-    if !host_here {
+    if !goal_status.hosted_here {
         return Err(Failure::new(
             ErrorCode::Denied,
-            "this goal's host is not an active local agent; request an invitation from its owner",
+            "this goal is hosted on another computer; request an invitation from its host",
         ));
     }
     let standing = known
@@ -644,7 +639,7 @@ fn add_retry_key(observed: &GoalStatus, agent: PublicKey, expires_ms: u64) -> Id
     let bytes = serde_json::to_vec(&(
         "locust-goal-add-v2",
         observed.goal,
-        observed.host,
+        observed.governance,
         observed.governance_head,
         agent,
         expires_ms,
@@ -709,7 +704,7 @@ fn goal_add(
     else {
         unreachable!("typed response")
     };
-    if preview.goal != goal || preview.governance != goal_status.host {
+    if preview.goal != goal || preview.governance != goal_status.governance {
         return Err(Failure::new(
             ErrorCode::Conflict,
             "local invitation differs from the reviewed goal",
@@ -864,6 +859,12 @@ fn leave_plan(
     agent: PublicKey,
 ) -> Result<confirm::Plan, Failure> {
     let observed = observed(client, socket, goal)?;
+    if observed.host == Some(agent) {
+        return Err(Failure::new(
+            ErrorCode::Conflict,
+            "the host's agent cannot leave its own goal",
+        ));
+    }
     let known = status(client, socket, None)?;
     let standing = known
         .goals
@@ -1048,6 +1049,12 @@ fn removal_plan(
     member: PublicKey,
 ) -> Result<confirm::Plan, Failure> {
     let observed = observed(client, socket, goal)?;
+    if observed.host == Some(member) {
+        return Err(Failure::new(
+            ErrorCode::Conflict,
+            "the host's agent cannot be removed from its own goal",
+        ));
+    }
     let present = observed.members.iter().any(|entry| entry.member == member);
     Ok(confirm::Plan {
         command: "member remove",
@@ -1294,76 +1301,91 @@ fn task_revise(
     Ok(Output::success(json!(response), human))
 }
 
-fn revoke_plan(
+/// The goals this agent was started with. Disconnecting it stops no host
+/// command in them; the goal's own key signs those.
+fn hosted_goals(
     client: &mut LocalClient,
     socket: &Path,
+    known: &DaemonStatus,
     agent: PublicKey,
-) -> Result<confirm::Plan, Failure> {
+) -> Result<Vec<serde_json::Value>, Failure> {
+    let mut hosted = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for entry in &known.goals {
+        if seen.insert(entry.goal) {
+            let goal = observed(client, socket, entry.goal)?;
+            if goal.host == Some(agent) {
+                hosted.push(json!({"goal":entry.goal,"title":goal.title}));
+            }
+        }
+    }
+    Ok(hosted)
+}
+
+/// Applies at once, like `level` and `allow`: `agent reconnect` undoes it.
+fn agent_revoke(
+    matches: &ArgMatches,
+    client: &mut LocalClient,
+    socket: &Path,
+) -> Result<Output, Failure> {
+    let agent = acting_agent(client, socket, matches, None)?;
     let known = status(client, socket, None)?;
     let selected = known
         .agents
         .iter()
         .find(|entry| entry.agent == agent)
         .ok_or_else(|| Failure::new(ErrorCode::NotFound, "agent is not enrolled"))?;
-    let mut hosted = Vec::new();
-    let mut seen = std::collections::BTreeSet::new();
-    for entry in &known.goals {
-        if seen.insert(entry.goal) {
-            let goal = observed(client, socket, entry.goal)?;
-            if goal.host == agent {
-                hosted.push(json!({"goal":entry.goal,"title":goal.title}));
-            }
-        }
-    }
-    let names: Vec<_> = hosted
-        .iter()
-        .filter_map(|item| item["title"].as_str())
-        .map(presentation::safe)
-        .collect();
-    Ok(confirm::Plan {
-        command: "agent revoke",
-        review: json!({"agent":agent,"name":selected.name,"already_revoked":selected.revoked,
-            "hosted_goals":hosted}),
-        human: format!(
-            "Disconnect {}. The name stays taken.",
-            presentation::safe(&selected.name)
-        ),
-        warning: if names.is_empty() {
-            None
-        } else {
-            Some(format!(
-                "Goals {} hosts freeze for everyone: nobody joins and the rules cannot change.",
-                presentation::safe(&selected.name)
-            ))
-        },
-        again: String::new(),
-    })
-}
-
-fn agent_revoke(
-    matches: &ArgMatches,
-    args: &ArgMatches,
-    client: &mut LocalClient,
-    socket: &Path,
-) -> Result<Output, Failure> {
-    let agent = acting_agent(client, socket, matches, None)?;
-    let plan = revoke_plan(client, socket, agent)?;
-    if let Some(output) = reviewed(matches, args, &plan, || revoke_plan(client, socket, agent))? {
-        return Ok(output);
-    }
-    let response = call(
+    let name = presentation::safe(&selected.name);
+    let hosted = hosted_goals(client, socket, &known, agent)?;
+    let changed = !selected.revoked;
+    call(
         client,
         socket,
         Request::AgentRevoke { agent },
         idempotency(matches)?,
     )?;
-    let name = plan.review["name"].as_str().unwrap_or("agent");
     Ok(Output::success(
-        json!(response),
+        json!({"agent":agent,"name":selected.name,"connected":false,"changed":changed,
+            "hosted_goals":hosted}),
         format!(
-            "{} is disconnected. The name stays taken.",
-            presentation::safe(name)
+            "{name} is disconnected. The name stays taken.\nUndo: locust --owner agent reconnect --agent {}",
+            undo_agent(&selected.name)
         ),
+    ))
+}
+
+/// Connects a disconnected agent again under the name and key it had.
+fn agent_reconnect(
+    matches: &ArgMatches,
+    client: &mut LocalClient,
+    socket: &Path,
+) -> Result<Output, Failure> {
+    let agent = acting_agent(client, socket, matches, None)?;
+    let known = status(client, socket, None)?;
+    let selected = known
+        .agents
+        .iter()
+        .find(|entry| entry.agent == agent)
+        .ok_or_else(|| Failure::new(ErrorCode::NotFound, "agent is not enrolled"))?;
+    let name = presentation::safe(&selected.name);
+    let changed = selected.revoked;
+    let human = if changed {
+        call(
+            client,
+            socket,
+            Request::AgentReconnect { agent },
+            idempotency(matches)?,
+        )?;
+        format!(
+            "{name} is connected again.\nUndo: locust --owner agent revoke --agent {}",
+            undo_agent(&selected.name)
+        )
+    } else {
+        format!("{name} is not disconnected. Nothing changed.")
+    };
+    Ok(Output::success(
+        json!({"agent":agent,"name":selected.name,"connected":true,"changed":changed}),
+        human,
     ))
 }
 

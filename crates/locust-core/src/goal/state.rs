@@ -196,7 +196,11 @@ pub struct State {
     pub publication: Option<(EventId, locust_proto::farm::PublicationSet)>,
     pub publication_consents:
         BTreeMap<PublicKey, (EventId, locust_proto::farm::PublicationConsent)>,
+    /// The goal's governance key. It signs the chain and is never a member.
     pub governance: Option<PublicKey>,
+    /// The host's agent: the member the first record names. It is never
+    /// removed.
+    pub host: Option<PublicKey>,
     /// Verified governance head, never an accepted workspace head.
     pub head: Option<EventId>,
     pub epoch: u32,

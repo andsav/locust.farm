@@ -180,8 +180,8 @@ byte_id!(
 );
 
 byte_id!(
-    /// Identifies a goal: the digest of its genesis record, which pins the
-    /// governance and initial definition.
+    /// Identifies a goal: the digest of its first record's governance key,
+    /// host's agent, initial definition and salt.
     GoalId,
     32
 );

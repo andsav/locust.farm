@@ -392,6 +392,127 @@ fn pipeline_materializes_without_any_setting() {
 }
 
 #[test]
+fn stage_steps_are_signed_while_the_hosts_agent_is_disconnected() {
+    use locust_proto::event::Body;
+    let mut h = Harness::new();
+    let goal = h.goal("open");
+    // Disconnect the host's agent before the stages exist: the first stage's
+    // task must open with nobody but the governance key to sign it.
+    h.ok(h.owner, Request::AgentRevoke { agent: h.principal });
+    let mut formation = preset_formation("pipeline");
+    formation.flow.get_mut("draft").unwrap().task_type = None;
+    formation.task_types.clear();
+    let Response::GoalStatus(status) = h.ok(h.owner, Request::GoalStatus { goal }) else {
+        panic!()
+    };
+    assert!(status.hosted_here);
+    assert_eq!(status.host, Some(h.principal));
+    assert_ne!(status.governance, h.principal);
+    let rules = recorded(h.ok(
+        h.owner,
+        Request::RulesBind {
+            goal,
+            expected: status.current_rules.unwrap(),
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            roles: BTreeMap::new(),
+            inputs: BTreeMap::new(),
+        },
+    ));
+    assert_eq!(
+        h.store.event(&rules).unwrap().unwrap().header().author,
+        status.governance
+    );
+    let Response::GoalStatus(status) = h.ok(h.owner, Request::GoalStatus { goal }) else {
+        panic!()
+    };
+    assert!(status.halted.is_none());
+    assert!(status.stalled.is_empty(), "{:?}", status.stalled);
+    let Response::Board(board) = h.ok(h.owner, Request::Board { goal }) else {
+        panic!()
+    };
+    assert_eq!(board.len(), 1);
+    assert!(matches!(board[0].task, TaskId::Derived(_)));
+    assert!(board[0].by_host);
+    assert_eq!(board[0].creator, status.governance);
+    let Response::Events(events) = h.ok(
+        h.owner,
+        Request::Events {
+            goal,
+            after: None,
+            limit: 100,
+        },
+    ) else {
+        panic!()
+    };
+    let steps: Vec<_> = events
+        .iter()
+        .filter(|event| event.kind == "effect_materialized")
+        .collect();
+    assert_eq!(steps.len(), 1);
+    assert!(steps[0].by_host);
+    assert_eq!(steps[0].author, status.governance);
+    assert_eq!(steps[0].standing, Standing::Effective);
+    // No record in the goal is the disconnected agent's.
+    assert!(events.iter().all(|event| event.author != h.principal));
+    let step = h.store.event(&steps[0].event).unwrap().unwrap();
+    assert!(matches!(
+        step.header().body,
+        Body::EffectMaterialized { .. }
+    ));
+    assert_eq!(step.header().author, status.governance);
+    // The disconnected agent itself signs nothing.
+    assert_eq!(
+        h.request(
+            h.agent,
+            Request::AttemptStart {
+                goal,
+                task: board[0].task,
+                offer: None,
+            },
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::Denied
+    );
+    // Connected again, the agent takes the step's task and the completed
+    // draft opens the next stage, signed by the governance key as well.
+    h.ok(h.owner, Request::AgentReconnect { agent: h.principal });
+    h.agent = h.connect(2, Some(5));
+    let contribution = h.publish(goal, Some(board[0].task));
+    h.ok(
+        h.agent,
+        Request::CompletionDeclare {
+            goal,
+            subject: contribution,
+        },
+    );
+    let Response::Board(board) = h.ok(h.agent, Request::Board { goal }) else {
+        panic!()
+    };
+    assert_eq!(board.len(), 2);
+    assert!(board.iter().all(|task| task.by_host));
+    h.restart();
+    let Response::Events(events) = h.ok(
+        h.owner,
+        Request::Events {
+            goal,
+            after: None,
+            limit: 100,
+        },
+    ) else {
+        panic!()
+    };
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.kind == "effect_materialized")
+            .filter(|event| event.by_host && event.author == status.governance)
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn scoped_selection_requires_completed_exact_contribution_and_cas() {
     let mut h = Harness::new();
     let goal = h.goal("independent-attempts");

@@ -1803,6 +1803,36 @@
       "source": "{\"schema_version\": 2, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"recipients\": {\"kind\": \"task_creator\"}}}}"
     },
     {
+      "id": "rules/selector_scope-stage-task-creator",
+      "result": {
+        "diagnostics": [
+          {
+            "code": "selector_scope",
+            "correction": "Name members, a role or a participant in the rules this stage's task uses.",
+            "message": "Stage \"s\" opens its task from the host's computer, which is no member, so task_creator at /task_types/t/work/starts/0/by can be met by nobody",
+            "path": "/flow/s",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "selector_scope",
+            "correction": "Name members, a role or a participant in the rules this stage's task uses.",
+            "message": "Stage \"s\" opens its task from the host's computer, which is no member, so task_creator at /task_types/t/decisions/completion/by can be met by nobody",
+            "path": "/flow/s",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          }
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
+      },
+      "source": "{\"schema_version\": 2, \"task_types\": {\"t\": {\"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"task_creator\"}]}}, {\"kind\": \"offered\", \"by\": {\"kind\": \"task_creator\"}, \"to\": {\"kind\": \"members\"}}]}, \"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"task_creator\"}}}}}, \"flow\": {\"s\": {\"task_type\": \"t\"}}}"
+    },
+    {
       "id": "rules/empty_selector",
       "result": {
         "diagnostics": [

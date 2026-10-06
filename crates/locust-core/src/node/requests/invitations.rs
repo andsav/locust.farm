@@ -173,7 +173,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         let own = self.own_endpoint()?;
         let secret = InviteSecret(self.random());
-        let goal_title = self.title(entry, Some(&governance));
+        // The owner reads the title: the governance key is no member.
+        let goal_title = self.title(entry, None);
+        let signer = self.key_for(entry, &governance)?;
         let mut invitation = Invitation::signed(
             goal,
             goal_title.clone(),
@@ -181,7 +183,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             own.hints.iter().take(MAX_HINTS).cloned().collect(),
             secret,
             Some(expires_ms),
-            self.signer(&governance)?,
+            signer,
         )
         .map_err(invite_error)?;
         invitation.publication = entry
@@ -194,9 +196,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     publication: publication.clone(),
                 },
             );
-        invitation
-            .sign(self.signer(&governance)?)
-            .map_err(invite_error)?;
+        invitation.sign(signer).map_err(invite_error)?;
         let ticket = invitation.to_ticket().map_err(invite_error)?;
         let mut tx = Tx::none();
         tx.local(records::put(
@@ -241,14 +241,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     "the ticket's governance differs from the held goal",
                 ));
             }
+            // The host's agent is admitted at the host's endpoint, the one
+            // that redeems tickets.
             if entry
                 .state()
-                .members
-                .get(&invitation.governance)
+                .host
+                .and_then(|host| entry.state().members.get(&host))
                 .is_some_and(|member| member.endpoint != invitation.endpoint)
             {
                 return Err(conflict(
-                    "the ticket's endpoint differs from the held governance admission",
+                    "the ticket's endpoint differs from the host's admission in the held goal",
                 ));
             }
             if entry.membership(&principal) == Some(Membership::Left) && entry.is_member(&principal)
@@ -281,7 +283,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     && join.governance == invitation.governance;
                 if same && join.refused {
                     return Err(denied(
-                        "the inviter refused this invitation; request a fresh invitation from the governance",
+                        "the inviter refused this invitation; request a fresh invitation from the host",
                     ));
                 }
                 if same {
@@ -310,7 +312,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .is_some_and(|expires| expires <= now_ms)
         {
             return Err(denied(
-                "the invitation has expired; request a fresh invitation from the governance",
+                "the invitation has expired; request a fresh invitation from the host",
             ));
         }
         if invitation.endpoint == own {
@@ -329,7 +331,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             );
             let mut tx = self
                 .plan_join(&own, &request, now_ms)
-                .map_err(|_| denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the governance"))?;
+                .map_err(|_| denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the host"))?;
             tx.local(local::part_write(&goal, &principal, false))
                 .local(local::level_write(&goal, &principal, &level))
                 .touch(goal);

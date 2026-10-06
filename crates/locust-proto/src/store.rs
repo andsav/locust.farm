@@ -497,7 +497,7 @@ impl Store for MemStore {
 pub mod conformance {
     use super::*;
     use crate::event::{Body, Context, Scope};
-    use crate::testkit::Author;
+    use crate::testkit::{self, Author};
 
     fn contribution() -> Body {
         Body::ContributionPublished {
@@ -539,7 +539,7 @@ pub mod conformance {
 
     /// A goal founded by `owner`, followed by `count` notes of the owner.
     fn straight_log(owner: &mut Author, count: usize) -> Vec<Event> {
-        let genesis = owner.genesis();
+        let genesis = owner.genesis(testkit::keypair(9).public());
         let goal = genesis.header().goal;
         let mut log = vec![genesis.clone()];
         for _ in 0..count {
@@ -670,7 +670,7 @@ pub mod conformance {
 
     fn a_commit_becomes_visible_as_a_whole<S: Store>(mut store: S) {
         let mut owner = Author::new(1);
-        let genesis = owner.genesis();
+        let genesis = owner.genesis(testkit::keypair(9).public());
         let goal = genesis.header().goal;
         let blob = Blob::new(b"task text".to_vec());
         store
@@ -767,11 +767,11 @@ pub mod conformance {
 
     fn author_logs_keep_conflicting_events<S: Store>(mut store: S) {
         let mut owner = Author::new(1);
-        let genesis = owner.genesis();
+        let genesis = owner.genesis(testkit::keypair(9).public());
         let goal = genesis.header().goal;
         // The same key continues its log twice from the same point.
         let mut twin = Author::new(1);
-        assert_eq!(twin.genesis(), genesis);
+        assert_eq!(twin.genesis(testkit::keypair(9).public()), genesis);
         let first = owner.event(goal, Some(genesis.id()), contribution());
         let conflicting = twin.event(
             goal,
@@ -894,13 +894,13 @@ pub mod conformance {
     /// or skipped the last event.
     fn author_log_paging_visits_every_event_at_one_position_once<S: Store>(mut store: S) {
         let mut owner = Author::new(1);
-        let root = owner.genesis();
+        let root = owner.genesis(testkit::keypair(9).public());
         let goal = root.header().goal;
         let author = owner.key.public();
         let mut variants: Vec<Event> = (0..257u16)
             .map(|n| {
                 let mut twin = Author::new(1);
-                twin.genesis();
+                twin.genesis(testkit::keypair(9).public());
                 let mut about = [0; 32];
                 about[..2].copy_from_slice(&n.to_le_bytes());
                 twin.event(
@@ -1054,7 +1054,7 @@ pub mod conformance {
         let dropped = Blob::new(b"dropped".to_vec());
         let transient = Blob::new(b"transient".to_vec());
         let mut owner = Author::new(1);
-        let genesis = owner.genesis();
+        let genesis = owner.genesis(testkit::keypair(9).public());
         let goal = genesis.header().goal;
         let task = owner.event(
             goal,

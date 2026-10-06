@@ -217,7 +217,7 @@ fn the_schema_states_the_inline_limit_the_code_uses() {
 fn a_commit_that_fails_part_way_leaves_nothing() {
     let (dir, mut store) = scratch();
     let mut owner = Author::new(1);
-    let genesis = owner.genesis();
+    let genesis = owner.genesis(locust_proto::testkit::keypair(9).public());
     let goal = genesis.header().goal;
     let first = owner.event(goal, Some(genesis.id()), contribution());
     let small = object(100);
@@ -318,7 +318,7 @@ fn a_failure_while_committing_stops_the_store_until_it_is_reopened() {
 fn a_damaged_event_row_is_reported_as_corrupted_never_as_another_event() {
     let (dir, mut store) = scratch();
     let mut owner = Author::new(1);
-    let genesis = owner.genesis();
+    let genesis = owner.genesis(locust_proto::testkit::keypair(9).public());
     let goal = genesis.header().goal;
     let author = owner.key.public();
     let first = owner.event(goal, Some(genesis.id()), contribution());
@@ -983,7 +983,7 @@ fn redundant_staging_survives_reopen_for_inline_and_file_objects() {
 fn incompatible_event_protocol_refuses_open_before_collecting_or_rewriting_state() {
     let (dir, mut store) = scratch();
     let mut author = locust_proto::testkit::Author::new(71);
-    let genesis = author.genesis();
+    let genesis = author.genesis(locust_proto::testkit::keypair(9).public());
     let held = object(INLINE_MAX_BYTES + 13);
     let pending = object(57);
     store
@@ -1054,7 +1054,7 @@ fn incompatible_event_protocol_refuses_open_before_collecting_or_rewriting_state
 fn locked_connection_rechecks_event_protocol_after_preflight() {
     let (dir, mut store) = scratch();
     let mut author = locust_proto::testkit::Author::new(91);
-    let genesis = author.genesis();
+    let genesis = author.genesis(locust_proto::testkit::keypair(9).public());
     let goal = genesis.header().goal;
     let first = author.event(goal, Some(genesis.id()), contribution());
     store

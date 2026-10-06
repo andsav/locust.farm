@@ -37,7 +37,7 @@ fn recovery_child() {
     if step == "write" {
         let mut store = SqliteStore::open(&dir).unwrap();
         let mut author = Author::new(1);
-        let genesis = author.genesis();
+        let genesis = author.genesis(locust_proto::testkit::keypair(9).public());
         let goal = genesis.header().goal;
         store
             .commit(&Commit {
@@ -88,7 +88,10 @@ fn recovery_child() {
         assert_eq!(step, "read");
         let store = SqliteStore::open(&dir).unwrap();
         eprintln!("[recovery-test] open returned");
-        let goal = Author::new(1).genesis().header().goal;
+        let goal = Author::new(1)
+            .genesis(locust_proto::testkit::keypair(9).public())
+            .header()
+            .goal;
         assert_eq!(store.log(&goal, 0, 10).unwrap().len(), 2);
         assert_eq!(store.blob_len(&blob().hash()), Ok(None));
         assert!(

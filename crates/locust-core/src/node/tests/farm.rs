@@ -1,5 +1,6 @@
 //! Farm authorization, privacy and durable delivery through the actual engine.
-use super::lifecycle::{authorize, finding, offered, setup};
+use super::authorization::{governance_key, join_local};
+use super::lifecycle::{authorize, event, finding, offered, setup};
 use super::*;
 use locust_proto::api::{SessionCapabilities, SessionRecord, SessionState};
 use locust_proto::event::AttemptStatus;
@@ -198,7 +199,7 @@ fn joining_member_and_removed_work_author_require_consent() {
     let (mut daemon, principal, owner, agent, goal) = setup();
     let first = activate(&mut daemon, owner, goal, principal);
     acknowledge(&mut daemon, &first, 2000);
-    let (member, member_conn) = super::authorization::join_local(&mut daemon, agent, goal, 2);
+    let (member, member_conn) = join_local(&mut daemon, agent, goal, 2);
     let suspended = daemon.node.farm_poll(4000).remove(0);
     assert_eq!(suspended.request.operation, FarmOperation::Suspend);
     acknowledge(&mut daemon, &suspended, 4000);
@@ -302,7 +303,7 @@ fn invitation_discloses_signed_policy_without_implicitly_consenting() {
             .as_deref(),
         Some("Approved public title")
     );
-    let (member, _) = super::authorization::join_local(&mut daemon, agent, goal, 2);
+    let (member, _) = join_local(&mut daemon, agent, goal, 2);
     assert!(
         !daemon.node.goals[&goal]
             .state()
@@ -399,6 +400,214 @@ fn unadmitted_work_does_not_leak_through_public_change_counts_or_times() {
         panic!()
     };
     assert_eq!(before.snapshot, after.snapshot);
+}
+
+#[test]
+fn publication_needs_no_consent_from_the_governance_key() {
+    use super::super::commit::Tx;
+    use crate::goal::{Exclusion, Standing};
+    use locust_proto::event::{Body, Event, Header};
+    let (mut daemon, principal, owner, _, goal) = setup();
+    let initial = activate(&mut daemon, owner, goal, principal);
+    acknowledge(&mut daemon, &initial, 2000);
+    let entry = &daemon.node.goals[&goal];
+    let governance = entry.state().governance.unwrap();
+    assert_ne!(governance, principal);
+    assert!(!entry.state().members.contains_key(&governance));
+    // The key signed the first record, the host's admission, the rules and
+    // the policy, and consented to nothing; the page is eligible anyway.
+    assert!(entry.goal.points(&governance).len() >= 4);
+    assert_eq!(
+        entry
+            .state()
+            .publication_consents
+            .keys()
+            .collect::<Vec<_>>(),
+        vec![&principal]
+    );
+    let Response::FarmPreview(before) = daemon.ok(owner, Request::FarmShow { goal }) else {
+        panic!()
+    };
+    assert!(before.status.as_ref().unwrap().eligible);
+    assert_eq!(before.snapshot.as_ref().unwrap().agents.len(), 1);
+    // A consent signed by the governance key is excluded as a non-member's
+    // work and never read: the page neither gains an agent nor loses eligibility.
+    let entry = &daemon.node.goals[&goal];
+    let (publication, set) = entry.state().publication.clone().unwrap();
+    let next = entry.goal.next(&governance).unwrap();
+    let header = Header {
+        version: locust_proto::PROTOCOL_VERSION,
+        goal,
+        author: governance,
+        seq: next.seq,
+        prev: next.prev,
+        anchor: Some(next.anchor),
+        parents: vec![],
+        at_ms: 3000,
+        payload: None,
+        body: Body::PublicationConsent(PublicationConsent {
+            publication,
+            policy_digest: set.policy.digest(),
+            accept: true,
+            profile: Some(PublicProfile {
+                name: "GOVERNANCE_PROFILE_CANARY".into(),
+                group_label: None,
+                harness: Harness::Codex,
+            }),
+        }),
+    };
+    let forged = Event::sign(header, &governance_key(&daemon, goal)).unwrap();
+    let mut tx = Tx::none();
+    tx.commit.events.push(forged.clone());
+    daemon.node.land(tx).unwrap();
+    let entry = &daemon.node.goals[&goal];
+    assert_eq!(
+        entry.goal.standing(&forged.id()),
+        Some(Standing::Excluded(Exclusion::NotAMember))
+    );
+    assert!(!entry.state().publication_consents.contains_key(&governance));
+    assert!(entry.goal.evaluation().host_halt.is_none());
+    let Response::FarmPreview(after) = daemon.ok(owner, Request::FarmShow { goal }) else {
+        panic!()
+    };
+    assert!(after.status.as_ref().unwrap().eligible);
+    let snapshot = after.snapshot.unwrap();
+    assert_eq!(snapshot.agents.len(), 1);
+    assert!(
+        !serde_json::to_string(&snapshot)
+            .unwrap()
+            .contains("GOVERNANCE_PROFILE_CANARY")
+    );
+    // The one member's consent is the one that counts: without it the key's
+    // excluded consent carries nothing.
+    daemon.ok(owner, consent(goal, principal, false));
+    let Response::FarmPreview(declined) = daemon.ok(owner, Request::FarmShow { goal }) else {
+        panic!()
+    };
+    assert!(!declined.status.unwrap().eligible);
+    assert!(declined.snapshot.is_none());
+}
+
+#[test]
+fn the_page_keeps_changes_signed_by_the_governance_key() {
+    use locust_proto::event::Body;
+    use locust_proto::organization::{CompletionRule, Formation, Selector, Stage};
+    use std::collections::BTreeMap;
+    let (mut daemon, principal, owner, agent, goal) = setup();
+    let governance = daemon.node.goals[&goal].state().governance.unwrap();
+    // Three records the governance key signs after the goal exists: an
+    // admission, a rules binding and the stage step the binding opens.
+    let (member, _) = join_local(&mut daemon, agent, goal, 2);
+    let admission = daemon.node.goals[&goal].state().members[&member].admission;
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Contribution {
+        by: Selector::Members,
+    };
+    formation.flow = BTreeMap::from([(
+        "first".into(),
+        Stage {
+            recipients: Selector::Members,
+            task_type: None,
+            requires: vec![],
+        },
+    )]);
+    let expected = daemon.node.goals[&goal].state().current_rules.unwrap();
+    let rules = event(daemon.ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            roles: Default::default(),
+            inputs: Default::default(),
+        },
+    ));
+    let entry = &daemon.node.goals[&goal];
+    let step = *entry
+        .state()
+        .effects
+        .values()
+        .next()
+        .expect("the binding opens the first stage")
+        .events
+        .first()
+        .unwrap();
+    for id in [admission, rules, step] {
+        assert_eq!(entry.goal.event(&id).unwrap().header().author, governance);
+    }
+    daemon.ok(owner, on(goal));
+    daemon.ok(owner, consent(goal, principal, true));
+    daemon.ok(owner, consent(goal, member, true));
+    let Response::FarmPreview(preview) = daemon.ok(owner, Request::FarmShow { goal }) else {
+        panic!()
+    };
+    assert!(preview.status.unwrap().eligible);
+    let snapshot = preview.snapshot.unwrap();
+    assert_eq!(snapshot.omitted_changes, 0);
+    // The visible change list is the feed restricted to consented agents and
+    // the governance key, in feed order; the key's records carry no agent.
+    let entry = &daemon.node.goals[&goal];
+    let visible: Vec<(u64, Option<PublicKey>, FarmChangeKind)> = entry
+        .feed
+        .after(0, usize::MAX)
+        .filter_map(|(position, id)| {
+            let header = entry.goal.event(id)?.header();
+            let kind = match &header.body {
+                Body::PublicationSet(_) | Body::PublicationConsent(_) => {
+                    FarmChangeKind::Publication
+                }
+                Body::MemberAdmitted { .. } => FarmChangeKind::Membership,
+                _ => FarmChangeKind::Task,
+            };
+            if header.author == governance {
+                Some((position, None, kind))
+            } else if header.author == principal || header.author == member {
+                Some((position, Some(header.author), kind))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(snapshot.changes.len(), visible.len());
+    for (change, (_, author, kind)) in snapshot.changes.iter().zip(&visible) {
+        assert_eq!(change.agent.is_some(), author.is_some(), "{change:?}");
+        assert_eq!(change.kind, *kind, "{change:?}");
+    }
+    assert_eq!(
+        snapshot
+            .changes
+            .iter()
+            .filter(|change| change.agent.is_none())
+            .count(),
+        entry
+            .goal
+            .points(&governance)
+            .iter()
+            .filter(|point| entry.feed.position(&point.id).is_some())
+            .count()
+    );
+    let change_for = |id: &locust_proto::id::EventId| {
+        let position = entry.feed.position(id).unwrap();
+        let index = visible
+            .iter()
+            .position(|(at, _, _)| *at == position)
+            .unwrap();
+        &snapshot.changes[index]
+    };
+    for (id, kind, text) in [
+        (admission, FarmChangeKind::Membership, "Membership changed"),
+        (rules, FarmChangeKind::Task, "Collaboration record changed"),
+        (step, FarmChangeKind::Task, "Work configuration changed"),
+    ] {
+        let change = change_for(&id);
+        assert_eq!(change.agent, None, "{change:?}");
+        assert_eq!(change.kind, kind, "{change:?}");
+        assert_eq!(change.text, text, "{change:?}");
+    }
+    assert!(
+        snapshot.tasks.iter().any(|task| task.stage.is_some()),
+        "the stage's task is on the page"
+    );
 }
 
 #[test]

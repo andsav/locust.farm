@@ -162,6 +162,7 @@ impl State {
                         round: EventId([4; 32]),
                     },
                     creator: KEY,
+                    by_host: false,
                     title: None,
                     attempts: vec![ATTEMPT],
                     contributions: vec![],

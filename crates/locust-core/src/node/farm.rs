@@ -105,6 +105,8 @@ fn require_owner(actor: &Actor) -> Result<(), ApiError> {
 }
 
 /// Every covered work author, including removed members, must match the policy.
+/// The governance key is no member and consents to nothing: its stage steps,
+/// tree epochs and task revisions are published on the host's authority.
 fn eligible(
     entry: &Entry,
     policy: &DisclosurePolicy,
@@ -128,6 +130,9 @@ fn eligible(
         .map(|m| m.principal)
         .collect();
     for author in entry.goal.authors() {
+        if state.governance == Some(*author) {
+            continue;
+        }
         for point in entry.goal.points(author) {
             let event = entry.goal.event(&point.id).unwrap();
             if entry.goal.standing(&event.id()) == Some(Standing::Effective)
@@ -488,10 +493,10 @@ fn project(entry: &Entry, local: &mut FarmLocal) -> Result<FarmSnapshot, String>
         .feed
         .after(0, usize::MAX)
         .filter(|(_, id)| {
-            entry
-                .goal
-                .event(id)
-                .is_some_and(|event| agent_ids.contains_key(&event.header().author))
+            entry.goal.event(id).is_some_and(|event| {
+                let author = &event.header().author;
+                agent_ids.contains_key(author) || state.governance == Some(*author)
+            })
         })
         .collect();
     for &(position, _) in &visible_feed {

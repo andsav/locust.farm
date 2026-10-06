@@ -126,4 +126,31 @@ impl<S: Store, E: Entropy> Node<S, E> {
             tx,
         })
     }
+
+    /// Clears the flag `agent_revoke` set. A revoke deletes nothing, so the
+    /// agent comes back under the same key and its stored credential works
+    /// again. No goal record is signed; the goals the agent is a member of
+    /// are marked changed so a step that waited for it is taken.
+    pub(super) fn agent_reconnect(&self, agent: locust_proto::id::PublicKey) -> Plan {
+        let mut record = self
+            .principals
+            .get(&agent)
+            .ok_or_else(|| super::super::access::not_found("no principal has that key"))?
+            .record
+            .clone();
+        let mut tx = Tx::none();
+        if record.revoked {
+            record.revoked = false;
+            tx.local(Principals::principal_write(&agent, &record));
+            for (goal, entry) in &self.goals {
+                if entry.membership(&agent).is_some() {
+                    tx.touch(*goal);
+                }
+            }
+        }
+        Ok(Planned {
+            response: Response::Done,
+            tx,
+        })
+    }
 }

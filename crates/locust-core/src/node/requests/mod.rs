@@ -179,6 +179,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 self.task_disallow(actor, goal, agent, task)
             }
             Request::AgentRevoke { agent } => self.agent_revoke(agent),
+            Request::AgentReconnect { agent } => self.agent_reconnect(agent),
             Request::AuthorEnroll { name, credential } => self.author_enroll(name, credential),
             Request::SessionReport { record } => self.session_report(actor, record, now),
             Request::Session { instance } => self.session_show(actor, instance),

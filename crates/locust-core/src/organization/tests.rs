@@ -167,6 +167,72 @@ fn role_key_scope_threshold_and_cycles_report_actionable_locations() {
     }
 }
 
+/// A stage's task is opened by the host's computer, which is no member, so
+/// `task_creator` where only a member can act is met by nobody.
+#[test]
+fn a_stage_rule_that_names_the_task_creator_where_a_member_must_act_is_refused() {
+    let creator = json!({"kind":"task_creator"});
+    let wrapped = json!({"kind":"any","selectors":[{"kind":"nobody"},{"kind":"task_creator"}]});
+    let mut refused = Vec::new();
+    for by in [&creator, &wrapped] {
+        refused.extend([
+            (json!({"starts":[{"kind":"independent","by":by}]}), json!({})),
+            (
+                json!({"starts":[{"kind":"offered","by":{"kind":"members"},"to":by}]}),
+                json!({}),
+            ),
+            (json!({}), json!({"completion":{"kind":"declaration","by":by}})),
+            (
+                json!({}),
+                json!({"completion":{"kind":"reviews","by":by,"count":1,"exclude_author":false}}),
+            ),
+            (
+                json!({}),
+                json!({"completion":{"kind":"check","name":"build","by":by}}),
+            ),
+            (
+                json!({}),
+                json!({"completion":{"kind":"contribution","by":by}}),
+            ),
+            (
+                json!({}),
+                json!({"completion":{"kind":"all","rules":[{"kind":"declaration","by":{"kind":"members"}},{"kind":"declaration","by":by}]}}),
+            ),
+        ]);
+    }
+    for (work, decisions) in &refused {
+        // The rules are the stage's task type's, or the formation's own.
+        let typed = json!({"schema_version":2,
+            "task_types":{"staged":{"work":work,"decisions":decisions}},
+            "flow":{"research":{"task_type":"staged"}}});
+        let own = json!({"schema_version":2,"work":work,"decisions":decisions,
+            "flow":{"research":{}}});
+        for source in [typed, own] {
+            let result = checked(source.clone());
+            assert!(!result.valid, "{source}");
+            assert!(
+                result.diagnostics.iter().any(|diagnostic| {
+                    diagnostic.code == "selector_scope"
+                        && diagnostic.path == "/flow/research"
+                        && diagnostic.message.contains("host's computer")
+                }),
+                "{source}: {:?}",
+                result.diagnostics
+            );
+        }
+        // Outside a stage the same rules are the task creator's to meet.
+        let plain = json!({"schema_version":2,"work":work,"decisions":decisions});
+        assert!(checked(plain.clone()).valid, "{plain}");
+    }
+    let offered_by_creator = json!({"schema_version":2,
+        "task_types":{"staged":{"work":{"starts":[{"kind":"offered","by":creator,"to":{"kind":"members"}}]}}},
+        "flow":{"research":{"task_type":"staged"}}});
+    assert!(checked(offered_by_creator).valid);
+    for preset in presets() {
+        assert!(checked(serde_json::to_value(preset.formation).unwrap()).valid);
+    }
+}
+
 #[test]
 fn repeated_identity_does_not_make_an_impossible_review_threshold_possible() {
     let key = "ab".repeat(32);

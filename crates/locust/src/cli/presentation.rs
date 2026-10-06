@@ -1,8 +1,8 @@
 //! Human views of authoritative API responses. Labels never act as identity.
 
 use locust_proto::api::{
-    Abilities, AgentView, Halt, Level, Membership, PendingWork, Response, Rule, SessionState,
-    SessionView, TaskView, WaitOutcome,
+    Abilities, AgentView, GoalStatus, Halt, Level, Membership, PendingWork, Response, Rule,
+    SessionState, SessionView, TaskView, WaitOutcome,
 };
 use locust_proto::event::{Body, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
@@ -133,6 +133,25 @@ fn label(key: PublicKey, names: &[AgentView]) -> String {
         .find(|agent| agent.agent == key)
         .map(|agent| format!("{} ({key})", safe(&agent.name)))
         .unwrap_or_else(|| key.to_string())
+}
+
+/// A record's signer: the host's computer prints as `host` with no key.
+fn signer(by_host: bool, key: PublicKey, names: &[AgentView]) -> String {
+    if by_host {
+        "host".into()
+    } else {
+        label(key, names)
+    }
+}
+
+/// The `Host:` line of a goal: this computer, the host's agent, or nothing
+/// yet before the first record is held.
+fn host_line(view: &GoalStatus, names: &[AgentView]) -> String {
+    match (view.hosted_here, view.host) {
+        (true, _) => "Host: you".into(),
+        (false, Some(agent)) => format!("Host: {}", label(agent, names)),
+        (false, None) => "Host: on another computer".into(),
+    }
 }
 
 fn tag(value: &impl serde::Serialize) -> String {
@@ -486,7 +505,7 @@ pub(super) fn render(
             lines
         }
         Response::GoalStatus(view) => {
-            let mut lines = vec![format!("{} ({})", safe(view.title.as_deref().unwrap_or("Title unavailable")), view.goal), format!("Host: {}", label(view.host, names))];
+            let mut lines = vec![format!("{} ({})", safe(view.title.as_deref().unwrap_or("Title unavailable")), view.goal), host_line(view, names)];
             if let Some(reason) = view.halted { lines.push(halt(reason).into()); }
             for item in &view.scope_halts { lines.push(format!("{}: {}", scope(item.context.scope), halt(item.reason))); }
             for member in &view.members {
@@ -510,7 +529,7 @@ pub(super) fn render(
                 }
             }
             for stalled in &view.stalled {
-                lines.push(format!("Step {} stalled for {}: {}", stalled.effect, label(stalled.runner, names), tag(&stalled.reason)));
+                lines.push(format!("Step {} stalled for {}: {}", stalled.effect, signer(stalled.runner == view.governance, stalled.runner, names), tag(&stalled.reason)));
             }
             for peer in &view.peers {
                 lines.push(format!("Peer {}: {} · last successful sync {}", peer.endpoint, if peer.connected { "connected" } else { "disconnected" }, peer.last_sync_ms.map(|at| format!("{at} ms since Unix epoch")).unwrap_or_else(|| "not observed".into())));
@@ -523,14 +542,14 @@ pub(super) fn render(
                 let mut lines = vec![format!("{} tasks", tasks.len())];
                 for task in tasks {
                     lines.push(format!("{} · {}", task_label(task.task, tasks), task_state(task)));
-                    lines.push(format!("  By {} · {} attempts · {} contributions", label(task.creator, names), task.attempts.len(), task.contributions.len()));
+                    lines.push(format!("  By {} · {} attempts · {} contributions", signer(task.by_host, task.creator, names), task.attempts.len(), task.contributions.len()));
                 }
                 lines.push("Use pending for start, review and acknowledgment actions.".into());
                 lines
             }
         }
         Response::Task(task) => {
-            let mut lines = vec![format!("{} · {}", task.view.task, task_state(&task.view)), format!("Created by {}", label(task.view.creator, names)), format!("Text: {}", task.text.as_deref().map(safe).unwrap_or_else(|| "not held locally".into())), format!("Current round: {}", task.view.context.round)];
+            let mut lines = vec![format!("{} · {}", task.view.task, task_state(&task.view)), format!("Created by {}", signer(task.view.by_host, task.view.creator, names)), format!("Text: {}", task.text.as_deref().map(safe).unwrap_or_else(|| "not held locally".into())), format!("Current round: {}", task.view.context.round)];
             if let Some(parent) = task.parent { lines.push(format!("Parent: {parent}")); }
             if let Some(task_type) = &task.task_type { lines.push(format!("Task type: {}", safe(task_type))); }
             for (name, input) in &task.inputs { lines.push(format!("Input {}: {input}", safe(name))); }
@@ -559,7 +578,7 @@ pub(super) fn render(
         }
         Response::ContributionInspected(inspected) => {
             let event = &inspected.contribution;
-            let mut lines = vec![format!("Contribution {} · {}", event.view.event, tag(&event.view.standing)), format!("Author: {}", label(event.view.author, names))];
+            let mut lines = vec![format!("Contribution {} · {}", event.view.event, tag(&event.view.standing)), format!("Author: {}", signer(event.view.by_host, event.view.author, names))];
             if event.view.by_owner { lines.push(if principal.is_some() { "by your owner" } else { "by you" }.into()); }
             if let Some(text) = &event.text { lines.push(format!("Summary: {}", safe(text))); }
             else if event.payload.is_some() { lines.push("Summary text is not held locally.".into()); }
@@ -569,7 +588,7 @@ pub(super) fn render(
                 .chain(inspected.declared_sources.iter().map(|item| ("Declared source", item))) {
                 match &reference.detail {
                     Some(detail) => {
-                        lines.push(format!("{kind}: {} · {} · {} · {}", reference.event, safe(&detail.view.kind), label(detail.view.author, names), tag(&detail.view.standing)));
+                        lines.push(format!("{kind}: {} · {} · {} · {}", reference.event, safe(&detail.view.kind), signer(detail.view.by_host, detail.view.author, names), tag(&detail.view.standing)));
                         if let Some(text) = &detail.text { lines.push(format!("  {}", safe(text))); }
                         else if detail.payload.is_some() { lines.push("  Text is not held locally.".into()); }
                         for content in &detail.content { lines.push(format!("  Content {}: {}", content.hash, tag(&content.state))); }
@@ -588,7 +607,7 @@ pub(super) fn render(
             lines
         }
         Response::Event(event) => {
-            let mut lines = vec![format!("Event {} · {} · {}", event.view.event, safe(&event.view.kind), tag(&event.view.standing)), format!("Author: {}", label(event.view.author, names))];
+            let mut lines = vec![format!("Event {} · {} · {}", event.view.event, safe(&event.view.kind), tag(&event.view.standing)), format!("Author: {}", signer(event.view.by_host, event.view.author, names))];
             if event.view.by_owner { lines.push(if principal.is_some() { "by your owner" } else { "by you" }.into()); }
             match &event.body {
                 Body::ReviewRecorded { subject, verdict, .. } => lines.push(format!("Review of {subject}: {}", tag(verdict))),
@@ -603,7 +622,7 @@ pub(super) fn render(
             lines
         }
         Response::Events(events) => {
-            let mut lines = events.iter().map(|event| format!("{} · {} · {} · {}{}", event.event, safe(&event.kind), label(event.author, names), tag(&event.standing), if event.by_owner { if principal.is_some() { " · by your owner" } else { " · by you" } } else { "" })).collect::<Vec<_>>();
+            let mut lines = events.iter().map(|event| format!("{} · {} · {} · {}{}", event.event, safe(&event.kind), signer(event.by_host, event.author, names), tag(&event.standing), if event.by_owner { if principal.is_some() { " · by your owner" } else { " · by you" } } else { "" })).collect::<Vec<_>>();
             if lines.is_empty() { lines.push("No events in this page.".into()); }
             lines
         }
@@ -680,6 +699,7 @@ mod tests {
             at_ms: 1,
             standing: Standing::Effective,
             by_owner: true,
+            by_host: false,
         };
         let response = Response::Events(vec![view]);
         assert!(
@@ -692,6 +712,152 @@ mod tests {
                 .unwrap()
                 .contains("by your owner")
         );
+    }
+
+    /// The goal's signing key, its host's agent and a goal whose first record
+    /// is held here, with the responses that name a record's signer.
+    fn hosted(governance: PublicKey, hosted_here: bool) -> Vec<Response> {
+        use locust_proto::api::{EventView, MemberView, Stall, Stalled, Standing};
+        use locust_proto::event::{Effect, EffectAction, Trigger};
+        use locust_proto::id::{EffectId, EndpointId, EventId};
+        let goal = GoalId([1; 32]);
+        let agent = PublicKey([2; 32]);
+        let event = EventId([3; 32]);
+        let context = locust_proto::event::Context {
+            scope: Scope::Goal,
+            round: event,
+        };
+        let effect = Effect {
+            context,
+            transition: "start".into(),
+            trigger: Trigger::Stage {
+                rules: event,
+                stage: "one".into(),
+            },
+            target_slot: "stage".into(),
+            action: EffectAction::Offer {
+                context,
+                recipient: agent,
+            },
+            evidence: vec![],
+        };
+        let signed = |author: PublicKey| EventView {
+            position: Some(1),
+            event,
+            author,
+            kind: "effect_materialized".into(),
+            at_ms: 1,
+            standing: Standing::Effective,
+            by_owner: false,
+            by_host: author == governance,
+        };
+        let task = TaskView {
+            task: TaskId::Derived(EffectId([6; 32])),
+            context,
+            creator: governance,
+            by_host: true,
+            title: Some("Stage one".into()),
+            attempts: vec![],
+            contributions: vec![],
+            completed: false,
+            selected: None,
+            closed: false,
+        };
+        let status = GoalStatus {
+            goal,
+            title: Some("Parser cleanup".into()),
+            governance,
+            hosted_here,
+            host: Some(agent),
+            governance_head: Some(event),
+            current_rules: Some(event),
+            scope_halts: vec![],
+            members: vec![MemberView {
+                member: agent,
+                endpoint: EndpointId([3; 32]),
+                local: true,
+            }],
+            halted: Some(Halt::AuthorityConflict),
+            workspace: None,
+            abilities: vec![],
+            stalled: vec![Stalled {
+                effect: EffectId([6; 32]),
+                runner: governance,
+                reason: Stall::Halted,
+            }],
+            peers: vec![],
+        };
+        vec![
+            Response::Events(vec![signed(governance), signed(agent)]),
+            Response::Event(Box::new(locust_proto::api::EventDetail {
+                view: signed(governance),
+                anchor: Some(event),
+                body: Body::EffectMaterialized { effect },
+                payload: None,
+                text: None,
+                task: None,
+                content: vec![],
+            })),
+            Response::Board(vec![task.clone()]),
+            Response::Task(locust_proto::api::TaskDetail {
+                view: task,
+                text: Some("Stage one".into()),
+                inputs: Default::default(),
+                parent: None,
+                task_type: None,
+                effective_rules_json: "{}".into(),
+            }),
+            Response::GoalStatus(status),
+        ]
+    }
+
+    #[test]
+    fn a_record_signed_by_the_governance_key_prints_host() {
+        let governance = PublicKey([9; 32]);
+        let agent = PublicKey([2; 32]);
+        let names = [AgentView {
+            agent,
+            name: "maple".into(),
+            author_only: false,
+            revoked: false,
+        }];
+        let rendered: Vec<_> = hosted(governance, true)
+            .iter()
+            .map(|response| render(response, &names, Some(GoalId([1; 32])), None).unwrap())
+            .collect();
+        let [events, event, board, task, status] = rendered.as_slice() else {
+            unreachable!("five responses")
+        };
+        assert!(events.contains(" · host · "), "{events}");
+        assert!(events.contains(&format!("maple ({agent})")), "{events}");
+        assert!(event.contains("Author: host"), "{event}");
+        assert!(board.contains("By host ·"), "{board}");
+        assert!(task.contains("Created by host"), "{task}");
+        assert!(status.contains("stalled for host:"), "{status}");
+        assert!(status.contains("Host: you"), "{status}");
+        let elsewhere = render(
+            hosted(governance, false).last().unwrap(),
+            &names,
+            Some(GoalId([1; 32])),
+            None,
+        )
+        .unwrap();
+        assert!(
+            elsewhere.contains(&format!("Host: maple ({agent})")),
+            "{elsewhere}"
+        );
+    }
+
+    #[test]
+    fn rendered_text_never_names_the_governance_key() {
+        let governance = PublicKey([9; 32]);
+        for hosted_here in [true, false] {
+            for response in hosted(governance, hosted_here) {
+                let text = render(&response, &[], Some(GoalId([1; 32])), None).unwrap();
+                assert!(!text.contains(&governance.to_string()), "{text}");
+                assert!(!text.to_lowercase().contains("governance key"), "{text}");
+            }
+        }
     }
 
     #[test]
@@ -830,7 +996,9 @@ mod tests {
         let status = GoalStatus {
             goal,
             title: None,
-            host: agent,
+            governance: PublicKey([9; 32]),
+            hosted_here: true,
+            host: Some(agent),
             governance_head: None,
             current_rules: None,
             scope_halts: vec![],

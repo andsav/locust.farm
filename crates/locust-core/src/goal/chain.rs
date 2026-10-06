@@ -1,5 +1,9 @@
-//! One governance stream and authenticated membership tenures. Work decisions
-//! are deliberately absent: a pending work scope cannot stop this chain.
+//! One governance stream, signed by the goal's governance key, and
+//! authenticated membership tenures. The key is never a member: its admission
+//! is excluded and so is any ordinary work it signs; the one non-governance
+//! kind it signs is a host's step. The host's agent, named by the first
+//! record, is an ordinary member whose removal is excluded. Work decisions are
+//! deliberately absent: a pending work scope cannot stop this chain.
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -53,6 +57,7 @@ impl Chain {
             return chain;
         };
         chain.state.governance = Some(governance);
+        chain.state.host = history.host;
         let Some(log) = history.log(&governance) else {
             return chain;
         };
@@ -90,7 +95,11 @@ impl Chain {
                         initial_definition = Some(genesis.definition);
                     }
                     Body::MemberAdmitted { member, endpoint } => {
-                        if snapshot.members.contains_key(member) {
+                        if *member == governance {
+                            status = Standing::Excluded(Exclusion::Precondition(
+                                "the goal's signing key is not a member",
+                            ));
+                        } else if snapshot.members.contains_key(member) {
                             status = Standing::Excluded(Exclusion::Precondition(
                                 "member is already admitted",
                             ));
@@ -122,7 +131,11 @@ impl Chain {
                         admission,
                         last_accepted,
                     } => {
-                        if snapshot.members.get(member) != Some(admission) {
+                        if Some(*member) == history.host {
+                            status = Standing::Excluded(Exclusion::Precondition(
+                                "the host's agent is not removed",
+                            ));
+                        } else if snapshot.members.get(member) != Some(admission) {
                             status = Standing::Excluded(Exclusion::Precondition(
                                 "removal does not name the current admission",
                             ));
@@ -402,17 +415,25 @@ impl Chain {
         {
             return Standing::Excluded(Exclusion::BadEpoch);
         }
-        let Some(tenure) = self.tenure_at(&h.author, anchor) else {
-            return Standing::Excluded(Exclusion::NotAMember);
-        };
-        match self.cutoff(history, tenure, event.id()) {
-            Ok(false) => return Standing::Excluded(Exclusion::PastRemoval),
-            Ok(true) => {}
-            Err(id) => {
-                missing.insert(Dependency::Event(id));
-                return Standing::Pending(Waiting::Reference);
+        if Some(h.author) == self.state.governance {
+            // The goal's signing key has no tenure and no cutoff: it signs
+            // the host's steps and nothing else outside governance.
+            if !h.body.host_may_sign() {
+                return Standing::Excluded(Exclusion::NotAMember);
             }
-        };
+        } else {
+            let Some(tenure) = self.tenure_at(&h.author, anchor) else {
+                return Standing::Excluded(Exclusion::NotAMember);
+            };
+            match self.cutoff(history, tenure, event.id()) {
+                Ok(false) => return Standing::Excluded(Exclusion::PastRemoval),
+                Ok(true) => {}
+                Err(id) => {
+                    missing.insert(Dependency::Event(id));
+                    return Standing::Pending(Waiting::Reference);
+                }
+            };
+        }
         // Check full author ancestry and monotonic governance anchoring even when
         // a scoped proof bypasses the ordinary usable-prefix exclusion.
         let mut id = event.id();

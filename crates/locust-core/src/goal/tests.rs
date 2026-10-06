@@ -13,7 +13,13 @@ use locust_proto::testkit::{self, Author};
 
 use crate::goal::{Goal, Standing, Waiting};
 
+/// A goal as one host's computer and three other members see it. The
+/// computer holds two keys: the goal's governance key, which signs the first
+/// record, admissions, removals, rules and stage steps and is no member, and
+/// the host's agent (`admin`, key 1), an ordinary member that the formation's
+/// `lead` role and selection authority name.
 struct Fixture {
+    governance: Author,
     admin: Author,
     workers: Vec<Author>,
     events: Vec<Event>,
@@ -23,14 +29,21 @@ struct Fixture {
     rules: EventId,
     admissions: Vec<EventId>,
 }
+/// The seed of the fixture's governance key; no member of any fixture uses it.
+const GOVERNANCE: u8 = 10;
 impl Fixture {
     fn new(formation: Formation) -> Self {
         let inspected = crate::organization::inspect(&serde_json::to_string(&formation).unwrap());
         assert!(inspected.valid, "{:?}", inspected.diagnostics);
-        let formation = inspected.normalized.unwrap();
-        let mut admin = Author::new(1);
+        Self::founded(inspected.normalized.unwrap())
+    }
+    /// Founds a goal without asking whether its formation is valid, so a
+    /// test can watch replay refuse one.
+    fn founded(formation: Formation) -> Self {
+        let mut governance = Author::new(GOVERNANCE);
+        let admin = Author::new(1);
         let workers: Vec<_> = (2..=4).map(Author::new).collect();
-        let genesis = admin.genesis_with(&formation);
+        let genesis = governance.genesis_with(admin.key.public(), &formation);
         let id = genesis.header().goal;
         let mut anchor = genesis.id();
         let mut events = vec![genesis];
@@ -38,7 +51,7 @@ impl Fixture {
         for principal in std::iter::once(admin.key.public())
             .chain(workers.iter().map(|worker| worker.key.public()))
         {
-            let event = admin.event(
+            let event = governance.event(
                 id,
                 Some(anchor),
                 Body::MemberAdmitted {
@@ -63,7 +76,7 @@ impl Fixture {
             })
             .collect();
         let (binding, _) = testkit::rules_binding(&id, 0, &formation, roles);
-        let bound = admin.event(
+        let bound = governance.event(
             id,
             Some(anchor),
             Body::RulesBound {
@@ -75,6 +88,7 @@ impl Fixture {
         let rules = bound.id();
         events.push(bound);
         Self {
+            governance,
             admin,
             workers,
             events,
@@ -85,13 +99,30 @@ impl Fixture {
             admissions,
         }
     }
-    fn admin(&mut self, body: Body) -> EventId {
+    /// What the host's computer signs: governance and stage steps with the
+    /// goal's key, everything else as the host's agent.
+    fn host(&mut self, body: Body) -> EventId {
+        if body.host_may_sign() {
+            self.governance(body)
+        } else {
+            self.agent(body)
+        }
+    }
+    /// Signs with the goal's governance key, whatever the body.
+    fn governance(&mut self, body: Body) -> EventId {
         let governance = body.is_governance();
-        let event = self.admin.event(self.id, Some(self.anchor), body);
+        let event = self.governance.event(self.id, Some(self.anchor), body);
         let id = event.id();
         if governance {
             self.anchor = id;
         }
+        self.events.push(event);
+        id
+    }
+    /// Signs as the host's agent, whatever the body.
+    fn agent(&mut self, body: Body) -> EventId {
+        let event = self.admin.event(self.id, Some(self.anchor), body);
+        let id = event.id();
         self.events.push(event);
         id
     }
@@ -150,6 +181,26 @@ impl Fixture {
         let mut goal = Goal::new(self.id);
         goal.apply(&self.events, &self.definitions);
         goal
+    }
+    /// The same history run forward, one record at a time in reverse, and
+    /// reloaded from a store; all three agree.
+    fn replays(&self) -> [Goal; 3] {
+        let forward = self.goal();
+        let mut reversed = Goal::new(self.id);
+        for event in self.events.iter().rev() {
+            reversed.apply(std::slice::from_ref(event), &self.definitions);
+        }
+        let mut store = MemStore::new();
+        store
+            .commit(&Commit {
+                events: self.events.clone(),
+                ..Commit::default()
+            })
+            .unwrap();
+        let reloaded = Goal::load(&store.reopen(), self.id, &self.definitions).unwrap();
+        assert_eq!(reversed.evaluation(), forward.evaluation());
+        assert_eq!(reloaded.evaluation(), forward.evaluation());
+        [forward, reversed, reloaded]
     }
     fn event(&self, id: EventId) -> &Event {
         self.events.iter().find(|event| event.id() == id).unwrap()
@@ -432,7 +483,7 @@ fn member_fork_retracts_unpinned_approval_but_scoped_decision_retains_exact_proo
     let review = f.review(1, context, subject);
     let mut before = f.goal();
     assert!(before.state().contributions[&subject].approved);
-    let decision = f.admin(Body::ScopeDecided {
+    let decision = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -460,7 +511,7 @@ fn a_scoped_decision_waits_for_its_exact_missing_review() {
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
-    let decision = f.admin(Body::ScopeDecided {
+    let decision = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -487,13 +538,13 @@ fn scope_equivocation_halts_only_that_stream_and_keeps_other_work() {
     let b = f.publish(0, context);
     let ar = f.review(1, context, a);
     let br = f.review(1, context, b);
-    let first = f.admin(Body::ScopeDecided {
+    let first = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject: a },
         evidence: vec![ar],
     });
-    let second = f.admin(Body::ScopeDecided {
+    let second = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject: b },
@@ -515,7 +566,7 @@ fn a_selection_cannot_substitute_another_task_or_count_unlisted_reviews() {
     let other = f.task();
     let candidate = f.publish(0, other);
     let review = f.review(1, other, candidate);
-    let wrong = f.admin(Body::ScopeDecided {
+    let wrong = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject: candidate },
@@ -526,7 +577,7 @@ fn a_selection_cannot_substitute_another_task_or_count_unlisted_reviews() {
     let context = f.task();
     let candidate = f.publish(0, context);
     f.review(1, context, candidate);
-    let incomplete = f.admin(Body::ScopeDecided {
+    let incomplete = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject: candidate },
@@ -550,7 +601,7 @@ fn removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate(
         seq: f.event(last).header().seq,
         id: last,
     };
-    f.admin(Body::MemberRemoved {
+    f.host(Body::MemberRemoved {
         member: f.workers[0].key.public(),
         admission: f.admissions[1],
         last_accepted: Some(point),
@@ -561,7 +612,7 @@ fn removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate(
     assert!(matches!(goal.standing(&fork), Some(Standing::Excluded(_))));
     assert!(matches!(goal.standing(&after), Some(Standing::Excluded(_))));
     assert!(!goal.state().is_member(&f.workers[0].key.public()));
-    f.admin(Body::MemberAdmitted {
+    f.host(Body::MemberAdmitted {
         member: f.workers[0].key.public(),
         endpoint: EndpointId([2; 32]),
     });
@@ -574,7 +625,7 @@ fn removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate(
 fn missing_or_invalid_retention_cutoff_does_not_reopen_membership() {
     let mut f = Fixture::new(Formation::default());
     let subject = f.publish(0, f.context());
-    f.admin(Body::MemberRemoved {
+    f.host(Body::MemberRemoved {
         member: f.workers[0].key.public(),
         admission: f.admissions[1],
         last_accepted: Some(AuthorPoint {
@@ -588,7 +639,7 @@ fn missing_or_invalid_retention_cutoff_does_not_reopen_membership() {
     let mut f = Fixture::new(Formation::default());
     let subject = f.publish(0, f.context());
     let wrong = f.publish(1, f.context());
-    f.admin(Body::MemberRemoved {
+    f.host(Body::MemberRemoved {
         member: f.workers[0].key.public(),
         admission: f.admissions[1],
         last_accepted: Some(AuthorPoint { seq: 0, id: wrong }),
@@ -609,7 +660,7 @@ fn active_round_revision_never_reinterprets_old_evidence() {
     let Scope::Task(task) = old.scope else {
         unreachable!()
     };
-    let revised = f.admin(Body::TaskRevised {
+    let revised = f.host(Body::TaskRevised {
         task,
         expected_round: old.round,
         binding: TaskBinding {
@@ -669,11 +720,11 @@ fn daemon_effects_advance_configured_stages_and_deduplicate_logical_work() {
         .next()
         .unwrap()
         .clone();
-    let created = f.admin(Body::EffectMaterialized {
+    let created = f.host(Body::EffectMaterialized {
         effect: first.effect.clone(),
     });
     // A duplicated authored materialization is still one logical task.
-    f.admin(Body::EffectMaterialized {
+    f.host(Body::EffectMaterialized {
         effect: first.effect,
     });
     let goal = f.goal();
@@ -711,7 +762,7 @@ fn ordinary_publication_automatically_requires_review_delivery_by_its_author() {
             .all(|effect| effect.runner == f.workers[0].key.public())
     );
     let desired = pending[0].clone();
-    let wrong = f.admin(Body::EffectMaterialized {
+    let wrong = f.host(Body::EffectMaterialized {
         effect: desired.effect.clone(),
     });
     assert!(matches!(
@@ -744,7 +795,7 @@ fn effect_cannot_change_recipients_and_fork_retraction_removes_outbox_projection
         unreachable!()
     };
     recipients.clear();
-    let wrong = f.admin(Body::EffectMaterialized { effect });
+    let wrong = f.host(Body::EffectMaterialized { effect });
     assert!(matches!(
         f.goal().standing(&wrong),
         Some(Standing::Excluded(_))
@@ -793,7 +844,7 @@ fn shared_document_selection_requires_the_same_exact_review_evidence() {
     assert!(!goal.state().revisions[&revision].approved);
     assert!(!goal.evaluation().desired_effects.is_empty());
     let review = f.review(1, context, revision);
-    let decision = f.admin(Body::ScopeDecided {
+    let decision = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject: revision },
@@ -816,7 +867,7 @@ fn shared_document_selection_requires_the_same_exact_review_evidence() {
             base: None,
         },
     );
-    let decision = f.admin(Body::ScopeDecided {
+    let decision = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject: revision },
@@ -834,7 +885,7 @@ fn same_slot_scope_authority_equivocation_is_explicitly_disputed() {
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
-    let decision = f.admin(Body::ScopeDecided {
+    let decision = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -899,13 +950,13 @@ fn decision_successors_keep_author_scope_purpose_and_predecessor_separate() {
     let other = f.task();
     let subject = f.publish(0, first);
     let other_subject = f.publish(0, other);
-    let selected = f.admin(Body::ScopeDecided {
+    let selected = f.host(Body::ScopeDecided {
         context: first,
         previous: None,
         action: DecisionAction::Select { subject },
         evidence: vec![],
     });
-    let other_selected = f.admin(Body::ScopeDecided {
+    let other_selected = f.host(Body::ScopeDecided {
         context: other,
         previous: None,
         action: DecisionAction::Select {
@@ -913,19 +964,19 @@ fn decision_successors_keep_author_scope_purpose_and_predecessor_separate() {
         },
         evidence: vec![],
     });
-    let closed = f.admin(Body::ScopeDecided {
+    let closed = f.host(Body::ScopeDecided {
         context: first,
         previous: None,
         action: DecisionAction::Close,
         evidence: vec![],
     });
-    let reopened = f.admin(Body::ScopeDecided {
+    let reopened = f.host(Body::ScopeDecided {
         context: first,
         previous: Some(closed),
         action: DecisionAction::Reopen,
         evidence: vec![],
     });
-    let replacement = f.admin(Body::ScopeDecided {
+    let replacement = f.host(Body::ScopeDecided {
         context: first,
         previous: Some(selected),
         action: DecisionAction::Select { subject },
@@ -948,7 +999,7 @@ fn decision_successors_keep_author_scope_purpose_and_predecessor_separate() {
         before.standing(&unauthorized),
         Some(Standing::Excluded(_))
     ));
-    let competing = f.admin(Body::ScopeDecided {
+    let competing = f.host(Body::ScopeDecided {
         context: first,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -981,7 +1032,7 @@ fn decision_successors_keep_author_scope_purpose_and_predecessor_separate() {
 fn removal_payload_uses_rotated_epoch_and_rejects_old_epoch() {
     for epoch in [0, 1] {
         let mut f = Fixture::new(Formation::default());
-        let removal = f.admin(Body::MemberRemoved {
+        let removal = f.host(Body::MemberRemoved {
             member: f.workers[0].key.public(),
             admission: f.admissions[1],
             last_accepted: None,
@@ -993,7 +1044,7 @@ fn removal_payload_uses_rotated_epoch_and_rejects_old_epoch() {
             key_epoch: epoch,
         });
         f.events.pop();
-        let signed = Event::sign(header, &f.admin.key).unwrap();
+        let signed = Event::sign(header, &f.governance.key).unwrap();
         let id = signed.id();
         f.events.push(signed);
         let goal = f.goal();
@@ -1049,7 +1100,7 @@ fn incompatible_proof_branches_dispute_only_their_scope() {
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
     let sibling = f.fork(review, 3);
-    let decision = f.admin(Body::ScopeDecided {
+    let decision = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -1067,12 +1118,12 @@ fn scope_proof_cannot_retain_evidence_past_the_host_cutoff() {
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
-    f.admin(Body::MemberRemoved {
+    f.host(Body::MemberRemoved {
         member: f.workers[1].key.public(),
         admission: f.admissions[2],
         last_accepted: None,
     });
-    let decision = f.admin(Body::ScopeDecided {
+    let decision = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -1096,7 +1147,7 @@ fn selection_predecessor_cannot_cross_task_scopes() {
     let first = f.task();
     let subject = f.publish(0, first);
     let review = f.review(1, first, subject);
-    let previous = f.admin(Body::ScopeDecided {
+    let previous = f.host(Body::ScopeDecided {
         context: first,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -1105,7 +1156,7 @@ fn selection_predecessor_cannot_cross_task_scopes() {
     let second = f.task();
     let subject = f.publish(0, second);
     let review = f.review(1, second, subject);
-    let wrong = f.admin(Body::ScopeDecided {
+    let wrong = f.host(Body::ScopeDecided {
         context: second,
         previous: Some(previous),
         action: DecisionAction::Select { subject },
@@ -1122,7 +1173,7 @@ fn accepted_fork_branch_is_readable_only_in_its_selected_scope() {
     let context = f.task();
     let subject = f.publish(0, context);
     let review = f.review(1, context, subject);
-    let selection = f.admin(Body::ScopeDecided {
+    let selection = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -1296,7 +1347,7 @@ fn nested_task_keeps_parent_rules_after_future_defaults_change() {
     let parent = f.task();
     let old_rules = f.rules;
     let (binding, _) = testkit::rules_binding(&f.id, 0, &Formation::default(), BTreeMap::new());
-    f.admin(Body::RulesBound {
+    f.host(Body::RulesBound {
         expected: Some(old_rules),
         binding,
     });
@@ -1323,7 +1374,7 @@ fn starts_bind_causal_closure_without_rejecting_concurrent_offline_work() {
     });
     let mut f = Fixture::new(formation);
     let context = f.task();
-    let close = f.admin(Body::ScopeDecided {
+    let close = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Close,
@@ -1354,7 +1405,7 @@ fn starts_bind_causal_closure_without_rejecting_concurrent_offline_work() {
             closure: None,
         },
     );
-    let reopen = f.admin(Body::ScopeDecided {
+    let reopen = f.host(Body::ScopeDecided {
         context,
         previous: Some(close),
         action: DecisionAction::Reopen,
@@ -1436,14 +1487,14 @@ fn start_cannot_use_another_scope_or_selection_as_closure_position() {
     let mut f = Fixture::new(formation);
     let context = f.task();
     let another = f.task();
-    let close = f.admin(Body::ScopeDecided {
+    let close = f.host(Body::ScopeDecided {
         context: another,
         previous: None,
         action: DecisionAction::Close,
         evidence: vec![],
     });
     let subject = f.publish(0, context);
-    let select = f.admin(Body::ScopeDecided {
+    let select = f.host(Body::ScopeDecided {
         context,
         previous: None,
         action: DecisionAction::Select { subject },
@@ -1478,7 +1529,7 @@ fn start_cannot_use_another_scope_or_selection_as_closure_position() {
 fn new_child_cannot_reuse_parent_round_superseded_at_its_anchor() {
     let mut f = Fixture::new(Formation::default());
     let parent = f.task();
-    let revised = f.admin(Body::TaskRevised {
+    let revised = f.host(Body::TaskRevised {
         task: match parent.scope {
             Scope::Task(task) => task,
             _ => unreachable!(),
@@ -1543,7 +1594,7 @@ fn document_selection_follows_governance_chronology_not_scopekey_hash_order() {
         },
     );
     let first_review = f.review(1, first_context, first_revision);
-    f.admin(Body::ScopeDecided {
+    f.host(Body::ScopeDecided {
         context: first_context,
         previous: None,
         action: DecisionAction::Select {
@@ -1553,7 +1604,7 @@ fn document_selection_follows_governance_chronology_not_scopekey_hash_order() {
     });
     // Second governance round: bind new rules, then revise and select again.
     let (binding, _) = testkit::rules_binding(&f.id, 0, &review_formation(1), BTreeMap::new());
-    let second_rules = f.admin(Body::RulesBound {
+    let second_rules = f.host(Body::RulesBound {
         expected: Some(first_rules),
         binding,
     });
@@ -1570,7 +1621,7 @@ fn document_selection_follows_governance_chronology_not_scopekey_hash_order() {
         },
     );
     let second_review = f.review(1, second_context, second_revision);
-    f.admin(Body::ScopeDecided {
+    f.host(Body::ScopeDecided {
         context: second_context,
         previous: None,
         action: DecisionAction::Select {
@@ -1615,7 +1666,7 @@ fn stage_prerequisite_resolves_revised_upstream_round() {
         .next()
         .unwrap()
         .clone();
-    let materialized = f.admin(Body::EffectMaterialized {
+    let materialized = f.host(Body::EffectMaterialized {
         effect: research.effect.clone(),
     });
     // The upstream research stage is materialized but unfinished.
@@ -1624,7 +1675,7 @@ fn stage_prerequisite_resolves_revised_upstream_round() {
     let EffectAction::OpenTask { binding, .. } = &research.effect.action else {
         unreachable!()
     };
-    let revised = f.admin(Body::TaskRevised {
+    let revised = f.host(Body::TaskRevised {
         task: task_id,
         expected_round: materialized,
         binding: binding.clone(),
@@ -1656,6 +1707,409 @@ fn stage_prerequisite_resolves_revised_upstream_round() {
 #[test]
 fn revised_stage_round_keeps_its_runner_as_creator_despite_a_member_copy_of_the_effect() {
     use crate::goal::Exclusion;
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Declaration {
+        by: Selector::Members,
+    };
+    formation.flow.insert(
+        "research".into(),
+        Stage {
+            task_type: None,
+            requires: Vec::new(),
+            recipients: Selector::Members,
+        },
+    );
+    let mut f = Fixture::new(formation);
+    let governance = f.governance.key.public();
+    let stage = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert_eq!(stage.runner, governance);
+    // A member signs the stage's effect at the start of its own log, below
+    // every position the governance key has left.
+    let copy = f.worker(
+        0,
+        Body::EffectMaterialized {
+            effect: stage.effect.clone(),
+        },
+    );
+    let materialized = f.host(Body::EffectMaterialized {
+        effect: stage.effect.clone(),
+    });
+    assert_eq!(f.event(copy).header().seq, 0);
+    assert!(f.event(materialized).header().seq > 0);
+    let task = TaskId::Derived(stage.id);
+    let EffectAction::OpenTask { binding, .. } = &stage.effect.action else {
+        unreachable!()
+    };
+    let revised = f.host(Body::TaskRevised {
+        task,
+        expected_round: materialized,
+        binding: binding.clone(),
+    });
+    let context = Context {
+        scope: Scope::Task(task),
+        round: revised,
+    };
+    let subject = f.publish(0, context);
+    let by_member = f.worker(1, Body::CompletionDeclared { context, subject });
+    let by_key = f.governance(Body::CompletionDeclared { context, subject });
+    for goal in f.replays() {
+        assert_eq!(
+            goal.standing(&copy),
+            Some(Standing::Excluded(Exclusion::Precondition(
+                "effect signer is not its configured runner"
+            )))
+        );
+        assert_eq!(goal.standing(&materialized), Some(Standing::Effective));
+        assert_eq!(goal.standing(&revised), Some(Standing::Effective));
+        assert_eq!(
+            goal.effective_rules(context, &f.definitions)
+                .unwrap()
+                .creator,
+            Some(governance)
+        );
+        assert_eq!(goal.standing(&by_member), Some(Standing::Effective));
+        assert_eq!(
+            goal.standing(&by_key),
+            Some(Standing::Excluded(Exclusion::NotAMember))
+        );
+    }
+}
+
+#[test]
+fn the_governance_key_is_never_a_member_and_its_ordinary_work_is_excluded() {
+    use crate::goal::Exclusion;
+    let mut f = Fixture::new(review_formation(1));
+    let governance = f.governance.key.public();
+    let admission = f.host(Body::MemberAdmitted {
+        member: governance,
+        endpoint: EndpointId(governance.0),
+    });
+    let context = f.context();
+    let task = f.governance(Body::TaskOpened {
+        binding: TaskBinding {
+            rules: f.rules,
+            task_type: None,
+            inputs: BTreeMap::new(),
+            parent: None,
+            stage: None,
+        },
+    });
+    let subject = f.publish(0, context);
+    let result = f.governance(Body::ContributionPublished {
+        context,
+        attempt: None,
+        sources: vec![],
+        artifacts: vec![],
+    });
+    let review = f.governance(Body::ReviewRecorded {
+        context,
+        subject,
+        verdict: ReviewVerdict::Approve,
+    });
+    let approval = f.review(1, context, subject);
+    let pick = f.governance(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![approval],
+    });
+    for goal in f.replays() {
+        assert_eq!(
+            goal.standing(&admission),
+            Some(Standing::Excluded(Exclusion::Precondition(
+                "the goal's signing key is not a member"
+            )))
+        );
+        assert!(!goal.state().members.contains_key(&governance));
+        assert_eq!(goal.state().head, Some(admission));
+        for id in [task, result, review, pick] {
+            assert_eq!(
+                goal.standing(&id),
+                Some(Standing::Excluded(Exclusion::NotAMember))
+            );
+        }
+        assert_eq!(goal.standing(&subject), Some(Standing::Effective));
+        assert!(goal.evaluation().host_halt.is_none());
+    }
+}
+
+#[test]
+fn a_stage_step_signed_by_the_governance_key_is_effective_and_one_by_the_hosts_agent_is_not() {
+    use crate::goal::Exclusion;
+    let mut f = Fixture::new(pipeline());
+    let stage = f
+        .goal()
+        .evaluation()
+        .desired_effects
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    assert_eq!(stage.runner, f.governance.key.public());
+    let by_agent = f.agent(Body::EffectMaterialized {
+        effect: stage.effect.clone(),
+    });
+    let by_key = f.host(Body::EffectMaterialized {
+        effect: stage.effect.clone(),
+    });
+    assert_eq!(f.event(by_key).header().author, f.governance.key.public());
+    for goal in f.replays() {
+        assert_eq!(
+            goal.standing(&by_agent),
+            Some(Standing::Excluded(Exclusion::Precondition(
+                "effect signer is not its configured runner"
+            )))
+        );
+        assert_eq!(goal.standing(&by_key), Some(Standing::Effective));
+        assert_eq!(goal.state().tasks.len(), 1);
+        assert!(goal.evaluation().desired_effects.is_empty());
+    }
+}
+
+#[test]
+fn removing_the_hosts_agent_is_excluded_and_it_stays_a_member() {
+    use crate::goal::Exclusion;
+    let mut f = Fixture::new(review_formation(1));
+    let host = f.admin.key.public();
+    let removal = f.host(Body::MemberRemoved {
+        member: host,
+        admission: f.admissions[0],
+        last_accepted: None,
+    });
+    let context = f.context();
+    let subject = f.publish(0, context);
+    let review = f.host(Body::ReviewRecorded {
+        context,
+        subject,
+        verdict: ReviewVerdict::Approve,
+    });
+    let later = f.host(Body::MemberAdmitted {
+        member: testkit::keypair(9).public(),
+        endpoint: EndpointId([9; 32]),
+    });
+    for goal in f.replays() {
+        assert_eq!(
+            goal.standing(&removal),
+            Some(Standing::Excluded(Exclusion::Precondition(
+                "the host's agent is not removed"
+            )))
+        );
+        assert!(goal.state().is_member(&host));
+        assert_eq!(goal.state().epoch, 0);
+        assert_eq!(goal.standing(&review), Some(Standing::Effective));
+        assert_eq!(goal.standing(&later), Some(Standing::Effective));
+        assert_eq!(goal.state().head, Some(later));
+    }
+}
+
+#[test]
+fn a_fork_in_the_governance_log_retracts_later_governance_and_preserves_prefix_work() {
+    use crate::goal::{Exclusion, Halt};
+    // Once with two admissions at one position, once with a stage step
+    // against an admission.
+    for stage_step in [false, true] {
+        let mut f = Fixture::new(if stage_step {
+            pipeline()
+        } else {
+            review_formation(1)
+        });
+        let context = f.context();
+        let subject = f.publish(0, context);
+        let first = f.host(Body::MemberAdmitted {
+            member: testkit::keypair(8).public(),
+            endpoint: EndpointId([8; 32]),
+        });
+        let fork_seq = f.event(first).header().seq;
+        let later = f.host(Body::MemberAdmitted {
+            member: testkit::keypair(9).public(),
+            endpoint: EndpointId([9; 32]),
+        });
+        let mut goal = f.goal();
+        for id in [first, later] {
+            assert_eq!(goal.standing(&id), Some(Standing::Effective));
+        }
+        let fork = if stage_step {
+            let step = goal
+                .evaluation()
+                .desired_effects
+                .values()
+                .next()
+                .unwrap()
+                .effect
+                .clone();
+            let mut header = f.event(first).header().clone();
+            header.body = Body::EffectMaterialized { effect: step };
+            let event = Event::sign(header, &f.governance.key).unwrap();
+            let id = event.id();
+            f.events.push(event);
+            id
+        } else {
+            f.fork(first, GOVERNANCE)
+        };
+        goal.apply(&[f.event(fork).clone()], &f.definitions);
+        assert!(
+            matches!(goal.evaluation().host_halt, Some(Halt::Fork { seq, .. }) if seq == fork_seq)
+        );
+        assert_eq!(goal.state().head, Some(f.rules));
+        for id in [first, later] {
+            assert_eq!(
+                goal.standing(&id),
+                Some(Standing::Excluded(Exclusion::AfterHalt))
+            );
+        }
+        assert!(
+            !goal
+                .state()
+                .members
+                .contains_key(&testkit::keypair(8).public())
+        );
+        assert!(
+            !goal
+                .state()
+                .members
+                .contains_key(&testkit::keypair(9).public())
+        );
+        assert_eq!(goal.standing(&subject), Some(Standing::Effective));
+        assert!(goal.next(&f.governance.key.public()).is_none());
+        // The halt is not a blanket exclusion of every member's future work.
+        f.anchor = f.rules;
+        let clean = f.publish(2, context);
+        goal.apply(&[f.event(clean).clone()], &f.definitions);
+        assert_eq!(goal.standing(&clean), Some(Standing::Effective));
+        assert_eq!(goal.evaluation(), f.goal().evaluation());
+    }
+}
+
+#[test]
+fn a_review_fork_by_the_hosts_agent_costs_what_a_members_fork_costs() {
+    let mut f = Fixture::new(review_formation(1));
+    let context = f.context();
+    let subject = f.publish(0, context);
+    let review = f.host(Body::ReviewRecorded {
+        context,
+        subject,
+        verdict: ReviewVerdict::Approve,
+    });
+    let later = f.host(Body::ScopeDecided {
+        context,
+        previous: None,
+        action: DecisionAction::Select { subject },
+        evidence: vec![review],
+    });
+    let admissions: Vec<_> = [8u8, 9]
+        .into_iter()
+        .map(|n| {
+            f.host(Body::MemberAdmitted {
+                member: testkit::keypair(n).public(),
+                endpoint: EndpointId([n; 32]),
+            })
+        })
+        .collect();
+    let mut goal = f.goal();
+    assert_eq!(goal.standing(&later), Some(Standing::Effective));
+    let fork = f.fork(review, 1);
+    goal.apply(&[f.event(fork).clone()], &f.definitions);
+    assert!(goal.evaluation().host_halt.is_none());
+    for id in &admissions {
+        assert_eq!(goal.standing(id), Some(Standing::Effective));
+    }
+    assert_eq!(goal.state().head, Some(admissions[1]));
+    assert!(goal.next(&f.governance.key.public()).is_some());
+    assert!(goal.next(&f.admin.key.public()).is_none());
+    assert!(goal.standing(&review).unwrap().is_pending());
+    assert!(goal.standing(&fork).unwrap().is_pending());
+    assert!(goal.standing(&later).unwrap().is_pending());
+    assert_eq!(goal.standing(&subject), Some(Standing::Effective));
+    assert_eq!(goal.evaluation(), f.goal().evaluation());
+}
+
+#[test]
+fn a_stage_task_names_the_governance_key_as_its_creator() {
+    use locust_proto::organization::{StartRule, TaskType, WorkRules};
+    let staged = |by: Selector| {
+        let mut formation = Formation::default();
+        formation
+            .roles
+            .insert("lead".into(), locust_proto::organization::Role::default());
+        formation.task_types.insert(
+            "offered".into(),
+            TaskType {
+                work: Some(WorkRules {
+                    starts: vec![StartRule::Offered {
+                        by,
+                        to: Selector::Members,
+                    }],
+                    ..Default::default()
+                }),
+                decisions: None,
+            },
+        );
+        formation.flow.insert(
+            "research".into(),
+            Stage {
+                task_type: Some("offered".into()),
+                requires: Vec::new(),
+                recipients: Selector::Members,
+            },
+        );
+        formation
+    };
+    for (by, offers) in [
+        (Selector::TaskCreator, 4),
+        (Selector::Members, 4),
+        (
+            Selector::Role {
+                name: "lead".into(),
+            },
+            0,
+        ),
+    ] {
+        let mut f = Fixture::new(staged(by.clone()));
+        let governance = f.governance.key.public();
+        let stage = f
+            .goal()
+            .evaluation()
+            .desired_effects
+            .values()
+            .find(|desired| matches!(desired.effect.action, EffectAction::OpenTask { .. }))
+            .unwrap()
+            .clone();
+        let opened = f.host(Body::EffectMaterialized {
+            effect: stage.effect.clone(),
+        });
+        let goal = f.goal();
+        let context = Context {
+            scope: Scope::Task(TaskId::Derived(stage.id)),
+            round: opened,
+        };
+        assert_eq!(
+            goal.effective_rules(context, &f.definitions)
+                .unwrap()
+                .creator,
+            Some(governance),
+            "{by:?}"
+        );
+        let offered: Vec<_> = goal
+            .evaluation()
+            .desired_effects
+            .values()
+            .filter(|desired| matches!(desired.effect.action, EffectAction::Offer { .. }))
+            .collect();
+        assert_eq!(offered.len(), offers, "{by:?}");
+        assert!(offered.iter().all(|desired| desired.runner == governance));
+    }
+}
+
+#[test]
+fn rules_whose_stage_task_names_the_task_creator_are_excluded_in_replay() {
+    use crate::goal::Exclusion;
     use locust_proto::organization::{DecisionRules, TaskType};
     let mut formation = Formation::default();
     formation.task_types.insert(
@@ -1678,144 +2132,43 @@ fn revised_stage_round_keeps_its_runner_as_creator_despite_a_member_copy_of_the_
             recipients: Selector::Members,
         },
     );
-    let mut f = Fixture::new(formation);
-    let governance = f.admin.key.public();
-    let stage = f
-        .goal()
-        .evaluation()
-        .desired_effects
-        .values()
-        .next()
-        .unwrap()
-        .clone();
-    assert_eq!(stage.runner, governance);
-    // A member signs the stage's effect at the start of its own log, below
-    // every position the governance has left.
-    let copy = f.worker(
-        0,
-        Body::EffectMaterialized {
-            effect: stage.effect.clone(),
-        },
+    let inspected = crate::organization::inspect(&serde_json::to_string(&formation).unwrap());
+    assert!(
+        inspected
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "selector_scope")
     );
-    let materialized = f.admin(Body::EffectMaterialized {
-        effect: stage.effect.clone(),
-    });
-    assert_eq!(f.event(copy).header().seq, 0);
-    assert!(f.event(materialized).header().seq > 0);
-    let task = TaskId::Derived(stage.id);
-    let EffectAction::OpenTask { binding, .. } = &stage.effect.action else {
-        unreachable!()
-    };
-    let revised = f.admin(Body::TaskRevised {
-        task,
-        expected_round: materialized,
-        binding: binding.clone(),
-    });
-    let context = Context {
-        scope: Scope::Task(task),
-        round: revised,
-    };
-    let subject = f.publish(0, context);
-    let by_member = f.worker(0, Body::CompletionDeclared { context, subject });
-    let by_runner = f.admin(Body::CompletionDeclared { context, subject });
-    let forward = f.goal();
-    let mut reversed = Goal::new(f.id);
-    for event in f.events.iter().rev() {
-        reversed.apply(std::slice::from_ref(event), &f.definitions);
-    }
-    assert_eq!(reversed.evaluation(), forward.evaluation());
-    for goal in [&forward, &reversed] {
+    let f = Fixture::founded(formation);
+    for goal in f.replays() {
         assert_eq!(
-            goal.standing(&copy),
-            Some(Standing::Excluded(Exclusion::Precondition(
-                "effect signer is not its configured runner"
-            )))
+            goal.standing(&f.rules),
+            Some(Standing::Excluded(Exclusion::InvalidDefinition))
         );
-        assert_eq!(goal.standing(&materialized), Some(Standing::Effective));
-        assert_eq!(goal.standing(&revised), Some(Standing::Effective));
-        assert_eq!(
-            goal.effective_rules(context, &f.definitions)
-                .unwrap()
-                .creator,
-            Some(governance)
-        );
-        assert!(matches!(
-            goal.standing(&by_member),
-            Some(Standing::Excluded(_))
-        ));
-        assert_eq!(goal.standing(&by_runner), Some(Standing::Effective));
+        assert!(goal.state().current_rules.is_none());
+        assert!(goal.evaluation().desired_effects.is_empty());
+        assert!(goal.state().tasks.is_empty());
     }
-}
-
-#[test]
-fn host_review_fork_retracts_later_governance_but_preserves_prefix_work() {
-    use crate::goal::{Exclusion, Halt};
-    let mut f = Fixture::new(review_formation(1));
-    let context = f.context();
-    let subject = f.publish(0, context);
-    let review = f.admin(Body::ReviewRecorded {
-        context,
-        subject,
-        verdict: ReviewVerdict::Approve,
-    });
-    let fork_seq = f.event(review).header().seq;
-    let late_members = [testkit::keypair(8).public(), testkit::keypair(9).public()];
-    let admissions: Vec<_> = late_members
-        .iter()
-        .map(|member| {
-            f.admin(Body::MemberAdmitted {
-                member: *member,
-                endpoint: EndpointId(member.0),
-            })
-        })
-        .collect();
-    let mut goal = f.goal();
-    assert_eq!(goal.standing(&review), Some(Standing::Effective));
-    for id in &admissions {
-        assert_eq!(goal.standing(id), Some(Standing::Effective));
-    }
-    let fork = f.fork(review, 1);
-    goal.apply(&[f.event(fork).clone()], &f.definitions);
-    assert!(matches!(goal.evaluation().host_halt, Some(Halt::Fork { seq, .. }) if seq == fork_seq));
-    assert_eq!(goal.state().head, Some(f.rules));
-    for id in admissions {
-        assert_eq!(
-            goal.standing(&id),
-            Some(Standing::Excluded(Exclusion::AfterHalt))
-        );
-    }
-    for member in late_members {
-        assert!(!goal.state().members.contains_key(&member));
-    }
-    assert_eq!(goal.standing(&subject), Some(Standing::Effective));
-    assert!(goal.next(&f.admin.key.public()).is_none());
-    // The halt is not a blanket exclusion of every member's future work.
-    f.anchor = f.rules;
-    let clean = f.publish(2, context);
-    goal.apply(&[f.event(clean).clone()], &f.definitions);
-    assert_eq!(goal.standing(&clean), Some(Standing::Effective));
-    assert_eq!(goal.evaluation(), f.goal().evaluation());
 }
 
 #[test]
 fn retracted_anchor_keeps_same_goal_author_descendants_pending_even_at_surviving_head() {
     let mut f = Fixture::new(Formation::default());
     let context = f.context();
-    let host_work = f.admin(Body::ContributionPublished {
-        context,
-        attempt: None,
-        sources: vec![],
-        artifacts: vec![],
+    let member = testkit::keypair(8).public();
+    let host_work = f.host(Body::MemberAdmitted {
+        member,
+        endpoint: EndpointId(member.0),
     });
     let member = testkit::keypair(9).public();
-    let retracted = f.admin(Body::MemberAdmitted {
+    let retracted = f.host(Body::MemberAdmitted {
         member,
         endpoint: EndpointId(member.0),
     });
     let poisoned = f.publish(0, context);
     let mut goal = f.goal();
     assert_eq!(goal.standing(&poisoned), Some(Standing::Effective));
-    let fork = f.fork(host_work, 1);
+    let fork = f.fork(host_work, GOVERNANCE);
     goal.apply(&[f.event(fork).clone()], &f.definitions);
     assert_eq!(
         goal.standing(&poisoned),
@@ -1860,7 +2213,7 @@ fn retained_events_authorize_with_one_cutoff_traversal_per_tenure() {
         seq: f.event(published[RETAINED - 1]).header().seq,
         id: published[RETAINED - 1],
     };
-    f.admin(Body::MemberRemoved {
+    f.host(Body::MemberRemoved {
         member: f.workers[0].key.public(),
         admission: f.admissions[1],
         last_accepted: Some(point),
@@ -1878,7 +2231,7 @@ fn retained_events_authorize_with_one_cutoff_traversal_per_tenure() {
     assert_eq!(goal.cutoff_traversals(), 1);
 
     // Readmission does not backdate eligibility to the post-cutoff event.
-    f.admin(Body::MemberAdmitted {
+    f.host(Body::MemberAdmitted {
         member: f.workers[0].key.public(),
         endpoint: EndpointId([2; 32]),
     });
@@ -1901,7 +2254,7 @@ fn missing_cutoff_ancestor_waits_and_retraverses_on_arrival() {
         seq: f.event(last).header().seq,
         id: last,
     };
-    f.admin(Body::MemberRemoved {
+    f.host(Body::MemberRemoved {
         member: f.workers[0].key.public(),
         admission: f.admissions[1],
         last_accepted: Some(point),

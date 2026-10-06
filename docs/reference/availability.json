@@ -40,7 +40,7 @@
     "own-permission-inspection",
     "consented-public-farm-projection"
   ],
-  "organizationRuntime": "implemented-development-api-6-protocol-6-formation-schema-2; fresh-state-required",
+  "organizationRuntime": "implemented-development-api-7-protocol-7-formation-schema-2; fresh-state-required",
   "qualification": [
     {
       "platform": "macOS arm64",

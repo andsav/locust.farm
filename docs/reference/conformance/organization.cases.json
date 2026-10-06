@@ -262,6 +262,10 @@
       "source": "{\"schema_version\": 2, \"roles\": {\"r\": {}}, \"flow\": {\"s\": {\"recipients\": {\"kind\": \"task_creator\"}}}}"
     },
     {
+      "id": "rules/selector_scope-stage-task-creator",
+      "source": "{\"schema_version\": 2, \"task_types\": {\"t\": {\"work\": {\"starts\": [{\"kind\": \"independent\", \"by\": {\"kind\": \"any\", \"selectors\": [{\"kind\": \"task_creator\"}]}}, {\"kind\": \"offered\", \"by\": {\"kind\": \"task_creator\"}, \"to\": {\"kind\": \"members\"}}]}, \"decisions\": {\"completion\": {\"kind\": \"declaration\", \"by\": {\"kind\": \"task_creator\"}}}}}, \"flow\": {\"s\": {\"task_type\": \"t\"}}}"
+    },
+    {
       "id": "rules/empty_selector",
       "source": "{\"schema_version\": 2, \"work\": {\"propose\": {\"kind\": \"any\", \"selectors\": []}}}"
     },

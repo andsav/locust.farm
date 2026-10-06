@@ -615,18 +615,31 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
         view(&mut net.nodes[0], left, goal),
         view(&mut net.nodes[1], right, goal)
     );
-    let mut manifest =
+    let base =
         Manifest::decode(&get_content(&mut net.nodes[1], right, goal, seed_manifest)).unwrap();
-    let retained = manifest.entries[0].clone();
-    let notes = content(&mut net.nodes[1], right, goal, b"remote notes".to_vec());
-    manifest.entries.push(ManifestEntry {
-        path: "notes.txt".into(),
-        executable: true,
-        size: 12,
-        content: notes,
-    });
-    manifest.entries.sort_by(|a, b| a.path.cmp(&b.path));
-    let result_manifest = content(&mut net.nodes[1], right, goal, manifest.encode().unwrap());
+    let retained = base.entries[0].clone();
+    // Blobs are fetched in hash order, one exchange's cursor never going back.
+    // The child must sort before the manifest that names it, so the exchange
+    // that discovers the manifest has already passed the child by. Sealing is
+    // deterministic, so the file's last byte is varied until that holds.
+    let (notes_bytes, notes, manifest, result_manifest) = (b'0'..=b'9')
+        .chain(b'a'..=b'z')
+        .find_map(|last| {
+            let notes_bytes = [&b"remote note"[..], &[last]].concat();
+            let notes = content(&mut net.nodes[1], right, goal, notes_bytes.clone());
+            let mut manifest = base.clone();
+            manifest.entries.push(ManifestEntry {
+                path: "notes.txt".into(),
+                executable: true,
+                size: 12,
+                content: notes,
+            });
+            manifest.entries.sort_by(|a, b| a.path.cmp(&b.path));
+            let result_manifest =
+                content(&mut net.nodes[1], right, goal, manifest.encode().unwrap());
+            (notes < result_manifest).then_some((notes_bytes, notes, manifest, result_manifest))
+        })
+        .expect("some child sorts before its manifest");
     let current = view(&mut net.nodes[1], right, goal);
     let checkout = locust_proto::api::Checkout {
         id: locust_proto::id::CheckoutId([33; 16]),
@@ -699,9 +712,8 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
         )),
         ErrorCode::Unavailable
     );
-    // This child's hash sorts before its newly discovered manifest. A second
-    // anti-entropy exchange fetches it without interpreting absence as authority.
-    assert!(notes < result_manifest);
+    // A second anti-entropy exchange fetches the child without interpreting
+    // its absence as authority.
     net.poll(crate::sync::ANTI_ENTROPY_MS + 1);
     let candidate = net.nodes[0].ok(left, Request::WorkspaceProposal { goal, proposal });
     assert!(
@@ -741,7 +753,7 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
         );
         assert_eq!(
             get_content(&mut net.nodes[index], agent, goal, notes),
-            b"remote notes"
+            notes_bytes
         );
         assert_eq!(
             Manifest::decode(&get_content(
@@ -766,7 +778,7 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
         );
         assert_eq!(
             get_content(&mut net.nodes[index], agent, goal, notes),
-            b"remote notes"
+            notes_bytes
         );
     }
 }
