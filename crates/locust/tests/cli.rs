@@ -124,6 +124,83 @@ fn server(
     })
 }
 #[test]
+fn package_keygen_persists_bare_relative_paths_without_overwriting() {
+    let directory = scratch();
+    let run = || {
+        plain()
+            .current_dir(directory.path())
+            .args([
+                "--json",
+                "package",
+                "keygen",
+                "--secret-key",
+                "signing.key",
+                "--public-key",
+                "trust.pub",
+            ])
+            .output()
+            .unwrap()
+    };
+    assert_eq!(envelope(&run(), 0)["result"]["created"], true);
+    let secret = fs::read(directory.path().join("signing.key")).unwrap();
+    let public = fs::read(directory.path().join("trust.pub")).unwrap();
+    let seed: [u8; 32] = secret.as_slice().try_into().unwrap();
+    let key = ed25519_dalek::SigningKey::from_bytes(&seed);
+    assert!(public == key.verifying_key().to_bytes());
+    for (name, mode) in [("signing.key", 0o600), ("trust.pub", 0o644)] {
+        assert_eq!(
+            fs::metadata(directory.path().join(name))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o7777,
+            mode
+        );
+    }
+    assert_eq!(envelope(&run(), 7)["error"]["code"], "conflict");
+    assert!(fs::read(directory.path().join("signing.key")).unwrap() == secret);
+    assert!(fs::read(directory.path().join("trust.pub")).unwrap() == public);
+}
+
+#[test]
+fn package_withdrawal_signing_persists_a_bare_relative_signature() {
+    let directory = scratch();
+    let key = ed25519_dalek::SigningKey::from_bytes(&[23; 32]);
+    write_secret(&directory.path().join("signing.key"), &key.to_bytes());
+    let registry =
+        br#"{"format":"locust-withdrawals-v1","sequence":1,"withdrawn_manifest_sha256":[]}"#;
+    fs::write(directory.path().join("withdrawals.json"), registry).unwrap();
+    let run = || {
+        plain()
+            .current_dir(directory.path())
+            .args([
+                "--json",
+                "package",
+                "sign-withdrawals",
+                "--registry",
+                "withdrawals.json",
+                "--secret-key",
+                "signing.key",
+            ])
+            .output()
+            .unwrap()
+    };
+    assert_eq!(envelope(&run(), 0)["result"]["signed"], true);
+    let path = directory.path().join("withdrawals.json.sig");
+    let bytes = fs::read(&path).unwrap();
+    let signature = ed25519_dalek::Signature::from_slice(&bytes).unwrap();
+    key.verifying_key()
+        .verify_strict(registry, &signature)
+        .unwrap();
+    assert_eq!(
+        fs::metadata(&path).unwrap().permissions().mode() & 0o7777,
+        0o644
+    );
+    assert_eq!(envelope(&run(), 6)["error"]["code"], "invalid");
+    assert_eq!(fs::read(path).unwrap(), bytes);
+}
+
+#[test]
 fn no_credential_never_falls_back_to_owner_and_usage_errors_are_json() {
     let home = scratch();
     write_secret(&home.path().join("owner.credential"), &[1; 32]);

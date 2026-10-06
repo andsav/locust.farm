@@ -357,12 +357,13 @@ pub fn create_file(path: &Path, bytes: &[u8], mode: u32) -> Result<(), Failure> 
     file.write_all(bytes)
         .and_then(|_| file.sync_all())
         .map_err(|_| Failure::internal("cannot persist release file"))?;
-    File::open(
-        path.parent()
-            .ok_or_else(|| Failure::invalid("file has no parent"))?,
-    )
-    .and_then(|f| f.sync_all())
-    .map_err(|_| Failure::internal("cannot persist release directory"))?;
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    File::open(parent)
+        .and_then(|f| f.sync_all())
+        .map_err(|_| Failure::internal("cannot persist release directory"))?;
     Ok(())
 }
 
