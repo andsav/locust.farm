@@ -3306,6 +3306,864 @@
           "witnessReached": "TRUE"
         }
       ]
+    },
+    {
+      "id": "restore-p1-store",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p1-store.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "StoreNoFork",
+        "AgentFenced",
+        "NoGiveWhileHeld"
+      ]
+    },
+    {
+      "id": "restore-p2-all",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p2-all.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "AllNoFork",
+        "AllStayHeld"
+      ]
+    },
+    {
+      "id": "restore-p3-ordinary",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p3-ordinary.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "OrdinaryStart"
+      ]
+    },
+    {
+      "id": "restore-p4-recovery",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p4-recovery.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "HoldsEnd"
+      ],
+      "temporal_properties": [
+        "HoldsEnd"
+      ]
+    },
+    {
+      "id": "restore-p4-alone",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p4-alone.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "HoldsEnd"
+      ],
+      "temporal_properties": [
+        "HoldsEnd"
+      ]
+    },
+    {
+      "id": "restore-p4-all-held",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p4-all-held.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "AllStayHeld"
+      ]
+    },
+    {
+      "id": "restore-p5-agent-fenced",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p5-agent-fenced.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "AgentFenced"
+      ]
+    },
+    {
+      "id": "restore-lacking-peer",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-lacking-peer.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ],
+      "violation": "NoFork",
+      "trace_require": [
+        {
+          "forkG": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-lacking-peer-guarded",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-lacking-peer-guarded.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ]
+    },
+    {
+      "id": "restore-empty-shared",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-empty-shared.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ],
+      "violation": "NoFork",
+      "trace_require": [
+        {
+          "forkG": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-empty-shared-guarded",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-empty-shared-guarded.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ]
+    },
+    {
+      "id": "restore-hear-with-data",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-hear-with-data.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ],
+      "violation": "NoFork",
+      "trace_require": [
+        {
+          "forkA": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-hear-with-data-guarded",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-hear-with-data-guarded.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ]
+    },
+    {
+      "id": "restore-give-agent-held",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-give-agent-held.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoGiveWhileHeld"
+      ],
+      "violation": "NoGiveWhileHeld",
+      "trace_require": [
+        {
+          "gaveWhileHeld": "TRUE",
+          "govHeld": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-give-agent-held-guarded",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-give-agent-held-guarded.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoGiveWhileHeld"
+      ]
+    },
+    {
+      "id": "restore-agent-signs-held",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-agent-signs-held.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "AgentFenced"
+      ],
+      "violation": "AgentFenced",
+      "trace_require": [
+        {
+          "agentWhileHeld": "TRUE",
+          "govHeld": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-agent-signs-held-guarded",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-agent-signs-held-guarded.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "AgentFenced"
+      ]
+    },
+    {
+      "id": "restore-all-listed",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-all-listed.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ],
+      "violation": "NoFork",
+      "trace_require": [
+        {
+          "forkG": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-all-listed-guarded",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-all-listed-guarded.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ]
+    },
+    {
+      "id": "restore-residual-removed",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-residual-removed.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ],
+      "violation": "NoFork",
+      "trace_require": [
+        {
+          "forkA": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-residual-member",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-residual-member.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ],
+      "violation": "NoFork",
+      "trace_require": [
+        {
+          "forkA": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-finding-private-reuse",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-finding-private-reuse.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "StoreNoReuse"
+      ],
+      "violation": "StoreNoReuse",
+      "trace_require": [
+        {
+          "reusedG": "TRUE",
+          "forkG": "FALSE"
+        }
+      ]
+    },
+    {
+      "id": "restore-finding-unseen-agent-reuse",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-finding-unseen-agent-reuse.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "StoreNoReuse"
+      ],
+      "violation": "StoreNoReuse",
+      "trace_require": [
+        {
+          "reusedA": "TRUE",
+          "forkA": "FALSE"
+        }
+      ]
+    },
+    {
+      "id": "restore-continue-override",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-continue-override.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "NoFork"
+      ],
+      "violation": "NoFork",
+      "trace_require": [
+        {
+          "forkG": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "fixture-temporal-pass",
+      "suite": [
+        "fixtures",
+        "fast",
+        "extended"
+      ],
+      "module": "fixtures/TemporalFixture.tla",
+      "config": "fixtures/temporal-pass.cfg",
+      "expect": "pass",
+      "kind": "runner-fixture",
+      "properties": [
+        "TypeOK",
+        "EventuallyOne"
+      ],
+      "temporal_properties": [
+        "EventuallyOne"
+      ]
+    },
+    {
+      "id": "fixture-temporal-stutter",
+      "suite": [
+        "fixtures",
+        "fast",
+        "extended"
+      ],
+      "module": "fixtures/TemporalFixture.tla",
+      "config": "fixtures/temporal-stutter.cfg",
+      "expect": "violation",
+      "kind": "runner-fixture",
+      "properties": [
+        "TypeOK",
+        "EventuallyOne"
+      ],
+      "temporal_properties": [
+        "EventuallyOne"
+      ],
+      "violation": "EventuallyOne",
+      "trace_loop": {
+        "kind": "stuttering",
+        "state": 1
+      },
+      "trace_require": [
+        {
+          "x": "0"
+        }
+      ]
+    },
+    {
+      "id": "fixture-temporal-cycle",
+      "suite": [
+        "fixtures",
+        "fast",
+        "extended"
+      ],
+      "module": "fixtures/TemporalFixture.tla",
+      "config": "fixtures/temporal-cycle.cfg",
+      "expect": "violation",
+      "kind": "runner-fixture",
+      "properties": [
+        "TypeOK",
+        "EventuallyTwo"
+      ],
+      "temporal_properties": [
+        "EventuallyTwo"
+      ],
+      "violation": "EventuallyTwo",
+      "trace_loop": {
+        "kind": "back",
+        "state": 1
+      },
+      "trace_require": [
+        {
+          "x": "1"
+        }
+      ]
+    },
+    {
+      "id": "restore-p4-agent-give-up",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p4-agent-give-up.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "HoldsEnd"
+      ],
+      "temporal_properties": [
+        "HoldsEnd"
+      ]
+    },
+    {
+      "id": "restore-finding-removed-keeper",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-finding-removed-keeper.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "HoldsEnd"
+      ],
+      "temporal_properties": [
+        "HoldsEnd"
+      ],
+      "violation": "HoldsEnd",
+      "trace_require": [
+        {
+          "phase": "5",
+          "govHeld": "TRUE",
+          "agentHeld": "TRUE"
+        }
+      ],
+      "trace_loop": {
+        "kind": "back",
+        "state": 13
+      },
+      "trace_prefix": [
+        {
+          "phase": "1"
+        },
+        {
+          "phase": "4"
+        },
+        {
+          "phase": "5",
+          "govHeld": "TRUE"
+        }
+      ]
+    },
+    {
+      "id": "restore-p4-setup",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p4-setup.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "RecoveryReached"
+      ],
+      "temporal_properties": [
+        "RecoveryReached"
+      ]
+    },
+    {
+      "id": "restore-p4-willing-general",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p4-willing-general.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "WillingHoldsEnd"
+      ],
+      "temporal_properties": [
+        "WillingHoldsEnd"
+      ]
+    },
+    {
+      "id": "restore-p4-fairness-removed",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p4-fairness-removed.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "HoldsEnd"
+      ],
+      "temporal_properties": [
+        "HoldsEnd"
+      ],
+      "violation": "HoldsEnd",
+      "trace_require": [
+        {
+          "phase": "5",
+          "govHeld": "TRUE"
+        }
+      ],
+      "trace_loop": {
+        "kind": "back",
+        "state": 12
+      }
+    },
+    {
+      "id": "restore-p1-store-extended",
+      "suite": [
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p1-store-extended.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "StoreNoFork",
+        "AgentFenced",
+        "NoGiveWhileHeld"
+      ]
+    },
+    {
+      "id": "restore-p2-all-extended",
+      "suite": [
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-p2-all-extended.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      },
+      "properties": [
+        "TypeOK",
+        "AllNoFork",
+        "AllStayHeld"
+      ]
     }
   ]
 }
