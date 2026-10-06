@@ -15,6 +15,16 @@ are its phases and J0 to J8 the phases of the rewrite. The numbered decisions
 at the end are for the owner; each carries the contract's recommendation,
 which is not the owner's answer.
 
+## Reviewed: revise before use
+
+An [independent review](joinable-farms-rewrite-contract-review-2026-10-05.md)
+of 2026-10-05 found that the phases below still contradict two of the owner's
+answers and that the first phase admits strangers before the safety check
+exists. Its thirteen findings are accepted by the plan's author. Do not
+assign the rewrite from this text: the contract is revised first, after the
+phases for the governance key, the restore guard and ending a goal are
+written, because three of the findings depend on them.
+
 ## Answered by the owner after the contract was written
 
 On 2026-10-05 the owner answered four of the decisions listed at the end.
