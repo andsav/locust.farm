@@ -121,7 +121,7 @@ def data_fingerprint(root):
 class InstallationCheck:
     def contribution_grant(self, goal, principal):
         self.cli(["goal", "grant", "--goal", goal, "--agent", principal, "--grants",
-            json.dumps({"administer": True, "contribute": True, "execute": False, "review": False,
+            json.dumps({"contribute": True, "execute": False, "review": False,
                 "select": False, "flow": False, "takeover": False})], installed=True, owner=True)
 
     def __init__(self, bootstrap, bundle, output, timeout=60, sample_interval=1, samples=3, baseline_bundle=None):
@@ -509,8 +509,8 @@ class InstallationCheck:
             require(self.status()["manifest_sha256"] == baseline_hash, "upgrade baseline did not become active")
             require(digest(self.installed) == digest(baseline / "locust"), "baseline installed bytes differ")
             self.start_daemon()
-            principal = variant(self.cli(["agent", "enroll", "qualification", "--manage-goals"], installed=True, owner=True), "agent_enrolled")["agent"]
-            goal = variant(self.cli(["goal", "create", "--title", "Cross-commit upgrade"], installed=True, agent=True), "goal_created")["goal"]
+            principal = variant(self.cli(["agent", "enroll", "qualification"], installed=True, owner=True), "agent_enrolled")["agent"]
+            goal = variant(self.cli(["--as", "qualification", "goal", "create", "--title", "Cross-commit upgrade"], installed=True, owner=True), "goal_created")["goal"]
             self.contribution_grant(goal, principal)
             note = variant(self.cli(["contribution", "publish", "--goal", goal, "created by baseline release"], installed=True, agent=True), "recorded")["event"]
             before = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]
@@ -638,8 +638,8 @@ class InstallationCheck:
 
         startup = self.start_daemon()
         idle = self.sample_idle()
-        principal = variant(self.cli(["agent", "enroll", "qualification", "--manage-goals"], installed=True, owner=True), "agent_enrolled")["agent"]
-        goal = variant(self.cli(["goal", "create", "--title", "Installed synthetic goal"], installed=True, agent=True), "goal_created")["goal"]
+        principal = variant(self.cli(["agent", "enroll", "qualification"], installed=True, owner=True), "agent_enrolled")["agent"]
+        goal = variant(self.cli(["--as", "qualification", "goal", "create", "--title", "Installed synthetic goal"], installed=True, owner=True), "goal_created")["goal"]
         self.contribution_grant(goal, principal)
         note = variant(self.cli(["contribution", "publish", "--goal", goal, "persist across installed daemon restart"], installed=True, agent=True), "recorded")["event"]
         endpoint = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]

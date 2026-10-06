@@ -1,9 +1,8 @@
 //! Binary CLI contracts exercised against a typed local Unix server.
 use locust_proto::API_VERSION;
 use locust_proto::api::{
-    ApiError, Caller, ClientHello, Credential, DaemonStatus, ErrorCode, GoalSummary, Grants,
-    Membership, Request, RequestFrame, Response, ResponseFrame, ServerHello, SessionSecret,
-    WaitOutcome,
+    ApiError, Caller, ClientHello, Credential, DaemonStatus, ErrorCode, GoalSummary, Membership,
+    Request, RequestFrame, Response, ResponseFrame, ServerHello, SessionSecret, WaitOutcome,
 };
 use locust_proto::codec;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
@@ -272,16 +271,10 @@ fn enrollment_persists_credential_before_request_and_reuses_it_on_retry() {
     let observed = worker.clone();
     let mut first = None;
     let handle = server(home.path(), 2, move |frame| {
-        let Request::AgentEnroll {
-            name,
-            grants,
-            credential,
-        } = frame.request
-        else {
+        let Request::AgentEnroll { name, credential } = frame.request else {
             panic!("unexpected request")
         };
         assert_eq!(name, "worker");
-        assert!(grants.manage_goals);
         let bytes = fs::read(&observed).unwrap();
         assert_eq!(
             fs::metadata(&observed).unwrap().permissions().mode() & 0o7777,
@@ -302,7 +295,7 @@ fn enrollment_persists_credential_before_request_and_reuses_it_on_retry() {
     });
     for _ in 0..2 {
         let output = cli(home.path())
-            .args(["--owner", "agent", "enroll", "worker", "--manage-goals"])
+            .args(["--owner", "agent", "enroll", "worker"])
             .output()
             .unwrap();
         let body = envelope(&output, 0);
@@ -440,7 +433,7 @@ fn named_principal_is_resolved_via_status_before_impersonation() {
                 agents: vec![locust_proto::api::AgentView {
                     agent: PublicKey([2; 32]),
                     name: "worker".into(),
-                    grants: Grants::default(),
+                    author_only: false,
                     revoked: false,
                 }],
                 goals: vec![],
@@ -458,6 +451,110 @@ fn named_principal_is_resolved_via_status_before_impersonation() {
         0,
     );
     handle.join().unwrap();
+}
+
+#[test]
+fn goal_create_uses_owner_authority_and_names_the_selected_host_agent() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let agent = PublicKey([2; 32]);
+    let handle = server(home.path(), 1, move |frame| {
+        assert_eq!(frame.on_behalf, None);
+        let Request::GoalCreate {
+            agent: selected,
+            title,
+            ..
+        } = frame.request
+        else {
+            panic!("expected goal.create");
+        };
+        assert_eq!(selected, agent);
+        assert_eq!(title, "Owner's goal");
+        Ok(Response::GoalCreated {
+            goal: GoalId([3; 32]),
+        })
+    });
+    let result = cli(home.path())
+        .args([
+            "--owner",
+            "--as",
+            &agent.to_string(),
+            "goal",
+            "create",
+            "--title",
+            "Owner's goal",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        envelope(&result, 0)["result"]["goal_created"]["goal"],
+        GoalId([3; 32]).to_string()
+    );
+    handle.join().unwrap();
+    let missing_agent = cli(home.path())
+        .args(["--owner", "goal", "create", "--title", "No agent"])
+        .output()
+        .unwrap();
+    assert!(
+        envelope(&missing_agent, 2)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("--owner --as")
+    );
+}
+
+#[test]
+fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let start = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let handle = server(home.path(), 1, move |frame| {
+        assert_eq!(frame.on_behalf, None);
+        let Request::GoalInvite {
+            goal: selected,
+            expires_ms,
+        } = frame.request
+        else {
+            panic!("expected goal.invite");
+        };
+        assert_eq!(selected, goal);
+        assert!(expires_ms >= start + 7 * 24 * 60 * 60 * 1000);
+        assert!(expires_ms <= start + 7 * 24 * 60 * 60 * 1000 + 30_000);
+        Ok(Response::Invited {
+            ticket: locust_proto::invite::Ticket("test-ticket".into()),
+        })
+    });
+    let result = cli(home.path())
+        .args(["--owner", "goal", "invite", "--goal", &goal.to_string()])
+        .output()
+        .unwrap();
+    assert_eq!(
+        envelope(&result, 0)["result"]["invited"]["ticket"],
+        "test-ticket"
+    );
+    handle.join().unwrap();
+    let with_as = cli(home.path())
+        .args([
+            "--owner",
+            "--as",
+            &PublicKey([2; 32]).to_string(),
+            "goal",
+            "invite",
+            "--goal",
+            &goal.to_string(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        envelope(&with_as, 2)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("does not accept --as")
+    );
 }
 #[test]
 fn generic_call_and_wait_use_stable_error_and_timeout_statuses() {
@@ -773,45 +870,6 @@ fn explicit_path_errors_name_the_option_and_missing_auth_lists_choices() {
 }
 
 #[test]
-fn named_grant_explicitly_sets_or_revokes_goal_management() {
-    let home = scratch();
-    write_secret(&home.path().join("owner.credential"), &[1; 32]);
-    let agent = PublicKey([2; 32]);
-    let mut expected = [true, false].into_iter();
-    let handle = server(home.path(), 2, move |frame| {
-        assert_eq!(
-            frame.request,
-            Request::AgentGrant {
-                agent,
-                grants: Grants {
-                    manage_goals: expected.next().unwrap()
-                }
-            }
-        );
-        Ok(Response::Done)
-    });
-    for value in ["true", "false"] {
-        let grants = format!(r#"{{"manage_goals":{value}}}"#);
-        envelope(
-            &cli(home.path())
-                .args([
-                    "--owner",
-                    "agent",
-                    "grant",
-                    "--agent",
-                    &agent.to_string(),
-                    "--grants",
-                    &grants,
-                ])
-                .output()
-                .unwrap(),
-            0,
-        );
-    }
-    handle.join().unwrap();
-}
-
-#[test]
 fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
     use locust_proto::id::EndpointId;
     use locust_proto::invite::{Invitation, InviteSecret};
@@ -833,17 +891,26 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
         assert_eq!(
             frame.request,
             Request::GoalJoin {
+                agent: PublicKey([2; 32]),
                 ticket: expected.clone()
             }
         );
         Ok(Response::Joined {
             goal: invitation.goal,
-            administrator: invitation.administrator,
+            governance: invitation.governance,
             membership: Membership::Joining,
         })
     });
     let mut child = cli(home.path())
-        .args(["--owner", "goal", "join", "--ticket", "-"])
+        .args([
+            "--owner",
+            "--as",
+            &PublicKey([2; 32]).to_string(),
+            "goal",
+            "join",
+            "--ticket",
+            "-",
+        ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1152,7 +1219,15 @@ fn duplicate_goal_titles_refuse_writes_instead_of_guessing() {
         ))
     });
     let output = cli(home.path())
-        .args(["--owner", "goal", "leave", "--goal", "Demo"])
+        .args([
+            "--owner",
+            "--as",
+            &PublicKey([3; 32]).to_string(),
+            "goal",
+            "leave",
+            "--goal",
+            "Demo",
+        ])
         .output()
         .unwrap();
     assert!(

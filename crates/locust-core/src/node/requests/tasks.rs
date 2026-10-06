@@ -106,10 +106,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now: u64,
     ) -> Plan {
         // Revising a task binds it to the current rules and supersedes every
-        // attempt on its old round, so it is a host act: the goal's
-        // administrator with the `administer` grant, or the owner on its
-        // behalf. A `contribute` grant does not authorize it.
-        let (entry, principal) = self.administrator(actor, &goal)?;
+        // attempt on its old round, so only the host may request it.
+        let (entry, principal) = self.host(actor, &goal)?;
         let context = task_context(entry, task)?;
         if context.round != expected_round {
             return Err(conflict("the task round changed"));

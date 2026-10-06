@@ -22,18 +22,15 @@ pub(super) fn tools(caller: Caller) -> Vec<&'static Value> {
 /// Whether a connection of `caller` can make `operation` at all. This repeats
 /// the audience rule of the daemon's caller resolution
 /// (`locust-core/src/node/callers.rs`), which stays the authority and still
-/// answers every call: grants, membership and goal state are decided there.
+/// answers every call: membership, levels and goal state are decided there.
 /// Listing by it keeps a client from registering tools that its kind of
 /// credential is always denied.
 fn admits(caller: Caller, operation: &Operation) -> bool {
     match caller {
         // Refused before any listing: owner authority is not exposed to models.
         Caller::Owner => false,
-        Caller::Agent(_) => operation.audience != Audience::Owner,
+        Caller::Agent(_) => !matches!(operation.audience, Audience::Owner | Audience::Host),
         Caller::Author(_) => operation.audience == Audience::Author,
-        Caller::Viewer(_) => {
-            operation.read_only && !matches!(operation.audience, Audience::Author | Audience::Owner)
-        }
     }
 }
 fn tool(operation: &Operation) -> Value {
@@ -43,11 +40,10 @@ fn tool(operation: &Operation) -> Value {
         input["properties"]["idempotency_key"] = json!({"type":["string","null"],"pattern":"^[0-9a-fA-F]{32}$","description":"Optional caller-owned retry key; reuse only for identical requests."});
     }
     // These are additive records or acknowledgments. The hints describe effects;
-    // daemon grants and the client's approval policy still govern every write.
+    // daemon authorization and the client's approval policy still govern every write.
     let additive = matches!(
         operation.name,
-        "goal.create"
-            | "task.open"
+        "task.open"
             | "work.offer"
             | "contribution.publish"
             | "workspace.publish"
@@ -77,7 +73,7 @@ mod tests {
     use super::*;
     use locust_proto::id::PublicKey;
 
-    // An agent is listed every registry tool; the first test asserts it.
+    // An agent is listed every operation whose audience it can use.
     const AGENT: Caller = Caller::Agent(PublicKey([1; 32]));
 
     fn names(caller: Caller) -> Vec<&'static str> {
@@ -91,7 +87,9 @@ mod tests {
     fn each_kind_of_credential_is_listed_the_tools_it_can_call() {
         let registry: Vec<String> = OPERATIONS
             .iter()
-            .filter(|operation| operation.tool)
+            .filter(|operation| {
+                operation.tool && !matches!(operation.audience, Audience::Owner | Audience::Host)
+            })
             .map(Operation::tool_name)
             .collect();
         assert_eq!(names(AGENT), registry);
@@ -112,17 +110,6 @@ mod tests {
                 .all(|name| name.starts_with("locust_formation_")),
             "{author:?}"
         );
-
-        let viewer = tools(Caller::Viewer(PublicKey([1; 32])));
-        for tool in &viewer {
-            let name = tool["name"].as_str().unwrap();
-            assert_eq!(tool["annotations"]["readOnlyHint"], true, "{name}");
-            assert!(!name.starts_with("locust_formation_"), "{name}");
-        }
-        let viewer = names(Caller::Viewer(PublicKey([1; 32])));
-        for name in ["locust_status", "locust_context_read", "locust_pending"] {
-            assert!(viewer.contains(&name), "{name}");
-        }
 
         assert!(tools(Caller::Owner).is_empty());
     }
@@ -168,7 +155,9 @@ mod tests {
     #[test]
     fn every_tool_retains_its_client_request_fields() {
         let tools = tools(AGENT);
-        for operation in OPERATIONS.iter().filter(|operation| operation.tool) {
+        for operation in OPERATIONS.iter().filter(|operation| {
+            operation.tool && !matches!(operation.audience, Audience::Owner | Audience::Host)
+        }) {
             let tool = tools
                 .iter()
                 .find(|tool| tool["name"] == operation.tool_name())
@@ -250,7 +239,6 @@ mod tests {
             "locust_goal_invite",
             "locust_goal_join",
             "locust_invitation_inspect",
-            "locust_invitation_join",
             "locust_invitation_list",
             "locust_invitation_revoke",
             "locust_member_add_local",
@@ -285,10 +273,6 @@ mod tests {
             assert_eq!(tool["annotations"]["idempotentHint"], false, "{name}");
         }
         for name in [
-            "member.remove",
-            "rules.bind",
-            "workspace.epoch",
-            "task.revise",
             "attempt.takeover",
             "attempt.cancel",
             "scope.select",

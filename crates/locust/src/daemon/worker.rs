@@ -643,7 +643,7 @@ mod tests {
                     1,
                     Request::GoalInvite {
                         goal: GoalId([1; 32]),
-                        expires_ms: None,
+                        expires_ms: u64::MAX,
                     },
                 ),
             })

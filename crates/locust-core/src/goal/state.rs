@@ -196,7 +196,7 @@ pub struct State {
     pub publication: Option<(EventId, locust_proto::farm::PublicationSet)>,
     pub publication_consents:
         BTreeMap<PublicKey, (EventId, locust_proto::farm::PublicationConsent)>,
-    pub administrator: Option<PublicKey>,
+    pub governance: Option<PublicKey>,
     /// Verified governance head, never an accepted workspace head.
     pub head: Option<EventId>,
     pub epoch: u32,

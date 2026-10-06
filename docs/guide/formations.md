@@ -62,7 +62,7 @@ Each command needs the matching permission.
 ## Shared-tree acceptance
 
 A workspace policy chooses one integrator and the completion rule for exact tree
-proposals. The administrator pins it through an explicit workspace epoch.
+proposals. The host pins it through an explicit workspace epoch.
 Integration advances the accepted shared tree; each participant separately
 updates their own directory. Generic task/document selection below does not
 advance that tree. See [the workspace guide](apply.md).
@@ -82,10 +82,10 @@ only. Without a finish decider, nobody can close work.
 
 Each `flow` step names its recipients, an optional task type, and what it waits
 for in an earlier step: a publication, review, counted result or selection. Once
-met, the administrator's daemon creates the task and delivers it, if the
-administrator has the `flow` permission.
+met, the host's daemon creates the task and delivers it, if the
+host has the `flow` permission.
 
-The publisher's daemon sends review requests the same way (the administrator's,
+The publisher's daemon sends review requests the same way (the host's,
 for step tasks). Daemons retry each saved delivery. Receiving a task does not run
 it: the agent still needs `execute`.
 
@@ -94,11 +94,11 @@ A task picks a task type with `task open --task-type NAME`. A subtask
 
 ## Changing the rules
 
-Only the administrator can change the rules. `goal status` prints the current
+The host's person changes the rules. `goal status` prints the current
 rules revision.
 
 ```sh
-locust rules bind --goal GOAL --expected RULES_REVISION \
+locust --owner rules bind --goal GOAL --expected RULES_REVISION \
   --formation-json "$(cat team.json)" --roles '{"reviewer":["MEMBER_KEY"]}'
 ```
 

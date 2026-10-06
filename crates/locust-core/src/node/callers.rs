@@ -44,11 +44,6 @@ pub(super) struct Actor {
 }
 
 impl Actor {
-    /// True for a viewer, whose requests store nothing.
-    pub fn is_viewer(&self) -> bool {
-        matches!(self.caller, Caller::Viewer(_))
-    }
-
     /// The principal the request acts as, or `Invalid` for the owner asking
     /// directly where a principal is needed.
     pub fn principal(&self) -> Result<PublicKey, ApiError> {
@@ -91,8 +86,8 @@ pub(super) fn resolve(
     };
     match caller {
         Caller::Owner => match (operation.audience, frame.on_behalf) {
-            (Audience::Owner, None) => Ok(actor(None, false)),
-            (Audience::Owner, Some(_)) => Err(ApiError::new(
+            (Audience::Owner | Audience::Host, None) => Ok(actor(None, false)),
+            (Audience::Owner | Audience::Host, Some(_)) => Err(ApiError::new(
                 ErrorCode::Invalid,
                 "an owner-only request is not made on behalf of a principal",
             )),
@@ -132,7 +127,7 @@ pub(super) fn resolve(
             if principals.active(&principal).is_none() {
                 return Err(denied("the credential was revoked"));
             }
-            if operation.audience == Audience::Owner {
+            if matches!(operation.audience, Audience::Owner | Audience::Host) {
                 return Err(denied("this request is the owner's to make"));
             }
             Ok(actor(Some(principal), false))
@@ -148,20 +143,6 @@ pub(super) fn resolve(
             }
             if principals.active(&principal).is_none() {
                 return Err(denied("the credential was revoked"));
-            }
-            Ok(actor(Some(principal), false))
-        }
-        Caller::Viewer(principal) => {
-            if frame.on_behalf.is_some() {
-                return Err(denied("a viewer acts on behalf of nobody"));
-            }
-            if principals.active(&principal).is_none() {
-                return Err(denied("the credential was revoked"));
-            }
-            if !operation.read_only
-                || matches!(operation.audience, Audience::Author | Audience::Owner)
-            {
-                return Err(denied("a viewer makes read-only requests only"));
             }
             Ok(actor(Some(principal), false))
         }

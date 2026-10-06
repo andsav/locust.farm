@@ -1,10 +1,322 @@
-//! Durable checkout transition tests. Filesystem execution remains in the CLI.
+//! Durable checkout transitions and the daemon-supplied file capability.
 use super::*;
 use locust_proto::api::{
     Checkout, DirectoryIdentity, SessionCapabilities, SessionRecord, SessionState,
     WorkspaceOperation, WorkspaceOperationKind, WorkspaceOperationState, WorkspaceRecovery,
 };
 use locust_proto::id::{BlobHash, CheckoutId, EventId, WorkspaceOperationId};
+use std::sync::{Arc, Mutex};
+
+struct Materializer(Arc<Mutex<Vec<CheckoutId>>>);
+
+impl crate::node::CheckoutFiles for Materializer {
+    fn destination(&self, id: CheckoutId) -> Result<String, ApiError> {
+        Ok(format!("/daemon/checkouts/{id}"))
+    }
+
+    fn materialize(
+        &self,
+        id: CheckoutId,
+        manifest: &locust_proto::manifest::Manifest,
+        fetch: &mut dyn FnMut(BlobHash) -> Result<Vec<u8>, ApiError>,
+    ) -> Result<(String, DirectoryIdentity), ApiError> {
+        for entry in &manifest.entries {
+            let bytes = fetch(entry.content)?;
+            assert_eq!(bytes.len() as u64, entry.size);
+            assert_eq!(bytes, b"snapshot 30");
+        }
+        self.0.lock().unwrap().push(id);
+        Ok((
+            format!("/daemon/checkouts/{id}"),
+            DirectoryIdentity {
+                device: 7,
+                inode: u64::from(id.0[0]),
+            },
+        ))
+    }
+}
+
+#[test]
+fn agent_checkout_rejects_an_owner_connected_ancestor_before_materialization() {
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
+    let (revision, manifest) = workspace_lifecycle::accepted_tree(&mut d, agent, goal, 30);
+    let made = Arc::new(Mutex::new(Vec::new()));
+    d.node
+        .set_checkout_files(Box::new(Materializer(made.clone())));
+    let mut existing = checkout(87);
+    existing.root = "/daemon/checkouts".into();
+    existing.base_revision = revision;
+    existing.base_manifest = manifest;
+    d.ok(
+        owner,
+        Request::WorkspaceConnect {
+            goal,
+            agent: principal,
+            checkout: existing,
+        },
+    );
+    assert_eq!(
+        code(d.call(
+            agent,
+            Request::CheckoutRegister {
+                goal,
+                checkout: CheckoutId([88; 16]),
+                revision: None,
+                task: None,
+                attempt: None,
+            }
+        )),
+        ErrorCode::Conflict
+    );
+    assert!(made.lock().unwrap().is_empty());
+}
+
+#[test]
+fn an_agent_registers_its_own_new_checkout_without_the_person_connecting_a_folder() {
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
+    let (revision, manifest) = workspace_lifecycle::accepted_tree(&mut d, agent, goal, 30);
+    let made = Arc::new(Mutex::new(Vec::new()));
+    d.node
+        .set_checkout_files(Box::new(Materializer(made.clone())));
+    let id = CheckoutId([88; 16]);
+    let request = Request::CheckoutRegister {
+        goal,
+        checkout: id,
+        revision: None,
+        task: None,
+        attempt: None,
+    };
+    let Response::Checkout(bound) = d.ok(agent, request.clone()) else {
+        panic!()
+    };
+    assert_eq!(bound.id, id);
+    assert_eq!(bound.base_revision, revision);
+    assert_eq!(bound.base_manifest, manifest);
+    assert!(bound.root.starts_with("/daemon/checkouts/"));
+    assert_eq!(*made.lock().unwrap(), [id]);
+    assert_eq!(
+        d.ok(agent, request.clone()),
+        Response::Checkout(bound.clone())
+    );
+    assert_eq!(*made.lock().unwrap(), [id]);
+
+    // Choosing a filesystem path is a different, owner-only operation.
+    assert_eq!(
+        code(d.call(
+            agent,
+            Request::WorkspaceConnect {
+                goal,
+                agent: principal,
+                checkout: checkout(89),
+            }
+        )),
+        ErrorCode::Denied
+    );
+    assert_eq!(*made.lock().unwrap(), [id]);
+
+    // Invalid bindings are rejected before the shell is asked to copy files.
+    let mut invalid = request;
+    if let Request::CheckoutRegister { checkout, task, .. } = &mut invalid {
+        *checkout = CheckoutId([90; 16]);
+        *task = Some(locust_proto::event::TaskId::Authored(EventId([99; 32])));
+    }
+    assert_eq!(code(d.call(agent, invalid)), ErrorCode::NotFound);
+    assert_eq!(*made.lock().unwrap(), [id]);
+
+    // The registered folder is immediately usable for a first proposal.
+    let epoch = d.node.goals[&goal]
+        .state()
+        .workspace
+        .as_ref()
+        .unwrap()
+        .epoch;
+    let operation = WorkspaceOperation {
+        id: WorkspaceOperationId([91; 16]),
+        checkout: Some(id),
+        idempotency_key: IdempotencyKey([91; 16]),
+        kind: WorkspaceOperationKind::Capture {
+            candidate: locust_proto::api::WorkspaceCandidate {
+                context: locust_proto::event::Context {
+                    scope: locust_proto::event::Scope::Workspace,
+                    round: epoch,
+                },
+                parent: Some(revision),
+                result_manifest: manifest,
+                sources: Vec::new(),
+                captured_paths: vec!["tree.txt".into()],
+                replacement: false,
+            },
+        },
+        state: WorkspaceOperationState::Prepared,
+    };
+    d.ok(
+        agent,
+        Request::WorkspaceOperationPrepare {
+            goal,
+            operation: operation.clone(),
+        },
+    );
+    let response = d.ok(
+        agent,
+        Request::WorkspacePublish {
+            goal,
+            operation: operation.id,
+        },
+    );
+    assert!(matches!(
+        response,
+        Response::WorkspaceOperation(WorkspaceOperation {
+            state: WorkspaceOperationState::Recorded { .. },
+            ..
+        })
+    ));
+
+    // An owner-selected folder still uses the named local agent.
+    let mut connected = checkout(92);
+    connected.base_revision = revision;
+    connected.base_manifest = manifest;
+    d.ok(
+        owner,
+        Request::WorkspaceConnect {
+            goal,
+            agent: principal,
+            checkout: connected,
+        },
+    );
+    d.restart();
+    let agent = d.connect(credential(1), None);
+    let Response::Checkouts(saved) = d.ok(agent, Request::Checkouts { goal }) else {
+        panic!()
+    };
+    assert!(saved.contains(&bound));
+}
+
+#[test]
+fn capture_requires_the_agents_own_checkout_except_composition_and_owner_capture() {
+    use locust_proto::api::WorkspaceCandidate;
+    use locust_proto::event::{Context, Scope};
+
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
+    let (base, manifest) = workspace_lifecycle::accepted_tree(&mut d, agent, goal, 30);
+    let mut bound = checkout(50);
+    bound.base_revision = base;
+    bound.base_manifest = manifest;
+    d.ok(
+        owner,
+        Request::WorkspaceConnect {
+            goal,
+            agent: principal,
+            checkout: bound.clone(),
+        },
+    );
+    let (other, other_conn) = super::authorization::join_local(&mut d, agent, goal, 2);
+    let mut other_bound = bound.clone();
+    other_bound.id = CheckoutId([51; 16]);
+    other_bound.root = "/work/other-agent".into();
+    other_bound.root_identity.inode = 51;
+    d.ok(
+        owner,
+        Request::WorkspaceConnect {
+            goal,
+            agent: other,
+            checkout: other_bound.clone(),
+        },
+    );
+    let (head, head_manifest) = workspace_lifecycle::accepted_tree(&mut d, agent, goal, 31);
+    let state = d.node.goals[&goal].state();
+    let epoch = state.workspace.as_ref().unwrap().epoch;
+    let proposal = state.workspace_revisions[&head].proposal;
+    let capture = |tag: u8, checkout, replacement, sources| WorkspaceOperation {
+        id: WorkspaceOperationId([tag; 16]),
+        checkout,
+        idempotency_key: IdempotencyKey([tag; 16]),
+        state: WorkspaceOperationState::Prepared,
+        kind: WorkspaceOperationKind::Capture {
+            candidate: WorkspaceCandidate {
+                context: Context {
+                    scope: Scope::Workspace,
+                    round: epoch,
+                },
+                parent: Some(head),
+                result_manifest: head_manifest,
+                sources,
+                captured_paths: vec!["tree.txt".into()],
+                replacement,
+            },
+        },
+    };
+    for replacement in [false, true] {
+        let before = d.node.goals[&goal].local.workspace_operations.len();
+        let error = d
+            .call(
+                agent,
+                Request::WorkspaceOperationPrepare {
+                    goal,
+                    operation: capture(60, None, replacement, Vec::new()),
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::Denied);
+        assert_eq!(
+            error.message,
+            "sharing files from this computer needs a folder your owner connected to this goal"
+        );
+        assert_eq!(d.node.goals[&goal].local.workspace_operations.len(), before);
+    }
+    assert_eq!(
+        code(d.call(
+            agent,
+            Request::WorkspaceOperationPrepare {
+                goal,
+                operation: capture(61, Some(other_bound.id), true, Vec::new()),
+            }
+        )),
+        ErrorCode::NotFound
+    );
+    assert_eq!(
+        code(d.call(
+            other_conn,
+            Request::WorkspaceOperationPrepare {
+                goal,
+                operation: capture(62, Some(bound.id), true, Vec::new()),
+            }
+        )),
+        ErrorCode::NotFound
+    );
+    assert_eq!(
+        code(d.call(
+            agent,
+            Request::WorkspaceOperationPrepare {
+                goal,
+                operation: capture(63, Some(bound.id), false, Vec::new()),
+            }
+        )),
+        ErrorCode::Conflict
+    );
+    d.ok(
+        agent,
+        Request::WorkspaceOperationPrepare {
+            goal,
+            operation: capture(64, Some(bound.id), true, Vec::new()),
+        },
+    );
+    d.ok(
+        agent,
+        Request::WorkspaceOperationPrepare {
+            goal,
+            operation: capture(65, None, false, vec![proposal]),
+        },
+    );
+    d.on_behalf(
+        owner,
+        principal,
+        Request::WorkspaceOperationPrepare {
+            goal,
+            operation: capture(66, None, false, Vec::new()),
+        },
+    )
+    .unwrap();
+}
 
 fn checkout(tag: u8) -> Checkout {
     Checkout {
@@ -49,14 +361,15 @@ fn update(checkout: &Checkout, tag: u8) -> WorkspaceOperation {
 
 #[test]
 fn update_registration_survives_restart_and_completion_atomically_advances_binding() {
-    let (mut d, _, _, agent, goal) = workspace_lifecycle::setup();
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
     let mut checkout = checkout(1);
     (checkout.base_revision, checkout.base_manifest) =
         workspace_lifecycle::accepted_tree(&mut d, agent, goal, 30);
     d.ok(
-        agent,
-        Request::CheckoutRegister {
+        owner,
+        Request::WorkspaceConnect {
             goal,
+            agent: principal,
             checkout: checkout.clone(),
         },
     );
@@ -139,14 +452,15 @@ fn update_registration_survives_restart_and_completion_atomically_advances_bindi
 
 #[test]
 fn checkout_identity_and_recovery_boundaries_are_exclusive() {
-    let (mut d, _, _, agent, goal) = workspace_lifecycle::setup();
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
     let mut first = checkout(1);
     (first.base_revision, first.base_manifest) =
         workspace_lifecycle::accepted_tree(&mut d, agent, goal, 30);
     d.ok(
-        agent,
-        Request::CheckoutRegister {
+        owner,
+        Request::WorkspaceConnect {
             goal,
+            agent: principal,
             checkout: first.clone(),
         },
     );
@@ -154,9 +468,10 @@ fn checkout_identity_and_recovery_boundaries_are_exclusive() {
     alias.root_identity = first.root_identity.clone();
     assert_eq!(
         code(d.call(
-            agent,
-            Request::CheckoutRegister {
+            owner,
+            Request::WorkspaceConnect {
                 goal,
+                agent: principal,
                 checkout: alias
             }
         )),
@@ -192,12 +507,13 @@ fn checkout_identity_and_recovery_boundaries_are_exclusive() {
 
 #[test]
 fn checkout_rejects_unaccepted_or_mismatched_trees_and_overlapping_paths() {
-    let (mut d, _, _, agent, goal) = workspace_lifecycle::setup();
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
     assert_eq!(
         code(d.call(
-            agent,
-            Request::CheckoutRegister {
+            owner,
+            Request::WorkspaceConnect {
                 goal,
+                agent: principal,
                 checkout: checkout(1)
             }
         )),
@@ -210,18 +526,20 @@ fn checkout_rejects_unaccepted_or_mismatched_trees_and_overlapping_paths() {
     mismatched.base_manifest = BlobHash([99; 32]);
     assert_eq!(
         code(d.call(
-            agent,
-            Request::CheckoutRegister {
+            owner,
+            Request::WorkspaceConnect {
                 goal,
+                agent: principal,
                 checkout: mismatched
             }
         )),
         ErrorCode::Conflict
     );
     d.ok(
-        agent,
-        Request::CheckoutRegister {
+        owner,
+        Request::WorkspaceConnect {
             goal,
+            agent: principal,
             checkout: bound.clone(),
         },
     );
@@ -231,9 +549,10 @@ fn checkout_rejects_unaccepted_or_mismatched_trees_and_overlapping_paths() {
     nested.root.push_str("/nested");
     assert_eq!(
         code(d.call(
-            agent,
-            Request::CheckoutRegister {
+            owner,
+            Request::WorkspaceConnect {
                 goal,
+                agent: principal,
                 checkout: nested
             }
         )),
@@ -270,9 +589,10 @@ fn checkout_rejects_unaccepted_or_mismatched_trees_and_overlapping_paths() {
     );
     assert_eq!(
         code(d.call(
-            agent,
-            Request::CheckoutRegister {
+            owner,
+            Request::WorkspaceConnect {
                 goal,
+                agent: principal,
                 checkout: journal_root
             }
         )),
@@ -283,7 +603,7 @@ fn checkout_rejects_unaccepted_or_mismatched_trees_and_overlapping_paths() {
 #[test]
 fn explicit_session_binding_is_local_unique_durable_and_visible_in_context() {
     use locust_proto::api::{ContextSummary, ContextViewMode};
-    let (mut d, _, _, agent, goal) = workspace_lifecycle::setup();
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
     let mut first = checkout(1);
     (first.base_revision, first.base_manifest) =
         workspace_lifecycle::accepted_tree(&mut d, agent, goal, 30);
@@ -292,16 +612,18 @@ fn explicit_session_binding_is_local_unique_durable_and_visible_in_context() {
     second.root = "/work/second".into();
     second.root_identity.inode = 2;
     d.ok(
-        agent,
-        Request::CheckoutRegister {
+        owner,
+        Request::WorkspaceConnect {
             goal,
+            agent: principal,
             checkout: first.clone(),
         },
     );
     d.ok(
-        agent,
-        Request::CheckoutRegister {
+        owner,
+        Request::WorkspaceConnect {
             goal,
+            agent: principal,
             checkout: second.clone(),
         },
     );
@@ -371,14 +693,15 @@ fn explicit_session_binding_is_local_unique_durable_and_visible_in_context() {
 
 #[test]
 fn session_rebinding_cannot_bypass_active_or_unknown_checkout_ownership() {
-    let (mut d, _, _, agent, goal) = workspace_lifecycle::setup();
+    let (mut d, principal, owner, agent, goal) = workspace_lifecycle::setup();
     let mut bound = checkout(1);
     (bound.base_revision, bound.base_manifest) =
         workspace_lifecycle::accepted_tree(&mut d, agent, goal, 30);
     d.ok(
-        agent,
-        Request::CheckoutRegister {
+        owner,
+        Request::WorkspaceConnect {
             goal,
+            agent: principal,
             checkout: bound.clone(),
         },
     );

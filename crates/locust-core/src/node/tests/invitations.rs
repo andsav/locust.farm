@@ -8,15 +8,15 @@ use locust_proto::invite::{Invitation, JoinRequest, Ticket};
 use locust_proto::store::{Space, Store};
 use locust_proto::sync::Refusal;
 
-fn issue(
-    daemon: &mut Daemon,
-    administrator: ConnId,
-    goal: GoalId,
-    expires_ms: Option<u64>,
-) -> Ticket {
-    let Response::Invited { ticket } =
-        daemon.ok(administrator, Request::GoalInvite { goal, expires_ms })
-    else {
+fn issue(daemon: &mut Daemon, _agent: ConnId, goal: GoalId, expires_ms: Option<u64>) -> Ticket {
+    let owner = daemon.owner();
+    let Response::Invited { ticket } = daemon.ok(
+        owner,
+        Request::GoalInvite {
+            goal,
+            expires_ms: expires_ms.unwrap_or(604_801_000),
+        },
+    ) else {
         panic!()
     };
     ticket
@@ -30,22 +30,13 @@ fn inventory(daemon: &mut Daemon, owner: ConnId, goal: GoalId) -> Vec<Invitation
     invitations
 }
 
-fn reviewed(ticket: Ticket, principal: PublicKey) -> Request {
-    let review = Invitation::from_ticket(ticket.as_str())
-        .unwrap()
-        .preview(1_000)
-        .unwrap()
-        .review;
-    Request::InvitationJoin {
-        principal,
-        ticket,
-        review,
-    }
+fn reviewed(ticket: Ticket, agent: PublicKey) -> Request {
+    Request::GoalJoin { agent, ticket }
 }
 
 #[test]
 fn inspect_is_signed_capability_free_and_does_not_join_or_change_state() {
-    let (mut daemon, administrator, owner, agent, goal) = setup();
+    let (mut daemon, governance, owner, agent, goal) = setup();
     let ticket = issue(&mut daemon, agent, goal, None);
     let before = daemon.store.scan(Space::Goal, &[]).unwrap();
     let Response::InvitationInspected { preview } = daemon.ok(
@@ -58,7 +49,7 @@ fn inspect_is_signed_capability_free_and_does_not_join_or_change_state() {
     };
     assert_eq!(preview.goal, goal);
     assert_eq!(preview.goal_title.as_deref(), Some("A test goal"));
-    assert_eq!(preview.administrator, administrator);
+    assert_eq!(preview.governance, governance);
     assert!(preview.signature_verified);
     assert_eq!(before, daemon.store.scan(Space::Goal, &[]).unwrap());
     let encoded = serde_json::to_string(&preview).unwrap();
@@ -78,9 +69,9 @@ fn inspect_is_signed_capability_free_and_does_not_join_or_change_state() {
 }
 
 #[test]
-fn person_joins_with_existing_principal_without_granting_execution_or_management() {
+fn person_joins_with_existing_principal_without_granting_execution() {
     let (mut daemon, _, owner, agent, goal) = setup();
-    let member = daemon.enroll("person-selected", 2, false);
+    let member = daemon.enroll("person-selected", 2);
     let ticket = issue(&mut daemon, agent, goal, None);
     let request = reviewed(ticket, member);
     assert_eq!(code(daemon.call(agent, request.clone())), ErrorCode::Denied);
@@ -96,16 +87,6 @@ fn person_joins_with_existing_principal_without_granting_execution_or_management
     assert_eq!(
         daemon.node.goals[&goal].local.grants(&member),
         GoalGrants::default()
-    );
-    assert!(
-        !daemon
-            .node
-            .principals
-            .active(&member)
-            .unwrap()
-            .record
-            .grants
-            .manage_goals
     );
     assert!(
         !daemon.node.goals[&goal]
@@ -124,27 +105,10 @@ fn person_joins_with_existing_principal_without_granting_execution_or_management
 }
 
 #[test]
-fn exact_review_blocks_a_different_valid_ticket_and_unknown_or_revoked_principals() {
+fn unknown_or_revoked_agents_cannot_join() {
     let (mut daemon, _, owner, agent, goal) = setup();
-    let member = daemon.enroll("recipient", 2, false);
-    let first = issue(&mut daemon, agent, goal, None);
+    let member = daemon.enroll("recipient", 2);
     let second = issue(&mut daemon, agent, goal, None);
-    let Request::InvitationJoin { review, .. } = reviewed(first, member) else {
-        panic!()
-    };
-    assert_eq!(
-        code(daemon.call(
-            owner,
-            Request::InvitationJoin {
-                principal: member,
-                ticket: second.clone(),
-                review
-            }
-        )),
-        ErrorCode::Conflict
-    );
-    assert!(!daemon.node.goals[&goal].is_member(&member));
-    assert!(daemon.node.goals[&goal].local.joins.is_empty());
     assert_eq!(
         code(daemon.call(owner, reviewed(second.clone(), PublicKey([99; 32])))),
         ErrorCode::NotFound
@@ -159,7 +123,7 @@ fn exact_review_blocks_a_different_valid_ticket_and_unknown_or_revoked_principal
 #[test]
 fn revoke_is_durable_idempotent_and_inventory_never_returns_capability_bytes() {
     let (mut daemon, _, owner, agent, goal) = setup();
-    let member = daemon.enroll("recipient", 2, false);
+    let member = daemon.enroll("recipient", 2);
     let ticket = issue(&mut daemon, agent, goal, None);
     let issued = inventory(&mut daemon, owner, goal);
     assert_eq!(issued.len(), 1);
@@ -176,7 +140,7 @@ fn revoke_is_durable_idempotent_and_inventory_never_returns_capability_bytes() {
     assert!(!serialized.contains("locust-invite-"));
     let revoke = Request::InvitationRevoke {
         goal,
-        invitation: issued[0].invitation.clone(),
+        invitation: Some(issued[0].invitation.clone()),
     };
     let result = daemon.ok(owner, revoke.clone());
     assert_eq!(daemon.ok(owner, revoke.clone()), result);
@@ -199,9 +163,94 @@ fn revoke_is_durable_idempotent_and_inventory_never_returns_capability_bytes() {
 }
 
 #[test]
+fn host_can_revoke_all_pending_invitations_without_disturbing_redeemed_membership() {
+    let (mut daemon, _, owner, agent, goal) = setup();
+    let member = daemon.enroll("redeemed-member", 2);
+    let redeemed = issue(&mut daemon, agent, goal, None);
+    daemon.ok(owner, reviewed(redeemed, member));
+    let pending_a = issue(&mut daemon, agent, goal, None);
+    let pending_b = issue(&mut daemon, agent, goal, None);
+    let revoke_all = Request::InvitationRevoke {
+        goal,
+        invitation: None,
+    };
+    assert_eq!(
+        daemon.ok(owner, revoke_all.clone()),
+        Response::InvitationsRevoked { count: 2 }
+    );
+    assert_eq!(
+        daemon.ok(owner, revoke_all.clone()),
+        Response::InvitationsRevoked { count: 0 }
+    );
+    daemon.restart();
+    let owner = daemon.owner();
+    assert_eq!(
+        daemon.ok(owner, revoke_all),
+        Response::InvitationsRevoked { count: 0 }
+    );
+    let inventory = inventory(&mut daemon, owner, goal);
+    assert_eq!(
+        inventory
+            .iter()
+            .filter(|item| item.state == InvitationState::Revoked)
+            .count(),
+        2
+    );
+    assert_eq!(
+        inventory
+            .iter()
+            .filter(|item| item.state == InvitationState::Redeemed)
+            .count(),
+        1
+    );
+    assert!(daemon.node.goals[&goal].is_member(&member));
+    let late = daemon.enroll("late-member", 3);
+    for ticket in [pending_a, pending_b] {
+        assert_eq!(
+            code(daemon.call(owner, reviewed(ticket, late))),
+            ErrorCode::Denied
+        );
+    }
+}
+
+#[test]
+fn invitation_issuance_requires_an_explicit_expiry_and_owner_authority() {
+    let (mut daemon, _, owner, agent, goal) = setup();
+    assert!(
+        serde_json::from_value::<Request>(serde_json::json!({
+            "goal.invite": { "goal": goal }
+        }))
+        .is_err()
+    );
+    let request = Request::GoalInvite {
+        goal,
+        expires_ms: 604_801_000,
+    };
+    assert_eq!(code(daemon.call(agent, request.clone())), ErrorCode::Denied);
+    assert!(matches!(
+        daemon.ok(owner, request),
+        Response::Invited { .. }
+    ));
+    assert_eq!(
+        code(daemon.call(agent, Request::GoalInvitations { goal })),
+        ErrorCode::Denied
+    );
+    assert_eq!(
+        code(daemon.call(
+            agent,
+            Request::InvitationRevoke {
+                goal,
+                invitation: None
+            }
+        )),
+        ErrorCode::Denied
+    );
+}
+
+#[test]
 fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
     let (mut daemon, _, owner, agent, goal) = setup();
-    let member = daemon.enroll("recipient", 2, false);
+    let member = daemon.enroll("recipient", 2);
     let ticket = issue(&mut daemon, agent, goal, Some(1_100));
     let join = reviewed(ticket.clone(), member);
     daemon.ok(owner, join.clone());
@@ -214,7 +263,7 @@ fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
             owner,
             Request::InvitationRevoke {
                 goal,
-                invitation: summary.invitation,
+                invitation: Some(summary.invitation),
             },
         )
         .unwrap_err();
@@ -239,8 +288,8 @@ fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
         invitation.secret,
         daemon.node.signer(&member).unwrap(),
     );
-    assert!(daemon.node.plan_join(&endpoint, &same, 2_000, None).is_ok());
-    let other = daemon.enroll("other", 3, true);
+    assert!(daemon.node.plan_join(&endpoint, &same, 2_000).is_ok());
+    let other = daemon.enroll("other", 3);
     let different = JoinRequest::sign(
         goal,
         endpoint,
@@ -248,7 +297,7 @@ fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
         daemon.node.signer(&other).unwrap(),
     );
     assert!(matches!(
-        daemon.node.plan_join(&endpoint, &different, 2_000, None),
+        daemon.node.plan_join(&endpoint, &different, 2_000),
         Err(Refusal::InvitationRefused)
     ));
 }
@@ -256,7 +305,7 @@ fn redeemed_invitation_is_not_revoked_and_retries_recover_after_expiry() {
 #[test]
 fn expired_preview_is_readable_but_join_is_refused_without_side_effects() {
     let (mut daemon, _, owner, agent, goal) = setup();
-    let member = daemon.enroll("recipient", 2, false);
+    let member = daemon.enroll("recipient", 2);
     let ticket = issue(&mut daemon, agent, goal, Some(1_100));
     let frame = daemon.frame(Request::InvitationInspect {
         ticket: ticket.clone(),
@@ -268,10 +317,9 @@ fn expired_preview_is_readable_but_join_is_refused_without_side_effects() {
         panic!()
     };
     assert!(preview.expired);
-    let frame = daemon.frame(Request::InvitationJoin {
-        principal: member,
+    let frame = daemon.frame(Request::GoalJoin {
+        agent: member,
         ticket,
-        review: preview.review,
     });
     let Step::Reply(reply) = daemon.step(owner, frame, 2_000) else {
         panic!()
@@ -300,127 +348,11 @@ fn expired_preview_is_readable_but_join_is_refused_without_side_effects() {
 }
 
 #[test]
-fn only_explicit_owner_local_admission_can_replace_administrator_standing_grants() {
-    // Each grant independently blocks agent and network redemption. An explicit
-    // owner decision for a local identity does not persist either grant.
-    for (manage_goals, administer) in [(false, true), (true, false), (false, false)] {
-        let (mut daemon, administrator, owner, agent, goal) = setup();
-        let member = daemon.enroll("joining", 2, true);
-        let member_connection = daemon.connect(credential(2), None);
-        let ticket = issue(&mut daemon, agent, goal, None);
-        let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
-        daemon.ok(
-            owner,
-            Request::AgentGrant {
-                agent: administrator,
-                grants: Grants { manage_goals },
-            },
-        );
-        let admin_grants = GoalGrants {
-            administer,
-            ..GoalGrants::default()
-        };
-        daemon.ok(
-            owner,
-            Request::GoalGrant {
-                goal,
-                agent: administrator,
-                grants: admin_grants,
-            },
-        );
-        let member_grants = daemon.node.goals[&goal].local.grants(&member);
-        let agent_join = Request::GoalJoin {
-            ticket: ticket.clone(),
-        };
-        assert_eq!(
-            code(daemon.call(member_connection, agent_join)),
-            ErrorCode::Denied
-        );
-        assert!(!daemon.node.goals[&goal].is_member(&member));
-        let remote = EndpointId([99; 32]);
-        let network_request = JoinRequest::sign(
-            goal,
-            remote,
-            invitation.secret,
-            daemon.node.signer(&member).unwrap(),
-        );
-        assert!(matches!(
-            daemon
-                .node
-                .plan_join(&remote, &network_request, 1_000, None),
-            Err(Refusal::InvitationRefused)
-        ));
-        // Even a same-endpoint request without the authenticated owner actor
-        // retains the normal invitation permission checks.
-        let local = EndpointId([21; 32]);
-        let local_request = JoinRequest::sign(
-            goal,
-            local,
-            invitation.secret,
-            daemon.node.signer(&member).unwrap(),
-        );
-        assert!(matches!(
-            daemon.node.plan_join(&local, &local_request, 1_000, None),
-            Err(Refusal::InvitationRefused)
-        ));
-        assert_eq!(
-            inventory(&mut daemon, owner, goal)[0].state,
-            InvitationState::Pending
-        );
-        assert!(matches!(
-            daemon.ok(owner, reviewed(ticket, member)),
-            Response::Joined {
-                membership: Membership::Member,
-                ..
-            }
-        ));
-        assert_eq!(
-            daemon.node.goals[&goal].local.grants(&administrator),
-            admin_grants
-        );
-        assert_eq!(
-            daemon.node.goals[&goal].local.grants(&member),
-            member_grants
-        );
-        assert_eq!(
-            daemon
-                .node
-                .principals
-                .active(&administrator)
-                .unwrap()
-                .record
-                .grants
-                .manage_goals,
-            manage_goals
-        );
-        assert!(
-            daemon
-                .node
-                .principals
-                .active(&member)
-                .unwrap()
-                .record
-                .grants
-                .manage_goals
-        );
-        assert_eq!(
-            inventory(&mut daemon, owner, goal)[0].state,
-            InvitationState::Redeemed
-        );
-    }
-}
-
-#[test]
-fn owner_local_admission_does_not_override_revoked_administrator_identity() {
-    let (mut daemon, administrator, owner, agent, goal) = setup();
-    let member = daemon.enroll("joining", 2, false);
+fn admission_stops_when_the_host_agent_is_revoked() {
+    let (mut daemon, governance, owner, agent, goal) = setup();
+    let member = daemon.enroll("joining", 2);
     let ticket = issue(&mut daemon, agent, goal, None);
-    daemon.ok(
-        owner,
-        Request::AgentRevoke {
-            agent: administrator,
-        },
-    );
+    daemon.ok(owner, Request::AgentRevoke { agent: governance });
     assert_eq!(
         code(daemon.call(owner, reviewed(ticket, member))),
         ErrorCode::Denied

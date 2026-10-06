@@ -219,10 +219,7 @@ fn workspace_event(operation: &Value) -> &str {
 #[test]
 fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
     let p = Participant::new();
-    let enrolled = p.cli(
-        &["--owner"],
-        &["agent", "enroll", "builder", "--manage-goals"],
-    );
+    let enrolled = p.cli(&["--owner"], &["agent", "enroll", "builder"]);
     let agent = enrolled["agent_enrolled"]["agent"].as_str().unwrap();
     let credential = enrolled["agent_enrolled"]["credential_path"]
         .as_str()
@@ -236,15 +233,15 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
         .find(|preset| preset.name == "independent-attempts")
         .unwrap()
         .formation;
-    let fields = json!({"title":"T2 real core", "formation_json":serde_json::to_string(&definition).unwrap(), "roles":{"judge":[agent]}, "inputs":{}}).to_string();
-    let created = p.cli(&authority, &["call", "goal.create", &fields]);
+    let fields = json!({"agent":agent,"title":"T2 real core", "formation_json":serde_json::to_string(&definition).unwrap(), "roles":{"judge":[agent]}, "inputs":{}}).to_string();
+    let created = p.cli(&["--owner"], &["call", "goal.create", &fields]);
     let goal = created["goal_created"]["goal"].as_str().unwrap();
-    let grants = json!({"goal":goal,"agent":agent,"grants":{"contribute":true,"execute":true,"review":false,"select":true,"flow":false,"administer":true,"takeover":false}}).to_string();
+    let grants = json!({"goal":goal,"agent":agent,"grants":{"contribute":true,"execute":true,"review":false,"select":true,"flow":false,"takeover":false}}).to_string();
     p.cli(&["--owner"], &["call", "goal.grant", &grants]);
     let root = tempfile::tempdir().unwrap();
     fs::write(root.path().join("code.txt"), "before\n").unwrap();
     let seed = p.cli(
-        &authority,
+        &["--owner"],
         &[
             "workspace",
             "init",
@@ -294,7 +291,7 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
     let destination = p.home.path().join("work");
     let destination = destination.to_str().unwrap();
     let checkout = p.cli(
-        &authority,
+        &["--owner", "--as", agent],
         &[
             "workspace",
             "checkout",
@@ -323,7 +320,7 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
     );
     let accepted_directory = p.home.path().join("accepted");
     let accepted_checkout = p.cli(
-        &authority,
+        &["--owner", "--as", agent],
         &[
             "workspace",
             "checkout",
@@ -485,10 +482,7 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
 #[test]
 fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     let participant = Participant::new();
-    let enrollment = participant.cli(
-        &["--owner"],
-        &["agent", "enroll", "reader", "--manage-goals"],
-    );
+    let enrollment = participant.cli(&["--owner"], &["agent", "enroll", "reader"]);
     let principal = enrollment["agent_enrolled"]["agent"].as_str().unwrap();
     let credential = enrollment["agent_enrolled"]["credential_path"]
         .as_str()
@@ -497,7 +491,7 @@ fn human_permission_controls_and_mcp_shared_findings_form_one_workflow() {
     let first_session = first_session_path.to_str().unwrap();
     participant.cli(&[], &["session", "create", first_session]);
     let created = participant.cli(
-        &["--credential", credential],
+        &["--owner", "--as", principal],
         &["goal", "create", "--title", "Shared decisions"],
     );
     let goal = created["goal_created"]["goal"].as_str().unwrap();
@@ -818,7 +812,7 @@ fn reviewed_local_membership_uses_names_without_tickets_or_hidden_work_grants() 
             .as_array()
             .unwrap()
             .iter()
-            .all(|agent| agent["grants"]["manage_goals"] == false)
+            .all(|agent| agent["author_only"] == false)
     );
     let repeated = participant.cli(
         &["--owner"],

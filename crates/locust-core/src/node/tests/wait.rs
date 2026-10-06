@@ -92,25 +92,38 @@ fn the_revision_never_falls_across_restart_leaving_removal_and_rejoining() {
     observe(&mut d, a);
     observe(&mut d, m);
 
-    d.ok(m, Request::GoalLeave { goal });
+    let owner = d.owner();
+    d.ok(
+        owner,
+        Request::GoalLeave {
+            goal,
+            agent: member,
+        },
+    );
     observe(&mut d, m);
-    d.ok(a, Request::MemberRemove { goal, member });
+    d.ok(owner, Request::MemberRemove { goal, member });
     observe(&mut d, m);
     d.restart();
-    let a = d.connect(credential(1), Some(session(1)));
     let m = d.connect(credential(2), None);
     observe(&mut d, m);
+    let owner = d.owner();
 
     let Response::Invited { ticket } = d.ok(
-        a,
+        owner,
         Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: 604_801_000,
         },
     ) else {
         panic!()
     };
-    d.ok(m, Request::GoalJoin { ticket });
+    d.ok(
+        owner,
+        Request::GoalJoin {
+            agent: member,
+            ticket,
+        },
+    );
     observe(&mut d, m);
     d.restart();
     let m = d.connect(credential(2), None);

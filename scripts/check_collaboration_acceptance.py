@@ -110,8 +110,8 @@ def main():
                                      for name in ('merak', 'codex', 'locust')}
         contract = json.loads(subprocess.check_output([args.locust, '--json', 'contract'], text=True))['result']
         report['api_version'], report['protocol_version'] = contract['api_version'], contract['protocol_version']
-        if (report['api_version'], report['protocol_version']) != (6, 6):
-            raise RuntimeError('Acceptance workflow requires API 6 / protocol 6')
+        if (report['api_version'], report['protocol_version']) != (7, 6):
+            raise RuntimeError('Acceptance workflow requires API 7 / protocol 6')
         report['model_available'] = args.model in provider_model_ids('openai', args.rpc_timeout)
         if not report['model_available']:
             raise RuntimeError('Selected model is absent from provider metadata')
@@ -126,8 +126,8 @@ def main():
         with ProductionDaemon(setup, args.locust, args.rpc_timeout) as daemon:
             formation = raw_call(daemon, ['formation', 'example', 'peer-review'])
             report['review_policy'] = formation['decisions']['completion']
-            daemon.goal = raw_call(daemon, ['goal', 'create', '--title', 'Portable archive member paths',
-                '--formation-json', json.dumps(formation)])['goal_created']['goal']
+            daemon.goal = raw_call(daemon, ['--as', daemon.principal, 'goal', 'create', '--title', 'Portable archive member paths',
+                '--formation-json', json.dumps(formation)], owner=True)['goal_created']['goal']
             researcher = enroll(daemon, rp, 'researcher')
             builder = enroll(daemon, bp, 'builder', permissions=('contribute', 'review'))
             integrator = enroll(daemon, ip, 'integrator', permissions=('contribute',))

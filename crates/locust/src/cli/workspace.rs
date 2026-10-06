@@ -90,12 +90,11 @@ pub(super) fn commands() -> [Command; 1] {
         .subcommand(Command::new("status").about("Observe local modifications, additions and recovery without capturing").arg(goal()).arg(checkout()))
         .subcommand(Command::new("bind").about("Bind this authenticated execution session explicitly to its checkout").arg(goal()).arg(checkout()))
         .subcommand(publication(selected(Command::new("propose").about("Freeze managed changes plus exact selected additions")
-            .arg(goal()).arg(option("checkout", "Exact bound checkout identifier", false).required_unless_present("replace"))
+            .arg(goal()).arg(option("checkout", "Exact bound checkout identifier", true))
             .arg(flag("only", "Capture exactly the supplied path selection").conflicts_with("replace"))
-            .arg(flag("replace", "Capture a complete replacement without reading the parent tree").conflicts_with("checkout"))
+            .arg(flag("replace", "Capture a complete replacement without reading the parent tree"))
             .arg(option("parent", "Exact broken/current parent revision for a replacement", false).requires("replace"))
-            .arg(option("root", "Absolute replacement input directory", false).requires("replace"))
-            .arg(flag("empty", "Explicit empty replacement").requires("replace").conflicts_with_all(["root", "path", "paths-from"])))))
+            )))
         .subcommand(Command::new("publish").about("Publish the exact stored preview; never reread local files").arg(goal())
             .arg(option("operation", "Exact durable capture operation identifier", true)))
         .subcommand(Command::new("review").about("Review one exact proposal; optionally materialize it for owner-authorized checks").arg(goal())
@@ -120,6 +119,18 @@ pub(super) fn run(
     operation: &str,
     args: &ArgMatches,
 ) -> Result<Output, Failure> {
+    if operation == "workspace.init" && matches.get_one::<String>("as").is_some() {
+        return Err(Failure::usage(
+            "workspace init is a host command and does not accept --as",
+        ));
+    }
+    if operation == "workspace.checkout"
+        && (!matches.get_flag("owner") || matches.get_one::<String>("as").is_none())
+    {
+        return Err(Failure::usage(
+            "workspace checkout requires --owner --as NAME",
+        ));
+    }
     let home = connection::home(matches)?;
     let socket = local::socket_path(&home)?;
     let mut client = connection::open(matches, &home)?;
@@ -145,6 +156,9 @@ pub(super) fn run(
         goal,
         on_behalf,
     };
+    if operation == "workspace.init" {
+        api.on_behalf = Some(api.status()?.host);
+    }
     let caller_key = matches
         .get_one::<String>("idempotency-key")
         .map(|text| {
@@ -397,7 +411,7 @@ fn initial_epoch(api: &mut Objects<'_>, args: &ArgMatches) -> Result<EventId, Fa
             .get_one::<String>("integrator")
             .map(|name| resolve_principal(api.client, api.socket, name))
             .transpose()?
-            .unwrap_or(status.administrator);
+            .unwrap_or(status.host);
         let completion = args
             .get_one::<String>("completion")
             .map(|source| {
@@ -450,16 +464,11 @@ fn propose(
                 "replacement parent is outside the retained workspace lineage",
             ));
         }
-        let root = if args.get_flag("empty") {
-            std::env::current_dir().map_err(io_failure)?
-        } else {
-            if args.get_one::<String>("root").is_none() {
-                return Err(Failure::usage("--replace requires --root or --empty"));
-            }
-            absolute(args, "root")?
-        };
+        let bound = api.checkout(parse(value(args, "checkout"), "checkout")?)?;
+        check_checkout(&bound)?;
+        let root = PathBuf::from(&bound.root);
         (
-            None,
+            Some(bound.id),
             Some(parent),
             locust_workspace::capture_seed(&root, &selected, args.get_flag("empty"), api)
                 .map_err(workspace_error)?,
@@ -862,8 +871,9 @@ fn checkout_files(
         ));
     }
     let response = api
-        .call(Request::CheckoutRegister {
+        .call(Request::WorkspaceConnect {
             goal: api.goal,
+            agent: api.on_behalf.expect("workspace checkout requires --as"),
             checkout,
         })
         .map_err(|error| {
@@ -1390,8 +1400,18 @@ struct Objects<'a> {
 }
 impl Objects<'_> {
     fn call(&mut self, request: Request) -> Result<Response, Failure> {
+        let on_behalf = if matches!(
+            request,
+            Request::RulesBind { .. }
+                | Request::WorkspaceEpochSet { .. }
+                | Request::WorkspaceConnect { .. }
+        ) {
+            None
+        } else {
+            self.on_behalf
+        };
         self.client
-            .call_with(request, None, self.on_behalf)
+            .call_with(request, None, on_behalf)
             .map_err(|error| connection::client_error(error, self.socket))
     }
     fn status(&mut self) -> Result<GoalStatus, Failure> {

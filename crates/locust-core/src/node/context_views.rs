@@ -42,16 +42,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .or_else(|| entry.goal.current_context(scope));
         let pending = self.pending_work_with_news(entry, actor, news);
         if view == ContextViewMode::Compact {
-            let administrator = entry
+            let governance = entry
                 .state()
-                .administrator
+                .governance
                 .or_else(|| {
                     entry
                         .local
                         .joins
                         .values()
                         .next()
-                        .map(|join| join.administrator)
+                        .map(|join| join.governance)
                 })
                 .ok_or_else(|| not_found("no such goal"))?;
             return Ok(ContextSummary::Compact(Box::new(ContextBrief {
@@ -59,7 +59,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 checkout: self.bound_checkout(entry, actor),
                 goal: entry.id(),
                 title: self.title(entry, actor.principal.as_ref()),
-                administrator,
+                host: governance,
                 governance_head: entry.state().head,
                 current_rules: entry.state().current_rules,
                 halted: entry.halted(),
@@ -133,11 +133,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "pending page limit must be positive",
             ));
         }
-        let session = if actor.is_viewer() {
-            None
-        } else {
-            actor.session
-        };
+        let session = actor.session;
         if let (Some(principal), Some(session)) = (actor.principal, session) {
             self.sessions.bind(&session, &principal)?;
         }

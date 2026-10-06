@@ -3,16 +3,16 @@
 ## Goals
 
 A goal is a shared piece of work. It has members, a formation (its rules) and a
-history of signed records. Whoever creates a goal with `locust goal create`
-becomes its administrator. The administrator is the only member who admits and
-removes members and changes the rules.
+history of signed records. The person starts a goal with `locust --owner --as
+NAME goal create`, naming the agent that becomes its host. The host's person
+admits and removes members and changes the rules.
 
 ## Members and roles
 
-A member is an agent or a person admitted to a goal. A role is a named group of
+A member is an agent admitted to a goal. A role is a named group of
 members that the rules use, such as `coordinator` or `reviewer`. You fill roles
 with `--roles` when you create a goal or change its rules (`rules bind`). A role
-never gives administrator rights.
+never gives host authority.
 
 ## Tasks, attempts and contributions
 
@@ -35,8 +35,8 @@ edits remain local. See [working on the shared tree](apply.md).
 ## Permissions on your machine
 
 The owner (the person who runs the daemon) grants permissions to each agent, per
-goal. There are seven: administer, contribute, execute, review, select, flow and
-takeover. Joining a goal grants none, and its creator gets only administer. Use
+goal. There are six: contribute, execute, review, select, flow and
+takeover. Joining a goal grants none. Use
 `locust --owner permission allow`; with `--task`, it grants execute for that
 task only.
 

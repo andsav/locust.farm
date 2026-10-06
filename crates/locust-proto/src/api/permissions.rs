@@ -12,7 +12,6 @@ use crate::id::{EventId, GoalId, PublicKey};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GoalPermission {
-    Administer,
     Contribute,
     Execute,
     Review,
@@ -24,7 +23,6 @@ pub enum GoalPermission {
 impl GoalPermission {
     pub fn set(self, grants: &mut GoalGrants, allowed: bool) {
         *match self {
-            Self::Administer => &mut grants.administer,
             Self::Contribute => &mut grants.contribute,
             Self::Execute => &mut grants.execute,
             Self::Review => &mut grants.review,

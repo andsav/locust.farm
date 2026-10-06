@@ -6,17 +6,204 @@ use locust_proto::id::GoalId;
 use locust_proto::invite::{Invitation, InviteSecret};
 use locust_proto::store::Store;
 
-fn invite(daemon: &mut Daemon, agent: ConnId, goal: GoalId) -> locust_proto::invite::Ticket {
+fn invite(daemon: &mut Daemon, _agent: ConnId, goal: GoalId) -> locust_proto::invite::Ticket {
+    let owner = daemon.owner();
     let Response::Invited { ticket } = daemon.ok(
-        agent,
+        owner,
         Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: 604_801_000,
         },
     ) else {
         panic!()
     };
     ticket
+}
+
+fn creation(agent: PublicKey) -> Request {
+    Request::GoalCreate {
+        agent,
+        title: "Owner's goal".into(),
+        formation_json: None,
+        roles: Default::default(),
+        inputs: Default::default(),
+    }
+}
+
+#[test]
+fn goal_create_is_the_owners_act_and_names_the_host_agent() {
+    let (mut d, host, owner, agent, _) = setup();
+    let before = d.node.goals.len();
+    assert_eq!(code(d.call(agent, creation(host))), ErrorCode::Denied);
+    assert_eq!(
+        code(d.on_behalf(owner, host, creation(host))),
+        ErrorCode::Invalid
+    );
+    assert_eq!(
+        code(d.call(owner, creation(PublicKey([255; 32])))),
+        ErrorCode::NotFound
+    );
+    let revoked = d.enroll("revoked", 8);
+    d.ok(owner, Request::AgentRevoke { agent: revoked });
+    assert_eq!(code(d.call(owner, creation(revoked))), ErrorCode::NotFound);
+    let Response::AuthorEnrolled { author } = d.ok(
+        owner,
+        Request::AuthorEnroll {
+            name: "author".into(),
+            credential: credential(9).digest(),
+        },
+    ) else {
+        panic!()
+    };
+    assert_eq!(code(d.call(owner, creation(author))), ErrorCode::Denied);
+    assert_eq!(d.node.goals.len(), before);
+    let Response::GoalCreated { goal } = d.ok(owner, creation(host)) else {
+        panic!()
+    };
+    assert_eq!(d.node.goals[&goal].state().governance, Some(host));
+    assert!(d.node.goals[&goal].local.grants.is_empty());
+    let first = d.store.log(&goal, 0, 1).unwrap().remove(0).1;
+    assert_eq!(first.header().author, host);
+}
+
+#[test]
+fn join_and_leave_are_the_owners_acts_for_a_named_agent() {
+    let (mut d, host, owner, host_conn, goal) = setup();
+    let member = d.enroll("joiner", 10);
+    let member_conn = d.connect(credential(10), None);
+    let ticket = invite(&mut d, host_conn, goal);
+    let request = Request::GoalJoin {
+        agent: member,
+        ticket,
+    };
+    assert_eq!(
+        code(d.call(member_conn, request.clone())),
+        ErrorCode::Denied
+    );
+    assert!(!d.node.goals[&goal].is_member(&member));
+    d.ok(owner, request);
+    assert!(d.node.goals[&goal].is_member(&member));
+    assert_eq!(
+        code(d.call(
+            member_conn,
+            Request::GoalLeave {
+                goal,
+                agent: member
+            }
+        )),
+        ErrorCode::Denied
+    );
+    assert_eq!(
+        code(d.call(owner, Request::GoalLeave { goal, agent: host })),
+        ErrorCode::Conflict
+    );
+    assert_eq!(
+        code(d.call(owner, Request::MemberRemove { goal, member: host })),
+        ErrorCode::Conflict
+    );
+    let response = d.ok(
+        owner,
+        Request::GoalLeave {
+            goal,
+            agent: member,
+        },
+    );
+    let event = event(response);
+    assert_eq!(
+        d.store.event(&event).unwrap().unwrap().header().author,
+        member
+    );
+    assert_eq!(
+        d.node.goals[&goal].membership(&member),
+        Some(Membership::Left)
+    );
+}
+
+#[test]
+fn host_operations_need_no_grant_and_sign_as_the_host_agent() {
+    use locust_proto::event::{TaskId, WorkspaceCheckpoint};
+    let (mut d, host, owner, agent, goal) = setup();
+    let (member, _) = join_local(&mut d, agent, goal, 12);
+    let task = TaskId::Authored(event(
+        d.on_behalf(
+            owner,
+            host,
+            Request::TaskOpen {
+                goal,
+                text: "Host revision".into(),
+                task_type: None,
+                inputs: Default::default(),
+                parent: None,
+            },
+        )
+        .unwrap(),
+    ));
+    d.ok(
+        owner,
+        Request::GoalGrant {
+            goal,
+            agent: host,
+            grants: GoalGrants::default(),
+        },
+    );
+    let expected = d.node.goals[&goal].state().current_rules.unwrap();
+    let formation = locust_proto::organization::Formation {
+        workspace: Some(locust_proto::organization::WorkspacePolicy {
+            integrator: locust_proto::organization::Authority::Participant {
+                key: host.to_string(),
+            },
+            completion: locust_proto::organization::CompletionRule::Declaration {
+                by: locust_proto::organization::Selector::Members,
+            },
+        }),
+        ..Default::default()
+    };
+    let rules = event(d.ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            roles: Default::default(),
+            inputs: Default::default(),
+        },
+    ));
+    let round = d.node.goals[&goal].state().tasks[&task].current_round;
+    let revised = event(d.ok(
+        owner,
+        Request::TaskRevise {
+            goal,
+            task,
+            expected_round: round,
+            task_type: None,
+        },
+    ));
+    let removed = event(d.ok(owner, Request::MemberRemove { goal, member }));
+    let epoch = event(d.ok(
+        owner,
+        Request::WorkspaceEpochSet {
+            goal,
+            expected_epoch: None,
+            rules,
+            checkpoint: WorkspaceCheckpoint::Unseeded,
+        },
+    ));
+    let Response::Invited { ticket } = d.ok(
+        owner,
+        Request::GoalInvite {
+            goal,
+            expires_ms: 2_000,
+        },
+    ) else {
+        panic!()
+    };
+    assert_eq!(
+        Invitation::from_ticket(ticket.as_str()).unwrap().governance,
+        host
+    );
+    for id in [rules, revised, removed, epoch] {
+        assert_eq!(d.store.event(&id).unwrap().unwrap().header().author, host);
+    }
 }
 
 pub(super) fn join_local(
@@ -25,17 +212,23 @@ pub(super) fn join_local(
     goal: GoalId,
     tag: u8,
 ) -> (PublicKey, ConnId) {
-    let member = daemon.enroll(&format!("member-{tag}"), tag, true);
+    let member = daemon.enroll(&format!("member-{tag}"), tag);
     let conn = daemon.connect(credential(tag), None);
     let ticket = invite(daemon, agent, goal);
+    let owner = daemon.owner();
     assert!(matches!(
-        daemon.ok(conn, Request::GoalJoin { ticket }),
+        daemon.ok(
+            owner,
+            Request::GoalJoin {
+                agent: member,
+                ticket
+            }
+        ),
         Response::Joined {
             membership: Membership::Member,
             ..
         }
     ));
-    let owner = daemon.owner();
     daemon.ok(
         owner,
         Request::GoalGrant {
@@ -57,16 +250,17 @@ fn local_join_is_atomic_and_expired_or_invalid_tickets_do_not_admit() {
     assert!(daemon.node.goals[&goal].is_member(&member));
     daemon.restart();
     let conn = daemon.connect(credential(2), None);
+    let owner = daemon.owner();
     assert!(matches!(
         daemon.ok(conn, Request::GoalStatus { goal }),
         Response::GoalStatus(_)
     ));
     assert_eq!(
         code(daemon.call(
-            conn,
+            owner,
             Request::GoalInvite {
                 goal,
-                expires_ms: Some(1000)
+                expires_ms: 1000
             }
         )),
         ErrorCode::Conflict
@@ -75,16 +269,17 @@ fn local_join_is_atomic_and_expired_or_invalid_tickets_do_not_admit() {
 
 #[test]
 fn fabricated_join_intent_never_grants_read_access_on_a_shared_daemon() {
-    let (mut daemon, _, _, agent, goal) = setup();
+    let (mut daemon, _, owner, agent, goal) = setup();
     let ticket = invite(&mut daemon, agent, goal);
     let mut forged = Invitation::from_ticket(ticket.as_str()).unwrap();
     forged.secret = InviteSecret([99; 32]);
-    let intruder = daemon.enroll("intruder", 3, true);
+    let intruder = daemon.enroll("intruder", 3);
     let conn = daemon.connect(credential(3), None);
     assert_eq!(
         code(daemon.call(
-            conn,
+            owner,
             Request::GoalJoin {
+                agent: intruder,
                 ticket: forged.to_ticket().unwrap()
             }
         )),
@@ -102,7 +297,7 @@ fn fabricated_join_intent_never_grants_read_access_on_a_shared_daemon() {
     // Remote join intent and refused intent both preserve no plaintext authority.
     let mut join = crate::node::local::JoinRecord {
         publication: None,
-        administrator: forged.administrator,
+        governance: forged.governance,
         endpoint: forged.endpoint,
         hints: vec![],
         secret: forged.secret,
@@ -149,17 +344,9 @@ fn fabricated_join_intent_never_grants_read_access_on_a_shared_daemon() {
 }
 
 #[test]
-fn removed_principal_and_viewer_cannot_read_new_epoch_but_readmission_restores_history() {
+fn removed_principal_cannot_read_new_epoch_but_readmission_restores_history() {
     let (mut daemon, _, owner, agent, goal) = setup();
     let (member, conn) = join_local(&mut daemon, agent, goal, 2);
-    daemon.ok(
-        owner,
-        Request::ViewerEnroll {
-            agent: member,
-            credential: credential(9).digest(),
-        },
-    );
-    let viewer = daemon.connect(credential(9), None);
     let old = event(daemon.ok(
         agent,
         Request::ContributionPublish {
@@ -172,7 +359,7 @@ fn removed_principal_and_viewer_cannot_read_new_epoch_but_readmission_restores_h
             artifacts: vec![],
         },
     ));
-    daemon.ok(agent, Request::MemberRemove { goal, member });
+    daemon.ok(owner, Request::MemberRemove { goal, member });
     let new = event(daemon.ok(
         agent,
         Request::ContributionPublish {
@@ -194,7 +381,8 @@ fn removed_principal_and_viewer_cannot_read_new_epoch_but_readmission_restores_h
         .payload
         .unwrap()
         .hash;
-    for reader in [conn, viewer] {
+    {
+        let reader = conn;
         let Response::Event(detail) = daemon.ok(reader, Request::Event { goal, event: old }) else {
             panic!()
         };
@@ -227,7 +415,14 @@ fn removed_principal_and_viewer_cannot_read_new_epoch_but_readmission_restores_h
     );
     let agent = daemon.connect(credential(1), None);
     let ticket = invite(&mut daemon, agent, goal);
-    daemon.ok(conn, Request::GoalJoin { ticket });
+    let owner = daemon.owner();
+    daemon.ok(
+        owner,
+        Request::GoalJoin {
+            agent: member,
+            ticket,
+        },
+    );
     assert_eq!(
         daemon.ok(conn, Request::BlobGet { goal, hash }),
         Response::Blob {
@@ -237,57 +432,35 @@ fn removed_principal_and_viewer_cannot_read_new_epoch_but_readmission_restores_h
 }
 
 #[test]
-fn invite_redemption_rechecks_issuer_grants_and_revocation() {
-    for revoke in [false, true] {
-        let (mut daemon, principal, owner, agent, goal) = setup();
-        let ticket = invite(&mut daemon, agent, goal);
-        daemon.enroll("joining", 2, true);
-        let joining = daemon.connect(credential(2), None);
-        if revoke {
-            daemon.ok(owner, Request::AgentRevoke { agent: principal });
-        } else {
-            daemon.ok(
-                owner,
-                Request::GoalGrant {
-                    goal,
-                    agent: principal,
-                    grants: GoalGrants::default(),
-                },
-            );
-        }
-        assert_eq!(
-            code(daemon.call(joining, Request::GoalJoin { ticket })),
-            ErrorCode::Denied
-        );
-        assert_eq!(daemon.node.goals[&goal].state().members.len(), 1);
-    }
-}
-
-#[test]
-fn enrollment_conflicts_on_revocation_or_changed_grants_and_shutdown_retries_stop_again() {
-    let mut daemon = Daemon::new(1);
-    let principal = daemon.enroll("one", 1, false);
-    let owner = daemon.owner();
+fn admission_stops_when_the_host_agent_is_revoked() {
+    let (mut daemon, principal, owner, agent, goal) = setup();
+    let ticket = invite(&mut daemon, agent, goal);
+    let joiner = daemon.enroll("joining", 2);
+    daemon.ok(owner, Request::AgentRevoke { agent: principal });
     assert_eq!(
         code(daemon.call(
             owner,
-            Request::AgentEnroll {
-                name: "one".into(),
-                grants: Grants { manage_goals: true },
-                credential: credential(1).digest()
+            Request::GoalJoin {
+                agent: joiner,
+                ticket
             }
         )),
-        ErrorCode::Conflict
+        ErrorCode::Denied
     );
+    assert_eq!(daemon.node.goals[&goal].state().members.len(), 1);
+}
+
+#[test]
+fn enrollment_conflicts_on_revocation_and_shutdown_retries_stop_again() {
+    let mut daemon = Daemon::new(1);
+    let principal = daemon.enroll("one", 1);
+    let owner = daemon.owner();
     daemon.ok(owner, Request::AgentRevoke { agent: principal });
     assert_eq!(
         code(daemon.call(
             owner,
             Request::AgentEnroll {
                 name: "one".into(),
-                grants: Grants {
-                    manage_goals: false
-                },
                 credential: credential(1).digest()
             }
         )),
@@ -311,14 +484,14 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
     let mut invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     invitation.endpoint = EndpointId([88; 32]);
     invitation
-        .sign(daemon.node.signer(&invitation.administrator).unwrap())
+        .sign(daemon.node.signer(&invitation.governance).unwrap())
         .unwrap();
-    let principal = daemon.enroll("joiner", 4, true);
-    let conn = daemon.connect(credential(4), None);
+    let principal = daemon.enroll("joiner", 4);
     assert_eq!(
         code(daemon.call(
-            conn,
+            owner,
             Request::GoalJoin {
+                agent: principal,
                 ticket: invitation.to_ticket().unwrap()
             }
         )),
@@ -326,11 +499,12 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
     );
     invitation.goal = GoalId([77; 32]);
     invitation
-        .sign(daemon.node.signer(&invitation.administrator).unwrap())
+        .sign(daemon.node.signer(&invitation.governance).unwrap())
         .unwrap();
     daemon.ok(
-        conn,
+        owner,
         Request::GoalJoin {
+            agent: principal,
             ticket: invitation.to_ticket().unwrap(),
         },
     );
@@ -343,12 +517,24 @@ fn held_ticket_endpoint_is_checked_and_revoked_principals_stop_joining() {
 
 #[test]
 fn leaving_member_cannot_clear_local_departure_with_a_spare_ticket() {
-    let (mut daemon, _, _, agent, goal) = setup();
-    let (principal, member) = join_local(&mut daemon, agent, goal, 2);
+    let (mut daemon, _, owner, agent, goal) = setup();
+    let (principal, _member) = join_local(&mut daemon, agent, goal, 2);
     let spare = invite(&mut daemon, agent, goal);
-    daemon.ok(member, Request::GoalLeave { goal });
+    daemon.ok(
+        owner,
+        Request::GoalLeave {
+            goal,
+            agent: principal,
+        },
+    );
     assert_eq!(
-        code(daemon.call(member, Request::GoalJoin { ticket: spare })),
+        code(daemon.call(
+            owner,
+            Request::GoalJoin {
+                agent: principal,
+                ticket: spare
+            }
+        )),
         ErrorCode::Conflict
     );
     assert_eq!(
@@ -380,7 +566,7 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
     use locust_proto::event::Event;
     use locust_proto::id::EndpointId;
     use locust_proto::invite::JoinRequest;
-    let (mut daemon, administrator, _, agent, goal) = setup();
+    let (mut daemon, governance, _, agent, goal) = setup();
     let ticket = invite(&mut daemon, agent, goal);
     let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     let remote = EndpointId([44; 32]);
@@ -391,7 +577,7 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
     let own = &events[1].1;
     let mut header = own.header().clone();
     header.at_ms += 44;
-    let fork = Event::sign(header, daemon.node.signer(&administrator).unwrap()).unwrap();
+    let fork = Event::sign(header, daemon.node.signer(&governance).unwrap()).unwrap();
     let proof = [own.to_wire(), fork.to_wire()];
     assert!(
         daemon
@@ -423,7 +609,7 @@ fn halt_proofs_reach_historical_contacts_without_restoring_membership() {
         daemon.node.goals[&goal]
             .goal
             .evaluation()
-            .admin_halt
+            .host_halt
             .as_ref()
             .is_some()
     );

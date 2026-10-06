@@ -128,13 +128,13 @@ class FarmQualification(Qualification):
         m1, m2 = self.machines
         for machine in self.machines:
             self.start(machine)
-            result = self.cli(machine, ["agent", "enroll", f"m{machine.number}", "--manage-goals"], owner=True)
+            result = self.cli(machine, ["agent", "enroll", f"m{machine.number}"], owner=True)
             machine.agent = variant(result, "agent_enrolled")["agent"]
         goal = self.create_goal(m1, "PRIVATE TITLE MUST NOT BE EXPORTED")
         self.summary["goal"] = goal
         self.active_goal = goal
-        ticket = variant(self.cli(m1, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
-        self.cli(m2, ["goal", "join", "--ticket", ticket])
+        ticket = variant(self.cli(m1, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
+        self.cli(m2, ["--as", f"m{m2.number}", "goal", "join", "--ticket", ticket], owner=True)
         del ticket
         self.wait("both daemons know both members", lambda: all(
             (s := self.goal_status(m, goal)) and len(s["members"]) == 2 for m in self.machines))

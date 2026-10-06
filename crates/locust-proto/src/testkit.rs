@@ -73,7 +73,7 @@ impl Author {
     }
     pub fn genesis_with(&mut self, definition: &Formation) -> Event {
         let genesis = Genesis {
-            administrator: self.key.public(),
+            governance: self.key.public(),
             definition: definition_hash(definition),
             salt: [0; 16],
         };
@@ -188,7 +188,7 @@ pub fn every_body() -> Vec<Body> {
             }),
         }),
         Body::Genesis(Genesis {
-            administrator: key,
+            governance: key,
             definition: binding.definition.semantic,
             salt: [0; 16],
         }),

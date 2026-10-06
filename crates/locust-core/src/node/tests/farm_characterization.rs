@@ -10,14 +10,20 @@ use locust_proto::{
 #[test]
 fn departed_member_cannot_sign_consent_withdrawal_even_for_owner_after_restart() {
     let (mut d, host, owner, agent, goal) = setup();
-    let (member, conn) = join_local(&mut d, agent, goal, 2);
+    let (member, _conn) = join_local(&mut d, agent, goal, 2);
     d.ok(owner, on(goal));
     d.ok(owner, consent(goal, host, true));
     d.ok(owner, consent(goal, member, true));
     let first = d.node.farm_poll(2000).remove(0);
     assert_eq!(first.request.operation, FarmOperation::Upload);
     acknowledge(&mut d, &first, 2000);
-    d.ok(conn, Request::GoalLeave { goal });
+    d.ok(
+        owner,
+        Request::GoalLeave {
+            goal,
+            agent: member,
+        },
+    );
     assert!(d.node.goals[&goal].is_member(&member));
     assert!(d.node.goals[&goal].goal.next(&member).is_some());
     let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
@@ -132,9 +138,8 @@ fn excluded_consent_arriving_after_removal_suspends_even_when_it_accepts() {
         // The host removes based on the prefix it held before this consent.
         d.store = copy;
         d.restart();
-        let agent = d.connect(credential(1), None);
         let owner = d.owner();
-        d.ok(agent, Request::MemberRemove { goal, member });
+        d.ok(owner, Request::MemberRemove { goal, member });
         let Response::FarmPreview(preview) = d.ok(owner, Request::FarmShow { goal }) else {
             panic!()
         };
@@ -225,10 +230,11 @@ fn goal_close_is_shared_and_publicly_ended_but_does_not_stop_work_or_admission()
 
 #[test]
 fn default_formation_has_no_goal_finish_decider() {
-    let (mut d, _, _, agent, _) = setup();
+    let (mut d, host, owner, _agent, _) = setup();
     let Response::GoalCreated { goal } = d.ok(
-        agent,
+        owner,
         Request::GoalCreate {
+            agent: host,
             title: "Default".into(),
             formation_json: None,
             roles: Default::default(),
@@ -238,7 +244,7 @@ fn default_formation_has_no_goal_finish_decider() {
         panic!()
     };
     let owner = d.owner();
-    let principal = d.node.goals[&goal].state().administrator.unwrap();
+    let principal = d.node.goals[&goal].state().governance.unwrap();
     let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
     let error = d
         .on_behalf(
@@ -282,7 +288,7 @@ fn goal_close_follows_finish_role_instead_of_host_identity() {
         .formation;
     let expected = d.node.goals[&goal].state().current_rules.unwrap();
     d.ok(
-        agent,
+        owner,
         Request::RulesBind {
             goal,
             expected,

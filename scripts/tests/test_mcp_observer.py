@@ -72,7 +72,7 @@ for line in sys.stdin.buffer:
   sys.stdout.buffer.write((json.dumps(answer)+"\\n").encode());sys.stdout.buffer.flush()
 '''
         process, receipt = self.start(code)
-        request = {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "locust_goal_join", "arguments": {"ticket": "secret-ticket"}}}
+        request = {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "locust_context_read", "arguments": {"goal": "synthetic-goal"}}}
         cancellation = {"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 4}}
         raw = (json.dumps(request) + "\n" + json.dumps(cancellation) + "\n").encode()
         output, error = process.communicate(raw, timeout=5)
@@ -83,15 +83,15 @@ for line in sys.stdin.buffer:
         records = [json.loads(line) for line in text.splitlines()]
         self.assertTrue(any(record.get("method") == "notifications/cancelled" and record["requestId"] == 4 for record in records))
         response = next(record for record in records if record.get("direction") == "bridge_response")
-        self.assertEqual(response["tool"], "locust_goal_join")
+        self.assertEqual(response["tool"], "locust_context_read")
         self.assertEqual(response["result"]["result"]["invited"]["ticket"], "<redacted>")
 
     def test_tools_list_has_deterministic_schema_digest(self):
         calls = {}
         module.metadata({"id": 2, "method": "tools/list"}, "client_request", calls)
-        definitions = [{"name": "locust_goal_join", "inputSchema": {"type": "object", "properties": {"ticket": {"type": "string"}}}}]
+        definitions = [{"name": "locust_context_read", "inputSchema": {"type": "object", "properties": {"goal": {"type": "string"}}}}]
         result = module.metadata({"id": 2, "result": {"tools": definitions}}, "bridge_response", calls)
-        self.assertEqual(result["tools"], ["locust_goal_join"])
+        self.assertEqual(result["tools"], ["locust_context_read"])
         self.assertEqual(result["tool_definitions"], definitions)
         canonical = json.dumps({"tools": result["tool_definitions"]}, sort_keys=True, separators=(",", ":")).encode()
         self.assertEqual(result["schema_sha256"], hashlib.sha256(canonical).hexdigest())

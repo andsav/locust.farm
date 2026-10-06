@@ -78,13 +78,16 @@ pub(super) fn run(
         let (_, preview) = inspected.expect("inspection parsed its ticket");
         return output(Response::InvitationInspected { preview });
     }
-    if matches!(operation, "invitation.join" | "invitation.revoke") {
+    if matches!(
+        operation,
+        "invitation.join" | "invitation.revoke" | "invitation.list"
+    ) {
         if !matches.get_flag("owner") {
             return Err(Failure::usage("this invitation decision requires --owner"));
         }
         if matches.get_one::<String>("as").is_some() {
             return Err(Failure::usage(
-                "invitation join/revoke use direct --owner authority; join selects --principal explicitly",
+                "invitation commands use direct --owner authority; join selects --principal explicitly",
             ));
         }
     }
@@ -105,11 +108,10 @@ pub(super) fn run(
         .transpose()?;
     let request = if operation == "invitation.join" {
         let principal = resolve_principal(&mut client, &socket, value(args, "principal"))?;
-        let (ticket, preview) = inspected.expect("joining parsed its ticket");
-        Request::InvitationJoin {
-            principal,
+        let (ticket, _) = inspected.expect("joining parsed its ticket");
+        Request::GoalJoin {
+            agent: principal,
             ticket,
-            review: preview.review,
         }
     } else {
         let goal = resolve_goal(&mut client, &socket, value(args, "goal"), on_behalf)?;
@@ -117,7 +119,7 @@ pub(super) fn run(
             "invitation.list" => Request::GoalInvitations { goal },
             "invitation.revoke" => Request::InvitationRevoke {
                 goal,
-                invitation: value(args, "invitation").to_owned(),
+                invitation: Some(value(args, "invitation").to_owned()),
             },
             _ => return Err(Failure::usage("unknown invitation operation")),
         }
@@ -131,7 +133,7 @@ pub(super) fn run(
         })
         .transpose()?;
     let response = client
-        .call_with(request, idempotency, on_behalf)
+        .call_with(request, idempotency, None)
         .map_err(|error| connection::client_error(error, &socket))?;
     output(response)
 }
@@ -221,16 +223,17 @@ fn output(response: Response) -> Result<Output, Failure> {
             "Invitation {} is revoked. It cannot admit a new member.",
             invitation.invitation
         ),
+        Response::InvitationsRevoked { count } => format!("Revoked {count} pending invitations."),
         Response::Joined {
             goal,
-            administrator,
+            governance,
             membership,
         } => match membership {
             Membership::Member => format!(
-                "Joined goal {goal} as a member. Administrator: {administrator}.\nMembership granted no execution permission or workspace access."
+                "Joined goal {goal} as a member. Host: {governance}.\nMembership granted no execution permission or workspace access."
             ),
             _ => format!(
-                "Joining goal {goal}; admission from administrator {administrator} has not arrived.\nRetry the same reviewed invitation to recover the pending result, or check status. No goal content or execution permission is granted while joining."
+                "Joining goal {goal}; admission from host {governance} has not arrived.\nRetry the same reviewed invitation to recover the pending result, or check status. No goal content or execution permission is granted while joining."
             ),
         },
         _ => return Err(Failure::internal("unexpected invitation response")),
@@ -256,9 +259,9 @@ fn render_preview(preview: &InvitationPreview) -> String {
         .expires_ms
         .map_or_else(|| "never".into(), |time| format!("{time} Unix ms"));
     let mut text = format!(
-        "Goal: {title}\nGoal identifier: {}\nAdministrator fingerprint: {}\nIssuer endpoint: {}\nSignature: verified against the administrator key.\nTitle: administrator-signed presentation. A signing key does not verify a human identity.\nGoal authority and admission are confirmed during joining. Inspection does not contact the issuer.\nExpires: {expires}{}\nSharing: whole goal.\n",
+        "Goal: {title}\nGoal identifier: {}\nHost fingerprint: {}\nIssuer endpoint: {}\nSignature: verified against the host key.\nTitle: host-signed presentation. A signing key does not verify a human identity.\nGoal authority and admission are confirmed during joining. Inspection does not contact the issuer.\nExpires: {expires}{}\nSharing: whole goal.\n",
         preview.goal,
-        preview.administrator,
+        preview.governance,
         preview.endpoint,
         if preview.expired {
             " (expired; request a fresh invitation)"
@@ -308,7 +311,7 @@ mod tests {
         let invitation = invitation();
         let preview = invitation.preview(0).unwrap();
         let rendered = render_preview(&preview);
-        assert!(rendered.contains("administrator-signed presentation"));
+        assert!(rendered.contains("host-signed presentation"));
         assert!(rendered.contains("Joining does not consent"));
         assert!(rendered.contains("does not verify a human identity"));
         assert!(rendered.contains("including available history"));

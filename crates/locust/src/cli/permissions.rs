@@ -38,7 +38,6 @@ fn change(name: &'static str, about: &'static str) -> Command {
                 .num_args(1..)
                 .required_unless_present("task")
                 .value_parser([
-                    "administer",
                     "contribute",
                     "execute",
                     "review",
@@ -85,9 +84,7 @@ pub(super) fn run(
         .map(|name| resolve_principal(&mut client, &socket, name))
         .transpose()?;
     let display_principal = on_behalf.or(match client.caller() {
-        Caller::Agent(principal) | Caller::Viewer(principal) | Caller::Author(principal) => {
-            Some(principal)
-        }
+        Caller::Agent(principal) | Caller::Author(principal) => Some(principal),
         Caller::Owner => None,
     });
     if operation != "watch" && on_behalf.is_some() {

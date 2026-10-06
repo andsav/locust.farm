@@ -30,7 +30,7 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
     };
     let expected = daemon.node.goals[&goal].state().current_rules.unwrap();
     let rules = lifecycle::event(daemon.ok(
-        agent,
+        owner,
         Request::RulesBind {
             goal,
             expected,
@@ -40,7 +40,7 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
         },
     ));
     daemon.ok(
-        agent,
+        owner,
         Request::WorkspaceEpochSet {
             goal,
             expected_epoch: None,
@@ -119,13 +119,20 @@ fn capture(
             },
         },
     );
-    daemon.ok(
-        agent,
-        Request::WorkspaceOperationPrepare {
-            goal,
-            operation: operation.clone(),
-        },
-    );
+    let Caller::Agent(principal) = daemon.node.conns[&agent].caller else {
+        panic!()
+    };
+    let owner = daemon.owner();
+    daemon
+        .on_behalf(
+            owner,
+            principal,
+            Request::WorkspaceOperationPrepare {
+                goal,
+                operation: operation.clone(),
+            },
+        )
+        .unwrap();
     operation
 }
 
@@ -523,10 +530,11 @@ fn replica_can_select_invalid_content_but_head_reports_it_and_replacement_repair
 #[test]
 fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_restart() {
     let mut net = delivery::Network::new();
-    let integrator = net.nodes[0].enroll("integrator", 1, true);
-    let worker = net.nodes[1].enroll("worker", 2, true);
+    let integrator = net.nodes[0].enroll("integrator", 1);
+    let worker = net.nodes[1].enroll("worker", 2);
     let left = net.nodes[0].connect(credential(1), None);
     let right = net.nodes[1].connect(credential(2), None);
+    let owner = net.nodes[0].owner();
     let formation = Formation {
         workspace: Some(WorkspacePolicy {
             integrator: Authority::Participant {
@@ -539,8 +547,9 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
         ..Formation::default()
     };
     let Response::GoalCreated { goal } = net.nodes[0].ok(
-        left,
+        owner,
         Request::GoalCreate {
+            agent: integrator,
             title: "Shared workspace transport".into(),
             formation_json: Some(serde_json::to_string(&formation).unwrap()),
             roles: Default::default(),
@@ -549,14 +558,12 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
     ) else {
         panic!()
     };
-    let owner = net.nodes[0].owner();
     net.nodes[0].ok(
         owner,
         Request::GoalGrant {
             goal,
             agent: integrator,
             grants: GoalGrants {
-                administer: true,
                 contribute: true,
                 review: true,
                 select: true,
@@ -565,15 +572,22 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
         },
     );
     let Response::Invited { ticket } = net.nodes[0].ok(
-        left,
+        owner,
         Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: 604_801_000,
         },
     ) else {
         panic!()
     };
-    net.nodes[1].ok(right, Request::GoalJoin { ticket });
+    let joining_owner = net.nodes[1].owner();
+    net.nodes[1].ok(
+        joining_owner,
+        Request::GoalJoin {
+            agent: worker,
+            ticket,
+        },
+    );
     net.poll(1);
     assert!(net.nodes[0].node.goals[&goal].is_member(&worker));
     let owner = net.nodes[1].owner();
@@ -593,8 +607,9 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
         .state()
         .current_rules
         .unwrap();
+    let host_owner = net.nodes[0].owner();
     net.nodes[0].ok(
-        left,
+        host_owner,
         Request::WorkspaceEpochSet {
             goal,
             expected_epoch: None,
@@ -621,7 +636,29 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
     manifest.entries.sort_by(|a, b| a.path.cmp(&b.path));
     let result_manifest = content(&mut net.nodes[1], right, goal, manifest.encode().unwrap());
     let current = view(&mut net.nodes[1], right, goal);
-    let capture = operation(
+    let checkout = locust_proto::api::Checkout {
+        id: locust_proto::id::CheckoutId([33; 16]),
+        root: "/work/remote-checkout".into(),
+        root_identity: locust_proto::api::DirectoryIdentity {
+            device: 1,
+            inode: 33,
+        },
+        base_revision: seed,
+        base_manifest: seed_manifest,
+        session: None,
+        task: None,
+        attempt: None,
+        active_operation: None,
+    };
+    net.nodes[1].ok(
+        owner,
+        Request::WorkspaceConnect {
+            goal,
+            agent: worker,
+            checkout: checkout.clone(),
+        },
+    );
+    let mut capture = operation(
         1,
         WorkspaceOperationKind::Capture {
             candidate: WorkspaceCandidate {
@@ -637,6 +674,7 @@ fn encoded_two_daemon_workspace_edit_retains_files_and_converges_after_both_rest
             },
         },
     );
+    capture.checkout = Some(checkout.id);
     net.nodes[1].ok(
         right,
         Request::WorkspaceOperationPrepare {

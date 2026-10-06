@@ -33,7 +33,7 @@ CLIENTS = ("codex", "claude-code", "pi")
 SKILLS = {"codex": ".agents/skills/locust/SKILL.md", "claude-code": ".claude/skills/locust/SKILL.md",
           "pi": ".pi/agent/skills/locust/SKILL.md"}
 CONFIGS = {"codex": ".codex/config.toml", "claude-code": ".claude.json", "pi": ".pi/agent/mcp.json"}
-ASSERTIONS = ("test_signed_install", "persistent_setup", "setup_idempotent", "onboarding_no_initial_grants", "onboarding_retry_after_restart", "selected_profile_doctor", "network_isolation",
+ASSERTIONS = ("test_signed_install", "persistent_setup", "setup_idempotent", "onboarding_active_agent", "onboarding_retry_after_restart", "selected_profile_doctor", "network_isolation",
               "bound_cli_launcher",
               "automatic_skill_metadata", "native_skill_read", "registered_mcp_roundtrip", "default_read",
               "default_write", "permissive_read", "permissive_write", "claim", "progress",
@@ -137,7 +137,7 @@ def project_envelope(value):
     output = {"ok": True, "result": {}}
     if not isinstance(result, dict):
         return output
-    for key, allowed in (("goal_status", ("goal", "administrator", "current_rules")),
+    for key, allowed in (("goal_status", ("goal", "host", "current_rules")),
                          ("recorded", ("event",)),
                          ("claimed", ("goal", "task", "attempt", "instance", "generation"))):
         if isinstance(result.get(key), dict):
@@ -201,7 +201,7 @@ def successful(receipts, tool):
 
 def read_matches(receipts, daemon):
     return any(e["result"].get("goal_status", {}).get("goal") == daemon.goal and
-               e["result"].get("goal_status", {}).get("administrator") == daemon.principal
+               e["result"].get("goal_status", {}).get("host") == daemon.principal
                for e in successful(receipts, workflow.READ))
 
 
@@ -368,8 +368,8 @@ def qualify(client, binary, args):
                     "Installed up owns enrolled identity, skill, bound launcher and MCP entry; native discovery tested separately")
                 checks["setup_idempotent"] = fixture.assertion("pass" if daemon.onboarding["retry_verified"] else "fail",
                     "Repeated up and agent add preserve identity, session, credentials and launcher")
-                checks["onboarding_no_initial_grants"] = fixture.assertion("pass" if daemon.onboarding["no_initial_grants"] else "fail",
-                    "Independent owner status sees exactly one enrolled principal without manage-goals permission before explicit fixture authorization")
+                checks["onboarding_active_agent"] = fixture.assertion("pass" if daemon.onboarding["active_agent_enrolled"] else "fail",
+                    "Independent owner status sees exactly one active enrolled agent")
                 skill_path = profile.home / SKILLS[client]
                 launcher = skill_path.with_name("locust-cli")
                 require(local_status.get("launcher") == str(launcher) and local_status.get("launcher_ready") is True,
@@ -461,10 +461,10 @@ def qualify(client, binary, args):
                 result["onboarding"]["doctor_after_restart"] = daemon.doctor()
                 checks["selected_profile_doctor"] = fixture.assertion("pass",
                     "Selected installation/profile checks pass before native startup and after restart; exact enrolled identity matches and model/discovery remain unverified")
-                require(daemon.call(["status"], owner=True)["status"]["agents"][0]["grants"]["manage_goals"],
-                        "Onboarding retry reset explicit owner authorization")
+                require(daemon.call(["status"], owner=True)["status"]["agents"][0]["author_only"] is False,
+                        "Onboarding retry changed the active agent")
                 checks["onboarding_retry_after_restart"] = fixture.assertion("pass",
-                    "After daemon restart, up and agent add retain exact identity, secret hashes, launcher and owner grant")
+                    "After daemon restart, up and agent add retain exact active identity, secret hashes and launcher")
                 fresh, fe = execute("fresh-after-restart", [workflow.step(workflow.READ, {"goal": daemon.goal}),
                     workflow.step(workflow.WRITE, {"goal": daemon.goal, "artifacts": [], "summary": "installed-restart-" + client})], True)
                 fresh_good = (read_matches(fe, daemon) and persisted_contribution(fe, daemon, "installed-restart-" + client)

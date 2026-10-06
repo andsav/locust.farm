@@ -3,7 +3,7 @@
 //! an attempt, publish a contribution, review and select it, then exchange
 //! findings offline, restart, sleep and wake, and add another participant.
 
-use locust_proto::api::{ErrorCode, Grants, Membership, Request, Response};
+use locust_proto::api::{ErrorCode, Membership, Request, Response};
 use locust_proto::event::{ReviewVerdict, TaskId};
 use locust_proto::id::{BlobHash, EventId, GoalId};
 use locust_proto::limits::BLOB_CHUNK_BYTES;
@@ -21,15 +21,13 @@ const M1: usize = 0;
 const M2: usize = 1;
 const M3: usize = 2;
 
-/// Starts every daemon and enrolls one principal per machine with
-/// explicit daemon-wide goal management grants.
+/// Starts every daemon and enrolls one principal per machine.
 pub fn setup(r: &mut Run) -> Result<(), Fail> {
     r.step = "setup";
     for m in 0..r.w.machines.len() {
         r.w.start(m);
         let request = Request::AgentEnroll {
             name: r.w.machines[m].name.clone(),
-            grants: Grants { manage_goals: true },
             credential: r.w.machines[m].agent.digest(),
         };
         let Response::AgentEnrolled { agent } = r.op(m, Who::Owner, request)? else {
@@ -113,12 +111,19 @@ pub fn join(r: &mut Run, m: usize, expect: usize) -> Result<(), Fail> {
     let goal = r.goal();
     let request = Request::GoalInvite {
         goal,
-        expires_ms: None,
+        expires_ms: r.w.wall_ms(M1) + 7 * 24 * 60 * 60 * 1_000,
     };
-    let Response::Invited { ticket } = r.op(M1, Who::Agent, request)? else {
+    let Response::Invited { ticket } = r.op(M1, Who::Owner, request)? else {
         return r.fail("invite: unexpected answer");
     };
-    match r.op(m, Who::Agent, Request::GoalJoin { ticket })? {
+    match r.op(
+        m,
+        Who::Owner,
+        Request::GoalJoin {
+            agent: r.principals[m],
+            ticket,
+        },
+    )? {
         Response::Joined {
             goal: joined,
             membership: Membership::Joining | Membership::Member,
@@ -152,7 +157,6 @@ fn grant(r: &mut Run, m: usize) -> Result<(), Fail> {
                 review: true,
                 select: true,
                 flow: true,
-                administer: true,
                 takeover: true,
             },
         },
@@ -340,6 +344,7 @@ fn submit(
 pub fn create(r: &mut Run) -> Result<(), Fail> {
     r.step = "create the goal";
     let create = Request::GoalCreate {
+        agent: r.principals[M1],
         title: TITLE.into(),
         formation_json: Some(
             serde_json::to_string(
@@ -354,7 +359,7 @@ pub fn create(r: &mut Run) -> Result<(), Fail> {
         roles: BTreeMap::from([("coordinator".into(), vec![r.principals[M1]])]),
         inputs: BTreeMap::new(),
     };
-    let Response::GoalCreated { goal } = r.op(M1, Who::Agent, create)? else {
+    let Response::GoalCreated { goal } = r.op(M1, Who::Owner, create)? else {
         return r.fail("create: unexpected answer");
     };
     r.goal = Some(goal);

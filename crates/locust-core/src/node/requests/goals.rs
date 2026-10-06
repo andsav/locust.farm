@@ -17,6 +17,14 @@ use crate::node::commit::Tx;
 use crate::node::entry::key_write;
 use crate::node::local;
 
+pub(super) struct GoalCreateInput {
+    pub agent: PublicKey,
+    pub title: String,
+    pub formation_json: Option<String>,
+    pub roles: BTreeMap<String, Vec<PublicKey>>,
+    pub inputs: BTreeMap<String, BlobHash>,
+}
+
 impl<S: Store, E: Entropy> Node<S, E> {
     /// This daemon's endpoint, which admissions and invitations name.
     pub(super) fn own_endpoint(&self) -> Result<&crate::node::identity::EndpointRecord, ApiError> {
@@ -29,22 +37,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// Founding and the initial rules binding become durable together.
-    pub(super) fn goal_create(
-        &self,
-        actor: &Actor,
-        title: String,
-        formation_json: Option<String>,
-        roles: BTreeMap<String, Vec<PublicKey>>,
-        inputs: BTreeMap<String, BlobHash>,
-        now_ms: u64,
-    ) -> Plan {
-        let creator = self.manages_goals(actor)?;
+    pub(super) fn goal_create(&self, actor: &Actor, input: GoalCreateInput, now_ms: u64) -> Plan {
+        let GoalCreateInput {
+            agent,
+            title,
+            formation_json,
+            roles,
+            inputs,
+        } = input;
+        let creator = self.local_agent(actor, agent)?.principal()?;
         let endpoint = self.own_endpoint()?.endpoint;
         let signer = self.signer(&creator)?;
         let source = formation_json.unwrap_or_else(|| "{\"schema_version\":2}".into());
         let (definition, normalized) = checked_definition(&source)?;
         let genesis = Genesis {
-            administrator: creator,
+            governance: creator,
             definition,
             salt: self.random(),
         };
@@ -108,13 +115,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             now_ms,
             &mut tx,
         )?;
-        let grants = GoalGrants {
-            administer: true,
-            ..GoalGrants::default()
-        };
         tx.local(key_write(&goal, 0, &key))
             .local(local::title_write(&goal, &title))
-            .local(local::grants_write(&goal, &creator, &grants))
             .local(local::part_write(&goal, &creator, false));
         Ok(Planned {
             response: Response::GoalCreated { goal },
@@ -133,7 +135,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         inputs: BTreeMap<String, BlobHash>,
         now: u64,
     ) -> Plan {
-        let (entry, administrator) = self.administrator(actor, &goal)?;
+        let (entry, governance) = self.host(actor, &goal)?;
         if entry.state().current_rules != Some(expected) {
             return Err(crate::node::access::conflict("the rules revision changed"));
         }
@@ -150,7 +152,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         tx.commit.blobs.push(blob);
         let event = self.author(
             entry,
-            &administrator,
+            &governance,
             Body::RulesBound {
                 expected: Some(expected),
                 binding: RulesBinding {
@@ -172,15 +174,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let entry = self.readable(actor, &goal)?;
         let state = entry.state();
         // Before any history has arrived the ticket's word is all there is.
-        let administrator = state
-            .administrator
+        let governance = state
+            .governance
             .or_else(|| {
                 entry
                     .local
                     .joins
                     .values()
                     .next()
-                    .map(|join| join.administrator)
+                    .map(|join| join.governance)
             })
             .ok_or_else(|| not_found("no such goal"))?;
         let own = self
@@ -191,7 +193,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         answer(Response::GoalStatus(GoalStatus {
             goal,
             title: self.title(entry, actor.principal.as_ref()),
-            administrator,
+            host: governance,
             governance_head: state.head,
             current_rules: state.current_rules,
             scope_halts: entry
@@ -257,12 +259,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
-    pub(super) fn goal_leave(&self, actor: &Actor, goal: GoalId, now: u64) -> Plan {
-        self.manages_goals(actor)?;
-        let (entry, principal) = self.member(actor, &goal)?;
-        if entry.state().administrator == Some(principal) {
+    pub(super) fn goal_leave(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        agent: PublicKey,
+        now: u64,
+    ) -> Plan {
+        let local_actor = self.local_agent(actor, agent)?;
+        let (entry, principal) = self.member(&local_actor, &goal)?;
+        if entry.state().governance == Some(principal) {
             return Err(crate::node::access::conflict(
-                "the administrator cannot leave before authority handoff",
+                "the host's agent cannot leave its own goal",
             ));
         }
         let mut tx = Tx::none();
@@ -287,10 +295,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         member: PublicKey,
         now: u64,
     ) -> Plan {
-        let (entry, administrator) = self.administrator(actor, &goal)?;
-        if member == administrator {
+        let (entry, governance) = self.host(actor, &goal)?;
+        if member == governance {
             return Err(crate::node::access::conflict(
-                "the administrator cannot remove itself before authority handoff",
+                "the host's agent cannot be removed from its own goal",
             ));
         }
         if !entry.is_member(&member) {
@@ -298,7 +306,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "the principal is not a member",
             ));
         }
-        let mut place = self.next_place(entry, &administrator)?;
+        let mut place = self.next_place(entry, &governance)?;
         place.epoch = place
             .epoch
             .checked_add(1)
@@ -319,7 +327,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let mut tx = Tx::none();
         let event = sign_at(
             goal,
-            self.signer(&administrator)?,
+            self.signer(&governance)?,
             place,
             Body::MemberRemoved {
                 member,

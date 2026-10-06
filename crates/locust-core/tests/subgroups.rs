@@ -94,7 +94,6 @@ impl Harness {
             ConnId(1),
             Request::AgentEnroll {
                 name: format!("member-{tag}"),
-                grants: Grants { manage_goals: true },
                 credential: Credential([tag; 32]).digest(),
             },
         ) else {
@@ -102,7 +101,7 @@ impl Harness {
         };
         (agent, self.connect(tag))
     }
-    fn goal(&mut self, conn: ConnId, creator: PublicKey, preset: &str) -> GoalId {
+    fn goal(&mut self, creator: PublicKey, preset: &str) -> GoalId {
         let formation = locust_proto::organization::presets()
             .into_iter()
             .find(|p| p.name == preset)
@@ -114,8 +113,9 @@ impl Harness {
             .map(|name| (name.clone(), vec![creator]))
             .collect();
         let Response::GoalCreated { goal } = self.ok(
-            conn,
+            ConnId(1),
             Request::GoalCreate {
+                agent: creator,
                 title: format!("{preset} goal"),
                 formation_json: Some(serde_json::to_string(&formation).unwrap()),
                 roles,
@@ -134,7 +134,6 @@ impl Harness {
                 goal,
                 agent,
                 grants: GoalGrants {
-                    administer: true,
                     contribute: true,
                     execute: true,
                     review: true,
@@ -145,18 +144,24 @@ impl Harness {
             },
         );
     }
-    fn join(&mut self, issuer: ConnId, member: ConnId, goal: GoalId, principal: PublicKey) {
+    fn join(&mut self, goal: GoalId, principal: PublicKey) {
         let Response::Invited { ticket } = self.ok(
-            issuer,
+            ConnId(1),
             Request::GoalInvite {
                 goal,
-                expires_ms: None,
+                expires_ms: 1_000_000,
             },
         ) else {
             panic!()
         };
         assert!(matches!(
-            self.ok(member, Request::GoalJoin { ticket }),
+            self.ok(
+                ConnId(1),
+                Request::GoalJoin {
+                    agent: principal,
+                    ticket
+                }
+            ),
             Response::Joined {
                 membership: Membership::Member,
                 ..
@@ -233,9 +238,9 @@ fn separate_goal_exports_only_selected_bytes_and_returns_a_fresh_parent_candidat
     let mut h = Harness::new();
     let (bridge, parent_member) = h.enroll(2);
     let (child_principal, child_member) = h.enroll(3);
-    let parent = h.goal(parent_member, bridge, "coordinator");
-    let child = h.goal(child_member, child_principal, "open");
-    h.join(child_member, parent_member, child, bridge);
+    let parent = h.goal(bridge, "coordinator");
+    let child = h.goal(child_principal, "open");
+    h.join(child, bridge);
 
     let private = h.put(parent_member, parent, b"private parent deliberation");
     let selected = h.put(parent_member, parent, b"selected contract for subgroup");

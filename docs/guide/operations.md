@@ -57,7 +57,7 @@ See [What leaves your computer](sharing.md#what-leaves-your-computer).
 ## Offline work and restarts
 
 Members keep working offline when their daemon holds the records they need.
-Membership changes, rule changes and new stage tasks wait for the administrator.
+Membership changes, rule changes and new stage tasks wait for the host.
 A decision waits for its decider. After a restart, the daemon resumes unfinished
 deliveries.
 
@@ -69,7 +69,7 @@ same values.
 - Draft edits name the revision you expect (`--expected-revision`). If the draft
   changed, locust.farm refuses the edit.
 - Two conflicting decisions stop decisions for that task. Both records are kept;
-  other work continues. The administrator can start a new round with
+  other work continues. The host can start a new round with
   `task revise`.
 - `workspace integrate` pins the expected accepted head and workspace epoch.
   Conflicting decisions dispute that workspace boundary; arrival order does not

@@ -53,6 +53,23 @@ use locust_proto::store::{Commit, Space, Store, StoreError};
 use crate::goal::Goal;
 use callers::Conn;
 use entry::Entry;
+
+/// The daemon's filesystem capability for a new private agent checkout.
+/// The node validates the accepted tree and each read before passing bytes
+/// to this materializer. Implementations create a fresh directory and never
+/// use a path supplied by the agent.
+pub trait CheckoutFiles: Send + Sync {
+    /// Return the path this checkout would occupy without creating or changing files.
+    /// The node checks it against every managed tree before materialization.
+    fn destination(&self, checkout: locust_proto::id::CheckoutId) -> Result<String, ApiError>;
+
+    fn materialize(
+        &self,
+        checkout: locust_proto::id::CheckoutId,
+        manifest: &locust_proto::manifest::Manifest,
+        fetch: &mut dyn FnMut(locust_proto::id::BlobHash) -> Result<Vec<u8>, ApiError>,
+    ) -> Result<(String, locust_proto::api::DirectoryIdentity), ApiError>;
+}
 use identity::{Identity, Principals};
 use sessions::Sessions;
 
@@ -75,6 +92,7 @@ pub struct Node<S, E> {
     /// Shared so that planning a request, which only reads the node, can
     /// still draw keys and secrets.
     entropy: RefCell<E>,
+    checkout_files: Option<Box<dyn CheckoutFiles>>,
     daemon_version: String,
     identity: Identity,
     principals: Principals,
@@ -97,6 +115,11 @@ pub struct Node<S, E> {
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
+    /// Install the production daemon's private checkout materializer.
+    pub fn set_checkout_files(&mut self, files: Box<dyn CheckoutFiles>) {
+        self.checkout_files = Some(files);
+    }
+
     /// Opens the node over `store`: creates the endpoint secret on first
     /// start, records the digest of the owner credential the shell created,
     /// and loads every local record and goal.
@@ -133,6 +156,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let mut node = Self {
             store,
             entropy: RefCell::new(entropy),
+            checkout_files: None,
             daemon_version,
             identity,
             principals: Principals::default(),
@@ -299,7 +323,7 @@ impl<S: Store, E: Entropy> Engine for Node<S, E> {
             Caller::Owner
         } else {
             match self.principals.credential(&digest) {
-                Some(caller @ (Caller::Agent(key) | Caller::Viewer(key) | Caller::Author(key)))
+                Some(caller @ (Caller::Agent(key) | Caller::Author(key)))
                     if self.principals.active(&key).is_some() =>
                 {
                     caller
@@ -307,7 +331,7 @@ impl<S: Store, E: Entropy> Engine for Node<S, E> {
                 _ => return self.refuse(ErrorCode::Denied, "the credential is unknown or revoked"),
             }
         };
-        if matches!(caller, Caller::Viewer(_) | Caller::Author(_)) && hello.session.is_some() {
+        if matches!(caller, Caller::Author(_)) && hello.session.is_some() {
             return self.refuse(
                 ErrorCode::Invalid,
                 "this credential cannot represent an execution session",

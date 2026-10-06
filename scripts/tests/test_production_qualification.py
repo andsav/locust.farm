@@ -106,7 +106,7 @@ class ProductionTests(unittest.TestCase):
                 notes = daemon.call(["contributions", "--goal", daemon.goal])
                 self.assertIn("Persistent private qualification note", json.dumps(notes))
                 status = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
-                self.assertEqual(status["administrator"], daemon.principal)
+                self.assertEqual(status["host"], daemon.principal)
                 self.assertFalse(status["grants"]["execute"])
                 secrets = daemon._secrets()
             self.assertIsNone(daemon._process)
@@ -144,8 +144,9 @@ class ProductionTests(unittest.TestCase):
             with ProductionDaemon(profile, BINARY, 15) as daemon:
                 work = prepare_work(profile, daemon, "test")
                 goal = daemon.goal
-                worker = daemon.call(["workspace", "checkout", "--goal", goal, "--destination", work["destination"]])["checkout"]
-                (Path(work["destination"]) / "code.txt").write_text("after\n")
+                worker = daemon.call(["checkout", "register", "--goal", goal, "--checkout", "aa" * 16,
+                                      "--revision", work["seed_revision"]])["checkout"]
+                (Path(worker["root"]) / "code.txt").write_text("after\n")
                 capture = daemon.call(["workspace", "propose", "--goal", goal, "--checkout", worker["id"], "--publish"])
                 proposal = capture["operation"]["state"]["recorded"]["event"]
                 with self.assertRaises(ProductionError):

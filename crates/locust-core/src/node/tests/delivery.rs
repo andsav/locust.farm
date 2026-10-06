@@ -140,13 +140,13 @@ impl Network {
 
 fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
     let mut net = Network::new();
-    let source = net.nodes[0].enroll("source", 1, true);
-    let target = net.nodes[1].enroll("target", 2, true);
-    let a = net.nodes[0].connect(credential(1), None);
-    let b = net.nodes[1].connect(credential(2), None);
+    let source = net.nodes[0].enroll("source", 1);
+    let target = net.nodes[1].enroll("target", 2);
+    let owner = net.nodes[0].owner();
     let Response::GoalCreated { goal } = net.nodes[0].ok(
-        a,
+        owner,
         Request::GoalCreate {
+            agent: source,
             title: "Durable delivery".into(),
             formation_json: None,
             roles: BTreeMap::new(),
@@ -155,29 +155,34 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
     ) else {
         panic!()
     };
-    let owner = net.nodes[0].owner();
     net.nodes[0].ok(
         owner,
         Request::GoalGrant {
             goal,
             agent: source,
             grants: GoalGrants {
-                administer: true,
                 flow,
                 ..Default::default()
             },
         },
     );
     let Response::Invited { ticket } = net.nodes[0].ok(
-        a,
+        owner,
         Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: 604_801_000,
         },
     ) else {
         panic!()
     };
-    net.nodes[1].ok(b, Request::GoalJoin { ticket });
+    let joining_owner = net.nodes[1].owner();
+    net.nodes[1].ok(
+        joining_owner,
+        Request::GoalJoin {
+            agent: target,
+            ticket,
+        },
+    );
     net.poll(1);
     assert!(net.nodes[0].node.goals[&goal].is_member(&target));
     let mut formation = locust_proto::organization::presets()
@@ -194,7 +199,7 @@ fn ready_network(flow: bool) -> (Network, GoalId, PublicKey, PublicKey) {
         .current_rules
         .unwrap();
     net.nodes[0].ok(
-        a,
+        owner,
         Request::RulesBind {
             goal,
             expected,
@@ -374,7 +379,6 @@ pub(super) fn failure_fixture() -> FailureFixture {
             goal,
             agent: source,
             grants: GoalGrants {
-                administer: true,
                 flow: true,
                 ..Default::default()
             },
@@ -409,17 +413,13 @@ pub(super) fn failure_fixture() -> FailureFixture {
 fn host_note(net: &mut Network, goal: GoalId, summary: &str) -> locust_proto::event::Event {
     let a = net.nodes[0].connect(credential(1), None);
     let owner = net.nodes[0].owner();
-    let source = net.nodes[0].node.goals[&goal]
-        .state()
-        .administrator
-        .unwrap();
+    let source = net.nodes[0].node.goals[&goal].state().governance.unwrap();
     net.nodes[0].ok(
         owner,
         Request::GoalGrant {
             goal,
             agent: source,
             grants: GoalGrants {
-                administer: true,
                 contribute: true,
                 ..Default::default()
             },
@@ -484,7 +484,7 @@ fn restored_host_signing_before_peer_recovery_forks_but_recovery_first_extends()
                 folded.fork_point(&source),
                 (!recover_first).then_some(old.header().seq)
             );
-            assert_eq!(folded.evaluation().admin_halt.is_some(), !recover_first);
+            assert_eq!(folded.evaluation().host_halt.is_some(), !recover_first);
         }
         if !recover_first {
             let a = net.nodes[0].connect(credential(1), None);
@@ -526,7 +526,6 @@ fn restored_host_automatic_stage_replay_is_identical_unless_another_event_used_i
                     goal,
                     agent: source,
                     grants: GoalGrants {
-                        administer: true,
                         flow: true,
                         ..Default::default()
                     },
@@ -558,11 +557,7 @@ fn restored_host_automatic_stage_replay_is_identical_unless_another_event_used_i
         }
         for node in &net.nodes {
             assert_eq!(
-                node.node.goals[&goal]
-                    .goal
-                    .evaluation()
-                    .admin_halt
-                    .is_some(),
+                node.node.goals[&goal].goal.evaluation().host_halt.is_some(),
                 intervening_work
             );
         }
@@ -577,13 +572,13 @@ fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_us
     for _ in 0..2 {
         net.poll(31_000);
     }
-    let newcomer = net.nodes[1].enroll("newcomer", 3, true);
-    let a = net.nodes[0].connect(credential(1), None);
+    let newcomer = net.nodes[1].enroll("newcomer", 3);
+    let owner = net.nodes[0].owner();
     let Response::Invited { ticket } = net.nodes[0].ok(
-        a,
+        owner,
         Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: 604_801_000,
         },
     ) else {
         panic!()
@@ -675,7 +670,7 @@ fn restored_host_known_gap_blocks_signing_until_missing_predecessor_arrives() {
         net.nodes[0].node.goals[&goal]
             .goal
             .evaluation()
-            .admin_halt
+            .host_halt
             .is_none()
     );
 }

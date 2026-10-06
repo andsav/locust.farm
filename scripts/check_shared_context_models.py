@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import secrets
 import shlex
 import subprocess
 import sys
@@ -62,7 +63,7 @@ def seed_workspace(daemon, source, files, completion=None, reviewer=None):
         args += ['--path', name]
     if completion is not None:
         args += ['--completion', json.dumps(completion)]
-    captured = raw_call(daemon, args)
+    captured = raw_call(daemon, args, owner=True)
     proposal = captured['operation']['state']['recorded']['event']
     if reviewer is None:
         raw_call(daemon, ['completion', 'declare', '--goal', daemon.goal, '--subject', proposal])
@@ -78,12 +79,12 @@ def seed_workspace(daemon, source, files, completion=None, reviewer=None):
 
 
 def checkout_role(role, daemon, revision):
-    """Fresh ordinary tree under this role's private profile; no Git operations."""
+    """Let the agent register its own fresh daemon-created ordinary tree."""
     profile = role['profile']
-    destination = profile.workspace / 'checkout'
-    result = raw_call(daemon, ['workspace', 'checkout', '--goal', daemon.goal,
-        '--revision', revision, '--destination', destination], role=role)
+    result = raw_call(daemon, ['checkout', 'register', '--goal', daemon.goal,
+        '--checkout', secrets.token_hex(16), '--revision', revision], role=role)
     bound = result['checkout']
+    destination = Path(bound['root'])
     raw_call(daemon, ['workspace', 'bind', '--goal', daemon.goal, '--checkout', bound['id']], role=role)
     wrapper_bytes = role['wrapper'].read_bytes()
     profile.workspace = destination
@@ -108,7 +109,7 @@ def enroll(daemon, profile, name, permissions=('contribute', 'review', 'execute'
             'credential': daemon.home / 'agents' / (name + '.credential'),
             'session': daemon.home / 'sessions' / (name + '.secret')}
     role['instance'] = raw_call(daemon, ['session', 'create', role['session']], owner=True)['instance']
-    ticket = raw_call(daemon, ['goal', 'invite', '--goal', daemon.goal])['invited']['ticket']
+    ticket = raw_call(daemon, ['goal', 'invite', '--goal', daemon.goal], owner=True)['invited']['ticket']
     preview = raw_call(daemon, ['invitation', 'inspect', '--ticket', '-'], owner=True, stdin=ticket)['invitation_inspected']['preview']
     joined = raw_call(daemon, ['invitation', 'join', '--principal', role['principal'],
         '--review', preview['review'], '--ticket', '-'], owner=True, stdin=ticket)['joined']
@@ -299,8 +300,8 @@ def main():
     contract = json.loads(subprocess.check_output([args.locust, '--json', 'contract'], text=True))['result']
     report['api_version'] = contract['api_version']
     report['protocol_version'] = contract['protocol_version']
-    if (report['api_version'], report['protocol_version']) != (6, 6):
-        parser.error('This experiment requires API 6 / protocol 6')
+    if (report['api_version'], report['protocol_version']) != (7, 6):
+        parser.error('This experiment requires API 7 / protocol 6')
     profiles = [Profile(args.output, name) for name in ('setup','researcher','builder')]
     setup, rp, bp = profiles
     try:
@@ -313,8 +314,8 @@ def main():
         report['skill_sha256'] = sha(ROOT / 'skills/locust/SKILL.md')
         with ProductionDaemon(setup, args.locust, args.rpc_timeout) as daemon:
             formation = raw_call(daemon, ['formation', 'example', 'open'])
-            daemon.goal = raw_call(daemon, ['goal', 'create', '--title', 'Portable archive member paths',
-                '--formation-json', json.dumps(formation)])['goal_created']['goal']
+            daemon.goal = raw_call(daemon, ['--as', daemon.principal, 'goal', 'create', '--title', 'Portable archive member paths',
+                '--formation-json', json.dumps(formation)], owner=True)['goal_created']['goal']
             researcher = enroll(daemon, rp, 'researcher')
             builder = enroll(daemon, bp, 'builder')
             report['goal'] = daemon.goal

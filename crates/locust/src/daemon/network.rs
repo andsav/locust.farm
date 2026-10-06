@@ -1022,7 +1022,8 @@ mod tests {
     /// Invites `joiner` to a new goal and returns how long its join took,
     /// or `None` if it did not finish within `limit`.
     fn join_new_goal(
-        inviter: &mut locust_proto::client::Client<std::os::unix::net::UnixStream>,
+        inviter: &crate::daemon::durable_tests::Running,
+        host_agent: locust_proto::id::PublicKey,
         joiner: &crate::daemon::durable_tests::Running,
         tag: u8,
         title: &str,
@@ -1030,7 +1031,8 @@ mod tests {
     ) -> (locust_proto::id::GoalId, Option<Duration>) {
         use locust_proto::api::{Credential, Request, Response};
         let key = joiner.enroll(tag);
-        let Ok(Response::GoalCreated { goal }) = inviter.call(Request::GoalCreate {
+        let Ok(Response::GoalCreated { goal }) = inviter.owner().call(Request::GoalCreate {
+            agent: host_agent,
             title: title.into(),
             formation_json: None,
             roles: Default::default(),
@@ -1038,15 +1040,18 @@ mod tests {
         }) else {
             panic!("goal not created")
         };
-        let Ok(Response::Invited { ticket }) = inviter.call(Request::GoalInvite {
+        let Ok(Response::Invited { ticket }) = inviter.owner().call(Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: u64::MAX,
         }) else {
             panic!("no invitation")
         };
         let mut client = joiner.client(Credential([tag; 32]), None);
         let start = std::time::Instant::now();
-        client.call(Request::GoalJoin { ticket }).unwrap();
+        joiner
+            .owner()
+            .call(Request::GoalJoin { agent: key, ticket })
+            .unwrap();
         while start.elapsed() < limit {
             if let Ok(Response::GoalStatus(status)) = client.call(Request::GoalStatus { goal })
                 && status.title.is_some()
@@ -1076,7 +1081,8 @@ mod tests {
         let mut goals = Vec::new();
         for index in 0..8 {
             let (goal, took) = join_new_goal(
-                &mut c,
+                &inviter,
+                principal,
                 &away,
                 2,
                 &format!("shared {index}"),
@@ -1096,7 +1102,6 @@ mod tests {
                     goal,
                     agent: principal,
                     grants: locust_proto::api::GoalGrants {
-                        administer: true,
                         contribute: true,
                         ..Default::default()
                     },
@@ -1115,7 +1120,14 @@ mod tests {
         }
         std::thread::sleep(Duration::from_millis(500));
         let newcomer = Running::start(third.path());
-        let (_, took) = join_new_goal(&mut c, &newcomer, 3, "new", Duration::from_secs(10));
+        let (_, took) = join_new_goal(
+            &inviter,
+            principal,
+            &newcomer,
+            3,
+            "new",
+            Duration::from_secs(10),
+        );
         let took = took.expect("the new member joined within 10 seconds");
         assert!(
             took < Duration::from_secs(5),

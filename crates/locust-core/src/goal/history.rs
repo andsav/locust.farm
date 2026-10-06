@@ -144,7 +144,7 @@ pub(super) struct History {
     index: IdMap<Slot>,
     pub logs: BTreeMap<PublicKey, AuthorLog>,
     /// The author of a held genesis event.
-    pub administrator: Option<PublicKey>,
+    pub governance: Option<PublicKey>,
 }
 
 impl History {
@@ -170,7 +170,7 @@ impl History {
         self.events.push(event.clone());
         let header = event.header();
         if let Body::Genesis(genesis) = &header.body {
-            self.administrator = Some(genesis.administrator);
+            self.governance = Some(genesis.governance);
         }
         let point = AuthorPoint {
             seq: header.seq,

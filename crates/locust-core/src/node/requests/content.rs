@@ -123,16 +123,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// A missing content read is the one read that schedules future work.
-    /// Called before reporting Unavailable; viewers never create this record.
+    /// Called before reporting Unavailable.
     pub(in crate::node) fn note_blob_want(
         &mut self,
         actor: &Actor,
         goal: GoalId,
         hash: BlobHash,
     ) -> Result<(), ApiError> {
-        if actor.is_viewer() {
-            return Ok(());
-        }
         let entry = self.readable(actor, &goal)?;
         let record = blob_record(&self.store, &goal, &hash)?;
         if !self.names_content(entry, &hash) && record.is_none() {

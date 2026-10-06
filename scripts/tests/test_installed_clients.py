@@ -48,7 +48,7 @@ class InstalledClientTests(unittest.TestCase):
         self.assertNotIn("Private skill instructions", json.dumps(provider.requests))
 
     def test_only_completed_native_mcp_receipts_can_pass(self):
-        envelope = {"ok": True, "result": {"goal_status": {"goal": "goal", "administrator": "principal"}}}
+        envelope = {"ok": True, "result": {"goal_status": {"goal": "goal", "host": "principal"}}}
         result = {"content": [{"type": "text", "text": json.dumps(envelope)}]}
         event = {"type": "item.completed", "item": {"type": "mcp_tool_call", "id": "one", "server": "locust",
                  "tool": harness.workflow.READ, "status": "completed", "error": None, "result": result}}
@@ -133,7 +133,7 @@ class InstalledClientTests(unittest.TestCase):
             launcher.symlink_to("missing-target")
             self.assertFalse(harness.registration_removed(client,config,skill,status));launcher.unlink()
 
-    def test_installed_workspace_driver_uses_only_setup_launcher(self):
+    def test_installed_workspace_driver_uses_setup_launcher_for_agent_work(self):
         base = Path(self.temp.name)
         profile = Mock(workspace=base, logs=base)
         daemon = Mock()
@@ -143,6 +143,7 @@ class InstalledClientTests(unittest.TestCase):
                                           cli=[str(launcher), "--json"])
         settings = json.loads((base / "workspace-settings.json").read_text())
         self.assertEqual(settings["cli"], [str(launcher), "--json"])
+        self.assertNotIn("owner_cli", settings)
         daemon.command.assert_not_called()
 
     def test_persistent_invocations_do_not_override_registration_or_disable_skills(self):

@@ -1,5 +1,5 @@
 {
-  "api_version": 6,
+  "api_version": 7,
   "cli": {
     "arguments": [
       {
@@ -687,7 +687,7 @@
                 "long": "checkout",
                 "name": "checkout",
                 "positional": false,
-                "required": false,
+                "required": true,
                 "short": null
               },
               {
@@ -713,24 +713,6 @@
                 "help": "Exact broken/current parent revision for a replacement",
                 "long": "parent",
                 "name": "parent",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Absolute replacement input directory",
-                "long": "root",
-                "name": "root",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "SetTrue",
-                "help": "Explicit empty replacement",
-                "long": "empty",
-                "name": "empty",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -2749,31 +2731,6 @@
                 "positional": false,
                 "required": true,
                 "short": null
-              },
-              {
-                "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
-                "long": "grants",
-                "name": "grants",
-                "positional": false,
-                "required": false,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "grant",
-            "summary": "agent grant"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "agent",
-                "name": "agent",
-                "positional": false,
-                "required": true,
-                "short": null
               }
             ],
             "commands": [],
@@ -2859,15 +2816,6 @@
                 "name": "name",
                 "positional": true,
                 "required": true,
-                "short": null
-              },
-              {
-                "action": "SetTrue",
-                "help": null,
-                "long": "manage-goals",
-                "name": "manage-goals",
-                "positional": false,
-                "required": false,
                 "short": null
               }
             ],
@@ -3268,11 +3216,20 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
+                "help": "Value, or - for standard input on text fields",
+                "long": "attempt",
+                "name": "attempt",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
                 "long": "checkout",
                 "name": "checkout",
                 "positional": false,
-                "required": false,
+                "required": true,
                 "short": null
               },
               {
@@ -3283,11 +3240,29 @@
                 "positional": false,
                 "required": true,
                 "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "revision",
+                "name": "revision",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Value, or - for standard input on text fields",
+                "long": "task",
+                "name": "task",
+                "positional": false,
+                "required": false,
+                "short": null
               }
             ],
             "commands": [],
             "name": "register",
-            "summary": "Register one explicit local checkout after materialization"
+            "summary": "Make a new folder for this agent from an accepted shared revision"
           },
           {
             "arguments": [
@@ -4813,38 +4788,6 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "agent",
-                "name": "agent",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
-                "long": "credential",
-                "name": "credential",
-                "positional": false,
-                "required": false,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "enroll",
-            "summary": "viewer enroll"
-          }
-        ],
-        "name": "viewer",
-        "summary": null
-      },
-      {
-        "arguments": [],
-        "commands": [
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -4914,7 +4857,7 @@
         "oneOf": [
           {
             "const": "denied",
-            "description": "The request is not the caller's to make: the credential is unknown or\nrevoked, the caller is not the owner, administrator, assignee or member\nthe request is for, a daemon-wide grant is missing, the caller is a\nviewer and the request is not read-only, or the inviter refused an\ninvitation.",
+            "description": "The request is not the caller's to make: the credential is unknown or\nrevoked, the caller lacks the authority for the requested goal act,\nor the host refused an invitation.",
             "type": "string"
           },
           {
@@ -5315,11 +5258,11 @@
       },
       "Genesis": {
         "properties": {
-          "administrator": {
-            "$ref": "#/$defs/PublicKey"
-          },
           "definition": {
             "$ref": "#/$defs/DefinitionHash"
+          },
+          "governance": {
+            "$ref": "#/$defs/PublicKey"
           },
           "salt": {
             "items": {
@@ -5334,7 +5277,7 @@
           }
         },
         "required": [
-          "administrator",
+          "governance",
           "definition",
           "salt"
         ],
@@ -6785,7 +6728,7 @@
   "formation_schema_version": 2,
   "operations": [
     {
-      "audience": "owner",
+      "audience": "host",
       "goal_scoped": true,
       "mcp_tool": null,
       "name": "farm.on",
@@ -6793,7 +6736,7 @@
       "summary": "Enable owner-approved farm publication"
     },
     {
-      "audience": "owner",
+      "audience": "host",
       "goal_scoped": true,
       "mcp_tool": null,
       "name": "farm.off",
@@ -6860,25 +6803,9 @@
       "audience": "owner",
       "goal_scoped": false,
       "mcp_tool": null,
-      "name": "agent.grant",
-      "read_only": false,
-      "summary": "agent grant"
-    },
-    {
-      "audience": "owner",
-      "goal_scoped": false,
-      "mcp_tool": null,
       "name": "agent.revoke",
       "read_only": false,
       "summary": "agent revoke"
-    },
-    {
-      "audience": "owner",
-      "goal_scoped": false,
-      "mcp_tool": null,
-      "name": "viewer.enroll",
-      "read_only": false,
-      "summary": "viewer enroll"
     },
     {
       "audience": "agent",
@@ -6913,15 +6840,15 @@
       "summary": "session drop"
     },
     {
-      "audience": "agent",
+      "audience": "owner",
       "goal_scoped": false,
-      "mcp_tool": "locust_goal_create",
+      "mcp_tool": null,
       "name": "goal.create",
       "read_only": false,
       "summary": "goal create"
     },
     {
-      "audience": "agent",
+      "audience": "owner",
       "goal_scoped": false,
       "mcp_tool": null,
       "name": "goal.join",
@@ -6929,7 +6856,7 @@
       "summary": "goal join"
     },
     {
-      "audience": "administrator",
+      "audience": "host",
       "goal_scoped": true,
       "mcp_tool": null,
       "name": "goal.invite",
@@ -6937,9 +6864,9 @@
       "summary": "goal invite"
     },
     {
-      "audience": "agent",
+      "audience": "owner",
       "goal_scoped": true,
-      "mcp_tool": "locust_goal_leave",
+      "mcp_tool": null,
       "name": "goal.leave",
       "read_only": false,
       "summary": "goal leave"
@@ -6961,17 +6888,17 @@
       "summary": "goal status"
     },
     {
-      "audience": "administrator",
+      "audience": "host",
       "goal_scoped": true,
-      "mcp_tool": "locust_member_remove",
+      "mcp_tool": null,
       "name": "member.remove",
       "read_only": false,
       "summary": "member remove"
     },
     {
-      "audience": "administrator",
+      "audience": "host",
       "goal_scoped": true,
-      "mcp_tool": "locust_rules_bind",
+      "mcp_tool": null,
       "name": "rules.bind",
       "read_only": false,
       "summary": "rules bind"
@@ -6979,10 +6906,18 @@
     {
       "audience": "agent",
       "goal_scoped": true,
-      "mcp_tool": null,
+      "mcp_tool": "locust_checkout_register",
       "name": "checkout.register",
       "read_only": false,
-      "summary": "Register one explicit local checkout after materialization"
+      "summary": "Make a new folder for this agent from an accepted shared revision"
+    },
+    {
+      "audience": "owner",
+      "goal_scoped": true,
+      "mcp_tool": null,
+      "name": "workspace.connect",
+      "read_only": false,
+      "summary": "Connect a folder you named to this goal for an agent"
     },
     {
       "audience": "agent",
@@ -7041,9 +6976,9 @@
       "summary": "Finalize a verified file transition and its checkout base atomically"
     },
     {
-      "audience": "administrator",
+      "audience": "host",
       "goal_scoped": true,
-      "mcp_tool": "locust_workspace_epoch",
+      "mcp_tool": null,
       "name": "workspace.epoch",
       "read_only": false,
       "summary": "Fence workspace history and pin explicit policy plus an exact checkpoint or restoration"
@@ -7145,9 +7080,9 @@
       "summary": "task open"
     },
     {
-      "audience": "administrator",
+      "audience": "host",
       "goal_scoped": true,
-      "mcp_tool": "locust_task_revise",
+      "mcp_tool": null,
       "name": "task.revise",
       "read_only": false,
       "summary": "task revise"
@@ -7489,7 +7424,7 @@
       "summary": "Verify a signed invitation and preview its issuer, goal and sharing boundary without joining"
     },
     {
-      "audience": "administrator",
+      "audience": "host",
       "goal_scoped": true,
       "mcp_tool": null,
       "name": "invitation.list",
@@ -7497,20 +7432,12 @@
       "summary": "List issued invitations and their current redemption, expiry or revocation state without revealing ticket secrets"
     },
     {
-      "audience": "owner",
+      "audience": "host",
       "goal_scoped": true,
       "mcp_tool": null,
       "name": "invitation.revoke",
       "read_only": false,
       "summary": "Revoke an issued invitation; existing membership remains a separate decision"
-    },
-    {
-      "audience": "owner",
-      "goal_scoped": false,
-      "mcp_tool": null,
-      "name": "invitation.join",
-      "read_only": false,
-      "summary": "Join as the selected enrolled principal after reviewing this exact signed invitation; grants remain unchanged"
     },
     {
       "audience": "agent",
@@ -7851,9 +7778,6 @@
       "GoalGrants": {
         "description": "Explicit local authorization; shared formation eligibility never grants it.",
         "properties": {
-          "administer": {
-            "type": "boolean"
-          },
           "contribute": {
             "type": "boolean"
           },
@@ -7874,7 +7798,6 @@
           }
         },
         "required": [
-          "administer",
           "contribute",
           "execute",
           "review",
@@ -7891,7 +7814,6 @@
       "GoalPermission": {
         "description": "Independent local permission categories. Membership and organization roles\nremain separate conditions for an operation to be effective.",
         "enum": [
-          "administer",
           "contribute",
           "execute",
           "review",
@@ -7900,19 +7822,6 @@
           "takeover"
         ],
         "type": "string"
-      },
-      "Grants": {
-        "description": "What the local participant has authorized a principal to do on this\ndaemon without asking again.",
-        "properties": {
-          "manage_goals": {
-            "description": "Create goals, issue invitations, join and leave.",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "manage_goals"
-        ],
-        "type": "object"
       },
       "Harness": {
         "enum": [
@@ -8660,16 +8569,12 @@
                 "minItems": 32,
                 "type": "array"
               },
-              "grants": {
-                "$ref": "#/$defs/Grants"
-              },
               "name": {
                 "type": "string"
               }
             },
             "required": [
               "name",
-              "grants",
               "credential"
             ],
             "type": "object"
@@ -8716,31 +8621,6 @@
       {
         "additionalProperties": false,
         "properties": {
-          "agent.grant": {
-            "additionalProperties": false,
-            "properties": {
-              "agent": {
-                "$ref": "#/$defs/PublicKey"
-              },
-              "grants": {
-                "$ref": "#/$defs/Grants"
-              }
-            },
-            "required": [
-              "agent",
-              "grants"
-            ],
-            "type": "object"
-          }
-        },
-        "required": [
-          "agent.grant"
-        ],
-        "type": "object"
-      },
-      {
-        "additionalProperties": false,
-        "properties": {
           "agent.revoke": {
             "additionalProperties": false,
             "properties": {
@@ -8756,39 +8636,6 @@
         },
         "required": [
           "agent.revoke"
-        ],
-        "type": "object"
-      },
-      {
-        "additionalProperties": false,
-        "properties": {
-          "viewer.enroll": {
-            "additionalProperties": false,
-            "properties": {
-              "agent": {
-                "$ref": "#/$defs/PublicKey"
-              },
-              "credential": {
-                "items": {
-                  "format": "uint8",
-                  "maximum": 255,
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "maxItems": 32,
-                "minItems": 32,
-                "type": "array"
-              }
-            },
-            "required": [
-              "agent",
-              "credential"
-            ],
-            "type": "object"
-          }
-        },
-        "required": [
-          "viewer.enroll"
         ],
         "type": "object"
       },
@@ -8865,6 +8712,9 @@
           "goal.create": {
             "additionalProperties": false,
             "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
               "formation_json": {
                 "type": [
                   "string",
@@ -8891,6 +8741,7 @@
               }
             },
             "required": [
+              "agent",
               "title",
               "roles",
               "inputs"
@@ -8909,11 +8760,15 @@
           "goal.join": {
             "additionalProperties": false,
             "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
               "ticket": {
                 "$ref": "#/$defs/Ticket"
               }
             },
             "required": [
+              "agent",
               "ticket"
             ],
             "type": "object"
@@ -8933,17 +8788,15 @@
               "expires_ms": {
                 "format": "uint64",
                 "minimum": 0,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": "integer"
               },
               "goal": {
                 "$ref": "#/$defs/GoalId"
               }
             },
             "required": [
-              "goal"
+              "goal",
+              "expires_ms"
             ],
             "type": "object"
           }
@@ -8959,12 +8812,16 @@
           "goal.leave": {
             "additionalProperties": false,
             "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
               "goal": {
                 "$ref": "#/$defs/GoalId"
               }
             },
             "required": [
-              "goal"
+              "goal",
+              "agent"
             ],
             "type": "object"
           }
@@ -9101,11 +8958,41 @@
           "checkout.register": {
             "additionalProperties": false,
             "properties": {
+              "attempt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "checkout": {
-                "$ref": "#/$defs/Checkout"
+                "$ref": "#/$defs/CheckoutId"
               },
               "goal": {
                 "$ref": "#/$defs/GoalId"
+              },
+              "revision": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/EventId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "task": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/TaskId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
@@ -9117,6 +9004,35 @@
         },
         "required": [
           "checkout.register"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "workspace.connect": {
+            "additionalProperties": false,
+            "properties": {
+              "agent": {
+                "$ref": "#/$defs/PublicKey"
+              },
+              "checkout": {
+                "$ref": "#/$defs/Checkout"
+              },
+              "goal": {
+                "$ref": "#/$defs/GoalId"
+              }
+            },
+            "required": [
+              "goal",
+              "agent",
+              "checkout"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workspace.connect"
         ],
         "type": "object"
       },
@@ -10967,47 +10883,20 @@
                 "$ref": "#/$defs/GoalId"
               },
               "invitation": {
-                "type": "string"
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
-              "goal",
-              "invitation"
+              "goal"
             ],
             "type": "object"
           }
         },
         "required": [
           "invitation.revoke"
-        ],
-        "type": "object"
-      },
-      {
-        "additionalProperties": false,
-        "properties": {
-          "invitation.join": {
-            "additionalProperties": false,
-            "properties": {
-              "principal": {
-                "$ref": "#/$defs/PublicKey"
-              },
-              "review": {
-                "type": "string"
-              },
-              "ticket": {
-                "$ref": "#/$defs/Ticket"
-              }
-            },
-            "required": [
-              "principal",
-              "ticket",
-              "review"
-            ],
-            "type": "object"
-          }
-        },
-        "required": [
-          "invitation.join"
         ],
         "type": "object"
       },
@@ -11174,9 +11063,9 @@
             "$ref": "#/$defs/PublicKey",
             "description": "The principal's key; the daemon holds the signing half."
           },
-          "grants": {
-            "$ref": "#/$defs/Grants",
-            "description": "Its daemon-wide grants. Per-goal grants are in [`GoalStatus`]."
+          "author_only": {
+            "description": "Whether this credential is limited to private formation authoring.",
+            "type": "boolean"
           },
           "name": {
             "description": "Unique on this daemon; satisfies [`is_agent_name`].",
@@ -11190,7 +11079,7 @@
         "required": [
           "agent",
           "name",
-          "grants",
+          "author_only",
           "revoked"
         ],
         "type": "object"
@@ -12171,9 +12060,6 @@
       "ContextBrief": {
         "description": "Small current-scope checkpoint. Detailed rules, task text, membership, peer\nstatus and obligations remain available through explicit full/detail reads.",
         "properties": {
-          "administrator": {
-            "$ref": "#/$defs/PublicKey"
-          },
           "checkout": {
             "anyOf": [
               {
@@ -12243,6 +12129,9 @@
               }
             ]
           },
+          "host": {
+            "$ref": "#/$defs/PublicKey"
+          },
           "pending": {
             "$ref": "#/$defs/PendingCounts"
           },
@@ -12259,7 +12148,7 @@
         "required": [
           "workspace",
           "goal",
-          "administrator",
+          "host",
           "documents",
           "pending"
         ],
@@ -12602,7 +12491,7 @@
                 "type": "null"
               }
             ],
-            "description": "None for owner/viewer observation without an acting execution session,\nor when no complete, available items were delivered on this page."
+            "description": "None for owner observation without an acting execution session,\nor when no complete, available items were delivered on this page."
           },
           "revision": {
             "format": "uint64",
@@ -12767,7 +12656,7 @@
         "description": "What `status` shows: the daemon, and as much of its principals and goals\nas the caller may see.",
         "properties": {
           "agents": {
-            "description": "Every enrolled principal for the owner; only the calling principal\nfor an agent or a viewer.",
+            "description": "Every enrolled principal for the owner; only the calling principal\nfor an agent.",
             "items": {
               "$ref": "#/$defs/AgentView"
             },
@@ -12789,7 +12678,7 @@
             "description": "Absent until the transport is running."
           },
           "goals": {
-            "description": "One entry per goal and local principal in it: all of them for the\nowner, only the calling principal's own for an agent or a viewer.",
+            "description": "One entry per goal and local principal in it: all of them for the\nowner, only the calling principal's own for an agent.",
             "items": {
               "$ref": "#/$defs/GoalSummary"
             },
@@ -13186,7 +13075,7 @@
         "type": "object"
       },
       "EventDetail": {
-        "description": "One event in full: everything a administrator needs to judge a submitted\nresult or a proposed revision before deciding on it.",
+        "description": "One event in full: everything a host needs to judge a submitted\nresult or a proposed revision before deciding on it.",
         "properties": {
           "anchor": {
             "anyOf": [
@@ -13874,11 +13763,11 @@
       },
       "Genesis": {
         "properties": {
-          "administrator": {
-            "$ref": "#/$defs/PublicKey"
-          },
           "definition": {
             "$ref": "#/$defs/DefinitionHash"
+          },
+          "governance": {
+            "$ref": "#/$defs/PublicKey"
           },
           "salt": {
             "items": {
@@ -13893,7 +13782,7 @@
           }
         },
         "required": [
-          "administrator",
+          "governance",
           "definition",
           "salt"
         ],
@@ -13902,9 +13791,6 @@
       "GoalGrants": {
         "description": "Explicit local authorization; shared formation eligibility never grants it.",
         "properties": {
-          "administer": {
-            "type": "boolean"
-          },
           "contribute": {
             "type": "boolean"
           },
@@ -13925,7 +13811,6 @@
           }
         },
         "required": [
-          "administer",
           "contribute",
           "execute",
           "review",
@@ -13986,9 +13871,6 @@
       },
       "GoalStatus": {
         "properties": {
-          "administrator": {
-            "$ref": "#/$defs/PublicKey"
-          },
           "current_rules": {
             "anyOf": [
               {
@@ -14024,6 +13906,9 @@
                 "type": "null"
               }
             ]
+          },
+          "host": {
+            "$ref": "#/$defs/PublicKey"
           },
           "members": {
             "items": {
@@ -14062,7 +13947,7 @@
         },
         "required": [
           "goal",
-          "administrator",
+          "host",
           "scope_halts",
           "members",
           "grants",
@@ -14111,19 +13996,6 @@
         ],
         "type": "object"
       },
-      "Grants": {
-        "description": "What the local participant has authorized a principal to do on this\ndaemon without asking again.",
-        "properties": {
-          "manage_goals": {
-            "description": "Create goals, issue invitations, join and leave.",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "manage_goals"
-        ],
-        "type": "object"
-      },
       "Halt": {
         "description": "Why a goal's decisions cannot advance on this daemon.",
         "oneOf": [
@@ -14162,9 +14034,6 @@
       "InvitationPreview": {
         "description": "Authenticated ticket facts, without the bearer capability. Signature\nverification attributes the presentation to a key, not a human identity.",
         "properties": {
-          "administrator": {
-            "$ref": "#/$defs/PublicKey"
-          },
           "admission_status": {
             "description": "Inspection is offline; it does not promise admission or contact an issuer.",
             "type": "string"
@@ -14191,6 +14060,9 @@
               "string",
               "null"
             ]
+          },
+          "governance": {
+            "$ref": "#/$defs/PublicKey"
           },
           "hints": {
             "items": {
@@ -14233,7 +14105,7 @@
         },
         "required": [
           "goal",
-          "administrator",
+          "governance",
           "endpoint",
           "hints",
           "expired",
@@ -14248,7 +14120,7 @@
         "type": "object"
       },
       "InvitationPublication": {
-        "description": "Administrator-signed publication facts; joining never grants publication consent.",
+        "description": "Host-signed publication facts; joining never grants publication consent.",
         "properties": {
           "event": {
             "$ref": "#/$defs/EventId"
@@ -14282,9 +14154,6 @@
       "InvitationSummary": {
         "description": "Issuer-local inventory. The identifier is a one-way capability digest;\nnone of these fields can redeem an invitation.",
         "properties": {
-          "administrator": {
-            "$ref": "#/$defs/PublicKey"
-          },
           "created_ms": {
             "format": "uint64",
             "minimum": 0,
@@ -14306,6 +14175,9 @@
               "string",
               "null"
             ]
+          },
+          "governance": {
+            "$ref": "#/$defs/PublicKey"
           },
           "invitation": {
             "type": "string"
@@ -14353,7 +14225,7 @@
         "required": [
           "invitation",
           "goal",
-          "administrator",
+          "governance",
           "created_ms",
           "state"
         ],
@@ -14403,7 +14275,7 @@
         "oneOf": [
           {
             "const": "joining",
-            "description": "An invitation was redeemed here; the administrator's admission has not\narrived yet.",
+            "description": "An invitation was redeemed here; the host's admission has not\narrived yet.",
             "type": "string"
           },
           {
@@ -14413,7 +14285,7 @@
           },
           {
             "const": "removed",
-            "description": "The administrator removed the principal. History stays readable;\nnothing new is authored.",
+            "description": "The host removed the principal. History stays readable;\nnothing new is authored.",
             "type": "string"
           },
           {
@@ -14423,7 +14295,7 @@
           },
           {
             "const": "refused",
-            "description": "The administrator refused this local join attempt. No goal content is\nreadable until a subsequent invitation is admitted.",
+            "description": "The host refused this local join attempt. No goal content is\nreadable until a subsequent invitation is admitted.",
             "type": "string"
           }
         ]
@@ -16547,17 +16419,17 @@
       },
       {
         "additionalProperties": false,
-        "description": "What the caller joined, as the ticket named it. `membership` is\n`Joining` until the administrator's admission has arrived.",
+        "description": "What the caller joined, as the ticket named it. `membership` is\n`Joining` until the host's admission has arrived.",
         "properties": {
           "joined": {
             "properties": {
-              "administrator": {
-                "$ref": "#/$defs/PublicKey",
-                "description": "The administrator's key, to show as a fingerprint."
-              },
               "goal": {
                 "$ref": "#/$defs/GoalId",
                 "description": "The goal the ticket named."
+              },
+              "governance": {
+                "$ref": "#/$defs/PublicKey",
+                "description": "The host's key, to show as a fingerprint."
               },
               "membership": {
                 "$ref": "#/$defs/Membership",
@@ -16566,7 +16438,7 @@
             },
             "required": [
               "goal",
-              "administrator",
+              "governance",
               "membership"
             ],
             "type": "object"
@@ -17046,6 +16918,28 @@
         },
         "required": [
           "invitation_revoked"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "invitations_revoked": {
+            "properties": {
+              "count": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "invitations_revoked"
         ],
         "type": "object"
       },

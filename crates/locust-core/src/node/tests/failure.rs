@@ -165,7 +165,6 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
             None,
             Request::AgentEnroll {
                 name: "creator".into(),
-                grants: Grants { manage_goals: true },
                 credential: credential(1).digest(),
             },
             None,
@@ -174,6 +173,7 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
             panic!()
         };
         let request = Request::GoalCreate {
+            agent,
             title: "Atomic creation".into(),
             formation_json: None,
             roles: Default::default(),
@@ -184,7 +184,7 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
             call(
                 &mut node,
                 ConnId(1),
-                Some(agent),
+                None,
                 request.clone(),
                 Some(IdempotencyKey([1; 16]))
             )
@@ -194,13 +194,7 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
         assert!(node.take_changed().is_empty());
         assert!(node.stop_requested());
         assert_eq!(
-            code(call(
-                &mut node,
-                ConnId(1),
-                Some(agent),
-                request.clone(),
-                None
-            )),
+            code(call(&mut node, ConnId(1), None, request.clone(), None)),
             ErrorCode::Internal
         );
         let mut reopened = Node::open(
@@ -215,7 +209,7 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
         let Response::GoalCreated { goal } = call(
             &mut reopened,
             ConnId(1),
-            Some(agent),
+            None,
             request,
             Some(IdempotencyKey([1; 16])),
         )
@@ -284,7 +278,6 @@ fn effect_and_recipient_records_commit_atomically_and_uncertain_commit_requires_
                 goal,
                 agent: principal,
                 grants: GoalGrants {
-                    administer: true,
                     flow: true,
                     ..Default::default()
                 },

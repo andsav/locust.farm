@@ -181,7 +181,7 @@ byte_id!(
 
 byte_id!(
     /// Identifies a goal: the digest of its genesis record, which pins the
-    /// administrator and initial definition.
+    /// governance and initial definition.
     GoalId,
     32
 );

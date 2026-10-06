@@ -50,7 +50,7 @@ impl State {
                 agents: vec![AgentView {
                     agent: KEY,
                     name: "worker".into(),
-                    grants: Grants::default(),
+                    author_only: false,
                     revoked: false,
                 }],
                 goals: vec![GoalSummary {

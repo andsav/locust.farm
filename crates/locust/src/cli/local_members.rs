@@ -63,13 +63,14 @@ fn inspect(client: &mut LocalClient, socket: &Path, goal: GoalId) -> Result<Goal
 // The daemon persists response replay atomically with each write. Binding the
 // retry key to the current governance head also permits a deliberately reviewed
 // re-admission after removal. No capability is printed or saved by this CLI.
-fn retry_key(observed: &GoalStatus, member: PublicKey) -> IdempotencyKey {
+fn retry_key(observed: &GoalStatus, member: PublicKey, expires_ms: u64) -> IdempotencyKey {
     let material = serde_json::to_vec(&(
         "locust-add-local-v1",
         observed.goal,
-        observed.administrator,
+        observed.host,
         observed.governance_head,
         member,
+        expires_ms,
     ))
     .expect("public selection encodes");
     IdempotencyKey(
@@ -121,15 +122,15 @@ pub(super) fn run(matches: &ArgMatches, args: &ArgMatches) -> Result<Output, Fai
     if !known
         .agents
         .iter()
-        .any(|agent| agent.agent == observed.administrator && !agent.revoked)
+        .any(|agent| agent.agent == observed.host && !agent.revoked)
         || !observed
             .members
             .iter()
-            .any(|entry| entry.member == observed.administrator && entry.local)
+            .any(|entry| entry.member == observed.host && entry.local)
     {
         return Err(Failure::new(
             ErrorCode::Denied,
-            "this goal's administrator is not an active local principal; request an invitation from its owner",
+            "this goal's host is not an active local principal; request an invitation from its owner",
         ));
     }
     let joined = known.goals.iter().any(|entry| {
@@ -141,7 +142,7 @@ pub(super) fn run(matches: &ArgMatches, args: &ArgMatches) -> Result<Output, Fai
             "this principal's local membership is not active; inspect its departure or admission before rejoining",
         ));
     }
-    let review = json!({"goal":goal,"title":observed.title,"administrator":observed.administrator,
+    let review = json!({"goal":goal,"title":observed.title,"host":observed.host,
         "agent":member,"name":agent.name,"sharing":"whole_goal","governance_head":observed.governance_head,
         "current_rules":observed.current_rules,"already_member":joined,"permissions_changed":false});
     let human = format!(
@@ -181,7 +182,7 @@ pub(super) fn run(matches: &ArgMatches, args: &ArgMatches) -> Result<Output, Fai
         ));
     }
     let current = inspect(&mut client, &socket, goal)?;
-    if current.administrator != observed.administrator
+    if current.host != observed.host
         || current.governance_head != observed.governance_head
         || current.current_rules != observed.current_rules
     {
@@ -190,15 +191,17 @@ pub(super) fn run(matches: &ArgMatches, args: &ArgMatches) -> Result<Output, Fai
             "goal membership or rules changed during review; repeat goal add-local to review the current state",
         ));
     }
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| Failure::internal("system clock precedes the Unix epoch"))?
+        .as_millis() as u64;
+    let expires_ms = (now_ms / 86_400_000 + 2) * 86_400_000;
     let Response::Invited { ticket } = call(
         &mut client,
         &socket,
-        Request::GoalInvite {
-            goal,
-            expires_ms: None,
-        },
-        Some(retry_key(&observed, member)),
-        Some(observed.administrator),
+        Request::GoalInvite { goal, expires_ms },
+        Some(retry_key(&observed, member, expires_ms)),
+        None,
     )?
     else {
         unreachable!("typed response")
@@ -215,7 +218,7 @@ pub(super) fn run(matches: &ArgMatches, args: &ArgMatches) -> Result<Output, Fai
     else {
         unreachable!("typed response")
     };
-    if preview.goal != goal || preview.administrator != observed.administrator {
+    if preview.goal != goal || preview.governance != observed.host {
         return Err(Failure::new(
             ErrorCode::Conflict,
             "local invitation does not match the reviewed goal",
@@ -228,10 +231,9 @@ pub(super) fn run(matches: &ArgMatches, args: &ArgMatches) -> Result<Output, Fai
     } = call(
         &mut client,
         &socket,
-        Request::InvitationJoin {
-            principal: member,
+        Request::GoalJoin {
+            agent: member,
             ticket,
-            review: preview.review,
         },
         None,
         None,

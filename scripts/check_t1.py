@@ -340,14 +340,14 @@ class Qualification:
     def create_goal(self, machine, title):
         formation = self.cli(machine, ["formation", "example", "coordinator"], local=True)
         formation["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
-        created = self.cli(machine, ["goal", "create", "--title", title,
-            "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [machine.agent]})])
+        created = self.cli(machine, ["--as", f"m{machine.number}", "goal", "create", "--title", title,
+            "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [machine.agent]})], owner=True)
         return identity(variant(created, "goal_created")["goal"], "goal")
 
     def grant_contributions(self, goal):
         for machine in self.machines:
             self.cli(machine, ["goal", "grant", "--goal", goal, "--agent", machine.agent,
-                "--grants", json.dumps({"administer": True, "contribute": True,
+                "--grants", json.dumps({"contribute": True,
                     "review": True, "select": True, "execute": False, "flow": True, "takeover": False})], owner=True)
 
     def board_selected(self, machine, goal, task, result_id):
@@ -393,7 +393,7 @@ class Qualification:
         m1, m2, m3 = self.machines
         for machine in self.machines:
             self.start(machine)
-            result = self.cli(machine, ["agent", "enroll", f"m{machine.number}", "--manage-goals"], owner=True)
+            result = self.cli(machine, ["agent", "enroll", f"m{machine.number}"], owner=True)
             machine.agent = identity(variant(result, "agent_enrolled")["agent"], "principal")
         self.summary["machines"] = [{"machine": m.number, "home": str(m.home), "principal": m.agent,
                                      "endpoint": m.endpoint} for m in self.machines]
@@ -402,8 +402,8 @@ class Qualification:
         goal = self.create_goal(m1, title)
         self.summary["goal"] = goal
         for invitee in (m2, m3):
-            ticket = variant(self.cli(m1, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
-            joined = variant(self.cli(invitee, ["goal", "join", "--ticket", ticket]), "joined")
+            ticket = variant(self.cli(m1, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
+            joined = variant(self.cli(invitee, ["--as", f"m{invitee.number}", "goal", "join", "--ticket", ticket], owner=True), "joined")
             del ticket
             if joined.get("goal") != goal:
                 raise CheckFailure("join answered with another goal")

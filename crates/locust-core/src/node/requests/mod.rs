@@ -100,9 +100,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         // A read changes nothing, so running it again is its own idempotency;
         // only requests that write are recorded under their key.
         let key = frame.idempotency.filter(|_| {
-            !frame.request.is_read_only()
-                && !actor.is_viewer()
-                && !matches!(frame.request, Request::Shutdown)
+            !frame.request.is_read_only() && !matches!(frame.request, Request::Shutdown)
         });
         let digest = key.map(|_| request_digest(frame.on_behalf, &frame.request));
         if let (Some(key), Some(digest)) = (&key, &digest)
@@ -167,11 +165,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::InvitationRevoke { goal, invitation } => {
                 self.invitation_revoke(actor, goal, invitation, now)
             }
-            Request::InvitationJoin {
-                principal,
-                ticket,
-                review,
-            } => self.invitation_join(actor, principal, ticket, review, now),
             Request::Permissions { goal, agent } => self.permissions(actor, goal, agent),
             Request::PermissionAllow {
                 goal,
@@ -193,17 +186,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 self.permission_task_revoke(actor, goal, agent, task)
             }
             Request::Inbox => self.inbox(actor),
-            Request::AgentGrant { agent, grants } => self.agent_grant(agent, grants),
             Request::AgentRevoke { agent } => self.agent_revoke(agent),
-            Request::ViewerEnroll { agent, credential } => self.viewer_enroll(agent, credential),
             Request::AuthorEnroll { name, credential } => self.author_enroll(name, credential),
             Request::SessionReport { record } => self.session_report(actor, record, now),
             Request::Session { instance } => self.session_show(actor, instance),
             Request::Sessions => self.sessions_list(actor),
             Request::SessionDrop { instance } => self.session_drop(actor, instance),
-            Request::GoalLeave { goal } => self.goal_leave(actor, goal, now),
+            Request::GoalLeave { goal, agent } => self.goal_leave(actor, goal, agent, now),
             Request::MemberRemove { goal, member } => self.member_remove(actor, goal, member, now),
-            Request::GoalJoin { ticket } => self.goal_join(actor, ticket, now),
+            Request::GoalJoin { agent, ticket } => self.goal_join(actor, agent, ticket, now),
             Request::GoalInvite { goal, expires_ms } => {
                 self.goal_invite(actor, goal, expires_ms, now)
             }
@@ -213,17 +204,24 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::BlobWithdraw { goal, hash } => self.blob_withdraw(actor, goal, hash),
             Request::Status => self.status(actor),
             Request::Shutdown => self.shutdown(),
-            Request::AgentEnroll {
-                name,
-                grants,
-                credential,
-            } => self.agent_enroll(name, grants, credential),
+            Request::AgentEnroll { name, credential } => self.agent_enroll(name, credential),
             Request::GoalCreate {
+                agent,
                 title,
                 formation_json,
                 roles,
                 inputs,
-            } => self.goal_create(actor, title, formation_json, roles, inputs, now),
+            } => self.goal_create(
+                actor,
+                goals::GoalCreateInput {
+                    agent,
+                    title,
+                    formation_json,
+                    roles,
+                    inputs,
+                },
+                now,
+            ),
             Request::GoalGrant {
                 goal,
                 agent,
@@ -266,9 +264,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::WorkspaceRecoveryParentCheck { goal, parent } => {
                 self.workspace_recovery_parent(actor, goal, parent)
             }
-            Request::CheckoutRegister { goal, checkout } => {
-                self.checkout_register(actor, goal, checkout)
-            }
+            Request::CheckoutRegister {
+                goal,
+                checkout,
+                revision,
+                task,
+                attempt,
+            } => self.checkout_register(actor, goal, checkout, revision, task, attempt),
+            Request::WorkspaceConnect {
+                goal,
+                agent,
+                checkout,
+            } => self.workspace_connect(actor, goal, agent, checkout),
             Request::CheckoutBindSession { goal, checkout } => {
                 self.checkout_bind_session(actor, goal, checkout)
             }

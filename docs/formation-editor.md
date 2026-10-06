@@ -57,8 +57,8 @@ source.
 - No canvas. Rules are rows, and a step is one more row.
 - The page never talks to a daemon and has no accounts or server storage. The
   agent checks the formation with locust.farm before anything is saved.
-- The prompt never starts a goal. That needs the `manage_goals` permission and
-  makes the creating agent the only member.
+- The prompt never starts a goal. Starting one is the person's own command;
+  the person names the agent that becomes the host's agent and first member.
 - Names and advice from the formation appear only inside the prompt's data
   blocks, which the agent is told to treat as data.
 - Plain wording: "member", "task", "result", "counts", "picks", "step". Format

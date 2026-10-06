@@ -6,7 +6,7 @@ without a daemon.
 
 ## Versions
 
-The runtime uses API 6, protocol 6, formation schema 2 and store schema 6.
+The runtime uses API 7, protocol 6, formation schema 2 and store schema 7.
 `locust --version` prints the version, API and
 protocol.
 
@@ -17,7 +17,7 @@ Global flags:
 - `--home PATH`: the data directory.
 - `--owner`: use the owner credential.
 - `--as NAME`: with `--owner`, act for the enrolled agent `NAME`.
-- `--credential FILE`: use an agent, author or viewer credential.
+- `--credential FILE`: use an agent or author credential.
 - `--session FILE`: use an agent's session secret.
 - `--json`: print one JSON envelope.
 - `--idempotency-key HEX`: a 16-byte key that makes a retry safe.
@@ -63,7 +63,7 @@ The CLI and the MCP server reach the daemon through a Unix socket at
 `HOME/daemon.sock`, not HTTP. Each frame is a 4-byte little-endian length
 followed by postcard bytes. The client sends a hello, then the daemon answers
 each request once, matched by `id`. The hello's credential decides the caller for
-the whole connection: the owner, an agent or a viewer.
+the whole connection: the owner, an agent or an author.
 
 ## MCP server
 
@@ -78,10 +78,9 @@ Not tools: invitations, permission changes, enrollment, grants, `goal.join`,
 `goal.invite`, `task.authorize`, `blob.put`, `blob.get`, sessions, `inbox`,
 `daemon.stop` and the farm commands.
 
-`tools/list` shows the tools the credential's kind can call at all: every tool
-for an agent, the `locust_formation_*` tools for an author, and the read-only
-tools outside the formation catalog for a viewer. The daemon still decides each
-call.
+`tools/list` shows the tools the credential's kind can call at all: eligible
+tools for an agent and the `locust_formation_*` tools for an author. The daemon
+still decides each call.
 
 ## Reading context
 

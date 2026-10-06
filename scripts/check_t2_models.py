@@ -167,7 +167,7 @@ Goal: {work['goal']}; task: {work['task']}; offer: {work['offer']}; accepted see
 Use this exact scoped CLI prefix for filesystem commands: {shlex.join(prefix)}
 The API credential and session paths are capabilities: pass them to Locust only. Never read, print, upload or copy their bytes.
 Never inspect process environments (including ps eww or /proc), print environment variables, or search for credentials. If a named path is unavailable, stop and report it.
-Do not access owner credentials, other user profiles, or files outside the installed skill, assigned synthetic workspace and named Locust CLI paths.
+Do not access owner credentials, other user profiles, or files outside the installed skill, assigned synthetic workspace, the folder returned by your checkout request, and named Locust CLI paths.
 The harness initialized the explicit synthetic tree, accepted its seed, opened/offered the task and authorized execution.
 The user authorizes inspection, running the supplied tiny tests, this scoped edit, sharing its exact workspace proposal, review, integration and local update.
 Issue actual native tool calls and individual Locust CLI commands. Do not merely describe commands, and do not create a driver script to run the workflow.
@@ -179,9 +179,9 @@ def worker_prompt(daemon, role, work, binary):
     return model_context(daemon, role, work, binary) + f'''
 1. Call locust_status, locust_goal_status, locust_task_show and locust_pending via MCP. Inspect membership, task input and assignment.
 2. Start this task and exact offer with locust_attempt_start. Retain attempt, generation and instance; report progress using that claim.
-3. Run CLI workspace checkout --goal {work['goal']} --destination {work['destination']} --task {work['task']} --attempt RETURNED_ATTEMPT. Bind your session with workspace bind --goal GOAL --checkout RETURNED_CHECKOUT_ID.
+3. Call locust_checkout_register with goal {work['goal']}, a fresh random 32-character lowercase hex checkout ID, revision {work['seed_revision']}, task {work['task']} and your returned attempt. The daemon makes your own new folder. Retain its returned checkout ID and root, then bind your session with CLI workspace bind --goal GOAL --checkout RETURNED_CHECKOUT_ID.
 4. Read calculator.py and test_calculator.py before executing them. Diagnose the bug, run the supplied tests, correct only calculator.py, and run {shlex.quote(sys.executable)} -B -m unittest discover -s . -v until all five tests pass.
-5. Freeze exactly calculator.py with CLI workspace propose --goal GOAL --checkout CHECKOUT_ID --only --path calculator.py. Inspect its returned preview, then workspace publish --goal GOAL --operation OPERATION_ID without recapturing.
+5. Freeze exactly calculator.py with CLI workspace propose --goal GOAL --checkout RETURNED_CHECKOUT_ID --only --path calculator.py. Inspect its returned preview, then workspace publish --goal GOAL --operation OPERATION_ID without recapturing.
 6. Read the exact published proposal with CLI workspace review --goal GOAL --proposal PROPOSAL_EVENT. Publish a task report through locust_contribution_publish using the claim attempt/generation, task, summary, sources=[PROPOSAL_EVENT], artifacts=[]. The report is advisory provenance; it does not integrate files.
 7. Stop after publication and reporting. Do not approve, integrate or update the coordinator directory. Report proposal, task report, checkout and test outcome without capability bytes.
 '''
@@ -298,7 +298,6 @@ def qualify_pair(coordinator, worker, binaries, args):
                     "instance": instance, "provider": provider.metadata, "skill": skill, "runs": role["runs"],
                     "version": version, "binary_sha256": hashlib.sha256(Path(binaries[client]).read_bytes()).hexdigest()})
             worker_role, coord_role = roles
-            work["destination"] = str(worker_role["profile"].workspace / "materialized")
             result["work"] = work
             run, events = execute(worker_role, "worker", worker_prompt(daemon, worker_role, work, args.locust), daemon, args)
             calls = run["native_calls"]
@@ -309,6 +308,15 @@ def qualify_pair(coordinator, worker, binaries, args):
             claims = [claim for claim in claimed if claim.get("task") == work["task"] and
                       claim.get("instance") == worker_role["instance"] and isinstance(claim.get("generation"), int)]
             checks["worker_scoped_claim"] = fixture.assertion("pass" if claims else "fail", "Exact authorized assignment, worker protected session instance and generation")
+            registered = [record_result(e).get("checkout", {}) for e in successful(events, "locust_checkout_register")]
+            own_checkouts = daemon.call(["checkouts", "--goal", daemon.goal])["checkouts"]
+            worker_checkouts = [row for row in own_checkouts if row.get("task") == work["task"]
+                and claims and row.get("attempt") == claims[0]["attempt"]
+                and any(item.get("id") == row["id"] and item.get("root") == row["root"] for item in registered)]
+            if len(worker_checkouts) != 1:
+                raise ProductionError("Worker did not register one own daemon-created checkout for this attempt")
+            work["worker_checkout"] = worker_checkouts[0]["id"]
+            work["destination"] = worker_checkouts[0]["root"]
             checks["worker_progress"] = fixture.assertion("pass" if successful(events, "locust_attempt_report") else "fail", "Actual worker MCP progress call completed")
             task = daemon.call(["task", "show", "--goal", daemon.goal, "--task", work["task"]])["task"]
             work["attempt"] = claims[0]["attempt"] if claims else None
@@ -332,7 +340,7 @@ def qualify_pair(coordinator, worker, binaries, args):
             destination = Path(work["destination"])
             tests = check_tests(worker_role["profile"], destination)
             result["independent_worker_tests"] = tests
-            checks["worker_materialize"] = fixture.assertion("pass" if native_operation(calls, "workspace checkout", args.locust) and destination.is_dir() else "fail", "Real worker native CLI materialized exact input to new path")
+            checks["worker_materialize"] = fixture.assertion("pass" if native_operation(calls, "workspace bind", args.locust) and destination.is_dir() else "fail", "Real worker registered and bound one own daemon-created checkout")
             test_command = any(call["success"] and "unittest" in call.get("arguments", {}).get("command", "") for call in shell_calls(calls))
             fixed = tests["exit_code"] == 0 and (destination / "calculator.py").read_text() == FIXED_CODE and (destination / "test_calculator.py").read_text() == TEST_CODE
             checks["worker_fix_and_test"] = fixture.assertion("pass" if fixed and test_command else "fail", "Native worker test command and independent exact file/test verification required")

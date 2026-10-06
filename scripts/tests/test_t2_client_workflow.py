@@ -141,7 +141,7 @@ class T2WorkflowTests(unittest.TestCase):
             goal="goal";principal="principal";endpoint="endpoint";restarted=False
             def call(self,args):
                 if args[:2]==["goal","status"]:
-                    return {"goal_status":{"goal":self.goal,"administrator":self.principal}}
+                    return {"goal_status":{"goal":self.goal,"host":self.principal}}
                 if args[:2]==["task","show"]:
                     return {"task":{"view":{"task":"task","attempt":"attempt","attempts":["attempt"]}}}
                 if args[0]=="pending":

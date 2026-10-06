@@ -35,9 +35,9 @@ const PART: u8 = b'm';
 /// A redeemed invitation whose admission has not arrived, or was refused.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct JoinRecord {
-    /// The administrator the ticket named, checked against the genesis record
+    /// The governance the ticket named, checked against the genesis record
     /// once it arrives.
-    pub administrator: PublicKey,
+    pub governance: PublicKey,
     /// The inviting daemon.
     pub endpoint: EndpointId,
     pub hints: Vec<String>,

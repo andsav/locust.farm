@@ -9,8 +9,9 @@ ordinary directory pinned to a revision. Publishing proposes a tree; integration
 accepts it; updating copies that accepted result into a local checkout. These are
 separate operations. No Git repository is required.
 
-To run the commands yourself, add `--owner --as NAME`. The goal's formation and
-your local grants determine who can publish, review and integrate.
+To run an agent's work commands yourself, add `--owner --as NAME`. Use
+`--owner` alone for `workspace init`. The goal's formation and local grants
+determine who can publish, review and integrate.
 
 ## Start and inspect a tree
 
@@ -18,15 +19,16 @@ Choose every seed file explicitly, or use `--paths-from FILE` with one relative
 path per line. `--paths-from -` reads the list from stdin.
 
 ```sh
-locust workspace init --goal GOAL --root /ABSOLUTE/SOURCE --path src/main.rs --path README.md
+locust --owner workspace init --goal GOAL --root /ABSOLUTE/SOURCE --path src/main.rs --path README.md
 locust workspace publish --goal GOAL --operation CAPTURE_OPERATION
 locust workspace pending --goal GOAL
 ```
 
-`init` prepares the workspace policy and freezes a preview. It defaults to the
-goal creator as integrator and an author declaration as the completion rule;
-`--integrator` and `--completion` make other choices explicit. Policy setup needs
-administrator authority. Existing workspace policy is not silently replaced.
+`init` is the person's command to prepare the workspace policy and freeze a
+preview. It defaults to the goal creator as integrator and an author declaration
+as the completion rule; `--integrator` and `--completion` make other choices
+explicit. Policy setup needs the host's authority. Existing workspace policy is
+not silently replaced.
 `--empty` seeds an empty tree. `--commit COMMIT --root /ABSOLUTE/REPO` optionally
 imports the regular files of a named Git commit.
 
@@ -52,15 +54,19 @@ files or keys. Tree listing supports `--path`, `--after-path` and an explicit
 ## Work in an ordinary directory
 
 ```sh
-locust workspace checkout --goal GOAL --revision REVISION --destination /ABSOLUTE/NEW/FOLDER
+locust --owner --as NAME workspace checkout --goal GOAL --revision REVISION --destination /ABSOLUTE/NEW/FOLDER
 locust workspace bind --goal GOAL --checkout CHECKOUT
 locust workspace status --goal GOAL --checkout CHECKOUT
 locust workspace propose --goal GOAL --checkout CHECKOUT --path new-file.txt
 locust workspace publish --goal GOAL --operation CAPTURE_OPERATION
 ```
 
-Checkout copies files into a fresh directory and records its exact base. `bind`
-explicitly associates this authenticated session with that checkout, so context
+The person's checkout command copies files into the folder they named and
+records its exact base. An agent can request its own fresh daemon-created folder
+with `checkout register --goal GOAL --checkout ID`, using a fresh 16-byte hex ID
+and an optional `--revision`, `--task` and `--attempt`. The response gives the
+folder root and base. `bind` explicitly associates this authenticated session
+with that checkout, so context
 and pending work report it. Propose
 captures modifications and deletions of managed files, plus explicitly selected
 additions. It does not discover additions through Git tracking or ignore rules.
@@ -85,7 +91,7 @@ source does not approve new combined bytes. Integration checks the expected head
 and workspace epoch, formation eligibility, evidence and local selection grant.
 
 For an accepted tree whose parent content is unavailable, a complete replacement
-can be captured with `propose --replace --parent REVISION --root /ABSOLUTE/SOURCE`
+can be captured with `propose --replace --parent REVISION --checkout CHECKOUT`
 and explicit selected paths, or `--empty`. This produces a new proposal and does
 not bypass integration authority.
 
@@ -144,20 +150,20 @@ until owner status >"$demo/status.json" 2>/dev/null; do
   kill -0 "$daemon_pid" || { cat "$demo/daemon.log"; exit 1; }
   sleep 0.1
 done
-principal=$(owner agent enroll alice --manage-goals | pick agent_enrolled.agent)
+principal=$(owner agent enroll alice | pick agent_enrolled.agent)
 "$LOCUST_BIN" session create "$demo/alice.session" >/dev/null
 alice() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/alice.credential" --session "$demo/alice.session" --json "$@"; }
-goal=$(alice goal create --title 'Shared tree example' | pick goal_created.goal)
+goal=$("$LOCUST_BIN" --home "$state" --owner --as alice --json goal create --title 'Shared tree example' | pick goal_created.goal)
 owner goal grant --goal "$goal" --agent "$principal" --grants \
-  '{"administer":true,"contribute":true,"execute":false,"review":true,"select":true,"flow":false,"takeover":false}' >/dev/null
+  '{"contribute":true,"execute":false,"review":true,"select":true,"flow":false,"takeover":false}' >/dev/null
 mkdir "$demo/source"
 printf 'base\n' >"$demo/source/app.txt"
 printf 'original\n' >"$demo/source/local.txt"
-seed_operation=$(alice workspace init --goal "$goal" --root "$demo/source" --path app.txt --path local.txt | pick operation.id)
+seed_operation=$(owner workspace init --goal "$goal" --root "$demo/source" --path app.txt --path local.txt | pick operation.id)
 seed_proposal=$(alice workspace publish --goal "$goal" --operation "$seed_operation" | pick workspace_operation.state.recorded.event)
 alice completion declare --goal "$goal" --subject "$seed_proposal" >/dev/null
 seed_revision=$(alice workspace integrate --goal "$goal" --proposal "$seed_proposal" --expected-empty | pick workspace_operation.state.recorded.event)
-checkout=$(alice workspace checkout --goal "$goal" --revision "$seed_revision" --destination "$demo/checkout" | pick checkout.id)
+checkout=$("$LOCUST_BIN" --home "$state" --owner --as alice --json workspace checkout --goal "$goal" --revision "$seed_revision" --destination "$demo/checkout" | pick checkout.id)
 alice workspace bind --goal "$goal" --checkout "$checkout" >/dev/null
 printf 'accepted change\n' >"$demo/checkout/app.txt"
 printf 'unpublished edit\n' >"$demo/checkout/local.txt"

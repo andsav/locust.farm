@@ -1,7 +1,7 @@
 //! Local invitation issuance and durable intent to join a remote goal.
 
 use locust_proto::api::{
-    ApiError, Caller, ErrorCode, InvitationState, InvitationSummary, Membership, Response,
+    ApiError, ErrorCode, InvitationState, InvitationSummary, Membership, Response,
 };
 use locust_proto::engine::Entropy;
 use locust_proto::id::{BlobHash, EndpointId, GoalId, PublicKey};
@@ -22,7 +22,7 @@ use crate::node::{local, records};
 pub(in crate::node) struct InviteRecord {
     pub goal: GoalId,
     pub goal_title: Option<String>,
-    pub administrator: PublicKey,
+    pub governance: PublicKey,
     pub created_ms: u64,
     pub expires_ms: Option<u64>,
     pub revoked_ms: Option<u64>,
@@ -45,7 +45,7 @@ impl InviteRecord {
             invitation: digest.iter().map(|byte| format!("{byte:02x}")).collect(),
             goal: self.goal,
             goal_title: self.goal_title.clone(),
-            administrator: self.administrator,
+            governance: self.governance,
             created_ms: self.created_ms,
             expires_ms: self.expires_ms,
             state,
@@ -66,10 +66,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     pub(super) fn goal_invitations(&self, actor: &Actor, goal: GoalId, now_ms: u64) -> Plan {
-        if actor.principal.is_some() {
-            self.administrator(actor, &goal)?;
-        } else {
-            self.readable(actor, &goal)?;
+        let entry = self.readable(actor, &goal)?;
+        if !self.hosts(entry) {
+            return Err(denied(
+                "this goal is hosted on another computer; its host decides",
+            ));
         }
         let mut invitations = Vec::new();
         for (digest, bytes) in self.store.scan(Space::Invite, &[])? {
@@ -87,13 +88,33 @@ impl<S: Store, E: Entropy> Node<S, E> {
         &self,
         actor: &Actor,
         goal: GoalId,
-        invitation: String,
+        invitation: Option<String>,
         now_ms: u64,
     ) -> Plan {
-        if actor.caller != Caller::Owner {
-            return Err(denied("invitation revocation is the owner's decision"));
+        let entry = self.readable(actor, &goal)?;
+        if !self.hosts(entry) {
+            return Err(denied(
+                "this goal is hosted on another computer; its host decides",
+            ));
         }
-        self.readable(actor, &goal)?;
+        let Some(invitation) = invitation else {
+            let mut tx = Tx::none();
+            let mut count = 0u32;
+            for (digest, bytes) in self.store.scan(Space::Invite, &[])? {
+                let mut record: InviteRecord = records::read(&bytes)?;
+                if record.goal == goal
+                    && record.summary(&digest, now_ms).state == InvitationState::Pending
+                {
+                    record.revoked_ms = Some(now_ms);
+                    tx.local(records::put(Space::Invite, digest, &record));
+                    count += 1;
+                }
+            }
+            return Ok(Planned {
+                response: Response::InvitationsRevoked { count },
+                tx,
+            });
+        };
         let digest = invitation.parse::<BlobHash>().map_err(|_| {
             ApiError::new(
                 ErrorCode::Invalid,
@@ -131,59 +152,20 @@ impl<S: Store, E: Entropy> Node<S, E> {
         })
     }
 
-    /// The person selects an existing local principal and confirms the exact
-    /// verified ticket. This never writes local grants or a workspace binding.
-    pub(super) fn invitation_join(
-        &self,
-        actor: &Actor,
-        principal: PublicKey,
-        ticket: Ticket,
-        review: String,
-        now_ms: u64,
-    ) -> Plan {
-        if actor.caller != Caller::Owner {
-            return Err(denied(
-                "reviewed invitation joining is the owner's decision",
-            ));
-        }
-        let participant = self.principals.active(&principal).ok_or_else(|| {
-            crate::node::access::not_found("no active enrolled principal has that key")
-        })?;
-        if participant.record.author_only {
-            return Err(denied("an authoring principal cannot join goals"));
-        }
-        let invitation = Invitation::from_ticket(ticket.as_str()).map_err(invite_error)?;
-        if invitation.preview(now_ms).map_err(invite_error)?.review != review {
-            return Err(conflict(
-                "the reviewed invitation differs; inspect this exact ticket and confirm its review identifier",
-            ));
-        }
-        self.goal_join(
-            &Actor {
-                principal: Some(principal),
-                owner_act: true,
-                ..*actor
-            },
-            ticket,
-            now_ms,
-        )
-    }
-
     pub(super) fn goal_invite(
         &self,
         actor: &Actor,
         goal: GoalId,
-        expires_ms: Option<u64>,
+        expires_ms: u64,
         now_ms: u64,
     ) -> Plan {
-        if expires_ms.is_some_and(|expires| expires <= now_ms) {
+        if expires_ms <= now_ms {
             return Err(crate::node::access::conflict(
                 "the invitation has already expired",
             ));
         }
-        self.manages_goals(actor)?;
-        let (entry, administrator) = self.administrator(actor, &goal)?;
-        if entry.goal.evaluation().admin_halt.as_ref().is_some() {
+        let (entry, governance) = self.host(actor, &goal)?;
+        if entry.goal.evaluation().host_halt.as_ref().is_some() {
             return Err(ApiError::new(
                 ErrorCode::Halted,
                 "the goal's authority is halted",
@@ -191,15 +173,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         let own = self.own_endpoint()?;
         let secret = InviteSecret(self.random());
-        let goal_title = self.title(entry, Some(&administrator));
+        let goal_title = self.title(entry, Some(&governance));
         let mut invitation = Invitation::signed(
             goal,
             goal_title.clone(),
             own.endpoint,
             own.hints.iter().take(MAX_HINTS).cloned().collect(),
             secret,
-            expires_ms,
-            self.signer(&administrator)?,
+            Some(expires_ms),
+            self.signer(&governance)?,
         )
         .map_err(invite_error)?;
         invitation.publication = entry
@@ -213,7 +195,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 },
             );
         invitation
-            .sign(self.signer(&administrator)?)
+            .sign(self.signer(&governance)?)
             .map_err(invite_error)?;
         let ticket = invitation.to_ticket().map_err(invite_error)?;
         let mut tx = Tx::none();
@@ -223,9 +205,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
             &InviteRecord {
                 goal,
                 goal_title,
-                administrator,
+                governance,
                 created_ms: now_ms,
-                expires_ms,
+                expires_ms: Some(expires_ms),
                 revoked_ms: None,
                 redeemed: None,
                 redeemed_ms: None,
@@ -237,29 +219,35 @@ impl<S: Store, E: Entropy> Node<S, E> {
         })
     }
 
-    pub(super) fn goal_join(&self, actor: &Actor, ticket: Ticket, now_ms: u64) -> Plan {
-        let principal = self.manages_goals(actor)?;
+    pub(super) fn goal_join(
+        &self,
+        actor: &Actor,
+        agent: PublicKey,
+        ticket: Ticket,
+        now_ms: u64,
+    ) -> Plan {
+        let principal = self.local_agent(actor, agent)?.principal()?;
         let own = self.own_endpoint()?.endpoint;
         let invitation = Invitation::from_ticket(ticket.as_str()).map_err(invite_error)?;
         let goal = invitation.goal;
         if let Some(entry) = self.goals.get(&goal) {
             if entry
                 .state()
-                .administrator
-                .is_some_and(|key| key != invitation.administrator)
+                .governance
+                .is_some_and(|key| key != invitation.governance)
             {
                 return Err(conflict(
-                    "the ticket's administrator differs from the held goal",
+                    "the ticket's governance differs from the held goal",
                 ));
             }
             if entry
                 .state()
                 .members
-                .get(&invitation.administrator)
+                .get(&invitation.governance)
                 .is_some_and(|member| member.endpoint != invitation.endpoint)
             {
                 return Err(conflict(
-                    "the ticket's endpoint differs from the held administrator admission",
+                    "the ticket's endpoint differs from the held governance admission",
                 ));
             }
             if entry.membership(&principal) == Some(Membership::Left) && entry.is_member(&principal)
@@ -276,23 +264,23 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 }
                 return answer(Response::Joined {
                     goal,
-                    administrator: invitation.administrator,
+                    governance: invitation.governance,
                     membership: Membership::Member,
                 });
             }
             if let Some(join) = entry.local.joins.get(&principal) {
                 let same = join.secret == invitation.secret
                     && join.endpoint == invitation.endpoint
-                    && join.administrator == invitation.administrator;
+                    && join.governance == invitation.governance;
                 if same && join.refused {
                     return Err(denied(
-                        "the inviter refused this invitation; request a fresh invitation from the administrator",
+                        "the inviter refused this invitation; request a fresh invitation from the governance",
                     ));
                 }
                 if same {
                     return answer(Response::Joined {
                         goal,
-                        administrator: invitation.administrator,
+                        governance: invitation.governance,
                         membership: Membership::Joining,
                     });
                 }
@@ -308,7 +296,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .is_some_and(|expires| expires <= now_ms)
         {
             return Err(denied(
-                "the invitation has expired; request a fresh invitation from the administrator",
+                "the invitation has expired; request a fresh invitation from the governance",
             ));
         }
         if invitation.endpoint == own {
@@ -326,14 +314,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 self.signer(&principal)?,
             );
             let mut tx = self
-                .plan_join(&own, &request, now_ms, Some(actor))
-                .map_err(|_| denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the administrator"))?;
+                .plan_join(&own, &request, now_ms)
+                .map_err(|_| denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the governance"))?;
             tx.local(local::part_write(&goal, &principal, false))
                 .touch(goal);
             return Ok(Planned {
                 response: Response::Joined {
                     goal,
-                    administrator: invitation.administrator,
+                    governance: invitation.governance,
                     membership: Membership::Member,
                 },
                 tx,
@@ -344,7 +332,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             &goal,
             &principal,
             &local::JoinRecord {
-                administrator: invitation.administrator,
+                governance: invitation.governance,
                 endpoint: invitation.endpoint,
                 hints: invitation.hints.clone(),
                 secret: invitation.secret,
@@ -362,7 +350,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok(Planned {
             response: Response::Joined {
                 goal,
-                administrator: invitation.administrator,
+                governance: invitation.governance,
                 membership: Membership::Joining,
             },
             tx,

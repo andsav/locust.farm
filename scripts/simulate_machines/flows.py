@@ -21,10 +21,10 @@ def hint_kinds(ticket):
 
 
 def boot(cluster, machines):
-    """Start and enroll each machine as in the guide (m<n>, --manage-goals)."""
+    """Start and enroll each machine as in the guide (m<n>)."""
     for machine in machines:
         cluster.start(machine)
-        result = cluster.cli(machine, ["agent", "enroll", f"m{machine.number}", "--manage-goals"], owner=True)
+        result = cluster.cli(machine, ["agent", "enroll", f"m{machine.number}"], owner=True)
         machine.agent = identity(variant(result, "agent_enrolled")["agent"], "principal")
         cluster.cli(machine, ["status"])
         cluster.cli(machine, ["doctor"])
@@ -35,7 +35,7 @@ def boot(cluster, machines):
 
 def grant(cluster, machine, goal):
     cluster.cli(machine, ["goal", "grant", "--goal", goal, "--agent", machine.agent,
-        "--grants", json.dumps({"administer": True, "contribute": True, "review": True,
+        "--grants", json.dumps({"contribute": True, "review": True,
             "select": True, "flow": True, "execute": False, "takeover": False})], owner=True)
 
 
@@ -58,9 +58,9 @@ def members_ok(cluster, machines, goal, title, expected):
 def invite_join(cluster, coordinator, joiner, goal, title, everyone, timeout=None, after_join=None):
     """Invite, join, and wait until every listed replica admits everyone.
     Returns seconds from the join command's answer to full admission."""
-    ticket = variant(cluster.cli(coordinator, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
+    ticket = variant(cluster.cli(coordinator, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
     cluster.summary.setdefault("ticket_hint_kinds", {})[f"M{joiner.number}"] = hint_kinds(ticket)
-    joined = variant(cluster.cli(joiner, ["goal", "join", "--ticket", ticket]), "joined")
+    joined = variant(cluster.cli(joiner, ["--as", f"m{joiner.number}", "goal", "join", "--ticket", ticket], owner=True), "joined")
     del ticket
     if joined.get("goal") != goal:
         raise CheckFailure("join answered with another goal")

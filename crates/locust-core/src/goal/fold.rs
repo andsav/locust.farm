@@ -939,7 +939,7 @@ pub(super) fn evaluate<D: DefinitionLookup + ?Sized>(
     let verifier = Verifier::new(history, chain, definitions, closure_index);
     let mut evaluation = Evaluation {
         state: chain.state.clone(),
-        admin_halt: chain.halt.clone(),
+        host_halt: chain.halt.clone(),
         ..Evaluation::default()
     };
     for event in &history.events {

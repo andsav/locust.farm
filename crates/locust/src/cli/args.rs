@@ -92,8 +92,12 @@ fn operation(name: &'static str, api: &'static str) -> Command {
             .summary,
     );
     for field in fields(api) {
+        if field.name == "agent" && matches!(api, "goal.create" | "goal.join" | "goal.leave") {
+            continue;
+        }
         let positional = text_field(api) == Some(field.name);
         let required = field.required
+            && !(api == "goal.invite" && field.name == "expires_ms")
             && !matches!(
                 field.schema["type"].as_str(),
                 Some("array" | "object" | "boolean")
@@ -292,12 +296,7 @@ pub(super) fn command() -> Command {
     groups.entry("agent").or_default().push(
         Command::new("enroll")
             .about("Enroll a principal and store its credential")
-            .arg(Arg::new("name").required(true))
-            .arg(
-                Arg::new("manage-goals")
-                    .long("manage-goals")
-                    .action(ArgAction::SetTrue),
-            ),
+            .arg(Arg::new("name").required(true)),
     );
     groups.entry("author").or_default().push(
         Command::new("enroll")
@@ -359,6 +358,10 @@ pub(super) fn values(operation: &str, matches: &ArgMatches) -> Result<Map<String
     }
     let mut values = Map::new();
     for field in fields(operation) {
+        if field.name == "agent" && matches!(operation, "goal.create" | "goal.join" | "goal.leave")
+        {
+            continue;
+        }
         let value = match matches.get_one::<String>(field.name) {
             Some(text) if field.schema["type"] == "string" => Value::String(text.clone()),
             Some(text) => serde_json::from_str(text)
@@ -504,8 +507,13 @@ mod tests {
             .try_get_matches_from(["locust", "goal", "create", "--title", "open"])
             .unwrap();
         let (name, fields) = selected(&matches);
+        let mut fields = values(&name, fields).unwrap();
+        fields.insert(
+            "agent".into(),
+            serde_json::json!(locust_proto::id::PublicKey([1; 32])),
+        );
         let request = serde_json::from_value::<locust_proto::api::Request>(
-            serde_json::json!({name.as_str():values(&name,fields).unwrap()}),
+            serde_json::json!({name.as_str():fields}),
         )
         .unwrap();
         assert!(

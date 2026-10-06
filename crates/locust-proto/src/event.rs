@@ -1,6 +1,6 @@
 //! Current signed organization protocol. Exact canonical header bytes are hashed
 //! and signed; replay never reinterprets an earlier protocol. Governance has one
-//! administrator chain; work and scope-specific decisions are separate facts.
+//! governance chain; work and scope-specific decisions are separate facts.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -69,7 +69,7 @@ pub struct AuthorPoint {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Genesis {
-    pub administrator: PublicKey,
+    pub governance: PublicKey,
     pub definition: DefinitionHash,
     pub salt: [u8; 16],
 }
@@ -77,7 +77,7 @@ pub struct Genesis {
 impl Genesis {
     pub fn goal_id(&self) -> GoalId {
         let mut hasher = crypto::domain_hasher(domain::GOAL_ID);
-        hasher.update(&self.administrator.0);
+        hasher.update(&self.governance.0);
         hasher.update(&self.definition.0);
         hasher.update(&self.salt);
         GoalId(*hasher.finalize().as_bytes())
@@ -774,7 +774,7 @@ impl Header {
                 if self.seq != 0
                     || self.anchor.is_some()
                     || !self.parents.is_empty()
-                    || self.author != genesis.administrator
+                    || self.author != genesis.governance
                     || self.goal != genesis.goal_id()
                 {
                     return Err(EventError::BadAnchor);

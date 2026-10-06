@@ -22,7 +22,7 @@ pub struct TestHost {
     /// Keys admitted through a join, with the endpoint bound to them.
     pub admitted: BTreeMap<(GoalId, PublicKey), EndpointId>,
     /// Signs the admission of a joined key, anchored at the given event.
-    pub administrator: Option<(Author, EventId)>,
+    pub governance: Option<(Author, EventId)>,
     pub reports: Vec<Report>,
     /// Halt-proof evidence this host would deliver, per (goal, endpoint), in
     /// delivery order. More than one fork proof may be owed to a contact.
@@ -46,7 +46,7 @@ impl TestHost {
             joins: Vec::new(),
             invites: BTreeMap::new(),
             admitted: BTreeMap::new(),
-            administrator: None,
+            governance: None,
             reports: Vec::new(),
             halt_proofs: BTreeMap::new(),
             halt_accepts: BTreeSet::new(),
@@ -165,7 +165,7 @@ impl Host for TestHost {
         }
         self.admitted.insert((goal, request.member), *remote);
         self.members.entry(goal).or_default().insert(*remote);
-        if let Some((author, anchor)) = &mut self.administrator {
+        if let Some((author, anchor)) = &mut self.governance {
             let admission = author.event(
                 goal,
                 Some(*anchor),

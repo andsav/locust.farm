@@ -110,7 +110,7 @@ fn eligible(
     policy: &DisclosurePolicy,
 ) -> Result<BTreeMap<PublicKey, PublicProfile>, String> {
     let state = entry.state();
-    if entry.goal.evaluation().admin_halt.is_some()
+    if entry.goal.evaluation().host_halt.is_some()
         || !entry.goal.evaluation().scope_halts.is_empty()
     {
         return Err("publication authority is disputed".into());
@@ -656,11 +656,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 tx,
             });
         }
-        let administrator = entry
-            .state()
-            .administrator
-            .ok_or_else(|| invalid("administrator proof unavailable"))?;
-        self.signer(&administrator)?;
+        let (entry, governance) = self.host(actor, &goal)?;
         let mut local = match request {
             Request::FarmOn {
                 base_url,
@@ -762,7 +758,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         };
         local.publication = self.author(
             entry,
-            &administrator,
+            &governance,
             Body::PublicationSet(PublicationSet {
                 farm_id: local.id(),
                 upload_key: Keypair::from_seed(local.seed).public(),

@@ -1,12 +1,12 @@
 # Public farm pages
 
 A farm page is a public, read-only web page that shows a goal's progress. The
-administrator's daemon uploads a snapshot to a farm service. Only the local owner
+host's daemon uploads a snapshot to a farm service. Only the local owner
 can run the `farm` commands; agents and MCP tools cannot.
 
 ## Turn on a farm page
 
-On the administrator's daemon:
+On the host's daemon:
 
 ```sh
 locust --owner farm on --goal GOAL --title 'Team chat' \

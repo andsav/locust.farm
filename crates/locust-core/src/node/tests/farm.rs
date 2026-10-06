@@ -120,7 +120,7 @@ fn snapshot_excludes_private_data_and_restart_retries_exact_request() {
         "PRIVATE_CLIENT_CANARY",
         "PRIVATE_SESSION_CANARY",
         "PRIVATE_DETAIL_CANARY",
-        "administrator",
+        "governance",
         &principal.to_string(),
         &goal.to_string(),
     ] {
@@ -207,7 +207,7 @@ fn joining_member_and_removed_work_author_require_consent() {
     let resumed = daemon.node.farm_poll(6000).remove(0);
     acknowledge(&mut daemon, &resumed, 6000);
     daemon.ok(owner, consent(goal, member, false));
-    daemon.ok(agent, Request::MemberRemove { goal, member });
+    daemon.ok(owner, Request::MemberRemove { goal, member });
     let Response::FarmPreview(preview) = daemon.ok(owner, Request::FarmShow { goal }) else {
         panic!()
     };
@@ -275,10 +275,10 @@ fn invitation_discloses_signed_policy_without_implicitly_consenting() {
     let (mut daemon, principal, owner, agent, goal) = setup();
     activate(&mut daemon, owner, goal, principal);
     let Response::Invited { ticket } = daemon.ok(
-        agent,
+        owner,
         Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: 604_801_000,
         },
     ) else {
         panic!()
@@ -330,7 +330,7 @@ fn join_reconciliation_waits_for_exact_advertised_publication_proof() {
         .unwrap();
     let endpoint = daemon.node.goals[&goal].state().members[&principal].endpoint;
     let mut join = local::JoinRecord {
-        administrator: principal,
+        governance: principal,
         endpoint,
         hints: vec![],
         secret: InviteSecret([71; 32]),
@@ -492,7 +492,7 @@ fn actual_parallel_flow_projects_approved_dag_and_revised_task_rounds() {
     ]);
     let expected = daemon.node.goals[&goal].state().current_rules.unwrap();
     daemon.ok(
-        agent,
+        owner,
         Request::RulesBind {
             goal,
             expected,
@@ -621,7 +621,7 @@ fn actual_parallel_flow_projects_approved_dag_and_revised_task_rounds() {
     // round, and does not transfer acceptance from the old exact candidate.
     let expected_round = daemon.node.goals[&goal].state().tasks[&contract_task].current_round;
     daemon.ok(
-        agent,
+        owner,
         Request::TaskRevise {
             goal,
             task: contract_task,
@@ -721,7 +721,7 @@ fn duplicate_upstream_stage_prerequisites_are_deduplicated_in_snapshot() {
     ]);
     let expected = daemon.node.goals[&goal].state().current_rules.unwrap();
     daemon.ok(
-        agent,
+        owner,
         Request::RulesBind {
             goal,
             expected,

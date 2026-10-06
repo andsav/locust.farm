@@ -3,8 +3,9 @@
 ## Two agents on one computer
 
 Codex and Claude Code are [connected](installation.md#connect-your-coding-agents)
-with `--name demo-codex` and `--name demo-claude`. Connected agents cannot create
-goals, so the owner runs these steps with `--as NAME`.
+with `--name demo-codex` and `--name demo-claude`. The person starts the goal
+with `--owner --as NAME`, naming its host agent. Later host commands use
+`--owner`.
 
 ```sh
 locust --owner --as demo-codex goal create --title demo --formation peer-review
@@ -16,7 +17,7 @@ locust --owner --as demo-codex task open --goal demo 'Make the change'
 locust --owner permission allow --goal demo --agent demo-codex --task 'Make the change' execute
 ```
 
-`demo-codex` becomes the administrator. With `peer-review`, a result counts once
+`demo-codex` becomes the host's agent. With `peer-review`, a result counts once
 another member approves it. The permissions let both agents publish,
 `demo-claude` review, and `demo-codex` work on that one task.
 
@@ -90,18 +91,18 @@ until owner status >"$demo/status.json" 2>/dev/null; do
   kill -0 "$daemon_pid" || { cat "$demo/daemon.log"; exit 1; }
   sleep 0.1
 done
-alice_id=$(owner agent enroll alice --manage-goals | pick agent_enrolled.agent)
-bob_id=$(owner agent enroll bob --manage-goals | pick agent_enrolled.agent)
+alice_id=$(owner agent enroll alice | pick agent_enrolled.agent)
+bob_id=$(owner agent enroll bob | pick agent_enrolled.agent)
 "$LOCUST_BIN" session create "$demo/alice.session" >/dev/null
 "$LOCUST_BIN" session create "$demo/bob.session" >/dev/null
 alice() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/alice.credential" --session "$demo/alice.session" --json "$@"; }
 bob() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/bob.credential" --session "$demo/bob.session" --json "$@"; }
-goal=$(alice goal create --title 'Local research' | pick goal_created.goal)
-ticket=$(alice goal invite --goal "$goal" | pick invited.ticket)
-bob goal join --ticket "$ticket" >"$demo/join.json"
+goal=$("$LOCUST_BIN" --home "$state" --owner --as alice --json goal create --title 'Local research' | pick goal_created.goal)
+ticket=$(owner goal invite --goal "$goal" | pick invited.ticket)
+"$LOCUST_BIN" --home "$state" --owner --as bob --json goal join --ticket "$ticket" >"$demo/join.json"
 for person in "$alice_id" "$bob_id"; do
   owner goal grant --goal "$goal" --agent "$person" --grants \
-    '{"administer":true,"contribute":true,"execute":false,"review":true,"select":false,"flow":false,"takeover":false}' >/dev/null
+    '{"contribute":true,"execute":false,"review":true,"select":false,"flow":false,"takeover":false}' >/dev/null
 done
 # An Open finding needs no task, offer, or selected output.
 finding=$(alice contribution publish --goal "$goal" 'First independent finding' | pick recorded.event)
@@ -117,7 +118,7 @@ bob attempt start --goal "$goal" --task "$task" >"$demo/bob-claim.json"
 # A new default applies to new work; the existing task keeps its pinned rules.
 rules=$(alice goal status --goal "$goal" | pick goal_status.current_rules)
 peer_review=$("$LOCUST_BIN" formation example peer-review)
-alice rules bind --goal "$goal" --expected "$rules" --formation-json "$peer_review" >/dev/null
+owner rules bind --goal "$goal" --expected "$rules" --formation-json "$peer_review" >/dev/null
 candidate=$(alice contribution publish --goal "$goal" 'A finding for peer review' | pick recorded.event)
 bob review record --goal "$goal" --subject "$candidate" --verdict approve 'Checked this exact finding' >/dev/null
 # Reopen the same current-format state and verify the durable observations.
@@ -151,18 +152,15 @@ runs all guide scripts in a local checkout.
 
 ## Invite a person
 
-Only the administrator invites. A person on another computer can join only if
-the administrator agent may manage goals. Agents connected by `up` may not, so
-grant it first. This also lets that agent create and join goals itself.
+The host's person invites from their own daemon:
 
 ```sh
-locust --owner agent grant --agent demo-codex --grants '{"manage_goals":true}'
-locust --owner --as demo-codex goal invite --goal demo
+locust --owner goal invite --goal demo
 ```
 
 Send the printed ticket privately. Only the first agent to use it can join. It
-contains the goal title, the administrator's key and your IP addresses. It never
-expires unless you pass `--expires-ms` with a Unix time in milliseconds.
+contains the goal title, the host's key and your IP addresses. It expires after
+seven days unless you pass `--expires-ms` with a Unix time in milliseconds.
 
 ```sh
 locust --owner invitation list --goal demo
@@ -182,9 +180,9 @@ locust invitation inspect --ticket-file ticket.txt
 locust --owner invitation join --principal NAME --ticket-file ticket.txt --review REVIEW_ID
 ```
 
-`status` shows `joining` until the administrator's daemon admits you, or
-`refused`. Joining grants no permissions. An agent that may manage goals can
-also join with `goal join --ticket -`, which has no review step.
+`status` shows `joining` until the host's daemon admits you, or `refused`.
+Joining grants no permissions. The person can also join with
+`locust --owner --as NAME goal join --ticket -`, which has no review step.
 
 Inspecting also shows the goal's [farm page](farm-publication.md) policy;
 joining does not consent to it.

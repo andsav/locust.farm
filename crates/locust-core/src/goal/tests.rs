@@ -177,7 +177,7 @@ fn review_formation(count: u32) -> Formation {
 }
 
 #[test]
-fn open_taskless_work_needs_no_administrator_decision() {
+fn open_taskless_work_needs_no_host_decision() {
     let mut f = Fixture::new(Formation::default());
     let context = f.context();
     let first = f.publish(0, context);
@@ -355,7 +355,7 @@ fn scope_equivocation_halts_only_that_stream_and_keeps_other_work() {
     assert_eq!(goal.standing(&first), Some(Standing::Disputed));
     assert_eq!(goal.standing(&second), Some(Standing::Disputed));
     assert_eq!(goal.evaluation().scope_halts.len(), 1);
-    assert!(goal.evaluation().admin_halt.is_none());
+    assert!(goal.evaluation().host_halt.is_none());
     assert_eq!(goal.standing(&open), Some(Standing::Effective));
 }
 
@@ -913,7 +913,7 @@ fn incompatible_proof_branches_dispute_only_their_scope() {
 }
 
 #[test]
-fn scope_proof_cannot_retain_evidence_past_the_administrator_cutoff() {
+fn scope_proof_cannot_retain_evidence_past_the_host_cutoff() {
     let mut f = Fixture::new(review_formation(1));
     let context = f.task();
     let subject = f.publish(0, context);
@@ -1530,7 +1530,7 @@ fn revised_stage_round_keeps_its_runner_as_creator_despite_a_member_copy_of_the_
         },
     );
     let mut f = Fixture::new(formation);
-    let administrator = f.admin.key.public();
+    let governance = f.admin.key.public();
     let stage = f
         .goal()
         .evaluation()
@@ -1539,9 +1539,9 @@ fn revised_stage_round_keeps_its_runner_as_creator_despite_a_member_copy_of_the_
         .next()
         .unwrap()
         .clone();
-    assert_eq!(stage.runner, administrator);
+    assert_eq!(stage.runner, governance);
     // A member signs the stage's effect at the start of its own log, below
-    // every position the administrator has left.
+    // every position the governance has left.
     let copy = f.worker(
         0,
         Body::EffectMaterialized {
@@ -1588,7 +1588,7 @@ fn revised_stage_round_keeps_its_runner_as_creator_despite_a_member_copy_of_the_
             goal.effective_rules(context, &f.definitions)
                 .unwrap()
                 .creator,
-            Some(administrator)
+            Some(governance)
         );
         assert!(matches!(
             goal.standing(&by_member),
@@ -1627,9 +1627,7 @@ fn host_review_fork_retracts_later_governance_but_preserves_prefix_work() {
     }
     let fork = f.fork(review, 1);
     goal.apply(&[f.event(fork).clone()], &f.definitions);
-    assert!(
-        matches!(goal.evaluation().admin_halt, Some(Halt::Fork { seq, .. }) if seq == fork_seq)
-    );
+    assert!(matches!(goal.evaluation().host_halt, Some(Halt::Fork { seq, .. }) if seq == fork_seq));
     assert_eq!(goal.state().head, Some(f.rules));
     for id in admissions {
         assert_eq!(

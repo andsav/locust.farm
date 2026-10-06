@@ -75,7 +75,7 @@ struct IdempotencyRecord {
 fn idempotency_key(caller: Caller, key: &IdempotencyKey) -> Vec<u8> {
     match caller {
         Caller::Owner => records::key(0, &[&key.0]),
-        Caller::Agent(principal) | Caller::Viewer(principal) | Caller::Author(principal) => {
+        Caller::Agent(principal) | Caller::Author(principal) => {
             records::key(1, &[&principal.0, &key.0])
         }
     }

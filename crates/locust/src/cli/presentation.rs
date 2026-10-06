@@ -49,7 +49,7 @@ fn scope(scope: Scope) -> String {
 fn halt(reason: Halt) -> &'static str {
     match reason {
         Halt::AuthorityConflict => {
-            "Blocked: conflicting authority history. Inspect the retained events with the goal administrator; decisions cannot advance."
+            "Blocked: conflicting authority history. Inspect the retained events with the goal host; decisions cannot advance."
         }
         Halt::SignerRecovery => {
             "Blocked: this daemon's signer is recovering. Restore its signed history before making further writes; reads remain available."
@@ -60,13 +60,13 @@ fn halt(reason: Halt) -> &'static str {
 fn membership_action(membership: Membership) -> Option<&'static str> {
     match membership {
         Membership::Joining => Some(
-            "Admission has not arrived. Check connectivity to the issuer and ask the goal administrator if admission remains pending.",
+            "Admission has not arrived. Check connectivity to the issuer and ask the goal host if admission remains pending.",
         ),
         Membership::Refused => Some(
-            "The invitation was refused. Ask the goal administrator for a fresh invitation, inspect it, and join again.",
+            "The invitation was refused. Ask the goal host for a fresh invitation, inspect it, and join again.",
         ),
         Membership::Removed => Some(
-            "This participant was removed. Ask the goal administrator about readmission; changing local permissions does not restore membership.",
+            "This participant was removed. Ask the goal host about readmission; changing local permissions does not restore membership.",
         ),
         Membership::Left => Some(
             "This participant left. To participate again, obtain and inspect a fresh invitation, then join again.",
@@ -77,11 +77,6 @@ fn membership_action(membership: Membership) -> Option<&'static str> {
 
 fn grant_rows(grants: GoalGrants) -> Vec<String> {
     [
-        (
-            "administer",
-            grants.administer,
-            "administer goal membership and rules",
-        ),
         (
             "contribute",
             grants.contribute,
@@ -412,7 +407,7 @@ pub(super) fn render(
             let mut lines = vec![format!("Daemon {}", safe(&status.daemon_version))];
             if let Some(endpoint) = status.endpoint { lines.push(format!("Endpoint {endpoint}")); }
             for agent in &status.agents {
-                lines.push(format!("Participant {} · credential {} · goal management {}", label(agent.agent, &status.agents), if agent.revoked { "revoked" } else { "active" }, if agent.grants.manage_goals { "allowed" } else { "not allowed" }));
+                lines.push(format!("Participant {} · credential {}", label(agent.agent, &status.agents), if agent.revoked { "revoked" } else { "active" }));
             }
             for goal in &status.goals {
                 lines.push(format!("Goal {} ({}) · {} · {}", safe(goal.title.as_deref().unwrap_or("Title unavailable")), goal.goal, label(goal.member, &status.agents), tag(&goal.membership)));
@@ -422,7 +417,7 @@ pub(super) fn render(
             lines
         }
         Response::GoalStatus(view) => {
-            let mut lines = vec![format!("{} ({})", safe(view.title.as_deref().unwrap_or("Title unavailable")), view.goal), format!("Administrator: {}", label(view.administrator, names))];
+            let mut lines = vec![format!("{} ({})", safe(view.title.as_deref().unwrap_or("Title unavailable")), view.goal), format!("Host: {}", label(view.host, names))];
             if let Some(reason) = view.halted { lines.push(halt(reason).into()); }
             for item in &view.scope_halts { lines.push(format!("{}: {}", scope(item.context.scope), halt(item.reason))); }
             for member in &view.members {
@@ -544,7 +539,7 @@ pub(super) fn render(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use locust_proto::api::{AgentView, Grants};
+    use locust_proto::api::AgentView;
 
     #[test]
     fn terminal_controls_and_bidi_never_reach_the_terminal() {
@@ -563,7 +558,7 @@ mod tests {
         let names = [AgentView {
             agent: key,
             name: "worker".into(),
-            grants: Grants::default(),
+            author_only: false,
             revoked: false,
         }];
         assert_eq!(label(key, &names), format!("worker ({key})"));
@@ -673,7 +668,7 @@ mod tests {
         let status = GoalStatus {
             goal,
             title: None,
-            administrator: agent,
+            host: agent,
             governance_head: None,
             current_rules: None,
             scope_halts: vec![],

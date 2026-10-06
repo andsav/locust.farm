@@ -23,7 +23,7 @@ mod workspace;
 use crate::{daemon, failure::Failure, secret};
 use clap::{ArgMatches, error::ErrorKind};
 use locust_proto::api::{
-    Credential, DaemonStatus, ErrorCode, Grants, Request, Response, SessionSecret, WaitOutcome,
+    Credential, DaemonStatus, ErrorCode, Request, Response, SessionSecret, WaitOutcome,
 };
 use locust_proto::client::Client;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
@@ -325,14 +325,32 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
                 .map_err(|error| Failure::internal(error.to_string()))?,
         );
     }
-    if !named_enrollment {
-        if generic_call {
-            request(&operation, fields.clone())?
-                .check()
-                .map_err(Failure::from)?;
-        } else {
-            validate_fields(&operation, &fields)?;
-        }
+    if !generic_call
+        && matches!(
+            operation.as_str(),
+            "goal.create" | "goal.join" | "goal.leave"
+        )
+        && (!matches.get_flag("owner") || matches.get_one::<String>("as").is_none())
+    {
+        return Err(Failure::usage(format!(
+            "{operation} requires --owner --as NAME"
+        )));
+    }
+    if !generic_call
+        && matches!(
+            operation.as_str(),
+            "goal.invite" | "member.remove" | "rules.bind" | "task.revise" | "workspace.epoch"
+        )
+        && matches.get_one::<String>("as").is_some()
+    {
+        return Err(Failure::usage(format!(
+            "{operation} is a host command and does not accept --as"
+        )));
+    }
+    if generic_call {
+        request(&operation, fields.clone())?
+            .check()
+            .map_err(Failure::from)?;
     }
     let mut client = connection::open(matches, &home)?;
     let socket = local::socket_path(&home)?;
@@ -358,11 +376,38 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             Failure::invalid(format!("agent credential {}: {error}", path.display()))
         })?);
         connection::read_secret(&path)?;
-        fields = if author_enrollment { json!({"name":name,"credential":credential.digest()}) } else { json!({"name": name, "grants": Grants { manage_goals: selected.get_flag("manage-goals") }, "credential": credential.digest()}) }.as_object().unwrap().clone();
+        fields = json!({"name": name, "credential": credential.digest()})
+            .as_object()
+            .unwrap()
+            .clone();
         Some(path)
     } else {
         None
     };
+    if !generic_call
+        && matches!(
+            operation.as_str(),
+            "goal.create" | "goal.join" | "goal.leave"
+        )
+    {
+        fields.insert("agent".into(), json!(on_behalf.expect("required --as")));
+    }
+    if !generic_call
+        && operation == "goal.invite"
+        && fields.get("expires_ms").is_none_or(Value::is_null)
+    {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| Failure::internal("system clock precedes the Unix epoch"))?
+            .as_millis() as u64;
+        fields.insert(
+            "expires_ms".into(),
+            json!(now.saturating_add(7 * 24 * 60 * 60 * 1000)),
+        );
+    }
+    if !named_enrollment && !generic_call {
+        validate_fields(&operation, &fields)?;
+    }
     if !generic_call && let Some(Value::String(goal)) = fields.get("goal") {
         let goal = resolve_goal(&mut client, &socket, goal, on_behalf)?;
         fields.insert("goal".to_owned(), json!(goal));
@@ -396,6 +441,21 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             "this operation requires an explicit --session file or LOCUST_SESSION",
         ));
     }
+    let on_behalf = if matches!(
+        operation.as_str(),
+        "goal.create"
+            | "goal.join"
+            | "goal.leave"
+            | "goal.invite"
+            | "member.remove"
+            | "rules.bind"
+            | "task.revise"
+            | "workspace.epoch"
+    ) {
+        None
+    } else {
+        on_behalf
+    };
     let response = client
         .call_with(request, idempotency, on_behalf)
         .map_err(|error| connection::client_error(error, &socket))?;
@@ -405,9 +465,7 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         _ => 0,
     };
     let response_principal = on_behalf.or(match client.caller() {
-        locust_proto::api::Caller::Agent(key)
-        | locust_proto::api::Caller::Viewer(key)
-        | locust_proto::api::Caller::Author(key) => Some(key),
+        locust_proto::api::Caller::Agent(key) | locust_proto::api::Caller::Author(key) => Some(key),
         locust_proto::api::Caller::Owner => None,
     });
     let names = if matches.get_flag("json") {
@@ -552,10 +610,10 @@ fn human(response: &Response, credential_path: Option<&Path>) -> String {
         Response::Invited { ticket } => ticket.as_str().to_owned(),
         Response::Joined {
             goal,
-            administrator,
+            governance,
             membership,
         } => format!(
-            "goal {goal}\nadministrator {administrator}\nmembership {}",
+            "goal {goal}\nhost {governance}\nmembership {}",
             stable_name(membership)
         ),
         Response::Claimed(claim) => format!(

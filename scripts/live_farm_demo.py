@@ -212,7 +212,7 @@ class Demo:
         enrolled_agents = {a["name"]: a["agent"] for a in self.call(["status"], owner=True)["status"]["agents"]}
         for role, (client, name) in ROLES.items():
             if role not in enrolled_agents:
-                enrolled_agents[role] = self.call(["agent", "enroll", role, "--manage-goals"], owner=True)["agent_enrolled"]["agent"]
+                enrolled_agents[role] = self.call(["agent", "enroll", role], owner=True)["agent_enrolled"]["agent"]
             self.data["agents"][role] = enrolled_agents[role]
             self.save()
             self.call(["session", "create", self.root / "sessions" / (role + ".secret")], owner=True)
@@ -227,23 +227,23 @@ class Demo:
             if len(existing) > 1:
                 raise RuntimeError("Multiple demo goals exist; choose the intended goal before retrying prepare")
             self.data["goal"] = (existing.pop() if existing else
-                                 self.call(["goal", "create", "--title", GOAL_TITLE])["goal_created"]["goal"])
+                                 self.call(["--as", "coordinator", "goal", "create", "--title", GOAL_TITLE], owner=True)["goal_created"]["goal"])
         self.save()
         goal = self.data["goal"]
         members = {m["member"] for m in self.call(["goal", "status", "--goal", goal])["goal_status"]["members"]}
         for role in ROLES:
             if self.data["agents"][role] not in members:
-                ticket = self.call(["goal", "invite", "--goal", goal])["invited"]["ticket"]
-                self.call(["goal", "join", "--ticket", ticket], role=role)
+                ticket = self.call(["goal", "invite", "--goal", goal], owner=True)["invited"]["ticket"]
+                self.call(["--as", role, "goal", "join", "--ticket", ticket], owner=True)
                 del ticket
-            grants = {"administer": role == "coordinator", "contribute": True, "review": True,
+            grants = {"contribute": True, "review": True,
                       "select": role == "coordinator", "execute": False, "flow": True, "takeover": False}
             self.call(["goal", "grant", "--goal", goal, "--agent", self.data["agents"][role],
                        "--grants", json.dumps(grants)], owner=True)
         if not self.data.get("rules_bound"):
             current = self.call(["goal", "status", "--goal", goal])["goal_status"]["current_rules"]
             self.call(["rules", "bind", "--goal", goal, "--expected", current,
-                       "--formation-json", formation, "--roles", json.dumps(roles)])
+                       "--formation-json", formation, "--roles", json.dumps(roles)], owner=True)
             self.data["rules_bound"] = True
             self.save()
         args = ["farm", "on", "--goal", goal, "--service", service, "--listed",
@@ -271,7 +271,7 @@ class Demo:
                 self.data["seed_key"] = uuid.uuid4().hex
                 self.save()
             preview = self.call(["--idempotency-key", self.data["seed_key"], "workspace", "init", "--goal", goal, "--root", base,
-                                 "--path", "README.md"])
+                                 "--path", "README.md"], owner=True)
             self.data["seed_operation"] = preview["operation"]["id"]
             self.save()
         if not self.data.get("seed_proposal"):
@@ -337,8 +337,8 @@ class Demo:
     def checkout(self, role, revision, destination):
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        result = self.call(["workspace", "checkout", "--goal", self.data["goal"],
-                            "--revision", revision, "--destination", destination], role=role)
+        result = self.call(["--as", role, "workspace", "checkout", "--goal", self.data["goal"],
+                            "--revision", revision, "--destination", destination], owner=True)
         self.data.setdefault("checkouts", {})[role] = result["checkout"]["id"]
         self.save()
         return result

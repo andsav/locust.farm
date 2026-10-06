@@ -2,7 +2,7 @@
 
 use locust_proto::API_VERSION;
 use locust_proto::api::{
-    Caller, ClientHello, Credential, ErrorCode, Grants, Request, Response, ServerHello,
+    Caller, ClientHello, Credential, ErrorCode, Request, Response, ServerHello,
 };
 use locust_proto::engine::{ConnId, Engine, PeerEngine};
 
@@ -42,7 +42,7 @@ fn another_api_version_is_refused_as_unsupported() {
 #[test]
 fn an_enrolled_agent_is_welcomed_as_its_principal() {
     let mut daemon = Daemon::new(1);
-    let agent = daemon.enroll("mira", 1, false);
+    let agent = daemon.enroll("mira", 1);
     let (_, answer) = daemon.hello(credential(1), Some(session(1)));
     assert_eq!(caller_of(&answer), Some(Caller::Agent(agent)));
 }
@@ -50,21 +50,20 @@ fn an_enrolled_agent_is_welcomed_as_its_principal() {
 #[test]
 fn enrolling_again_with_the_same_name_and_credential_returns_the_same_principal() {
     let mut daemon = Daemon::new(1);
-    let first = daemon.enroll("mira", 1, false);
-    let second = daemon.enroll("mira", 1, false);
+    let first = daemon.enroll("mira", 1);
+    let second = daemon.enroll("mira", 1);
     assert_eq!(first, second);
 }
 
 #[test]
 fn a_taken_name_with_another_credential_is_a_conflict() {
     let mut daemon = Daemon::new(1);
-    daemon.enroll("mira", 1, false);
+    daemon.enroll("mira", 1);
     let owner = daemon.owner();
     let refused = daemon.call(
         owner,
         Request::AgentEnroll {
             name: "mira".into(),
-            grants: Grants::default(),
             credential: credential(2).digest(),
         },
     );
@@ -74,14 +73,13 @@ fn a_taken_name_with_another_credential_is_a_conflict() {
 #[test]
 fn a_credential_that_already_names_something_is_a_conflict() {
     let mut daemon = Daemon::new(1);
-    daemon.enroll("mira", 1, false);
+    daemon.enroll("mira", 1);
     let owner = daemon.owner();
     for taken in [credential(1), OWNER] {
         let refused = daemon.call(
             owner,
             Request::AgentEnroll {
                 name: "noor".into(),
-                grants: Grants::default(),
                 credential: taken.digest(),
             },
         );
@@ -97,7 +95,6 @@ fn an_invalid_name_is_refused_before_anything_else() {
         owner,
         Request::AgentEnroll {
             name: "Mira".into(),
-            grants: Grants::default(),
             credential: credential(1).digest(),
         },
     );
@@ -107,7 +104,7 @@ fn an_invalid_name_is_refused_before_anything_else() {
 #[test]
 fn an_agent_may_not_make_owner_only_requests() {
     let mut daemon = Daemon::new(1);
-    daemon.enroll("mira", 1, false);
+    daemon.enroll("mira", 1);
     let agent = daemon.connect(credential(1), None);
     assert_eq!(
         code(daemon.call(agent, Request::Shutdown)),
@@ -119,7 +116,7 @@ fn an_agent_may_not_make_owner_only_requests() {
 #[test]
 fn an_agent_naming_on_behalf_is_denied() {
     let mut daemon = Daemon::new(1);
-    let mira = daemon.enroll("mira", 1, false);
+    let mira = daemon.enroll("mira", 1);
     let agent = daemon.connect(credential(1), None);
     let refused = daemon.on_behalf(agent, mira, Request::Status);
     assert_eq!(code(refused), ErrorCode::Denied);
@@ -128,7 +125,7 @@ fn an_agent_naming_on_behalf_is_denied() {
 #[test]
 fn the_owner_naming_on_behalf_on_an_owner_only_request_is_invalid() {
     let mut daemon = Daemon::new(1);
-    let mira = daemon.enroll("mira", 1, false);
+    let mira = daemon.enroll("mira", 1);
     let owner = daemon.owner();
     let refused = daemon.on_behalf(owner, mira, Request::Shutdown);
     assert_eq!(code(refused), ErrorCode::Invalid);
@@ -146,8 +143,8 @@ fn the_owner_naming_an_unknown_principal_is_not_found() {
 #[test]
 fn status_shows_the_owner_every_principal_and_an_agent_only_itself() {
     let mut daemon = Daemon::new(1);
-    let mira = daemon.enroll("mira", 1, true);
-    let noor = daemon.enroll("noor", 2, false);
+    let mira = daemon.enroll("mira", 1);
+    let noor = daemon.enroll("noor", 2);
 
     let owner = daemon.owner();
     let Response::Status(status) = daemon.ok(owner, Request::Status) else {
@@ -168,7 +165,7 @@ fn status_shows_the_owner_every_principal_and_an_agent_only_itself() {
     assert_eq!(status.agents.len(), 1);
     assert_eq!(status.agents[0].agent, mira);
     assert_eq!(status.agents[0].name, "mira");
-    assert!(status.agents[0].grants.manage_goals);
+    assert!(!status.agents[0].author_only);
 }
 
 #[test]
@@ -190,7 +187,7 @@ fn a_request_on_an_unwelcomed_connection_is_denied() {
 #[test]
 fn a_restart_keeps_the_endpoint_secret_and_the_principals() {
     let mut daemon = Daemon::new(1);
-    let mira = daemon.enroll("mira", 1, false);
+    let mira = daemon.enroll("mira", 1);
     let secret = daemon.node.endpoint_secret();
     assert_ne!(secret, [0; 32]);
 
@@ -199,7 +196,7 @@ fn a_restart_keeps_the_endpoint_secret_and_the_principals() {
     let (_, answer) = daemon.hello(credential(1), None);
     assert_eq!(caller_of(&answer), Some(Caller::Agent(mira)));
     // The same enrollment still answers with the same principal.
-    assert_eq!(daemon.enroll("mira", 1, false), mira);
+    assert_eq!(daemon.enroll("mira", 1), mira);
 }
 
 #[test]

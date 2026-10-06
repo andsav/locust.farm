@@ -26,7 +26,7 @@ fn offline_removed_member_retries_refused_peers_and_fresh_ticket_returns_stale_m
     let removal = r
         .record(
             0,
-            Who::Agent,
+            Who::Owner,
             "remove",
             Request::MemberRemove { goal, member },
         )
@@ -36,10 +36,10 @@ fn offline_removed_member_retries_refused_peers_and_fresh_ticket_returns_stale_m
     let Response::Invited { ticket } = r
         .op(
             0,
-            Who::Agent,
+            Who::Owner,
             Request::GoalInvite {
                 goal,
-                expires_ms: None,
+                expires_ms: r.w.wall_ms(0) + 7 * 24 * 60 * 60 * 1_000,
             },
         )
         .unwrap()
@@ -82,7 +82,15 @@ fn offline_removed_member_retries_refused_peers_and_fresh_ticket_returns_stale_m
         .unwrap()
         .len();
     assert!(matches!(
-        r.op(2, Who::Agent, Request::GoalJoin { ticket }).unwrap(),
+        r.op(
+            2,
+            Who::Owner,
+            Request::GoalJoin {
+                agent: member,
+                ticket
+            }
+        )
+        .unwrap(),
         Response::Joined {
             membership: Membership::Member,
             ..
@@ -106,7 +114,15 @@ fn leave_is_visible_in_events_and_replication_and_rotated_keys_continue_until_re
     let goal = r.goal();
     let member = r.principals[1];
     let leave = r
-        .record(1, Who::Agent, "leave", Request::GoalLeave { goal })
+        .record(
+            1,
+            Who::Owner,
+            "leave",
+            Request::GoalLeave {
+                goal,
+                agent: member,
+            },
+        )
         .unwrap();
     r.w.run_for(60 * SEC);
     let Response::Events(events) = r
@@ -145,7 +161,7 @@ fn leave_is_visible_in_events_and_replication_and_rotated_keys_continue_until_re
     let other = r.principals[2];
     r.record(
         0,
-        Who::Agent,
+        Who::Owner,
         "rotate",
         Request::MemberRemove {
             goal,
@@ -164,7 +180,7 @@ fn leave_is_visible_in_events_and_replication_and_rotated_keys_continue_until_re
     assert!(r.shows_finding(1, finding, "after leave and rotation"));
     r.record(
         0,
-        Who::Agent,
+        Who::Owner,
         "remove leaver",
         Request::MemberRemove { goal, member },
     )

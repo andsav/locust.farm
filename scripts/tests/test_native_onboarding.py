@@ -85,9 +85,9 @@ class NativeOnboardingTests(unittest.TestCase):
             with self.assertRaises(ProductionError):
                 self.daemon.retry()
 
-    def test_initial_authority_rejected_before_fixture_grant(self):
-        with patch.object(self.daemon, "onboard", return_value=self.row), patch.object(self.daemon, "call", return_value={"status": {"agents": [{"agent": self.row["principal"], "grants": {"manage_goals": True}}]}}) as call:
-            with self.assertRaisesRegex(ProductionError, "granted work authority"):
+    def test_author_only_identity_rejected_before_fixture_work(self):
+        with patch.object(self.daemon, "onboard", return_value=self.row), patch.object(self.daemon, "call", return_value={"status": {"agents": [{"agent": self.row["principal"], "author_only": True}]}}) as call:
+            with self.assertRaisesRegex(ProductionError, "wrong kind"):
                 self.daemon._enroll_identity()
             self.assertEqual(call.call_count, 1)
 
@@ -107,14 +107,12 @@ class NativeOnboardingTests(unittest.TestCase):
             with self.assertRaisesRegex(ProductionError, "changed enrolled identity"):
                 self.daemon.retry(after_native=True)
 
-    def test_fixture_authority_uses_current_agent_grants_contract(self):
-        agents = {"status": {"agents": [{"agent": self.row["principal"], "grants": {"manage_goals": False}}]}}
+    def test_fixture_accepts_an_active_agent_without_a_grant_command(self):
+        agents = {"status": {"agents": [{"agent": self.row["principal"], "author_only": False}]}}
         with patch.object(self.daemon, "onboard", return_value=self.row), patch.object(self.daemon, "call", return_value=agents) as call:
             self.daemon._enroll_identity()
-        arguments = call.call_args.args[0]
-        self.assertEqual(arguments[:4], ["agent", "grant", "--agent", self.row["principal"]])
-        self.assertEqual(arguments[4], "--grants")
-        self.assertEqual(json.loads(arguments[5]), {"manage_goals": True})
+        self.assertTrue(self.daemon.onboarding["active_agent_enrolled"])
+        self.assertTrue(all(entry.args[0] == ["status"] for entry in call.call_args_list))
 
     def test_doctor_requires_all_checks_exact_identity_and_unverified_discovery(self):
         self.daemon.principal, self.daemon.instance = self.row["principal"], self.row["instance"]

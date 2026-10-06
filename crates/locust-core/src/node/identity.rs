@@ -3,13 +3,13 @@
 //! `Space::Identity` holds the endpoint secret, the digest of the owner
 //! credential and the transport's last reported endpoint and hints.
 //! `Space::Agent` holds one record per principal, keyed by its public key,
-//! and one per viewer credential, keyed by the credential's digest. The index
+//! The index
 //! from a principal's credential digest to the principal is rebuilt from the
 //! principal records when they are loaded, so it cannot disagree with them.
 
 use std::collections::{BTreeMap, HashMap};
 
-use locust_proto::api::{AgentView, Caller, Grants};
+use locust_proto::api::{AgentView, Caller};
 use locust_proto::crypto::Keypair;
 use locust_proto::id::{EndpointId, PublicKey};
 use locust_proto::store::{LocalWrite, Space, StoreError};
@@ -22,7 +22,6 @@ const OWNER_CREDENTIAL: &[u8] = b"owner-credential";
 const ENDPOINT: &[u8] = b"endpoint";
 
 const PRINCIPAL: u8 = b'p';
-const VIEWER: u8 = b'v';
 
 /// The transport's identity and how to reach it, as last reported by the
 /// shell. Stored so an invitation can be issued before the transport reports
@@ -78,7 +77,6 @@ pub(super) struct PrincipalRecord {
     pub seed: [u8; 32],
     /// Digest of the principal's credential.
     pub credential: [u8; 32],
-    pub grants: Grants,
     pub revoked: bool,
     pub author_only: bool,
 }
@@ -95,7 +93,7 @@ impl Principal {
         AgentView {
             agent: self.key.public(),
             name: self.record.name.clone(),
-            grants: self.record.grants,
+            author_only: self.record.author_only,
             revoked: self.record.revoked,
         }
     }
@@ -106,7 +104,7 @@ impl Principal {
 pub(super) struct Principals {
     by_key: BTreeMap<PublicKey, Principal>,
     by_name: BTreeMap<String, PublicKey>,
-    /// Agent and viewer credentials. A revoked principal's entries stay, so
+    /// Agent credentials. A revoked principal's entries stay, so
     /// the digest stays taken; resolution checks the revoked flag.
     by_credential: HashMap<[u8; 32], Caller>,
 }
@@ -114,10 +112,6 @@ pub(super) struct Principals {
 impl Principals {
     pub fn principal_write(key: &PublicKey, record: &PrincipalRecord) -> LocalWrite {
         records::put(Space::Agent, records::key(PRINCIPAL, &[&key.0]), record)
-    }
-
-    pub fn viewer_write(credential: &[u8; 32], principal: &PublicKey) -> LocalWrite {
-        records::put(Space::Agent, records::key(VIEWER, &[credential]), principal)
     }
 
     /// Applies one committed write of `Space::Agent`.
@@ -144,12 +138,6 @@ impl Principals {
                         key: keypair,
                     },
                 );
-            }
-            Some(&VIEWER) => {
-                let credential = records::part(key, 1).ok_or_else(records::bad_key)?;
-                let principal: PublicKey = records::read(value)?;
-                self.by_credential
-                    .insert(credential, Caller::Viewer(principal));
             }
             _ => return Err(records::bad_key()),
         }

@@ -11,10 +11,10 @@ use locust_proto::store::{Space, Store};
 
 #[test]
 fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart() {
-    let (mut daemon, _, _, administrator, goal) = setup();
-    let (_, member) = super::authorization::join_local(&mut daemon, administrator, goal, 2);
+    let (mut daemon, _, owner, governance, goal) = setup();
+    let (member_key, member) = super::authorization::join_local(&mut daemon, governance, goal, 2);
     let first = event(daemon.ok(
-        administrator,
+        governance,
         Request::DocRevise {
             goal,
             doc: Doc::Plan,
@@ -32,7 +32,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
         },
     ));
     daemon.ok(
-        administrator,
+        governance,
         Request::ReviewRecord {
             goal,
             subject: first,
@@ -41,7 +41,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
         },
     );
     daemon.ok(
-        administrator,
+        governance,
         Request::ScopeSelect {
             goal,
             subject: first,
@@ -50,7 +50,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     );
     assert_eq!(
         code(daemon.call(
-            administrator,
+            governance,
             Request::ScopeSelect {
                 goal,
                 subject: competing,
@@ -63,9 +63,15 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     let hash = competing_wire.header().payload.unwrap().hash;
     let sealed = daemon.store.blob(&hash).unwrap().unwrap();
     daemon.ok(member, Request::BlobWithdraw { goal, hash });
-    daemon.ok(member, Request::GoalLeave { goal });
+    daemon.ok(
+        owner,
+        Request::GoalLeave {
+            goal,
+            agent: member_key,
+        },
+    );
     daemon.restart();
-    let administrator = daemon.connect(credential(1), None);
+    let governance = daemon.connect(credential(1), None);
     let member = daemon.connect(credential(2), None);
     assert_eq!(
         daemon.store.event(&competing).unwrap(),
@@ -73,7 +79,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     );
     assert_eq!(daemon.store.blob(&hash).unwrap(), Some(sealed));
     let Response::Event(detail) = daemon.ok(
-        administrator,
+        governance,
         Request::Event {
             goal,
             event: competing,
@@ -83,7 +89,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     };
     assert_eq!(detail.text, None);
     let Response::Doc(view) = daemon.ok(
-        administrator,
+        governance,
         Request::DocRead {
             goal,
             doc: Doc::Plan,
@@ -107,7 +113,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
     );
     assert_eq!(
         code(daemon.call(
-            administrator,
+            governance,
             Request::ScopeSelect {
                 goal,
                 subject: competing,
@@ -120,7 +126,7 @@ fn stale_document_revision_remains_inspectable_after_accept_withdraw_and_restart
 
 #[test]
 fn content_put_get_scope_withdrawal_and_reput_survive_restart() {
-    let (mut daemon, _, _, agent, goal) = setup();
+    let (mut daemon, principal, owner, agent, goal) = setup();
     let bytes = b"private local output".to_vec();
     let Response::BlobStored { hash } = daemon.ok(
         agent,
@@ -139,8 +145,9 @@ fn content_put_get_scope_withdrawal_and_reput_survive_restart() {
     );
     assert_ne!(daemon.store.blob(&hash).unwrap().unwrap(), bytes);
     let Response::GoalCreated { goal: other } = daemon.ok(
-        agent,
+        owner,
         Request::GoalCreate {
+            agent: principal,
             title: "Other".into(),
             formation_json: None,
             roles: Default::default(),
@@ -201,8 +208,8 @@ fn content_put_get_scope_withdrawal_and_reput_survive_restart() {
 }
 
 #[test]
-fn missing_content_read_records_want_only_for_nonviewers() {
-    let (mut daemon, principal, owner, agent, goal) = setup();
+fn missing_content_read_records_a_want() {
+    let (mut daemon, _, _, agent, goal) = setup();
     let hash = BlobHash([91; 32]);
     daemon.ok(
         agent,
@@ -214,20 +221,7 @@ fn missing_content_read_records_want_only_for_nonviewers() {
             inputs: std::collections::BTreeMap::from([("workspace".into(), hash)]),
         },
     );
-    daemon.ok(
-        owner,
-        Request::ViewerEnroll {
-            agent: principal,
-            credential: credential(9).digest(),
-        },
-    );
-    let viewer = daemon.connect(credential(9), None);
     let before = daemon.store.scan(Space::Blob, &[]).unwrap();
-    assert_eq!(
-        code(daemon.call(viewer, Request::BlobGet { goal, hash })),
-        ErrorCode::Unavailable
-    );
-    assert_eq!(daemon.store.scan(Space::Blob, &[]).unwrap(), before);
     assert_eq!(
         code(daemon.call(agent, Request::BlobGet { goal, hash })),
         ErrorCode::Unavailable
@@ -387,19 +381,19 @@ fn withdrawn_shared_payload_disappears_from_all_text_views() {
 
 #[test]
 fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
-    let (mut daemon, principal, _, agent, goal) = setup();
+    let (mut daemon, principal, owner, _agent, goal) = setup();
     let Response::Invited { ticket } = daemon.ok(
-        agent,
+        owner,
         Request::GoalInvite {
             goal,
-            expires_ms: Some(5000),
+            expires_ms: 5000,
         },
     ) else {
         panic!()
     };
     let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
     assert_eq!(invitation.goal, goal);
-    assert_eq!(invitation.administrator, principal);
+    assert_eq!(invitation.governance, principal);
     let rows = daemon.store.scan(Space::Invite, &[]).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].0, invitation.secret.digest());
@@ -410,7 +404,13 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
             .any(|part| part == invitation.secret.0)
     );
     let count = daemon.store.log(&goal, 0, 256).unwrap().len();
-    let Response::Joined { membership, .. } = daemon.ok(agent, Request::GoalJoin { ticket }) else {
+    let Response::Joined { membership, .. } = daemon.ok(
+        owner,
+        Request::GoalJoin {
+            agent: principal,
+            ticket,
+        },
+    ) else {
         panic!()
     };
     assert_eq!(membership, Membership::Member);
@@ -418,13 +418,13 @@ fn invitation_issuer_stores_digest_and_repeated_local_join_is_read_only() {
 }
 
 #[test]
-fn pending_join_cannot_relabel_the_administrator() {
-    let (mut issuer, administrator, _, agent, goal) = setup();
+fn pending_join_cannot_relabel_the_host() {
+    let (mut issuer, governance, owner, _agent, goal) = setup();
     let Response::Invited { ticket } = issuer.ok(
-        agent,
+        owner,
         Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: 604_801_000,
         },
     ) else {
         panic!()
@@ -441,32 +441,40 @@ fn pending_join_cannot_relabel_the_administrator() {
         },
         &mut Vec::new(),
     );
-    joining.enroll("joining", 2, true);
-    let actor = joining.connect(credential(2), None);
+    let joiner = joining.enroll("joining", 2);
+    let actor = joining.owner();
     joining.ok(
         actor,
         Request::GoalJoin {
+            agent: joiner,
             ticket: ticket.clone(),
         },
     );
     let mut altered = Invitation::from_ticket(ticket.as_str()).unwrap();
-    let other_administrator = locust_proto::crypto::Keypair::from_seed([99; 32]);
-    altered.administrator = other_administrator.public();
-    altered.sign(&other_administrator).unwrap();
+    let other_host = locust_proto::crypto::Keypair::from_seed([99; 32]);
+    altered.governance = other_host.public();
+    altered.sign(&other_host).unwrap();
     assert_eq!(
         code(joining.call(
             actor,
             Request::GoalJoin {
+                agent: joiner,
                 ticket: altered.to_ticket().unwrap(),
             }
         )),
         ErrorCode::Conflict
     );
     assert_eq!(
-        joining.ok(actor, Request::GoalJoin { ticket }),
+        joining.ok(
+            actor,
+            Request::GoalJoin {
+                agent: joiner,
+                ticket
+            }
+        ),
         Response::Joined {
             goal,
-            administrator,
+            governance,
             membership: Membership::Joining,
         }
     );

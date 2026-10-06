@@ -256,7 +256,7 @@ class ProductionDaemon:
             raise ProductionError("production daemon did not exit cleanly")
 
     def _enroll_identity(self):
-        enrolled = self.call(["agent", "enroll", "qualification", "--manage-goals"], owner=True)
+        enrolled = self.call(["agent", "enroll", "qualification"], owner=True)
         self.principal = enrolled.get("agent_enrolled", {}).get("agent")
         if not isinstance(self.principal, str) or not PUBLIC_ID.fullmatch(self.principal):
             raise ProductionError("production enrollment did not return a principal")
@@ -274,15 +274,15 @@ class ProductionDaemon:
                     raise ProductionError("production authentication files are not private 32-byte secrets")
             formation = self.call(["formation", "example", "coordinator"])
             formation["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
-            created = self.call(["goal", "create", "--title", "Production client qualification",
-                "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [self.principal]})])
+            created = self.call(["--as", "qualification", "goal", "create", "--title", "Production client qualification",
+                "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [self.principal]})], owner=True)
             self.goal = created.get("goal_created", {}).get("goal")
             if not isinstance(self.goal, str) or not PUBLIC_ID.fullmatch(self.goal):
                 raise ProductionError("production goal creation did not return a goal")
             self.call(["goal", "grant", "--goal", self.goal, "--agent", self.principal,
-                "--grants", json.dumps({"administer": True, "contribute": True, "review": True, "select": True, "execute": False, "flow": True, "takeover": False})], owner=True)
+                "--grants", json.dumps({"contribute": True, "review": True, "select": True, "execute": False, "flow": True, "takeover": False})], owner=True)
             self._record("fixture_ready", principal=self.principal, goal=self.goal,
-                         role="same_principal_worker_and_administrator", execute_granted=False)
+                         role="same_principal_worker_and_host_agent", execute_granted=False)
             return self
         except BaseException:
             try:
@@ -298,7 +298,7 @@ class ProductionDaemon:
             self._start()
             status = self.call(["goal", "status", "--goal", self.goal])
             persisted = status.get("goal_status", {})
-            if persisted.get("goal") != self.goal or persisted.get("administrator") != self.principal:
+            if persisted.get("goal") != self.goal or persisted.get("host") != self.principal:
                 raise ProductionError("production goal did not survive restart")
             self._record("restart_verified", principal=self.principal, goal=self.goal,
                          endpoint=self.endpoint)

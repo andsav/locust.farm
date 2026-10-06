@@ -1,6 +1,6 @@
 //! Daemon-wide requests: status, stopping, and enrolling principals.
 
-use locust_proto::api::{ApiError, DaemonStatus, ErrorCode, Grants, Response};
+use locust_proto::api::{ApiError, DaemonStatus, ErrorCode, Response};
 use locust_proto::crypto::Keypair;
 use locust_proto::engine::Entropy;
 use locust_proto::store::Store;
@@ -49,22 +49,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
 
     /// `agent.enroll`: a new principal under a credential the client already
     /// stored. The daemon generates and keeps the signing key.
-    pub(super) fn agent_enroll(&self, name: String, grants: Grants, credential: [u8; 32]) -> Plan {
-        self.enroll(name, grants, credential, false)
+    pub(super) fn agent_enroll(&self, name: String, credential: [u8; 32]) -> Plan {
+        self.enroll(name, credential, false)
     }
     pub(super) fn author_enroll(&self, name: String, credential: [u8; 32]) -> Plan {
-        self.enroll(name, Grants::default(), credential, true)
+        self.enroll(name, credential, true)
     }
-    fn enroll(
-        &self,
-        name: String,
-        grants: Grants,
-        credential: [u8; 32],
-        author_only: bool,
-    ) -> Plan {
+    fn enroll(&self, name: String, credential: [u8; 32], author_only: bool) -> Plan {
         if let Some(existing) = self.principals.by_name(&name) {
             return if existing.record.credential == credential
-                && existing.record.grants == grants
                 && existing.record.author_only == author_only
                 && !existing.record.revoked
             {
@@ -96,7 +89,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
             name,
             seed: key.seed(),
             credential,
-            grants,
             revoked: false,
             author_only,
         };
@@ -114,22 +106,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
-    pub(super) fn agent_grant(&self, agent: locust_proto::id::PublicKey, grants: Grants) -> Plan {
-        let mut record = self
-            .principals
-            .active(&agent)
-            .ok_or_else(|| super::super::access::not_found("no active principal has that key"))?
-            .record
-            .clone();
-        record.grants = grants;
-        let mut tx = Tx::none();
-        tx.local(Principals::principal_write(&agent, &record));
-        Ok(Planned {
-            response: Response::Done,
-            tx,
-        })
-    }
-
     pub(super) fn agent_revoke(&self, agent: locust_proto::id::PublicKey) -> Plan {
         let mut record = self
             .principals
@@ -145,33 +121,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 tx.touch(*goal);
             }
         }
-        Ok(Planned {
-            response: Response::Done,
-            tx,
-        })
-    }
-
-    pub(super) fn viewer_enroll(
-        &self,
-        agent: locust_proto::id::PublicKey,
-        credential: [u8; 32],
-    ) -> Plan {
-        use locust_proto::api::Caller;
-        if self.principals.active(&agent).is_none() {
-            return Err(super::super::access::not_found(
-                "no active principal has that key",
-            ));
-        }
-        if self.principals.credential(&credential) == Some(Caller::Viewer(agent)) {
-            return answer(Response::Done);
-        }
-        if credential == self.identity.owner || self.principals.credential(&credential).is_some() {
-            return Err(super::super::access::conflict(
-                "the credential is already in use",
-            ));
-        }
-        let mut tx = Tx::none();
-        tx.local(Principals::viewer_write(&credential, &agent));
         Ok(Planned {
             response: Response::Done,
             tx,

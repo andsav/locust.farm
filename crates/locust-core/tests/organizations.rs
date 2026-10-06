@@ -68,7 +68,6 @@ impl Harness {
             h.owner,
             Request::AgentEnroll {
                 name: "agent".into(),
-                grants: Grants { manage_goals: true },
                 credential: Credential([2; 32]).digest(),
             },
         ) else {
@@ -126,8 +125,9 @@ impl Harness {
             .map(|role| (role.clone(), vec![self.principal]))
             .collect();
         let Response::GoalCreated { goal } = self.ok(
-            self.agent,
+            self.owner,
             Request::GoalCreate {
+                agent: self.principal,
                 title: "Goal".into(),
                 formation_json: Some(serde_json::to_string(&formation).unwrap()),
                 roles,
@@ -145,7 +145,6 @@ impl Harness {
                 goal,
                 agent: self.principal,
                 grants: GoalGrants {
-                    administer: true,
                     contribute: true,
                     execute: true,
                     review: true,
@@ -560,8 +559,9 @@ fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
         key: h.principal.to_string(),
     });
     let Response::GoalCreated { goal } = h.ok(
-        h.agent,
+        h.owner,
         Request::GoalCreate {
+            agent: h.principal,
             title: "Causal closure".into(),
             formation_json: Some(serde_json::to_string(&formation).unwrap()),
             roles: BTreeMap::new(),
@@ -661,7 +661,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
         .unwrap()
         .formation;
     let new_rules = recorded(h.ok(
-        h.agent,
+        h.owner,
         Request::RulesBind {
             goal,
             expected: old_rules,
@@ -682,7 +682,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
         },
     ));
     let revised = recorded(h.ok(
-        h.agent,
+        h.owner,
         Request::TaskRevise {
             goal,
             task: TaskId::Authored(child),

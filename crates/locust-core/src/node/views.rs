@@ -39,7 +39,7 @@ impl Entry {
     pub fn halted(&self) -> Option<api::Halt> {
         self.goal
             .evaluation()
-            .admin_halt
+            .host_halt
             .as_ref()
             .map(|_| api::Halt::AuthorityConflict)
     }

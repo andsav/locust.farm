@@ -15,8 +15,9 @@ fn missing_key() -> (
     let a = net.nodes[0].connect(credential(1), None);
     let (removed, _) = crate::node::tests::authorization::join_local(&mut net.nodes[0], a, goal, 3);
     net.poll(60_000);
+    let owner = net.nodes[0].owner();
     let removal = event(net.nodes[0].ok(
-        a,
+        owner,
         Request::MemberRemove {
             goal,
             member: removed,
@@ -75,7 +76,13 @@ fn undelivered_removal_key_blocks_survivor_text_but_host_can_write_and_survivor_
     assert_eq!(authored.header().payload.unwrap().key_epoch, 1);
     // A keyless signature still commits during the outage.
     let leave = net.nodes[1]
-        .on_behalf(owner, survivor, Request::GoalLeave { goal })
+        .call(
+            owner,
+            Request::GoalLeave {
+                goal,
+                agent: survivor,
+            },
+        )
         .unwrap();
     let leave = event(leave);
     assert!(

@@ -21,7 +21,7 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
         },
         &mut Vec::new(),
     );
-    let principal = daemon.enroll("administrator", 1, true);
+    let principal = daemon.enroll("host", 1);
     let owner = daemon.owner();
     let agent = daemon.connect(credential(1), Some(session(1)));
     let mut formation = locust_proto::organization::presets()
@@ -37,8 +37,9 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
         },
     );
     let Response::GoalCreated { goal } = daemon.ok(
-        agent,
+        owner,
         Request::GoalCreate {
+            agent: principal,
             title: "A test goal".into(),
             formation_json: Some(serde_json::to_string(&formation).unwrap()),
             roles: std::collections::BTreeMap::from([("coordinator".into(), vec![principal])]),
@@ -53,7 +54,6 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
             goal,
             agent: principal,
             grants: GoalGrants {
-                administer: true,
                 contribute: true,
                 review: true,
                 select: true,
@@ -372,68 +372,6 @@ fn cancellation_requires_holder_generation_and_is_not_completion_evidence() {
 }
 
 #[test]
-fn viewer_reads_are_observational_and_revocation_is_immediate() {
-    let (mut d, p, owner, a, goal) = setup();
-    let (task, _) = offered(&mut d, a, goal, p);
-    d.ok(
-        owner,
-        Request::ViewerEnroll {
-            agent: p,
-            credential: credential(9).digest(),
-        },
-    );
-    let viewer = d.connect(credential(9), None);
-    assert!(matches!(
-        d.ok(viewer, Request::Task { goal, task }),
-        Response::Task(_)
-    ));
-    assert_eq!(code(d.call(viewer, finding(goal, "no"))), ErrorCode::Denied);
-    let before = d.ok(
-        a,
-        Request::Events {
-            goal,
-            after: None,
-            limit: 256,
-        },
-    );
-    d.ok(
-        viewer,
-        Request::Events {
-            goal,
-            after: Some(500),
-            limit: 256,
-        },
-    );
-    assert_eq!(
-        d.ok(
-            a,
-            Request::Events {
-                goal,
-                after: None,
-                limit: 256
-            }
-        ),
-        before
-    );
-    assert!(matches!(
-        d.hello(credential(9), Some(session(9))).1,
-        ServerHello::Refused {
-            error: ApiError {
-                code: ErrorCode::Invalid,
-                ..
-            },
-            ..
-        }
-    ));
-    d.ok(owner, Request::AgentRevoke { agent: p });
-    assert_eq!(
-        code(d.call(viewer, Request::Board { goal })),
-        ErrorCode::Denied
-    );
-    assert_eq!(code(d.call(a, Request::Board { goal })), ErrorCode::Denied);
-}
-
-#[test]
 fn sessions_survive_restart_drop_requires_finished_claim_and_binding_is_permanent() {
     let (mut d, p, owner, a, goal) = setup();
     let record = SessionRecord {
@@ -494,7 +432,7 @@ fn sessions_survive_restart_drop_requires_finished_claim_and_binding_is_permanen
             instance: session(1).instance(),
         },
     );
-    d.enroll("other", 2, false);
+    d.enroll("other", 2);
     let other = d.connect(credential(2), Some(session(1)));
     assert_eq!(
         code(d.call(other, Request::SessionReport { record })),
@@ -560,17 +498,17 @@ fn document_review_and_idempotent_finding_survive_replay() {
 
 #[test]
 fn removal_seals_new_epoch_proof_and_stops_member_writes() {
-    let (mut d, p, _, a, goal) = setup();
+    let (mut d, p, owner, a, goal) = setup();
     assert_eq!(
-        code(d.call(a, Request::MemberRemove { goal, member: p })),
+        code(d.call(owner, Request::MemberRemove { goal, member: p })),
         ErrorCode::Conflict
     );
     assert_eq!(
-        code(d.call(a, Request::GoalLeave { goal })),
+        code(d.call(owner, Request::GoalLeave { goal, agent: p })),
         ErrorCode::Conflict
     );
     let (member, conn) = super::authorization::join_local(&mut d, a, goal, 2);
-    let removal = event(d.ok(a, Request::MemberRemove { goal, member }));
+    let removal = event(d.ok(owner, Request::MemberRemove { goal, member }));
     let event = d.store.event(&removal).unwrap().unwrap();
     let payload = event.header().payload.unwrap();
     assert_eq!(payload.key_epoch, 1);
@@ -950,7 +888,7 @@ fn completed_round_is_not_startable_and_revision_restores_eligibility() {
     // Revising the task creates a fresh round with separate authorization.
     let round = d.node.goals[&goal].state().tasks[&task].current_round;
     d.ok(
-        a,
+        owner,
         Request::TaskRevise {
             goal,
             task,
@@ -1050,11 +988,12 @@ fn an_ended_attempt_lists_no_cancellation_request() {
 
 #[test]
 fn an_invalid_formation_is_refused_without_naming_an_api_operation() {
-    let (mut d, _, _, a, _) = setup();
+    let (mut d, principal, owner, _, _) = setup();
     let refused = d
         .call(
-            a,
+            owner,
             Request::GoalCreate {
+                agent: principal,
                 title: "Another goal".into(),
                 formation_json: Some("not a formation".into()),
                 roles: Default::default(),
@@ -1098,8 +1037,9 @@ fn closing_a_task_with_many_approved_contributions_stays_within_the_header_cap()
         ..Default::default()
     };
     let Response::GoalCreated { goal } = d.ok(
-        agent,
+        owner,
         Request::GoalCreate {
+            agent: principal,
             title: "Many results".into(),
             formation_json: Some(serde_json::to_string(&formation).unwrap()),
             roles: std::collections::BTreeMap::new(),
@@ -1114,7 +1054,6 @@ fn closing_a_task_with_many_approved_contributions_stays_within_the_header_cap()
             goal,
             agent: principal,
             grants: GoalGrants {
-                administer: true,
                 contribute: true,
                 review: true,
                 select: true,

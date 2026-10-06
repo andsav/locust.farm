@@ -34,4 +34,4 @@ mod vectors;
 pub const PROTOCOL_VERSION: u8 = 6;
 
 /// Version of the local daemon API spoken over the Unix socket.
-pub const API_VERSION: u16 = 6;
+pub const API_VERSION: u16 = 7;

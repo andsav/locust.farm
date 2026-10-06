@@ -6,7 +6,7 @@
 //! retrying with the same key recovers the result, any other key is refused.
 //! Holding an invitation shares nothing and enrolls nothing by itself.
 //!
-//! In the current protocol only a goal's administrator issues invitations, so the daemon
+//! In the current protocol only a goal's governance issues invitations, so the daemon
 //! that redeems one is the daemon that signs the admission.
 
 use std::fmt;
@@ -108,13 +108,13 @@ pub struct Invitation {
     pub version: u8,
     /// The goal the holder is invited to.
     pub goal: GoalId,
-    /// Presentation supplied and signed by the administrator. A title does
+    /// Presentation supplied and signed by the governance. A title does
     /// not authenticate a human identity or establish the genesis record.
     pub goal_title: Option<String>,
-    /// The goal's administrator, which in the current protocol is also the issuer. Shown
+    /// The goal's governance, which in the current protocol is also the issuer. Shown
     /// to the joiner as a fingerprint and checked against the genesis record
     /// once it arrives.
-    pub administrator: PublicKey,
+    pub governance: PublicKey,
     /// The daemon that redeems the invitation.
     pub endpoint: EndpointId,
     /// Ways to reach `endpoint`; see [`Hint`]. At most [`MAX_HINTS`], each
@@ -128,7 +128,7 @@ pub struct Invitation {
     pub sharing: InvitationSharing,
     /// Publication policy advertised at issuance and reconciled against shared history.
     pub publication: Option<InvitationPublication>,
-    /// Administrator signature over every preceding field, including the
+    /// Host signature over every preceding field, including the
     /// capability digest. Verified before any preview or join intent.
     pub signature: Signature,
 }
@@ -149,7 +149,7 @@ pub enum InviteError {
     /// Too many contact hints, or one that is empty, too long or carries a
     /// control character.
     BadHints,
-    /// The administrator did not sign these exact invitation fields.
+    /// The governance did not sign these exact invitation fields.
     InvalidSignature,
 }
 
@@ -163,7 +163,9 @@ impl fmt::Display for InviteError {
                 write!(f, "invitation uses unsupported protocol version {version}")
             }
             Self::BadHints => f.write_str("invitation carries unusable contact hints"),
-            Self::InvalidSignature => f.write_str("invitation signature is invalid; request a fresh invitation from the administrator"),
+            Self::InvalidSignature => f.write_str(
+                "invitation signature is invalid; request a fresh invitation from the governance",
+            ),
         }
     }
 }
@@ -209,13 +211,13 @@ impl Invitation {
         hints: Vec<String>,
         secret: InviteSecret,
         expires_ms: Option<u64>,
-        administrator: &Keypair,
+        governance: &Keypair,
     ) -> Result<Self, InviteError> {
         let mut invitation = Self {
             version: PROTOCOL_VERSION,
             goal,
             goal_title,
-            administrator: administrator.public(),
+            governance: governance.public(),
             endpoint,
             hints,
             secret,
@@ -224,17 +226,17 @@ impl Invitation {
             publication: None,
             signature: Signature([0; 64]),
         };
-        invitation.sign(administrator)?;
+        invitation.sign(governance)?;
         Ok(invitation)
     }
 
-    /// Re-signs administrator-owned fields. A different key cannot attest
-    /// to the named administrator.
-    pub fn sign(&mut self, administrator: &Keypair) -> Result<(), InviteError> {
-        if administrator.public() != self.administrator {
+    /// Re-signs governance-owned fields. A different key cannot attest
+    /// to the named governance.
+    pub fn sign(&mut self, governance: &Keypair) -> Result<(), InviteError> {
+        if governance.public() != self.governance {
             return Err(InviteError::InvalidSignature);
         }
-        self.signature = administrator.sign(INVITATION_SIGNATURE, &self.signing_digest()?);
+        self.signature = governance.sign(INVITATION_SIGNATURE, &self.signing_digest()?);
         Ok(())
     }
 
@@ -243,7 +245,7 @@ impl Invitation {
             self.version,
             self.goal,
             &self.goal_title,
-            self.administrator,
+            self.governance,
             self.endpoint,
             &self.hints,
             self.secret.digest(),
@@ -258,7 +260,7 @@ impl Invitation {
     pub fn verify(&self) -> Result<(), InviteError> {
         self.check()?;
         if crypto::verify(
-            &self.administrator,
+            &self.governance,
             INVITATION_SIGNATURE,
             &self.signing_digest()?,
             &self.signature,
@@ -278,7 +280,7 @@ impl Invitation {
         Ok(InvitationPreview {
             goal: self.goal,
             goal_title: self.goal_title.clone(),
-            administrator: self.administrator,
+            governance: self.governance,
             endpoint: self.endpoint,
             hints: self.hints.clone(),
             expires_ms: self.expires_ms,
@@ -287,7 +289,7 @@ impl Invitation {
             publication: self.publication.clone(),
             review: format!("{}", Hex(&crypto::domain_hash(INVITATION_REVIEW, &bytes))),
             signature_verified: true,
-            title_provenance: "administrator_signed_presentation".into(),
+            title_provenance: "host_signed_presentation".into(),
             identity_provenance: "signing_key_only; human_identity_not_verified".into(),
             admission_status: "unconfirmed; checked_with_issuer_on_join".into(),
             sharing_facts: InvitationPreview::sharing_facts(),
@@ -516,7 +518,7 @@ mod tests {
         let changes: [fn(&mut Invitation); 8] = [
             |i| i.goal = GoalId([9; 32]),
             |i| i.goal_title = Some("Different goal".into()),
-            |i| i.administrator = testkit::keypair(9).public(),
+            |i| i.governance = testkit::keypair(9).public(),
             |i| i.endpoint = EndpointId([9; 32]),
             |i| i.hints = vec!["https://other.example".into()],
             |i| i.secret = InviteSecret([9; 32]),

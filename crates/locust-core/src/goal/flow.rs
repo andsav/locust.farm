@@ -36,11 +36,11 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
             .flow
             .get(name)
             .ok_or(invalid("unknown configured flow stage"))?;
-        // The goal's administrator runs every stage.
+        // The goal's governance runs every stage.
         let runner = self
             .history
-            .administrator
-            .ok_or(invalid("goal has no administrator"))?;
+            .governance
+            .ok_or(invalid("goal has no governance"))?;
         let binding = TaskBinding {
             rules,
             task_type: stage.task_type.clone(),
@@ -214,8 +214,8 @@ impl<D: DefinitionLookup + ?Sized> Verifier<'_, D> {
                     return Err(invalid("task names an unknown stage"));
                 }
                 self.history
-                    .administrator
-                    .ok_or(invalid("goal has no administrator"))?
+                    .governance
+                    .ok_or(invalid("goal has no governance"))?
             } else {
                 event.header().author
             };

@@ -316,7 +316,7 @@ fn conflicting_manifest_lengths_keep_valid_reference_and_reject_inflation() {
 }
 
 #[test]
-fn removed_principal_and_viewer_need_an_older_path_even_for_an_old_file() {
+fn removed_principal_needs_an_older_path_even_for_an_old_file() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
     let removed = peers[1].principal;
@@ -325,7 +325,6 @@ fn removed_principal_and_viewer_need_an_older_path_even_for_an_old_file() {
         None,
         Request::AgentEnroll {
             name: "cohost".into(),
-            grants: Grants { manage_goals: true },
             credential: Credential([31; 32]).digest(),
         },
     ) else {
@@ -333,25 +332,19 @@ fn removed_principal_and_viewer_need_an_older_path_even_for_an_old_file() {
     };
     let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
         goal,
-        expires_ms: None,
+        expires_ms: 1_000_000,
     }) else {
         panic!("invite")
     };
     request(
         &mut peers[1].node,
-        Some(current),
-        Request::GoalJoin { ticket },
-    );
-    rounds(&mut peers);
-    let viewer = Credential([32; 32]);
-    request(
-        &mut peers[1].node,
         None,
-        Request::ViewerEnroll {
-            agent: removed,
-            credential: viewer.digest(),
+        Request::GoalJoin {
+            agent: current,
+            ticket,
         },
     );
+    rounds(&mut peers);
     let old_file = put(&mut peers[0], goal, b"old bytes");
     let old_manifest = manifest(&mut peers[0], goal, vec![file("old", old_file, 9)]);
     let wrong_old_manifest = manifest(&mut peers[0], goal, vec![file("wrong", old_file, 99)]);
@@ -383,45 +376,13 @@ fn removed_principal_and_viewer_need_an_older_path_even_for_an_old_file() {
     ));
     assert_eq!(get(&mut peers[1], goal, old_file).unwrap(), b"old bytes");
     peers[1].restart();
-    assert!(matches!(
-        peers[1].node.connect(
-            ConnId(9),
-            &ClientHello {
-                api_version: locust_proto::API_VERSION,
-                credential: viewer,
-                session: None
-            },
-            0
-        ),
-        ServerHello::Welcome { .. }
-    ));
-    let viewer_get = |peer: &mut Peer| {
-        let Step::Reply(reply) = peer.node.request(
-            ConnId(9),
-            RequestFrame {
-                id: 100,
-                idempotency: None,
-                on_behalf: None,
-                request: Request::BlobGet {
-                    goal,
-                    hash: old_file,
-                },
-            },
-            0,
-        ) else {
-            panic!("reply")
-        };
-        reply.result
-    };
+    peers[1].principal = removed;
     assert_eq!(
-        viewer_get(&mut peers[1]).unwrap_err().code,
+        get(&mut peers[1], goal, old_file).unwrap_err().code,
         ErrorCode::Denied
     );
     propose(&mut peers[0], goal, old_manifest);
     rounds(&mut peers);
-    assert!(
-        matches!(viewer_get(&mut peers[1]), Ok(Response::Blob { bytes }) if bytes == b"old bytes")
-    );
     peers[1].principal = removed;
     assert_eq!(get(&mut peers[1], goal, old_file).unwrap(), b"old bytes");
     peers[1].principal = current;
@@ -432,10 +393,6 @@ fn removed_principal_and_viewer_need_an_older_path_even_for_an_old_file() {
     peers[1].principal = removed;
     assert_eq!(
         get(&mut peers[1], goal, old_file).unwrap_err().code,
-        ErrorCode::Denied
-    );
-    assert_eq!(
-        viewer_get(&mut peers[1]).unwrap_err().code,
         ErrorCode::Denied
     );
     peers[1].restart();

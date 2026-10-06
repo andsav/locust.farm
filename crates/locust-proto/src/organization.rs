@@ -13,7 +13,7 @@ pub const SCHEMA_VERSION: u32 = 2;
 
 /// An agreement about work organization, independent of local execution.
 /// Membership and organization-rule administration belong to one separately
-/// authenticated goal administrator. Roles never grant that authority themselves.
+/// authenticated goal host. Roles never grant that authority themselves.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Formation {

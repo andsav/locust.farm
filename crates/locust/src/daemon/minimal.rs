@@ -10,8 +10,8 @@ use std::collections::BTreeMap;
 
 use locust_proto::API_VERSION;
 use locust_proto::api::{
-    AgentView, ApiError, Caller, ClientHello, DaemonStatus, ErrorCode, Grants, Request,
-    RequestFrame, Response, ResponseFrame, ServerHello,
+    AgentView, ApiError, Caller, ClientHello, DaemonStatus, ErrorCode, Request, RequestFrame,
+    Response, ResponseFrame, ServerHello,
 };
 use locust_proto::crypto::Keypair;
 use locust_proto::engine::{ConnId, Engine, Entropy, Parked, Step};
@@ -25,7 +25,7 @@ struct Principal {
     /// Digest of the credential it was enrolled under.
     credential: [u8; 32],
     key: PublicKey,
-    grants: Grants,
+    author_only: bool,
 }
 
 pub(crate) struct MinimalEngine {
@@ -74,13 +74,9 @@ impl MinimalEngine {
                 self.stop = true;
                 Ok(Response::Done)
             }
-            Request::AgentEnroll {
-                name,
-                grants,
-                credential,
-            } => {
+            Request::AgentEnroll { name, credential } => {
                 owner_only("agent.enroll")?;
-                self.enroll(name, grants, credential)
+                self.enroll(name, false, credential)
                     .map(|agent| Response::AgentEnrolled { agent })
             }
             other => Err(ApiError::new(
@@ -96,7 +92,7 @@ impl MinimalEngine {
     fn status(&self, caller: Caller) -> DaemonStatus {
         let visible = |principal: &&Principal| match caller {
             Caller::Owner => true,
-            Caller::Agent(key) | Caller::Viewer(key) | Caller::Author(key) => principal.key == key,
+            Caller::Agent(key) | Caller::Author(key) => principal.key == key,
         };
         DaemonStatus {
             daemon_version: self.daemon_version.clone(),
@@ -108,7 +104,7 @@ impl MinimalEngine {
                 .map(|principal| AgentView {
                     agent: principal.key,
                     name: principal.name.clone(),
-                    grants: principal.grants,
+                    author_only: principal.author_only,
                     revoked: false,
                 })
                 .collect(),
@@ -119,7 +115,7 @@ impl MinimalEngine {
     fn enroll(
         &mut self,
         name: String,
-        grants: Grants,
+        author_only: bool,
         credential: [u8; 32],
     ) -> Result<PublicKey, ApiError> {
         if let Some(existing) = self.principals.iter().find(|p| p.name == name) {
@@ -147,7 +143,7 @@ impl MinimalEngine {
             name,
             credential,
             key,
-            grants,
+            author_only,
         });
         Ok(key)
     }
@@ -278,7 +274,6 @@ mod tests {
     fn enroll(name: &str, credential: Credential) -> Request {
         Request::AgentEnroll {
             name: name.to_string(),
-            grants: Grants { manage_goals: true },
             credential: credential.digest(),
         }
     }
@@ -321,7 +316,7 @@ mod tests {
             (own.agents[0].agent, own.agents[0].name.as_str()),
             (agent, "worker")
         );
-        assert!(own.agents[0].grants.manage_goals);
+        assert!(!own.agents[0].author_only);
         assert_eq!((own.endpoint, own.goals.len()), (None, 0));
 
         let Ok(Response::Status(all)) = ask(&mut engine, 1, Request::Status) else {
@@ -373,6 +368,7 @@ mod tests {
         let goal = GoalId([7; 32]);
         for request in [
             Request::GoalCreate {
+                agent: PublicKey([1; 32]),
                 title: "Ship it".to_string(),
                 formation_json: None,
                 roles: Default::default(),

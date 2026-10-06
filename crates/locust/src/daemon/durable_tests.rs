@@ -6,7 +6,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use locust_net::{Endpoint, EndpointConfig, IpTransport, Lookup, RelayConfig, TransportBudget};
-use locust_proto::api::{Caller, Credential, GoalGrants, Grants, Request, Response, SessionSecret};
+use locust_proto::api::{Caller, Credential, GoalGrants, Request, Response, SessionSecret};
 use locust_proto::client::Client;
 use locust_proto::engine::{Engine, PeerEngine};
 use locust_proto::event::{AttemptStatus, ReviewVerdict, TaskId};
@@ -92,7 +92,6 @@ impl Running {
             .owner()
             .call(Request::AgentEnroll {
                 name: format!("agent-{tag}"),
-                grants: Grants { manage_goals: true },
                 credential: Credential([tag; 32]).digest(),
             })
             .unwrap();
@@ -122,9 +121,10 @@ pub(super) fn recorded(response: Response) -> EventId {
     };
     event
 }
-fn goal(client: &mut LocalClient) -> GoalId {
+fn goal(client: &mut LocalClient, agent: PublicKey) -> GoalId {
     let Response::GoalCreated { goal } = client
         .call(Request::GoalCreate {
+            agent,
             title: "Durable lifecycle".into(),
             formation_json: Some(
                 serde_json::to_string(
@@ -136,14 +136,7 @@ fn goal(client: &mut LocalClient) -> GoalId {
                 )
                 .unwrap(),
             ),
-            roles: [(
-                "coordinator".into(),
-                vec![match client.caller() {
-                    Caller::Agent(key) => key,
-                    _ => panic!(),
-                }],
-            )]
-            .into(),
+            roles: [("coordinator".into(), vec![agent])].into(),
             inputs: Default::default(),
         })
         .unwrap()
@@ -171,7 +164,6 @@ fn grant(owner: &mut LocalClient, goal: GoalId, agent: PublicKey) {
             goal,
             agent,
             grants: GoalGrants {
-                administer: true,
                 contribute: true,
                 execute: true,
                 review: true,
@@ -227,7 +219,7 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
     let principal = running.enroll(1);
     let mut agent = running.client(Credential([1; 32]), Some(SessionSecret([1; 32])));
     let mut owner = running.owner();
-    let goal = goal(&mut agent);
+    let goal = goal(&mut owner, principal);
     grant(&mut owner, goal, principal);
     let task = propose(&mut agent, goal, "Complete after a restart".into());
     let assignment = recorded(
@@ -346,31 +338,20 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
     let second = short_dir();
     let issuer = Running::start(first.path());
     let mut recipient = Running::start(second.path());
-    issuer.enroll(1);
+    let host_agent = issuer.enroll(1);
     let principal = recipient.enroll(2);
-    let mut administrator = issuer.client(Credential([1; 32]), None);
+    let mut host_owner = issuer.owner();
     let mut owner = recipient.owner();
-    owner
-        .call(Request::AgentGrant {
-            agent: principal,
-            grants: Grants::default(),
-        })
-        .unwrap();
-    let goal = goal(&mut administrator);
-    let Response::Invited { ticket: revoked } = administrator
+    let goal = goal(&mut host_owner, host_agent);
+    let Response::Invited { ticket: revoked } = host_owner
         .call(Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: u64::MAX,
         })
         .unwrap()
     else {
         panic!()
     };
-    let review = Invitation::from_ticket(revoked.as_str())
-        .unwrap()
-        .preview(0)
-        .unwrap()
-        .review;
     let Response::Invitations { invitations } = issuer
         .owner()
         .call(Request::GoalInvitations { goal })
@@ -382,13 +363,12 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
         .owner()
         .call(Request::InvitationRevoke {
             goal,
-            invitation: invitations[0].invitation.clone(),
+            invitation: Some(invitations[0].invitation.clone()),
         })
         .unwrap();
-    let refused_join = Request::InvitationJoin {
-        principal,
+    let refused_join = Request::GoalJoin {
+        agent: principal,
         ticket: revoked,
-        review,
     };
     assert!(matches!(
         owner.call(refused_join.clone()).unwrap(),
@@ -418,10 +398,10 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
     assert!(
         matches!(recipient.client(Credential([2; 32]), None).call(Request::GoalStatus { goal }), Err(locust_proto::client::ClientError::Api(error)) if error.code == ErrorCode::Denied)
     );
-    let Response::Invited { ticket } = administrator
+    let Response::Invited { ticket } = host_owner
         .call(Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: u64::MAX,
         })
         .unwrap()
     else {
@@ -436,10 +416,9 @@ fn reviewed_invitation_joins_two_real_daemons_without_granting_execution() {
         panic!()
     };
     assert_eq!(preview.goal_title.as_deref(), Some("Durable lifecycle"));
-    let join = Request::InvitationJoin {
-        principal,
+    let join = Request::GoalJoin {
+        agent: principal,
         ticket,
-        review: preview.review,
     };
     assert!(matches!(
         owner.call(join.clone()).unwrap(),
@@ -532,18 +511,25 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let worker_key = worker.enroll(2);
     let mut c = coordinator.client(Credential([1; 32]), None);
     let mut w = worker.client(Credential([2; 32]), Some(SessionSecret([2; 32])));
-    let goal = goal(&mut c);
+    let goal = goal(&mut coordinator.owner(), coordinator_key);
     grant(&mut coordinator.owner(), goal, coordinator_key);
-    let Response::Invited { ticket } = c
+    let Response::Invited { ticket } = coordinator
+        .owner()
         .call(Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: u64::MAX,
         })
         .unwrap()
     else {
         panic!()
     };
-    w.call(Request::GoalJoin { ticket }).unwrap();
+    worker
+        .owner()
+        .call(Request::GoalJoin {
+            agent: worker_key,
+            ticket,
+        })
+        .unwrap();
     eventually(|| match w.call(Request::GoalStatus { goal }) {
         Ok(Response::GoalStatus(status))
             if status
@@ -682,13 +668,14 @@ fn peer_decode_and_prefix_failures_deliver_refusals_before_close() {
     use locust_proto::sync::{Refusal, SyncMessage};
     let dir = short_dir();
     let running = Running::start(dir.path());
-    running.enroll(1);
+    let host_agent = running.enroll(1);
     let mut agent = running.client(Credential([1; 32]), None);
-    let goal = goal(&mut agent);
-    let Response::Invited { ticket } = agent
+    let goal = goal(&mut running.owner(), host_agent);
+    let Response::Invited { ticket } = running
+        .owner()
         .call(Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: u64::MAX,
         })
         .unwrap()
     else {
@@ -764,7 +751,7 @@ fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
     use locust_proto::sync::{Frontier, Refusal, SyncMessage};
     let dir = short_dir();
     let running = Running::start(dir.path());
-    running.enroll(1);
+    let principal = running.enroll(1);
     let mut agent = running.client(Credential([1; 32]), None);
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -785,7 +772,13 @@ fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
             .unwrap()
             .to_ticket()
             .unwrap();
-            agent.call(Request::GoalJoin { ticket }).unwrap();
+            running
+                .owner()
+                .call(Request::GoalJoin {
+                    agent: principal,
+                    ticket,
+                })
+                .unwrap();
             let within = |seconds| Duration::from_secs(seconds);
             let connection = tokio::time::timeout(within(10), async {
                 inviter.accept().await.unwrap().accept().await.unwrap()
@@ -838,13 +831,14 @@ fn refused_inbound_exchange_does_not_cut_this_daemons_own_join() {
 fn newer_connection_replaces_older_ones_from_the_same_endpoint() {
     let dir = short_dir();
     let running = Running::start(dir.path());
-    running.enroll(1);
+    let host_agent = running.enroll(1);
     let mut agent = running.client(Credential([1; 32]), None);
-    let goal = goal(&mut agent);
-    let Response::Invited { ticket } = agent
+    let goal = goal(&mut running.owner(), host_agent);
+    let Response::Invited { ticket } = running
+        .owner()
         .call(Request::GoalInvite {
             goal,
-            expires_ms: None,
+            expires_ms: u64::MAX,
         })
         .unwrap()
     else {
@@ -932,8 +926,8 @@ fn sqlite_older_directory_signs_at_used_host_position_unless_later_events_are_re
         let backup = short_dir();
         let mut running = Running::start(original.path());
         let principal = running.enroll(1);
-        let mut agent = running.client(Credential([1; 32]), None);
-        let goal = goal(&mut agent);
+        let agent = running.client(Credential([1; 32]), None);
+        let goal = goal(&mut running.owner(), principal);
         grant(&mut running.owner(), goal, principal);
         drop(agent);
         running.stop();

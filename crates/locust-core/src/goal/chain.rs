@@ -1,4 +1,4 @@
-//! One administrator stream and authenticated membership tenures. Work decisions
+//! One governance stream and authenticated membership tenures. Work decisions
 //! are deliberately absent: a pending work scope cannot stop this chain.
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -49,11 +49,11 @@ pub(super) struct Chain {
 impl Chain {
     pub fn build<D: DefinitionLookup + ?Sized>(history: &History, definitions: &D) -> Self {
         let mut chain = Self::default();
-        let Some(administrator) = history.administrator else {
+        let Some(governance) = history.governance else {
             return chain;
         };
-        chain.state.administrator = Some(administrator);
-        let Some(log) = history.log(&administrator) else {
+        chain.state.governance = Some(governance);
+        let Some(log) = history.log(&governance) else {
             return chain;
         };
         let mut snapshot = Snapshot::default();
@@ -381,8 +381,8 @@ impl Chain {
     ) -> Standing {
         let h = event.header();
         if h.body.is_governance() {
-            return if Some(h.author) != self.state.administrator {
-                Standing::Excluded(Exclusion::NotAdministrator)
+            return if Some(h.author) != self.state.governance {
+                Standing::Excluded(Exclusion::NotHost)
             } else {
                 self.standings
                     .get(&event.id())

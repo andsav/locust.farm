@@ -105,10 +105,7 @@ class OnboardedDaemon(ProductionDaemon):
         self.onboarding["binding"] = binding
         agents = self.call(["status"], owner=True)["status"]["agents"]
         if (len(agents) != 1 or agents[0]["agent"] != self.principal
-                or agents[0]["grants"]["manage_goals"]):
-            raise ProductionError("onboarding granted work authority or enrolled extra agents")
-        self.onboarding["no_initial_grants"] = True
+                or agents[0].get("author_only") is not False):
+            raise ProductionError("onboarding enrolled the wrong kind or number of agents")
+        self.onboarding["active_agent_enrolled"] = True
         self.retry()
-        # Fixture owner explicitly authorizes the synthetic work after onboarding.
-        self.call(["agent", "grant", "--agent", self.principal,
-                   "--grants", json.dumps({"manage_goals": True})], owner=True)

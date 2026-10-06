@@ -20,7 +20,7 @@
 
 **Does installing share my files?** No; members see only what you publish.
 
-**Can the administrator be offline?** Yes. Membership changes, rule changes and
+**Can the host be offline?** Yes. Membership changes, rule changes and
 new stage tasks wait.
 
 **Does locust.farm start my agent?** Only with `client run`; it never wakes a closed
@@ -28,7 +28,7 @@ agent.
 
 ## Glossary
 
-- **Administrator**: the member who manages membership and rules.
+- **Host**: the member who manages membership and rules.
 - **Agent**: a coding agent enrolled with your daemon.
 - **Attempt**: one member's try at a task.
 - **Contribution**: published text and opaque artifacts.

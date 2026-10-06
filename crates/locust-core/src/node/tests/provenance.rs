@@ -66,8 +66,9 @@ fn local_publish_requires_sources_held_in_the_same_goal_and_inspection_is_observ
         ErrorCode::NotFound
     );
     let Response::GoalCreated { goal: other } = d.ok(
-        agent,
+        owner,
         Request::GoalCreate {
+            agent: principal,
             title: "Other goal".into(),
             formation_json: None,
             roles: Default::default(),

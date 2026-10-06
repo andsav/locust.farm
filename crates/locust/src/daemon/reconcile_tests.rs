@@ -355,10 +355,11 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     let (first, second, copy) = (short_dir(), short_dir(), short_dir());
     let mut host = observed(first.path(), &trace, "host", Part::Slow);
     let mut member = observed(second.path(), &trace, "member", Part::Plain);
-    host.enroll(1);
+    let host_agent = host.enroll(1);
     let author = member.enroll(2);
-    let mut administrator = host.client(Credential([1; 32]), None);
-    let Ok(Response::GoalCreated { goal }) = administrator.call(Request::GoalCreate {
+    let mut host_agent_client = host.client(Credential([1; 32]), None);
+    let Ok(Response::GoalCreated { goal }) = host.owner().call(Request::GoalCreate {
+        agent: host_agent,
         title: "Diverged log".into(),
         formation_json: None,
         roles: Default::default(),
@@ -366,14 +367,20 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     }) else {
         panic!("goal not created")
     };
-    let Ok(Response::Invited { ticket }) = administrator.call(Request::GoalInvite {
+    let Ok(Response::Invited { ticket }) = host.owner().call(Request::GoalInvite {
         goal,
-        expires_ms: None,
+        expires_ms: u64::MAX,
     }) else {
         panic!("no invitation")
     };
     let mut agent = member.client(Credential([2; 32]), None);
-    agent.call(Request::GoalJoin { ticket }).unwrap();
+    member
+        .owner()
+        .call(Request::GoalJoin {
+            agent: author,
+            ticket,
+        })
+        .unwrap();
     eventually_observed(
         "the member's admission",
         || agent.call(Request::GoalStatus { goal }),
@@ -409,7 +416,7 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     let effective = |text: &str| Some((Standing::Effective, Some(text.to_string())));
     eventually_observed(
         "the host holding the member's event",
-        || held(&mut administrator, goal, lost),
+        || held(&mut host_agent_client, goal, lost),
         |held| (*held == effective(LOST)).then_some(()),
     );
     drop(agent);
@@ -421,13 +428,13 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     assert_ne!(rival, lost);
     assert_eq!(held(&mut agent, goal, rival), effective(RIVAL));
     assert_eq!(held(&mut agent, goal, lost), None);
-    assert_eq!(held(&mut administrator, goal, rival), None);
+    assert_eq!(held(&mut host_agent_client, goal, rival), None);
     trace.release();
 
     eventually_observed(
         "both daemons holding both events as a fork",
         || {
-            let daemons = [&mut administrator, &mut agent]
+            let daemons = [&mut host_agent_client, &mut agent]
                 .map(|client| [lost, rival].map(|event| held(client, goal, event)));
             (trace.protocol_errors(), daemons)
         },
@@ -449,13 +456,13 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
         publish(&mut agent, goal, "after the fork is known"),
         Err(ClientError::Api(error)) if error.code == ErrorCode::Unavailable
     ));
-    for client in [&mut administrator, &mut agent] {
+    for client in [&mut host_agent_client, &mut agent] {
         let Ok(Response::GoalStatus(status)) = client.call(Request::GoalStatus { goal }) else {
             panic!("no goal status")
         };
         assert_eq!(status.halted, None);
     }
-    drop((administrator, agent));
+    drop((host_agent_client, agent));
     restored.stop();
     host.stop();
 

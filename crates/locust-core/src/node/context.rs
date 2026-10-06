@@ -141,9 +141,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let (Some(principal), Some(session)) = (actor.principal, actor.session) else {
             return None;
         };
-        if actor.is_viewer() {
-            return None;
-        }
         let mut news = ContextNews::default();
         for event in entry
             .goal
@@ -179,11 +176,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "context page limit must be positive",
             ));
         }
-        let session = if actor.is_viewer() {
-            None
-        } else {
-            actor.session
-        };
+        let session = actor.session;
         if let (Some(principal), Some(session)) = (actor.principal, session) {
             // Validate an existing binding, but observational reads bind nothing.
             self.sessions.bind(&session, &principal)?;
@@ -328,11 +321,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let entry = self.readable(actor, &goal)?;
         let principal = actor.principal()?;
         let session = actor.session()?;
-        if actor.is_viewer()
-            || receipt.goal != goal
-            || receipt.principal != principal
-            || receipt.session != session
-        {
+        if receipt.goal != goal || receipt.principal != principal || receipt.session != session {
             return Err(ApiError::new(
                 ErrorCode::Denied,
                 "context receipt belongs to another goal or session",

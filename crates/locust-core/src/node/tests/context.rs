@@ -210,19 +210,10 @@ fn preview_and_unavailable_payload_cannot_acknowledge_text_and_late_payload_is_n
 }
 
 #[test]
-fn viewers_owners_and_event_pagination_never_consume_session_context() {
-    let (mut d, principal, owner, agent, goal) = setup();
+fn owners_and_event_pagination_never_consume_session_context() {
+    let (mut d, _, owner, agent, goal) = setup();
     let finding = event(d.ok(agent, finding(goal, "Visible to observers")));
-    d.ok(
-        owner,
-        Request::ViewerEnroll {
-            agent: principal,
-            credential: credential(9).digest(),
-        },
-    );
-    let viewer = d.connect(credential(9), None);
     let before = d.store.scan(Space::Cursor, &[]).unwrap();
-    assert!(context(&mut d, viewer, goal, None, true).receipt.is_none());
     assert!(context(&mut d, owner, goal, None, true).receipt.is_none());
     let events = d.ok(
         agent,
@@ -234,14 +225,6 @@ fn viewers_owners_and_event_pagination_never_consume_session_context() {
     );
     d.ok(
         agent,
-        Request::Events {
-            goal,
-            after: Some(999),
-            limit: 256,
-        },
-    );
-    d.ok(
-        viewer,
         Request::Events {
             goal,
             after: Some(999),
@@ -436,7 +419,7 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
     };
     use std::collections::BTreeMap;
 
-    let (mut d, _, _, agent, goal) = setup();
+    let (mut d, _, owner, agent, goal) = setup();
     let mut formation = Formation::default();
     formation.context.inputs.insert(
         "workspace".into(),
@@ -465,7 +448,7 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
         .current_rules
         .unwrap();
     d.ok(
-        agent,
+        owner,
         Request::RulesBind {
             goal,
             expected,
@@ -513,8 +496,8 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
 }
 
 #[test]
-fn scoped_pages_keep_goal_wide_news_and_viewers_remain_observational() {
-    let (mut d, principal, owner, agent, goal) = setup();
+fn scoped_pages_keep_goal_wide_news() {
+    let (mut d, principal, _, agent, goal) = setup();
     let (task, _) = offered(&mut d, agent, goal, principal);
     let (unrelated, _) = offered(&mut d, agent, goal, principal);
     let mut request = finding(goal, "Only the other task sees this finding");
@@ -544,25 +527,6 @@ fn scoped_pages_keep_goal_wide_news_and_viewers_remain_observational() {
     assert_eq!(
         d.ok(agent, Request::Pending { goal }),
         Response::Pending(full(&empty).pending.clone())
-    );
-    d.ok(
-        owner,
-        Request::ViewerEnroll {
-            agent: principal,
-            credential: credential(9).digest(),
-        },
-    );
-    let (_, refused) = d.hello(credential(9), Some(session(9)));
-    assert!(matches!(refused, ServerHello::Refused { .. }));
-    let viewer = d.connect(credential(9), None);
-    let observed = context(&mut d, viewer, goal, Some(task), true);
-    assert!(observed.receipt.is_none());
-    assert!(full(&observed).pending.context_news.is_none());
-    assert!(
-        observed
-            .items
-            .iter()
-            .all(|item| item.acknowledged.is_none())
     );
 }
 
@@ -664,7 +628,7 @@ fn pending_reviews_only_count_the_callers_effective_reviews() {
         exclude_author: false,
     };
     d.ok(
-        agent,
+        owner,
         Request::RulesBind {
             goal,
             expected,

@@ -7,9 +7,7 @@ pub mod diagnostics;
 
 use super::*;
 use crate::connection;
-use locust_proto::api::{
-    Caller, Credential, DaemonStatus, Grants, Request, Response, SessionSecret,
-};
+use locust_proto::api::{Caller, Credential, DaemonStatus, Request, Response, SessionSecret};
 use locust_proto::client::Client as ApiClient;
 use locust_proto::id::{InstanceId, PublicKey};
 use locust_proto::local;
@@ -449,9 +447,6 @@ fn apply_with(
             owner
                 .call(Request::AgentEnroll {
                     name: s.name.clone().expect("planned name"),
-                    grants: Grants {
-                        manage_goals: false,
-                    },
                     credential: credential.digest(),
                 })
                 .map_err(|error| {

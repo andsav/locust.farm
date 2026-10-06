@@ -8,23 +8,23 @@ use locust_proto::id::GoalId;
 use super::history::History;
 
 pub(super) fn screen(goal: GoalId, history: &History, events: Vec<Event>) -> Vec<Event> {
-    let administrator = history.administrator.or_else(|| {
+    let governance = history.governance.or_else(|| {
         events
             .iter()
             .filter(|event| event.header().goal == goal)
             .find_map(|event| match &event.header().body {
-                Body::Genesis(genesis) => Some(genesis.administrator),
+                Body::Genesis(genesis) => Some(genesis.governance),
                 _ => None,
             })
     });
-    let Some(administrator) = administrator else {
+    let Some(governance) = governance else {
         return Vec::new();
     };
     let admitted: BTreeSet<_> = history
         .events
         .iter()
         .chain(&events)
-        .filter(|event| event.header().goal == goal && event.header().author == administrator)
+        .filter(|event| event.header().goal == goal && event.header().author == governance)
         .filter_map(|event| match &event.header().body {
             Body::MemberAdmitted { member, .. } => Some(*member),
             _ => None,
@@ -35,7 +35,7 @@ pub(super) fn screen(goal: GoalId, history: &History, events: Vec<Event>) -> Vec
         .into_iter()
         .filter(|event| {
             event.header().goal == goal
-                && (event.header().author == administrator
+                && (event.header().author == governance
                     || admitted.contains(&event.header().author))
                 && history.get(&event.id()).is_none()
                 && seen.insert(event.id())

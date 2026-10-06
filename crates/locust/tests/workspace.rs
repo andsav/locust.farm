@@ -127,15 +127,22 @@ impl State {
     }
     fn respond(&mut self, frame: RequestFrame) -> Result<Response, ApiError> {
         self.requests.push(frame.clone());
-        if !matches!(frame.request, Request::Status) {
+        if !matches!(
+            frame.request,
+            Request::Status
+                | Request::GoalStatus { .. }
+                | Request::RulesBind { .. }
+                | Request::WorkspaceEpochSet { .. }
+                | Request::WorkspaceConnect { .. }
+        ) {
             assert_eq!(frame.on_behalf, Some(PRINCIPAL));
         }
         match frame.request {
             Request::Status => Ok(Response::Status(DaemonStatus { daemon_version:"fixture".into(), endpoint:None,
-                agents:vec![AgentView { agent:PRINCIPAL,name:"worker".into(),grants:Grants::default(),revoked:false }],
+                agents:vec![AgentView { agent:PRINCIPAL,name:"worker".into(),author_only:false,revoked:false }],
                 goals:vec![GoalSummary { goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,halted:None }] })),
             Request::GoalStatus { goal } => Ok(Response::GoalStatus(serde_json::from_value(json!({
-                "goal":goal,"title":"workspace","administrator":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
+                "goal":goal,"title":"workspace","host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
                 "scope_halts":[],"members":[],"halted":null,"grants":GoalGrants::default(),"peers":[]
             })).unwrap())),
             Request::BlobPut { goal, bytes } => { assert_eq!(goal, GOAL); let hash = content_hash(&bytes); self.objects.insert(hash,bytes); Ok(Response::BlobStored {hash}) }
@@ -212,7 +219,7 @@ impl State {
             Request::CheckoutBindSession {checkout,..} => { let bound=self.checkouts.get_mut(&checkout).unwrap(); bound.session=self.caller_session; Ok(Response::Checkout(bound.clone())) }
             Request::Session {instance} => Ok(Response::Session(SessionView {instance:instance.unwrap(),principal:PRINCIPAL,record:SessionRecord {harness:locust_proto::farm::Harness::Codex,client:"fixture".into(),state:if self.session_active {SessionState::Ready} else {SessionState::Exited},client_session:None,capabilities:SessionCapabilities::default(),detail:vec![]},updated_ms:1,attached:self.session_active,claims:vec![]})),
             Request::Checkouts {..} => Ok(Response::Checkouts(self.checkouts.values().cloned().collect())),
-            Request::CheckoutRegister {checkout,..} => {self.checkouts.insert(checkout.id,checkout.clone());Ok(Response::Checkout(checkout))}
+            Request::WorkspaceConnect {checkout,agent,..} => {assert_eq!(agent,PRINCIPAL);self.checkouts.insert(checkout.id,checkout.clone());Ok(Response::Checkout(checkout))}
             Request::WorkspaceRecoveryParentCheck {..} => if self.reject_recovery_parent { Err(ApiError::new(ErrorCode::Denied,"fixture parent overlaps another managed tree")) } else { Ok(Response::Done) },
             Request::WorkspaceOperationComplete {operation,..} => {
                 let mut saved=self.operations[&operation].clone();
@@ -315,13 +322,30 @@ impl Fixture {
             .args(["--json", "--owner", "--as", "worker"]);
         command
     }
+    fn cli_host(&self) -> Command {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_locust"));
+        command
+            .env_remove("LOCUST_HOME")
+            .env_remove("LOCUST_CREDENTIAL")
+            .env_remove("LOCUST_SESSION")
+            .env("PATH", "/locust-no-programs-on-path")
+            .arg("--home")
+            .arg(self.home.path())
+            .args(["--json", "--owner"]);
+        command
+    }
+    fn run_host(&self, args: &[&str]) -> Value {
+        let mut command = self.cli_host();
+        command.args(args);
+        output(command, 0)
+    }
     fn run(&self, args: &[&str]) -> Value {
         let mut command = self.cli();
         command.args(args);
         output(command, 0)
     }
     fn seed(&self, root: &std::path::Path) -> (String, String) {
-        let mut command = self.cli();
+        let mut command = self.cli_host();
         command
             .args(["workspace", "init", "--goal", &GOAL.to_string(), "--root"])
             .arg(root)
@@ -424,7 +448,7 @@ fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
     let files = tempfile::tempdir().unwrap();
     fs::write(files.path().join("selected file"), b"seed\n").unwrap();
     fs::write(files.path().join("private"), b"private").unwrap();
-    let mut command = fixture.cli();
+    let mut command = fixture.cli_host();
     command
         .args(["workspace", "init", "--goal", &GOAL.to_string(), "--root"])
         .arg(files.path())
@@ -474,7 +498,7 @@ fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
     );
     drop(state);
     let empty = Fixture::new();
-    let preview = empty.run(&["workspace", "init", "--goal", &GOAL.to_string(), "--empty"]);
+    let preview = empty.run_host(&["workspace", "init", "--goal", &GOAL.to_string(), "--empty"]);
     assert_eq!(preview["result"]["candidate"]["captured_paths"], json!([]));
 }
 
@@ -490,7 +514,7 @@ fn malformed_selection_leaves_policy_unmodified_and_directories_never_recurse() 
         b"\n",
         b"../outside\n",
     ] {
-        let mut command = fixture.cli();
+        let mut command = fixture.cli_host();
         command
             .args(["workspace", "init", "--goal", &GOAL.to_string(), "--root"])
             .arg(files.path())
@@ -702,7 +726,7 @@ fn lost_publish_reply_reuses_same_candidate_after_live_files_change() {
     fs::write(files.path().join("a"), b"frozen").unwrap();
     let key = "10101010101010101010101010101010";
     fixture.state.lock().unwrap().lose_publish_reply = true;
-    let mut command = fixture.cli();
+    let mut command = fixture.cli_host();
     command
         .args([
             "--idempotency-key",
@@ -718,7 +742,7 @@ fn lost_publish_reply_reuses_same_candidate_after_live_files_change() {
     assert_eq!(output(command, 8)["error"]["code"], "unavailable");
     fs::write(files.path().join("a"), b"changed after uncertainty").unwrap();
     fixture.state.lock().unwrap().objects.clear();
-    let mut command = fixture.cli();
+    let mut command = fixture.cli_host();
     command
         .args([
             "--idempotency-key",
@@ -959,7 +983,7 @@ fn lost_initial_epoch_reply_accepts_only_equivalent_pinned_policy() {
     let key = "30303030303030303030303030303030";
     let criterion = r#"{"kind":"declaration","by":{"kind":"contribution_author"}}"#;
     fixture.state.lock().unwrap().lose_epoch_reply = true;
-    let mut command = fixture.cli();
+    let mut command = fixture.cli_host();
     command
         .args([
             "--idempotency-key",
@@ -982,7 +1006,7 @@ fn lost_initial_epoch_reply_accepts_only_equivalent_pinned_policy() {
     output(command, 8);
     assert!(fixture.state.lock().unwrap().operations.is_empty());
     let before = fixture.state.lock().unwrap().rules_bindings.len();
-    let mut command = fixture.cli();
+    let mut command = fixture.cli_host();
     command
         .args([
             "--idempotency-key",
@@ -1006,7 +1030,7 @@ fn lost_initial_epoch_reply_accepts_only_equivalent_pinned_policy() {
     assert!(fixture.state.lock().unwrap().operations.is_empty());
     // Semantically duplicate criteria normalize to the exact pinned policy.
     let equivalent = r#"{"kind":"all","rules":[{"kind":"declaration","by":{"kind":"contribution_author"}},{"kind":"declaration","by":{"kind":"contribution_author"}}]}"#;
-    let mut command = fixture.cli();
+    let mut command = fixture.cli_host();
     command
         .args([
             "--idempotency-key",

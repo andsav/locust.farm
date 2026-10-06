@@ -93,7 +93,7 @@ pub struct ContextView {
     pub summary: Option<ContextSummary>,
     pub items: Vec<ContextItem>,
     pub next: Option<ContextCursor>,
-    /// None for owner/viewer observation without an acting execution session,
+    /// None for owner observation without an acting execution session,
     /// or when no complete, available items were delivered on this page.
     pub receipt: Option<ContextReceipt>,
 }
@@ -122,7 +122,7 @@ pub struct ContextBrief {
     pub checkout: Option<super::Checkout>,
     pub goal: GoalId,
     pub title: Option<String>,
-    pub administrator: PublicKey,
+    pub host: PublicKey,
     pub governance_head: Option<EventId>,
     pub current_rules: Option<EventId>,
     pub halted: Option<Halt>,

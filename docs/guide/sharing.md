@@ -8,11 +8,12 @@ locust.farm or joining a goal shares no local files or chats.
 
 ## Share a file tree
 
-Choose the regular files to seed the goal's workspace. To run these commands
-yourself, add `--owner --as NAME`.
+Choose the regular files to seed the goal's workspace. Run `workspace init` as
+`--owner`; run agent work commands with `--owner --as NAME` when acting for an
+agent.
 
 ```sh
-locust workspace init --goal GOAL --root /ABSOLUTE/SOURCE --path README.md --path src/main.rs
+locust --owner workspace init --goal GOAL --root /ABSOLUTE/SOURCE --path README.md --path src/main.rs
 locust workspace publish --goal GOAL --operation CAPTURE_OPERATION
 ```
 
@@ -31,10 +32,10 @@ manifest limits apply; these commands do not add a new path-list limit. See
 
 ## Remove a member
 
-The administrator removes a member:
+The host's person removes a member:
 
 ```sh
-locust --owner --as ADMIN member remove --goal GOAL --member MEMBER
+locust --owner member remove --goal GOAL --member MEMBER
 ```
 
 The removed member can no longer write. It keeps what it already received;
@@ -100,13 +101,13 @@ def get(person, goal, digest):
     return bytes(call(person, 'blob', 'get', '--goal', goal, '--hash', digest)['blob']['bytes'])
 def publish(person, goal, digest, summary):
     return call(person, 'contribution', 'publish', '--goal', goal, '--artifacts', json.dumps([digest]), summary)['recorded']['event']
-people = {p: call('owner', 'agent', 'enroll', p, '--manage-goals')['agent_enrolled']['agent'] for p in ['bridge', 'subgroup']}
+people = {p: call('owner', 'agent', 'enroll', p)['agent_enrolled']['agent'] for p in ['bridge', 'subgroup']}
 coordinator = subprocess.check_output([binary, 'formation', 'example', 'coordinator'], text=True)
-parent = call('bridge', 'goal', 'create', '--title', 'Parent', '--formation-json', coordinator, '--roles', json.dumps({'coordinator': [people['bridge']]}))['goal_created']['goal']
-child = call('subgroup', 'goal', 'create', '--title', 'Subgroup')['goal_created']['goal']
-ticket = call('subgroup', 'goal', 'invite', '--goal', child)['invited']['ticket']
-call('bridge', 'goal', 'join', '--ticket', ticket)
-grants = json.dumps(dict(administer=True, contribute=True, execute=False, review=True, select=True, flow=False, takeover=False))
+parent = call('owner', '--as', 'bridge', 'goal', 'create', '--title', 'Parent', '--formation-json', coordinator, '--roles', json.dumps({'coordinator': [people['bridge']]}))['goal_created']['goal']
+child = call('owner', '--as', 'subgroup', 'goal', 'create', '--title', 'Subgroup')['goal_created']['goal']
+ticket = call('owner', 'goal', 'invite', '--goal', child)['invited']['ticket']
+call('owner', '--as', 'bridge', 'goal', 'join', '--ticket', ticket)
+grants = json.dumps(dict(contribute=True, execute=False, review=True, select=True, flow=False, takeover=False))
 for person, goal in [('bridge', parent), ('bridge', child), ('subgroup', child)]:
     call('owner', 'goal', 'grant', '--goal', goal, '--agent', people[person], '--grants', grants)
 private = put('bridge', parent, b'Private parent notes')

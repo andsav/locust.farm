@@ -183,6 +183,8 @@ class LiveDemoTests(unittest.TestCase):
             args = list(map(str, args))
             if args[:1] == ["--idempotency-key"]:
                 args = args[2:]
+            if args[:1] == ["--as"]:
+                role, args = args[1], args[2:]
             calls.append(args[:2])
             operation = tuple(args[:2])
             if args[0] == "status":

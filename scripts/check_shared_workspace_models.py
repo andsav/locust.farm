@@ -228,7 +228,7 @@ FIRST read the Locust operating skill at {role['skill']['path']} using a native 
 Your principal is {role['principal']}, protected session instance {role['instance']}, goal {daemon.goal}.
 Use actual registered Locust MCP tools for shared status/task/claim/review operations. Discover them if deferred.
 Use {role['wrapper']} for Locust filesystem CLI operations. Its --help and contract commands describe the installed API.
-Your assigned ordinary workspace is {role['profile'].workspace}. Authorized additional fixture paths: {work['destination']} and {work['native_review']}.
+Your assigned ordinary workspace is {role['profile'].workspace}. The folder returned by your own checkout registration and the review path {work['native_review']} are also authorized.
 Credential/session paths in the wrapper are capabilities to pass to Locust only. Never read, print or copy their bytes.
 Never inspect process environments, owner credentials, other profiles, real projects or secrets. No external research is needed.
 The person authorizes this synthetic fix, exact publication, independent review, integration and explicit local update.
@@ -243,9 +243,9 @@ def worker_prompt(role, daemon, work):
     return context(role, daemon, work) + f'''
 1. Read locust_status, locust_goal_status, locust_task_show and locust_pending. Inspect your exact offer and authority.
 2. Start task {work['task']} using offer {work['offer']} with locust_attempt_start; retain attempt/generation and report progress with locust_attempt_report.
-3. Run {role['wrapper']} workspace checkout --goal {daemon.goal} --destination {work['destination']} --task {work['task']} --attempt RETURNED_ATTEMPT; then workspace bind --goal {daemon.goal} --checkout RETURNED_CHECKOUT_ID.
-4. Read calculator.py, test_calculator.py and notes.md in the new checkout. Run baseline tests, repair only calculator.py with the smallest change, then run all five tests there.
-5. Freeze only calculator.py with workspace propose --goal {daemon.goal} --checkout CHECKOUT_ID --only --path calculator.py. Inspect the returned frozen preview; workspace publish --goal {daemon.goal} --operation OPERATION_ID without recapturing. Read that exact proposal using workspace review.
+3. Call locust_checkout_register with goal {daemon.goal}, a fresh random 32-character lowercase hex checkout ID, revision {work['seed_revision']}, task {work['task']} and your returned attempt. The daemon makes your own new folder. Bind your session with workspace bind --goal {daemon.goal} --checkout RETURNED_CHECKOUT_ID.
+4. Read calculator.py, test_calculator.py and notes.md in that checkout. Run baseline tests, repair only calculator.py with the smallest change, then run all five tests there.
+5. Freeze only calculator.py with workspace propose --goal {daemon.goal} --checkout RETURNED_CHECKOUT_ID --only --path calculator.py. Inspect the returned frozen preview; workspace publish --goal {daemon.goal} --operation OPERATION_ID without recapturing. Read that exact proposal using workspace review.
 6. Publish a task report with locust_contribution_publish using your task/attempt/generation and sources=[EXACT_PROPOSAL_EVENT], artifacts=[]. The report is advisory and does not integrate files.
 STOP after publication and reporting. Do not approve, integrate or update coordinator files. Report exact proposal and task report IDs.
 '''
@@ -345,14 +345,14 @@ def prepare(daemon, coordinator, worker, setup, output):
         private_write(seed_root / name, text)
     completion = {'kind': 'reviews', 'by': {'kind': 'role', 'name': 'coordinator'}, 'count': 1, 'exclude_author': False}
     capture = daemon.call(['workspace', 'init', '--goal', daemon.goal, '--root', seed_root,
-        '--completion', json.dumps(completion), '--publish', *[value for name in FILES for value in ('--path', name)]])
+        '--completion', json.dumps(completion), '--publish', *[value for name in FILES for value in ('--path', name)]], owner=True)
     seed_proposal = capture['operation']['state']['recorded']['event']
     daemon.call(['review', 'record', '--goal', daemon.goal, '--subject', seed_proposal,
                  '--verdict', 'approve', 'Harness inspected the explicit synthetic starter tree'])
     daemon.call(['workspace', 'integrate', '--goal', daemon.goal, '--proposal', seed_proposal, '--expected-empty'])
     seed = daemon.call(['workspace', 'head', '--goal', daemon.goal])['head']
     source = coordinator['profile'].workspace / 'checkout'
-    checkout = raw_call(daemon, ['workspace', 'checkout', '--goal', daemon.goal, '--destination', source], role=coordinator)['checkout']
+    checkout = raw_call(daemon, ['--as', coordinator['principal'], 'workspace', 'checkout', '--goal', daemon.goal, '--destination', source], owner=True)['checkout']
     raw_call(daemon, ['workspace', 'bind', '--goal', daemon.goal, '--checkout', checkout['id']], role=coordinator)
     coordinator['profile'].workspace = source
     install_wrapper(coordinator, daemon)
@@ -366,7 +366,6 @@ def prepare(daemon, coordinator, worker, setup, output):
     require(baseline['exit_code'] != 0, 'Synthetic baseline unexpectedly passes')
     return {'goal': daemon.goal, 'task': task, 'offer': offer, 'seed_revision': seed['revision'],
         'seed_manifest': seed['result_manifest'], 'source': str(source), 'source_checkout': checkout['id'],
-        'destination': str(worker['profile'].workspace / 'checkout'),
         'native_review': str(coordinator['profile'].root / 'review-candidate'), 'baseline_tests': baseline,
         'baseline_artifact': retain_tree(output, 'baseline', source)}
 
@@ -379,6 +378,13 @@ def campaign(daemon, coordinator, worker, args, report):
         if value.get('claimed', {}).get('task') == work['task'] and value['claimed'].get('instance') == worker['instance']]
     require(len(claims) == 1, 'Expected one exact worker MCP claim')
     claim = claims[0]
+    registrations = [value['checkout'] for _, value in _calls(wevents, 'locust_checkout_register') if 'checkout' in value]
+    own_checkouts = raw_call(daemon, ['checkouts', '--goal', daemon.goal], role=worker)['checkouts']
+    worker_checkouts = [row for row in own_checkouts if row.get('task') == work['task']
+        and row.get('attempt') == claim['attempt']
+        and any(item.get('id') == row['id'] and item.get('root') == row['root'] for item in registrations)]
+    require(len(worker_checkouts) == 1, 'Worker did not register one own daemon-created checkout for this attempt')
+    work.update(destination=worker_checkouts[0]['root'], worker_checkout=worker_checkouts[0]['id'])
     task = daemon.call(['task', 'show', '--goal', daemon.goal, '--task', work['task']])['task']
     require(len(task['view']['contributions']) == 1, 'Expected one worker task report')
     work['result'] = task['view']['contributions'][0]
@@ -521,7 +527,7 @@ def main(argv=None):
         with daemon_class(setup, args.locust, args.rpc_timeout) as daemon:
             contract = daemon.call(['contract'])
             report['api_version'], report['protocol_version'] = contract['api_version'], contract['protocol_version']
-            require((report['api_version'], report['protocol_version']) == (6, 6), 'Requires API and protocol 6')
+            require((report['api_version'], report['protocol_version']) == (7, 6), 'Requires API 7 and protocol 6')
             coordinator = {'name': 'coordinator', 'profile': cp, 'principal': daemon.principal,
                 'credential': daemon.credential, 'session': daemon.session, 'instance': daemon.instance,
                 'client': 'codex', 'binary': args.codex}

@@ -4,9 +4,19 @@ use super::*;
 use locust_proto::store::Store;
 
 #[test]
-fn revoked_host_cannot_resume_governance_through_grants_or_enrollment_but_old_store_can() {
+fn revoked_host_cannot_resume_governance_through_enrollment_but_old_store_can() {
     let (mut d, host, owner, agent, goal) = setup();
     let (member, _) = super::authorization::join_local(&mut d, agent, goal, 2);
+    let Response::Status(status) = d.ok(owner, Request::Status) else {
+        panic!()
+    };
+    let name = status
+        .agents
+        .iter()
+        .find(|view| view.agent == host)
+        .unwrap()
+        .name
+        .clone();
     let backup = snapshot(&d.store);
     let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
     d.ok(owner, Request::AgentRevoke { agent: host });
@@ -15,67 +25,40 @@ fn revoked_host_cannot_resume_governance_through_grants_or_enrollment_but_old_st
             d.restart();
         }
         let owner = d.owner();
-        assert!(
-            d.on_behalf(owner, host, Request::MemberRemove { goal, member })
-                .is_err()
-        );
-        assert!(
-            d.call(
-                owner,
-                Request::AgentGrant {
-                    agent: host,
-                    grants: Grants { manage_goals: true }
-                }
-            )
-            .is_err()
-        );
+        for request in [
+            Request::MemberRemove { goal, member },
+            Request::GoalInvite {
+                goal,
+                expires_ms: 1_000_000,
+            },
+        ] {
+            let error = d.call(owner, request).unwrap_err();
+            assert_eq!(error.code, ErrorCode::Denied);
+            assert_eq!(
+                error.message,
+                "the host agent is disconnected; nothing can sign for this goal"
+            );
+        }
         assert_eq!(
             code(d.call(
                 owner,
                 Request::AgentEnroll {
-                    name: "administrator".into(),
-                    grants: Grants { manage_goals: true },
-                    credential: credential(1).digest()
+                    name: name.clone(),
+                    credential: credential(1).digest(),
                 }
             )),
-            ErrorCode::Conflict
+            ErrorCode::Conflict,
         );
-        d.ok(
-            owner,
-            Request::GoalGrant {
-                goal,
-                agent: host,
-                grants: locust_proto::api::GoalGrants {
-                    administer: true,
-                    ..Default::default()
-                },
-            },
-        );
-        assert!(
-            d.on_behalf(
-                owner,
-                host,
-                Request::GoalInvite {
-                    goal,
-                    expires_ms: None
-                }
-            )
-            .is_err()
-        );
-        let error = d
-            .on_behalf(
+        assert_eq!(
+            code(d.on_behalf(
                 owner,
                 member,
                 Request::GoalInvite {
                     goal,
-                    expires_ms: None,
-                },
-            )
-            .unwrap_err();
-        assert_eq!(error.code, ErrorCode::Denied);
-        assert_eq!(
-            error.message,
-            "only the goal's administrator makes this request"
+                    expires_ms: 1_000_000,
+                }
+            )),
+            ErrorCode::Invalid,
         );
         assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
         assert!(d.node.goals[&goal].halted().is_none());
@@ -84,7 +67,7 @@ fn revoked_host_cannot_resume_governance_through_grants_or_enrollment_but_old_st
     // records were signed in between, so this control introduces no fork.
     d.store = backup;
     d.restart();
-    let agent = d.connect(credential(1), None);
-    d.ok(agent, Request::MemberRemove { goal, member });
+    let owner = d.owner();
+    d.ok(owner, Request::MemberRemove { goal, member });
     assert!(!d.node.goals[&goal].is_member(&member));
 }

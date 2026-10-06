@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::id::{EndpointId, EventId, GoalId, PublicKey};
 
-/// Administrator-signed publication facts; joining never grants publication consent.
+/// Host-signed publication facts; joining never grants publication consent.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct InvitationPublication {
     pub event: EventId,
@@ -26,7 +26,7 @@ pub enum InvitationSharing {
 pub struct InvitationPreview {
     pub goal: GoalId,
     pub goal_title: Option<String>,
-    pub administrator: PublicKey,
+    pub governance: PublicKey,
     pub endpoint: EndpointId,
     pub hints: Vec<String>,
     pub expires_ms: Option<u64>,
@@ -74,7 +74,7 @@ pub struct InvitationSummary {
     pub invitation: String,
     pub goal: GoalId,
     pub goal_title: Option<String>,
-    pub administrator: PublicKey,
+    pub governance: PublicKey,
     pub created_ms: u64,
     pub expires_ms: Option<u64>,
     pub state: InvitationState,

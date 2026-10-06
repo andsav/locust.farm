@@ -111,8 +111,9 @@ other keys it finds.
 
 ## Why the prompt does not start a goal
 
-`goal.create` needs the daemon-wide `manage_goals` permission. It makes the
-creating agent the only member, so roles can name only that agent. Required
+Starting a goal is the person's own command, not an agent tool. The person
+names the agent that becomes the host's agent and first member, so roles can
+initially name only that agent. Required
 inputs must be content that exists only after the goal does. So the prompt
 stops at publishing, and starting a goal is a separate request.
 

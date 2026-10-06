@@ -222,7 +222,8 @@ class OnboardingCheck:
         self.summary["clients"] = {}
         for client, row in clients.items():
             require(row["model_ready"] is False and row["grants_added"] is False
-                    and not agents[row["principal"]]["grants"]["manage_goals"], "agent enrolled with work permission")
+                    and agents[row["principal"]]["author_only"] is False,
+                    "onboarding did not enroll an active agent")
             launcher = Path(row["launcher"])
             require(launcher.is_relative_to(self.profile.home), "launcher escaped selected profile")
             observed = self.cli(client + "-launcher-status", ["status"], binary=launcher, bound=True)["status"]["agents"]
@@ -245,16 +246,14 @@ class OnboardingCheck:
                     and row["instance"] == clients[row["client"]]["instance"] for row in repeated["clients"]), "up repeat changed identity")
         require(self.pid() == initial_pid, "repeating onboarding restarted the daemon")
         principal = clients["codex"]["principal"]
-        self.cli("owner-grant", ["agent", "grant", "--agent", principal, "--grants", '{"manage_goals":true}'], owner=True)
-        after_grant = self.cli("agent-add-after-grant", ["agent", "add", "codex", "--yes", "--profile-home", self.profile.home,
+        after_repeat = self.cli("agent-add-after-repeat", ["agent", "add", "codex", "--yes", "--profile-home", self.profile.home,
                                            "--workspace", self.profile.workspace])["clients"][0]
-        require(after_grant["changed"] is False and after_grant["principal"] == principal
-                and after_grant["instance"] == clients["codex"]["instance"], "agent add after a grant replaced identity")
-        granted = {row["agent"]: row for row in self.owner_agents()}
-        require(len(granted) == 2 and granted[principal]["grants"]["manage_goals"] is True
-                and granted[clients["claude"]["principal"]]["grants"]["manage_goals"] is False,
-                "agent add reset later owner grants or granted another agent")
-        require(self.pid() == initial_pid, "agent add after a grant restarted the daemon")
+        require(after_repeat["changed"] is False and after_repeat["principal"] == principal
+                and after_repeat["instance"] == clients["codex"]["instance"], "agent add after a repeat replaced identity")
+        retained = {row["agent"]: row for row in self.owner_agents()}
+        require(len(retained) == 2 and all(row["author_only"] is False for row in retained.values()),
+                "agent add changed the enrolled agent kind or count")
+        require(self.pid() == initial_pid, "agent add after a repeat restarted the daemon")
         require(all(digest(Path(row[key])) == self.summary["clients"][client][key + "_sha256"]
                     for client, row in clients.items() for key in ("credential_file", "session_file")),
                 "repeated up or agent add replaced secret files")
@@ -267,7 +266,7 @@ class OnboardingCheck:
         require(unselected_before == data_fingerprint(unselected) and digest(pi) == pi_before, "unselected profile or client changed")
         for key in ("installed_prefix_inference", "distinct_principals_and_sessions", "no_initial_grants",
                     "bound_launchers", "repeat_preserves_identity", "repeat_preserves_daemon_pid",
-                    "agent_add_preserves_owner_grant", "unrelated_settings_preserved", "unselected_profiles_preserved"):
+                    "agent_add_preserves_identity", "unrelated_settings_preserved", "unselected_profiles_preserved"):
             self.summary["checks"][key] = True
         self.summary["daemon_pid"] = initial_pid
 

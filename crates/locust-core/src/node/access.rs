@@ -70,26 +70,38 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Some(Membership::Member) => Ok((entry, principal)),
             Some(Membership::Joining) => Err(ApiError::new(
                 ErrorCode::Unavailable,
-                "the administrator's admission has not arrived yet",
+                "the host's admission has not arrived yet",
             )),
             _ => Err(denied("the principal is not a current member of the goal")),
         }
     }
 
-    /// The goal and the principal `actor` acts as, which must coordinate it
-    /// and hold the `administer` grant.
-    pub(super) fn administrator(
+    /// Whether this daemon holds the key that signs goal governance.
+    pub(super) fn hosts(&self, entry: &Entry) -> bool {
+        entry
+            .state()
+            .governance
+            .is_some_and(|key| self.principals.holds(&key))
+    }
+
+    /// The hosted goal and its governance signer.
+    pub(super) fn host(
         &self,
         actor: &Actor,
         goal: &GoalId,
     ) -> Result<(&Entry, PublicKey), ApiError> {
-        let (entry, principal) = self.member(actor, goal)?;
-        if entry.state().administrator != Some(principal) {
-            return Err(denied("only the goal's administrator makes this request"));
+        let entry = self.readable(actor, goal)?;
+        let principal = entry.state().governance.ok_or_else(|| not_found(NO_GOAL))?;
+        if !self.hosts(entry) {
+            return Err(denied(
+                "this goal is hosted on another computer; its host decides",
+            ));
         }
-        if !actor.owner_act && !entry.local.grants(&principal).administer {
-            return Err(authorization_required(
-                "the principal has no grant to decide in this goal",
+        if self.principals.active(&principal).is_none()
+            || entry.local.part.get(&principal) == Some(&true)
+        {
+            return Err(denied(
+                "the host agent is disconnected; nothing can sign for this goal",
             ));
         }
         Ok((entry, principal))
@@ -111,18 +123,19 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
     }
 
-    /// Requires the daemon-wide `manage_goals` grant of the acting
-    /// principal, which the owner's direct act stands in for.
-    pub(super) fn manages_goals(&self, actor: &Actor) -> Result<PublicKey, ApiError> {
-        let principal = actor.principal()?;
-        let granted = self
+    /// Resolve an owner-named agent for a person's goal request.
+    pub(super) fn local_agent(&self, actor: &Actor, agent: PublicKey) -> Result<Actor, ApiError> {
+        let principal = self
             .principals
-            .active(&principal)
-            .is_some_and(|found| found.record.grants.manage_goals);
-        if actor.owner_act || granted {
-            Ok(principal)
-        } else {
-            Err(denied("the principal has no grant to manage goals"))
+            .active(&agent)
+            .ok_or_else(|| not_found("no active enrolled principal has that key"))?;
+        if principal.record.author_only {
+            return Err(denied("an authoring principal cannot act in goals"));
         }
+        Ok(Actor {
+            principal: Some(agent),
+            owner_act: true,
+            ..*actor
+        })
     }
 }

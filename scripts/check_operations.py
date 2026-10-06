@@ -89,8 +89,8 @@ class Operations(Qualification):
     def checkout(self, machine, goal, revision, destination):
         self.wait(f"M{machine.number} retains the complete accepted workspace",
                   lambda: self.complete_workspace(machine, goal, revision))
-        return variant(self.cli(machine, ["workspace", "checkout", "--goal", goal,
-            "--revision", revision, "--destination", destination]), "checkout")
+        return variant(self.cli(machine, ["--as", f"m{machine.number}", "workspace", "checkout", "--goal", goal,
+            "--revision", revision, "--destination", destination], owner=True), "checkout")
 
     def checkout_binding(self, machine, goal, checkout):
         bindings = variant(self.api(machine, "checkouts", goal=goal), "checkouts")
@@ -172,13 +172,13 @@ class Operations(Qualification):
         root = lead.home.parent
         for machine in self.machines:
             self.start(machine)
-            machine.agent = identity(variant(self.cli(machine, ["agent", "enroll", f"m{machine.number}",
-                                      "--manage-goals"], owner=True), "agent_enrolled")["agent"], "principal")
+            machine.agent = identity(variant(self.cli(machine, ["agent", "enroll", f"m{machine.number}"],
+                                      owner=True), "agent_enrolled")["agent"], "principal")
         goal = self.create_goal(lead, "Synthetic operations")
         self.summary["goal"] = goal
         for machine in (first, second):
-            ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
-            self.cli(machine, ["goal", "join", "--ticket", ticket])
+            ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
+            self.cli(machine, ["--as", f"m{machine.number}", "goal", "join", "--ticket", ticket], owner=True)
         del ticket
         self.wait("three members converge", lambda: all(
             (state := self.goal_status(m, goal)) and len(state["members"]) == 3 for m in self.machines))
@@ -210,7 +210,7 @@ class Operations(Qualification):
         (source / "notes.txt").write_text("base notes\n")
         self.stop(second)
         captured = self.cli(lead, ["workspace", "init", "--goal", goal, "--root", source,
-            "--path", "large.bin", "--path", "code.txt", "--path", "notes.txt", "--publish"])
+            "--path", "large.bin", "--path", "code.txt", "--path", "notes.txt", "--publish"], owner=True)
         seed_proposal = operation_event(captured["operation"])
         base = captured["candidate"]["result_manifest"]
         epoch = captured["candidate"]["context"]["round"]
@@ -378,7 +378,7 @@ class Operations(Qualification):
         self.restart(first)
         require(self.event(first, goal, note)["text"] is None, "withdrawn payload readable after restart")
         require(self.event(lead, goal, note)["text"] == "withdraw this local payload", "withdrawal affected another replica")
-        self.api(first, "goal.leave", goal=goal)
+        self.cli(first, ["--as", f"m{first.number}", "goal", "leave", "--goal", goal], owner=True)
         self.expect_error(first, ["contribution", "publish", "--goal", goal, "must be refused"], "denied")
         self.restart(first)
         self.expect_error(first, ["contribution", "publish", "--goal", goal, "must still be refused"], "denied")
@@ -387,8 +387,8 @@ class Operations(Qualification):
         self.phase = "offline_rotation"
         goal = self.create_goal(lead, "Synthetic offline rotation")
         for machine in (first, second):
-            ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
-            self.cli(machine, ["goal", "join", "--ticket", ticket])
+            ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
+            self.cli(machine, ["--as", f"m{machine.number}", "goal", "join", "--ticket", ticket], owner=True)
         del ticket
         self.wait("rotation goal admitted", lambda: all(
             (state := self.goal_status(m, goal)) and len(state["members"]) == 3 for m in self.machines))
@@ -399,7 +399,7 @@ class Operations(Qualification):
         stale = self.recorded(second, ["contribution", "publish", "--goal", goal, "offline old epoch contribution"])
         self.stop(second)
         self.start(lead)
-        removal = variant(self.api(lead, "member.remove", goal=goal, member=second.agent), "recorded")["event"]
+        removal = variant(self.cli(lead, ["member", "remove", "--goal", goal, "--member", second.agent], owner=True), "recorded")["event"]
         future = self.recorded(lead, ["contribution", "publish", "--goal", goal, "new epoch only"])
         removal_detail = self.event(lead, goal, removal)
         future_detail = self.event(lead, goal, future)
@@ -454,11 +454,11 @@ class WorkspaceSmoke(Operations):
             self.environment(machine)
             self.record("git_path_unavailable", machine=machine.number, scope="daemon and CLI children")
             self.start(machine)
-            machine.agent = identity(variant(self.cli(machine, ["agent", "enroll", f"m{machine.number}", "--manage-goals"], owner=True), "agent_enrolled")["agent"], "principal")
+            machine.agent = identity(variant(self.cli(machine, ["agent", "enroll", f"m{machine.number}"], owner=True), "agent_enrolled")["agent"], "principal")
         goal = self.create_goal(lead, "Native workspace smoke")
         self.summary["goal"] = goal
-        ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
-        self.cli(worker, ["goal", "join", "--ticket", ticket])
+        ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
+        self.cli(worker, ["--as", f"m{worker.number}", "goal", "join", "--ticket", ticket], owner=True)
         del ticket
         self.wait("both members converge", lambda: all((state := self.goal_status(machine, goal)) and len(state["members"]) == 2 for machine in self.machines))
         self.grant_contributions(goal)
@@ -468,7 +468,7 @@ class WorkspaceSmoke(Operations):
         seed_input.mkdir()
         (seed_input / "code.txt").write_text("base\n")
         (seed_input / "notes.txt").write_text("base notes\n")
-        capture = self.cli(lead, ["workspace", "init", "--goal", goal, "--root", seed_input, "--path", "code.txt", "--path", "notes.txt", "--publish"])
+        capture = self.cli(lead, ["workspace", "init", "--goal", goal, "--root", seed_input, "--path", "code.txt", "--path", "notes.txt", "--publish"], owner=True)
         seed_proposal = operation_event(capture["operation"])
         self.api(lead, "completion.declare", goal=goal, subject=seed_proposal)
         seed = operation_event(variant(self.cli(lead, ["workspace", "integrate", "--goal", goal, "--proposal", seed_proposal, "--expected-empty"]), "workspace_operation"))

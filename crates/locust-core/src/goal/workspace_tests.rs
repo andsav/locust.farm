@@ -143,7 +143,7 @@ fn workspace_seed_and_successor_bind_exact_parent_without_manifest_bytes() {
 }
 
 #[test]
-fn workspace_has_no_implicit_administrator_integrator() {
+fn workspace_has_no_implicit_host_integrator() {
     let mut f = Fixture::new(Formation::default());
     let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
     let candidate = proposal(&mut f, 0, context, None, Vec::new());
@@ -308,7 +308,7 @@ fn workspace_competing_successors_retract_the_head_without_halting_governance() 
     assert_eq!(goal.standing(&first), Some(Standing::Disputed));
     assert_eq!(goal.standing(&second), Some(Standing::Disputed));
     assert_eq!(head(&goal), None);
-    assert!(goal.evaluation().admin_halt.is_none());
+    assert!(goal.evaluation().host_halt.is_none());
     assert_eq!(goal.standing(&unrelated), Some(Standing::Effective));
 }
 
@@ -371,7 +371,7 @@ fn workspace_checkpoint_does_not_waive_an_unrelated_integrator_log_fork() {
     assert_eq!(workspace.epoch, new.round);
     assert!(!workspace.ready);
     assert_eq!(head(&goal), None);
-    assert!(goal.evaluation().admin_halt.is_none());
+    assert!(goal.evaluation().host_halt.is_none());
 }
 
 #[test]
@@ -488,7 +488,7 @@ fn workspace_missing_or_wrong_kind_checkpoint_fences_prior_epoch_but_not_members
         assert!(!workspace.ready);
         assert_eq!(workspace.head, None);
         assert!(!goal.state().is_member(&f.workers[1].key.public()));
-        assert!(goal.evaluation().admin_halt.is_none());
+        assert!(goal.evaluation().host_halt.is_none());
     }
 }
 
@@ -832,13 +832,13 @@ fn workspace_membership_cutoff_preserves_exact_earlier_review_but_rejects_later_
 }
 
 #[test]
-fn workspace_administrator_epoch_fork_retracts_the_governance_suffix() {
+fn workspace_host_epoch_fork_retracts_the_governance_suffix() {
     let mut f = Fixture::new(workspace_formation(1));
     let context = epoch(&mut f, None, WorkspaceCheckpoint::Unseeded);
     seed(&mut f, context);
     f.fork(context.round, 1);
     let goal = f.goal();
-    assert!(goal.evaluation().admin_halt.is_some());
+    assert!(goal.evaluation().host_halt.is_some());
     assert!(goal.state().workspace.is_none());
     assert_eq!(head(&goal), None);
     assert_workspace_replay_and_restart(&f);
@@ -909,7 +909,7 @@ fn host_integrator_competition(same_position: bool) {
     assert_eq!(head(&goal), None);
     if same_position {
         assert_eq!(f.event(a).header().seq, f.event(b).header().seq);
-        assert!(goal.evaluation().admin_halt.is_some());
+        assert!(goal.evaluation().host_halt.is_some());
         assert!(!goal.standing(&admission).unwrap().is_effective());
         assert!(!goal.state().members.contains_key(&member));
         assert!(goal.next(&f.admin.key.public()).is_none());
@@ -918,7 +918,7 @@ fn host_integrator_competition(same_position: bool) {
         assert_eq!(f.event(b).header().prev, Some(a));
         assert_eq!(goal.standing(&a), Some(Standing::Disputed));
         assert_eq!(goal.standing(&b), Some(Standing::Disputed));
-        assert!(goal.evaluation().admin_halt.is_none());
+        assert!(goal.evaluation().host_halt.is_none());
         assert_eq!(goal.standing(&admission), Some(Standing::Effective));
         assert!(goal.state().members[&member].is_active());
     }

@@ -32,6 +32,7 @@ use tokio::signal::unix::{SignalKind, signal};
 use crate::failure::Failure;
 use crate::version;
 
+mod checkout;
 mod connection;
 mod farm;
 mod frames;
@@ -112,15 +113,18 @@ where
     let mut engine = worker::EngineThread::start_networked(
         move || {
             let store = SqliteStore::open(&init_home).map_err(store_open_failure)?;
-            Node::open(
+            let mut node = Node::open(
                 store,
                 system::OsEntropy,
                 owner_digest,
                 init_version,
                 system::now_ms(),
             )
-            .map(observe)
-            .map_err(|error| Failure::from(locust_proto::api::ApiError::from(error)))
+            .map_err(|error| Failure::from(locust_proto::api::ApiError::from(error)))?;
+            node.set_checkout_files(Box::new(checkout::LocalCheckoutFiles {
+                home: init_home.clone(),
+            }));
+            Ok(observe(node))
         },
         system::now_ms,
     )?;

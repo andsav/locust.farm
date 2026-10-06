@@ -21,7 +21,7 @@ class FarmDaemon(ProductionDaemon):
         if event == "daemon_started":
             fields["network_guard"] = "none; public farm HTTPS publication enabled"
         if event == "fixture_ready":
-            fields["role"] = "fixture_administrator; client roles enrolled separately"
+            fields["role"] = "fixture_host_agent; client roles enrolled separately"
         return super()._record(event, **fields)
 
 

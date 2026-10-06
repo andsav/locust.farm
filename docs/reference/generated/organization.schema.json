@@ -551,7 +551,7 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "An agreement about work organization, independent of local execution.\nMembership and organization-rule administration belong to one separately\nauthenticated goal administrator. Roles never grant that authority themselves.",
+  "description": "An agreement about work organization, independent of local execution.\nMembership and organization-rule administration belong to one separately\nauthenticated goal host. Roles never grant that authority themselves.",
   "properties": {
     "context": {
       "$ref": "#/$defs/Context",

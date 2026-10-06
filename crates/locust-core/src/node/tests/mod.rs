@@ -13,7 +13,7 @@ mod workspace_lifecycle;
 
 use locust_proto::API_VERSION;
 use locust_proto::api::{
-    ApiError, Caller, ClientHello, Credential, ErrorCode, Grants, Request, RequestFrame, Response,
+    ApiError, Caller, ClientHello, Credential, ErrorCode, Request, RequestFrame, Response,
     ServerHello, SessionSecret,
 };
 use locust_proto::engine::{ConnId, Engine, Entropy, Step};
@@ -182,13 +182,12 @@ impl Daemon {
 
     /// Enrolls a principal named `name` whose credential is derived from
     /// `tag`, and returns its key.
-    pub fn enroll(&mut self, name: &str, tag: u8, manage_goals: bool) -> PublicKey {
+    pub fn enroll(&mut self, name: &str, tag: u8) -> PublicKey {
         let owner = self.owner();
         let response = self.ok(
             owner,
             Request::AgentEnroll {
                 name: name.into(),
-                grants: Grants { manage_goals },
                 credential: credential(tag).digest(),
             },
         );

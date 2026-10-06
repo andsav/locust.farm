@@ -283,7 +283,7 @@ fn each_client_enrolls_without_grants_and_reuses_identity_session_and_config() {
         assert_eq!(fs::read(config).unwrap(), config_bytes);
         let agents = fixture.agents();
         assert_eq!(agents.len(), 1);
-        assert!(!agents[0].grants.manage_goals);
+        assert!(!agents[0].author_only);
         assert!(!agents[0].revoked);
         assert_eq!(second["principal"], json!(agents[0].agent));
     }
@@ -325,7 +325,7 @@ fn every_checkpoint_resumes_after_restart_without_duplicate_principals() {
         let resumed = fixture.complete();
         let agents = fixture.agents();
         assert_eq!(agents.len(), 1, "{stage}");
-        assert!(!agents[0].grants.manage_goals, "{stage}");
+        assert!(!agents[0].author_only, "{stage}");
         if let Some(before) = agents_before.first() {
             assert_eq!(agents[0].agent, before.agent, "{stage}");
         }
@@ -415,38 +415,12 @@ fn missing_or_modified_saved_secrets_are_refused_without_replacement() {
 }
 
 #[test]
-fn repeating_completed_onboarding_preserves_subsequent_owner_grants() {
-    let mut fixture = Fixture::new(Client::Codex, true);
-    let first = fixture.complete();
-    let principal = fixture.agents()[0].agent;
-    assert_eq!(
-        fixture
-            .owner()
-            .call(Request::AgentGrant {
-                agent: principal,
-                grants: Grants { manage_goals: true },
-            })
-            .unwrap(),
-        Response::Done
-    );
-    fixture.restart();
-    let repeated = fixture.complete();
-    assert_eq!(repeated["changed"], false);
-    assert_eq!(first["principal"], repeated["principal"]);
-    assert_eq!(first["instance"], repeated["instance"]);
-    let agents = fixture.agents();
-    assert_eq!(agents.len(), 1);
-    assert!(agents[0].grants.manage_goals);
-}
-
-#[test]
 fn existing_name_or_client_profile_is_not_adopted() {
     let fixture = Fixture::new(Client::Codex, true);
     fixture
         .owner()
         .call(Request::AgentEnroll {
             name: fixture.spec.name.clone().unwrap(),
-            grants: Grants { manage_goals: true },
             credential: Credential([91; 32]).digest(),
         })
         .unwrap();
@@ -501,7 +475,7 @@ fn declining_setup_saves_one_enrolled_identity_for_reviewed_resume() {
     let agents = fixture.agents();
     assert_eq!(agents.len(), 1);
     assert_eq!(journal.principal, Some(agents[0].agent));
-    assert!(!agents[0].grants.manage_goals);
+    assert!(!agents[0].author_only);
     assert_eq!(fs::read_dir(&fixture.spec.profile_home).unwrap().count(), 0);
     let binding = setup_spec(&fixture.spec).unwrap();
     let credential = protected_secret(&binding.credential).unwrap();

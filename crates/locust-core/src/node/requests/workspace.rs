@@ -1,5 +1,5 @@
-//! Durable local workspace metadata. The CLI supplies file observations; this
-//! module never opens a checkout, runs a check, or executes a filesystem plan.
+//! Durable local workspace metadata. File observations come from the CLI;
+//! new agent checkouts use the daemon shell's validated filesystem capability.
 
 use locust_proto::api::{
     ApiError, Checkout, ErrorCode, Response, WorkspaceAuthority, WorkspaceContent,
@@ -119,7 +119,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         checkpoint: WorkspaceCheckpoint,
         now: u64,
     ) -> Plan {
-        let (entry, principal) = self.administrator(actor, &goal)?;
+        let (entry, principal) = self.host(actor, &goal)?;
         let current = entry.state().workspace.as_ref();
         if current.map(|workspace| workspace.epoch) != expected_epoch {
             return Err(conflict("workspace epoch changed").with_details(
@@ -619,12 +619,110 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)] // Mirrors the typed request fields.
     pub(super) fn checkout_register(
         &self,
         actor: &Actor,
         goal: GoalId,
+        id: locust_proto::id::CheckoutId,
+        revision: Option<EventId>,
+        task: Option<locust_proto::event::TaskId>,
+        attempt: Option<EventId>,
+    ) -> Plan {
+        let (entry, principal) = self.member(actor, &goal)?;
+        if let Some(prior) = entry.local.checkouts.get(&(principal, id)) {
+            return if revision.is_none_or(|revision| revision == prior.base_revision)
+                && prior.task == task
+                && prior.attempt == attempt
+            {
+                answer(Response::Checkout(prior.clone()))
+            } else {
+                Err(conflict(
+                    "checkout identifier already names another binding",
+                ))
+            };
+        }
+        Self::validate_checkout_context(entry, principal, task, attempt)?;
+        let tree = self.readable_workspace_tree(actor, goal, revision)?;
+        let files = self.checkout_files.as_ref().ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::Unavailable,
+                "private checkout materializer is unavailable",
+            )
+        })?;
+        let destination = files.destination(id)?;
+        if !canonical_absolute(std::path::Path::new(&destination)) {
+            return Err(ApiError::new(
+                ErrorCode::Unavailable,
+                "private checkout materializer did not provide an absolute destination",
+            ));
+        }
+        if self.checkout_path_conflicts(&destination) {
+            return Err(conflict(
+                "this directory already belongs to a managed checkout",
+            ));
+        }
+        let mut fetch = |hash| {
+            let Response::Blob { bytes } = self.blob_get(actor, goal, hash)?.response else {
+                unreachable!()
+            };
+            Ok(bytes)
+        };
+        let (root, root_identity) = files.materialize(id, &tree.manifest, &mut fetch)?;
+        let checkout = Checkout {
+            id,
+            root,
+            root_identity,
+            base_revision: tree.revision.revision,
+            base_manifest: tree.revision.result_manifest,
+            session: None,
+            task,
+            attempt,
+            active_operation: None,
+        };
+        self.connect_checkout(actor, goal, checkout)
+    }
+
+    pub(super) fn workspace_connect(
+        &self,
+        actor: &Actor,
+        goal: GoalId,
+        agent: PublicKey,
         checkout: Checkout,
     ) -> Plan {
+        let local_actor = self.local_agent(actor, agent)?;
+        self.connect_checkout(&local_actor, goal, checkout)
+    }
+
+    fn validate_checkout_context(
+        entry: &Entry,
+        principal: PublicKey,
+        task: Option<locust_proto::event::TaskId>,
+        attempt: Option<EventId>,
+    ) -> Result<(), ApiError> {
+        if task.is_some_and(|task| !entry.state().tasks.contains_key(&task)) {
+            return Err(not_found("checkout task is not in this goal"));
+        }
+        if let Some(attempt) = attempt {
+            let attempt = entry
+                .state()
+                .attempts
+                .get(&attempt)
+                .ok_or_else(|| not_found("checkout attempt is not in this goal"))?;
+            if attempt.author != principal
+                || task.is_none_or(|task| {
+                    attempt.context.scope != locust_proto::event::Scope::Task(task)
+                })
+            {
+                return Err(conflict(
+                    "checkout attempt must belong to this principal and task",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn connect_checkout(&self, actor: &Actor, goal: GoalId, checkout: Checkout) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         if let Some(prior) = entry.local.checkouts.get(&(principal, checkout.id)) {
             return if prior == &checkout {
@@ -644,11 +742,18 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "new checkout requires an absolute root and no active operation",
             ));
         }
-        if self.goals.values().any(|entry| entry.local.checkouts.values().any(|prior|
-            prior.root_identity == checkout.root_identity || overlaps(std::path::Path::new(&prior.root), std::path::Path::new(&checkout.root)))
-            || entry.local.workspace_operations.values().any(|operation| matches!(&operation.kind,
-                WorkspaceOperationKind::Update { recovery, .. } if overlaps(std::path::Path::new(&recovery.recovery_directory), std::path::Path::new(&checkout.root))))) {
-            return Err(conflict("this directory already belongs to a managed checkout"));
+        if self.checkout_path_conflicts(&checkout.root)
+            || self.goals.values().any(|entry| {
+                entry
+                    .local
+                    .checkouts
+                    .values()
+                    .any(|prior| prior.root_identity == checkout.root_identity)
+            })
+        {
+            return Err(conflict(
+                "this directory already belongs to a managed checkout",
+            ));
         }
         self.accepted_workspace_tree(
             entry,
@@ -656,34 +761,28 @@ impl<S: Store, E: Entropy> Node<S, E> {
             checkout.base_manifest,
             &principal,
         )?;
-        if checkout
-            .task
-            .is_some_and(|task| !entry.state().tasks.contains_key(&task))
-        {
-            return Err(not_found("checkout task is not in this goal"));
-        }
-        if let Some(attempt) = checkout.attempt {
-            let attempt = entry
-                .state()
-                .attempts
-                .get(&attempt)
-                .ok_or_else(|| not_found("checkout attempt is not in this goal"))?;
-            if attempt.author != principal
-                || checkout.task.is_none_or(|task| {
-                    attempt.context.scope != locust_proto::event::Scope::Task(task)
-                })
-            {
-                return Err(conflict(
-                    "checkout attempt must belong to this principal and task",
-                ));
-            }
-        }
+        Self::validate_checkout_context(entry, principal, checkout.task, checkout.attempt)?;
         let mut tx = Tx::none();
         tx.local(local::checkout_write(&goal, &principal, &checkout))
             .touch(goal);
         Ok(Planned {
             response: Response::Checkout(checkout),
             tx,
+        })
+    }
+
+    fn checkout_path_conflicts(&self, root: &str) -> bool {
+        let root = std::path::Path::new(root);
+        self.goals.values().any(|entry| {
+            entry
+                .local
+                .checkouts
+                .values()
+                .any(|prior| overlaps(std::path::Path::new(&prior.root), root))
+                || entry.local.workspace_operations.values().any(|operation| {
+                    matches!(&operation.kind, WorkspaceOperationKind::Update { recovery, .. }
+                    if overlaps(std::path::Path::new(&recovery.recovery_directory), root))
+                })
         })
     }
 
@@ -864,12 +963,19 @@ impl<S: Store, E: Entropy> Node<S, E> {
         } else if checkout.is_some_and(|checkout| checkout.active_operation.is_some()) {
             return Err(conflict("checkout has an unresolved file operation"));
         }
-        if let WorkspaceOperationKind::Capture { candidate } = &operation.kind
-            && checkout.is_some_and(|checkout| candidate.parent != Some(checkout.base_revision))
-        {
-            return Err(conflict(
-                "frozen candidate parent differs from its checkout base",
-            ));
+        if let WorkspaceOperationKind::Capture { candidate } = &operation.kind {
+            if checkout.is_none() && candidate.sources.is_empty() && !actor.owner_act {
+                return Err(crate::node::access::denied(
+                    "sharing files from this computer needs a folder your owner connected to this goal",
+                ));
+            }
+            if !candidate.replacement
+                && checkout.is_some_and(|checkout| candidate.parent != Some(checkout.base_revision))
+            {
+                return Err(conflict(
+                    "frozen candidate parent differs from its checkout base",
+                ));
+            }
         }
         tx.local(local::workspace_operation_write(
             &goal, &principal, &operation,

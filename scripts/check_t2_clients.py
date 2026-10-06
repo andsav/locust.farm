@@ -207,7 +207,7 @@ def persisted_restart(daemon, work, progress_ids):
     claims_after = daemon.call(["pending", "--goal", daemon.goal])["pending"]["claimed"]
     progress_after = [daemon.call(["event", "show", "--goal", daemon.goal, "--event", event])["event"] for event in progress_ids]
     return (endpoint == daemon.endpoint and before == after and before.get("goal") == daemon.goal
-            and before.get("administrator") == daemon.principal and task_before == task_after
+            and before.get("host") == daemon.principal and task_before == task_after
             and claims_before == claims_after and progress_before == progress_after)
 
 
@@ -227,13 +227,13 @@ def seed_workspace(daemon, root, paths, destination):
                  "--completion", json.dumps(completion), "--publish"]
     for path in paths:
         arguments += ["--path", path]
-    seed = daemon.call(arguments)
+    seed = daemon.call(arguments, owner=True)
     proposal = seed["operation"]["state"]["recorded"]["event"]
     daemon.call(["review", "record", "--goal", daemon.goal, "--subject", proposal,
                  "--verdict", "approve", "Harness-reviewed synthetic seed"])
     accepted = daemon.call(["workspace", "integrate", "--goal", daemon.goal, "--proposal", proposal])
     revision = accepted["workspace_operation"]["state"]["recorded"]["event"]
-    checkout = daemon.call(["workspace", "checkout", "--goal", daemon.goal, "--destination", destination])["checkout"]
+    checkout = daemon.call(["--as", daemon.principal, "workspace", "checkout", "--goal", daemon.goal, "--destination", destination], owner=True)["checkout"]
     return {"base": seed["candidate"]["result_manifest"], "seed_revision": revision,
             "source_checkout": checkout["id"], "preview": seed["preview"]}
 
@@ -250,7 +250,7 @@ def prepare_work(profile, daemon, client):
     offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
                              "--recipient", daemon.principal])["recorded"]["event"]
     daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
-    return {"source": str(source), "destination": str(profile.workspace / "worker"),
+    return {"source": str(source),
             **shared, "task": task, "offer": offer, "goal": daemon.goal,
             "expected": "after-" + client + "\n", "principal": daemon.principal}
 
@@ -269,7 +269,7 @@ def native_step(client, command, timeout_ms):
     return step("bash", {"command": command, "timeout": timeout_ms / 1000})
 
 
-WORKSPACE_DRIVER = '''import json, pathlib, subprocess, sys
+WORKSPACE_DRIVER = '''import json, pathlib, secrets, subprocess, sys
 settings=json.loads(pathlib.Path(sys.argv[1]).read_text())
 def call(*args):
     result=subprocess.run(settings['cli']+list(args), capture_output=True, text=True, timeout=settings['timeout'])
@@ -279,10 +279,10 @@ def call(*args):
     return body['result']
 w=settings['work']; goal=w['goal']; source=pathlib.Path(w['source'])
 claim=next(x for x in call('pending','--goal',goal)['pending']['claimed'] if x['task']==w['task'])
-checkout=call('workspace','checkout','--goal',goal,'--destination',w['destination'],
-              '--task',w['task'],'--attempt',claim['attempt'])['checkout']
+checkout=call('checkout','register','--goal',goal,'--checkout',secrets.token_hex(16),
+              '--revision',w['seed_revision'],'--task',w['task'],'--attempt',claim['attempt'])['checkout']
 call('workspace','bind','--goal',goal,'--checkout',checkout['id'])
-path=pathlib.Path(w['destination'])/'code.txt'
+path=pathlib.Path(checkout['root'])/'code.txt'
 assert path.read_text()=='before\\n'
 path.write_text(w['expected'])
 frozen=call('workspace','propose','--goal',goal,'--checkout',checkout['id'],'--path','code.txt','--only')
@@ -310,6 +310,7 @@ assert (source/'code.txt').read_text()==w['expected']
 assert (source/'unrelated.txt').read_text()=='local work\\n'
 assert not (source/'.git').exists()
 receipt={'proposal':proposal,'head':frozen['candidate']['result_manifest'],'revision':revision,'result':rid,
+         'worker_checkout':checkout['id'],'worker_root':checkout['root'],
          'generation':claim['generation'],'accepted_before_updated':True,'preview':frozen['preview'],'review':review}
 pathlib.Path(settings['receipt']).write_text(json.dumps(receipt))
 print(json.dumps({'workspace_driver':'completed','result':rid,'revision':revision}))
@@ -322,7 +323,8 @@ def workspace_driver(profile, daemon, work, timeout, *, cli=None):
     settings = profile.workspace / "workspace-settings.json"
     receipt = profile.logs / "workspace-result.json"
     private_write(script, WORKSPACE_DRIVER)
-    private_write(settings, json.dumps({"cli": daemon.command([]) if cli is None else cli, "work": work, "timeout": timeout,
+    private_write(settings, json.dumps({"cli": daemon.command([]) if cli is None else cli,
+                                       "work": work, "timeout": timeout,
                                        "receipt": str(receipt)}))
     return shlex.join([sys.executable, str(script), str(settings)]), receipt
 
@@ -471,7 +473,7 @@ def qualify(client, binary, args):
             checks["initialize"] = fixture.assertion("pass" if initialized else "fail", "Valid JSON-RPC response, supported negotiated version, Locust serverInfo and tool capability required")
             checks["tools_list"] = fixture.assertion("pass" if listed else "fail", "Exact pinned API tool names, structured object schemas and coherent schema digest required")
             reads = successful(events, READ)
-            authenticated = any(record_result(e).get("goal_status", {}).get("administrator") == daemon.principal for e in reads)
+            authenticated = any(record_result(e).get("goal_status", {}).get("host") == daemon.principal for e in reads)
             checks["scoped_daemon_authentication"] = fixture.assertion("pass" if authenticated else "fail", "Production bridge checked the enrolled non-owner credential; observed goal authority matches independent daemon setup")
             valid_claim = exact_claim(events, observed_claims, work, daemon.instance)
             checks["claim"] = fixture.assertion("pass" if valid_claim else "fail", "Actual bridge returned exact attempt, session instance and generation")
@@ -544,10 +546,14 @@ def validate_workspace(checks, daemon, profile, work, receipt_path):
     status = daemon.call(["goal", "status", "--goal", daemon.goal])["goal_status"]
     task = daemon.call(["task", "show", "--goal", daemon.goal, "--task", work["task"]])["task"]
     result = daemon.call(["event", "show", "--goal", daemon.goal, "--event", receipt["result"]])["event"]
+    worker = next((row for row in daemon.call(["checkouts", "--goal", daemon.goal])["checkouts"]
+                   if row["id"] == receipt.get("worker_checkout")), None)
     passed = (task["view"]["completed"] is True and
               task["view"]["selected"] == receipt["result"] and result["view"]["author"] == daemon.principal and
               status["workspace"]["head"]["revision"] == receipt["revision"] and
               receipt["proposal"] in result["body"]["contribution_published"]["sources"] and
+              worker is not None and worker["root"] == receipt.get("worker_root") and
+              (Path(worker["root"]) / "code.txt").read_text() == work["expected"] and
               (Path(work["source"]) / "code.txt").read_text() == work["expected"])
     checks["contribution_flow"] = fixture.assertion("pass" if passed else "fail", "Independent task/event/head/binding and file observations agree with actual client-produced contribution", str(receipt_path))
     checks["accepted_before_updated"] = fixture.assertion("pass" if receipt.get("accepted_before_updated") is True else "fail", "Client-executed driver observed accepted shared revision while source files and checkout base remained unchanged", str(receipt_path))

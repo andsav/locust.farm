@@ -363,14 +363,14 @@ async fn lifecycle_negotiates_versions_and_requires_initialized() {
 }
 
 #[test]
-fn pre_cancelled_worker_and_nested_unknown_arguments_are_rejected() {
+fn pre_cancelled_worker_and_nested_invalid_arguments_are_rejected() {
     let cancellation = Cancellation::new();
     cancellation.cancel();
     let (stream, _) = UnixStream::pair().unwrap();
     assert!(cancellation.install(&stream).is_err());
     assert!(matches!(
         parse_call(
-            &json!({"name":"locust_workspace_epoch","arguments":{"goal":"01".repeat(32),"expected_epoch":null,"rules":"02".repeat(32),"checkpoint":{"shell":"rm"}}})
+            &json!({"name":"locust_task_open","arguments":{"goal":"01".repeat(32),"text":"task","inputs":{"source":{"shell":"rm"}}}})
         ),
         Err(CallError::Arguments(_))
     ));

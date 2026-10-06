@@ -198,7 +198,7 @@ impl<S: Store, E: Entropy> Replica for Node<S, E> {
                     .local
                     .joins
                     .values()
-                    .any(|join| join.administrator != genesis.administrator)
+                    .any(|join| join.governance != genesis.governance)
             {
                 return Err(Refusal::InvitationRefused);
             }

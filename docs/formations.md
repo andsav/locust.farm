@@ -122,15 +122,15 @@ coordinator can approve its own result. The guide's
 
 ## Goals and administration
 
-`goal create` signs three events together: the genesis, which names the creator
-as administrator and pins the formation's semantic hash; the creator's
+The person's `goal create` command signs three events together: the genesis,
+which names the host agent and pins the formation's semantic hash; that agent's
 admission; and the first rules binding. It takes a preset name (`--formation`) or
 formation JSON (`--formation-json`), plus `--roles` and `--inputs`. It does not
-read the private catalog. It needs the daemon-wide `manage_goals` permission, and
-the creator gets only the local `administer` permission. See
+read the private catalog. The person names the enrolled agent who becomes the
+host's agent. See
 [goals.rs](../crates/locust-core/src/node/requests/goals.rs).
 
-Only the administrator's events change membership, rules, task rounds or the
+Only the host's events change membership, rules, task rounds or the
 farm publication policy. Events of these kinds from anyone else are excluded.
 Roles never grant this power. See
 [chain.rs](../crates/locust-core/src/goal/chain.rs).
@@ -138,7 +138,7 @@ Roles never grant this power. See
 A rules binding must bind every declared role to admitted members and supply
 every required input. A role used as a selection or finish decider must be bound
 to exactly one member. At creation the creator is the only member, so roles can
-name only the creator. The administrator admits others and then runs `rules bind`.
+name only the creator. The host admits others and then runs `rules bind`.
 
 `rules bind --expected RULES_REVISION` changes the goal's defaults. The revision
 is the ID of the current rules event; if it changed, locust.farm refuses the update. New tasks use the new rules;
@@ -148,7 +148,7 @@ task new rules as a new round and names the round it replaces.
 ## How decisions are evaluated
 
 Every work event names its task (or the goal), the rules round it acts under,
-and the administrator's event it last saw. Each daemon checks the event against
+and the host's event it last saw. Each daemon checks the event against
 the rules and membership at that point. Equal records give every daemon the same
 result. Clocks and arrival order never decide anything.
 
@@ -206,10 +206,10 @@ The daemon computes three kinds of automatic step from the goal's records, in
 - Open a stage's task when its requirements are met, and send it to the stage's
   recipients.
 - Offer a stage's task to each recipient, when the stage's start rules let the
-  administrator make offers.
+  host make offers.
 - Ask each member who may review a new result for a review.
 
-The administrator signs stage tasks, stage offers and review requests for stage
+The host signs stage tasks, stage offers and review requests for stage
 tasks. The result's author signs other review requests. A daemon signs a step
 only for a local member that holds the `flow` permission
 ([node/flow.rs](../crates/locust-core/src/node/flow.rs)). Goal creation does not

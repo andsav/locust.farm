@@ -315,7 +315,7 @@ impl Bridge {
 /// list is one the daemon denies it.
 #[test]
 fn each_kind_of_credential_lists_the_tools_a_real_daemon_lets_it_call() {
-    use locust_proto::api::{Credential, OPERATIONS};
+    use locust_proto::api::OPERATIONS;
     let home = scratch();
     let _daemon = Process(
         command(home.path())
@@ -344,12 +344,6 @@ fn each_kind_of_credential_lists_the_tools_a_real_daemon_lets_it_call() {
     }
     let agent = owner(&["agent", "enroll", "worker"]).unwrap()["agent_enrolled"].clone();
     let author = owner(&["author", "enroll", "scribe"]).unwrap()["author_enrolled"].clone();
-    let viewer = home.path().join("viewer.credential");
-    fs::write(&viewer, [7u8; 32]).unwrap();
-    fs::set_permissions(&viewer, fs::Permissions::from_mode(0o600)).unwrap();
-    let enrollment =
-        json!({"agent": agent["agent"], "credential": Credential([7; 32]).digest()}).to_string();
-    owner(&["call", "viewer.enroll", &enrollment]).unwrap();
 
     // The author lists before it calls anything, and has no session.
     let mut bridge = Bridge::start(
@@ -381,21 +375,6 @@ fn each_kind_of_credential_lists_the_tools_a_real_daemon_lets_it_call() {
     assert_eq!(bridge.tools(), registry);
     assert_eq!(bridge.call("locust_status")["ok"], true);
     assert_eq!(bridge.call("locust_formation_drafts")["ok"], true);
-
-    let mut bridge = Bridge::start(home.path(), &viewer, None);
-    let listed = bridge.tools();
-    assert!(listed.contains(&"locust_status".to_owned()));
-    for operation in OPERATIONS.iter().filter(|operation| operation.tool) {
-        if listed.contains(&operation.tool_name()) {
-            assert!(operation.read_only, "{}", operation.name);
-        }
-    }
-    assert_eq!(bridge.call("locust_status")["ok"], true);
-    assert!(!listed.contains(&"locust_formation_drafts".to_owned()));
-    assert_eq!(
-        bridge.call("locust_formation_drafts")["error"]["code"],
-        "denied"
-    );
 
     let mut bridge = Bridge::start(home.path(), &home.path().join("owner.credential"), None);
     let answer = bridge.ask("tools/list", json!({}));

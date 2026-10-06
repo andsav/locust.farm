@@ -260,8 +260,8 @@ impl Goal {
         let anchor = self.state().head?;
         let log = self.history.log(author);
         if log.is_some_and(|log| log.fork.is_some() || log.waiting() != 0)
-            || (self.state().administrator.as_ref() == Some(author)
-                && self.evaluation.admin_halt.is_some())
+            || (self.state().governance.as_ref() == Some(author)
+                && self.evaluation.host_halt.is_some())
         {
             return None;
         }

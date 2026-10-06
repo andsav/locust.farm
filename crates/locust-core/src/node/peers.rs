@@ -149,16 +149,16 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
         if first.header().goal != *goal
             || second.header().goal != *goal
             || first.header().author != second.header().author
-            || !(entry.state().administrator == Some(first.header().author)
+            || !(entry.state().governance == Some(first.header().author)
                 || entry.state().members.contains_key(&first.header().author)
-                || entry.state().administrator.is_some_and(|administrator| {
-                    entry.goal.points(&administrator).iter().any(|point| {
+                || entry.state().governance.is_some_and(|governance| {
+                    entry.goal.points(&governance).iter().any(|point| {
                         entry.goal.event(&point.id).is_some_and(|event| {
                             matches!(event.header().body, Body::MemberAdmitted { member, .. } if member == first.header().author)
                         })
                     })
                 })
-                || entry.local.joins.values().any(|join| join.administrator == first.header().author))
+                || entry.local.joins.values().any(|join| join.governance == first.header().author))
             || first.header().seq != second.header().seq
             || first.id() == second.id()
         {
@@ -254,7 +254,7 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
         request: &JoinRequest,
         now_ms: u64,
     ) -> Result<(), Refusal> {
-        let tx = self.plan_join(remote, request, now_ms, None)?;
+        let tx = self.plan_join(remote, request, now_ms)?;
         self.land(tx).map_err(|_| Refusal::InvitationRefused)
     }
     fn take_changed(&mut self) -> Vec<GoalId> {
@@ -298,15 +298,12 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
 
 impl<S: Store, E: Entropy> Node<S, E> {
     /// Shared validation for network and same-daemon invitation redemption.
-    /// Only an authenticated owner acting for the joining local principal can
-    /// authorize this admission without the administrator's standing grants.
-    /// Network redemption never supplies a local actor.
+    /// A valid, pending invitation authorizes admission without a local grant.
     pub(super) fn plan_join(
         &self,
         remote: &EndpointId,
         request: &JoinRequest,
         now_ms: u64,
-        local_actor: Option<&super::callers::Actor>,
     ) -> Result<Tx, Refusal> {
         use super::requests::invitations::InviteRecord;
         let refused = Refusal::InvitationRefused;
@@ -338,26 +335,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 Err(refused)
             };
         }
-        let owner_local_admission = local_actor.is_some_and(|actor| {
-            actor.caller == locust_proto::api::Caller::Owner
-                && actor.owner_act
-                && actor.principal == Some(request.member)
-                && self
-                    .identity
-                    .endpoint
-                    .as_ref()
-                    .is_some_and(|own| own.endpoint == *remote)
-        });
-        if self.principals.active(&invite.administrator).is_none()
-            || entry.local.part.get(&invite.administrator) == Some(&true)
-            || (!owner_local_admission
-                && (!entry.local.grants(&invite.administrator).administer
-                    || !self
-                        .principals
-                        .active(&invite.administrator)
-                        .is_some_and(|principal| principal.record.grants.manage_goals)))
+        if self.principals.active(&invite.governance).is_none()
+            || entry.local.part.get(&invite.governance) == Some(&true)
             || invite.expires_ms.is_some_and(|expires| now_ms >= expires)
-            || entry.state().administrator != Some(invite.administrator)
+            || entry.state().governance != Some(invite.governance)
             || entry.is_member(&request.member)
         {
             return Err(refused);
@@ -365,7 +346,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let mut tx = Tx::none();
         self.author(
             entry,
-            &invite.administrator,
+            &invite.governance,
             Body::MemberAdmitted {
                 member: request.member,
                 endpoint: *remote,
@@ -385,12 +366,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
 /// Signed admission contacts remain eligible for conflict evidence only.
 /// This never changes the current member/endpoint projection.
 fn historical_endpoints(entry: &super::entry::Entry) -> std::collections::BTreeSet<EndpointId> {
-    let Some(administrator) = entry.state().administrator else {
+    let Some(governance) = entry.state().governance else {
         return Default::default();
     };
     entry
         .goal
-        .points(&administrator)
+        .points(&governance)
         .iter()
         .filter_map(|point| match entry.goal.event(&point.id)?.header().body {
             Body::MemberAdmitted { endpoint, .. } => Some(endpoint),

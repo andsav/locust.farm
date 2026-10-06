@@ -164,11 +164,11 @@ def stale_case(c, results, name, env, internet, stale_can_work, settle):
         title = f"Stale {name}"
         goal = flows.found(c, m3, title)
         time.sleep(settle)
-        ticket = variant(c.cli(m3, ["goal", "invite", "--goal", goal]), "invited")["ticket"]
+        ticket = variant(c.cli(m3, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
         stale["ticket_hint_kinds"] = flows.hint_kinds(ticket)
         c.stop(m3)
         c.relaunch(m3, bound(env, free_port()))
-        joined = variant(c.cli(m4, ["goal", "join", "--ticket", ticket]), "joined")
+        joined = variant(c.cli(m4, ["--as", f"m{m4.number}", "goal", "join", "--ticket", ticket], owner=True), "joined")
         del ticket
         identity(joined.get("goal"), "goal")
         sent = time.monotonic()
