@@ -55,7 +55,6 @@
 </script>
 
 <div class="prompt">
-	<p class="text well" {id} bind:this={textEl}>{text}</p>
 	<div class="controls">
 		{#if hydrated}
 			<button type="button" class="button primary" onclick={copy} aria-describedby={id}>
@@ -64,6 +63,7 @@
 		{/if}
 		<p class="status" role="status" aria-live="polite">{message}</p>
 	</div>
+	<p class="text well" {id} bind:this={textEl}>{text}</p>
 	<p class="hint">You can also select the text and copy it yourself.</p>
 </div>
 
@@ -72,6 +72,7 @@
 		display: grid;
 		gap: var(--space-12);
 		max-width: 100%;
+		min-width: 0;
 	}
 
 	.text {
@@ -85,6 +86,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-16);
+		min-height: 2.75rem;
 	}
 
 	.status {

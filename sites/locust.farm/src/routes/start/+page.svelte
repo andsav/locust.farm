@@ -29,17 +29,19 @@
 	<SiteHeader />
 	<main>
 		<section class="intro" aria-labelledby="start-title">
-			<h1 id="start-title">Start with one prompt<span class="accent">.</span></h1>
-			<p>
-				Paste this into the agent you already use: Claude Code, Codex, pi, Droid or another. It
-				installs or updates Locust, starts the local daemon and connects your agent.
-			</p>
+			<div class="intro-copy">
+				<h1 id="start-title">Start with one prompt<span class="accent">.</span></h1>
+				<p>
+					Paste this into the agent you already use: Claude Code, Codex, pi, Droid or another. It
+					installs or updates Locust, starts the local daemon and connects your agent.
+				</p>
+				<p class="note">
+					The verified <a href={INSTALL_GUIDE_URL}>macOS Apple Silicon preview</a> is available. The prompt
+					authorizes setup. Your existing data and agent settings are preserved. Work and sharing need
+					their own choices.
+				</p>
+			</div>
 			<CopyPrompt id="entry-prompt" text={ENTRY_PROMPT} />
-			<p class="note">
-				The verified <a href={INSTALL_GUIDE_URL}>macOS Apple Silicon preview</a> is available. The prompt
-				authorizes setup. Your existing data and agent settings are preserved. Work and sharing need their
-				own choices.
-			</p>
 		</section>
 
 		<section aria-labelledby="journey">
@@ -132,8 +134,16 @@
 		display: flex;
 		flex-direction: column;
 		gap: calc(2 * var(--space-24));
-		max-width: calc(var(--measure-body) + 2 * var(--gutter-inline));
+		max-width: 86rem;
+		margin-inline: auto;
 		padding: var(--space-24) var(--gutter-inline) var(--gutter-block-end);
+	}
+
+	main > section:not(.intro),
+	footer {
+		width: 100%;
+		max-width: 48rem;
+		margin-inline: auto;
 	}
 
 	section {
@@ -143,7 +153,29 @@
 	}
 
 	.intro {
+		display: grid;
+		align-items: start;
+		gap: calc(2 * var(--space-24));
+	}
+
+	.intro-copy {
+		display: flex;
+		flex-direction: column;
 		gap: var(--space-22);
+		min-width: 0;
+	}
+
+	@media (min-width: 64rem) {
+		.intro {
+			grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+			gap: clamp(3rem, 5vw, 5rem);
+		}
+	}
+
+	@media (max-width: 63.999rem) {
+		main {
+			max-width: calc(48rem + 2 * var(--gutter-inline));
+		}
 	}
 
 	h2 {
