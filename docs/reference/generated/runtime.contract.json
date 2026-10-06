@@ -31,9 +31,9 @@
       },
       {
         "action": "Set",
-        "help": "Act as an enrolled principal",
-        "long": "as",
-        "name": "as",
+        "help": "Select one of your enrolled agents by local name or full key",
+        "long": "agent",
+        "name": "agent",
         "positional": false,
         "required": false,
         "short": null
@@ -80,15 +80,6 @@
                 "positional": false,
                 "required": true,
                 "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Enrolled local name or full principal key",
-                "long": "agent",
-                "name": "agent",
-                "positional": false,
-                "required": true,
-                "short": null
               }
             ],
             "commands": [],
@@ -102,15 +93,6 @@
                 "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Enrolled local name or full principal key",
-                "long": "agent",
-                "name": "agent",
                 "positional": false,
                 "required": true,
                 "short": null
@@ -145,15 +127,6 @@
                 "help": "Goal title, full identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Enrolled local name or full principal key",
-                "long": "agent",
-                "name": "agent",
                 "positional": false,
                 "required": true,
                 "short": null
@@ -277,56 +250,22 @@
                 "long": "invitation",
                 "name": "invitation",
                 "positional": false,
-                "required": true,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Revoke every pending invitation for this goal",
+                "long": "all",
+                "name": "all",
+                "positional": false,
+                "required": false,
                 "short": null
               }
             ],
             "commands": [],
             "name": "revoke",
-            "summary": "Revoke an unused invitation; requires --owner"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Existing enrolled local principal name or full key",
-                "long": "principal",
-                "name": "principal",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Full review identifier shown by invitation inspect",
-                "long": "review",
-                "name": "review",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Owner-only regular file containing the invitation; never echoed",
-                "long": "ticket-file",
-                "name": "ticket-file",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Use - to read standard input; use --ticket-file for a saved invitation",
-                "long": "ticket",
-                "name": "ticket",
-                "positional": false,
-                "required": false,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "join",
-            "summary": "Join as an existing local principal after reviewing the exact ticket; requires --owner"
+            "summary": "Stop unused invitation admission immediately"
           }
         ],
         "name": "invitation",
@@ -414,6 +353,24 @@
                 "help": "Publish this one frozen candidate after its complete preview is captured",
                 "long": "publish",
                 "name": "publish",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -582,8 +539,8 @@
               {
                 "action": "Set",
                 "help": "Absolute fresh destination directory",
-                "long": "destination",
-                "name": "destination",
+                "long": "folder",
+                "name": "folder",
                 "positional": false,
                 "required": true,
                 "short": null
@@ -614,11 +571,29 @@
                 "positional": false,
                 "required": false,
                 "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
               }
             ],
             "commands": [],
-            "name": "checkout",
-            "summary": "Copy an accepted revision into a fresh ordinary directory"
+            "name": "connect",
+            "summary": "Copy an accepted revision into a fresh ordinary directory and connect it for an agent"
           },
           {
             "arguments": [
@@ -2213,7 +2188,7 @@
           },
           {
             "action": "SetTrue",
-            "help": "Show discovery and selected changes without writing files",
+            "help": "Show the exact action and its plan identifier without acting",
             "long": "plan",
             "name": "plan",
             "positional": false,
@@ -2221,10 +2196,10 @@
             "short": null
           },
           {
-            "action": "SetTrue",
-            "help": "Approve reviewed changes for explicitly selected clients without prompting",
-            "long": "yes",
-            "name": "yes",
+            "action": "Set",
+            "help": "Proceed only if this plan identifier still matches",
+            "long": "confirm",
+            "name": "confirm",
             "positional": false,
             "required": false,
             "short": null
@@ -2314,6 +2289,24 @@
                 "positional": false,
                 "required": true,
                 "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
               }
             ],
             "commands": [],
@@ -2393,6 +2386,24 @@
                 "positional": false,
                 "required": false,
                 "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
               }
             ],
             "commands": [],
@@ -2406,15 +2417,6 @@
                 "help": "Visible goal title, identifier or unique hex prefix",
                 "long": "goal",
                 "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Enrolled local agent name or principal key",
-                "long": "agent",
-                "name": "agent",
                 "positional": false,
                 "required": true,
                 "short": null
@@ -2451,6 +2453,24 @@
                 "help": "Optional owner-reported public daemon group label",
                 "long": "group-label",
                 "name": "group-label",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -2579,7 +2599,7 @@
         ],
         "commands": [],
         "name": "call",
-        "summary": "Call a typed API operation"
+        "summary": "Send one request exactly as given, with no plan and no confirmation: the raw door for scripts and tests"
       },
       {
         "arguments": [],
@@ -2724,18 +2744,27 @@
           {
             "arguments": [
               {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "agent",
-                "name": "agent",
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
                 "positional": false,
-                "required": true,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
                 "short": null
               }
             ],
             "commands": [],
             "name": "revoke",
-            "summary": "agent revoke"
+            "summary": null
           },
           {
             "arguments": [
@@ -2777,7 +2806,7 @@
               },
               {
                 "action": "SetTrue",
-                "help": "Show discovery and selected changes without writing files",
+                "help": "Show the exact action and its plan identifier without acting",
                 "long": "plan",
                 "name": "plan",
                 "positional": false,
@@ -2785,10 +2814,10 @@
                 "short": null
               },
               {
-                "action": "SetTrue",
-                "help": "Approve reviewed changes for explicitly selected clients without prompting",
-                "long": "yes",
-                "name": "yes",
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -4028,124 +4057,6 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "formation-json",
-                "name": "formation_json",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
-                "long": "inputs",
-                "name": "inputs",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
-                "long": "roles",
-                "name": "roles",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "title",
-                "name": "title",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Bundled organization name from formation examples; no JSON required",
-                "long": "formation",
-                "name": "formation",
-                "positional": false,
-                "required": false,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "create",
-            "summary": "goal create"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "ticket",
-                "name": "ticket",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "join",
-            "summary": "goal join"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
-                "long": "expires-ms",
-                "name": "expires_ms",
-                "positional": false,
-                "required": false,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "goal",
-                "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "invite",
-            "summary": "goal invite"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "goal",
-                "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "leave",
-            "summary": "goal leave"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "agent",
-                "name": "agent",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -4186,7 +4097,188 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Visible goal title, identifier or unique hex prefix",
+                "help": "Goal title",
+                "long": "title",
+                "name": "title",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Bundled formation name",
+                "long": "formation",
+                "name": "formation",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Complete formation JSON",
+                "long": "formation-json",
+                "name": "formation-json",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Input blob hashes as JSON",
+                "long": "inputs",
+                "name": "inputs",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Role bindings as JSON",
+                "long": "roles",
+                "name": "roles",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "create",
+            "summary": null
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "add",
+            "summary": null
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Owner-only regular file containing the invitation; never echoed",
+                "long": "ticket-file",
+                "name": "ticket-file",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Use - to read standard input; use --ticket-file for a saved invitation",
+                "long": "ticket",
+                "name": "ticket",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "join",
+            "summary": null
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "leave",
+            "summary": null
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -4195,16 +4287,16 @@
               },
               {
                 "action": "Set",
-                "help": "Enrolled local agent name or full principal key",
-                "long": "agent",
-                "name": "agent",
+                "help": "Invitation lifetime, e.g. 12h or 7d",
+                "long": "expires",
+                "name": "expires",
                 "positional": false,
-                "required": true,
+                "required": false,
                 "short": null
               },
               {
                 "action": "SetTrue",
-                "help": "Inspect sharing and membership without issuing an invitation",
+                "help": "Show the exact action and its plan identifier without acting",
                 "long": "plan",
                 "name": "plan",
                 "positional": false,
@@ -4212,18 +4304,18 @@
                 "short": null
               },
               {
-                "action": "SetTrue",
-                "help": "Approve sharing this selected goal with this selected local agent",
-                "long": "yes",
-                "name": "yes",
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
                 "positional": false,
                 "required": false,
                 "short": null
               }
             ],
             "commands": [],
-            "name": "add-local",
-            "summary": "Review whole-goal sharing with an enrolled local agent; permissions stay unchanged"
+            "name": "invite",
+            "summary": null
           }
         ],
         "name": "goal",
@@ -4236,7 +4328,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Value, or - for standard input on text fields",
+                "help": "Visible goal title, identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -4245,17 +4337,35 @@
               },
               {
                 "action": "Set",
-                "help": "Value, or - for standard input on text fields",
+                "help": "Member key, prefix or local name",
                 "long": "member",
                 "name": "member",
                 "positional": false,
                 "required": true,
                 "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
               }
             ],
             "commands": [],
             "name": "remove",
-            "summary": "member remove"
+            "summary": null
           }
         ],
         "name": "member",
@@ -4378,25 +4488,7 @@
             "arguments": [
               {
                 "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "expected",
-                "name": "expected",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "formation-json",
-                "name": "formation_json",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
+                "help": "Visible goal title, identifier or unique prefix",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -4405,7 +4497,25 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
+                "help": "Bundled formation name",
+                "long": "formation",
+                "name": "formation",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Complete formation JSON",
+                "long": "formation-json",
+                "name": "formation-json",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Input blob hashes as JSON",
                 "long": "inputs",
                 "name": "inputs",
                 "positional": false,
@@ -4414,9 +4524,27 @@
               },
               {
                 "action": "Set",
-                "help": "JSON value matching formation contract or the API schema",
+                "help": "Role bindings as JSON",
                 "long": "roles",
                 "name": "roles",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
                 "positional": false,
                 "required": false,
                 "short": null
@@ -4424,7 +4552,7 @@
             ],
             "commands": [],
             "name": "bind",
-            "summary": "rules bind"
+            "summary": null
           }
         ],
         "name": "rules",
@@ -4695,58 +4823,6 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "expected-round",
-                "name": "expected_round",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "goal",
-                "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "task",
-                "name": "task",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "task-type",
-                "name": "task_type",
-                "positional": false,
-                "required": false,
-                "short": null
-              }
-            ],
-            "commands": [],
-            "name": "revise",
-            "summary": "task revise"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "agent",
-                "name": "agent",
-                "positional": false,
-                "required": true,
-                "short": null
-              },
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
                 "long": "goal",
                 "name": "goal",
                 "positional": false,
@@ -4775,6 +4851,58 @@
             "commands": [],
             "name": "authorize",
             "summary": "task authorize"
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Task title or typed identifier",
+                "long": "task",
+                "name": "task",
+                "positional": false,
+                "required": true,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": null,
+                "long": "task-type",
+                "name": "task-type",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "revise",
+            "summary": null
           }
         ],
         "name": "task",
@@ -4797,7 +4925,7 @@
               {
                 "action": "Set",
                 "help": "Value, or - for standard input on text fields",
-                "long": "recipient",
+                "long": "member",
                 "name": "recipient",
                 "positional": false,
                 "required": true,

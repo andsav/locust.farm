@@ -1,12 +1,13 @@
 //! Person-facing invitation review and membership decisions.
 
-use super::{Output, connection, presentation::safe, resolve_goal, resolve_principal};
-use crate::failure::Failure;
-use clap::{Arg, ArgMatches, Command};
-use locust_proto::api::{
-    ApiError, InvitationPreview, InvitationState, Membership, Request, Response,
+use super::{
+    Output, connection,
+    presentation::{self, safe},
+    resolve_goal,
 };
-use locust_proto::id::IdempotencyKey;
+use crate::failure::Failure;
+use clap::{Arg, ArgAction, ArgMatches, Command};
+use locust_proto::api::{ApiError, InvitationPreview, InvitationState, Request, Response};
 use locust_proto::invite::{Invitation, MAX_TICKET_BYTES, Ticket};
 use locust_proto::local;
 use serde_json::json;
@@ -20,7 +21,7 @@ fn option(name: &'static str, help: &'static str) -> Arg {
     Arg::new(name).long(name).required(true).help(help)
 }
 
-fn ticket_input(command: Command) -> Command {
+pub(super) fn ticket_input(command: Command) -> Command {
     command
         .arg(
             Arg::new("ticket-file")
@@ -41,15 +42,32 @@ pub(super) fn command() -> Command {
     Command::new("invitation")
         .about("Inspect signed sharing facts, review joining, and manage issued invitations")
         .subcommand_required(true)
-        .subcommand(ticket_input(Command::new("inspect").about("Verify and preview an invitation offline without redeeming it")))
-        .subcommand(Command::new("list").about("Show issued invitation states without capabilities")
-            .arg(option("goal", "Goal identifier or unique prefix")))
-        .subcommand(Command::new("revoke").about("Revoke an unused invitation; requires --owner")
-            .arg(option("goal", "Goal identifier or unique prefix"))
-            .arg(option("invitation", "Full invitation identifier from invitation list")))
-        .subcommand(ticket_input(Command::new("join").about("Join as an existing local principal after reviewing the exact ticket; requires --owner")
-            .arg(option("principal", "Existing enrolled local principal name or full key"))
-            .arg(option("review", "Full review identifier shown by invitation inspect"))))
+        .subcommand(ticket_input(Command::new("inspect").about(
+            "Verify and preview an invitation offline without redeeming it",
+        )))
+        .subcommand(
+            Command::new("list")
+                .about("Show issued invitation states without capabilities")
+                .arg(option("goal", "Goal identifier or unique prefix")),
+        )
+        .subcommand(
+            Command::new("revoke")
+                .about("Stop unused invitation admission immediately")
+                .arg(option("goal", "Goal identifier or unique prefix"))
+                .arg(
+                    Arg::new("invitation")
+                        .long("invitation")
+                        .required_unless_present("all")
+                        .conflicts_with("all")
+                        .help("Full invitation identifier from invitation list"),
+                )
+                .arg(
+                    Arg::new("all")
+                        .long("all")
+                        .action(ArgAction::SetTrue)
+                        .help("Revoke every pending invitation for this goal"),
+                ),
+        )
 }
 
 pub(super) fn run(
@@ -61,7 +79,7 @@ pub(super) fn run(
         .duration_since(UNIX_EPOCH)
         .map_err(|_| Failure::internal("system clock precedes the Unix epoch"))?
         .as_millis() as u64;
-    let inspected = if matches!(operation, "invitation.inspect" | "invitation.join") {
+    let inspected = if operation == "invitation.inspect" {
         let ticket = read_ticket(args)?;
         let invitation = Invitation::from_ticket(ticket.as_str())
             .map_err(ApiError::from)
@@ -76,73 +94,32 @@ pub(super) fn run(
     };
     if operation == "invitation.inspect" {
         let (_, preview) = inspected.expect("inspection parsed its ticket");
-        return output(Response::InvitationInspected { preview });
+        return output(Response::InvitationInspected { preview }, now_ms);
     }
-    if matches!(
-        operation,
-        "invitation.join" | "invitation.revoke" | "invitation.list"
-    ) {
-        if !matches.get_flag("owner") {
-            return Err(Failure::usage("this invitation decision requires --owner"));
-        }
-        if matches.get_one::<String>("as").is_some() {
-            return Err(Failure::usage(
-                "invitation commands use direct --owner authority; join selects --principal explicitly",
-            ));
-        }
-    }
-    if let Some((_, preview)) = &inspected
-        && args.get_one::<String>("review") != Some(&preview.review)
-    {
-        return Err(Failure::new(
-            locust_proto::api::ErrorCode::Conflict,
-            "the reviewed invitation differs; inspect this exact ticket and confirm its review identifier",
+    if matches.get_one::<String>("agent").is_some() {
+        return Err(Failure::usage(
+            "host commands are the host's own and name no agent; drop --agent",
         ));
     }
     let home = connection::home(matches)?;
     let socket = local::socket_path(&home)?;
     let mut client = connection::open(matches, &home)?;
-    let on_behalf = matches
-        .get_one::<String>("as")
-        .map(|name| resolve_principal(&mut client, &socket, name))
-        .transpose()?;
-    let request = if operation == "invitation.join" {
-        let principal = resolve_principal(&mut client, &socket, value(args, "principal"))?;
-        let (ticket, _) = inspected.expect("joining parsed its ticket");
-        Request::GoalJoin {
-            agent: principal,
-            ticket,
-        }
-    } else {
-        let goal = resolve_goal(&mut client, &socket, value(args, "goal"), on_behalf)?;
-        match operation {
-            "invitation.list" => Request::GoalInvitations { goal },
-            "invitation.revoke" => Request::InvitationRevoke {
-                goal,
-                invitation: Some(value(args, "invitation").to_owned()),
-            },
-            _ => return Err(Failure::usage("unknown invitation operation")),
-        }
+    let goal = resolve_goal(&mut client, &socket, value(args, "goal"), None)?;
+    let request = match operation {
+        "invitation.list" => Request::GoalInvitations { goal },
+        _ => return Err(Failure::usage("unknown invitation operation")),
     };
-    let idempotency = matches
-        .get_one::<String>("idempotency-key")
-        .map(|value| {
-            value
-                .parse::<IdempotencyKey>()
-                .map_err(|_| Failure::usage("--idempotency-key requires 16 bytes in hex"))
-        })
-        .transpose()?;
     let response = client
-        .call_with(request, idempotency, None)
+        .call(request)
         .map_err(|error| connection::client_error(error, &socket))?;
-    output(response)
+    output(response, now_ms)
 }
 
 fn value<'a>(args: &'a ArgMatches, name: &str) -> &'a str {
     args.get_one::<String>(name).expect("required argument")
 }
 
-fn read_ticket(args: &ArgMatches) -> Result<Ticket, Failure> {
+pub(super) fn read_ticket(args: &ArgMatches) -> Result<Ticket, Failure> {
     if let Some(path) = args.get_one::<String>("ticket-file") {
         read_ticket_file(Path::new(path))
     } else if args
@@ -190,12 +167,12 @@ fn read_ticket_bytes(reader: impl Read) -> Result<Ticket, Failure> {
     }
     let text =
         String::from_utf8(bytes).map_err(|_| Failure::invalid("invitation is not UTF-8 text"))?;
-    Ok(Ticket(text.trim().to_owned()))
+    Ok(Ticket(text.trim_end_matches(['\r', '\n']).to_owned()))
 }
 
-fn output(response: Response) -> Result<Output, Failure> {
+fn output(response: Response, now_ms: u64) -> Result<Output, Failure> {
     let human = match &response {
-        Response::InvitationInspected { preview } => render_preview(preview),
+        Response::InvitationInspected { preview } => render_preview(preview, now_ms),
         Response::Invitations { invitations } => {
             if invitations.is_empty() {
                 "No invitations have been issued for this goal.".into()
@@ -204,12 +181,16 @@ fn output(response: Response) -> Result<Output, Failure> {
                     .iter()
                     .map(|invitation| {
                         format!(
-                            "{}  {}  expires {}{}",
+                            "{}  {}{}{}",
                             invitation.invitation,
                             state(invitation.state),
-                            invitation
-                                .expires_ms
-                                .map_or_else(|| "never".into(), |time| format!("{time} Unix ms")),
+                            if invitation.state == InvitationState::Pending {
+                                invitation.expires_ms.map_or_else(String::new, |time| {
+                                    format!("  expires {}", presentation::expires_in(time, now_ms))
+                                })
+                            } else {
+                                String::new()
+                            },
                             invitation
                                 .redeemed_by
                                 .map_or_else(String::new, |member| format!("  member {member}")),
@@ -219,23 +200,6 @@ fn output(response: Response) -> Result<Output, Failure> {
                     .join("\n")
             }
         }
-        Response::InvitationRevoked { invitation } => format!(
-            "Invitation {} is revoked. It cannot admit a new member.",
-            invitation.invitation
-        ),
-        Response::InvitationsRevoked { count } => format!("Revoked {count} pending invitations."),
-        Response::Joined {
-            goal,
-            governance,
-            membership,
-        } => match membership {
-            Membership::Member => format!(
-                "Joined goal {goal} as a member. Host: {governance}.\nMembership granted no execution permission or workspace access."
-            ),
-            _ => format!(
-                "Joining goal {goal}; admission from host {governance} has not arrived.\nRetry the same reviewed invitation to recover the pending result, or check status. No goal content or execution permission is granted while joining."
-            ),
-        },
         _ => return Err(Failure::internal("unexpected invitation response")),
     };
     Ok(Output::success(json!(response), human))
@@ -250,14 +214,21 @@ fn state(state: InvitationState) -> &'static str {
     }
 }
 
-fn render_preview(preview: &InvitationPreview) -> String {
+fn render_preview(preview: &InvitationPreview, now_ms: u64) -> String {
     let title = preview
         .goal_title
         .as_deref()
         .map_or_else(|| "(not supplied)".into(), safe);
-    let expires = preview
-        .expires_ms
-        .map_or_else(|| "never".into(), |time| format!("{time} Unix ms"));
+    let expires = preview.expires_ms.map_or_else(
+        || "unspecified".into(),
+        |time| {
+            format!(
+                "{} ({})",
+                presentation::expires_in(time, now_ms),
+                presentation::utc(time)
+            )
+        },
+    );
     let mut text = format!(
         "Goal: {title}\nGoal identifier: {}\nHost fingerprint: {}\nIssuer endpoint: {}\nSignature: verified against the host key.\nTitle: host-signed presentation. A signing key does not verify a human identity.\nGoal authority and admission are confirmed during joining. Inspection does not contact the issuer.\nExpires: {expires}{}\nSharing: whole goal.\n",
         preview.goal,
@@ -281,7 +252,7 @@ fn render_preview(preview: &InvitationPreview) -> String {
     for fact in &preview.sharing_facts {
         text.push_str(&format!("- {fact}\n"));
     }
-    text.push_str(&format!("Review identifier: {}\nTo accept, use invitation join with the same ticket input, --owner, --principal and --review. To decline, take no action; inspection made no changes.", preview.review));
+    text.push_str("To accept, run locust --owner goal join with the same ticket input. To decline, take no action; inspection made no changes.");
     text
 }
 
@@ -310,7 +281,7 @@ mod tests {
     fn offline_review_explains_provenance_without_printing_capability() {
         let invitation = invitation();
         let preview = invitation.preview(0).unwrap();
-        let rendered = render_preview(&preview);
+        let rendered = render_preview(&preview, 0);
         assert!(rendered.contains("host-signed presentation"));
         assert!(rendered.contains("Joining does not consent"));
         assert!(rendered.contains("does not verify a human identity"));
@@ -340,7 +311,7 @@ mod tests {
     #[test]
     fn stdin_and_file_reading_share_a_bounded_secret_free_error_path() {
         assert_eq!(
-            read_ticket_bytes(&b"  locust-invite-aabb\n"[..])
+            read_ticket_bytes(&b"locust-invite-aabb\n"[..])
                 .unwrap()
                 .as_str(),
             "locust-invite-aabb"

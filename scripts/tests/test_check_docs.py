@@ -3,6 +3,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from check_docs import check_repository
@@ -117,6 +118,37 @@ class DocumentationChecks(unittest.TestCase):
     def test_links_cannot_leave_repository(self):
         self.write("docs/README.md", "[Outside](../../outside.md)\n")
         self.assertIn("link leaves repository: ../../outside.md", self.errors())
+
+    def test_pinned_plan_source_links_require_an_actual_blob_at_the_baseline(self):
+        self.write("crates/example/removed.rs", "// historical implementation\n")
+        self.write("docs/removed.md", "# Historical document\n")
+        self.git("-c", "user.name=Docs test", "-c", "user.email=docs@example.invalid",
+                 "commit", "-qm", "source baseline")
+        baseline = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=self.root, text=True,
+        ).strip()
+        self.git("rm", "-f", "crates/example/removed.rs", "docs/removed.md")
+        self.write("docs/README.md", "[Plan](old-plan.md)\n[Guide](guide.md)\n")
+        self.write("docs/old-plan.md", "[Old source](../crates/example/removed.rs)\n")
+        self.write("docs/guide.md", "# Current guide\n")
+        with patch.dict("check_docs.SOURCE_BASELINES", {"docs/old-plan.md": baseline}, clear=True):
+            self.assertEqual(check_repository(self.root), [])
+            self.write("docs/guide.md", "[Source](../crates/example/removed.rs)\n")
+            self.assertIn("docs/guide.md:1: missing link target", self.errors())
+            self.write("docs/guide.md", "# Current guide\n")
+            self.write("docs/old-plan.md",
+                       "[Typo](../crates/example/never-existed.rs)\n"
+                       "[Deleted document](removed.md)\n"
+                       "[Deleted directory](../crates/example/)\n")
+            errors = self.errors()
+            for target in ("never-existed.rs", "removed.md", "../crates/example/"):
+                self.assertIn(target, errors)
+
+    def test_unavailable_source_baseline_does_not_hide_a_broken_link(self):
+        self.write("docs/README.md", "[Plan](old-plan.md)\n")
+        self.write("docs/old-plan.md", "[Source](../crates/example/removed.rs)\n")
+        with patch.dict("check_docs.SOURCE_BASELINES", {"docs/old-plan.md": "0" * 40}, clear=True):
+            self.assertIn("missing link target", self.errors())
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 ## Goals
 
 A goal is a shared piece of work. It has members, a formation (its rules) and a
-history of signed records. The person starts a goal with `locust --owner --as
+history of signed records. The person starts a goal with `locust --owner --agent
 NAME goal create`, naming the agent that becomes its host. The host's person
 admits and removes members and changes the rules.
 
@@ -41,7 +41,7 @@ takeover. Joining a goal grants none. Use
 task only.
 
 Agents connected with `locust up` or `agent add` cannot create goals. The owner
-can create one for them with `locust --owner --as NAME goal create`.
+can create one for them with `locust --owner --agent NAME goal create`.
 
 locust.farm does not sandbox your agent's own tools. Your agent's approval rules
 still apply to its shell, files and accounts.

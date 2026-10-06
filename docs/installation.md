@@ -174,7 +174,7 @@ Setup writes:
   secrets. For `shell`, no app reads this file;
 - a copy of the skill with an "Installed Locust CLI" section;
 - a `locust-cli` script next to the skill. It fixes `--home`, `--credential` and
-  `--session`, and refuses those flags, `--owner` and `--as` in its arguments
+  `--session`, and refuses those flags, `--owner` and `--agent` in its arguments
   ([launcher.rs](../crates/locust/src/installation/setup/launcher.rs)). It does
   not isolate the agent from the owner credential.
 
@@ -192,7 +192,7 @@ restart or in a new chat.
 
 ## Connect agents with up and agent add
 
-`locust up` ([CLI](../crates/locust/src/cli/onboarding.rs),
+`locust --owner up` ([CLI](../crates/locust/src/cli/onboarding.rs),
 [journal](../crates/locust/src/installation/onboarding.rs)) runs these steps:
 
 1. It finds the installed release from its own path or `--prefix`. The release
@@ -201,16 +201,18 @@ restart or in a new chat.
    terminal it asks which to connect.
 3. It plans the service (`launchd` on macOS, `systemd` on Linux, or
    `--service none` to use a running daemon) and the agent setup.
-4. It asks for confirmation. `--plan` only shows the plan. `--yes` applies without
-   asking and needs `--client`. `--json` turns off prompts.
+4. It asks for confirmation. `--plan` only shows the plan; a matching
+   `--confirm PLAN_ID` applies it. Without a terminal, select one `--client`
+   and repeat the printed `--name NAME` with the confirmation. `--json` turns
+   off prompts.
 5. It starts the service and waits for the daemon (`--wait-ms` sets a maximum;
    `0` checks once). A running service is not restarted.
 6. For each agent, it writes a journal, saves a credential and a session file,
    enrolls the agent and applies setup.
 7. It checks access with the agent's own credential and session.
-8. It reports `model_ready:false` and `grants_added:false`.
+8. It reports `model_ready:false`; the agent is in no goal.
 
-`locust agent add CLIENT` runs the same steps without the service.
+`locust --owner agent add CLIENT` runs the same steps without the service.
 
 Defaults: `--home` falls back to `LOCUST_HOME`, then `~/.locust`.
 `--profile-home` and `--service-profile-home` default to `HOME`, `--workspace`

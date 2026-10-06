@@ -5,6 +5,9 @@ Supports [label](path), optional quoted titles, and <angle-bracket paths>.
 Fenced code, URLs, and anchor-only links are ignored; fragments are not checked.
 Reference-style links and nested/escaped Markdown syntax are outside this check.
 Directories are valid link targets only when they contain tracked files.
+Source links in the explicitly pinned historical plans below may refer to
+files since removed; those targets must be blobs in that plan's source commit.
+Current guides and links to documentation always require current targets.
 """
 
 from collections import Counter
@@ -21,6 +24,16 @@ LINK = re.compile(
     r"\[[^\]\n]*\]\(\s*(?:<([^>\n]+)>|([^\s()]+))"
     r"(?:\s+(?:\"[^\"\n]*\"|'[^'\n]*'))?\s*\)"
 )
+
+# These plans describe the source snapshots named in their introductions and
+# are maintained separately from implementation. Removing superseded source
+# must not require rewriting a historical plan or retaining a dead module.
+SOURCE_BASELINES = {
+    "docs/roles-and-permissions-plan.md": "cfb5b450312efa402fc3b3931907fa81bc207d6b",
+    "docs/roles-and-permissions-plan-details.md": "cfb5b450312efa402fc3b3931907fa81bc207d6b",
+    "docs/host-safety-and-ending-plan.md": "48bb12c3aa45dcd6d70a521a95ca77c58ea1f776",
+    "docs/joinable-farms-plan.md": "0685f8042feb17a45c6d9cea587eafe91376d05f",
+}
 
 
 def inline_links(contents: str):
@@ -60,6 +73,20 @@ def check_repository(root: Path) -> list[str]:
     }
     errors = []
     indexed = {"docs": Counter(), "research": Counter()}
+    historical_sources = {}
+
+    def historical_source(document: str, relative: str) -> bool:
+        baseline = SOURCE_BASELINES.get(document)
+        if not baseline or not relative.startswith("crates/"):
+            return False
+        key = (baseline, relative)
+        if key not in historical_sources:
+            found = subprocess.run(
+                ["git", "cat-file", "-t", f"{baseline}:{relative}"],
+                cwd=root, capture_output=True, text=True,
+            )
+            historical_sources[key] = found.returncode == 0 and found.stdout.strip() == "blob"
+        return historical_sources[key]
 
     for document in sorted(documents):
         source = root / document
@@ -82,6 +109,8 @@ def check_repository(root: Path) -> list[str]:
                 errors.append(f"{location}: link leaves repository: {destination}")
                 continue
             if not target.exists():
+                if historical_source(document, relative):
+                    continue
                 errors.append(f"{location}: missing link target: {destination}")
                 continue
             if target.is_dir():

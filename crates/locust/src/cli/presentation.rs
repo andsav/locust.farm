@@ -6,6 +6,112 @@ use locust_proto::api::{
 };
 use locust_proto::event::{Body, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
+use locust_proto::organization::{CompletionRule, Selector};
+
+pub(super) fn utc(ms: u64) -> String {
+    let seconds = ms / 1_000;
+    let days = (seconds / 86_400) as i64;
+    let hour = (seconds % 86_400) / 3_600;
+    let minute = (seconds % 3_600) / 60;
+    // Gregorian civil date from days since the Unix epoch.
+    let z = days + 719_468;
+    let era = z / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let mut year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    year += i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02} {hour:02}:{minute:02} UTC")
+}
+
+pub(super) fn expires_in(expires_ms: u64, now_ms: u64) -> String {
+    let left = expires_ms.saturating_sub(now_ms);
+    if left == 0 {
+        return "expired".into();
+    }
+    const DAY: u64 = 86_400_000;
+    const HOUR: u64 = 3_600_000;
+    if left >= DAY {
+        let days = left / DAY;
+        format!("in {days} {}", if days == 1 { "day" } else { "days" })
+    } else {
+        let hours = left.div_ceil(HOUR);
+        format!("in {hours} {}", if hours == 1 { "hour" } else { "hours" })
+    }
+}
+
+pub(super) fn counts_when(rule: &CompletionRule) -> String {
+    format!("A result counts when {}.", counts_clause(rule))
+}
+
+fn counts_clause(rule: &CompletionRule) -> String {
+    match rule {
+        CompletionRule::Declaration { by } => match by {
+            Selector::ContributionAuthor => "its author says so".into(),
+            _ => format!("{} says so", selector_words(by)),
+        },
+        CompletionRule::Contribution { by } => format!("{} posts it", selector_words(by)),
+        CompletionRule::Reviews {
+            by,
+            count,
+            exclude_author,
+        } => {
+            let from = match by {
+                Selector::Members => String::new(),
+                Selector::Role { name } => format!(" from \"{}\"", safe(name)),
+                _ => format!(" from {}", selector_words(by)),
+            };
+            format!(
+                "it has {count} approval{}{}{}",
+                if *count == 1 { "" } else { "s" },
+                from,
+                if *exclude_author {
+                    ", not the author's"
+                } else {
+                    ""
+                }
+            )
+        }
+        CompletionRule::Check { name, .. } => {
+            format!("the check \"{}\" is reported as passed", safe(name))
+        }
+        CompletionRule::All { rules } => rules
+            .iter()
+            .map(counts_clause)
+            .collect::<Vec<_>>()
+            .join(" and "),
+        CompletionRule::Any { rules } => format!(
+            "one of these is true: {}",
+            rules
+                .iter()
+                .map(counts_clause)
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
+    }
+}
+
+fn selector_words(selector: &Selector) -> String {
+    match selector {
+        Selector::Members => "any member".into(),
+        Selector::Role { name } => format!("members in the \"{}\" role", safe(name)),
+        Selector::Participant { key } => format!(
+            "one specific member (key {}…)",
+            safe(&key.chars().take(8).collect::<String>())
+        ),
+        Selector::TaskCreator => "the member who added the task".into(),
+        Selector::ContributionAuthor => "the author of the result".into(),
+        Selector::Any { selectors } => selectors
+            .iter()
+            .map(selector_words)
+            .collect::<Vec<_>>()
+            .join(" or "),
+        Selector::Nobody => "nobody".into(),
+    }
+}
 
 /// Render untrusted text on one terminal line without terminal controls or bidi
 /// overrides. No content is silently removed or shortened.
@@ -540,6 +646,23 @@ pub(super) fn render(
 mod tests {
     use super::*;
     use locust_proto::api::AgentView;
+
+    #[test]
+    fn dates_expiry_and_completion_words_are_specific() {
+        assert_eq!(utc(0), "1970-01-01 00:00 UTC");
+        assert_eq!(utc(1_784_070_000_000), "2026-07-14 23:00 UTC");
+        assert_eq!(expires_in(0, 0), "expired");
+        assert_eq!(expires_in(3_600_001, 0), "in 2 hours");
+        assert_eq!(expires_in(86_400_000, 0), "in 1 day");
+        assert_eq!(
+            counts_when(&CompletionRule::Reviews {
+                by: Selector::Members,
+                count: 2,
+                exclude_author: true,
+            }),
+            "A result counts when it has 2 approvals, not the author's."
+        );
+    }
 
     #[test]
     fn terminal_controls_and_bidi_never_reach_the_terminal() {

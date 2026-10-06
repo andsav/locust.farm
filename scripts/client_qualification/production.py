@@ -187,7 +187,13 @@ class ProductionDaemon:
     def call(self, args, owner=False):
         if self._process is None or self._process.poll() is not None:
             raise ProductionError("production daemon is not running")
-        return self._invoke(args, owner=owner)
+        result = self._invoke(args, owner=owner)
+        if owner and "--plan" not in args:
+            from owner_plans import confirmation_arguments
+            confirmed = confirmation_arguments(args, result)
+            if confirmed is not None:
+                return self._invoke(confirmed, owner=owner)
+        return result
 
     def _verify_binary(self):
         stat = self.binary.stat()
@@ -274,7 +280,7 @@ class ProductionDaemon:
                     raise ProductionError("production authentication files are not private 32-byte secrets")
             formation = self.call(["formation", "example", "coordinator"])
             formation["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
-            created = self.call(["--as", "qualification", "goal", "create", "--title", "Production client qualification",
+            created = self.call(["--agent", "qualification", "goal", "create", "--title", "Production client qualification",
                 "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [self.principal]})], owner=True)
             self.goal = created.get("goal_created", {}).get("goal")
             if not isinstance(self.goal, str) or not PUBLIC_ID.fullmatch(self.goal):

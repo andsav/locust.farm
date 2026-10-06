@@ -115,11 +115,11 @@ pub(super) fn run(
     args: &ArgMatches,
 ) -> Result<Output, Failure> {
     if matches.get_flag("owner")
-        || matches.get_one::<String>("as").is_some()
+        || matches.get_one::<String>("agent").is_some()
         || matches.get_one::<String>("idempotency-key").is_some()
     {
         return Err(Failure::usage(
-            "client commands require an enrolled agent credential and its session, without --owner, --as or --idempotency-key",
+            "client commands require an enrolled agent credential and its session, without --owner, --agent or --idempotency-key",
         ));
     }
     let home = connection::home(matches)?;

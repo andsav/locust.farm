@@ -95,16 +95,19 @@ A task picks a task type with `task open --task-type NAME`. A subtask
 ## Changing the rules
 
 The host's person changes the rules. `goal status` prints the current
-rules revision.
+rules revision. Review the plan, then confirm it against that revision.
 
 ```sh
-locust --owner rules bind --goal GOAL --expected RULES_REVISION \
-  --formation-json "$(cat team.json)" --roles '{"reviewer":["MEMBER_KEY"]}'
+locust --owner rules bind --goal GOAL \
+  --formation-json "$(cat team.json)" --roles '{"reviewer":["MEMBER_KEY"]}' --plan
+locust --owner rules bind --goal GOAL \
+  --formation-json "$(cat team.json)" --roles '{"reviewer":["MEMBER_KEY"]}' --confirm PLAN_ID
 ```
 
 If the rules changed since you read them, locust.farm refuses. New rules apply to new
 tasks; existing tasks keep theirs. To move an active task to the current rules,
-run `task revise` with `--expected-round`. Drafts are in
+run `locust --owner task revise --goal GOAL --task TASK --plan`, then repeat it
+with `--confirm PLAN_ID`. Drafts are in
 [Write a formation](formation-authoring.md).
 
 ## Not built yet

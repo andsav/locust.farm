@@ -125,7 +125,72 @@ there are no remaining failing phase 1 gates.
 
 ## Phase 2
 
-Not started.
+The command grammar uses global `--agent` for one of the person's agents
+and `--member` for a goal member. Commands that share information or cannot
+be undone in one command use the shared plan/confirm mechanism. The raw
+`call` command remains an exact request. Scripts and executable recipes are
+updated alongside each removed spelling. The onboarding prompt and
+first-contact text change together, with their byte-for-byte parity test.
+
+The global agent option enforces its owner requirement during dispatch,
+rather than through Clap's `requires` on a global argument. The latter
+incorrectly rejected a leading `--owner` with `--agent` after a subcommand;
+both flag positions now work. This changes the implementation detail, not
+the required owner authority.
+
+Confirmation re-reads the displayed state before acting. Rules binding and
+task revision send the reviewed expected rule/round, so a concurrent change
+cannot be silently selected by another read after confirmation. Invitation
+expiry parsing also rejects non-ASCII invalid input without panicking.
+
+The person's `workspace connect --folder` continues to send the owner-only
+`workspace.connect` API introduced in phase 1. It does not call the agent's
+`checkout.register`, despite that spelling in the phase 2 plan. That is the
+same owner correction recorded above, carried through to the renamed CLI.
+
+A real-daemon regression checks that an unrelated rules binding does not
+invalidate an invitation plan when its displayed state has not changed, and
+that issuing the invitation makes that same plan identifier stale. The plan's
+pending-invitation count alone returned to its old value after redemption or
+revocation, making a used plan valid again. The invitation review therefore
+also shows and binds the total issued count. Revoking the ticket cannot make
+its old confirmation valid again; the regression covers that sequence. This
+adds visible changed state rather than a hidden governance dependency.
+
+Deleting `cli/local_members.rs` exposed source links to that module in the
+protected plans. Keeping dead source or editing those plans would violate the
+owner's constraints. The [documentation checker](../scripts/check_docs.py)
+therefore validates missing `crates/` targets only for four explicitly pinned
+historical plan documents against the source commits named in their introductions.
+It requires the exact historical blob; an unavailable commit, invented path,
+missing documentation page, or a broken current-guide link still fails. The
+[checker tests](../scripts/tests/test_check_docs.py) cover these boundaries.
+The CI and release-build checkout steps fetch history for that verification.
+The historical links remain historical; this does not claim that the removed
+files still exist in the current checkout.
+
+### Checks and evidence
+
+Passed: `cargo fmt --all --check`, `cargo clippy --locked --workspace
+--all-targets -- -D warnings`, `cargo test --locked --workspace` (976 passed,
+14 ignored), `python3 -m unittest discover -s scripts/tests` (297 run,
+3 skipped), `python3 scripts/check_docs.py`, `python3 scripts/check_formations.py`,
+and `python3 scripts/check_documentation.py --binary target/debug/locust
+--timeout 60` (all four executable recipes). In `sites/locust.farm`,
+`npm run lint`, `npm run check`, `npm test` (208 tests) and `npm run build`
+passed. The regenerated command contract has the required confirmation
+flags and no removed command or flag; the source cleanup search is empty.
+
+The Rust ignores and Python skips are the same qualification, performance,
+child-entry and signing-environment cases listed for phase 1. Earlier
+Clap flag-ordering failures, fixture changes, a Clippy argument-count failure,
+and a recipe run invalidated by a concurrent binary rebuild were repaired;
+the final gates have no failures. The frozen-binary recipe rerun passed.
+The new tests exercise owner agent inference, daemon denial for an agent's
+person-only command, immediate revoke and raw requests, stale plan refusal,
+member selectors, subtask wording, stdin joins without prompting, onboarding
+name stability, and workspace plans that perform no pre-confirmation file
+I/O. Workspace race regressions keep the reviewed revision/epoch pinned.
 
 ## Phase 3
 

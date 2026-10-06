@@ -22,6 +22,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent  # the repository
 sys.path.insert(0, str(HERE.parent))
 import check_t1 as base  # noqa: E402
+from owner_plans import confirmation_arguments  # noqa: E402
 
 CheckFailure = base.CheckFailure
 identity, variant, redact_text = base.identity, base.variant, base.redact_text
@@ -159,7 +160,14 @@ class Cluster(base.Qualification):
                                f"{redact_text(str(error.get('message', '')))[:200]}")
         if output.stderr and not tolerate:
             raise CheckFailure(f"M{machine.number} JSON command wrote diagnostics to stderr")
-        return body["result"]
+        result = body["result"]
+        if owner and "--plan" not in arguments:
+            confirmed = confirmation_arguments(arguments, result)
+            if confirmed is not None:
+                return self.cli(machine, confirmed, owner=owner, session=session, local=local,
+                                expected_errors=expected_errors, tolerate=tolerate,
+                                timeout=timeout)
+        return result
 
     def wait(self, label, predicate, timeout=None):
         """check_t1's wait with a per-wait deadline; records its duration."""

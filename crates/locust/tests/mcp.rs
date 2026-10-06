@@ -100,7 +100,7 @@ fn invalid_mcp_options_and_receipt_without_session_never_write_cli_json_to_stdou
         vec!["mcp", "--json"],
         vec!["mcp", "--owner"],
         vec!["mcp", "--idempotency-key", "01"],
-        vec!["mcp", "--as", "worker"],
+        vec!["mcp", "--agent", "worker"],
     ] {
         let output = command(home.path()).args(args).output().unwrap();
         assert!(!output.status.success());

@@ -138,7 +138,13 @@ class Demo:
             error = envelope.get("error", {})
             raise RuntimeError(str(args[:2]) + ": " + error.get("code", "unknown") +
                                ": " + error.get("message", "operation failed"))
-        return envelope["result"]
+        value = envelope["result"]
+        if owner and "--plan" not in args:
+            from owner_plans import confirmation_arguments
+            confirmed = confirmation_arguments(args, value)
+            if confirmed is not None:
+                return self.call(confirmed, role=role, owner=owner, session=session)
+        return value
 
     def proposal(self, proposal, role="coordinator", destination=None):
         args = ["workspace", "review", "--goal", self.data["goal"], "--proposal", proposal]
@@ -227,22 +233,19 @@ class Demo:
             if len(existing) > 1:
                 raise RuntimeError("Multiple demo goals exist; choose the intended goal before retrying prepare")
             self.data["goal"] = (existing.pop() if existing else
-                                 self.call(["--as", "coordinator", "goal", "create", "--title", GOAL_TITLE], owner=True)["goal_created"]["goal"])
+                                 self.call(["--agent", "coordinator", "goal", "create", "--title", GOAL_TITLE], owner=True)["goal_created"]["goal"])
         self.save()
         goal = self.data["goal"]
         members = {m["member"] for m in self.call(["goal", "status", "--goal", goal])["goal_status"]["members"]}
         for role in ROLES:
             if self.data["agents"][role] not in members:
-                ticket = self.call(["goal", "invite", "--goal", goal], owner=True)["invited"]["ticket"]
-                self.call(["--as", role, "goal", "join", "--ticket", ticket], owner=True)
-                del ticket
+                self.call(["goal", "add", "--goal", goal, "--agent", role], owner=True)
             grants = {"contribute": True, "review": True,
                       "select": role == "coordinator", "execute": False, "flow": True, "takeover": False}
             self.call(["goal", "grant", "--goal", goal, "--agent", self.data["agents"][role],
                        "--grants", json.dumps(grants)], owner=True)
         if not self.data.get("rules_bound"):
-            current = self.call(["goal", "status", "--goal", goal])["goal_status"]["current_rules"]
-            self.call(["rules", "bind", "--goal", goal, "--expected", current,
+            self.call(["rules", "bind", "--goal", goal,
                        "--formation-json", formation, "--roles", json.dumps(roles)], owner=True)
             self.data["rules_bound"] = True
             self.save()
@@ -337,8 +340,8 @@ class Demo:
     def checkout(self, role, revision, destination):
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        result = self.call(["--as", role, "workspace", "checkout", "--goal", self.data["goal"],
-                            "--revision", revision, "--destination", destination], owner=True)
+        result = self.call(["--agent", role, "workspace", "connect", "--goal", self.data["goal"],
+                            "--revision", revision, "--folder", destination], owner=True)
         self.data.setdefault("checkouts", {})[role] = result["checkout"]["id"]
         self.save()
         return result
@@ -414,7 +417,7 @@ No Git repository or commit is needed. Publish actual checks and failures honest
         if claim:
             cmd += ["--attempt", claim["attempt"]]
         if client == "codex":
-            for value in ["--ask-for-approval", "never", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=true"]:
+            for value in ["--agentk-for-approval", "never", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=true"]:
                 cmd += ["--global-arg", value]
             cmd += ["--arg", "--skip-git-repo-check"]
         elif client == "claude-code":

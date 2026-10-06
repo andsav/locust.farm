@@ -52,7 +52,7 @@ pub(super) fn open(matches: &ArgMatches, home: &Path) -> Result<Client<UnixStrea
 fn path_error(error: local::LocalError, matches: &ArgMatches, option: &str) -> Failure {
     match error {
         local::LocalError::NoCredential => Failure::usage(
-            "select a credential with --credential <absolute-path> or LOCUST_CREDENTIAL, or use --owner for owner authority",
+            "select a credential with --credential <absolute-path> or LOCUST_CREDENTIAL, or use --owner to act as yourself",
         ),
         local::LocalError::NotAbsolute(_) if matches.get_one::<String>(option).is_some() => {
             Failure::usage(format!("--{option} must be an absolute path"))

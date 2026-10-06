@@ -29,8 +29,14 @@ fn fields(operation: &str) -> &'static [Field] {
                                 .map(|(name, value)| {
                                     let name: &'static str =
                                         Box::leak(name.clone().into_boxed_str());
-                                    let flag: &'static str =
-                                        Box::leak(name.replace('_', "-").into_boxed_str());
+                                    let flag: &'static str = Box::leak(
+                                        (if name == "recipient" {
+                                            "member".to_owned()
+                                        } else {
+                                            name.replace('_', "-")
+                                        })
+                                        .into_boxed_str(),
+                                    );
                                     Field {
                                         name,
                                         flag,
@@ -50,6 +56,9 @@ fn fields(operation: &str) -> &'static [Field] {
         .get(operation)
         .map(Vec::as_slice)
         .unwrap_or_default()
+}
+pub(super) fn has_field(operation: &str, name: &str) -> bool {
+    fields(operation).iter().any(|field| field.name == name)
 }
 fn nullable(value: &Value) -> bool {
     value["type"]
@@ -92,7 +101,7 @@ fn operation(name: &'static str, api: &'static str) -> Command {
             .summary,
     );
     for field in fields(api) {
-        if field.name == "agent" && matches!(api, "goal.create" | "goal.join" | "goal.leave") {
+        if field.name == "agent" {
             continue;
         }
         let positional = text_field(api) == Some(field.name);
@@ -137,14 +146,6 @@ fn operation(name: &'static str, api: &'static str) -> Command {
             "Exit status: 0 when the goal changed since --seen, 20 when nothing changed before the timeout, 21 when nothing changed and no peer of the goal is reachable. 20 and 21 are not errors.",
         );
     }
-    if api == "goal.create" {
-        command = command.arg(
-            Arg::new("formation")
-                .long("formation")
-                .conflicts_with("formation_json")
-                .help("Bundled organization name from formation examples; no JSON required"),
-        );
-    }
     command
 }
 fn version_line() -> &'static str {
@@ -178,11 +179,10 @@ pub(super) fn command() -> Command {
                 .help("Use this home's owner credential"),
         )
         .arg(
-            Arg::new("as")
-                .long("as")
+            Arg::new("agent")
+                .long("agent")
                 .global(true)
-                .requires("owner")
-                .help("Act as an enrolled principal"),
+                .help("Select one of your enrolled agents by local name or full key"),
         )
         .arg(
             Arg::new("session")
@@ -232,7 +232,7 @@ pub(super) fn command() -> Command {
         )
         .subcommand(
             Command::new("call")
-                .about("Call a typed API operation")
+                .about("Send one request exactly as given, with no plan and no confirmation: the raw door for scripts and tests")
                 .arg(Arg::new("operation").required(true))
                 .arg(
                     Arg::new("fields")
@@ -243,7 +243,8 @@ pub(super) fn command() -> Command {
     let mut groups: BTreeMap<&'static str, Vec<Command>> = BTreeMap::new();
     for api in OPERATIONS {
         // Offline authoring owns these names; authenticated inspection is available through call/MCP.
-        if api.name.starts_with("invitation.")
+        if super::only_you::owns(api.name)
+            || api.name.starts_with("invitation.")
             || api.name.starts_with("permission.")
             || api.name.starts_with("farm.")
             || api.name.starts_with("workspace.")
@@ -281,10 +282,9 @@ pub(super) fn command() -> Command {
             command = command.subcommand(operation(api.name, api.name));
         }
     }
-    groups
-        .entry("goal")
-        .or_default()
-        .push(super::local_members::command());
+    for (group, leaf) in super::only_you::commands() {
+        groups.entry(group).or_default().push(leaf);
+    }
     groups
         .entry("daemon")
         .or_default()
@@ -358,8 +358,7 @@ pub(super) fn values(operation: &str, matches: &ArgMatches) -> Result<Map<String
     }
     let mut values = Map::new();
     for field in fields(operation) {
-        if field.name == "agent" && matches!(operation, "goal.create" | "goal.join" | "goal.leave")
-        {
+        if field.name == "agent" {
             continue;
         }
         let value = match matches.get_one::<String>(field.name) {
@@ -375,22 +374,6 @@ pub(super) fn values(operation: &str, matches: &ArgMatches) -> Result<Map<String
             },
         };
         values.insert(field.name.into(), value);
-    }
-    if operation == "goal.create"
-        && let Some(name) = matches.get_one::<String>("formation")
-    {
-        let preset = locust_proto::organization::presets()
-            .into_iter()
-            .find(|preset| preset.name == *name)
-            .ok_or_else(|| {
-                Failure::usage(format!("unknown formation {name}; use formation examples"))
-            })?;
-        values.insert(
-            "formation_json".into(),
-            Value::String(
-                serde_json::to_string(&preset.formation).expect("bundled formation encodes"),
-            ),
-        );
     }
     Ok(values)
 }
@@ -502,23 +485,20 @@ mod tests {
     }
 
     #[test]
-    fn new_goal_uses_empty_bindings_and_optional_formation() {
+    fn new_goal_accepts_optional_formation_and_bindings() {
         let matches = command()
             .try_get_matches_from(["locust", "goal", "create", "--title", "open"])
             .unwrap();
         let (name, fields) = selected(&matches);
-        let mut fields = values(&name, fields).unwrap();
-        fields.insert(
-            "agent".into(),
-            serde_json::json!(locust_proto::id::PublicKey([1; 32])),
+        assert_eq!(name, "goal.create");
+        assert_eq!(
+            fields.get_one::<String>("title").map(String::as_str),
+            Some("open")
         );
-        let request = serde_json::from_value::<locust_proto::api::Request>(
-            serde_json::json!({name.as_str():fields}),
-        )
-        .unwrap();
-        assert!(
-            matches!(request,locust_proto::api::Request::GoalCreate{formation_json:None,roles,inputs,..} if roles.is_empty() && inputs.is_empty())
-        );
+        assert!(fields.get_one::<String>("formation").is_none());
+        assert!(fields.get_one::<String>("formation-json").is_none());
+        assert!(fields.get_one::<String>("roles").is_none());
+        assert!(fields.get_one::<String>("inputs").is_none());
     }
     #[test]
     fn composed_scope_is_json_and_task_identity_remains_explicit() {

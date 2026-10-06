@@ -41,6 +41,9 @@ struct State {
     revisions: BTreeMap<EventId, WorkspaceRevisionView>,
     operations: BTreeMap<WorkspaceOperationId, WorkspaceOperation>,
     checkouts: BTreeMap<CheckoutId, Checkout>,
+    shift_head_on_checkouts: Option<EventId>,
+    head_reads: usize,
+    shift_epoch_on_head_read: Option<(usize, EventId)>,
     requests: Vec<RequestFrame>,
     next_event: u8,
     lose_publish_reply: bool,
@@ -80,6 +83,9 @@ impl State {
             revisions: BTreeMap::new(),
             operations: BTreeMap::new(),
             checkouts: BTreeMap::new(),
+            shift_head_on_checkouts: None,
+            head_reads: 0,
+            shift_epoch_on_head_read: None,
             requests: vec![],
             next_event: 0x80,
             lose_publish_reply: false,
@@ -127,13 +133,12 @@ impl State {
     }
     fn respond(&mut self, frame: RequestFrame) -> Result<Response, ApiError> {
         self.requests.push(frame.clone());
-        if !matches!(
+        if matches!(
             frame.request,
-            Request::Status
-                | Request::GoalStatus { .. }
-                | Request::RulesBind { .. }
-                | Request::WorkspaceEpochSet { .. }
-                | Request::WorkspaceConnect { .. }
+            Request::WorkspaceOperationPrepare { .. }
+                | Request::WorkspacePublish { .. }
+                | Request::WorkspaceIntegrate { .. }
+                | Request::CheckoutBindSession { .. }
         ) {
             assert_eq!(frame.on_behalf, Some(PRINCIPAL));
         }
@@ -143,7 +148,7 @@ impl State {
                 goals:vec![GoalSummary { goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,halted:None }] })),
             Request::GoalStatus { goal } => Ok(Response::GoalStatus(serde_json::from_value(json!({
                 "goal":goal,"title":"workspace","host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
-                "scope_halts":[],"members":[],"halted":null,"grants":GoalGrants::default(),"peers":[]
+                "scope_halts":[],"members":[{"member":PRINCIPAL,"endpoint":locust_proto::id::EndpointId([0x40;32]),"local":true}],"halted":null,"grants":GoalGrants::default(),"peers":[]
             })).unwrap())),
             Request::BlobPut { goal, bytes } => { assert_eq!(goal, GOAL); let hash = content_hash(&bytes); self.objects.insert(hash,bytes); Ok(Response::BlobStored {hash}) }
             Request::BlobGet { hash, .. } => self.objects.get(&hash).cloned().map(|bytes| Response::Blob {bytes}).ok_or_else(|| ApiError::new(ErrorCode::Unavailable,"fixture object unavailable")),
@@ -171,6 +176,14 @@ impl State {
                 Ok(Response::Recorded {event})
             }
             Request::WorkspaceHead { .. } => {
+                self.head_reads += 1;
+                if let Some((at, epoch)) = self.shift_epoch_on_head_read
+                    && self.head_reads == at
+                {
+                    self.epoch = Some(epoch);
+                    self.epoch_rules = Some(self.rules);
+                    self.shift_epoch_on_head_read = None;
+                }
                 let head = self.head.map(|id| self.revisions[&id].clone());
                 Ok(Response::Workspace(WorkspaceView { epoch:self.epoch,checkpoint:None,
                     content:head.as_ref().map(|head| self.content(head.result_manifest)),head,enabled:self.epoch.is_some(),
@@ -218,7 +231,12 @@ impl State {
             Request::WorkspaceRead {revision,path,..} => { let id=revision.or(self.head).unwrap(); let manifest=Manifest::decode(&self.objects[&self.revisions[&id].result_manifest]).unwrap(); let entry=manifest.entries.iter().find(|entry| entry.path==path).unwrap(); Ok(Response::WorkspaceFile(WorkspaceFileView {revision:id,path,executable:entry.executable,bytes:self.objects[&entry.content].clone()})) }
             Request::CheckoutBindSession {checkout,..} => { let bound=self.checkouts.get_mut(&checkout).unwrap(); bound.session=self.caller_session; Ok(Response::Checkout(bound.clone())) }
             Request::Session {instance} => Ok(Response::Session(SessionView {instance:instance.unwrap(),principal:PRINCIPAL,record:SessionRecord {harness:locust_proto::farm::Harness::Codex,client:"fixture".into(),state:if self.session_active {SessionState::Ready} else {SessionState::Exited},client_session:None,capabilities:SessionCapabilities::default(),detail:vec![]},updated_ms:1,attached:self.session_active,claims:vec![]})),
-            Request::Checkouts {..} => Ok(Response::Checkouts(self.checkouts.values().cloned().collect())),
+            Request::Checkouts {..} => {
+                if let Some(next) = self.shift_head_on_checkouts.take() {
+                    self.head = Some(next);
+                }
+                Ok(Response::Checkouts(self.checkouts.values().cloned().collect()))
+            },
             Request::WorkspaceConnect {checkout,agent,..} => {assert_eq!(agent,PRINCIPAL);self.checkouts.insert(checkout.id,checkout.clone());Ok(Response::Checkout(checkout))}
             Request::WorkspaceRecoveryParentCheck {..} => if self.reject_recovery_parent { Err(ApiError::new(ErrorCode::Denied,"fixture parent overlaps another managed tree")) } else { Ok(Response::Done) },
             Request::WorkspaceOperationComplete {operation,..} => {
@@ -319,7 +337,7 @@ impl Fixture {
             .env("PATH", "/locust-no-programs-on-path")
             .arg("--home")
             .arg(self.home.path())
-            .args(["--json", "--owner", "--as", "worker"]);
+            .args(["--json", "--owner", "--agent", "worker"]);
         command
     }
     fn cli_host(&self) -> Command {
@@ -334,23 +352,39 @@ impl Fixture {
             .args(["--json", "--owner"]);
         command
     }
-    fn run_host(&self, args: &[&str]) -> Value {
-        let mut command = self.cli_host();
-        command.args(args);
-        output(command, 0)
-    }
     fn run(&self, args: &[&str]) -> Value {
         let mut command = self.cli();
         command.args(args);
         output(command, 0)
     }
+    fn reviewed(&self, args: &[&str], host: bool, code: i32) -> Value {
+        let mut plan = if host { self.cli_host() } else { self.cli() };
+        plan.args(args).arg("--plan");
+        let shown = output(plan, 0);
+        assert_eq!(shown["result"]["action"], "review_required");
+        let id = shown["result"]["plan_id"].as_str().unwrap();
+        let mut confirmed = if host { self.cli_host() } else { self.cli() };
+        confirmed.args(args).args(["--confirm", id]);
+        output(confirmed, code)
+    }
     fn seed(&self, root: &std::path::Path) -> (String, String) {
-        let mut command = self.cli_host();
-        command
-            .args(["workspace", "init", "--goal", &GOAL.to_string(), "--root"])
-            .arg(root)
-            .args(["--path", "a", "--path", "b", "--publish"]);
-        let result = output(command, 0);
+        let result = self.reviewed(
+            &[
+                "workspace",
+                "init",
+                "--goal",
+                &GOAL.to_string(),
+                "--root",
+                root.to_str().unwrap(),
+                "--path",
+                "a",
+                "--path",
+                "b",
+                "--publish",
+            ],
+            true,
+            0,
+        );
         let proposal = result["result"]["operation"]["state"]["recorded"]["event"]
             .as_str()
             .unwrap()
@@ -381,19 +415,20 @@ impl Fixture {
             .to_owned()
     }
     fn checkout(&self, destination: &std::path::Path, revision: &str) -> String {
-        let mut command = self.cli();
-        command
-            .args([
+        self.reviewed(
+            &[
                 "workspace",
-                "checkout",
+                "connect",
                 "--goal",
                 &GOAL.to_string(),
                 "--revision",
                 revision,
-                "--destination",
-            ])
-            .arg(destination);
-        output(command, 0)["result"]["checkout"]["id"]
+                "--folder",
+                destination.to_str().unwrap(),
+            ],
+            false,
+            0,
+        )["result"]["checkout"]["id"]
             .as_str()
             .unwrap()
             .to_owned()
@@ -448,11 +483,23 @@ fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
     let files = tempfile::tempdir().unwrap();
     fs::write(files.path().join("selected file"), b"seed\n").unwrap();
     fs::write(files.path().join("private"), b"private").unwrap();
+    let args = [
+        "workspace",
+        "init",
+        "--goal",
+        &GOAL.to_string(),
+        "--root",
+        files.path().to_str().unwrap(),
+        "--paths-from",
+        "-",
+    ];
+    let mut plan = fixture.cli_host();
+    plan.args(args).arg("--plan");
+    let shown = output(plan, 0);
     let mut command = fixture.cli_host();
     command
-        .args(["workspace", "init", "--goal", &GOAL.to_string(), "--root"])
-        .arg(files.path())
-        .args(["--paths-from", "-"]);
+        .args(args)
+        .args(["--confirm", shown["result"]["plan_id"].as_str().unwrap()]);
     let preview = input_output(command, b"selected file\n", 0);
     assert_eq!(preview["result"]["published"], false);
     assert_eq!(
@@ -498,7 +545,11 @@ fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
     );
     drop(state);
     let empty = Fixture::new();
-    let preview = empty.run_host(&["workspace", "init", "--goal", &GOAL.to_string(), "--empty"]);
+    let preview = empty.reviewed(
+        &["workspace", "init", "--goal", &GOAL.to_string(), "--empty"],
+        true,
+        0,
+    );
     assert_eq!(preview["result"]["candidate"]["captured_paths"], json!([]));
 }
 
@@ -514,11 +565,23 @@ fn malformed_selection_leaves_policy_unmodified_and_directories_never_recurse() 
         b"\n",
         b"../outside\n",
     ] {
+        let args = [
+            "workspace",
+            "init",
+            "--goal",
+            &GOAL.to_string(),
+            "--root",
+            files.path().to_str().unwrap(),
+            "--paths-from",
+            "-",
+        ];
+        let mut plan = fixture.cli_host();
+        plan.args(args).arg("--plan");
+        let shown = output(plan, 0);
         let mut command = fixture.cli_host();
         command
-            .args(["workspace", "init", "--goal", &GOAL.to_string(), "--root"])
-            .arg(files.path())
-            .args(["--paths-from", "-"]);
+            .args(args)
+            .args(["--confirm", shown["result"]["plan_id"].as_str().unwrap()]);
         input_output(command, paths, 6);
         assert!(fixture.state.lock().unwrap().epoch.is_none());
         assert_eq!(fixture.state.lock().unwrap().rules, FIRST_RULES);
@@ -669,15 +732,15 @@ fn checkout_preflight_validates_task_and_attempt_before_materializing() {
     command
         .args([
             "workspace",
-            "checkout",
+            "connect",
             "--goal",
             &GOAL.to_string(),
             "--revision",
             &revision,
-            "--destination",
+            "--folder",
         ])
         .arg(&bad_task)
-        .args(["--task", "task:xyz"]);
+        .args(["--task", "task:xyz", "--plan"]);
     assert_eq!(output(command, 2)["error"]["code"], "invalid");
     assert!(!bad_task.exists());
     // An invalid attempt selector fails before publication even with a valid
@@ -687,36 +750,80 @@ fn checkout_preflight_validates_task_and_attempt_before_materializing() {
     command
         .args([
             "workspace",
-            "checkout",
+            "connect",
             "--goal",
             &GOAL.to_string(),
             "--revision",
             &revision,
-            "--destination",
+            "--folder",
         ])
         .arg(&bad_attempt)
-        .args(["--task", valid_task, "--attempt", "xyz"]);
+        .args(["--task", valid_task, "--attempt", "xyz", "--plan"]);
     assert_eq!(output(command, 2)["error"]["code"], "invalid");
     assert!(!bad_attempt.exists());
     // A corrected retry with a valid task materializes and registers.
     let good = files.path().join("good");
+    let args = [
+        "workspace",
+        "connect",
+        "--goal",
+        &GOAL.to_string(),
+        "--revision",
+        &revision,
+        "--folder",
+        good.to_str().unwrap(),
+        "--task",
+        valid_task,
+    ];
+    let mut plan = fixture.cli();
+    plan.args(args).arg("--plan");
+    let shown = output(plan, 0);
+    assert_eq!(shown["result"]["action"], "review_required");
+    assert!(!good.exists(), "planning must not create the destination");
+    assert!(fixture.state.lock().unwrap().checkouts.is_empty());
     let mut command = fixture.cli();
     command
-        .args([
-            "workspace",
-            "checkout",
-            "--goal",
-            &GOAL.to_string(),
-            "--revision",
-            &revision,
-            "--destination",
-        ])
-        .arg(&good)
-        .args(["--task", valid_task]);
+        .args(args)
+        .args(["--confirm", shown["result"]["plan_id"].as_str().unwrap()]);
     let registered = output(command, 0);
     assert_eq!(registered["result"]["checkout"]["task"], valid_task);
     assert!(good.exists());
     assert_eq!(fs::read(good.join("a")).unwrap(), b"base\n");
+}
+
+#[test]
+fn connect_uses_the_reviewed_revision_when_the_default_head_moves_after_confirmation() {
+    let fixture = Fixture::new();
+    let files = tempfile::tempdir().unwrap();
+    fs::write(files.path().join("a"), b"first").unwrap();
+    fs::write(files.path().join("b"), b"first").unwrap();
+    let (_, first) = fixture.seed(files.path());
+    let first_id: EventId = first.parse().unwrap();
+    let next_id = EventId([0xb5; 32]);
+    {
+        let mut state = fixture.state.lock().unwrap();
+        let mut next = state.revisions[&first_id].clone();
+        next.revision = next_id;
+        next.parent = Some(first_id);
+        state.revisions.insert(next_id, next);
+        state.shift_head_on_checkouts = Some(next_id);
+    }
+    let folder = files.path().join("connected");
+    let connected = fixture.reviewed(
+        &[
+            "workspace",
+            "connect",
+            "--goal",
+            &GOAL.to_string(),
+            "--folder",
+            folder.to_str().unwrap(),
+        ],
+        false,
+        0,
+    );
+    assert_eq!(connected["result"]["checkout"]["base_revision"], first);
+    assert_eq!(fixture.state.lock().unwrap().head, Some(next_id));
+    assert_eq!(fs::read(folder.join("a")).unwrap(), b"first");
 }
 
 #[test]
@@ -726,6 +833,19 @@ fn lost_publish_reply_reuses_same_candidate_after_live_files_change() {
     fs::write(files.path().join("a"), b"frozen").unwrap();
     let key = "10101010101010101010101010101010";
     fixture.state.lock().unwrap().lose_publish_reply = true;
+    let mut plan = fixture.cli_host();
+    plan.args([
+        "--idempotency-key",
+        key,
+        "workspace",
+        "init",
+        "--goal",
+        &GOAL.to_string(),
+        "--root",
+    ])
+    .arg(files.path())
+    .args(["--path", "a", "--publish", "--plan"]);
+    let shown = output(plan, 0);
     let mut command = fixture.cli_host();
     command
         .args([
@@ -738,7 +858,13 @@ fn lost_publish_reply_reuses_same_candidate_after_live_files_change() {
             "--root",
         ])
         .arg(files.path())
-        .args(["--path", "a", "--publish"]);
+        .args([
+            "--path",
+            "a",
+            "--publish",
+            "--confirm",
+            shown["result"]["plan_id"].as_str().unwrap(),
+        ]);
     assert_eq!(output(command, 8)["error"]["code"], "unavailable");
     fs::write(files.path().join("a"), b"changed after uncertainty").unwrap();
     fixture.state.lock().unwrap().objects.clear();
@@ -982,75 +1108,128 @@ fn lost_initial_epoch_reply_accepts_only_equivalent_pinned_policy() {
     fs::write(files.path().join("a"), b"seed").unwrap();
     let key = "30303030303030303030303030303030";
     let criterion = r#"{"kind":"declaration","by":{"kind":"contribution_author"}}"#;
+    let run = |criterion: &str, code| {
+        fixture.reviewed(
+            &[
+                "--idempotency-key",
+                key,
+                "workspace",
+                "init",
+                "--goal",
+                &GOAL.to_string(),
+                "--root",
+                files.path().to_str().unwrap(),
+                "--path",
+                "a",
+                "--integrator",
+                "worker",
+                "--completion",
+                criterion,
+            ],
+            true,
+            code,
+        )
+    };
     fixture.state.lock().unwrap().lose_epoch_reply = true;
-    let mut command = fixture.cli_host();
-    command
-        .args([
-            "--idempotency-key",
-            key,
-            "workspace",
-            "init",
-            "--goal",
-            &GOAL.to_string(),
-            "--root",
-        ])
-        .arg(files.path())
-        .args([
-            "--path",
-            "a",
-            "--integrator",
-            "worker",
-            "--completion",
-            criterion,
-        ]);
-    output(command, 8);
+    run(criterion, 8);
     assert!(fixture.state.lock().unwrap().operations.is_empty());
     let before = fixture.state.lock().unwrap().rules_bindings.len();
-    let mut command = fixture.cli_host();
-    command
-        .args([
-            "--idempotency-key",
-            key,
-            "workspace",
-            "init",
-            "--goal",
-            &GOAL.to_string(),
-            "--root",
-        ])
-        .arg(files.path())
-        .args([
-            "--path",
-            "a",
-            "--integrator",
-            "worker",
-            "--completion",
+    assert_eq!(
+        run(
             r#"{"kind":"contribution","by":{"kind":"contribution_author"}}"#,
-        ]);
-    assert_eq!(output(command, 7)["error"]["code"], "conflict");
+            7
+        )["error"]["code"],
+        "conflict"
+    );
     assert!(fixture.state.lock().unwrap().operations.is_empty());
     // Semantically duplicate criteria normalize to the exact pinned policy.
     let equivalent = r#"{"kind":"all","rules":[{"kind":"declaration","by":{"kind":"contribution_author"}},{"kind":"declaration","by":{"kind":"contribution_author"}}]}"#;
-    let mut command = fixture.cli_host();
-    command
-        .args([
-            "--idempotency-key",
-            key,
+    assert_eq!(run(equivalent, 0)["result"]["published"], false);
+    assert_eq!(fixture.state.lock().unwrap().rules_bindings.len(), before);
+    assert_eq!(fixture.state.lock().unwrap().operations.len(), 1);
+}
+
+#[test]
+fn completed_init_idempotency_replays_before_another_plan() {
+    let fixture = Fixture::new();
+    let key = "40404040404040404040404040404040";
+    let args = [
+        "--idempotency-key",
+        key,
+        "workspace",
+        "init",
+        "--goal",
+        &GOAL.to_string(),
+        "--empty",
+    ];
+    let first = fixture.reviewed(&args, true, 0);
+    assert_eq!(first["result"]["published"], false);
+    let mut repeat = fixture.cli_host();
+    repeat.args(args);
+    let replay = output(repeat, 0);
+    assert_eq!(replay["result"]["resumed_frozen_capture"], true);
+    assert_ne!(replay["result"]["action"], "review_required");
+}
+
+#[test]
+fn init_refuses_an_epoch_change_after_its_fresh_plan_before_reading_files() {
+    let fixture = Fixture::new();
+    let files = tempfile::tempdir().unwrap();
+    fs::write(files.path().join("a"), b"first").unwrap();
+    fixture.state.lock().unwrap().shift_epoch_on_head_read = Some((4, EventId([0xc5; 32])));
+    let result = fixture.reviewed(
+        &[
             "workspace",
             "init",
             "--goal",
             &GOAL.to_string(),
             "--root",
-        ])
-        .arg(files.path())
-        .args([
+            files.path().to_str().unwrap(),
             "--path",
             "a",
-            "--integrator",
-            "worker",
-            "--completion",
-            equivalent,
-        ]);
-    assert_eq!(output(command, 0)["result"]["published"], false);
-    assert_eq!(fixture.state.lock().unwrap().rules_bindings.len(), before);
-    assert_eq!(fixture.state.lock().unwrap().operations.len(), 1);
+        ],
+        true,
+        7,
+    );
+    assert!(
+        result["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("plan changed")
+    );
+    let state = fixture.state.lock().unwrap();
+    assert_eq!(state.head_reads, 4);
+    assert!(state.operations.is_empty());
+    assert!(
+        !state
+            .requests
+            .iter()
+            .any(|frame| matches!(frame.request, Request::BlobPut { .. }))
+    );
+}
+
+#[test]
+fn owner_workspace_write_infers_the_only_active_member() {
+    let fixture = Fixture::new();
+    let files = tempfile::tempdir().unwrap();
+    fs::write(files.path().join("a"), b"seed").unwrap();
+    fs::write(files.path().join("b"), b"seed").unwrap();
+    let (_, revision) = fixture.seed(files.path());
+    let checkout = fixture.checkout(&files.path().join("connected"), &revision);
+    fs::write(files.path().join("connected/a"), b"changed").unwrap();
+    let mut command = fixture.cli_host();
+    command.args([
+        "workspace",
+        "propose",
+        "--goal",
+        &GOAL.to_string(),
+        "--checkout",
+        &checkout,
+    ]);
+    output(command, 0);
+    let requests = &fixture.state.lock().unwrap().requests;
+    assert!(requests.iter().any(|frame| matches!(
+        frame.request,
+        Request::WorkspaceOperationPrepare { .. }
+    ) && frame.on_behalf == Some(PRINCIPAL)));
 }

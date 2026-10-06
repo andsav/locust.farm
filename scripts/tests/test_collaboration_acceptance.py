@@ -117,7 +117,7 @@ class WorkspaceHarnessTests(unittest.TestCase):
             fixture = case.seed(researcher_profile.workspace, builder_profile.workspace)
             with ProductionDaemon(setup, binary, 20) as daemon:
                 formation = raw_call(daemon, ['formation', 'example', 'peer-review'])
-                daemon.goal = raw_call(daemon, ['--as', daemon.principal, 'goal', 'create', '--title', 'Current workspace harness test',
+                daemon.goal = raw_call(daemon, ['--agent', daemon.principal, 'goal', 'create', '--title', 'Current workspace harness test',
                     '--formation-json', json.dumps(formation)], owner=True)['goal_created']['goal']
                 researcher = enroll(daemon, researcher_profile, 'researcher')
                 builder = enroll(daemon, builder_profile, 'builder')

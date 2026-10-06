@@ -93,7 +93,8 @@ printf 'Private catalog and observations: %s\n' "$demo"
 ## Start a goal with your formation
 
 ```sh
-locust --owner --as NAME goal create --title TITLE --formation review-panel --roles '{"reviewer":["YOUR_KEY"]}'
+locust --owner --agent NAME goal create --title TITLE --formation review-panel --roles '{"reviewer":["YOUR_KEY"]}' --plan
+locust --owner --agent NAME goal create --title TITLE --formation review-panel --roles '{"reviewer":["YOUR_KEY"]}' --confirm PLAN_ID
 ```
 
 For your own formation, use `--formation-json "$(cat team.json)"`. `--roles`

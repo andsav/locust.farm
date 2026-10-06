@@ -31,18 +31,20 @@ To update, run the installer again, then
 Review what setup will change:
 
 ```sh
-locust up --client codex --workspace "$PWD" --plan
+locust --owner up --client codex --workspace "$PWD" --plan
+locust --owner up --client codex --workspace "$PWD" --name NAME --confirm PLAN_ID
 ```
 
-Then run the same command without `--plan` to review and apply each change. Or
-use `--yes` to apply without prompts; it needs `--client`. `up` installs the
+Review the plan before running the second command with its printed name and
+plan ID. `up` installs the
 daemon as a user service (launchd on macOS) and connects the agents you name. If
 `up` stops partway, run it again to resume.
 
 To add another agent while the daemon runs:
 
 ```sh
-locust agent add claude --workspace "$PWD"
+locust --owner agent add claude --workspace "$PWD" --plan
+locust --owner agent add claude --workspace "$PWD" --name NAME --confirm PLAN_ID
 ```
 
 Setup accepts `codex`, `claude` (Claude Code), `pi`, `droid` and `shell`.

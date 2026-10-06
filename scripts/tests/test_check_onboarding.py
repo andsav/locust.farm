@@ -151,9 +151,10 @@ class OnboardingHarnessTests(unittest.TestCase):
     def test_plan_that_claims_read_only_but_writes_is_rejected_before_daemon_start(self):
         check = self.prepared()
 
-        def plan(label, arguments):
+        def plan(label, arguments, **kwargs):
             self.assertEqual(label, "up-plan")
             self.assertIn("--plan", arguments)
+            self.assertTrue(kwargs["owner"])
             (self.profile.root / "unexpected-write").write_text("plan mutated state")
             return {"changed": False}
 
@@ -176,7 +177,7 @@ class OnboardingHarnessTests(unittest.TestCase):
                 result = subprocess.CompletedProcess([], exit_code, output, b"private diagnostics")
                 with patch.object(harness.subprocess, "run", return_value=result):
                     with self.assertRaises(harness.QualificationError):
-                        check.cli("up", ["up", "--yes"])
+                        check.cli("up", ["up", "--client", "codex", "--plan"], owner=True)
 
     def test_bound_launcher_accepts_review_stderr_without_retaining_private_payloads(self):
         check = self.prepared()

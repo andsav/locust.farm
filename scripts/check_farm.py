@@ -134,7 +134,7 @@ class FarmQualification(Qualification):
         self.summary["goal"] = goal
         self.active_goal = goal
         ticket = variant(self.cli(m1, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
-        self.cli(m2, ["--as", f"m{m2.number}", "goal", "join", "--ticket", ticket], owner=True)
+        self.join_goal(m2, ticket)
         del ticket
         self.wait("both daemons know both members", lambda: all(
             (s := self.goal_status(m, goal)) and len(s["members"]) == 2 for m in self.machines))
@@ -159,7 +159,7 @@ class FarmQualification(Qualification):
             f["farm_id"] == farm for f in (self.http_get("/api/farms")[1] or {}).get("farms", [])))
 
         task = "task:" + self.recorded(m1, ["task", "open", "--goal", goal, "PRIVATE TASK BODY MUST NOT BE EXPORTED"])
-        offer = self.recorded(m1, ["work", "offer", "--goal", goal, "--task", task, "--recipient", m2.agent])
+        offer = self.recorded(m1, ["work", "offer", "--goal", goal, "--task", task, "--member", m2.agent])
         self.wait("worker receives the task", lambda: any(t["task"] == task for t in variant(self.cli(m2, ["board", "--goal", goal]), "board")))
         self.cli(m2, ["task", "authorize", "--goal", goal, "--task", task, "--agent", m2.agent], owner=True)
         session = m2.home / "sessions" / "farm.secret"

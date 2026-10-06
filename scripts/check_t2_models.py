@@ -148,7 +148,7 @@ def prepare_work(profile, daemon):
     task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "--inputs", json.dumps({"snapshot": shared["base"]}),
                        "Fix add(a,b) in calculator.py so the supplied five tests pass. Change only calculator.py; inspect received files before executing tests."])["recorded"]["event"]
     offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
-                             "--recipient", daemon.principal])["recorded"]["event"]
+                             "--member", daemon.principal])["recorded"]["event"]
     daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
     baseline = check_tests(profile, source)
     if baseline["exit_code"] == 0:

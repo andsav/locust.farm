@@ -24,6 +24,7 @@ import tomllib
 
 from check_installation import copy_bundle, data_fingerprint, digest, private_write
 from client_qualification.runtime import Profile
+from owner_plans import confirmation_arguments
 
 
 class QualificationError(Exception):
@@ -108,7 +109,13 @@ class OnboardingCheck:
             return None
         require(success and "result" in body, "CLI operation failed: " + label)
         # up deliberately writes review information to stderr. Only its hash is retained.
-        return body["result"]
+        value = body["result"]
+        if owner and "--plan" not in arguments:
+            confirmed = confirmation_arguments(arguments, value)
+            if confirmed is not None:
+                return self.cli(label + "-confirm", confirmed, binary=binary, owner=owner,
+                                bound=bound, optional=optional)
+        return value
 
     def install(self):
         bundle = self.profile.root / "bundle"
@@ -185,30 +192,36 @@ class OnboardingCheck:
         pi = self.profile.home / ".pi/agent/mcp.json"
         private_write(pi, '{"qualification_marker":"unselected-client"}\n')
         unselected_before, pi_before = data_fingerprint(unselected), digest(pi)
-        up = ["up", "--client", "codex,claude", "--profile-home", self.profile.home,
+        up_options = ["--profile-home", self.profile.home,
               "--workspace", self.profile.workspace, "--service", self.args.service,
               "--service-profile-home", self.service_home, "--log-dir", self.logs,
               "--wait-ms", self.args.timeout_ms]
+        up = ["up", "--client", "codex", *up_options]
         before = data_fingerprint(self.profile.root)
-        proposed = self.cli("up-plan", [*up, "--plan"])
-        require(proposed["changed"] is False and before == data_fingerprint(self.profile.root)
+        proposed = self.cli("up-plan", [*up, "--plan"], owner=True)
+        require(proposed.get("action") == "review_required" and proposed["changed"] is False
+                and before == data_fingerprint(self.profile.root)
                 and not self.home.exists(), "selected plan modified fixture or created daemon state")
         self.summary["checks"]["selected_plan_read_only_before_daemon"] = True
         if self.args.service != "none":
-            self.unit = Path(proposed["service"]["plan"]["unit_path"])
+            self.unit = Path(proposed["plan"]["service"]["plan"]["unit_path"])
             require(self.unit.is_relative_to(self.service_home) and not os.path.lexists(self.unit),
                     "service plan escaped the new private manager profile or collided")
-            self.summary["service_label"] = proposed["service"]["plan"]["label"]
+            self.summary["service_label"] = proposed["plan"]["service"]["plan"]["label"]
             self.service_attempted = True
         else:
             self.foreground = subprocess.Popen([str(self.installed), "--home", str(self.home), "daemon", "run"],
                 cwd=self.profile.workspace, env=self.env, stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        first = self.cli("up", [*up, "--yes"])
+        first = self.cli("up", confirmation_arguments([*up, "--plan"], proposed), owner=True)
         require(first["configuration_ready"] is True and first["daemon_api_ready"] is True
-                and first["model_ready"] is False and first["grants_added"] is False,
-                "up overstated readiness or changed grants")
-        clients = {row["client"]: row for row in first["clients"]}
+                and first["model_ready"] is False,
+                "up overstated readiness")
+        second = self.cli("agent-add-claude", ["agent", "add", "claude", "--profile-home",
+            self.profile.home, "--workspace", self.profile.workspace], owner=True)
+        require(second["configuration_ready"] is True and second["daemon_api_ready"] is True
+                and second["model_ready"] is False, "agent add overstated readiness")
+        clients = {row["client"]: row for row in [*first["clients"], *second["clients"]]}
         require(set(clients) == {"codex", "claude"}, "up did not configure exactly the selected clients")
         require(len({row["principal"] for row in clients.values()}) == 2
                 and len({row["instance"] for row in clients.values()}) == 2, "selected clients share an identity or session")
@@ -219,10 +232,11 @@ class OnboardingCheck:
             require(self.service("status")["state"] == "running" and self.unit.is_file(), "native task service is not running")
         agents = {row["agent"]: row for row in self.owner_agents()}
         require(set(agents) == {row["principal"] for row in clients.values()}, "owner status found missing or extra principals")
+        require(not self.cli("owner-goals", ["status"], owner=True)["status"]["goals"],
+                "onboarding put a new agent in a goal")
         self.summary["clients"] = {}
         for client, row in clients.items():
-            require(row["model_ready"] is False and row["grants_added"] is False
-                    and agents[row["principal"]]["author_only"] is False,
+            require(row["model_ready"] is False and agents[row["principal"]]["author_only"] is False,
                     "onboarding did not enroll an active agent")
             launcher = Path(row["launcher"])
             require(launcher.is_relative_to(self.profile.home), "launcher escaped selected profile")
@@ -234,20 +248,24 @@ class OnboardingCheck:
                         and path.stat().st_uid == os.getuid() and path.stat().st_nlink == 1
                         for path in files.values()), "identity files are not private fixture secrets")
             hashes = {key + "_sha256": digest(path) for key, path in files.items()}
-            repeated = self.cli(client + "-agent-add-repeat", ["agent", "add", client, "--yes",
-                "--profile-home", self.profile.home, "--workspace", self.profile.workspace])["clients"][0]
+            repeated = self.cli(client + "-agent-add-repeat", ["agent", "add", client,
+                "--name", row["name"], "--profile-home", self.profile.home,
+                "--workspace", self.profile.workspace], owner=True)["clients"][0]
             require(repeated["changed"] is False and repeated["principal"] == row["principal"]
                     and repeated["instance"] == row["instance"]
                     and all(digest(files[key]) == hashes[key + "_sha256"] for key in files), "agent add replaced identity or session")
             self.summary["clients"][client] = {"principal": row["principal"], "instance": row["instance"],
                                                "launcher_principal_verified": True, "model_ready": False, **hashes}
-        repeated = self.cli("up-repeat", [*up, "--yes"])
-        require(all(row["changed"] is False and row["principal"] == clients[row["client"]]["principal"]
-                    and row["instance"] == clients[row["client"]]["instance"] for row in repeated["clients"]), "up repeat changed identity")
+        for client, row in clients.items():
+            repeated = self.cli(client + "-up-repeat", ["up", "--client", client, *up_options,
+                "--name", row["name"]], owner=True)["clients"][0]
+            require(repeated["changed"] is False and repeated["principal"] == row["principal"]
+                    and repeated["instance"] == row["instance"], "up repeat changed identity")
         require(self.pid() == initial_pid, "repeating onboarding restarted the daemon")
         principal = clients["codex"]["principal"]
-        after_repeat = self.cli("agent-add-after-repeat", ["agent", "add", "codex", "--yes", "--profile-home", self.profile.home,
-                                           "--workspace", self.profile.workspace])["clients"][0]
+        after_repeat = self.cli("agent-add-after-repeat", ["agent", "add", "codex",
+            "--name", clients["codex"]["name"], "--profile-home", self.profile.home,
+            "--workspace", self.profile.workspace], owner=True)["clients"][0]
         require(after_repeat["changed"] is False and after_repeat["principal"] == principal
                 and after_repeat["instance"] == clients["codex"]["instance"], "agent add after a repeat replaced identity")
         retained = {row["agent"]: row for row in self.owner_agents()}
@@ -264,7 +282,7 @@ class OnboardingCheck:
                 and claude_document["qualification_marker"] == "claude-unrelated"
                 and claude_document["permissions"] == {"defaultMode": "default"}, "onboarding changed unrelated client settings")
         require(unselected_before == data_fingerprint(unselected) and digest(pi) == pi_before, "unselected profile or client changed")
-        for key in ("installed_prefix_inference", "distinct_principals_and_sessions", "no_initial_grants",
+        for key in ("installed_prefix_inference", "distinct_principals_and_sessions", "agents_start_in_no_goal",
                     "bound_launchers", "repeat_preserves_identity", "repeat_preserves_daemon_pid",
                     "agent_add_preserves_identity", "unrelated_settings_preserved", "unselected_profiles_preserved"):
             self.summary["checks"][key] = True

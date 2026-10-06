@@ -24,6 +24,8 @@ import subprocess
 import tempfile
 import time
 
+from owner_plans import confirmation_arguments
+
 from check_t1 import CheckFailure, redact, variant
 
 PAYLOADS = ("locust", "skills/locust/SKILL.md", "manual.tar", "manifest.json")
@@ -194,7 +196,12 @@ class InstallationCheck:
             return None
         require(body["ok"] and code == 0 and "result" in body,
                 "CLI operation failed: " + str(body.get("error", {}).get("code", "invalid envelope")))
-        return body["result"]
+        result = body["result"]
+        if owner and "--plan" not in args:
+            confirmed = confirmation_arguments(args, result)
+            if confirmed is not None:
+                return self.cli(confirmed, installed=installed, owner=owner, agent=agent)
+        return result
 
     def registry(self, name, sequence, withdrawn=(), key=None):
         path = self.trust / (name + ".json")
@@ -510,7 +517,7 @@ class InstallationCheck:
             require(digest(self.installed) == digest(baseline / "locust"), "baseline installed bytes differ")
             self.start_daemon()
             principal = variant(self.cli(["agent", "enroll", "qualification"], installed=True, owner=True), "agent_enrolled")["agent"]
-            goal = variant(self.cli(["--as", "qualification", "goal", "create", "--title", "Cross-commit upgrade"], installed=True, owner=True), "goal_created")["goal"]
+            goal = variant(self.cli(["--agent", "qualification", "goal", "create", "--title", "Cross-commit upgrade"], installed=True, owner=True), "goal_created")["goal"]
             self.contribution_grant(goal, principal)
             note = variant(self.cli(["contribution", "publish", "--goal", goal, "created by baseline release"], installed=True, agent=True), "recorded")["event"]
             before = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]
@@ -639,7 +646,7 @@ class InstallationCheck:
         startup = self.start_daemon()
         idle = self.sample_idle()
         principal = variant(self.cli(["agent", "enroll", "qualification"], installed=True, owner=True), "agent_enrolled")["agent"]
-        goal = variant(self.cli(["--as", "qualification", "goal", "create", "--title", "Installed synthetic goal"], installed=True, owner=True), "goal_created")["goal"]
+        goal = variant(self.cli(["--agent", "qualification", "goal", "create", "--title", "Installed synthetic goal"], installed=True, owner=True), "goal_created")["goal"]
         self.contribution_grant(goal, principal)
         note = variant(self.cli(["contribution", "publish", "--goal", goal, "persist across installed daemon restart"], installed=True, agent=True), "recorded")["event"]
         endpoint = variant(self.cli(["status"], installed=True, owner=True), "status")["endpoint"]

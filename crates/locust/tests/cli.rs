@@ -1,8 +1,9 @@
 //! Binary CLI contracts exercised against a typed local Unix server.
 use locust_proto::API_VERSION;
 use locust_proto::api::{
-    ApiError, Caller, ClientHello, Credential, DaemonStatus, ErrorCode, GoalSummary, Membership,
-    Request, RequestFrame, Response, ResponseFrame, ServerHello, SessionSecret, WaitOutcome,
+    AgentView, ApiError, Caller, ClientHello, Credential, DaemonStatus, ErrorCode, GoalSummary,
+    Membership, Request, RequestFrame, Response, ResponseFrame, ServerHello, SessionSecret,
+    WaitOutcome,
 };
 use locust_proto::codec;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
@@ -83,9 +84,25 @@ fn status(goals: Vec<GoalSummary>) -> Response {
         goals,
     })
 }
+fn status_agents(agents: Vec<AgentView>) -> Response {
+    Response::Status(DaemonStatus {
+        daemon_version: "stub".into(),
+        endpoint: None,
+        agents,
+        goals: vec![],
+    })
+}
 fn server(
     home: &std::path::Path,
     count: usize,
+    respond: impl FnMut(RequestFrame) -> Result<Response, ApiError> + Send + 'static,
+) -> thread::JoinHandle<Vec<ClientHello>> {
+    server_as(home, count, Caller::Owner, respond)
+}
+fn server_as(
+    home: &std::path::Path,
+    count: usize,
+    caller: Caller,
     mut respond: impl FnMut(RequestFrame) -> Result<Response, ApiError> + Send + 'static,
 ) -> thread::JoinHandle<Vec<ClientHello>> {
     let listener = UnixListener::bind(home.join("daemon.sock")).unwrap();
@@ -103,7 +120,7 @@ fn server(
                 &ServerHello::Welcome {
                     api_version: API_VERSION,
                     daemon_version: "stub".into(),
-                    caller: Caller::Owner,
+                    caller,
                     max_blob_bytes: 1024,
                 },
                 &mut encoded,
@@ -206,7 +223,7 @@ fn no_credential_never_falls_back_to_owner_and_usage_errors_are_json() {
     let output = cli(home.path()).arg("status").output().unwrap();
     assert_eq!(envelope(&output, 2)["error"]["code"], "invalid");
     let output = cli(home.path())
-        .args(["--as", "worker", "status"])
+        .args(["--agent", "worker", "status"])
         .output()
         .unwrap();
     assert_eq!(envelope(&output, 2)["error"]["code"], "invalid");
@@ -310,6 +327,58 @@ fn enrollment_persists_credential_before_request_and_reuses_it_on_retry() {
     }
     assert_eq!(handle.join().unwrap().len(), 2);
 }
+
+#[test]
+fn owner_agent_selector_cannot_create_an_enrollment_credential() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let handle = server(home.path(), 1, |_| {
+        panic!("invalid enrollment sent a request")
+    });
+    let output = cli(home.path())
+        .args([
+            "--owner",
+            "--agent",
+            &PublicKey([2; 32]).to_string(),
+            "agent",
+            "enroll",
+            "worker",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        envelope(&output, 2)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("drop --agent")
+    );
+    assert!(!home.path().join("agents/worker.credential").exists());
+    assert_eq!(handle.join().unwrap().len(), 1);
+}
+
+#[test]
+fn owner_session_drop_sends_no_implicit_agent() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let instance = SessionSecret([7; 32]).instance();
+    let handle = server(home.path(), 1, move |frame| {
+        assert_eq!(frame.on_behalf, None);
+        assert_eq!(frame.request, Request::SessionDrop { instance });
+        Ok(Response::Done)
+    });
+    let output = cli(home.path())
+        .args([
+            "--owner",
+            "session",
+            "drop",
+            "--instance",
+            &instance.to_string(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(envelope(&output, 0)["result"], json!(Response::Done));
+    handle.join().unwrap();
+}
 #[test]
 fn stdin_text_and_idempotency_are_forwarded_without_changing_text() {
     let home = scratch();
@@ -338,7 +407,7 @@ fn stdin_text_and_idempotency_are_forwarded_without_changing_text() {
     let mut command = cli(home.path());
     command.args([
         "--owner",
-        "--as",
+        "--agent",
         &PublicKey([5; 32]).to_string(),
         "--idempotency-key",
         &key.to_string(),
@@ -445,7 +514,7 @@ fn named_principal_is_resolved_via_status_before_impersonation() {
     });
     envelope(
         &cli(home.path())
-            .args(["--owner", "--as", "worker", "status"])
+            .args(["--owner", "--agent", "worker", "status"])
             .output()
             .unwrap(),
         0,
@@ -458,7 +527,10 @@ fn goal_create_uses_owner_authority_and_names_the_selected_host_agent() {
     let home = scratch();
     write_secret(&home.path().join("owner.credential"), &[1; 32]);
     let agent = PublicKey([2; 32]);
-    let handle = server(home.path(), 1, move |frame| {
+    let handle = server(home.path(), 3, move |frame| {
+        if matches!(frame.request, Request::Status) {
+            return Ok(status(vec![]));
+        }
         assert_eq!(frame.on_behalf, None);
         let Request::GoalCreate {
             agent: selected,
@@ -474,15 +546,33 @@ fn goal_create_uses_owner_authority_and_names_the_selected_host_agent() {
             goal: GoalId([3; 32]),
         })
     });
-    let result = cli(home.path())
+    let plan = cli(home.path())
         .args([
             "--owner",
-            "--as",
+            "--agent",
             &agent.to_string(),
             "goal",
             "create",
             "--title",
             "Owner's goal",
+            "--plan",
+        ])
+        .output()
+        .unwrap();
+    let plan = envelope(&plan, 0);
+    assert_eq!(plan["result"]["action"], "review_required");
+    let plan_id = plan["result"]["plan_id"].as_str().unwrap();
+    let result = cli(home.path())
+        .args([
+            "--owner",
+            "--agent",
+            &agent.to_string(),
+            "goal",
+            "create",
+            "--title",
+            "Owner's goal",
+            "--confirm",
+            plan_id,
         ])
         .output()
         .unwrap();
@@ -490,7 +580,6 @@ fn goal_create_uses_owner_authority_and_names_the_selected_host_agent() {
         envelope(&result, 0)["result"]["goal_created"]["goal"],
         GoalId([3; 32]).to_string()
     );
-    handle.join().unwrap();
     let missing_agent = cli(home.path())
         .args(["--owner", "goal", "create", "--title", "No agent"])
         .output()
@@ -499,8 +588,69 @@ fn goal_create_uses_owner_authority_and_names_the_selected_host_agent() {
         envelope(&missing_agent, 2)["error"]["message"]
             .as_str()
             .unwrap()
-            .contains("--owner --as")
+            .contains("connect an agent first")
     );
+    handle.join().unwrap();
+}
+
+#[test]
+fn owner_infers_only_one_active_non_author_agent_for_a_write() {
+    for (agents, expected) in [
+        (
+            vec![AgentView {
+                agent: PublicKey([2; 32]),
+                name: "worker".into(),
+                author_only: false,
+                revoked: false,
+            }],
+            Some(PublicKey([2; 32])),
+        ),
+        (
+            vec![AgentView {
+                agent: PublicKey([2; 32]),
+                name: "writer".into(),
+                author_only: true,
+                revoked: false,
+            }],
+            None,
+        ),
+        (
+            vec![
+                AgentView {
+                    agent: PublicKey([2; 32]),
+                    name: "one".into(),
+                    author_only: false,
+                    revoked: false,
+                },
+                AgentView {
+                    agent: PublicKey([3; 32]),
+                    name: "two".into(),
+                    author_only: false,
+                    revoked: false,
+                },
+            ],
+            None,
+        ),
+    ] {
+        let home = scratch();
+        write_secret(&home.path().join("owner.credential"), &[1; 32]);
+        let handle = server(home.path(), 1, move |frame| {
+            assert_eq!(frame.request, Request::Status);
+            Ok(status_agents(agents.clone()))
+        });
+        let output = cli(home.path())
+            .args(["--owner", "goal", "create", "--title", "Demo", "--plan"])
+            .output()
+            .unwrap();
+        match expected {
+            Some(agent) => assert_eq!(
+                envelope(&output, 0)["result"]["plan"]["agent"],
+                agent.to_string()
+            ),
+            None => assert_eq!(envelope(&output, 2)["error"]["code"], "invalid"),
+        }
+        handle.join().unwrap();
+    }
 }
 
 #[test]
@@ -512,7 +662,20 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
-    let handle = server(home.path(), 1, move |frame| {
+    let handle = server(home.path(), 2, move |frame| {
+        if let Request::GoalStatus { goal: selected } = frame.request {
+            assert_eq!(selected, goal);
+            return Ok(Response::GoalStatus(serde_json::from_value(json!({
+                "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                "governance_head":null,"current_rules":null,"scope_halts":[],
+                "members":[],"halted":null,"grants":locust_proto::api::GoalGrants::default(),"peers":[]
+            })).unwrap()));
+        }
+        if matches!(frame.request, Request::GoalInvitations { .. }) {
+            return Ok(Response::Invitations {
+                invitations: vec![],
+            });
+        }
         assert_eq!(frame.on_behalf, None);
         let Request::GoalInvite {
             goal: selected,
@@ -528,8 +691,29 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
             ticket: locust_proto::invite::Ticket("test-ticket".into()),
         })
     });
+    let plan = cli(home.path())
+        .args([
+            "--owner",
+            "goal",
+            "invite",
+            "--goal",
+            &goal.to_string(),
+            "--plan",
+        ])
+        .output()
+        .unwrap();
+    let plan = envelope(&plan, 0);
+    assert_eq!(plan["result"]["action"], "review_required");
     let result = cli(home.path())
-        .args(["--owner", "goal", "invite", "--goal", &goal.to_string()])
+        .args([
+            "--owner",
+            "goal",
+            "invite",
+            "--goal",
+            &goal.to_string(),
+            "--confirm",
+            plan["result"]["plan_id"].as_str().unwrap(),
+        ])
         .output()
         .unwrap();
     assert_eq!(
@@ -540,7 +724,7 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
     let with_as = cli(home.path())
         .args([
             "--owner",
-            "--as",
+            "--agent",
             &PublicKey([2; 32]).to_string(),
             "goal",
             "invite",
@@ -553,8 +737,307 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
         envelope(&with_as, 2)["error"]["message"]
             .as_str()
             .unwrap()
-            .contains("does not accept --as")
+            .contains("drop --agent")
     );
+}
+
+#[test]
+fn changed_goal_title_refuses_an_invitation_confirm_without_issuing_a_ticket() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let mut reads = 0;
+    let handle = server(home.path(), 2, move |frame| match frame.request {
+        Request::GoalStatus { goal: selected } => {
+            assert_eq!(selected, goal);
+            reads += 1;
+            Ok(Response::GoalStatus(
+                serde_json::from_value(json!({
+                    "goal":goal,"title":if reads < 3 {"Demo"} else {"Renamed"},
+                    "host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
+                    "scope_halts":[],"members":[],"halted":null,
+                    "grants":locust_proto::api::GoalGrants::default(),"peers":[]
+                }))
+                .unwrap(),
+            ))
+        }
+        Request::GoalInvitations { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::Invitations {
+                invitations: vec![],
+            })
+        }
+        other => panic!("stale confirmation sent {other:?}"),
+    });
+    let plan = cli(home.path())
+        .args([
+            "--owner",
+            "goal",
+            "invite",
+            "--goal",
+            &goal.to_string(),
+            "--plan",
+        ])
+        .output()
+        .unwrap();
+    let plan = envelope(&plan, 0);
+    let confirm = cli(home.path())
+        .args([
+            "--owner",
+            "goal",
+            "invite",
+            "--goal",
+            &goal.to_string(),
+            "--confirm",
+            plan["result"]["plan_id"].as_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        envelope(&confirm, 7)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("plan changed")
+    );
+    handle.join().unwrap();
+}
+
+#[test]
+fn nonowner_member_remove_reaches_daemon_authorization() {
+    let home = scratch();
+    let credential = home.path().join("agent.credential");
+    write_secret(&credential, &[2; 32]);
+    let goal = GoalId([4; 32]);
+    let member = PublicKey([5; 32]);
+    let handle = server_as(
+        home.path(),
+        1,
+        Caller::Agent(PublicKey([2; 32])),
+        move |frame| {
+            assert_eq!(frame.on_behalf, None);
+            assert_eq!(frame.request, Request::MemberRemove { goal, member });
+            Err(ApiError::new(
+                ErrorCode::Denied,
+                "only the host can remove members",
+            ))
+        },
+    );
+    let output = cli(home.path())
+        .arg("--credential")
+        .arg(&credential)
+        .args([
+            "member",
+            "remove",
+            "--goal",
+            &goal.to_string(),
+            "--member",
+            &member.to_string(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(envelope(&output, 3)["error"]["code"], "denied");
+    handle.join().unwrap();
+}
+
+#[test]
+fn member_selector_resolves_local_name_and_visible_key_prefix() {
+    use locust_proto::id::EndpointId;
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let worker = PublicKey([0xab; 32]);
+    let handle = server(home.path(), 2, move |frame| match frame.request {
+        Request::GoalStatus { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::GoalStatus(
+                serde_json::from_value(json!({
+                    "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                    "governance_head":null,"current_rules":null,"scope_halts":[],
+                    "members":[{"member":worker,"endpoint":EndpointId([3;32]),"local":true}],
+                    "halted":null,"grants":locust_proto::api::GoalGrants::default(),"peers":[]
+                }))
+                .unwrap(),
+            ))
+        }
+        Request::Status => Ok(status_agents(vec![AgentView {
+            agent: worker,
+            name: "worker".into(),
+            author_only: false,
+            revoked: false,
+        }])),
+        other => panic!("plan unexpectedly wrote {other:?}"),
+    });
+    for selector in ["worker", "ABABABAB"] {
+        let output = cli(home.path())
+            .args([
+                "--owner",
+                "member",
+                "remove",
+                "--goal",
+                &goal.to_string(),
+                "--member",
+                selector,
+                "--plan",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(
+            envelope(&output, 0)["result"]["plan"]["member"],
+            worker.to_string()
+        );
+    }
+    handle.join().unwrap();
+}
+
+#[test]
+fn subtask_revision_plan_names_parent_rules() {
+    use locust_proto::api::{TaskDetail, TaskView};
+    use locust_proto::event::{Context, Scope, TaskId};
+    use locust_proto::id::EventId;
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let task = TaskId::Authored(EventId([5; 32]));
+    let parent = TaskId::Authored(EventId([6; 32]));
+    let handle = server(home.path(), 1, move |frame| match frame.request {
+        Request::GoalStatus { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::GoalStatus(serde_json::from_value(json!({
+                "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                "governance_head":null,"current_rules":null,"scope_halts":[],
+                "members":[],"halted":null,"grants":locust_proto::api::GoalGrants::default(),"peers":[]
+            })).unwrap()))
+        }
+        Request::Task {
+            goal: selected,
+            task: selected_task,
+        } => {
+            assert_eq!((selected, selected_task), (goal, task));
+            Ok(Response::Task(TaskDetail {
+                view: TaskView {
+                    task,
+                    context: Context {
+                        scope: Scope::Task(task),
+                        round: EventId([7; 32]),
+                    },
+                    creator: PublicKey([2; 32]),
+                    title: Some("Child task".into()),
+                    attempts: vec![],
+                    contributions: vec![],
+                    completed: false,
+                    selected: None,
+                    closed: false,
+                },
+                text: None,
+                inputs: Default::default(),
+                parent: Some(parent),
+                task_type: None,
+                effective_rules_json: "{}".into(),
+            }))
+        }
+        other => panic!("plan unexpectedly wrote {other:?}"),
+    });
+    let output = plain()
+        .arg("--home")
+        .arg(home.path())
+        .args([
+            "--owner",
+            "task",
+            "revise",
+            "--goal",
+            &goal.to_string(),
+            "--task",
+            &task.to_string(),
+            "--plan",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let human = String::from_utf8(output.stdout).unwrap();
+    assert!(human.contains("under its parent task's rules"), "{human}");
+    assert!(!human.contains("under the current rules"), "{human}");
+    handle.join().unwrap();
+}
+
+#[test]
+fn raw_call_invite_sends_exact_request_without_plan_reads() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let handle = server(home.path(), 1, move |frame| {
+        assert_eq!(frame.on_behalf, None);
+        assert_eq!(
+            frame.request,
+            Request::GoalInvite {
+                goal,
+                expires_ms: 42
+            }
+        );
+        Ok(Response::Invited {
+            ticket: locust_proto::invite::Ticket("raw-ticket".into()),
+        })
+    });
+    let output = cli(home.path())
+        .args([
+            "--owner",
+            "call",
+            "goal.invite",
+            &json!({"goal":goal,"expires_ms":42}).to_string(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        envelope(&output, 0)["result"]["invited"]["ticket"],
+        "raw-ticket"
+    );
+    handle.join().unwrap();
+}
+
+#[test]
+fn invitation_revoke_all_runs_immediately_and_reports_count() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let handle = server(home.path(), 1, move |frame| match frame.request {
+        Request::GoalStatus { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::GoalStatus(serde_json::from_value(json!({
+                "goal":goal,"title":"Demo","host":PublicKey([2;32]),
+                "governance_head":null,"current_rules":null,"scope_halts":[],
+                "members":[],"halted":null,"grants":locust_proto::api::GoalGrants::default(),"peers":[]
+            })).unwrap()))
+        }
+        Request::GoalInvitations { goal: selected } => {
+            assert_eq!(selected, goal);
+            Ok(Response::Invitations {
+                invitations: vec![],
+            })
+        }
+        Request::InvitationRevoke {
+            goal: selected,
+            invitation,
+        } => {
+            assert_eq!((selected, invitation), (goal, None));
+            Ok(Response::InvitationsRevoked { count: 2 })
+        }
+        other => panic!("unexpected planning request {other:?}"),
+    });
+    let output = cli(home.path())
+        .args([
+            "--owner",
+            "invitation",
+            "revoke",
+            "--goal",
+            &goal.to_string(),
+            "--all",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        envelope(&output, 0)["result"]["invitations_revoked"]["count"],
+        2
+    );
+    handle.join().unwrap();
 }
 #[test]
 fn generic_call_and_wait_use_stable_error_and_timeout_statuses() {
@@ -714,6 +1197,8 @@ fn claims_require_an_explicit_session_and_present_exact_file_bytes() {
     });
     let fields = [
         "--owner",
+        "--agent",
+        &PublicKey([2; 32]).to_string(),
         "attempt",
         "start",
         "--goal",
@@ -887,7 +1372,10 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
     .unwrap();
     let ticket = invitation.to_ticket().unwrap();
     let expected = ticket.clone();
-    let handle = server(home.path(), 1, move |frame| {
+    let handle = server(home.path(), 2, move |frame| {
+        if matches!(frame.request, Request::Status) {
+            return Ok(status(vec![]));
+        }
         assert_eq!(
             frame.request,
             Request::GoalJoin {
@@ -901,24 +1389,32 @@ fn invitation_can_be_read_from_stdin_with_only_line_endings_removed() {
             membership: Membership::Joining,
         })
     });
-    let mut child = cli(home.path())
-        .args([
-            "--owner",
-            "--as",
-            &PublicKey([2; 32]).to_string(),
-            "goal",
-            "join",
-            "--ticket",
-            "-",
-        ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    write!(child.stdin.take().unwrap(), "{}\r\n", ticket.as_str()).unwrap();
+    let run = |extra: &[&str]| {
+        let mut command = cli(home.path());
+        command
+            .args([
+                "--owner",
+                "--agent",
+                &PublicKey([2; 32]).to_string(),
+                "goal",
+                "join",
+                "--ticket",
+                "-",
+            ])
+            .args(extra)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let mut child = command.spawn().unwrap();
+        write!(child.stdin.take().unwrap(), "{}\r\n", ticket.as_str()).unwrap();
+        child.wait_with_output().unwrap()
+    };
+    let plan = run(&[]);
+    let plan = envelope(&plan, 0);
+    assert_eq!(plan["result"]["action"], "review_required");
+    let child = run(&["--confirm", plan["result"]["plan_id"].as_str().unwrap()]);
     assert_eq!(
-        envelope(&child.wait_with_output().unwrap(), 0)["result"]["joined"]["membership"],
+        envelope(&child, 0)["result"]["joined"]["membership"],
         "joining"
     );
     handle.join().unwrap();
@@ -1103,7 +1599,7 @@ fn a_committed_write_and_a_quiet_wait_keep_their_status_without_a_reader() {
         let principal = PublicKey([5; 32]).to_string();
         let (status, stderr) = closed_reader(
             cli(home.path())
-                .args(["--owner", "--as", &principal])
+                .args(["--owner", "--agent", &principal])
                 .args(args),
             false,
         );
@@ -1184,13 +1680,15 @@ fn human_goal_and_task_titles_resolve_to_exact_authorized_write() {
     let output = cli(home.path())
         .args([
             "--owner",
+            "--agent",
+            &agent.to_string(),
             "work",
             "offer",
             "--goal",
             "Demo",
             "--task",
             "Fix greeting",
-            "--recipient",
+            "--member",
             &agent.to_string(),
         ])
         .output()
@@ -1221,7 +1719,7 @@ fn duplicate_goal_titles_refuse_writes_instead_of_guessing() {
     let output = cli(home.path())
         .args([
             "--owner",
-            "--as",
+            "--agent",
             &PublicKey([3; 32]).to_string(),
             "goal",
             "leave",
@@ -1294,6 +1792,8 @@ fn review_subject_prefix_checks_later_feed_pages_before_writing() {
         let output = cli(home.path())
             .args([
                 "--owner",
+                "--agent",
+                &PublicKey([3; 32]).to_string(),
                 "review",
                 "record",
                 "--goal",

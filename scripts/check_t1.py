@@ -19,12 +19,15 @@ import os
 from pathlib import Path
 import platform
 import re
+import secrets
 import shutil
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+
+from owner_plans import confirmation_arguments
 
 
 class CheckFailure(Exception):
@@ -234,7 +237,13 @@ class Qualification:
             raise CheckFailure(f"M{machine.number} API error {error.get('code', 'missing_code')}")
         if output.returncode != 0 or "result" not in body:
             raise CheckFailure(f"M{machine.number} successful command had an unexpected exit/result")
-        return body["result"]
+        result = body["result"]
+        if owner and "--plan" not in arguments:
+            confirmed = confirmation_arguments(arguments, result)
+            if confirmed is not None:
+                return self.cli(machine, confirmed, owner=owner, session=session, local=local,
+                                expected_errors=expected_errors)
+        return result
 
     def wait(self, label, predicate):
         previous = self.deadline
@@ -340,9 +349,21 @@ class Qualification:
     def create_goal(self, machine, title):
         formation = self.cli(machine, ["formation", "example", "coordinator"], local=True)
         formation["context"]["inputs"] = {"snapshot": {"kind": "artifact", "required": False}}
-        created = self.cli(machine, ["--as", f"m{machine.number}", "goal", "create", "--title", title,
+        created = self.cli(machine, ["--agent", f"m{machine.number}", "goal", "create", "--title", title,
             "--formation-json", json.dumps(formation), "--roles", json.dumps({"coordinator": [machine.agent]})], owner=True)
         return identity(variant(created, "goal_created")["goal"], "goal")
+
+    def join_goal(self, machine, ticket):
+        """Give one owner-reviewed join a private ticket file, then remove it."""
+        ticket_file = machine.home / ("invite-" + secrets.token_hex(8))
+        descriptor = os.open(ticket_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+                output.write(ticket)
+            return self.cli(machine, ["--agent", f"m{machine.number}", "goal", "join",
+                                      "--ticket-file", ticket_file], owner=True)
+        finally:
+            ticket_file.unlink(missing_ok=True)
 
     def grant_contributions(self, goal):
         for machine in self.machines:
@@ -403,7 +424,7 @@ class Qualification:
         self.summary["goal"] = goal
         for invitee in (m2, m3):
             ticket = variant(self.cli(m1, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
-            joined = variant(self.cli(invitee, ["--as", f"m{invitee.number}", "goal", "join", "--ticket", ticket], owner=True), "joined")
+            joined = variant(self.join_goal(invitee, ticket), "joined")
             del ticket
             if joined.get("goal") != goal:
                 raise CheckFailure("join answered with another goal")
@@ -425,7 +446,7 @@ class Qualification:
         task_text = "Return a deterministic local qualification result."
         summary = "Completed the deterministic local qualification task."
         task = "task:" + self.recorded(m1, ["task", "open", "--goal", goal, task_text])
-        offer = self.recorded(m1, ["work", "offer", "--goal", goal, "--task", task, "--recipient", m2.agent])
+        offer = self.recorded(m1, ["work", "offer", "--goal", goal, "--task", task, "--member", m2.agent])
         self.summary["events"].update(task=task, offer=offer)
         self.wait("M2 receives offer", lambda: any(item.get("task") == task
             for item in variant(self.cli(m2, ["board", "--goal", goal]), "board")))

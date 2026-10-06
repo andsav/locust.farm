@@ -60,7 +60,7 @@ def invite_join(cluster, coordinator, joiner, goal, title, everyone, timeout=Non
     Returns seconds from the join command's answer to full admission."""
     ticket = variant(cluster.cli(coordinator, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
     cluster.summary.setdefault("ticket_hint_kinds", {})[f"M{joiner.number}"] = hint_kinds(ticket)
-    joined = variant(cluster.cli(joiner, ["--as", f"m{joiner.number}", "goal", "join", "--ticket", ticket], owner=True), "joined")
+    joined = variant(cluster.join_goal(joiner, ticket), "joined")
     del ticket
     if joined.get("goal") != goal:
         raise CheckFailure("join answered with another goal")
@@ -98,7 +98,7 @@ def complete_task(cluster, coordinator, worker, goal, observers, timeout=None, l
     summary = f"{label} task completed."
     task = "task:" + cluster.recorded(coordinator, ["task", "open", "--goal", goal, task_text])
     offer = cluster.recorded(coordinator, ["work", "offer", "--goal", goal, "--task", task,
-                                                "--recipient", worker.agent])
+                                                "--member", worker.agent])
     cluster.wait(f"M{worker.number} receives offer {label}", lambda: pending_has(
         cluster, worker, goal, "to_authorize", task), timeout)
     cluster.cli(worker, ["task", "authorize", "--goal", goal, "--task", task, "--agent", worker.agent], owner=True)

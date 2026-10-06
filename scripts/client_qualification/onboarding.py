@@ -7,6 +7,7 @@ import re
 import subprocess
 
 from .production import ProductionDaemon, ProductionError, PUBLIC_ID
+from owner_plans import confirmation_arguments
 
 
 class OnboardedDaemon(ProductionDaemon):
@@ -15,12 +16,7 @@ class OnboardedDaemon(ProductionDaemon):
         self.client = "claude" if client == "claude-code" else client
         self.onboarding = {}
 
-    def onboard(self, operation="up"):
-        arguments = (["up", "--client", self.client, "--service", "none",
-                      "--wait-ms", str(int(self.timeout_seconds * 1000))]
-                     if operation == "up" else ["agent", "add", self.client])
-        arguments += ["--profile-home", str(self.profile.home), "--workspace",
-                      str(self.profile.workspace), "--yes"]
+    def _onboarding_command(self, arguments, operation):
         response = subprocess.run(self._guard() + self.command(arguments, owner=True),
             cwd=self.profile.workspace, env=self.environment(), capture_output=True,
             timeout=self.timeout_seconds)
@@ -33,14 +29,31 @@ class OnboardedDaemon(ProductionDaemon):
             raise ProductionError("onboarding returned invalid JSON") from None
         if response.returncode != 0 or envelope.get("ok") is not True:
             raise ProductionError("installed onboarding failed")
-        result = envelope["result"]
+        return envelope["result"]
+
+    def onboard(self, operation="up"):
+        arguments = (["up", "--client", self.client, "--service", "none",
+                      "--wait-ms", str(int(self.timeout_seconds * 1000))]
+                     if operation == "up" else ["agent", "add", self.client])
+        arguments += ["--profile-home", str(self.profile.home), "--workspace",
+                      str(self.profile.workspace)]
+        if self.onboarding.get("name"):
+            arguments += ["--name", self.onboarding["name"]]
+        planned = self._onboarding_command(arguments, operation + "_plan")
+        if not isinstance(planned, dict) or planned.get("action") != "review_required":
+            raise ProductionError("onboarding did not show a reviewable owner plan")
+        confirmed = confirmation_arguments(arguments, planned)
+        result = self._onboarding_command(confirmed, operation)
         if (result.get("configuration_ready") is not True or result.get("daemon_api_ready") is not True
-                or result.get("model_ready") is not False or result.get("grants_added") is not False
+                or result.get("model_ready") is not False
                 or len(result.get("clients", [])) != 1):
             raise ProductionError("onboarding readiness or enrollment scope mismatch")
         row = result["clients"][0]
         if row.get("client") != self.client:
             raise ProductionError("onboarding selected a different client")
+        if not isinstance(row.get("name"), str) or not row["name"]:
+            raise ProductionError("onboarding did not return the selected agent name")
+        self.onboarding["name"] = row["name"]
         return row
 
     def binding(self, row):

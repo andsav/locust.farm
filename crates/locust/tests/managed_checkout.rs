@@ -47,6 +47,17 @@ impl Daemon {
         daemon
     }
 
+    fn approved(&self, args: &[&str]) -> Value {
+        let mut planned = args.to_vec();
+        planned.push("--plan");
+        let plan = self.run(true, &planned);
+        assert_eq!(plan["action"], "review_required");
+        assert_eq!(plan["changed"], false);
+        let mut confirmed = args.to_vec();
+        confirmed.extend(["--confirm", plan["plan_id"].as_str().unwrap()]);
+        self.run(true, &confirmed)
+    }
+
     fn run(&self, owner: bool, args: &[&str]) -> Value {
         let mut command = command(self.home.path());
         if owner {
@@ -126,19 +137,16 @@ fn agent_gets_a_daemon_created_folder_and_publishes_without_owner_folder_action(
     );
     let seed = tempfile::tempdir().unwrap();
     fs::write(seed.path().join("seed.txt"), b"shared seed\n").unwrap();
-    let capture = daemon.run(
-        true,
-        &[
-            "workspace",
-            "init",
-            "--goal",
-            &goal,
-            "--root",
-            seed.path().to_str().unwrap(),
-            "--path",
-            "seed.txt",
-        ],
-    );
+    let capture = daemon.approved(&[
+        "workspace",
+        "init",
+        "--goal",
+        &goal,
+        "--root",
+        seed.path().to_str().unwrap(),
+        "--path",
+        "seed.txt",
+    ]);
     let proposal = daemon.run(
         false,
         &[
@@ -234,4 +242,104 @@ fn agent_gets_a_daemon_created_folder_and_publishes_without_owner_folder_action(
         b"shared seed\n"
     );
     assert!(!seed.path().join("agent.txt").exists());
+}
+
+#[test]
+fn invitation_confirmation_follows_shown_state_without_unrelated_rules_binding() {
+    let daemon = Daemon::start();
+    daemon.run(true, &["agent", "enroll", "maple"]);
+    let created = daemon.approved(&["goal", "create", "--title", "Confirmation"]);
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    let args = ["goal", "invite", "--goal", goal, "--plan"];
+    let first = daemon.run(true, &args);
+    let second = daemon.run(true, &args);
+    assert_eq!(first["plan_id"], second["plan_id"]);
+    assert_eq!(first["changed"], false);
+    let invitations = daemon.run(true, &["invitation", "list", "--goal", goal]);
+    assert!(
+        invitations["invitations"]["invitations"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+
+    let status = daemon.run(true, &["goal", "status", "--goal", goal]);
+    let definition = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "peer-review")
+        .unwrap()
+        .formation;
+    daemon.run(
+        true,
+        &[
+            "call",
+            "rules.bind",
+            &json!({
+                "goal": goal,
+                "expected": status["goal_status"]["current_rules"],
+                "formation_json": serde_json::to_string(&definition).unwrap(),
+                "roles": {}, "inputs": {},
+            })
+            .to_string(),
+        ],
+    );
+    let after_rules = daemon.run(true, &args);
+    assert_eq!(first["plan_id"], after_rules["plan_id"]);
+
+    let confirm = [
+        "goal",
+        "invite",
+        "--goal",
+        goal,
+        "--confirm",
+        first["plan_id"].as_str().unwrap(),
+    ];
+    let issued = command(daemon.home.path())
+        .args(["--owner", "--json"])
+        .args(confirm)
+        .output()
+        .unwrap();
+    assert!(
+        issued.status.success(),
+        "{}",
+        String::from_utf8_lossy(&issued.stdout)
+    );
+    assert!(issued.stderr.is_empty());
+    let issued: Value = serde_json::from_slice(&issued.stdout).unwrap();
+    assert!(issued["result"]["warning"].is_string());
+    let replay = command(daemon.home.path())
+        .args(["--owner", "--json"])
+        .args(confirm)
+        .output()
+        .unwrap();
+    assert_eq!(replay.status.code(), Some(7));
+    let replay: Value = serde_json::from_slice(&replay.stdout).unwrap();
+    assert_eq!(replay["error"]["code"], "conflict");
+    let invitations = daemon.run(true, &["invitation", "list", "--goal", goal]);
+    assert_eq!(
+        invitations["invitations"]["invitations"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    daemon.run(true, &["invitation", "revoke", "--goal", goal, "--all"]);
+    let after_revoke = daemon.run(true, &args);
+    assert_eq!(after_revoke["plan"]["pending_invitations"], 0);
+    assert_eq!(after_revoke["plan"]["issued_invitations"], 1);
+    assert_ne!(after_revoke["plan_id"], first["plan_id"]);
+    let replay = command(daemon.home.path())
+        .args(["--owner", "--json"])
+        .args(confirm)
+        .output()
+        .unwrap();
+    assert_eq!(replay.status.code(), Some(7));
+    let invitations = daemon.run(true, &["invitation", "list", "--goal", goal]);
+    assert_eq!(
+        invitations["invitations"]["invitations"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
 }

@@ -2,7 +2,7 @@
 //!
 //! A private journal reserves one identity per client/profile before secrets or
 //! enrollment are created. Secrets are durable before the daemon learns them.
-//! Setup keeps its own file transaction; neither stage grants work permission.
+//! Setup keeps its own file transaction; onboarding puts the agent in no goal.
 pub mod diagnostics;
 
 use super::*;
@@ -44,6 +44,7 @@ struct Record {
 #[derive(Clone)]
 pub struct Plan {
     pub spec: Spec,
+    pub name_generated: bool,
     review: Value,
 }
 impl Plan {
@@ -241,7 +242,8 @@ pub fn plan(spec: &Spec) -> Result<Plan, Failure> {
     if let Some((record, _)) = &prior {
         s.name.clone_from(&record.spec.name);
     }
-    if s.name.is_none() {
+    let name_generated = s.name.is_none();
+    if name_generated {
         s.name = Some(generated_name(s.client)?);
     }
     let binding = setup_spec(&s)?;
@@ -261,9 +263,13 @@ pub fn plan(spec: &Spec) -> Result<Plan, Failure> {
         "journal":record_path(&s)?,"journal_sha256":prior.as_ref().map(|(_,hash)|hash),
         "credential_file":binding.credential,"session_file":binding.session,
         "principal":prior.as_ref().and_then(|(r,_)|r.principal),
-        "profile":profile,"grants_added":false,"client_approval_policy_changed":false,
+        "profile":profile,"client_approval_policy_changed":false,
         "model_ready":false,"binding_scope":"explicit selected profile and fixed Locust session"});
-    Ok(Plan { spec: s, review })
+    Ok(Plan {
+        spec: s,
+        name_generated,
+        review,
+    })
 }
 
 fn guard(home: &Path) -> Result<File, Failure> {
@@ -526,8 +532,8 @@ fn apply_with(
         json!({"client":s.client,"name":s.name,"principal":principal,"instance":session.instance(),
         "profile_home":s.profile_home,"workspace":s.workspace,"credential_file":binding.credential,"session_file":binding.session,
         "journal":record_path(s)?,"launcher":configured["launcher"],"configuration_ready":true,"daemon_api_ready":true,
-        "model_ready":false,"grants_added":false,"changed":applied["changed"],
-        "next_action":"Start a fresh client chat and verify Locust tool discovery. Goal membership and work authorization are separate owner actions."}),
+        "model_ready":false,"changed":applied["changed"],
+        "next_action":format!("Start a fresh client chat and verify Locust tool discovery. {} is connected and in no goal. Start one (locust --owner goal create --help) or join one from a ticket (locust --owner goal join --help); both ask you first.", s.name.as_deref().unwrap_or("Agent"))}),
     )
 }
 

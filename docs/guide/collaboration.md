@@ -4,16 +4,17 @@
 
 Codex and Claude Code are [connected](installation.md#connect-your-coding-agents)
 with `--name demo-codex` and `--name demo-claude`. The person starts the goal
-with `--owner --as NAME`, naming its host agent. Later host commands use
+with `--owner --agent NAME`, naming its host agent. Later host commands use
 `--owner`.
 
 ```sh
-locust --owner --as demo-codex goal create --title demo --formation peer-review
-locust --owner goal add-local --goal demo --agent demo-claude --plan
-locust --owner goal add-local --goal demo --agent demo-claude --yes
+locust --owner --agent demo-codex goal create --title demo --formation peer-review --plan
+locust --owner --agent demo-codex goal create --title demo --formation peer-review --confirm PLAN_ID
+locust --owner goal add --goal demo --agent demo-claude --plan
+locust --owner goal add --goal demo --agent demo-claude --confirm PLAN_ID
 locust --owner permission allow --goal demo --agent demo-codex contribute
 locust --owner permission allow --goal demo --agent demo-claude contribute review
-locust --owner --as demo-codex task open --goal demo 'Make the change'
+locust --owner --agent demo-codex task open --goal demo 'Make the change'
 locust --owner permission allow --goal demo --agent demo-codex --task 'Make the change' execute
 ```
 
@@ -82,6 +83,12 @@ export LOCUST_RELAY=none LOCUST_LOOKUP=none LOCUST_BIND=127.0.0.1:0
 daemon_pid=$!
 trap 'kill "$daemon_pid" 2>/dev/null || true; wait "$daemon_pid" 2>/dev/null || true' EXIT
 owner() { "$LOCUST_BIN" --home "$state" --owner --json "$@"; }
+person() {
+  local reply plan_id
+  reply=$(owner "$@")
+  plan_id=$(python3 -c 'import json,sys; x=json.load(sys.stdin)["result"]; print(x.get("plan_id", "") if isinstance(x,dict) and x.get("action") == "review_required" else "")' <<<"$reply")
+  if [[ -n "$plan_id" ]]; then owner "$@" --confirm "$plan_id"; else printf '%s\n' "$reply"; fi
+}
 pick() {
   python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["ok"], x.get("error"); v=x["result"]
 for k in sys.argv[1].split("."): v=v[k]
@@ -97,9 +104,8 @@ bob_id=$(owner agent enroll bob | pick agent_enrolled.agent)
 "$LOCUST_BIN" session create "$demo/bob.session" >/dev/null
 alice() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/alice.credential" --session "$demo/alice.session" --json "$@"; }
 bob() { "$LOCUST_BIN" --home "$state" --credential "$state/agents/bob.credential" --session "$demo/bob.session" --json "$@"; }
-goal=$("$LOCUST_BIN" --home "$state" --owner --as alice --json goal create --title 'Local research' | pick goal_created.goal)
-ticket=$(owner goal invite --goal "$goal" | pick invited.ticket)
-"$LOCUST_BIN" --home "$state" --owner --as bob --json goal join --ticket "$ticket" >"$demo/join.json"
+goal=$(person --agent alice goal create --title 'Local research' | pick goal_created.goal)
+person goal add --goal "$goal" --agent bob >"$demo/join.json"
 for person in "$alice_id" "$bob_id"; do
   owner goal grant --goal "$goal" --agent "$person" --grants \
     '{"contribute":true,"execute":false,"review":true,"select":false,"flow":false,"takeover":false}' >/dev/null
@@ -116,9 +122,8 @@ done
 alice attempt start --goal "$goal" --task "$task" >"$demo/alice-claim.json"
 bob attempt start --goal "$goal" --task "$task" >"$demo/bob-claim.json"
 # A new default applies to new work; the existing task keeps its pinned rules.
-rules=$(alice goal status --goal "$goal" | pick goal_status.current_rules)
 peer_review=$("$LOCUST_BIN" formation example peer-review)
-owner rules bind --goal "$goal" --expected "$rules" --formation-json "$peer_review" >/dev/null
+person rules bind --goal "$goal" --formation-json "$peer_review" >/dev/null
 candidate=$(alice contribution publish --goal "$goal" 'A finding for peer review' | pick recorded.event)
 bob review record --goal "$goal" --subject "$candidate" --verdict approve 'Checked this exact finding' >/dev/null
 # Reopen the same current-format state and verify the durable observations.
@@ -155,12 +160,13 @@ runs all guide scripts in a local checkout.
 The host's person invites from their own daemon:
 
 ```sh
-locust --owner goal invite --goal demo
+locust --owner goal invite --goal demo --plan
+locust --owner goal invite --goal demo --confirm PLAN_ID
 ```
 
 Send the printed ticket privately. Only the first agent to use it can join. It
 contains the goal title, the host's key and your IP addresses. It expires after
-seven days unless you pass `--expires-ms` with a Unix time in milliseconds.
+seven days unless you pass `--expires` with a duration such as `30d`.
 
 ```sh
 locust --owner invitation list --goal demo
@@ -173,16 +179,17 @@ Revoking does not remove anyone who joined
 ## Join a goal
 
 Save the ticket in a file only you can read (`chmod 600`). Inspecting changes
-nothing. To accept, join as one of your agents with the printed review ID:
+nothing. To accept, show the join plan, then confirm that exact plan:
 
 ```sh
 locust invitation inspect --ticket-file ticket.txt
-locust --owner invitation join --principal NAME --ticket-file ticket.txt --review REVIEW_ID
+locust --owner --agent NAME goal join --ticket-file ticket.txt --plan
+locust --owner --agent NAME goal join --ticket-file ticket.txt --confirm PLAN_ID
 ```
 
 `status` shows `joining` until the host's daemon admits you, or `refused`.
-Joining grants no permissions. The person can also join with
-`locust --owner --as NAME goal join --ticket -`, which has no review step.
+Joining grants no permissions. Use `--ticket -` to read the ticket from
+standard input in place of `--ticket-file`.
 
 Inspecting also shows the goal's [farm page](farm-publication.md) policy;
 joining does not consent to it.

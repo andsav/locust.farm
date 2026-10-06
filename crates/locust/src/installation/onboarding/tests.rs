@@ -218,9 +218,13 @@ fn planning_does_not_create_daemon_state_identity_or_profile_files() {
     let mut spec = fixture.spec.clone();
     spec.name = None;
     let proposed = plan(&spec).unwrap();
+    assert!(proposed.name_generated);
     assert!(locust_proto::api::is_agent_name(
         proposed.spec.name.as_deref().unwrap()
     ));
+    let repeated_with_name = plan(&proposed.spec).unwrap();
+    assert!(!repeated_with_name.name_generated);
+    assert_eq!(proposed.json().unwrap(), repeated_with_name.json().unwrap());
     assert!(!spec.daemon_home.exists());
     assert_eq!(fs::read_dir(&spec.profile_home).unwrap().count(), 0);
     assert!(!record_path(&proposed.spec).unwrap().exists());
@@ -228,7 +232,6 @@ fn planning_does_not_create_daemon_state_identity_or_profile_files() {
     assert!(!binding.credential.exists());
     assert!(!binding.session.exists());
     let review = proposed.json().unwrap();
-    assert_eq!(review["plan"]["grants_added"], false);
     assert_eq!(review["plan"]["model_ready"], false);
 }
 

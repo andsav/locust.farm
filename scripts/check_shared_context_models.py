@@ -51,7 +51,13 @@ def raw_call(daemon, args, owner=False, role=None, stdin=None):
                    operation=' '.join(map(str, args[:2])), response=redact(body))
     if not body.get('ok') or result.returncode:
         raise RuntimeError('Locust setup/check failed: ' + json.dumps(redact(body)))
-    return body['result']
+    value = body['result']
+    if owner and '--plan' not in args:
+        from owner_plans import confirmation_arguments
+        confirmed = confirmation_arguments(args, value)
+        if confirmed is not None:
+            return raw_call(daemon, confirmed, owner=owner, role=role, stdin=stdin)
+    return value
 
 
 def seed_workspace(daemon, source, files, completion=None, reviewer=None):
@@ -109,12 +115,10 @@ def enroll(daemon, profile, name, permissions=('contribute', 'review', 'execute'
             'credential': daemon.home / 'agents' / (name + '.credential'),
             'session': daemon.home / 'sessions' / (name + '.secret')}
     role['instance'] = raw_call(daemon, ['session', 'create', role['session']], owner=True)['instance']
-    ticket = raw_call(daemon, ['goal', 'invite', '--goal', daemon.goal], owner=True)['invited']['ticket']
-    preview = raw_call(daemon, ['invitation', 'inspect', '--ticket', '-'], owner=True, stdin=ticket)['invitation_inspected']['preview']
-    joined = raw_call(daemon, ['invitation', 'join', '--principal', role['principal'],
-        '--review', preview['review'], '--ticket', '-'], owner=True, stdin=ticket)['joined']
+    joined = raw_call(daemon, ['goal', 'add', '--goal', daemon.goal,
+        '--agent', name], owner=True)
     if joined['membership'] != 'member':
-        raise RuntimeError('Local reviewed invitation did not admit the participant')
+        raise RuntimeError('Local goal add did not admit the agent')
     if permissions:
         raw_call(daemon, ['permission', 'allow', '--goal', daemon.goal, '--agent', name,
                          *permissions], owner=True)
@@ -314,7 +318,7 @@ def main():
         report['skill_sha256'] = sha(ROOT / 'skills/locust/SKILL.md')
         with ProductionDaemon(setup, args.locust, args.rpc_timeout) as daemon:
             formation = raw_call(daemon, ['formation', 'example', 'open'])
-            daemon.goal = raw_call(daemon, ['--as', daemon.principal, 'goal', 'create', '--title', 'Portable archive member paths',
+            daemon.goal = raw_call(daemon, ['--agent', daemon.principal, 'goal', 'create', '--title', 'Portable archive member paths',
                 '--formation-json', json.dumps(formation)], owner=True)['goal_created']['goal']
             researcher = enroll(daemon, rp, 'researcher')
             builder = enroll(daemon, bp, 'builder')

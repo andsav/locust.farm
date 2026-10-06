@@ -681,6 +681,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
             bytes: Some(launcher::skill(
                 &package::read_regular(&s.skill_source)?,
                 &p.launcher,
+                s,
             )?),
             mode: Some(0o644),
         };

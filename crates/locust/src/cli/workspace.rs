@@ -1,5 +1,5 @@
 //! Explicit ordinary-directory actions and exact durable publication handles.
-use super::{LocalClient, Output, connection, resolve_goal, resolve_principal};
+use super::{LocalClient, Output, acting_agent, confirm, connection, resolve_goal};
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use locust_proto::api::{
@@ -63,12 +63,12 @@ fn publication(command: Command) -> Command {
 }
 pub(super) fn commands() -> [Command; 1] {
     [Command::new("workspace").about("Versioned shared file trees and explicit local checkouts").subcommand_required(true)
-        .subcommand(publication(selected(Command::new("init").about("Freeze an explicit seed and prepare its workspace policy")
+        .subcommand(confirm::flags(publication(selected(Command::new("init").about("Freeze an explicit seed and prepare its workspace policy")
             .arg(goal()).arg(option("root", "Absolute capture input directory", false).required_unless_present("empty"))
             .arg(flag("empty", "Explicitly seed an empty tree").conflicts_with_all(["root", "path", "paths-from", "commit"]))
             .arg(option("commit", "Optional named Git commit import; excludes dirty and untracked files", false).conflicts_with_all(["path", "paths-from", "empty"]))
             .arg(option("integrator", "Explicit participant name/key; defaults to the goal creator", false))
-            .arg(option("completion", "Exact workspace CompletionRule JSON; defaults to an author declaration", false)))))
+            .arg(option("completion", "Exact workspace CompletionRule JSON; defaults to an author declaration", false))))))
         .subcommand(Command::new("head").about("Read accepted authority and independent content readiness").arg(goal()))
         .subcommand(Command::new("pending").about("Read exact proposals and their current blockers").arg(goal()))
         .subcommand(Command::new("tree").about("List an exact accepted tree").arg(goal())
@@ -81,12 +81,12 @@ pub(super) fn commands() -> [Command; 1] {
             .arg(option("path", "Exact relative regular-file path", true))
             .arg(option("offset", "Byte offset, defaults to zero", false))
             .arg(option("length", "Explicit maximum byte count", false)))
-        .subcommand(Command::new("checkout").about("Copy an accepted revision into a fresh ordinary directory").arg(goal())
+        .subcommand(confirm::flags(Command::new("connect").about("Copy an accepted revision into a fresh ordinary directory and connect it for an agent").arg(goal())
             .arg(option("revision", "Exact revision or prefix; defaults to accepted head", false))
-            .arg(option("destination", "Absolute fresh destination directory", true))
+            .arg(option("folder", "Absolute fresh destination directory", true))
             .arg(option("checkout", "Caller-selected checkout identifier, otherwise generated", false))
             .arg(option("task", "Optional associated task identifier or title", false))
-            .arg(option("attempt", "Optional associated attempt event identifier", false).requires("task")))
+            .arg(option("attempt", "Optional associated attempt event identifier", false).requires("task"))))
         .subcommand(Command::new("status").about("Observe local modifications, additions and recovery without capturing").arg(goal()).arg(checkout()))
         .subcommand(Command::new("bind").about("Bind this authenticated execution session explicitly to its checkout").arg(goal()).arg(checkout()))
         .subcommand(publication(selected(Command::new("propose").about("Freeze managed changes plus exact selected additions")
@@ -119,26 +119,41 @@ pub(super) fn run(
     operation: &str,
     args: &ArgMatches,
 ) -> Result<Output, Failure> {
-    if operation == "workspace.init" && matches.get_one::<String>("as").is_some() {
+    if operation == "workspace.init" && matches.get_one::<String>("agent").is_some() {
         return Err(Failure::usage(
-            "workspace init is a host command and does not accept --as",
+            "host commands are the host's own and name no agent; drop --agent",
         ));
     }
-    if operation == "workspace.checkout"
-        && (!matches.get_flag("owner") || matches.get_one::<String>("as").is_none())
-    {
-        return Err(Failure::usage(
-            "workspace checkout requires --owner --as NAME",
-        ));
+    if operation == "workspace.connect" && !matches.get_flag("owner") {
+        return Err(Failure::usage("workspace connect requires --owner"));
     }
     let home = connection::home(matches)?;
     let socket = local::socket_path(&home)?;
     let mut client = connection::open(matches, &home)?;
-    let on_behalf = matches
-        .get_one::<String>("as")
-        .map(|name| resolve_principal(&mut client, &socket, name))
-        .transpose()?;
-    let goal = resolve_goal(&mut client, &socket, value(args, "goal"), on_behalf)?;
+    let goal = resolve_goal(&mut client, &socket, value(args, "goal"), None)?;
+    let agent_write = matches!(
+        operation,
+        "workspace.propose"
+            | "workspace.publish"
+            | "workspace.compose"
+            | "workspace.integrate"
+            | "workspace.update"
+            | "workspace.recover"
+            | "workspace.bind"
+    );
+    let on_behalf = if matches.get_flag("owner")
+        && (matches.get_one::<String>("agent").is_some() || agent_write)
+        && !matches!(operation, "workspace.init" | "workspace.connect")
+    {
+        Some(acting_agent(&mut client, &socket, matches, Some(goal))?)
+    } else {
+        None
+    };
+    let connecting_agent = if operation == "workspace.connect" {
+        Some(acting_agent(&mut client, &socket, matches, Some(goal))?)
+    } else {
+        None
+    };
     let session = connection::session_path(matches)?
         .as_deref()
         .map(connection::read_secret)
@@ -216,7 +231,23 @@ pub(super) fn run(
     match operation {
         "workspace.head" => output(api.head()?),
         "workspace.pending" => response_output(api.call(Request::WorkspaceProposals { goal })?),
-        "workspace.init" => init(&mut api, args, caller_key),
+        "workspace.init" => {
+            if !matches.get_flag("owner") {
+                let head = api.head()?;
+                let status = api.status()?;
+                return response_output(
+                    api.call(Request::WorkspaceEpochSet {
+                        goal,
+                        expected_epoch: head.epoch,
+                        rules: status
+                            .current_rules
+                            .ok_or_else(|| conflict("current rules unavailable"))?,
+                        checkpoint: WorkspaceCheckpoint::Unseeded,
+                    })?,
+                );
+            }
+            review_init(matches, &mut api, args, caller_key)
+        }
         "workspace.propose" => propose(&mut api, args, caller_key),
         "workspace.publish" => {
             let operation = parse(value(args, "operation"), "operation")?;
@@ -225,7 +256,13 @@ pub(super) fn run(
         "workspace.integrate" => integrate(&mut api, args, caller_key),
         "workspace.compose" => compose(&mut api, args, caller_key),
         "workspace.review" => review(&mut api, args),
-        "workspace.checkout" => checkout_files(&mut api, args, caller_key),
+        "workspace.connect" => review_connect(
+            matches,
+            &mut api,
+            args,
+            caller_key,
+            connecting_agent.expect("checked owner"),
+        ),
         "workspace.status" => status(&mut api, args),
         "workspace.bind" => response_output(api.call(Request::CheckoutBindSession {
             goal,
@@ -244,12 +281,83 @@ pub(super) fn run(
     }
 }
 
-fn init(
+fn init_plan(
+    api: &mut Objects<'_>,
+    args: &ArgMatches,
+) -> Result<(confirm::Plan, WorkspaceView), Failure> {
+    let head = api.head()?;
+    let status = api.status()?;
+    let integrator = args
+        .get_one::<String>("integrator")
+        .map(|name| super::selectors::resolve_member(api.client, api.socket, api.goal, name))
+        .transpose()?;
+    let review = json!({
+        "goal": api.goal,
+        "title": status.title,
+        "epoch": head.epoch,
+        "head": head.head.as_ref().map(|revision| revision.revision),
+        "enabled": head.enabled,
+        "authority": head.authority,
+        "root": args.get_one::<String>("root"),
+        "empty": args.get_flag("empty"),
+        "commit": args.get_one::<String>("commit"),
+        "path": args.get_many::<String>("path").map(|paths| paths.cloned().collect::<Vec<_>>()),
+        "paths_from": args.get_one::<String>("paths-from"),
+        "integrator": integrator,
+        "completion": args.get_one::<String>("completion"),
+        "publish": args.get_flag("publish"),
+    });
+    let plan = confirm::Plan {
+        command: "workspace init",
+        human: format!(
+            "Share the first files of \"{}\".\nSeed options: {}\nWorkspace epoch: {}; accepted head: {}.",
+            super::presentation::safe(status.title.as_deref().unwrap_or("untitled goal")),
+            serde_json::to_string_pretty(&review).map_err(internal)?,
+            head.epoch
+                .map(|id| id.to_string())
+                .unwrap_or_else(|| "none".into()),
+            head.head
+                .as_ref()
+                .map(|revision| revision.revision.to_string())
+                .unwrap_or_else(|| "none".into()),
+        ),
+        review,
+        warning: None,
+        again: String::new(),
+    };
+    Ok((plan, head))
+}
+
+fn review_init(
+    matches: &ArgMatches,
     api: &mut Objects<'_>,
     args: &ArgMatches,
     key: Option<IdempotencyKey>,
 ) -> Result<Output, Failure> {
-    let head = api.head()?;
+    let (plan, _) = init_plan(api, args)?;
+    if confirm::decide(matches, args, &plan)? == confirm::Decision::Show {
+        return Ok(plan.shown());
+    }
+    let (fresh, head) = init_plan(api, args)?;
+    confirm::bound(&plan.id(), &fresh)?;
+    init(api, args, key, head)
+}
+
+fn init(
+    api: &mut Objects<'_>,
+    args: &ArgMatches,
+    key: Option<IdempotencyKey>,
+    head: WorkspaceView,
+) -> Result<Output, Failure> {
+    let current = api.head()?;
+    if head.epoch != current.epoch
+        || head.head.as_ref().map(|revision| revision.revision)
+            != current.head.as_ref().map(|revision| revision.revision)
+        || head.enabled != current.enabled
+        || head.authority != current.authority
+    {
+        return Err(conflict("the plan changed; run --plan again"));
+    }
     if head.head.is_some() {
         return Err(conflict(
             "workspace already has an accepted seed; use propose",
@@ -364,7 +472,8 @@ fn verify_pinned_initial_policy(
     let requested = formation.workspace.as_mut().expect("checked policy");
     if let Some(name) = args.get_one::<String>("integrator") {
         requested.integrator = Authority::Participant {
-            key: resolve_principal(api.client, api.socket, name)?.to_string(),
+            key: super::selectors::resolve_member(api.client, api.socket, api.goal, name)?
+                .to_string(),
         };
     }
     if let Some(source) = args.get_one::<String>("completion") {
@@ -409,7 +518,7 @@ fn initial_epoch(api: &mut Objects<'_>, args: &ArgMatches) -> Result<EventId, Fa
     let rules = if formation.workspace.is_none() || explicit {
         let integrator = args
             .get_one::<String>("integrator")
-            .map(|name| resolve_principal(api.client, api.socket, name))
+            .map(|name| super::selectors::resolve_member(api.client, api.socket, api.goal, name))
             .transpose()?
             .unwrap_or(status.host);
         let completion = args
@@ -809,12 +918,94 @@ fn candidate_review(
         serde_json::to_value(locust_workspace::review_changes(&changes)).map_err(internal)?,
     ))
 }
-fn checkout_files(
+struct ConnectSelection {
+    revision: WorkspaceRevisionView,
+    task: Option<locust_proto::event::TaskId>,
+    attempt: Option<EventId>,
+}
+
+fn connect_plan(
+    api: &mut Objects<'_>,
+    args: &ArgMatches,
+    agent: PublicKey,
+) -> Result<(confirm::Plan, ConnectSelection), Failure> {
+    let status = api.status()?;
+    let agent_name = connected_agent_name(api, agent)?;
+    let revision = selected_revision(api, args, "revision")?;
+    let folder = absolute(args, "folder")?;
+    let exists = match std::fs::symlink_metadata(&folder) {
+        Ok(_) => true,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => false,
+        Err(error) => return Err(io_failure(error)),
+    };
+    let task = args
+        .get_one::<String>("task")
+        .map(|text| super::selectors::resolve_task(api.client, api.socket, api.goal, text, None))
+        .transpose()?;
+    let attempt = args
+        .get_one::<String>("attempt")
+        .map(|text| api.event_id(text))
+        .transpose()?;
+    let review = json!({
+        "goal": api.goal,
+        "title": status.title,
+        "agent": agent,
+        "agent_name": agent_name,
+        "revision": revision.revision,
+        "folder": folder,
+        "folder_exists": exists,
+        "checkout": args.get_one::<String>("checkout"),
+        "task": task,
+        "attempt": attempt,
+    });
+    let plan = confirm::Plan {
+        command: "workspace connect",
+        human: format!(
+            "Connect revision {} of \"{}\" for agent {} at {}.\nFolder exists: {}. The agent may propose changes from it.",
+            &revision.revision.to_string()[..8],
+            super::presentation::safe(status.title.as_deref().unwrap_or("untitled goal")),
+            super::presentation::safe(&agent_name),
+            folder.display(),
+            exists,
+        ),
+        review,
+        warning: None,
+        again: String::new(),
+    };
+    Ok((
+        plan,
+        ConnectSelection {
+            revision,
+            task,
+            attempt,
+        },
+    ))
+}
+
+fn review_connect(
+    matches: &ArgMatches,
     api: &mut Objects<'_>,
     args: &ArgMatches,
     key: Option<IdempotencyKey>,
+    agent: PublicKey,
 ) -> Result<Output, Failure> {
-    let destination = absolute(args, "destination")?;
+    let (plan, _) = connect_plan(api, args, agent)?;
+    if confirm::decide(matches, args, &plan)? == confirm::Decision::Show {
+        return Ok(plan.shown());
+    }
+    let (fresh, selected) = connect_plan(api, args, agent)?;
+    confirm::bound(&plan.id(), &fresh)?;
+    connect(api, args, key, agent, selected)
+}
+
+fn connect(
+    api: &mut Objects<'_>,
+    args: &ArgMatches,
+    key: Option<IdempotencyKey>,
+    agent: PublicKey,
+    selected: ConnectSelection,
+) -> Result<Output, Failure> {
+    let destination = absolute(args, "folder")?;
     let id = args
         .get_one::<String>("checkout")
         .map(|text| parse(text, "checkout"))
@@ -834,21 +1025,16 @@ fn checkout_files(
         }
         return output(json!({"checkout":saved,"resumed_registered_checkout":true}));
     }
-    let revision = selected_revision(api, args, "revision")?;
+    let revision = api.revision(selected.revision.revision)?;
+    if !revision.in_lineage || revision != selected.revision {
+        return Err(conflict("the plan changed; run --plan again"));
+    }
     // Preflight selectors and bindings before filesystem publication so an
     // invalid task/attempt (or a disputed revision) does not leave an
     // unregistered directory behind. This cannot be atomic against concurrent
     // server changes; the in-lineage guard after publication still retries.
-    let task = args
-        .get_one::<String>("task")
-        .map(|text| {
-            super::selectors::resolve_task(api.client, api.socket, api.goal, text, api.on_behalf)
-        })
-        .transpose()?;
-    let attempt = args
-        .get_one::<String>("attempt")
-        .map(|text| api.event_id(text))
-        .transpose()?;
+    let task = selected.task;
+    let attempt = selected.attempt;
     let (manifest, _) =
         locust_workspace::inspect_tree(revision.result_manifest, api).map_err(workspace_error)?;
     locust_workspace::materialize(&manifest, api, &destination).map_err(workspace_error)?;
@@ -873,7 +1059,7 @@ fn checkout_files(
     let response = api
         .call(Request::WorkspaceConnect {
             goal: api.goal,
-            agent: api.on_behalf.expect("workspace checkout requires --as"),
+            agent,
             checkout,
         })
         .map_err(|error| {
@@ -886,7 +1072,34 @@ fn checkout_files(
                 ),
             )
         })?;
-    response_output(response)
+    let Response::Checkout(connected) = response else {
+        return Err(Failure::internal("expected connected checkout"));
+    };
+    let title = api
+        .status()?
+        .title
+        .unwrap_or_else(|| "untitled goal".into());
+    let agent_name = connected_agent_name(api, agent)?;
+    let human = format!(
+        "{} holds revision {} of \"{}\" and is connected for {}. {} may propose changes from it.",
+        super::presentation::safe(&connected.root),
+        &connected.base_revision.to_string()[..8],
+        super::presentation::safe(&title),
+        super::presentation::safe(&agent_name),
+        super::presentation::safe(&agent_name),
+    );
+    Ok(Output::success(
+        serde_json::to_value(Response::Checkout(connected)).map_err(internal)?,
+        human,
+    ))
+}
+fn connected_agent_name(api: &mut Objects<'_>, agent: PublicKey) -> Result<String, Failure> {
+    super::status(api.client, api.socket, None)?
+        .agents
+        .into_iter()
+        .find(|known| known.agent == agent)
+        .map(|known| known.name)
+        .ok_or_else(|| Failure::new(ErrorCode::NotFound, "connected agent is not enrolled"))
 }
 fn status(api: &mut Objects<'_>, args: &ArgMatches) -> Result<Output, Failure> {
     let bound = api.checkout(parse(value(args, "checkout"), "checkout")?)?;

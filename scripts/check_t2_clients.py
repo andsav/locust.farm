@@ -233,7 +233,7 @@ def seed_workspace(daemon, root, paths, destination):
                  "--verdict", "approve", "Harness-reviewed synthetic seed"])
     accepted = daemon.call(["workspace", "integrate", "--goal", daemon.goal, "--proposal", proposal])
     revision = accepted["workspace_operation"]["state"]["recorded"]["event"]
-    checkout = daemon.call(["--as", daemon.principal, "workspace", "checkout", "--goal", daemon.goal, "--destination", destination], owner=True)["checkout"]
+    checkout = daemon.call(["--agent", daemon.principal, "workspace", "connect", "--goal", daemon.goal, "--folder", destination], owner=True)["checkout"]
     return {"base": seed["candidate"]["result_manifest"], "seed_revision": revision,
             "source_checkout": checkout["id"], "preview": seed["preview"]}
 
@@ -248,7 +248,7 @@ def prepare_work(profile, daemon, client):
     task = "task:" + daemon.call(["task", "open", "--goal", daemon.goal, "--inputs", json.dumps({"snapshot": shared["base"]}),
                        "Update only code.txt in the synthetic qualification workspace"])["recorded"]["event"]
     offer = daemon.call(["work", "offer", "--goal", daemon.goal, "--task", task,
-                             "--recipient", daemon.principal])["recorded"]["event"]
+                             "--member", daemon.principal])["recorded"]["event"]
     daemon.call(["task", "authorize", "--goal", daemon.goal, "--task", task, "--agent", daemon.principal], owner=True)
     return {"source": str(source),
             **shared, "task": task, "offer": offer, "goal": daemon.goal,

@@ -28,30 +28,40 @@ class NativeOnboardingTests(unittest.TestCase):
         private_write(self.session, b"s" * 32)
         private_write(self.launcher, "#!/bin/sh\n")
         self.launcher.chmod(0o700)
-        self.row = {"client": "claude", "principal": "a" * 64, "instance": "b" * 32,
+        self.row = {"client": "claude", "name": "claude-test", "principal": "a" * 64, "instance": "b" * 32,
                     "credential_file": str(self.credential), "session_file": str(self.session),
                     "launcher": str(self.launcher), "changed": False}
 
     def test_readiness_and_client_scope_cannot_false_pass(self):
         baseline = {"configuration_ready": True, "daemon_api_ready": True,
-                    "model_ready": False, "grants_added": False, "clients": [self.row]}
-        mutations = [{"model_ready": True}, {"grants_added": True}, {"daemon_api_ready": False},
+                    "model_ready": False, "clients": [self.row]}
+        planned = {"action": "review_required", "plan_id": "plan-0123456789abcdef",
+                   "plan": {"clients": [{"plan": {"spec": {"name": self.row["name"]}}}]}}
+        plan_response = subprocess.CompletedProcess([], 0,
+            json.dumps({"ok": True, "result": planned}).encode(), b"")
+        mutations = [{"model_ready": True}, {"daemon_api_ready": False},
                      {"clients": []}, {"clients": [self.row, self.row]},
-                     {"clients": [dict(self.row, client="codex")]}]
+                     {"clients": [dict(self.row, client="codex")]},
+                     {"clients": [dict(self.row, name="")] }]
         for changed in mutations:
             response = subprocess.CompletedProcess([], 0, json.dumps({"ok": True, "result": dict(baseline, **changed)}).encode(), b"")
-            with patch.object(self.daemon, "_guard", return_value=[]), patch("client_qualification.onboarding.subprocess.run", return_value=response):
+            with patch.object(self.daemon, "_guard", return_value=[]), patch("client_qualification.onboarding.subprocess.run", side_effect=[plan_response, response]):
                 with self.assertRaises(ProductionError):
                     self.daemon.onboard()
 
     def test_up_uses_selected_profile_and_inferred_installed_prefix(self):
         result = {"configuration_ready": True, "daemon_api_ready": True,
-                  "model_ready": False, "grants_added": False, "clients": [self.row]}
-        response = subprocess.CompletedProcess([], 0, json.dumps({"ok": True, "result": result}).encode(), b"review text")
-        with patch.object(self.daemon, "_guard", return_value=[]), patch("client_qualification.onboarding.subprocess.run", return_value=response) as run:
+                  "model_ready": False, "clients": [self.row]}
+        planned = {"action": "review_required", "plan_id": "plan-0123456789abcdef",
+                   "plan": {"clients": [{"plan": {"spec": {"name": self.row["name"]}}}]}}
+        responses = [subprocess.CompletedProcess([], 0, json.dumps({"ok": True, "result": item}).encode(), b"review text")
+                     for item in (planned, result)]
+        with patch.object(self.daemon, "_guard", return_value=[]), patch("client_qualification.onboarding.subprocess.run", side_effect=responses) as run:
             self.assertEqual(self.daemon.onboard(), self.row)
-        argv = run.call_args.args[0]
+        argv = run.call_args_list[-1].args[0]
         self.assertIn("up", argv)
+        self.assertIn("--confirm", argv)
+        self.assertEqual(argv[argv.index("--name") + 1], self.row["name"])
         self.assertEqual(argv[argv.index("--service") + 1], "none")
         self.assertEqual(argv[argv.index("--profile-home") + 1], str(self.profile.home))
         self.assertNotIn("--prefix", argv)

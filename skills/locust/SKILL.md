@@ -33,9 +33,10 @@ Use the transport already configured by the client: registered Locust MCP tools,
 or the installed CLI with its supplied home, credential and session paths. The
 CLI exposes the same operations; do not search for MCP when the client supplied
 a working CLI connection. Start with `locust_status` (CLI: `locust status`).
-A person inspects and accepts invitations through
-`locust invitation inspect` and `locust invitation join`, selecting the local
-principal and confirming the exact signed review digest. Tickets stay outside
+A person inspects a ticket with `locust invitation inspect`, then runs
+`locust --owner goal join --ticket-file FILE --plan` and, after accepting the
+plan, repeats it with `--confirm PLAN_ID`. They select their local agent with
+the global `--agent NAME` flag when more than one fits. Tickets stay outside
 model tools. Check membership after joining: pending is not admission.
 
 Read `locust_context_read` with `view: "full"` when starting work, changing tasks,
@@ -117,8 +118,8 @@ For your own new folder, call `locust_checkout_register` with the goal, a fresh
 random 16-byte checkout ID in lowercase hex, an optional accepted revision,
 and the task and attempt when appropriate. The daemon creates the folder and
 returns its root, ID and base. The person can instead name a destination with
-`locust --owner --as NAME workspace checkout --goal GOAL --revision REVISION
---destination NEW_DIRECTORY`. Bind the current authenticated
+`locust --owner --agent NAME workspace connect --goal GOAL --revision REVISION
+--folder NEW_DIRECTORY --plan`, then confirm its plan. Bind the current authenticated
 session explicitly with
 `locust workspace bind --goal GOAL --checkout CHECKOUT` or
 `locust_checkout_bind_session`; context and pending work then identify this

@@ -6,7 +6,7 @@ use locust_proto::id::IdempotencyKey;
 use locust_proto::local;
 use serde_json::json;
 
-use super::{Output, connection, presentation, print, resolve_goal, resolve_principal, status};
+use super::{Output, acting_agent, connection, presentation, print, resolve_goal, status};
 use crate::failure::Failure;
 
 fn goal() -> Arg {
@@ -16,18 +16,10 @@ fn goal() -> Arg {
         .help("Goal title, full identifier or unique prefix")
 }
 
-fn agent() -> Arg {
-    Arg::new("agent")
-        .long("agent")
-        .required(true)
-        .help("Enrolled local name or full principal key")
-}
-
 fn change(name: &'static str, about: &'static str) -> Command {
     Command::new(name)
         .about(about)
         .arg(goal())
-        .arg(agent())
         .arg(
             Arg::new("task")
                 .long("task")
@@ -53,7 +45,7 @@ pub(super) fn commands() -> [Command; 3] {
     [
         Command::new("permission").about("Inspect or change explicit local permissions; membership and client tool approval are separate")
             .subcommand_required(true)
-            .subcommand(Command::new("inspect").about("Show standing permissions and task-specific execution authorizations").arg(goal()).arg(agent()))
+            .subcommand(Command::new("inspect").about("Show standing permissions and task-specific execution authorizations").arg(goal()))
             .subcommand(change("allow", "Allow only the named permissions; --task requires execute, optionally takeover"))
             .subcommand(change("revoke", "Revoke named permissions or one task's authorizations; does not stop a client process")),
         Command::new("inbox").about("Show the owner's local participants needing permission, action, or review across goals without acknowledgment"),
@@ -79,18 +71,20 @@ pub(super) fn run(
                 .map_err(|_| Failure::usage("--idempotency-key requires 16 bytes in hex"))
         })
         .transpose()?;
-    let on_behalf = matches
-        .get_one::<String>("as")
-        .map(|name| resolve_principal(&mut client, &socket, name))
-        .transpose()?;
+    let on_behalf = if matches.get_flag("owner")
+        && operation == "watch"
+        && matches.get_one::<String>("agent").is_some()
+    {
+        Some(acting_agent(&mut client, &socket, matches, None)?)
+    } else {
+        None
+    };
     let display_principal = on_behalf.or(match client.caller() {
         Caller::Agent(principal) | Caller::Author(principal) => Some(principal),
         Caller::Owner => None,
     });
-    if operation != "watch" && on_behalf.is_some() {
-        return Err(Failure::usage(
-            "permission and inbox are owner controls; use --owner without --as",
-        ));
+    if operation == "inbox" && matches.get_one::<String>("agent").is_some() {
+        return Err(Failure::usage("inbox names no agent; drop --agent"));
     }
     let known = status(&mut client, &socket, on_behalf)?;
     if operation == "inbox" {
@@ -152,11 +146,17 @@ pub(super) fn run(
             human,
         ));
     }
-    let agent = resolve_principal(
-        &mut client,
-        &socket,
-        selected.get_one::<String>("agent").expect("required agent"),
-    )?;
+    let agent = if matches.get_flag("owner") {
+        if operation == "permission.inspect" && matches.get_one::<String>("agent").is_none() {
+            return Err(Failure::usage("permission inspect needs --agent NAME"));
+        }
+        acting_agent(&mut client, &socket, matches, Some(goal))?
+    } else {
+        match client.caller() {
+            Caller::Agent(agent) | Caller::Author(agent) => agent,
+            Caller::Owner => unreachable!("owner handled above"),
+        }
+    };
     let request = if operation == "permission.inspect" {
         Request::Permissions { goal, agent }
     } else {
@@ -241,7 +241,11 @@ mod tests {
 
     #[test]
     fn permission_controls_need_no_json_and_keep_categories_separate() {
-        let command = || Command::new("locust").subcommands(commands());
+        let command = || {
+            Command::new("locust")
+                .arg(Arg::new("agent").long("agent").global(true))
+                .subcommands(commands())
+        };
         let args = command()
             .try_get_matches_from([
                 "locust",

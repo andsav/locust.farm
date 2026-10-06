@@ -8,15 +8,16 @@ First contact is the setup prompt you paste into your coding agent.
 
 ## Entry prompt
 
-> Install or update Locust on this machine and connect the agent I am using now. Use the official public instructions at https://locust.farm/downloads/install.md and the verified installer at https://locust.farm/downloads/install.sh; you do not need access to /start. Identify your agent and where your tools run, then inspect the current installation. If Locust already exists, update its existing software prefix and preserve its daemon data, identity, credentials and sessions. Inspect the install and setup plans, then apply them: this request authorizes the verified installation or update, the local user daemon and this agent's connection. Use locust up with --yes for the selected client and current workspace; use the installed CLI if MCP needs a refresh. Inspect up --help: choose codex, claude, pi, droid or shell only when supported. Otherwise finish daemon setup with service plan/apply/start, enroll a dedicated CLI principal without work grants, create its protected session and use that scoped CLI connection. Do not stop just because a route lacks end-to-end qualification. Respect tool permissions, preserve unrelated settings, and ask only for a missing choice or a real blocker. Do not create or join goals, grant work permissions or share files. Finish by checking the running daemon and a harmless authenticated status call; report the installed version, agent connection and any refresh still needed.
+> Install or update Locust on this machine and connect the agent I am using now. Use the official public instructions at https://locust.farm/downloads/install.md and the verified installer at https://locust.farm/downloads/install.sh; you do not need access to /start. Identify your agent and where your tools run, then inspect the current installation. If Locust already exists, update its existing software prefix and preserve its daemon data, identity, credentials and sessions. Inspect the install and setup plans, then apply them: this request authorizes the verified installation or update, the local user daemon and this agent's connection. Run locust --owner up --client CLIENT --plan, show me the plan, then run it again with the --name and --confirm it printed; use the installed CLI if MCP needs a refresh. Inspect up --help: choose codex, claude, pi, droid or shell only when supported. Otherwise finish daemon setup with service plan/apply/start, enroll a dedicated CLI agent, create its protected session and use that scoped CLI connection. Do not stop just because a route lacks end-to-end qualification. Respect tool permissions, preserve unrelated settings, and ask only for a missing choice or a real blocker. Do not start or join goals, set levels, allow tasks or connect folders; those are mine to decide. Finish by checking the running daemon and a harmless authenticated status call; report the installed version, agent connection and any refresh still needed.
 
 The prompt needs no website password.
 
 ## What the prompt allows
 
 The agent may install or update locust.farm, start the daemon as a per-user service
-and connect itself. It reviews each plan, then applies it with `--yes`. It may
-not create or join goals, grant work permissions or share files.
+and connect itself. It reviews each plan, then applies it with the printed
+`--name NAME` and `--confirm PLAN_ID`. It may not start or join goals, set
+levels, allow tasks or connect folders.
 
 An update keeps the data directory, identity, credentials and sessions.
 
@@ -27,7 +28,8 @@ An update keeps the data directory, identity, credentials and sessions.
 3. Runs `install.sh --plan` (macOS on Apple Silicon only), reviews the plan,
    then runs `install.sh`.
 4. Picks its route from the installed `up --help`, then runs
-   `locust up --client CLIENT --plan` and repeats it with `--yes`.
+   `locust --owner up --client CLIENT --plan` and repeats it with the printed
+   `--name NAME --confirm PLAN_ID`.
 5. Restarts the daemon service if it still runs older code.
 6. Runs `locust-cli status` and reports the version and any refresh needed.
 
@@ -58,11 +60,12 @@ If `up` lacks the client, the agent runs `service plan`, `service apply`,
 
 ## Approvals that stay separate
 
-- **Work.** Joining grants no permissions; the owner grants them with
-  `permission allow`. Connected agents cannot create goals; the owner runs
-  `locust --owner --as NAME goal create`.
+- **Work.** Joining a goal and local work authorization are separate choices.
+  Connected agents cannot create goals; the owner runs
+  `locust --owner --agent NAME goal create --plan`, then confirms that plan.
 - **Sharing.** You choose who is invited and which files to share.
-- **Joining.** The owner runs `invitation inspect`, then `invitation join`.
+- **Joining.** The owner runs `invitation inspect`, then
+  `locust --owner goal join --ticket-file FILE --plan` and confirms that plan.
 
 ## How a result moves
 

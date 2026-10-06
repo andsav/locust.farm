@@ -3,14 +3,15 @@
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 mod args;
 mod client;
+mod confirm;
 mod connection;
 mod doctor;
 mod farm;
 mod formation;
 mod install;
 mod invitations;
-mod local_members;
 mod onboarding;
+mod only_you;
 mod package;
 mod permissions;
 mod presentation;
@@ -23,7 +24,8 @@ mod workspace;
 use crate::{daemon, failure::Failure, secret};
 use clap::{ArgMatches, error::ErrorKind};
 use locust_proto::api::{
-    Credential, DaemonStatus, ErrorCode, Request, Response, SessionSecret, WaitOutcome,
+    Audience, Credential, DaemonStatus, ErrorCode, Membership, OPERATIONS, Request, Response,
+    SessionSecret, WaitOutcome,
 };
 use locust_proto::client::Client;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
@@ -34,6 +36,7 @@ use std::io::{self, Read};
 use std::path::Path;
 
 type LocalClient = Client<std::os::unix::net::UnixStream>;
+#[derive(Debug)]
 struct Output {
     result: Value,
     human: String,
@@ -116,7 +119,7 @@ fn mcp_invocation(arguments: &[std::ffi::OsString]) -> bool {
         };
         if matches!(
             argument,
-            "--home" | "--credential" | "--as" | "--session" | "--idempotency-key"
+            "--home" | "--credential" | "--agent" | "--session" | "--idempotency-key"
         ) {
             arguments.next();
         } else if argument == "--" {
@@ -129,12 +132,12 @@ fn mcp_invocation(arguments: &[std::ffi::OsString]) -> bool {
 }
 fn run_mcp(matches: &ArgMatches, selected: &ArgMatches) -> Result<(), Failure> {
     if matches.get_flag("owner")
-        || matches.get_one::<String>("as").is_some()
+        || matches.get_one::<String>("agent").is_some()
         || matches.get_flag("json")
         || matches.get_one::<String>("idempotency-key").is_some()
     {
         return Err(Failure::usage(
-            "mcp does not accept --owner, --as, --json or --idempotency-key",
+            "mcp does not accept --owner, --agent, --json or --idempotency-key",
         ));
     }
     let home = connection::home(matches)?;
@@ -168,6 +171,9 @@ fn stdin_text() -> Result<String, Failure> {
     Ok(text)
 }
 fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
+    if matches.get_one::<String>("agent").is_some() && !matches.get_flag("owner") {
+        return Err(Failure::usage("--agent requires --owner"));
+    }
     let (operation, selected) = args::selected(matches);
     if operation.starts_with("farm.") {
         return farm::run(matches, &operation, selected);
@@ -217,8 +223,8 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     if operation.starts_with("client.") {
         return client::run(matches, &operation, selected);
     }
-    if operation == "goal.add-local" {
-        return local_members::run(matches, selected);
+    if only_you::owns(&operation) {
+        return only_you::run(matches, &operation, selected);
     }
     if operation.starts_with("invitation.") {
         return invitations::run(matches, &operation, selected);
@@ -284,15 +290,6 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     {
         fields.insert(field.to_owned(), Value::String(stdin_text()?));
     }
-    if !generic_call
-        && operation == "goal.join"
-        && fields.get("ticket").and_then(Value::as_str) == Some("-")
-    {
-        fields.insert(
-            "ticket".to_owned(),
-            Value::String(stdin_text()?.trim_end_matches(['\r', '\n']).to_owned()),
-        );
-    }
     let receipts =
         if !generic_call && matches!(operation.as_str(), "context.read" | "context.acknowledge") {
             let credential = Credential(connection::read_secret(&connection::credential_path(
@@ -325,28 +322,6 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
                 .map_err(|error| Failure::internal(error.to_string()))?,
         );
     }
-    if !generic_call
-        && matches!(
-            operation.as_str(),
-            "goal.create" | "goal.join" | "goal.leave"
-        )
-        && (!matches.get_flag("owner") || matches.get_one::<String>("as").is_none())
-    {
-        return Err(Failure::usage(format!(
-            "{operation} requires --owner --as NAME"
-        )));
-    }
-    if !generic_call
-        && matches!(
-            operation.as_str(),
-            "goal.invite" | "member.remove" | "rules.bind" | "task.revise" | "workspace.epoch"
-        )
-        && matches.get_one::<String>("as").is_some()
-    {
-        return Err(Failure::usage(format!(
-            "{operation} is a host command and does not accept --as"
-        )));
-    }
     if generic_call {
         request(&operation, fields.clone())?
             .check()
@@ -354,10 +329,23 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     }
     let mut client = connection::open(matches, &home)?;
     let socket = local::socket_path(&home)?;
-    let on_behalf = matches
-        .get_one::<String>("as")
-        .map(|name| resolve_principal(&mut client, &socket, name))
-        .transpose()?;
+    let mut on_behalf = None;
+    let meta = OPERATIONS.iter().find(|item| item.name == operation);
+    if !generic_call && matches.get_one::<String>("agent").is_some() {
+        match meta.map(|item| item.audience) {
+            Some(Audience::Host) => {
+                return Err(Failure::usage(
+                    "host commands are the host's own and name no agent; drop --agent",
+                ));
+            }
+            Some(Audience::Owner) if !args::has_field(&operation, "agent") => {
+                return Err(Failure::usage(
+                    "this owner command names no agent; drop --agent",
+                ));
+            }
+            _ => {}
+        }
+    }
     let credential_path = if named_enrollment {
         let name = selected.get_one::<String>("name").expect("required name");
         if !locust_proto::api::is_agent_name(name) {
@@ -384,43 +372,51 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
     } else {
         None
     };
-    if !generic_call
-        && matches!(
-            operation.as_str(),
-            "goal.create" | "goal.join" | "goal.leave"
-        )
-    {
-        fields.insert("agent".into(), json!(on_behalf.expect("required --as")));
-    }
-    if !generic_call
-        && operation == "goal.invite"
-        && fields.get("expires_ms").is_none_or(Value::is_null)
-    {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|_| Failure::internal("system clock precedes the Unix epoch"))?
-            .as_millis() as u64;
-        fields.insert(
-            "expires_ms".into(),
-            json!(now.saturating_add(7 * 24 * 60 * 60 * 1000)),
-        );
-    }
-    if !named_enrollment && !generic_call {
-        validate_fields(&operation, &fields)?;
-    }
     if !generic_call && let Some(Value::String(goal)) = fields.get("goal") {
-        let goal = resolve_goal(&mut client, &socket, goal, on_behalf)?;
+        let goal = resolve_goal(&mut client, &socket, goal, None)?;
         fields.insert("goal".to_owned(), json!(goal));
     }
     if !generic_call {
-        for field in ["agent", "member", "recipient", "principal"] {
-            if let Some(Value::String(value)) = fields.get(field) {
-                let principal = resolve_principal(&mut client, &socket, value)?;
-                fields.insert(field.to_owned(), json!(principal));
+        let meta = meta.ok_or_else(|| Failure::usage(format!("unknown operation {operation}")))?;
+        let goal = fields
+            .get("goal")
+            .and_then(|value| serde_json::from_value::<GoalId>(value.clone()).ok());
+        if matches.get_flag("owner") {
+            match meta.audience {
+                Audience::Host => {}
+                Audience::Owner if args::has_field(&operation, "agent") => {
+                    fields.insert(
+                        "agent".into(),
+                        json!(acting_agent(&mut client, &socket, matches, goal)?),
+                    );
+                }
+                Audience::Agent | Audience::Author
+                    if matches.get_one::<String>("agent").is_some()
+                        || (!meta.read_only && operation != "session.drop") =>
+                {
+                    on_behalf = Some(acting_agent(&mut client, &socket, matches, goal)?);
+                }
+                _ => {}
+            }
+        } else if args::has_field(&operation, "agent") {
+            let agent = match client.caller() {
+                locust_proto::api::Caller::Agent(agent)
+                | locust_proto::api::Caller::Author(agent) => agent,
+                locust_proto::api::Caller::Owner => unreachable!("owner handled above"),
+            };
+            fields.insert("agent".into(), json!(agent));
+        }
+        if let Some(goal) = goal {
+            for field in ["member", "recipient"] {
+                if let Some(Value::String(value)) = fields.get(field) {
+                    let member = selectors::resolve_member(&mut client, &socket, goal, value)?;
+                    fields.insert(field.to_owned(), json!(member));
+                }
             }
         }
-    }
-    if !generic_call {
+        if !named_enrollment {
+            validate_fields(&operation, &fields)?;
+        }
         selectors::resolve_fields(&mut client, &socket, &mut fields, on_behalf)?;
     }
     let request = request(&operation, fields)?;
@@ -441,21 +437,6 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
             "this operation requires an explicit --session file or LOCUST_SESSION",
         ));
     }
-    let on_behalf = if matches!(
-        operation.as_str(),
-        "goal.create"
-            | "goal.join"
-            | "goal.leave"
-            | "goal.invite"
-            | "member.remove"
-            | "rules.bind"
-            | "task.revise"
-            | "workspace.epoch"
-    ) {
-        None
-    } else {
-        on_behalf
-    };
     let response = client
         .call_with(request, idempotency, on_behalf)
         .map_err(|error| connection::client_error(error, &socket))?;
@@ -521,11 +502,15 @@ fn validate_fields(operation: &str, fields: &Map<String, Value>) -> Result<(), F
         validate_goal(goal)?;
         fields.insert("goal".to_owned(), json!(GoalId([0; 32])));
     }
-    for name in ["agent", "member", "recipient", "principal"] {
+    for name in ["member", "recipient"] {
         if let Some(Value::String(value)) = fields.get(name) {
-            if value.parse::<PublicKey>().is_err() && !locust_proto::api::is_agent_name(value) {
+            if value.parse::<PublicKey>().is_err()
+                && !selectors::prefix(value)
+                && !locust_proto::api::is_agent_name(value)
+            {
                 return Err(Failure::usage(format!(
-                    "--{name} requires an enrolled name or a full principal key"
+                    "--{} requires a local name, full member key or at least 8 hex characters",
+                    if name == "recipient" { "member" } else { name }
                 )));
             }
             fields.insert(name.to_owned(), json!(PublicKey([0; 32])));
@@ -547,30 +532,76 @@ fn status(
         _ => unreachable!("Client checks response kinds"),
     }
 }
-fn resolve_principal(
+pub(super) fn acting_agent(
     client: &mut LocalClient,
     socket: &Path,
-    principal: &str,
+    matches: &ArgMatches,
+    goal: Option<GoalId>,
 ) -> Result<PublicKey, Failure> {
-    if let Ok(key) = principal.parse() {
+    if !matches.get_flag("owner") {
+        return Err(Failure::usage("--agent requires --owner"));
+    }
+    if let Some(key) = matches
+        .get_one::<String>("agent")
+        .and_then(|named| named.parse::<PublicKey>().ok())
+    {
         return Ok(key);
     }
-    if !locust_proto::api::is_agent_name(principal) {
-        return Err(Failure::usage(
-            "principal requires an enrolled name or a full principal key",
-        ));
+    let known = status(client, socket, None)?;
+    if let Some(named) = matches.get_one::<String>("agent") {
+        let key = named.parse::<PublicKey>().ok();
+        return known
+            .agents
+            .iter()
+            .find(|agent| agent.name == *named || key == Some(agent.agent))
+            .map(|agent| agent.agent)
+            .ok_or_else(|| {
+                Failure::new(
+                    ErrorCode::NotFound,
+                    format!("no enrolled agent named {}", presentation::safe(named)),
+                )
+            });
     }
-    status(client, socket, None)?
+    let eligible: Vec<_> = known
         .agents
-        .into_iter()
-        .find(|agent| agent.name == principal)
-        .map(|agent| agent.agent)
-        .ok_or_else(|| {
-            Failure::new(
-                ErrorCode::NotFound,
-                format!("principal {principal} is not enrolled"),
-            )
+        .iter()
+        .filter(|agent| !agent.revoked && !agent.author_only)
+        .filter(|agent| {
+            goal.is_none_or(|goal| {
+                known.goals.iter().any(|entry| {
+                    entry.goal == goal
+                        && entry.member == agent.agent
+                        && entry.membership == Membership::Member
+                })
+            })
         })
+        .collect();
+    match eligible.as_slice() {
+        [agent] => Ok(agent.agent),
+        [] => {
+            if let Some(goal) = goal {
+                let title = known
+                    .goals
+                    .iter()
+                    .find(|entry| entry.goal == goal)
+                    .and_then(|entry| entry.title.as_deref())
+                    .map(presentation::safe)
+                    .unwrap_or_else(|| goal.to_string());
+                Err(Failure::usage(format!(
+                    "none of your agents is in {title}; add one with locust --owner goal add --goal {} --agent NAME",
+                    &goal.to_string()[..8]
+                )))
+            } else {
+                Err(Failure::usage(
+                    "connect an agent first: locust --owner up --help",
+                ))
+            }
+        }
+        many => Err(Failure::usage(format!(
+            "name the agent: --agent {} or --agent {}",
+            many[0].name, many[1].name
+        ))),
+    }
 }
 fn create_session(path: &str) -> Result<Output, Failure> {
     let path = local::session_path(Some(std::ffi::OsStr::new(path)))

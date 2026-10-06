@@ -34,11 +34,15 @@ test('setup authorization covers updates and preserves identity without extra ap
 	assert.match(ENTRY_PROMPT, /update its existing software prefix/);
 	assert.match(ENTRY_PROMPT, /preserve its daemon data, identity, credentials and sessions/);
 	assert.match(ENTRY_PROMPT, /this request authorizes/);
-	assert.match(ENTRY_PROMPT, /--yes/);
+	assert.match(ENTRY_PROMPT, /--name and --confirm/);
+	assert.doesNotMatch(ENTRY_PROMPT, /--yes/);
 	assert.doesNotMatch(ENTRY_PROMPT, /until I approve|wait for.*approv/i);
 	assert.match(AGENT_STEPS.update, /does not replace a running daemon/);
 	assert.match(AGENT_STEPS.update, /Preserve incompatible existing state/);
-	assert.match(ENTRY_PROMPT, /Do not create or join goals, grant work permissions or share files/);
+	assert.match(
+		ENTRY_PROMPT,
+		/Do not start or join goals, set levels, allow tasks or connect folders/
+	);
 });
 
 test('the four named agents and other shell-capable agents have actionable routes', () => {

@@ -16,7 +16,7 @@ Global flags:
 
 - `--home PATH`: the data directory.
 - `--owner`: use the owner credential.
-- `--as NAME`: with `--owner`, act for the enrolled agent `NAME`.
+- `--agent NAME`: with `--owner`, act for the enrolled agent `NAME`.
 - `--credential FILE`: use an agent or author credential.
 - `--session FILE`: use an agent's session secret.
 - `--json`: print one JSON envelope.

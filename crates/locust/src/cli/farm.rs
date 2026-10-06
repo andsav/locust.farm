@@ -1,9 +1,9 @@
 //! Explicit owner publication controls. Public labels are entered independently
 //! from private goal, task and enrolled-principal names.
-use super::{Output, connection, presentation, resolve_goal, resolve_principal};
+use super::{Output, acting_agent, confirm, connection, presentation, resolve_goal};
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
-use locust_proto::api::{Caller, ErrorCode};
+use locust_proto::api::Caller;
 use locust_proto::id::IdempotencyKey;
 use locust_proto::local;
 use serde_json::{Value, json};
@@ -21,8 +21,8 @@ pub(super) fn commands() -> Command {
         .subcommand_required(true)
         .subcommand(Command::new("show").about("Preview the exact public snapshot and consent eligibility").arg(goal()))
         .subcommand(Command::new("status").about("Show local publication receipts and pending controls"))
-        .subcommand(Command::new("off").about("Stop publication and durably request deletion; receipt may be pending").arg(goal()))
-        .subcommand(Command::new("on")
+        .subcommand(confirm::flags(Command::new("off").about("Stop publication and durably request deletion; receipt may be pending").arg(goal())))
+        .subcommand(confirm::flags(Command::new("on")
             .about("Request publication with explicit public labels; members must consent separately")
             .arg(goal())
             .arg(Arg::new("service").long("service").default_value("https://locust.farm").help("HTTPS service origin, or HTTP loopback origin for local testing"))
@@ -31,15 +31,14 @@ pub(super) fn commands() -> Command {
             .arg(Arg::new("formation").long("formation").default_value("Locust farm").help("Public formation label, not a private formation selector"))
             .arg(Arg::new("stage-label").long("stage-label").action(ArgAction::Append).help("Explicit public label as private-stage-id=public label; repeat for each label"))
             .arg(Arg::new("role-label").long("role-label").action(ArgAction::Append).help("Explicit public label as private-role-id=public label; repeat for each label"))
-            .arg(Arg::new("recent-changes").long("recent-changes").default_value("50").value_parser(clap::value_parser!(u32)).help("Number of recent changes included in the public snapshot")))
-        .subcommand(Command::new("consent")
+            .arg(Arg::new("recent-changes").long("recent-changes").default_value("50").value_parser(clap::value_parser!(u32)).help("Number of recent changes included in the public snapshot"))))
+        .subcommand(confirm::flags(Command::new("consent")
             .about("Approve or revoke one local principal's publication under the current exact policy")
             .arg(goal())
-            .arg(Arg::new("agent").long("agent").required(true).help("Enrolled local agent name or principal key"))
             .arg(Arg::new("accept").long("accept").required_unless_present("decline").conflicts_with("decline").requires("name").action(ArgAction::SetTrue))
             .arg(Arg::new("decline").long("decline").action(ArgAction::SetTrue))
             .arg(Arg::new("name").long("name").help("Approved public display name; never copied from enrollment"))
-            .arg(Arg::new("group-label").long("group-label").help("Optional owner-reported public daemon group label")))
+            .arg(Arg::new("group-label").long("group-label").help("Optional owner-reported public daemon group label"))))
 }
 
 fn labels(args: &ArgMatches, key: &str) -> Result<BTreeMap<String, String>, Failure> {
@@ -65,24 +64,21 @@ pub(super) fn run(
     operation: &str,
     args: &ArgMatches,
 ) -> Result<Output, Failure> {
-    if !matches.get_flag("owner")
-        || ["as", "credential", "session"]
-            .iter()
-            .any(|name| matches.get_one::<String>(name).is_some())
+    if matches.get_one::<String>("agent").is_some() && matches!(operation, "farm.on" | "farm.off") {
+        return Err(Failure::usage(
+            "host commands are the host's own and name no agent; drop --agent",
+        ));
+    }
+    if matches.get_one::<String>("agent").is_some()
+        && matches!(operation, "farm.show" | "farm.status")
     {
         return Err(Failure::usage(
-            "farm controls require --owner without --as, --credential or --session",
+            "farm show and status do not name an agent; drop --agent",
         ));
     }
     let home = connection::home(matches)?;
     let socket = local::socket_path(&home)?;
     let mut client = connection::open(matches, &home)?;
-    if client.caller() != Caller::Owner {
-        return Err(Failure::new(
-            ErrorCode::Denied,
-            "publication is a local owner decision",
-        ));
-    }
     let goal = if operation == "farm.status" {
         None
     } else {
@@ -102,11 +98,10 @@ pub(super) fn run(
             "recent_changes": args.get_one::<u32>("recent-changes").unwrap(),
         }),
         "farm.consent" => {
-            let agent = resolve_principal(
-                &mut client,
-                &socket,
-                args.get_one::<String>("agent").unwrap(),
-            )?;
+            let agent = match client.caller() {
+                Caller::Owner => acting_agent(&mut client, &socket, matches, goal)?,
+                Caller::Agent(agent) | Caller::Author(agent) => agent,
+            };
             json!({"goal": goal.unwrap(), "agent": agent, "accept": args.get_flag("accept"),
                 "name": args.get_one::<String>("name"), "group_label": args.get_one::<String>("group-label")})
         }
@@ -116,6 +111,30 @@ pub(super) fn run(
     };
     let request = super::request(operation, fields.as_object().unwrap().clone())?;
     request.check().map_err(Failure::from)?;
+    if matches!(operation, "farm.on" | "farm.off" | "farm.consent")
+        && client.caller() == Caller::Owner
+    {
+        let plan = publication_plan(
+            &mut client,
+            &socket,
+            goal.expect("write goal"),
+            operation,
+            &fields,
+        )?;
+        if confirm::decide(matches, args, &plan)? == confirm::Decision::Show {
+            return Ok(plan.shown());
+        }
+        confirm::bound(
+            &plan.id(),
+            &publication_plan(
+                &mut client,
+                &socket,
+                goal.expect("write goal"),
+                operation,
+                &fields,
+            )?,
+        )?;
+    }
     let key = matches
         .get_one::<String>("idempotency-key")
         .map(|key| {
@@ -155,6 +174,53 @@ pub(super) fn run(
     }
     Ok(Output::success(result, human))
 }
+
+fn publication_plan(
+    client: &mut super::LocalClient,
+    socket: &std::path::Path,
+    goal: locust_proto::id::GoalId,
+    operation: &str,
+    fields: &Value,
+) -> Result<confirm::Plan, Failure> {
+    let preview = client
+        .call(locust_proto::api::Request::FarmShow { goal })
+        .map_err(|error| connection::client_error(error, socket))?;
+    let locust_proto::api::Response::FarmPreview(preview) = preview else {
+        return Err(Failure::internal("expected farm preview"));
+    };
+    let review = json!({
+        "request": fields,
+        "policy": preview.policy,
+        "desired": preview.status.as_ref().and_then(|status| status.desired),
+        "eligible": preview.status.as_ref().map(|status| status.eligible),
+    });
+    let human = if operation == "farm.consent" {
+        format!(
+            "Review publication consent under this policy:\n{}",
+            serde_json::to_string_pretty(&review)
+                .map_err(|error| Failure::internal(error.to_string()))?
+        )
+    } else {
+        format!(
+            "Review {} for this goal:\n{}",
+            operation,
+            serde_json::to_string_pretty(&review)
+                .map_err(|error| Failure::internal(error.to_string()))?
+        )
+    };
+    Ok(confirm::Plan {
+        command: match operation {
+            "farm.on" => "farm on",
+            "farm.off" => "farm off",
+            "farm.consent" => "farm consent",
+            _ => unreachable!("publication plan command"),
+        },
+        review,
+        human,
+        warning: None,
+        again: String::new(),
+    })
+}
 fn render(heading: &str, value: &Value) -> Result<String, Failure> {
     let text = serde_json::to_string_pretty(value).map_err(|e| Failure::internal(e.to_string()))?;
     // Keep the preview valid JSON with exactly the same values while escaping
@@ -188,33 +254,27 @@ mod tests {
     #[test]
     fn consent_requires_a_choice_and_explicit_public_name() {
         for args in [
-            vec!["farm", "consent", "--goal", "g", "--agent", "a"],
-            vec!["farm", "consent", "--goal", "g", "--agent", "a", "--accept"],
+            vec!["farm", "consent", "--goal", "g"],
+            vec!["farm", "consent", "--goal", "g", "--accept"],
         ] {
             assert!(commands().try_get_matches_from(args).is_err());
         }
         assert!(
             commands()
-                .try_get_matches_from([
-                    "farm",
-                    "consent",
-                    "--goal",
-                    "g",
-                    "--agent",
-                    "a",
-                    "--decline"
-                ])
+                .try_get_matches_from(["farm", "consent", "--goal", "g", "--decline"])
                 .is_ok()
         );
         assert!(
-            commands()
+            super::super::args::command()
                 .try_get_matches_from([
+                    "locust",
+                    "--owner",
+                    "--agent",
+                    "a",
                     "farm",
                     "consent",
                     "--goal",
                     "g",
-                    "--agent",
-                    "a",
                     "--accept",
                     "--name",
                     "Public worker"
@@ -237,5 +297,25 @@ mod tests {
             ])
             .unwrap();
         assert!(labels(args.subcommand().unwrap().1, "stage-label").is_err());
+    }
+    #[test]
+    fn farm_reads_do_not_take_an_acting_agent() {
+        for args in [
+            vec![
+                "locust", "--owner", "--agent", "worker", "farm", "show", "--goal", "g",
+            ],
+            vec!["locust", "--owner", "--agent", "worker", "farm", "status"],
+        ] {
+            let parsed = super::super::args::command()
+                .try_get_matches_from(args)
+                .unwrap();
+            let (operation, selected) = super::super::args::selected(&parsed);
+            assert!(
+                run(&parsed, &operation, selected)
+                    .unwrap_err()
+                    .message
+                    .contains("drop --agent")
+            );
+        }
     }
 }

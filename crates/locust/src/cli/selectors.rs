@@ -19,7 +19,7 @@ const EVENT_FIELDS: &[&str] = &[
     "expected",
 ];
 
-fn prefix(value: &str) -> bool {
+pub(super) fn prefix(value: &str) -> bool {
     (8..=64).contains(&value.len()) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 fn nonempty(value: &str, kind: &str) -> Result<(), Failure> {
@@ -76,6 +76,41 @@ pub(super) fn resolve_goal(
                             .starts_with(&value.to_ascii_lowercase()))
             })
             .map(|goal| goal.goal),
+    )
+}
+pub(super) fn resolve_member(
+    client: &mut LocalClient,
+    socket: &Path,
+    goal: GoalId,
+    value: &str,
+) -> Result<PublicKey, Failure> {
+    nonempty(value, "member")?;
+    if let Ok(key) = value.parse() {
+        return Ok(key);
+    }
+    let Response::GoalStatus(observed) = client
+        .call(Request::GoalStatus { goal })
+        .map_err(|error| connection::client_error(error, socket))?
+    else {
+        unreachable!("typed client checks response kind")
+    };
+    let local = status(client, socket, None)?;
+    let needle = value.to_ascii_lowercase();
+    unique(
+        "member",
+        value,
+        observed
+            .members
+            .iter()
+            .filter(|member| {
+                (prefix(value) && member.member.to_string().starts_with(&needle))
+                    || (member.local
+                        && local
+                            .agents
+                            .iter()
+                            .any(|agent| agent.agent == member.member && agent.name == value))
+            })
+            .map(|member| member.member),
     )
 }
 fn validate_task(value: &str) -> Result<(), Failure> {

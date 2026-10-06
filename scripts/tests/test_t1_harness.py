@@ -18,7 +18,7 @@ class T1HarnessTests(unittest.TestCase):
         secret = list(range(32))
         value = {
             "result": {"invited": {"ticket": ticket}},
-            "command": ["goal", "join", "--ticket", ticket],
+            "command": ["goal", "invite", "--goal", "ab" * 32],
             "credential": secret, "session_secret": secret,
             "credential_path": "/tmp/m2/agents/worker.credential",
             "session_path": "/tmp/m2/sessions/worker.secret",
@@ -51,7 +51,7 @@ class T1HarnessTests(unittest.TestCase):
     def suite(self, root):
         return Qualification(Path(sys.executable), 0.05, root / "artifacts", network="local")
 
-    def test_cli_transcript_redacts_invitation_command_and_response(self):
+    def test_cli_transcript_redacts_invitation_response(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             suite = self.suite(root)
@@ -60,7 +60,7 @@ class T1HarnessTests(unittest.TestCase):
             body = {"ok": True, "result": {"invited": {"ticket": ticket}}}
             completed = subprocess.CompletedProcess([], 0, json.dumps(body), "")
             with patch("check_t1.subprocess.run", return_value=completed):
-                self.assertEqual(suite.cli(machine, ["goal", "join", "--ticket", ticket], local=True), body["result"])
+                self.assertEqual(suite.cli(machine, ["goal", "invite", "--goal", "ab" * 32], owner=True), body["result"])
             suite.transcript.close()
             report = (suite.artifact_dir / "transcript.jsonl").read_text()
             self.assertNotIn(ticket, report)

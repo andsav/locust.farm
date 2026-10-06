@@ -512,23 +512,25 @@ fn launcher_is_owned_executable_and_skill_preserves_signed_frontmatter() {
         assert!(!skill.contains(s.credential.to_str().unwrap()));
         assert!(!skill.contains(s.session.to_str().unwrap()));
     }
+    let (_d, s) = fixture(Client::Codex);
     for newline in ["\n", "\r\n"] {
         let frontmatter = ["---", "name: locust", "description: Keep me", "---", ""].join(newline);
         let body = "\n# Original body\nAn unchanged command and example.\n";
         let source = format!("{frontmatter}{body}");
         let installed = String::from_utf8(
-            launcher::skill(source.as_bytes(), Path::new("/profile/locust-cli")).unwrap(),
+            launcher::skill(source.as_bytes(), Path::new("/profile/locust-cli"), &s).unwrap(),
         )
         .unwrap();
         assert!(installed.starts_with(&frontmatter));
         assert!(installed.ends_with(body));
+        assert!(installed.contains("# Your owner's commands"));
         assert!(
             installed.find("# Installed Locust CLI").unwrap()
                 < installed.find("# Original body").unwrap()
         );
     }
-    assert!(launcher::skill(b"---\nname: locust\n", Path::new("/cli")).is_err());
-    assert!(launcher::skill(&[0xff], Path::new("/cli")).is_err());
+    assert!(launcher::skill(b"---\nname: locust\n", Path::new("/cli"), &s).is_err());
+    assert!(launcher::skill(&[0xff], Path::new("/cli"), &s).is_err());
 }
 
 #[test]
@@ -611,7 +613,7 @@ fn launcher_refuses_authority_and_binding_overrides_anywhere() {
     .unwrap();
     let script = base.join("launcher");
     package::create_file(&script, &launcher::render(&s).unwrap(), 0o700).unwrap();
-    for flag in ["--owner", "--as", "--home", "--credential", "--session"] {
+    for flag in ["--owner", "--agent", "--home", "--credential", "--session"] {
         for argument in [flag.to_owned(), format!("{flag}=/override")] {
             for prefix in [
                 vec![],
@@ -626,7 +628,7 @@ fn launcher_refuses_authority_and_binding_overrides_anywhere() {
                     .unwrap();
                 assert_eq!(output.status.code(), Some(2), "{argument}");
                 assert!(output.stdout.is_empty());
-                assert!(String::from_utf8_lossy(&output.stderr).contains("fixed agent binding"));
+                assert!(String::from_utf8_lossy(&output.stderr).contains("bound to one agent"));
             }
         }
     }

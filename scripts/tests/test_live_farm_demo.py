@@ -183,7 +183,7 @@ class LiveDemoTests(unittest.TestCase):
             args = list(map(str, args))
             if args[:1] == ["--idempotency-key"]:
                 args = args[2:]
-            if args[:1] == ["--as"]:
+            if args[:1] == ["--agent"]:
                 role, args = args[1], args[2:]
             calls.append(args[:2])
             operation = tuple(args[:2])
@@ -204,8 +204,8 @@ class LiveDemoTests(unittest.TestCase):
                 return {"workspace_operation": {"state": {"recorded": {"event": "seed-revision"}}}}
             if args[0] == "checkouts":
                 return {"checkouts": [bindings[role]] if role in bindings else []}
-            if operation == ("workspace", "checkout"):
-                destination = Path(args[args.index("--destination") + 1])
+            if operation == ("workspace", "connect"):
+                destination = Path(args[args.index("--folder") + 1])
                 destination.mkdir(parents=True)
                 bindings[role] = {"id": "checkout-" + role, "root": str(destination), "base_revision": "seed-revision"}
                 if role == "frontend" and interrupt[0]:
@@ -227,7 +227,7 @@ class LiveDemoTests(unittest.TestCase):
             recovered.prepare(binary, clients, "https://farm.example")
             self.assertEqual(len(calls), count)
         self.assertEqual(calls.count(["workspace", "init"]), 1)
-        self.assertEqual(calls.count(["workspace", "checkout"]), 4)
+        self.assertEqual(calls.count(["workspace", "connect"]), 4)
         self.assertNotIn(["goal", "create"], calls)
         self.assertTrue(runner.Demo(self.demo.root).data["prepared"])
 

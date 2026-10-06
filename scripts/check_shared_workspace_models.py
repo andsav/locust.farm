@@ -352,7 +352,7 @@ def prepare(daemon, coordinator, worker, setup, output):
     daemon.call(['workspace', 'integrate', '--goal', daemon.goal, '--proposal', seed_proposal, '--expected-empty'])
     seed = daemon.call(['workspace', 'head', '--goal', daemon.goal])['head']
     source = coordinator['profile'].workspace / 'checkout'
-    checkout = raw_call(daemon, ['--as', coordinator['principal'], 'workspace', 'checkout', '--goal', daemon.goal, '--destination', source], owner=True)['checkout']
+    checkout = raw_call(daemon, ['--agent', coordinator['principal'], 'workspace', 'connect', '--goal', daemon.goal, '--folder', source], owner=True)['checkout']
     raw_call(daemon, ['workspace', 'bind', '--goal', daemon.goal, '--checkout', checkout['id']], role=coordinator)
     coordinator['profile'].workspace = source
     install_wrapper(coordinator, daemon)
@@ -360,7 +360,7 @@ def prepare(daemon, coordinator, worker, setup, output):
     private_write(source / 'unrelated.txt', UNTRACKED)
     task = 'task:' + daemon.call(['task', 'open', '--goal', daemon.goal, '--inputs', json.dumps({'snapshot': seed['result_manifest']}),
         'Fix add(a,b) in calculator.py so the supplied five tests pass. Change only calculator.py.'])['recorded']['event']
-    offer = daemon.call(['work', 'offer', '--goal', daemon.goal, '--task', task, '--recipient', worker['principal']])['recorded']['event']
+    offer = daemon.call(['work', 'offer', '--goal', daemon.goal, '--task', task, '--member', worker['principal']])['recorded']['event']
     daemon.call(['task', 'authorize', '--goal', daemon.goal, '--task', task, '--agent', worker['principal']], owner=True)
     baseline = tests(coordinator['profile'], source)
     require(baseline['exit_code'] != 0, 'Synthetic baseline unexpectedly passes')

@@ -2,7 +2,7 @@
 mod discovery;
 mod service;
 
-use super::{Output, connection, print};
+use super::{Output, confirm, connection, print};
 use crate::failure::Failure;
 use crate::installation::{
     self, onboarding,
@@ -18,38 +18,25 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 fn common(command: Command) -> Command {
-    command
-        .arg(
-            Arg::new("prefix")
-                .long("prefix")
-                .help("Verified software prefix (inferred when running its installed executable)"),
-        )
-        .arg(
-            Arg::new("profile-home")
-                .long("profile-home")
-                .help("Selected client profile home (defaults to HOME)"),
-        )
-        .arg(Arg::new("workspace").long("workspace").help(
-            "Workspace whose ancestor configuration is checked (defaults to current directory)",
-        ))
-        .arg(
-            Arg::new("name").long("name").help(
+    confirm::flags(
+        command
+            .arg(
+                Arg::new("prefix").long("prefix").help(
+                    "Verified software prefix (inferred when running its installed executable)",
+                ),
+            )
+            .arg(
+                Arg::new("profile-home")
+                    .long("profile-home")
+                    .help("Selected client profile home (defaults to HOME)"),
+            )
+            .arg(Arg::new("workspace").long("workspace").help(
+                "Workspace whose ancestor configuration is checked (defaults to current directory)",
+            ))
+            .arg(Arg::new("name").long("name").help(
                 "Local agent name for one selected client; otherwise generated once and saved",
-            ),
-        )
-        .arg(
-            Arg::new("plan")
-                .long("plan")
-                .action(ArgAction::SetTrue)
-                .conflicts_with("yes")
-                .help("Show discovery and selected changes without writing files"),
-        )
-        .arg(
-            Arg::new("yes")
-                .long("yes")
-                .action(ArgAction::SetTrue)
-                .help("Approve reviewed changes for explicitly selected clients without prompting"),
-        )
+            )),
+    )
 }
 pub(super) fn up_command() -> Command {
     common(Command::new("up").about("Start the daemon and review resumable client onboarding"))
@@ -111,12 +98,12 @@ fn inferred_prefix(executable: &Path) -> Result<PathBuf, Failure> {
     prefix.map(installation::absolute).transpose()?.ok_or_else(||Failure::usage("run the installed current/locust executable, or select its software directory with --prefix"))
 }
 fn reject_agent_authority(matches: &ArgMatches) -> Result<(), Failure> {
-    if ["credential", "session", "as", "idempotency-key"]
+    if ["credential", "session", "agent", "idempotency-key"]
         .iter()
         .any(|name| matches.get_one::<String>(name).is_some())
     {
         return Err(Failure::usage(
-            "up and agent add are owner administration and do not accept --credential, --session, --as or --idempotency-key",
+            "up and agent add are owner administration and do not accept --credential, --session, --agent or --idempotency-key",
         ));
     }
     Ok(())
@@ -181,6 +168,33 @@ fn parse_selection(value: &str) -> Result<Vec<Client>, Failure> {
     }
     Ok(selected)
 }
+fn validate_confirmation_selection(
+    args: &ArgMatches,
+    selected: usize,
+    interactive: bool,
+) -> Result<(), Failure> {
+    if args.get_one::<String>("name").is_some() && selected != 1 {
+        return Err(Failure::usage(
+            "--name requires exactly one selected client",
+        ));
+    }
+    if selected > 1
+        && (args.get_flag("plan") || args.get_one::<String>("confirm").is_some() || !interactive)
+    {
+        return Err(Failure::usage(
+            "confirm one client per run; pass one --client",
+        ));
+    }
+    Ok(())
+}
+fn validate_confirmation_name(args: &ArgMatches, generated: bool) -> Result<(), Failure> {
+    if args.get_one::<String>("confirm").is_some() && generated {
+        return Err(Failure::usage(
+            "--confirm requires --name NAME from the shown plan when no name is saved",
+        ));
+    }
+    Ok(())
+}
 fn candidates_text(candidates: &[discovery::Candidate]) -> String {
     candidates
         .iter()
@@ -239,28 +253,6 @@ fn plan_text(value: &Value) -> String {
         }
     }
 }
-struct Reviewer {
-    yes: bool,
-    interactive: bool,
-}
-impl Reviewer {
-    fn confirm(&mut self, value: &Value) -> Result<bool, Failure> {
-        say(format_args!("{}\n", plan_text(value)))?;
-        if self.yes {
-            return Ok(true);
-        }
-        if !self.interactive {
-            return Ok(false);
-        }
-        Ok(matches!(
-            read_line("Apply these changes? [y/N] ")?
-                .to_ascii_lowercase()
-                .as_str(),
-            "y" | "yes"
-        ))
-    }
-}
-
 fn wait_ready(
     home: &Path,
     service: Option<(&Path, &ServiceSpec)>,
@@ -308,6 +300,9 @@ pub(super) fn run(
     operation: &str,
     args: &ArgMatches,
 ) -> Result<Output, Failure> {
+    if !matches.get_flag("owner") {
+        return Err(Failure::usage("up and agent add require --owner"));
+    }
     reject_agent_authority(matches)?;
     let interactive =
         io::stdin().is_terminal() && io::stderr().is_terminal() && !matches.get_flag("json");
@@ -337,7 +332,7 @@ pub(super) fn run(
         }
     });
     if selected.is_empty() {
-        if interactive && !args.get_flag("plan") && !args.get_flag("yes") {
+        if interactive && !args.get_flag("plan") && args.get_one::<String>("confirm").is_none() {
             say(format_args!("{}\n", candidates_text(&candidates)))?;
             selected = parse_selection(&read_line(
                 "Clients to configure (names separated by spaces; empty cancels): ",
@@ -348,9 +343,9 @@ pub(super) fn run(
                 "{}\n\nSelect clients with --client codex, --client claude or --client pi. No profile has been selected.",
                 candidates_text(&candidates)
             );
-            if args.get_flag("yes") {
+            if args.get_one::<String>("confirm").is_some() {
                 return Err(Failure::usage(
-                    "--yes requires explicit --client selection; discovery alone does not authorize profile changes",
+                    "--confirm requires explicit --client selection; discovery alone does not authorize profile changes",
                 ));
             }
             return Ok(Output::success(
@@ -359,11 +354,7 @@ pub(super) fn run(
             ));
         }
     }
-    if args.get_one::<String>("name").is_some() && selected.len() != 1 {
-        return Err(Failure::usage(
-            "--name requires exactly one selected client",
-        ));
-    }
+    validate_confirmation_selection(args, selected.len(), interactive)?;
     validate_profile_environment(
         &profile,
         &selected,
@@ -386,6 +377,7 @@ pub(super) fn run(
             name: args.get_one::<String>("name").cloned(),
         })?);
     }
+    validate_confirmation_name(args, plans.iter().any(|plan| plan.name_generated))?;
     let service_spec = if operation == "up" {
         let kind = match args.get_one::<String>("service").map(String::as_str) {
             Some("none") => ServiceKind::None,
@@ -419,9 +411,8 @@ pub(super) fn run(
         .iter()
         .map(onboarding::Plan::json)
         .collect::<Result<Vec<_>, _>>()?;
-    let review_output = json!({"action":"review_required","candidates":candidates,"service":service_plan,"clients":plan_values,"changed":false,"grants_added":false});
     let human = format!(
-        "Software: {}\n{}{}\nNo work permission is added.{}",
+        "Software: {}\n{}{}\nYour agent will be in no goal.",
         prefix.display(),
         service_plan
             .as_ref()
@@ -432,36 +423,41 @@ pub(super) fn run(
             .map(plan_text)
             .collect::<Vec<_>>()
             .join("\n"),
-        if args.get_flag("plan") || args.get_flag("yes") || interactive {
-            ""
-        } else {
-            "\nRepeat with --yes to approve these selections, or run interactively to review each stage."
-        }
     );
-    if args.get_flag("plan") || (!args.get_flag("yes") && !interactive) {
-        return Ok(Output::success(review_output, human));
-    }
-    say(format_args!("{human}\n"))?;
-    let mut reviewer = Reviewer {
-        yes: args.get_flag("yes"),
-        interactive,
+    let plan = confirm::Plan {
+        command: if operation == "up" { "up" } else { "agent add" },
+        review: json!({"service":service_plan,"clients":plan_values}),
+        human,
+        warning: None,
+        again: if let Some(one) = plans.first().filter(|_| plans.len() == 1) {
+            format!(
+                "--name {} ",
+                one.spec.name.as_deref().expect("planned name")
+            )
+        } else {
+            String::new()
+        },
     };
-    if !reviewer.yes
-        && !matches!(
-            read_line("Prepare these selected agents? [y/N] ")?
-                .to_ascii_lowercase()
-                .as_str(),
-            "y" | "yes"
-        )
-    {
-        return Err(Failure::new(
-            ErrorCode::Denied,
-            "onboarding selections were declined; no changes applied",
-        ));
+    if confirm::decide(matches, args, &plan)? == confirm::Decision::Show {
+        return Ok(plan.shown());
     }
+    let fresh_clients = plans
+        .iter()
+        .map(|planned| onboarding::plan(&planned.spec)?.json())
+        .collect::<Result<Vec<_>, _>>()?;
+    let fresh_service = service_spec
+        .as_ref()
+        .map(|spec| service_install::plan(&prefix, spec, false)?.json())
+        .transpose()?;
+    let expected = plan.id();
+    let fresh = confirm::Plan {
+        review: json!({"service":fresh_service,"clients":fresh_clients}),
+        ..plan
+    };
+    confirm::bound(&expected, &fresh)?;
     let mut service_state = ServiceState::Disabled;
     if let Some(spec) = &service_spec {
-        service_state = service::prepare(&prefix, spec, &mut |value| reviewer.confirm(value))?;
+        service_state = service::prepare(&prefix, spec, &mut |_| Ok(true))?;
     }
     let limit = if operation == "up" {
         args.get_one::<u64>("wait-ms")
@@ -490,7 +486,7 @@ pub(super) fn run(
     for plan in &plans {
         // The plans were reviewed before service mutation; enrollment checks
         // their exact current inputs again under the independent home lock.
-        let mut result = onboarding::apply(plan, &mut |value| reviewer.confirm(value))?;
+        let mut result = onboarding::apply(plan, &mut |_| Ok(true))?;
         let command = candidates
             .iter()
             .find(|candidate| candidate.client == plan.spec.client)
@@ -499,8 +495,9 @@ pub(super) fn run(
         result["client_command"] = json!(command);
         if command.is_none() {
             result["next_action"] = json!(format!(
-                "Install the {} client command, then start a fresh chat in the selected profile and verify Locust tool discovery. Goal membership and work authorization remain separate owner actions.",
-                onboarding::client_name(plan.spec.client)
+                "Install the {} client command, then start a fresh chat in the selected profile and verify Locust tool discovery. {} is connected and in no goal. Start one (locust --owner goal create --help) or join one from a ticket (locust --owner goal join --help); both ask you first.",
+                onboarding::client_name(plan.spec.client),
+                plan.spec.name.as_deref().expect("planned name")
             ));
         }
         results.push(result);
@@ -519,7 +516,7 @@ pub(super) fn run(
         .collect::<Vec<_>>()
         .join("\n");
     Ok(Output::success(
-        json!({"configuration_ready":true,"daemon_api_ready":true,"model_ready":false,"daemon":daemon,"clients":results,"grants_added":false}),
+        json!({"configuration_ready":true,"daemon_api_ready":true,"model_ready":false,"daemon":daemon,"clients":results}),
         human,
     ))
 }
@@ -602,11 +599,11 @@ mod tests {
         );
     }
     #[test]
-    fn commands_parse_without_an_owner_or_credential_flag() {
+    fn onboarding_requires_owner_and_uses_plan_confirmation_flags() {
         for client in ["codex", "claude", "pi", "droid", "shell"] {
             for arguments in [
-                vec!["locust", "up", "--client", client, "--plan"],
-                vec!["locust", "agent", "add", client, "--yes"],
+                vec!["locust", "--owner", "up", "--client", client, "--plan"],
+                vec!["locust", "--owner", "agent", "add", client, "--plan"],
                 vec!["locust", "doctor", "--client", client],
             ] {
                 super::super::args::command()
@@ -615,11 +612,23 @@ mod tests {
             }
         }
         let up = super::super::args::command()
-            .try_get_matches_from(["locust", "up", "--client", "codex,claude", "--plan"])
+            .try_get_matches_from([
+                "locust",
+                "--owner",
+                "up",
+                "--client",
+                "codex,claude",
+                "--plan",
+            ])
             .unwrap();
         assert_eq!(super::super::args::selected(&up).0, "up");
+        let (_, up_args) = super::super::args::selected(&up);
+        assert_eq!(
+            run(&up, "up", up_args).unwrap_err().code,
+            ErrorCode::Invalid
+        );
         let add = super::super::args::command()
-            .try_get_matches_from(["locust", "agent", "add", "codex", "--yes"])
+            .try_get_matches_from(["locust", "--owner", "agent", "add", "codex", "--plan"])
             .unwrap();
         assert_eq!(super::super::args::selected(&add).0, "agent.add");
         let bound = super::super::args::command()
@@ -633,5 +642,66 @@ mod tests {
             ])
             .unwrap();
         assert!(reject_agent_authority(&bound).is_err());
+        let no_owner = super::super::args::command()
+            .try_get_matches_from(["locust", "up", "--client", "codex", "--plan"])
+            .unwrap();
+        let (_, args) = super::super::args::selected(&no_owner);
+        assert!(
+            run(&no_owner, "up", args)
+                .unwrap_err()
+                .message
+                .contains("--owner")
+        );
+    }
+
+    #[test]
+    fn shown_or_confirmed_plan_selects_one_client_and_confirm_needs_a_stable_name() {
+        for flag in ["--plan", "--confirm"] {
+            let mut argv = vec!["locust", "--owner", "up", "--client", "codex,claude", flag];
+            if flag == "--confirm" {
+                argv.push("plan-0123456789abcdef");
+            }
+            let parsed = super::super::args::command()
+                .try_get_matches_from(argv)
+                .unwrap();
+            let (_, args) = super::super::args::selected(&parsed);
+            let error = validate_confirmation_selection(args, 2, true).unwrap_err();
+            assert!(error.message.contains("one --client"));
+        }
+        let parsed = super::super::args::command()
+            .try_get_matches_from([
+                "locust",
+                "--owner",
+                "up",
+                "--client",
+                "codex",
+                "--confirm",
+                "plan-0123456789abcdef",
+            ])
+            .unwrap();
+        let (_, args) = super::super::args::selected(&parsed);
+        assert!(
+            validate_confirmation_name(args, true)
+                .unwrap_err()
+                .message
+                .contains("--name NAME")
+        );
+        assert!(validate_confirmation_name(args, false).is_ok());
+        let named = super::super::args::command()
+            .try_get_matches_from([
+                "locust",
+                "--owner",
+                "up",
+                "--client",
+                "codex",
+                "--name",
+                "codex-maple-12345678",
+                "--confirm",
+                "plan-0123456789abcdef",
+            ])
+            .unwrap();
+        let (_, named_args) = super::super::args::selected(&named);
+        assert!(validate_confirmation_selection(named_args, 1, false).is_ok());
+        assert!(validate_confirmation_name(named_args, false).is_ok());
     }
 }

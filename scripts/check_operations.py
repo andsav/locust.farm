@@ -89,8 +89,8 @@ class Operations(Qualification):
     def checkout(self, machine, goal, revision, destination):
         self.wait(f"M{machine.number} retains the complete accepted workspace",
                   lambda: self.complete_workspace(machine, goal, revision))
-        return variant(self.cli(machine, ["--as", f"m{machine.number}", "workspace", "checkout", "--goal", goal,
-            "--revision", revision, "--destination", destination], owner=True), "checkout")
+        return variant(self.cli(machine, ["--agent", f"m{machine.number}", "workspace", "connect", "--goal", goal,
+            "--revision", revision, "--folder", destination], owner=True), "checkout")
 
     def checkout_binding(self, machine, goal, checkout):
         bindings = variant(self.api(machine, "checkouts", goal=goal), "checkouts")
@@ -178,7 +178,7 @@ class Operations(Qualification):
         self.summary["goal"] = goal
         for machine in (first, second):
             ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
-            self.cli(machine, ["--as", f"m{machine.number}", "goal", "join", "--ticket", ticket], owner=True)
+            self.join_goal(machine, ticket)
         del ticket
         self.wait("three members converge", lambda: all(
             (state := self.goal_status(m, goal)) and len(state["members"]) == 3 for m in self.machines))
@@ -244,7 +244,7 @@ class Operations(Qualification):
         self.phase = "competing_workspace_proposals"
         captures, results, claims = [], [], []
         for machine, checkout, destination in zip((first, second), checkouts, destinations):
-            offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--recipient", machine.agent])
+            offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--member", machine.agent])
             self.wait(f"worker {machine.number} receives assignment", lambda m=machine, a=offer: self.event(m, goal, a))
             self.cli(machine, ["task", "authorize", "--goal", goal, "--task", task, "--agent", machine.agent], owner=True)
             session = machine.home / "sessions" / "operations.secret"
@@ -348,7 +348,7 @@ class Operations(Qualification):
 
         self.phase = "offline_cancellation"
         task = "task:" + self.recorded(lead, ["task", "open", "--goal", goal, "Explicit cancellation acknowledgment"])
-        offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--recipient", second.agent])
+        offer = self.recorded(lead, ["work", "offer", "--goal", goal, "--task", task, "--member", second.agent])
         self.wait("cancellation assignment arrives", lambda: self.event(second, goal, offer))
         self.cli(second, ["task", "authorize", "--goal", goal, "--task", task, "--agent", second.agent], owner=True)
         session = claims[1][1]
@@ -378,7 +378,7 @@ class Operations(Qualification):
         self.restart(first)
         require(self.event(first, goal, note)["text"] is None, "withdrawn payload readable after restart")
         require(self.event(lead, goal, note)["text"] == "withdraw this local payload", "withdrawal affected another replica")
-        self.cli(first, ["--as", f"m{first.number}", "goal", "leave", "--goal", goal], owner=True)
+        self.cli(first, ["--agent", f"m{first.number}", "goal", "leave", "--goal", goal], owner=True)
         self.expect_error(first, ["contribution", "publish", "--goal", goal, "must be refused"], "denied")
         self.restart(first)
         self.expect_error(first, ["contribution", "publish", "--goal", goal, "must still be refused"], "denied")
@@ -388,7 +388,7 @@ class Operations(Qualification):
         goal = self.create_goal(lead, "Synthetic offline rotation")
         for machine in (first, second):
             ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
-            self.cli(machine, ["--as", f"m{machine.number}", "goal", "join", "--ticket", ticket], owner=True)
+            self.join_goal(machine, ticket)
         del ticket
         self.wait("rotation goal admitted", lambda: all(
             (state := self.goal_status(m, goal)) and len(state["members"]) == 3 for m in self.machines))
@@ -458,7 +458,7 @@ class WorkspaceSmoke(Operations):
         goal = self.create_goal(lead, "Native workspace smoke")
         self.summary["goal"] = goal
         ticket = variant(self.cli(lead, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
-        self.cli(worker, ["--as", f"m{worker.number}", "goal", "join", "--ticket", ticket], owner=True)
+        self.join_goal(worker, ticket)
         del ticket
         self.wait("both members converge", lambda: all((state := self.goal_status(machine, goal)) and len(state["members"]) == 2 for machine in self.machines))
         self.grant_contributions(goal)

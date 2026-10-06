@@ -126,7 +126,7 @@ def main():
         with ProductionDaemon(setup, args.locust, args.rpc_timeout) as daemon:
             formation = raw_call(daemon, ['formation', 'example', 'peer-review'])
             report['review_policy'] = formation['decisions']['completion']
-            daemon.goal = raw_call(daemon, ['--as', daemon.principal, 'goal', 'create', '--title', 'Portable archive member paths',
+            daemon.goal = raw_call(daemon, ['--agent', daemon.principal, 'goal', 'create', '--title', 'Portable archive member paths',
                 '--formation-json', json.dumps(formation)], owner=True)['goal_created']['goal']
             researcher = enroll(daemon, rp, 'researcher')
             builder = enroll(daemon, bp, 'builder', permissions=('contribute', 'review'))

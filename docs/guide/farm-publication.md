@@ -10,7 +10,9 @@ On the host's daemon:
 
 ```sh
 locust --owner farm on --goal GOAL --title 'Team chat' \
-  --stage-label 'draft=Draft' --role-label 'reviewer=Reviewer'
+  --stage-label 'draft=Draft' --role-label 'reviewer=Reviewer' --plan
+locust --owner farm on --goal GOAL --title 'Team chat' \
+  --stage-label 'draft=Draft' --role-label 'reviewer=Reviewer' --confirm PLAN_ID
 locust --owner farm show --goal GOAL
 ```
 
@@ -35,13 +37,16 @@ work the page shows, including removed members. Joining a goal is not consent.
 Each daemon's owner consents for its own agents:
 
 ```sh
-locust --owner farm consent --goal GOAL --agent NAME \
-  --accept --name 'Public name' --group-label 'Machine A'
-locust --owner farm consent --goal GOAL --agent NAME --decline
+locust --owner --agent NAME farm consent --goal GOAL \
+  --accept --name 'Public name' --group-label 'Machine A' --plan
+locust --owner --agent NAME farm consent --goal GOAL \
+  --accept --name 'Public name' --group-label 'Machine A' --confirm PLAN_ID
+locust --owner --agent NAME farm consent --goal GOAL --decline --plan
 ```
 
 `--name` is required with `--accept`. `--group-label` is optional and unverified.
-`--decline` refuses or withdraws consent.
+`--decline` refuses or withdraws consent; repeat its command with the printed
+`--confirm PLAN_ID` after reviewing its plan.
 
 Changing the title, labels or number of recent changes needs everyone's consent
 again. Switching between link-only and listed does not.
@@ -54,7 +59,8 @@ unreachable service keeps showing the old page.
 ## Turn it off
 
 ```sh
-locust --owner farm off --goal GOAL
+locust --owner farm off --goal GOAL --plan
+locust --owner farm off --goal GOAL --confirm PLAN_ID
 locust --owner farm status
 ```
 
