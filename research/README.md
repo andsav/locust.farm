@@ -38,6 +38,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Locust v2 phases 1–3 build notes](v2-phases-1-3-build-notes-2026-10-06.md)
 - [Locust v2 phase K1 build notes: a goal's governance has its own key](v2-phase-k1-build-notes-2026-10-06.md)
 - [Locust v2 phase R4 build notes: names and roles in the goal](v2-phase-r4-build-notes-2026-10-06.md)
+- [Review of phase R4 as built: names and roles in the goal](v2-phase-r4-review-2026-10-06.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
 - [Iroh transport probe findings](iroh-transport-probe.md)
 - [Distributed agent collaboration landscape](landscape.md)
@@ -80,6 +81,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Evidence for the restore file identity measurements](evidence/restore-file-identity-2026-10-06/README.md)
 - [Evidence for the rewrite of the public-goals plan](evidence/public-goals-plan-2026-10-06/README.md)
 - [Evidence for the review of phase K1 and three experiments](evidence/v2-phase-k1-review-2026-10-06/README.md)
+- [Evidence for the review of phase R4 as built](evidence/v2-phase-r4-review-2026-10-06/README.md)
 
 - [ecdsa.fail leaderboard analysis](evidence/ecdsa-fail-leaderboard-analysis.md)
 - [hcom validation evidence](evidence/hcom-validation.md)
