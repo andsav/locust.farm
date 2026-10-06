@@ -18,6 +18,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Farm development qualification](farm-qualification.md)
 - [Joinable public farms: proposal](joinable-public-farms-2026-10-05.md)
 - [Roles and permissions: what exists and a simpler model](roles-and-permissions-2026-10-05.md)
+- [Roles and permissions implementation plan review](roles-and-permissions-plan-review-2026-10-05.md)
 - [Gas Town lessons for shared workspaces](gastown-shared-workspace-assessment.md)
 - [Organization design research](formations.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
