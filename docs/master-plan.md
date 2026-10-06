@@ -227,6 +227,25 @@ protocol version goes from 6 to 7 in K1. R4 and E1 change signed bytes inside
 released before R10, so no number is raised twice. Replacing a host takes
 protocol 8.
 
+## Size
+
+Counted on 6 October 2026 by reading the plans against the code; nothing was
+built. The full count is in
+[how much v2 adds](../research/v2-complexity-count-2026-10-06.md).
+
+- v2 adds 14,200 to 23,900 lines of non-test Rust and removes 3,900 to
+  6,100, on 50,174 today. It adds 19,000 to 33,500 lines of tests on 50,424.
+- What a person types stays about the same size: 97 API requests before and
+  after, 137 commands before and 140 after. One agent's setting in one goal
+  goes from 128 combinations to 3 levels.
+- The growth is in the states one computer can be in for one goal, in what
+  the host's computer signs by itself (seven situations across the plans),
+  and in the rules every computer must apply the same way.
+- About half of what is added is fixed by the decisions above, about three
+  tenths is safety work they imply, and about two tenths is the plan
+  author's choice. The count names seven cuts and deferrals worth about a
+  tenth of the added code. They are proposed, not applied.
+
 ## Not designed yet
 
 - **How a takeover works.** The reviewers of the earlier design round agreed
@@ -238,6 +257,17 @@ protocol 8.
 - **The public-goals phases.** The contract must be revised first; its review
   found that it contradicted answers 18 and 22 and admitted strangers one
   phase before the safety check.
+- **Found by the count, with no phase that owns them.** The restore guard's
+  release rule does not work for a public goal, because a door member who
+  never returns blocks it. Answer 14 has no design and E2 says the opposite.
+  Answer 18 covers tasks only: under the public preset the host's agent at
+  auto reviews a stranger's result and the change is then recorded with no
+  person asked. The check behind answer 18 is in no phase. The default rule
+  of answer 5 fails the door's safety check, so a goal made with no flags
+  cannot be made public. R4, R8 and R9 still describe the host's agent as
+  the signer. R8, R9, R10 and the door wait on the takeover record's shape.
+  The models and the qualification runs that need people and several
+  computers are named and not sized.
 - **Left out on purpose for now:** deleting a goal from one's own computer,
   sealing an ended goal against records signed before the end, telling a
   computer that it was removed, a threshold among several named people for

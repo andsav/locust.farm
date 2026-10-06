@@ -27,6 +27,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Goal lifecycle characterization](goal-lifecycle-characterization-2026-10-05.md)
 - [Replacing a host that is gone: groundwork, four designs and what survived](replacing-a-host-2026-10-05.md)
 - [Ending a goal and cleaning up: what exists, one design and what broke](ending-a-goal-2026-10-05.md)
+- [How much v2 adds: a count against the code, with what it missed and what can be cut](v2-complexity-count-2026-10-06.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
 - [Iroh transport probe findings](iroh-transport-probe.md)
 - [Distributed agent collaboration landscape](landscape.md)
