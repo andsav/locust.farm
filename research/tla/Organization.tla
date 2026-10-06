@@ -20,14 +20,20 @@ wire decoding and transport are excluded. Rust regressions cover those seams.
 ***************************************************************************)
 
 CONSTANTS Scenario, EnablePins, ScopeIsolation, CheckCutoff, CheckDistinct,
-          CheckScope, CheckAuthority, CheckRulePin, RequireDefinition
+          CheckScope, CheckAuthority, CheckRulePin, RequireDefinition,
+          CheckRoleAnchor
 
 E(id, author, seq, prev, anchor, kind, scope, round, subject, evidence,
   prior, member, admission, cutoff, rules) ==
  [id |-> id, author |-> author, seq |-> seq, prev |-> prev, anchor |-> anchor,
   kind |-> kind, scope |-> scope, round |-> round, subject |-> subject,
   evidence |-> evidence, prior |-> prior, member |-> member,
-  admission |-> admission, cutoff |-> cutoff, rules |-> rules]
+  admission |-> admission, cutoff |-> cutoff, rules |-> rules,
+  role |-> "", holders |-> {}]
+
+RoleEvent(id, seq, prev, role, holders) ==
+ [E(id,0,seq,prev,prev,"roles",0,0,0,{},0,0,0,0,0) EXCEPT
+  !.role = role, !.holders = holders]
 
 Founding == <<
  E(1,0,0,0,0,"genesis",0,0,0,{},0,0,0,0,0),
@@ -36,7 +42,9 @@ Founding == <<
  E(4,0,3,3,3,"admit",0,0,0,{},0,2,0,0,0),
  E(5,0,4,4,4,"admit",0,0,0,{},0,3,0,0,0),
  E(6,0,5,5,5,"admit",0,0,0,{},0,4,0,0,0),
- E(7,0,6,6,6,"rules",0,7,0,{},0,0,0,0,7)>>
+ RoleEvent(20,6,6,"reviewer",{2,3}),
+ RoleEvent(21,7,20,"lead",{4}),
+ E(7,0,8,21,21,"rules",0,7,0,{},0,0,0,0,7)>>
 Task == E(8,1,0,0,7,"task",8,8,0,{},0,0,0,0,7)
 Candidate == E(9,1,1,8,7,"contribution",8,8,0,{},0,0,0,0,7)
 ReviewA == E(10,2,0,0,7,"review",8,8,9,{},0,0,0,0,7)
@@ -46,8 +54,8 @@ Independent == E(13,1,2,9,7,"contribution",0,7,0,{},0,0,0,0,7)
 Base == <<Task, Candidate, ReviewA, ReviewB, Selection, Independent>>
 ForkTask == E(14,1,0,0,7,"task",14,14,0,{},0,0,0,0,7)
 ForkReview == E(14,2,0,0,7,"review",8,8,9,{},0,0,0,0,7)
-Remove(cutoff) == E(15,0,7,7,7,"remove",0,0,0,{},0,2,4,cutoff,0)
-Readmit == E(16,0,8,15,15,"admit",0,0,0,{},0,2,0,0,0)
+Remove(cutoff) == E(15,0,9,7,7,"remove",0,0,0,{},0,2,4,cutoff,0)
+Readmit == E(16,0,10,15,15,"admit",0,0,0,{},0,2,0,0,0)
 OtherBranch == <<ForkTask,
  E(15,1,1,14,7,"contribution",14,14,0,{},0,0,0,0,7),
  E(16,2,0,0,7,"review",14,14,15,{},0,0,0,0,7),
@@ -67,19 +75,19 @@ Work == CASE Scenario = "taskless" -> <<
  E(14,2,1,10,7,"review",8,8,9,{},0,0,0,0,7),
  E(12,4,0,0,7,"select",8,8,9,{10,14},0,0,0,0,7)>>
  [] Scenario = "rule-change" -> <<Task,Candidate,ReviewA,
- E(14,0,7,7,7,"rules",0,14,0,{},0,0,0,0,14),
+ E(14,0,9,7,7,"rules",0,14,0,{},0,0,0,0,14),
  E(12,4,0,0,14,"select",8,8,9,{10},0,0,0,0,7)>>
  [] Scenario = "cutoff" -> Base \o <<ForkReview,Remove(10),Readmit>>
  [] Scenario = "remove-empty" -> Base \o <<Remove(0),Readmit>>
  [] Scenario = "governance-fork" -> Base \o <<
  E(14,0,3,3,3,"admit",0,0,0,{},0,4,0,0,0)>>
  [] Scenario = "governance-key-work" -> Base \o <<
- E(14,0,7,7,7,"contribution",0,7,0,{},0,0,0,0,7),
- E(15,0,8,14,7,"review",8,8,9,{},0,0,0,0,7)>>
+ E(14,0,9,7,7,"contribution",0,7,0,{},0,0,0,0,7),
+ E(15,0,10,14,7,"review",8,8,9,{},0,0,0,0,7)>>
  [] Scenario = "host-agent-fork" -> Base \o <<
  E(14,5,0,0,7,"contribution",0,7,0,{},0,0,0,0,7),
  E(15,5,0,0,7,"task",15,15,0,{},0,0,0,0,7),
- E(16,0,7,7,7,"admit",0,0,0,{},0,6,0,0,0)>>
+ E(16,0,9,7,7,"admit",0,0,0,{},0,6,0,0,0)>>
  [] Scenario = "forged-selection" -> <<Task,Candidate,ReviewA,ReviewB,
  E(12,1,2,9,7,"select",8,8,9,{10,11},0,0,0,0,7)>>
  [] Scenario = "wrong-scope" -> <<Task,Candidate,ReviewA,ReviewB,
@@ -88,12 +96,23 @@ Work == CASE Scenario = "taskless" -> <<
  [] Scenario = "two-scopes" -> SubSeq(Base,1,5) \o OtherBranch
  [] Scenario = "incompatible" -> SubSeq(Base,1,5) \o OtherBranch \o <<
  E(19,4,2,18,7,"select",8,8,9,{10,11,16},12,0,0,0,7)>>
+ [] Scenario = "role-change" -> <<Task,Candidate,ReviewA,
+ RoleEvent(14,9,7,"reviewer",{3,4}),
+ E(15,2,1,10,14,"review",8,8,9,{},0,0,0,0,7),
+ E(16,4,0,0,7,"review",8,8,9,{},0,0,0,0,7),
+ E(17,4,1,16,14,"review",8,8,9,{},0,0,0,0,7)>>
+ [] Scenario = "lead-change" -> SubSeq(Base,1,5) \o <<
+ RoleEvent(14,9,7,"lead",{3}),
+ E(15,3,1,11,14,"select",8,8,9,{10,11},12,0,0,0,7)>>
+ [] Scenario = "role-removal" -> <<Task,Candidate,ReviewA,ReviewB,
+ E(14,0,9,7,7,"remove",0,0,0,{},0,4,6,0,0),
+ E(15,5,0,0,14,"select",8,8,9,{10,11},0,0,0,0,7)>>
  [] OTHER -> Base
 
 Transcript == Founding \o Work
 IDs == {Transcript[i].id : i \in 1..Len(Transcript)}
 ByID == [id \in IDs |-> CHOOSE e \in {Transcript[i] : i \in 1..Len(Transcript)} : e.id = id]
-GovKinds == {"genesis","admit","remove","rules"}
+GovKinds == {"genesis","admit","remove","rules","roles"}
 IsGov(id) == ByID[id].kind \in GovKinds
 
 RECURSIVE Ancestors(_, _)
@@ -121,6 +140,22 @@ Admission(H,p,anchor) == {a \in Governance(H) :
  /\ ~\E r \in Governance(H) : ByID[r].kind = "remove" /\
        ByID[r].admission = a /\ ByID[r].seq <= ByID[anchor].seq}
 MemberAt(H,p,anchor) == anchor \in Governance(H) /\ Admission(H,p,anchor) # {}
+Roles == {"reviewer", "lead"}
+RolesAt(H,anchor) == [role \in Roles |->
+ LET changes == {r \in Governance(H) : ByID[r].kind = "roles" /\
+                  ByID[r].role = role /\ ByID[r].seq <= ByID[anchor].seq}
+     latest == IF changes = {} THEN 0 ELSE
+                 CHOOSE r \in changes : \A other \in changes : ByID[other].seq <= ByID[r].seq
+     holders == IF latest = 0 THEN {5} ELSE ByID[latest].holders
+     removed == {ByID[r].member : r \in {v \in Governance(H) :
+                  ByID[v].kind = "remove" /\ ByID[v].seq <= ByID[anchor].seq /\
+                  (latest = 0 \/ ByID[v].seq > ByID[latest].seq)}}
+     remaining == holders \ removed
+ IN IF remaining = {} THEN {5} ELSE remaining]
+RoleAnchor(H,anchor) == IF CheckRoleAnchor THEN anchor ELSE
+ CHOOSE a \in Governance(H) : \A b \in Governance(H) : ByID[b].seq <= ByID[a].seq
+HoldsLead(H,anchor,author) == RolesAt(H,anchor).lead = {author}
+
 CutoffAllows(H,id) ==
  \A r \in Governance(H) :
   (ByID[r].kind = "remove" /\ ByID[r].admission \in Admission(H,ByID[id].author,ByID[id].anchor))
@@ -172,7 +207,7 @@ Conflicts(H,d) == {other \in H : ByID[other].kind = "select" /\
 Decision(H,D,d) ==
  LET e == ByID[d]
      pins == Proof(H,d)
- IN /\ (~CheckAuthority \/ e.author = 4)
+ IN /\ (~CheckAuthority \/ HoldsLead(H,RoleAnchor(H,e.anchor),e.author))
     /\ Authorized(H,d,{}) /\ Cardinality(Conflicts(H,d)) = 1
     /\ pins \subseteq H /\ d \notin pins /\ Compatible(H,pins)
     /\ \A r \in pins : (ByID[r].author = e.author => ByID[r].seq < e.seq)
@@ -195,13 +230,23 @@ Valid(H,D,id,pins) ==
       /\ CASE e.kind = "task" -> Valid(H,D,e.rules,pins)
          [] e.kind = "contribution" -> Valid(H,D,e.round,pins)
          [] e.kind = "review" ->
-              /\ e.author \in {2,3} /\ e.author # ByID[e.subject].author
+              /\ e.author \in RolesAt(H,RoleAnchor(H,e.anchor)).reviewer /\ e.author # ByID[e.subject].author
               /\ Valid(H,D,e.round,pins) /\ Valid(H,D,e.subject,pins)
               /\ ByID[e.subject].kind = "contribution"
               /\ e.scope = ByID[e.subject].scope /\ e.round = ByID[e.subject].round
          [] OTHER -> FALSE
 
 Selected(H,D) == {d \in H : ByID[d].kind = "select" /\ Decision(H,D,d)}
+DecisionBefore(a,b) ==
+ LET x == ByID[a] y == ByID[b]
+     ax == ByID[x.anchor].seq ay == ByID[y.anchor].seq
+ IN ax < ay \/ (ax = ay /\
+    (x.author < y.author \/ (x.author = y.author /\
+     (x.seq < y.seq \/ (x.seq = y.seq /\ a < b)))))
+Current(H,D,scope) ==
+ LET choices == {d \in Selected(H,D) : ByID[d].scope = scope}
+ IN IF choices = {} THEN 0 ELSE
+    CHOOSE d \in choices : \A other \in choices : ~DecisionBefore(d,other)
 GlobalPins(H,D) == IF ScopeIsolation THEN {} ELSE UNION {Proof(H,d) : d \in Selected(H,D)}
 Projection(H,D) == [ordinary |-> {id \in H : ~IsGov(id) /\ ByID[id].kind # "select" /\ Valid(H,D,id,GlobalPins(H,D))},
  selected |-> Selected(H,D), governance |-> Governance(H)]
@@ -216,12 +261,17 @@ Witness(H,D,V) == CASE Scenario = "taskless" -> {8,9} \subseteq V.ordinary /\ V.
  [] Scenario = "cutoff" -> {14,15,16} \subseteq H /\ 10 \in V.ordinary /\ 14 \notin V.ordinary /\ 12 \in V.selected
  [] Scenario = "remove-empty" -> {12,15,16} \subseteq H /\ 10 \notin V.ordinary /\ 12 \notin V.selected
  [] Scenario \in {"scope-conflict","authority-fork"} -> {12,14} \subseteq H /\ V.selected = {}
+ [] Scenario = "role-change" -> {14,15,16,17} \subseteq H /\
+      {10,17} \subseteq V.ordinary /\ {15,16} \cap V.ordinary = {}
+ [] Scenario = "lead-change" -> {12,15} \subseteq V.selected /\ Current(H,D,8) = 15
+ [] Scenario = "role-removal" -> 14 \in H /\ 15 \in V.selected /\ RolesAt(H,14).lead = {5}
  [] OTHER -> 12 \in V.selected
-Fault(H,D) == CASE Scenario = "missing-definition" -> 7 \notin D
+Fault(H,D) == CASE Scenario \in {"role-change","lead-change","role-removal"} -> 14 \in H
+ [] Scenario = "missing-definition" -> 7 \notin D
  [] Scenario = "remove-empty" -> 15 \in H
  [] Scenario \in {"fork","review-fork","rule-change","two-scopes"} -> 14 \in H
  [] OTHER -> 12 \in H
-Init == /\ held = 1..7 /\ definitions = IF Scenario = "missing-definition" THEN {} ELSE {7,14}
+Init == /\ held = (1..7) \cup {20,21} /\ definitions = IF Scenario = "missing-definition" THEN {} ELSE {7,14}
         /\ view = Projection(held,definitions) /\ witnessReached = FALSE /\ faultPresent = Fault(held,definitions)
 Deliver(id) == /\ id \in IDs \ held /\ held' = held \cup {id}
  /\ UNCHANGED definitions /\ view' = Projection(held',definitions)
@@ -235,7 +285,8 @@ Spec == Init /\ [][Next]_vars
 TypeOK == /\ held \subseteq IDs /\ definitions \subseteq {7,14}
  /\ view.ordinary \subseteq held /\ view.selected \subseteq held /\ witnessReached \in BOOLEAN
 GovernanceAuthority == \A id \in view.governance : ByID[id].author = 0
-NamedAuthority == \A d \in view.selected : ByID[d].author = 4
+NamedAuthority == \A d \in view.selected :
+ HoldsLead(held,RoleAnchor(held,ByID[d].anchor),ByID[d].author)
 ExactScope == \A d \in view.selected : ByID[d].scope = ByID[ByID[d].subject].scope /\
  ByID[d].round = ByID[ByID[d].subject].round
 DistinctPinnedQuorum == \A d \in view.selected :
@@ -253,6 +304,18 @@ DoubleSuccessorHalts == \A d \in held :
 GovernanceKeyIsNoMember == \A id \in view.ordinary \cup view.selected : ByID[id].author # 0
 HostAgentForkCostsGovernanceNothing ==
  Scenario = "host-agent-fork" => \A id \in held : IsGov(id) => id \in view.governance
+RolesNeverEmpty == \A anchor \in Governance(held) :
+ \A role \in Roles : RolesAt(held,anchor)[role] # {}
+RoleHeldAtAnchor ==
+ /\ \A r \in {id \in view.ordinary : ByID[id].kind = "review"} :
+       ByID[r].author \in RolesAt(held,ByID[r].anchor).reviewer
+ /\ \A d \in view.selected :
+       /\ HoldsLead(held,ByID[d].anchor,ByID[d].author)
+       /\ \A r \in ByID[d].evidence : ByID[r].kind = "review" =>
+              ByID[r].author \in RolesAt(held,ByID[r].anchor).reviewer
+LaterLeadWins == \A d \in view.selected :
+ LET current == Current(held,definitions,ByID[d].scope)
+ IN current # 0 /\ ByID[ByID[d].anchor].seq <= ByID[ByID[current].anchor].seq
 ReplayMatchesHeld == view = Projection(held,definitions)
 NeverWitness == ~witnessReached
 =============================================================================

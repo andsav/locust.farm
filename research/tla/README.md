@@ -1,6 +1,8 @@
 # Locust TLA+ models
 
-The organization, session and effect models target the protocol subset introduced in
+The organization model targets the Phase 4 role-holder subset of protocol/API 7;
+its case entries carry their own source baseline. The session and effect models
+target the protocol subset introduced in
 `c88e3bc960de79eb990b3185a653bd982e587ed6`. Start with the
 [property and evidence map](organization.md). The
 [formal verification plan](https://github.com/andsav/locust.farm/blob/ddb2db1e609652a1de766b453d8e86b45b25a1f3/docs/tla-verification-plan.md) identifies
@@ -9,7 +11,7 @@ not a deductive proof or Rust refinement proof. Proposed workspace and restore
 models identify their own specification baselines in their guides.
 
 - [Organization](Organization.tla): authenticated event delivery, narrow
-  governance, tenure cutoffs, pinned definitions/rules, completion review identity,
+  governance, anchored role holders, tenure cutoffs, pinned definitions/rules, completion review identity,
   and scoped exact selection proofs.
 - [Attempt sessions](AttemptSessions.tla): independent attempts, local permission,
   claim generations, principal binding, keyed retries and uncertain commit recovery.

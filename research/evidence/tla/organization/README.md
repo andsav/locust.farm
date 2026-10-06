@@ -1,6 +1,6 @@
 # Organization protocol model verification evidence
 
-Date: 2026-10-04. **All 54 registered cases matched their expected outcomes.**
+Historical record, 2026-10-04. **All 54 cases registered then matched their expected outcomes.**
 This comprises 19 completed bounded safety cases, 22 requested reachability
 counterexamples, 11 deliberate mutation counterexamples and two runner fixtures.
 An expected counterexample establishes its named scenario or broken mutation;
@@ -11,7 +11,7 @@ The modeled source is `c88e3bc960de79eb990b3185a653bd982e587ed6`.
 record actual checkout commit/dirty paths, source hashes, all model/configuration
 hashes, exact configuration text, tool pins, commands, fingerprint estimates,
 counts, traces and resource observations. Both runs report unchanged checked
-source hashes from start to finish. Their union is exactly the current registry;
+source hashes from start to finish. Their union is exactly the registry at that date;
 there are no skipped registered cases. Historical/parallel checkout work is
 recorded rather than represented as a pristine release checkout.
 
@@ -102,3 +102,47 @@ results.
 | `attempt-single-safety` | complete | 149,201 | 11.209 |
 | `attempt-independent-safety` | complete | 174,761 | 13.903 |
 | `effects-safety` | complete | 3,643 | 0.823 |
+
+
+## Phase 4 roles, model-first checks (2026-10-06)
+
+The [seven-case role gate](phase4-role-gate.json) matched all three new safety
+scenarios, three requested witnesses and the deliberately broken own-anchor
+lookup. It completed before any Phase 4 Rust code was edited. The model and
+configuration hashes identify the actual inputs; its modeled source baseline
+is K1 commit `a6664a15682534bdaa94ac149a759b2bea0a8ea3` with the explicitly
+labeled Phase 4 amendment, protocol/API 7. A completed Phase 4 implementation
+commit cannot be named until it exists; the case registry will be pinned to it
+in a follow-up evidence commit.
+
+The [full model-first run](phase4-model-first.json) then matched **all 42 case
+outcomes**: 21 completed safety checks, 12 reachability witnesses and nine
+expected mutation violations. This preserved all 35 previous outcomes. Its
+checker process nevertheless exited 1 because concurrent Phase 4 Rust edits
+changed tracked source hashes while it ran. The frozen formal inputs did not
+change. This run is evidence for the model outcomes, not a passing stable-source
+final gate; the stable-tree rerun below supplies that gate.
+No timeout was requested and none of these cases timed out.
+
+The role-change and lead-change safety cases each exhaust 128 distinct held
+subsets; role-removal exhausts 64. The anchor mutation reaches an ordinary
+review by identity 4 signed before it held the reviewer role, with the role
+change present. That is exactly `RoleHeldAtAnchor`'s required counterexample.
+Neither these checks nor the older results establish Rust refinement,
+unbounded behavior or transport liveness. Review rejects, unpinned completion,
+only-member completion, opinions, admission-carried roles and first files are
+outside the formal subset, as the [property map](../../../tla/organization.md)
+and [workspace boundary](../../../tla/workspace.md) describe.
+
+
+### Final stable-source run
+
+The [final Phase 4 run](phase4.json),
+`output/tla/runs/20261006T203500Z-6f425b43`, completed with checker exit 0:
+all **42 cases matched**, no timeout, and `source_changed_during_run: false`.
+The 21 safety cases exhausted their queues; the 12 witnesses and nine deliberate
+mutations reached their registered violations and required trace predicates.
+The same frozen organization model hash was checked before Rust implementation
+and in this final run. The per-case source-baseline pin is updated to the completed
+implementation commit separately; this retained record preserves the exact
+baseline and checkout hashes observed when the checker ran.

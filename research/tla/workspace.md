@@ -7,6 +7,16 @@ The [implementation plan](../../docs/shared-file-tree-plan.md) and
 file availability. This is neither a proof of the Rust implementation nor a
 network qualification result.
 
+Phase 4 boundary, 2026-10-06: the model's first tree change is a member's and
+requires approval like later changes. It does not model the host agent's first
+files counting when posted, or the only-member completion part. Those claims
+rest on the Phase 4 Rust tests, including
+`the_hosts_first_files_count_as_posted_whatever_the_trees_rule`,
+`first_files_are_once_per_epoch_that_starts_empty` and
+`first_files_and_the_only_member_part_never_disagree` in
+[workspace tests](../../crates/locust-core/src/goal/workspace_tests.rs).
+The workspace model is unchanged by this phase.
+
 ## Contract fixed by the model
 
 The administrator event has an expected predecessor epoch, exact rules binding,

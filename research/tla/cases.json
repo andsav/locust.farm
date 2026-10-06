@@ -81,7 +81,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-taskless",
@@ -106,7 +112,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-fork",
@@ -131,7 +143,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-review-fork",
@@ -156,7 +174,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-scope-conflict",
@@ -181,7 +205,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-authority-fork",
@@ -206,7 +236,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-duplicate-review",
@@ -231,7 +267,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-rule-change",
@@ -256,7 +298,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-cutoff",
@@ -281,7 +329,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-remove-empty",
@@ -306,7 +360,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-governance-fork",
@@ -331,7 +391,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-governance-key-work",
@@ -358,7 +424,13 @@
         "ReplayMatchesHeld",
         "GovernanceKeyIsNoMember",
         "HostAgentForkCostsGovernanceNothing"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-host-agent-fork",
@@ -385,7 +457,13 @@
         "ReplayMatchesHeld",
         "GovernanceKeyIsNoMember",
         "HostAgentForkCostsGovernanceNothing"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-forged-selection",
@@ -410,7 +488,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-wrong-scope",
@@ -435,7 +519,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-two-scopes",
@@ -460,7 +550,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-incompatible",
@@ -485,7 +581,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-missing-definition",
@@ -510,7 +612,13 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld"
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-taskless-witness",
@@ -542,7 +650,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-fork-witness",
@@ -574,7 +688,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-review-fork-witness",
@@ -606,7 +726,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-scope-conflict-witness",
@@ -638,7 +764,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-two-scopes-witness",
@@ -670,7 +802,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-incompatible-witness",
@@ -702,7 +840,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-missing-definition-witness",
@@ -734,7 +878,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-cutoff-witness",
@@ -766,7 +916,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-remove-empty-witness",
@@ -798,7 +954,13 @@
         {
           "witnessReached": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-pin-mutation",
@@ -820,7 +982,13 @@
         {
           "faultPresent": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-isolation-mutation",
@@ -842,7 +1010,13 @@
         {
           "faultPresent": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-cutoff-mutation",
@@ -864,7 +1038,13 @@
         {
           "faultPresent": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-distinct-mutation",
@@ -886,7 +1066,13 @@
         {
           "faultPresent": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-scope-mutation",
@@ -908,7 +1094,13 @@
         {
           "faultPresent": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-authority-mutation",
@@ -930,7 +1122,13 @@
         {
           "faultPresent": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-rules-mutation",
@@ -952,7 +1150,13 @@
         {
           "faultPresent": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "organization-definition-mutation",
@@ -974,7 +1178,13 @@
         {
           "faultPresent": "TRUE"
         }
-      ]
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     },
     {
       "id": "attempt-aba-witness",
@@ -4218,6 +4428,259 @@
         "AllNoFork",
         "AllStayHeld"
       ]
+    },
+    {
+      "id": "organization-role-change",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-role-change.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "RolesNeverEmpty",
+        "RoleHeldAtAnchor",
+        "LaterLeadWins"
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
+    },
+    {
+      "id": "organization-role-change-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-role-change-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "RolesNeverEmpty",
+        "RoleHeldAtAnchor",
+        "LaterLeadWins",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
+    },
+    {
+      "id": "organization-lead-change",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-lead-change.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "RolesNeverEmpty",
+        "RoleHeldAtAnchor",
+        "LaterLeadWins"
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
+    },
+    {
+      "id": "organization-lead-change-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-lead-change-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "RolesNeverEmpty",
+        "RoleHeldAtAnchor",
+        "LaterLeadWins",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
+    },
+    {
+      "id": "organization-role-removal",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-role-removal.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "RolesNeverEmpty",
+        "RoleHeldAtAnchor",
+        "LaterLeadWins"
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
+    },
+    {
+      "id": "organization-role-removal-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-role-removal-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "RolesNeverEmpty",
+        "RoleHeldAtAnchor",
+        "LaterLeadWins",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
+    },
+    {
+      "id": "organization-role-anchor-mutation",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-role-anchor-mutation.cfg",
+      "expect": "violation",
+      "kind": "deliberate-mutation",
+      "properties": [
+        "TypeOK",
+        "RoleHeldAtAnchor"
+      ],
+      "violation": "RoleHeldAtAnchor",
+      "trace_require": [
+        {
+          "faultPresent": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "source_commit": "a6664a15682534bdaa94ac149a759b2bea0a8ea3",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "phase4-role-holder-amendment-of-k1"
+      }
     }
   ]
 }
