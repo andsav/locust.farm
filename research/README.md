@@ -29,6 +29,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Ending a goal and cleaning up: what exists, one design and what broke](ending-a-goal-2026-10-05.md)
 - [How much v2 adds: a count against the code, with what it missed and what can be cut](v2-complexity-count-2026-10-06.md)
 - [Replacing a host: a design for the first version, and what its check found](replacing-a-host-design-2026-10-06.md)
+- [Checking the v2 plan review: every finding, tried for refutation](v2-plan-review-verification-2026-10-06.md)
 - [Independent v2 plan review: soundness, phase order, cuts and the first public door](v2-plan-review-2026-10-06.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
 - [Iroh transport probe findings](iroh-transport-probe.md)
@@ -66,6 +67,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Three-agent board trial evidence](evidence/role-free-board-2026-10-05/README.md)
 - [Evidence for the v2 complexity count](evidence/v2-complexity-count-2026-10-06/README.md)
 - [Evidence for the backup-host design round](evidence/replacing-a-host-design-2026-10-06/README.md)
+- [Evidence for the check of the v2 plan review](evidence/v2-plan-review-verification-2026-10-06/README.md)
 
 - [ecdsa.fail leaderboard analysis](evidence/ecdsa-fail-leaderboard-analysis.md)
 - [hcom validation evidence](evidence/hcom-validation.md)
