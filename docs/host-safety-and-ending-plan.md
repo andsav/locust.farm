@@ -51,9 +51,13 @@ of these is fixed here.
    ends that hold. Until then the other members' agents still post and
    review, but nobody joins, no stage step is taken and no approved change is
    recorded. After a data folder alone is put back, a hold ends by itself
-   when the missing record returns from another computer. Where no computer
-   that answers holds a record the host signed, only the same command ends
-   it. Going on under a new key would need no person. It is scoped in the
+   when the missing record returns from another computer. A computer can
+   answer and still not send it: the model kept the case where the only
+   other holder was removed since, and a removed computer's exchanges
+   finish and bring nothing. Where no computer that answers sends the
+   record back, only the same command ends the hold, and status lists the
+   goal under "Waiting for you" with that command. Going on under a new
+   key would need no person. It is scoped in the
    [check of the review](../research/v2-plan-review-verification-2026-10-06.md),
    is not built in v2 and belongs with the backup host.
 2. **The page of an ended goal cannot be corrected from a host whose data went
@@ -1697,8 +1701,14 @@ From K1: the governance key (`state().governance`), the host's agent
 `Node::next_place` and `sign_at`. K1 leaves no hook of its own; the guard's
 hooks are `Node::hold` and `Node::admission_hold`. The guard holds by key and
 reads nothing else about a key. Phases 2 to 6 are on the tree when it lands,
-so G2 can own the documents it makes stale. Nothing from END. The model named
-under "Model first" and the file-identity note come first.
+so G2 can own the documents it makes stale. Nothing from END. The two
+things named under [Models written first](#models-written-first) are
+written: the model, with its page
+[restore-guard.md](../research/tla/restore-guard.md), and the file-identity
+note,
+[restore-file-identity-2026-10-06.md](../research/restore-file-identity-2026-10-06.md).
+What they found is folded into this phase's tests, notes and exit
+criteria.
 
 **Changes.** Terms, each with one meaning below.
 
@@ -1773,9 +1783,14 @@ Two holds end only on the person's command (`goal.continue`, below).
   agent's key of this daemon in that goal is held with the governance key, by
   the fourth row.
 - A behind hold on the governance key, for as long as no computer that
-  answers holds the marked record. The daemon never gives up a governance
-  record by itself: the records it is missing are the ones that say who the
-  other computers are.
+  answers sends the marked record. A computer can answer and send nothing:
+  the model kept the case where the only other holder of the record was
+  removed since, and a removed computer's exchanges finish and bring
+  nothing (`restore-finding-removed-keeper`). That hold does not end by
+  itself either. Once every other computer has answered, status lists the
+  goal under "Waiting for you" with the command that ends it (G2). The
+  daemon never gives up a governance record by itself: the records it is
+  missing are the ones that say who the other computers are.
 
 Every other hold waits for the computers its row names and for no person. If
 one of them never answers the hold lasts, and the person can end it with the
@@ -1797,7 +1812,7 @@ names in finding 4.
 | --- | --- |
 | A private goal whose members are all on this computer | After an ordinary start nothing is held, and no person and no other computer is asked for anything. After the data directory is put back from an older copy the hold ends at once: the mark says the goal was never shared. After a copy of unknown age the goal waits for the person, once, as every goal this computer hosts does. The copy cannot show that the goal was never shared (answer 13) |
 | A copy older than every member on another computer | Marks kept: the governance key is behind, its mark says shared, and an empty list of computers never ends that hold. A member's computer that calls is called back. Marks lost: unheard in a goal this computer hosts, so it waits for the person. The copy lists no other computer, and a member's computer that calls meanwhile is called back |
-| A computer that answers but holds less, or withholds | Marks kept: only the marked record ends the hold, so neither can end it. Marks lost, in a goal this computer hosts: no answer ends the hold, and the person decides when to continue. Marks lost, on a member's computer: not detected (residual 5 in the notes) |
+| A computer that answers but holds less, withholds, or sends nothing because it was removed since | Marks kept: only the marked record ends the hold, so none of the three can end it. The third is honest: a removed computer's exchanges finish and bring nothing, and the hold lasts although every computer answered (the model's `restore-finding-removed-keeper`). Marks lost, in a goal this computer hosts: no answer ends the hold, and the person decides when to continue. Marks lost, on a member's computer: not detected (residual 5 in the notes) |
 | Records this daemon signed that reached no other computer | Marks kept: an agent's key gives them up once every other computer has answered. The governance key never does by itself; once every other computer has answered, G2 lists the goal for the person. Marks lost: not known, and harmless, since no other computer holds them |
 | No member's computer can be reached | Nothing is signed and no clock ends the hold. With the marks kept it waits for a computer that holds the missing record, and status names the computers not heard from; the person's command is the only other way out. After a copy of unknown age a goal this computer hosts waits for the person in any case |
 | A public goal | The same answers. The farm-service check can add a hold through `guard_attest`, where a start looked ordinary and the service shows that the copy is behind. It never ends a hold, and it does not show that the governance log is whole |
@@ -1867,7 +1882,9 @@ second or the third "caught up".
   mark that signs at once. The marks a start writes (below) follow the same
   rule and are on disk before the transport starts. `FileId::of(path)` takes
   the inode number and the creation time from the file's metadata; the device
-  number is left out because it can change between boots.
+  number is left out because it can change between boots. Where the file
+  system reports no creation time, `created_ms` is `None` (measured on
+  tmpfs) and the inode number alone decides.
   `SqliteStore::open(dir, marks)` creates the marks directory with mode 0700;
   `commit` applies `commit.marks` after the SQLite transaction and syncs the
   marks file; `marks()` answers `FileId::of` the database file and
@@ -2280,13 +2297,24 @@ second or the third "caught up".
   machine's store goes back to an earlier snapshot, with its marks kept or
   lost. New invariant
   `a_restored_machine_signs_at_no_used_position_unless_its_owner_continued`,
-  claimed where it holds and nowhere else. For the governance key it holds in
-  every run, with the marks kept or lost and with members admitted or removed
-  after the snapshot: a mark is on disk before its record can leave, and with
-  the marks lost the hold ends only on the owner's command. For an agent's key
+  claimed where it holds and nowhere else. A used position is one at which a
+  machine still holds a record, so what the invariant says is the model's
+  `StoreNoFork`: no two machines ever hold different records at one
+  position. A position whose record was lost everywhere can be signed again
+  under the two give-up rules, and the claims below leave those runs out.
+  For the governance key the claim holds in every run whose goal had a
+  member on another computer, with the marks kept or lost and with members
+  admitted or removed after the snapshot: a mark is on disk before its
+  record can leave, and with the marks lost the hold ends only on the
+  owner's command. In a goal never shared the mark is lowered at the start
+  and the position can be signed again; the lost record reached no other
+  machine (the model's `restore-finding-private-reuse`). For an agent's key
   on the machine that hosts the goal it holds whenever the marks are lost,
   because the key is held with the governance key. With the marks kept it
-  holds for an agent's key in runs that remove no member after the snapshot.
+  holds for an agent's key whose missing record another machine that can
+  still be asked holds. Where the record reached no other machine the mark
+  is given up once every other computer has answered, and the position can
+  be signed again (the model's `restore-finding-unseen-agent-reuse`).
   It is not claimed for an agent's key on a member's machine whose marks are
   lost. Two seeded runs are kept that must end in a reused position, one for
   each case left out, both under residual 5 in the notes: a member's machine
@@ -2309,6 +2337,20 @@ second or the third "caught up".
   scripts/check_documentation.py --binary target/debug/locust --timeout 60`
   and `python3 -m unittest discover -s scripts/tests`. This phase removes no
   interface they call.
+- `python3 scripts/check_tla.py --suite restore` passes with the outcomes
+  the registry declares. Passing: the safety cases `restore-p1-store`,
+  `restore-p2-all`, `restore-p3-ordinary`, `restore-p4-all-held` and
+  `restore-p5-agent-fenced`, the two extended twins, and the recovery cases
+  `restore-p4-recovery`, `restore-p4-alone`, `restore-p4-agent-give-up` and
+  `restore-p4-willing-general`. Declared violations, kept as traces: the
+  six rule removals `restore-lacking-peer`, `restore-empty-shared`,
+  `restore-hear-with-data`, `restore-give-agent-held`,
+  `restore-agent-signs-held` and `restore-all-listed`, with their guarded
+  twins passing; the two residuals `restore-residual-removed` and
+  `restore-residual-member`; the two give-up traces
+  `restore-finding-private-reuse` and `restore-finding-unseen-agent-reuse`;
+  `restore-finding-removed-keeper`, the named wait on the person; and
+  `restore-p4-fairness-removed`.
 - `cargo run --release -p locust-store --example commit_latency` measures a
   commit that carries a mark beside one that carries none, and both numbers
   stand in the table of the crate comment in
@@ -2341,13 +2383,24 @@ second or the third "caught up".
 - The simulator's seeded runs with `Kind::Restored` pass the new invariant
   where the tests above claim it, and the two kept runs end in a reused
   position.
-- One recorded note under `research/`: on macOS (APFS) and Linux (ext4),
-  `FileId` of the database and of the marks directory stays equal across a
-  reboot and a rename, and changes after `cp -R` and `rsync -a`. A Time
-  Machine restore and a Migration Assistant transfer are added when a second
-  machine is at hand; until then the note lists them as not measured. This
-  phase is not done until the note exists; where a tool keeps `FileId`, the
-  note says so and the residual list gains a line.
+- The recorded note exists:
+  [restore-file-identity-2026-10-06.md](../research/restore-file-identity-2026-10-06.md),
+  with its script and full output. Measured on macOS (APFS) and Linux
+  (Docker's overlayfs, plus a tmpfs probe): `FileId` of the database and of
+  the marks directory stays equal across a stop and start, a checkpoint, a
+  `VACUUM` and a rename; every copy tool measured gives the copy a new
+  inode number; a data directory replaced by a copy is caught on both
+  systems, on overlayfs by the creation time alone; and `cp` over the
+  existing path and `rsync --inplace` keep both values and are caught only
+  where a mark is ahead. Still missing, and this phase may be built before
+  each: a Time Machine restore and a Migration Assistant transfer (both
+  need a second machine; by judgement they write restored files as new
+  files, the shape every measured copy tool shows, and a restore that kept
+  the identity would be the in-place case the marks catch); a reboot (a
+  rename is measured to keep both values, and the device number is left out
+  because it can change between boots); and a plain Linux disk (the limit a
+  file system with no reported creation time and reused inode numbers adds
+  is stated in the notes).
 
 **Risks and notes.**
 - What the guard can know. With its marks kept it knows exactly the last
@@ -2397,10 +2450,31 @@ second or the third "caught up".
   `goal continue`. Short: an ordinary start raises the mark, but a data
   directory put back from an older copy before that start passes the guard.
   The guard assumes storage that keeps what it reports as synced.
-- The first table rests on file numbers. On a file system that does not keep
-  them across a remount (some network and removable-disk formats), every start
-  looks like a copy: pending invitations are revoked at each start, and with
-  the marks on such a disk too every goal waits. The default home is on the
+- The first table rests on file identity, and that is now measured
+  ([restore-file-identity-2026-10-06.md](../research/restore-file-identity-2026-10-06.md),
+  macOS APFS and Linux overlayfs, with a tmpfs probe). Noticed by the
+  identity: every copy tool measured (`cp -R`, `cp -Rp`, `cp -c`, `ditto`,
+  `rsync -a` and tar) gives the copy a new inode number, so a data
+  directory replaced by a copy reads as another file on both systems.
+  `cp -c`, an APFS clone, keeps the creation time exactly and is caught on
+  the inode alone. On overlayfs the freed inode numbers were handed to the
+  new files at once, and only the changed creation time kept the restore
+  visible. A rename keeps both values, so moving the home aside and back on
+  one volume is an ordinary start. Caught only because a mark is ahead:
+  `cp` over the existing path and `rsync --inplace`, which keep the inode
+  and the creation time while the content verifiably rolls back, on both
+  systems. Row 1's caveat is the whole defence against them, and with the
+  marks lost too they are residual 3. Where no mark is ahead such an
+  overwrite is invisible by design: nothing this daemon signed was lost,
+  and records it received return by exchange. A plain limit, measured in
+  its two halves: a file system can report no creation time (tmpfs, where
+  `created_ms` is `None`) and an allocator can hand a replaced file its old
+  number back (overlayfs). A file system with both would make even a
+  replaced directory read as the same file, and the marks would be the
+  whole defence. On a file system that does not keep file identity across
+  a remount (some network and removable-disk formats), every start looks
+  like a copy: pending invitations are revoked at each start, and with the
+  marks on such a disk too every goal waits. The default home is on the
   system disk, where this does not happen.
 - A copy older than the goal itself: the marks know the goal and the store
   does not. This phase does not bring such a goal back; G2 prints one line. A
@@ -2579,10 +2653,12 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   itself. To go on without waiting: LINE", with LINE from new
   `continue_command(goal)`; in the agent's voice it is "It catches up by
   itself, or WHO's owner can continue without waiting." and no command is
-  printed. Where only the person ends it, an `Unheard` hold whose view has
-  `by_host`, the person's voice reads "It waits for you. To continue: LINE"
-  and the agent's "It waits for WHO's owner, who can continue with one
-  command." For `Admitted` the fix in both voices is "It ends by itself." and
+  printed. Where only the person ends it, the person's voice reads "It waits
+  for you. To continue: LINE" and the agent's "It waits for WHO's owner, who
+  can continue with one command." That is an `Unheard` hold whose view has
+  `by_host`, and also a `Behind` hold on the governance key whose `waiting`
+  is empty: every other computer has answered and none sent the marked
+  record. For `Admitted` the fix in both voices is "It ends by itself." and
   no command is printed.
 - [authoring.rs](../crates/locust-core/src/node/authoring.rs) and
   [access.rs](../crates/locust-core/src/node/access.rs): `next_place` takes
@@ -2692,7 +2768,9 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   missing records from another computer in the goal, and the computers not
   heard from stand under `Not yet:`. When every other computer has answered
   and the governance key is still behind, the block adds `No computer that
-  answered holds them. Waiting for you.` An `Unheard` hold in a goal this
+  answered sent them. Waiting for you.` One that answered can still hold
+  them: a computer removed since finishes its exchanges and sends nothing
+  (G1's notes). An `Unheard` hold in a goal this
   computer hosts reads `Waiting for you: only you can say this is the newest
   copy of this computer's data.` and its last line reads `To continue: ` with
   the continue line. An `Unheard` hold on a member's computer reads `Waiting
@@ -2789,7 +2867,9 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
 - The continue line is printed under every goal that is catching up, but a
   goal is listed under "Waiting for you" only when no computer can end the
   hold: a goal this computer hosts after a copy of unknown age, and a goal
-  whose missing host records no computer that answered holds. A person whose
+  whose missing host records no computer that answered sent back, whether
+  because none holds them or because the one that does was removed since and
+  sends nothing. A person whose
   computer is catching up by itself is not asked to do anything. The limit: a
   hold that waits for a computer that never answers is not listed. It lasts
   until that computer answers or the person continues, and status names the
@@ -4235,7 +4315,7 @@ leave means, are the host-replacement plan's to say.
 
 ## Models written first
 
-Each part asks for a model under `research/tla` before its code. None is written yet, and the work is not sized.
+Each part asks for a model under `research/tla` before its code. The restore guard's is written; the rest are not, and the work is not sized.
 
 **The signing key (K1).** A small change to research/tla/Organization.tla,
 made and run before chain.rs is touched, as the first step of K1. It is the
@@ -4260,53 +4340,77 @@ that limit is stated in prose and pinned by Phase 4's test. It does not cover
 the first-files rule either; Phase 4 says so in a dated note in
 research/tla/workspace.md and rests that rule on its Rust tests.
 
-**The restore guard (G1, G2).** A small model,
-`research/tla/RestoreGuard.tla`, with its configurations under
-`research/tla/configs`, its entries in `research/tla/cases.json`, and one page
-in the directory's README, run by `python3 scripts/check_tla.py`, before G1.
-Its cases join the `fast` and `extended` suites in cases.json. The order of
-the model changes is K1's change to the Organization model, the role holders
-of roles-plan Phase 4, then this model, then E1's cases. It is a node model,
-not a change to Organization.tla: the guard is not a validity rule. Two keys
-on one daemon (the governance key
-and one agent key), that daemon and two peers, one admission and one removal
-allowed, bounded log length. Actions: Sign, Admit, Remove, Sync(a, b) with an
-order in which a member's records can arrive before the admission that names
-it and are then dropped, Copy (remember the holder's store, and separately its
-marks), RestoreStore (store back, marks kept), RestoreAll (both back),
-LoseMarks, Start (classify by the first table), Hear (per peer, only on a sync
-that brought nothing), Settle (the second table, with the row that holds the
-agent key while the governance key is held), Continue. Properties: (1) after
-RestoreStore, in every run without Continue, the governance key never signs at
-a used position, and the agent key never does in a run with no Remove after
-the copy. The exemption is the agent key's give-up rule: its record can have
-reached only a peer removed since, which is not asked; (2) NoFork after
-RestoreAll in every run without Continue, whatever was admitted or removed
-after the copy, because that hold ends only on Continue; (3) an ordinary Start
-never sets a hold; (4) after RestoreStore, in a run where all peers are
-eventually reachable and honest, the governance key's hold ends when a peer
-holds the marked record or the goal was never shared, and the agent key's hold
-ends once the governance key's has; after RestoreAll neither key's hold ends
-in any run that has no Continue; (5) on the host's daemon the agent key
-never signs while the governance key is held; (6) named counterexamples, kept
-as traces because each is the reason for one rule: the hold released after the
-first exchange with any one peer (the lacking member); an empty peer list
-ending a hold while the mark says shared (the copy from before the first
-admission); hearing counted on an exchange that brought records (a rejoined
-key signs at zero); an agent key given up while the governance key is still
-behind; the agent key signing while the governance key is behind (the host's
-agent posts on a view older than an admission); the host's hold after
-RestoreAll released once every peer the copy lists was heard from (an
-admission and a removal after the copy: the removed peer answers with nothing,
-and the admitted peer holds the later record and is not listed), which is why
-that hold ends only on Continue; and, left open on purpose, the two cases
-under residual 5: the agent key given up after RestoreStore when its record
-reached only a peer removed since, and, in a second configuration where the
-restored daemon is a member's, RestoreAll when the host's daemon never
-received the agent key's last record and the other peer did. Also before
-building, and not a model: the file-identity note named in G1's exit criteria,
-because the first table rests on how file systems treat a file's identity and
-nobody measured it.
+**The restore guard (G1, G2).** Written on 6 October 2026:
+[RestoreGuard.tla](../research/tla/RestoreGuard.tla), with its
+configurations under `research/tla/configs`, its entries in
+`research/tla/cases.json` (its cases join the `fast`, `extended` and
+`restore` suites) and its page
+[restore-guard.md](../research/tla/restore-guard.md), run by `python3
+scripts/check_tla.py --suite restore`. It is a node model, not a change to
+Organization.tla: the guard is not a validity rule. Two keys on one daemon
+(the governance key and one agent key), that daemon and two peers, one
+admission and one removal allowed, bounded log length. Actions: Sign,
+Admit, Remove, Sync(a, b) with an order in which a member's records can
+arrive before the admission that names it and are then dropped, Copy,
+RestoreStore (store back, marks kept), RestoreAll (both back), LoseMarks,
+Start (classify by the first table), Hear (per peer, only on a sync that
+brought nothing), Settle (the second table, with the row that holds the
+agent key while the governance key is held), Continue. Its properties, by
+the names the model gives them:
+
+- `StoreNoFork` (cases `restore-p1-store`, `restore-p1-store-extended`):
+  after RestoreStore without Continue, no two computers hold different
+  records at one position, with the plan's exemption for the agent key
+  after a removal. This is what the guard guarantees. The stronger
+  `StoreNoReuse` fails, by design: a record that was lost everywhere can
+  have its position used again under the plan's two rules for that, the
+  never-shared release of the governance mark and the give-up of an agent
+  key's record once every other computer has answered. The model keeps
+  both traces, `restore-finding-private-reuse` and
+  `restore-finding-unseen-agent-reuse`: finding F1 of
+  [restore-guard-model-2026-10-06.md](../research/restore-guard-model-2026-10-06.md).
+- `AllNoFork` (cases `restore-p2-all`, `restore-p2-all-extended`): after
+  RestoreAll on the host without Continue, no fork, whatever was admitted
+  or removed after the copy, because that hold ends only on Continue.
+- `OrdinaryStart` (case `restore-p3-ordinary`): an ordinary healthy Start
+  sets no hold.
+- `HoldsEnd` (cases `restore-p4-recovery`, `restore-p4-alone`,
+  `restore-p4-agent-give-up`) and `WillingHoldsEnd` (case
+  `restore-p4-willing-general`): after RestoreStore, with every peer
+  eventually reachable and honest, the holds end when the goal was never
+  shared or a peer that may still send holds the marked record. The
+  stronger "a peer holds it" does not hold:
+  `restore-finding-removed-keeper` keeps the case where the only other
+  holder was removed since and answers with nothing, and that wait does
+  not end by itself (finding F2). G1 names the case, and G2 lists the goal
+  under "Waiting for you" with the command that ends it. `AllStayHeld`
+  (cases `restore-p4-all-held`, `restore-p2-all`): after RestoreAll on the
+  host neither key's hold ends without Continue.
+  `restore-p4-fairness-removed` shows the holds end only when settling is
+  scheduled.
+- `AgentFenced` (case `restore-p5-agent-fenced`): on the host's daemon the
+  agent key never signs while the governance key is held.
+- The six named rule removals, each a kept trace with a guarded twin that
+  passes: `restore-lacking-peer` (the hold released after the first
+  exchange with any one peer), `restore-empty-shared` (an empty peer list
+  ending a hold while the mark says shared), `restore-hear-with-data`
+  (hearing counted on an exchange that brought records),
+  `restore-give-agent-held` (an agent key given up while the governance key
+  is still behind; `NoGiveWhileHeld`), `restore-agent-signs-held` (the
+  agent key signing while the governance key is behind) and
+  `restore-all-listed` (the host's hold after RestoreAll released once
+  every peer the copy lists was heard from). The two planned residuals
+  reproduce with every rule present: `restore-residual-removed` (the agent
+  key given up after RestoreStore when its record reached only a peer
+  removed since) and `restore-residual-member` (RestoreAll on a member's
+  daemon when the host's daemon never received the agent key's last record
+  and the other peer did). `restore-continue-override` shows that the
+  person's command can cause a retained fork.
+
+Also written, and not a model: the file-identity note named in G1's exit
+criteria,
+[restore-file-identity-2026-10-06.md](../research/restore-file-identity-2026-10-06.md).
+Its measurements are folded into G1's notes and exit criteria.
 
 **Ending a goal (E1, E2).** Before the chain rule of E1 is built, add the
 governance kind `end` to research/tla/Organization.tla (its `GovKinds` today
