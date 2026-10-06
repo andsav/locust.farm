@@ -30,6 +30,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [How much v2 adds: a count against the code, with what it missed and what can be cut](v2-complexity-count-2026-10-06.md)
 - [Replacing a host: a design for the first version, and what its check found](replacing-a-host-design-2026-10-06.md)
 - [Checking the v2 plan review: every finding, tried for refutation](v2-plan-review-verification-2026-10-06.md)
+- [Restore file identity: how copies and restores look to the operating system](restore-file-identity-2026-10-06.md)
 - [Independent v2 plan review: soundness, phase order, cuts and the first public door](v2-plan-review-2026-10-06.md)
 - [Independent public-goals plan review: safety, waits, journeys and evidence comparison](public-goals-plan-review-2026-10-06.md)
 - [Locust v2 phases 1–3 build notes](v2-phases-1-3-build-notes-2026-10-06.md)
@@ -72,6 +73,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Evidence for the v2 complexity count](evidence/v2-complexity-count-2026-10-06/README.md)
 - [Evidence for the backup-host design round](evidence/replacing-a-host-design-2026-10-06/README.md)
 - [Evidence for the check of the v2 plan review](evidence/v2-plan-review-verification-2026-10-06/README.md)
+- [Evidence for the restore file identity measurements](evidence/restore-file-identity-2026-10-06/README.md)
 - [Evidence for the rewrite of the public-goals plan](evidence/public-goals-plan-2026-10-06/README.md)
 
 - [ecdsa.fail leaderboard analysis](evidence/ecdsa-fail-leaderboard-analysis.md)

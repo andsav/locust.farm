@@ -1,0 +1,130 @@
+== environment ==
+date: 2026-10-06 11:12:50 -0700
+ProductName:		macOS
+ProductVersion:		26.4
+BuildVersion:		25E246
+kernel: Darwin MacBook-Pro-3.local 25.4.0 Darwin Kernel Version 25.4.0: Thu Mar 19 19:33:50 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T6050 arm64
+scratch: /tmp/locust-fileid.0ryiZ9
+/dev/disk3s5 3896808080 3167278488 617339032    84% 14168892 3086695160    0%   /System/Volumes/Data
+   File System Personality:   APFS
+python3: /Users/andrei/mambaforge/bin/python3 (Python 3.10.12)
+sqlite3: 3.51.0 (/usr/bin/sqlite3)
+rsync: /usr/local/bin/rsync rsync  version 3.2.3  protocol version 31
+tar: /usr/bin/tar bsdtar 3.5.3 - libarchive 3.7.4 zlib/1.2.12 liblzma/5.4.3 bz2lib/1.0.8 
+ditto: /usr/bin/ditto
+other volume: /Volumes/dmg.PyiMhm (/dev/disk6s1)
+   File System Personality:   HFS+
+time machine: tmutil: No destinations configured.
+
+== ordinary use (one fixture, sequential) ==
+case ordinary/stop+start, read only
+  basedir  inode:same    birth:same    | before 165401046 1791310370504 | after 165401046 1791310370504
+  datadir  inode:same    birth:same    | before 165401047 1791310370504 | after 165401047 1791310370504
+  db       inode:same    birth:same    | before 165401049 1791310370507 | after 165401049 1791310370507
+  marker   inode:same    birth:same    | before 165401053 1791310370511 | after 165401053 1791310370511
+    rows: rows=3 -> rows=3
+case ordinary/write + WAL checkpoint(TRUNCATE)
+  basedir  inode:same    birth:same    | before 165401046 1791310370504 | after 165401046 1791310370504
+  datadir  inode:same    birth:same    | before 165401047 1791310370504 | after 165401047 1791310370504
+  db       inode:same    birth:same    | before 165401049 1791310370507 | after 165401049 1791310370507
+  marker   inode:same    birth:same    | before 165401053 1791310370511 | after 165401053 1791310370511
+    rows: rows=3 -> rows=5
+case ordinary/VACUUM
+  basedir  inode:same    birth:same    | before 165401046 1791310370504 | after 165401046 1791310370504
+  datadir  inode:same    birth:same    | before 165401047 1791310370504 | after 165401047 1791310370504
+  db       inode:same    birth:same    | before 165401049 1791310370507 | after 165401049 1791310370507
+  marker   inode:same    birth:same    | before 165401053 1791310370511 | after 165401053 1791310370511
+    rows: rows=5 -> rows=5
+
+== copies (identity of the copy, compared with the source) ==
+case copy/cp -R
+  basedir  inode:CHANGED birth:CHANGED | before 165401086 1791310371087 | after 165401103 1791310372310
+  datadir  inode:CHANGED birth:CHANGED | before 165401087 1791310371087 | after 165401105 1791310372311
+  db       inode:CHANGED birth:CHANGED | before 165401089 1791310371090 | after 165401106 1791310372311
+  marker   inode:CHANGED birth:CHANGED | before 165401093 1791310371094 | after 165401104 1791310372310
+    source mtime: db=1791310371099 marker=1791310371100
+    copy   mtime: db=1791310372311 marker=1791310372310
+case copy/cp -Rp
+  basedir  inode:CHANGED birth:CHANGED | before 165401121 1791310372481 | after 165401205 1791310372488
+  datadir  inode:CHANGED birth:CHANGED | before 165401122 1791310372481 | after 165401207 1791310372485
+  db       inode:CHANGED birth:CHANGED | before 165401124 1791310372485 | after 165401208 1791310372493
+  marker   inode:CHANGED birth:CHANGED | before 165401128 1791310372488 | after 165401206 1791310372494
+    source mtime: db=1791310372493 marker=1791310372494
+    copy   mtime: db=1791310372493 marker=1791310372494
+case copy/cp -c (clone)
+  basedir  inode:CHANGED birth:CHANGED | before 165401217 1791310373859 | after 165401233 1791310375078
+  datadir  inode:CHANGED birth:CHANGED | before 165401218 1791310373859 | after 165401235 1791310375079
+  db       inode:CHANGED birth:same    | before 165401220 1791310373862 | after 165401236 1791310373862
+  marker   inode:CHANGED birth:same    | before 165401224 1791310373865 | after 165401234 1791310373865
+    source mtime: db=1791310373870 marker=1791310373871
+    copy   mtime: db=1791310373870 marker=1791310373871
+case copy/ditto
+  basedir  inode:CHANGED birth:CHANGED | before 165401246 1791310375240 | after 165401264 1791310375247
+  datadir  inode:CHANGED birth:CHANGED | before 165401247 1791310375240 | after 165401266 1791310375244
+  db       inode:CHANGED birth:CHANGED | before 165401249 1791310375244 | after 165401267 1791310375253
+  marker   inode:CHANGED birth:CHANGED | before 165401253 1791310375247 | after 165401265 1791310375254
+    source mtime: db=1791310375253 marker=1791310375254
+    copy   mtime: db=1791310375253 marker=1791310375254
+case copy/rsync -a
+  basedir  inode:CHANGED birth:CHANGED | before 165401276 1791310376628 | after 165401294 1791310376636
+  datadir  inode:CHANGED birth:CHANGED | before 165401277 1791310376628 | after 165401295 1791310376632
+  db       inode:CHANGED birth:CHANGED | before 165401279 1791310376631 | after 165401297 1791310376642
+  marker   inode:CHANGED birth:CHANGED | before 165401283 1791310376636 | after 165401296 1791310376643
+    source mtime: db=1791310376642 marker=1791310376643
+    copy   mtime: db=1791310376642 marker=1791310376643
+case copy/tar pack+unpack
+  basedir  inode:CHANGED birth:CHANGED | before 165401306 1791310378076 | after 165401336 1791310379309
+  datadir  inode:CHANGED birth:CHANGED | before 165401307 1791310378076 | after 165401340 1791310378080
+  db       inode:CHANGED birth:CHANGED | before 165401309 1791310378079 | after 165401341 1791310378088
+  marker   inode:CHANGED birth:CHANGED | before 165401313 1791310378083 | after 165401338 1791310378089
+    source mtime: db=1791310378088 marker=1791310378089
+    copy   mtime: db=1791310378088 marker=1791310378089
+case copy/mv within volume
+  basedir  inode:same    birth:same    | before 165401356 1791310379480 | after 165401356 1791310379480
+  datadir  inode:same    birth:same    | before 165401357 1791310379480 | after 165401357 1791310379480
+  db       inode:same    birth:same    | before 165401359 1791310379483 | after 165401359 1791310379483
+  marker   inode:same    birth:same    | before 165401363 1791310379487 | after 165401363 1791310379487
+case copy/mv to other volume (there) [dmg.PyiMhm]
+  basedir  inode:CHANGED birth:CHANGED | before 165401376 1791310379714 | after 41 1791310379000
+  datadir  inode:CHANGED birth:CHANGED | before 165401377 1791310379714 | after 43 1791310379000
+  db       inode:CHANGED birth:CHANGED | before 165401379 1791310379717 | after 44 1791310379000
+  marker   inode:CHANGED birth:CHANGED | before 165401383 1791310379720 | after 42 1791310379000
+case copy/mv to other volume and back
+  basedir  inode:CHANGED birth:CHANGED | before 165401376 1791310379714 | after 165401428 1791310379000
+  datadir  inode:CHANGED birth:CHANGED | before 165401377 1791310379714 | after 165401429 1791310379000
+  db       inode:CHANGED birth:CHANGED | before 165401379 1791310379717 | after 165401430 1791310379000
+  marker   inode:CHANGED birth:CHANGED | before 165401383 1791310379720 | after 165401433 1791310379000
+
+== restores (identity at the live path after the restore, compared with what the installation last recorded) ==
+case restore/directory replaced by a copy (rm + cp -R), marker kept
+  basedir  inode:same    birth:same    | before 165401440 1791310381268 | after 165401440 1791310381268
+  datadir  inode:CHANGED birth:CHANGED | before 165401441 1791310381268 | after 165401465 1791310382511
+  db       inode:CHANGED birth:CHANGED | before 165401443 1791310381272 | after 165401466 1791310382511
+  marker   inode:same    birth:same    | before 165401447 1791310381277 | after 165401447 1791310381277
+    rows: rows=5 -> rows=3
+case restore/db overwritten in place by cp over the existing path, marker kept
+  basedir  inode:same    birth:same    | before 165401475 1791310382659 | after 165401475 1791310382659
+  datadir  inode:same    birth:same    | before 165401476 1791310382659 | after 165401476 1791310382659
+  db       inode:same    birth:same    | before 165401478 1791310382663 | after 165401478 1791310382663
+  marker   inode:same    birth:same    | before 165401482 1791310382667 | after 165401482 1791310382667
+    rows: rows=5 -> rows=3
+case restore/db overwritten in place by rsync --inplace, marker kept
+  basedir  inode:same    birth:same    | before 165401506 1791310384032 | after 165401506 1791310384032
+  datadir  inode:same    birth:same    | before 165401507 1791310384032 | after 165401507 1791310384032
+  db       inode:same    birth:same    | before 165401509 1791310384035 | after 165401509 1791310384035
+  marker   inode:same    birth:same    | before 165401513 1791310384040 | after 165401513 1791310384040
+    rows: rows=5 -> rows=3
+case restore/db overwritten by rsync default (temp file + rename), marker kept
+  basedir  inode:same    birth:same    | before 165401542 1791310385500 | after 165401542 1791310385500
+  datadir  inode:same    birth:same    | before 165401543 1791310385500 | after 165401543 1791310385500
+  db       inode:CHANGED birth:CHANGED | before 165401545 1791310385503 | after 165401572 1791310386785
+  marker   inode:same    birth:same    | before 165401549 1791310385507 | after 165401549 1791310385507
+    rows: rows=5 -> rows=3
+case restore/data dir renamed aside, older copy renamed into its place, marker kept
+  basedir  inode:same    birth:same    | before 165401579 1791310386987 | after 165401579 1791310386987
+  datadir  inode:CHANGED birth:CHANGED | before 165401580 1791310386987 | after 165401588 1791310386999
+  db       inode:CHANGED birth:CHANGED | before 165401582 1791310386991 | after 165401589 1791310386999
+  marker   inode:same    birth:same    | before 165401586 1791310386996 | after 165401586 1791310386996
+    rows: rows=5 -> rows=3
+
+done. scratch removed on exit: /tmp/locust-fileid.0ryiZ9
