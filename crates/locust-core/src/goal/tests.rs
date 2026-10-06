@@ -2738,6 +2738,36 @@ fn a_review_the_rule_does_not_ask_for_is_an_opinion_and_counts_for_nothing() {
     }
 }
 #[test]
+fn a_record_naming_an_unheld_host_record_withdraws_no_other_members_result() {
+    let mut f = Fixture::new(Formation::default());
+    let context = f.task();
+    let subject = f.publish(0, context);
+    f.worker(0, Body::CompletionDeclared { context, subject });
+    let unheld = EventId([9; 32]);
+    let stray: Vec<EventId> = [
+        Body::ReviewRecorded {
+            context,
+            subject,
+            verdict: ReviewVerdict::Reject,
+        },
+        Body::CompletionDeclared { context, subject },
+    ]
+    .into_iter()
+    .map(|body| {
+        let event = f.workers[1].event(f.id, Some(unheld), body);
+        let id = event.id();
+        f.events.push(event);
+        id
+    })
+    .collect();
+    for goal in f.replays() {
+        for id in &stray {
+            assert_eq!(goal.standing(id), Some(Standing::Pending(Waiting::Anchor)));
+        }
+        assert!(goal.state().contributions[&subject].approved);
+    }
+}
+#[test]
 fn the_only_members_result_counts_as_posted_and_a_second_admission_ends_that() {
     let mut f = alone(preset_formation("peer-review"));
     let context = f.context();

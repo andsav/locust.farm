@@ -1113,6 +1113,11 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                     continue;
                 }
             }
+            // A record that is not effective is no evidence, and the host
+            // record it names may not be held, so its rules are never read.
+            if self.status(candidate.id(), proof) != Standing::Effective {
+                continue;
+            }
             let resolved = self.resolve(context, candidate.header().anchor.unwrap())?;
             let eligible = match (rule, &candidate.header().body) {
                 (
@@ -1157,7 +1162,7 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                 }
                 _ => false,
             };
-            if eligible && self.status(candidate.id(), proof) == Standing::Effective {
+            if eligible {
                 matches
                     .entry(principal)
                     .and_modify(|id| *id = (*id).min(candidate.id()))
